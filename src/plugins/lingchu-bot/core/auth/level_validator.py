@@ -21,7 +21,7 @@ def check_qq_auth(qq: str) -> int:
     
     # 检查主人QQ
     if config.has_option('主人QQ', 'QQ'):
-        owner_qq = config.get('主人QQ', 'QQ').strip()
+        owner_qq = config.get('主人QQ', 'QQ').strip('-')
         if qq == owner_qq:
             return 1
     
