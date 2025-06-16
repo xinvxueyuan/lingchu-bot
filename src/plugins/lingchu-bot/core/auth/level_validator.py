@@ -25,4 +25,3 @@ def check_qq_auth(qq: str) -> bool:
     except Exception as e:
         logger.error(f"检查QQ权限时出错: {e}", exc_info=True)
         return False
-print(check_qq_auth("2913400124"))  # 测试用例，替换为实际QQ号进行测试

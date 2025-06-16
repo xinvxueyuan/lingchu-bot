@@ -40,7 +40,6 @@ async def handle_mute_action(event: GroupMessageEvent, matcher: Matcher, action:
         if error_msg: await matcher.send(error_msg); return
         await execute_group_action(event.group_id, matcher, action, user_id=target_qq, duration=duration or 0)
     else:
-        # 移除对机器人自身的权限检查，因为全员禁言不需要检查机器人权限
         await execute_group_action(event.group_id, matcher, action, enable=action == "全员禁言")
 
 @mute.handle()

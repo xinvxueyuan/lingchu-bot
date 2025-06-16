@@ -1,12 +1,12 @@
 from pathlib import Path
+from typing import Optional
+import asyncio  # 新增导入
 
 import nonebot
-from nonebot import get_plugin_config,logger,get_driver
+from nonebot import get_plugin_config, logger, get_driver
 from nonebot.plugin import PluginMetadata
 from nonebot.adapters.onebot.v11 import Bot
 from .config import Config
-
-from .core.init import *
 
 __plugin_meta__ = PluginMetadata(
     name="lingchu-bot",
@@ -22,27 +22,19 @@ __plugin_meta__ = PluginMetadata(
     },
 )
 
-config = get_plugin_config(Config)
+driver = get_driver()
+plugin_config = get_plugin_config(Config)
 
 sub_plugins = nonebot.load_plugins(
     str(Path(__file__).parent.joinpath("plugins").resolve())
 )
 
-driver = get_driver()
-global_config = driver.config
-plugin_config = Config(**global_config.dict())
+logger.success(
+    "灵初插件已加载, 当前状态: %s",
+    "开启" if plugin_config.plugins_state else "关闭"
+)
 
-plugin_config = get_plugin_config(Config)
-logger.success("灵初插件已加载,当前状态:{}".format(
-        "开启" if plugin_config.bot_state else "关闭"
-    ))
-
-async def get_bot_id(bot: Bot):
-    """获取当前机器人ID并赋值给配置"""
-    current_id = str(bot.self_id)
-    if plugin_config.bot_id:
-        if plugin_config.bot_id != current_id:
-            logger.error(f"机器人ID不匹配! 配置中的ID: {plugin_config.bot_id}, 当前ID: {current_id}")
-            plugin_config.bot_state = False
-    plugin_config.bot_id = current_id
-    return plugin_config.bot_id
+@driver.on_bot_connect
+async def _start_tasks(bot: Bot):
+    from .core.init import update_group_ids
+    asyncio.create_task(update_group_ids())

@@ -5,6 +5,6 @@ from pydantic import BaseModel
 # ini配置文件的配置项会覆盖此处相应配置项的值
 
 class Config(BaseModel):
-    bot_state: bool = False #机器人插件全局状态，True为开启，False为关闭(默认)
+    plugins_state: bool = True #机器人插件全局状态，True为开启，False为关闭
     bot_id: str = '' #机器人QQ号（自动获取）
-    bot_name: str = '灵初' #机器人昵称（覆盖QQ原始昵称）
+    bot_name: str = '灵初' #机器人昵称
