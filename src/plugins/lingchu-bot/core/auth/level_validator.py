@@ -1,34 +1,28 @@
-import os
-from configparser import ConfigParser
 from pathlib import Path
+from configparser import ConfigParser
+from nonebot.log import logger
 
-def check_qq_auth(qq: str) -> int:
-    """
-    检查传入的QQ号是否在管理设置.ini中存在
+def check_qq_auth(qq: str) -> bool:
+    """检查QQ号权限
     返回:
-        0: 不存在
-        1: 主人QQ
-        2: 超管QQ
+        True: 有管理员权限
+        False: 无权限
     """
-    # 构建配置文件路径
-    config_path = Path(__file__).parent.parent.parent.parent / "data" / "全局_设置" / "管理设置.ini"
+    config_path = Path(__file__).parent.parent.parent / "data/全局_设置/管理.ini"
     
-    if not config_path.exists():
-        return 0
+    if not config_path.is_file():
+        logger.warning(f"配置文件不存在: {config_path}")
+        return False
     
-    config = ConfigParser()
-    config.read(config_path, encoding='utf-8')
-    
-    # 检查主人QQ
-    if config.has_option('主人QQ', 'QQ'):
-        owner_qq = config.get('主人QQ', 'QQ').strip('-')
-        if qq == owner_qq:
-            return 1
-    
-    # 检查超管QQ
-    if config.has_option('超管QQ', 'QQ'):
-        super_qqs = config.get('超管QQ', 'QQ').split('-')
-        if qq in super_qqs:
-            return 2
-    
-    return 0
+    try:
+        config = ConfigParser()
+        config.read(config_path, encoding='utf-8')
+        return any(
+            qq in config.get(section, 'QQ').strip().split('-')
+            for section in config.sections()
+            if config.has_option(section, 'QQ')
+        )
+    except Exception as e:
+        logger.error(f"检查QQ权限时出错: {e}", exc_info=True)
+        return False
+print(check_qq_auth("2913400124"))  # 测试用例，替换为实际QQ号进行测试
