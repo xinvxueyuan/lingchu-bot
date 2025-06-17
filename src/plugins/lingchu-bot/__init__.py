@@ -34,7 +34,4 @@ logger.success(
     "开启" if plugin_config.plugins_state else "关闭"
 )
 
-@driver.on_bot_connect
-async def _start_tasks(bot: Bot):
-    from .core.init import update_group_ids
-    asyncio.create_task(update_group_ids())
+from .core.init import *
