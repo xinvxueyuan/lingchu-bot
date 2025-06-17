@@ -7,7 +7,7 @@ mute = on_command("禁言", aliases={"禁"}, priority=5, block=True, rule=admin_
 unmute = on_command("解禁", aliases={"解"}, priority=5, block=True, rule=admin_rule)
 mute_all = on_command("全体禁言", aliases={"全部禁言", "全员禁言"}, priority=5, block=True, rule=admin_rule)
 unmute_all = on_command("全体解禁", aliases={"全部解禁", "全员解禁"}, priority=5, block=True, rule=admin_rule)
-ban_monitor = on_notice(priority=10, block=False)
+ban_monitor = on_notice(priority=5, block=False)
 
 async def check_mute_permission(event: GroupMessageEvent, target_qq: int) -> Optional[Message]:
     if target_qq in {event.user_id, event.self_id}: return Message("不能禁言自己或机器人")

@@ -1,4 +1,7 @@
-from .speech import *
+from typing import Optional, Tuple
+from ..lib.basic import *
+from ..lib.event import admin_rule
+from ..auth.level_validator import check_qq_auth
 
 kick = on_command("移出", aliases={"踢","踢出"}, priority=5, block=True, rule=admin_rule)
 
