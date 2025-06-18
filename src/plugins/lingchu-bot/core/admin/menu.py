@@ -1,6 +1,6 @@
 from ..lib.basic import *
 from ..lib.event import admin_rule
-from typing import Dict, Optional
+from typing import Optional
 
 MENU_PATH = os.path.normpath(os.path.join(
     os.path.dirname(__file__), 
