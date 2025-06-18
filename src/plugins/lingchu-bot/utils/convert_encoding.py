@@ -27,8 +27,8 @@ def detect_encoding(file_path):
     
     return None
 
-def convert_to_utf8(file_path, source_encoding=None):
-    """将文件转换为UTF-8编码"""
+def convert_encoding(file_path, source_encoding=None, target_encoding='utf-8'):
+    """将文件转换为指定编码"""
     try:
         # 如果没有指定编码，则尝试自动检测
         if source_encoding is None:
@@ -41,11 +41,11 @@ def convert_to_utf8(file_path, source_encoding=None):
         with codecs.open(file_path, 'r', encoding=source_encoding) as f:
             content = f.read()
         
-        # 写入UTF-8编码
-        with codecs.open(file_path, 'w', encoding='utf-8') as f:
+        # 写入目标编码
+        with codecs.open(file_path, 'w', encoding=target_encoding) as f:
             f.write(content)
         
-        print(f"成功转换({source_encoding} -> UTF-8): {file_path}")
+        print(f"成功转换({source_encoding} -> {target_encoding}): {file_path}")
         return True
     
     except UnicodeDecodeError:
@@ -55,12 +55,12 @@ def convert_to_utf8(file_path, source_encoding=None):
         print(f"处理失败({str(e)}): {file_path}")
         return False
 
-def process_target(target, extension=None, force_encoding=None):
+def process_target(target, extension=None, force_encoding=None, target_encoding='utf-8'):
     """处理目标路径（可以是文件或目录）"""
     if os.path.isfile(target):
         # 如果是单个文件
         if extension is None or target.lower().endswith(extension.lower()):
-            convert_to_utf8(target, force_encoding)
+            convert_encoding(target, force_encoding, target_encoding)
     elif os.path.isdir(target):
         # 如果是目录
         if extension is None:
@@ -71,13 +71,13 @@ def process_target(target, extension=None, force_encoding=None):
             for file in files:
                 if file.lower().endswith(extension.lower()):
                     file_path = os.path.join(root, file)
-                    convert_to_utf8(file_path, force_encoding)
+                    convert_encoding(file_path, force_encoding, target_encoding)
     else:
         print(f"错误：路径不存在 '{target}'")
 
 def interactive_mode():
     """交互模式"""
-    print("文件编码转换工具(多种编码 -> UTF-8)")
+    print("文件编码转换工具(多种编码 -> 目标编码)")
     
     # 获取用户输入的目标路径
     target = input("请输入要处理的文件或目录路径: ").strip()
@@ -91,22 +91,26 @@ def interactive_mode():
         if not extension.startswith('.'):
             extension = '.' + extension
     
+    # 询问目标编码
+    target_encoding = input("请输入目标编码(默认utf-8): ").strip().lower() or 'utf-8'
+    
     # 询问是否强制使用特定编码
     force_encoding = None
-    use_auto = input("是否自动检测编码?(y/n, 默认y): ").strip().lower()
+    use_auto = input("是否自动检测源编码?(y/n, 默认y): ").strip().lower()
     if use_auto not in ('y', ''):
         force_encoding = input("请输入要强制使用的源编码(例如: gb2312, gbk, big5): ").strip().lower()
     
     print(f"\n开始转换目标 '{target}'...")
-    process_target(target, extension, force_encoding)
+    process_target(target, extension, force_encoding, target_encoding)
     print("\n转换完成!")
 
 def main():
     # 设置命令行参数
-    parser = argparse.ArgumentParser(description='文件编码转换工具(多种编码 -> UTF-8)')
+    parser = argparse.ArgumentParser(description='文件编码转换工具(多种编码 -> 目标编码)')
     parser.add_argument('-t', '--target', help='要处理的文件或目录路径')
     parser.add_argument('-e', '--extension', help='要处理的文件扩展名(处理目录时需要)')
     parser.add_argument('-f', '--force-encoding', help='强制使用的源编码(如gb2312, gbk等)')
+    parser.add_argument('-o', '--output-encoding', default='utf-8', help='目标编码(默认utf-8)')
     parser.add_argument('-i', '--interactive', action='store_true', help='进入交互模式')
     
     args = parser.parse_args()
@@ -128,7 +132,7 @@ def main():
             args.extension = '.' + args.extension
         
         print(f"开始转换目标 '{args.target}'...")
-        process_target(args.target, args.extension, args.force_encoding)
+        process_target(args.target, args.extension, args.force_encoding, args.output_encoding)
         print("\n转换完成!")
 
 if __name__ == "__main__":

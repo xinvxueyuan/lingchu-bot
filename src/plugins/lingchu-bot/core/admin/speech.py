@@ -2,6 +2,7 @@ from typing import Optional, Tuple
 from ..lib.basic import *
 from ..lib.event import admin_rule
 from ..auth.level_validator import check_qq_auth
+from ..lib.management import manage_user_mute, manage_group_mute_all  # 新增导入
 
 mute = on_command("禁言", aliases={"禁"}, priority=5, block=True, rule=admin_rule)
 unmute = on_command("解禁", aliases={"解"}, priority=5, block=True, rule=admin_rule)
@@ -9,38 +10,54 @@ mute_all = on_command("全体禁言", aliases={"全部禁言", "全员禁言"}, 
 unmute_all = on_command("全体解禁", aliases={"全部解禁", "全员解禁"}, priority=5, block=True, rule=admin_rule)
 ban_monitor = on_notice(priority=5, block=False)
 
-async def check_mute_permission(event: GroupMessageEvent, target_qq: int) -> Optional[Message]:
-    if target_qq in {event.user_id, event.self_id}: return Message("不能禁言自己或机器人")
+async def check_target_permission(event: GroupMessageEvent, target_qq: int) -> bool:
+    """检查目标用户权限，返回True表示可以操作，False表示禁止操作"""
+    if target_qq in {event.user_id, event.self_id}: 
+        return False
     try:
         member_info = await get_bot().get_group_member_info(group_id=event.group_id, user_id=target_qq, no_cache=True)
-        if member_info.get("role") in {"owner", "admin"}: return Message("不能禁言群主或管理员")
-        if check_qq_auth(str(target_qq)): return Message("无法对特殊权限用户执行禁言操作")
-    except Exception: return Message("权限检查失败，禁止操作")
+        if member_info.get("role") in {"owner", "admin"}: 
+            return False
+        if check_qq_auth(str(target_qq)): 
+            return False
+    except Exception: 
+        return False
+    return True
 
 async def parse_target_qq(event: GroupMessageEvent) -> Tuple[int, Optional[Message]]:
-    if not (target_qq := next((int(seg.data["qq"]) for seg in event.message if seg.type == "at" and seg.data.get("qq") != "all"), None)):
+    if not (target_qq := next((int(seg.data["qq"]) for seg in event.message 
+                             if seg.type == "at" and seg.data.get("qq") != "all"), None)):
         return 0, Message("请使用标准格式：禁言@某人 时间(秒)")
-    return (0, await check_mute_permission(event, target_qq)) if await check_mute_permission(event, target_qq) else (target_qq, None)
+    return (target_qq, None) if await check_target_permission(event, target_qq) else (0, Message("目标用户禁止操作"))
 
-async def execute_group_action(group_id: int, matcher: Matcher, action_name: str, **kwargs):
+async def handle_mute_action(event: GroupMessageEvent, matcher: Matcher, action: str, duration: int = 0):
+    """统一处理禁言相关操作"""
     try:
-        if "duration" in kwargs:
-            await get_bot().set_group_ban(group_id=group_id, user_id=kwargs["user_id"], duration=kwargs["duration"])
-            msg = (f"已解禁 [CQ:at,qq={kwargs['user_id']}]" if kwargs["duration"] == 0 
-                  else f"已禁言 [CQ:at,qq={kwargs['user_id']}]({kwargs['user_id']}) {kwargs['duration']}秒")
+        if action in ["禁言", "解禁"]:
+            target_qq, error_msg = await parse_target_qq(event)
+            if error_msg: 
+                await matcher.send(error_msg)
+                return
+            
+            success = await manage_user_mute(
+                group_id=event.group_id,
+                user_id=target_qq,
+                duration=duration
+            )
+            msg = (f"已解禁 [CQ:at,qq={target_qq}]" if duration == 0 
+                  else f"已禁言 [CQ:at,qq={target_qq}]({target_qq}) {duration}秒")
         else:
-            await get_bot().set_group_whole_ban(group_id=group_id, enable=kwargs["enable"])
-            msg = f"已{'开启' if kwargs['enable'] else '关闭'}全员禁言"
+            success = await manage_group_mute_all(
+                group_id=event.group_id,
+                enable=action == "全员禁言"
+            )
+            msg = f"已{'开启' if action == '全员禁言' else '关闭'}全员禁言"
+        
+        if not success:
+            raise Exception("操作执行失败")
         await matcher.send(Message(msg))
-    except Exception as e: await matcher.send(Message(f"{action_name}失败: {str(e)}"))
-
-async def handle_mute_action(event: GroupMessageEvent, matcher: Matcher, action: str, duration: Optional[int] = None):
-    if action in ["禁言", "解禁"]:
-        target_qq, error_msg = await parse_target_qq(event)
-        if error_msg: await matcher.send(error_msg); return
-        await execute_group_action(event.group_id, matcher, action, user_id=target_qq, duration=duration or 0)
-    else:
-        await execute_group_action(event.group_id, matcher, action, enable=action == "全员禁言")
+    except Exception as e: 
+        await matcher.send(Message(f"{action}失败: {str(e)}"))
 
 @mute.handle()
 async def handle_mute(event: GroupMessageEvent, matcher: Matcher):
