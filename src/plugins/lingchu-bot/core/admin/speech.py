@@ -1,34 +1,14 @@
 from typing import Optional, Tuple
 from ..lib.basic import *
 from ..lib.event import admin_rule
-from ..auth.level_validator import check_qq_auth
-from ..lib.management import manage_user_mute, manage_group_mute_all  # 新增导入
+from .admin_utils import check_target_permission, parse_target_qq, check_qq_auth
+from ..lib.management import manage_user_mute, manage_group_mute_all
 
 mute = on_command("禁言", aliases={"禁"}, priority=5, block=True, rule=admin_rule)
 unmute = on_command("解禁", aliases={"解"}, priority=5, block=True, rule=admin_rule)
 mute_all = on_command("全体禁言", aliases={"全部禁言", "全员禁言"}, priority=5, block=True, rule=admin_rule)
 unmute_all = on_command("全体解禁", aliases={"全部解禁", "全员解禁"}, priority=5, block=True, rule=admin_rule)
 ban_monitor = on_notice(priority=5, block=False)
-
-async def check_target_permission(event: GroupMessageEvent, target_qq: int) -> bool:
-    """检查目标用户权限，返回True表示可以操作，False表示禁止操作"""
-    if target_qq in {event.user_id, event.self_id}: 
-        return False
-    try:
-        member_info = await get_bot().get_group_member_info(group_id=event.group_id, user_id=target_qq, no_cache=True)
-        if member_info.get("role") in {"owner", "admin"}: 
-            return False
-        if check_qq_auth(str(target_qq)): 
-            return False
-    except Exception: 
-        return False
-    return True
-
-async def parse_target_qq(event: GroupMessageEvent) -> Tuple[int, Optional[Message]]:
-    if not (target_qq := next((int(seg.data["qq"]) for seg in event.message 
-                             if seg.type == "at" and seg.data.get("qq") != "all"), None)):
-        return 0, Message("请使用标准格式：禁言@某人 时间(秒)")
-    return (target_qq, None) if await check_target_permission(event, target_qq) else (0, Message("目标用户禁止操作"))
 
 async def handle_mute_action(event: GroupMessageEvent, matcher: Matcher, action: str, duration: int = 0):
     """统一处理禁言相关操作"""

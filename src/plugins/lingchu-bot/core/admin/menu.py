@@ -1,97 +1,71 @@
-# 菜单功能
 from ..lib.basic import *
 from ..lib.event import admin_rule
+from typing import Dict, Optional
 
+MENU_PATH = os.path.normpath(os.path.join(
+    os.path.dirname(__file__), 
+    '../../data/全局_设置/菜单.ini'
+))
 
-def load_menu_commands():
-    menu_path = os.path.join(os.path.dirname(__file__), '../../data/全局_设置/菜单.ini')
-    menu_path = os.path.normpath(menu_path)
-    if not os.path.exists(menu_path):
-        return {}
-    
-    config = ConfigParser()
-    with open(menu_path, 'r', encoding='utf-8') as f:
-        config.read_file(f)
-    
-    return {section: section for section in config.sections()}
+class MenuManager:
+    def __init__(self):
+        self._last_mtime = 0
+        self.handlers = {}
+        self._register_handlers()
 
-menu_commands = load_menu_commands()
+    def _load_config(self) -> Optional[ConfigParser]:
+        try:
+            config = ConfigParser()
+            with open(MENU_PATH, 'r', encoding='utf-8') as f:
+                config.read_file(f)
+            return config
+        except Exception as e:
+            logger.error(f"读取菜单配置失败: {e}")
+            return None
 
-for cmd, section in menu_commands.items():
-    globals()[f"{cmd.replace(' ', '_')}menu"] = on_command(cmd, rule=admin_rule, priority=15, block=True)
-
-def check_menu_config() -> tuple[bool, str]:
-    menu_path = os.path.join(os.path.dirname(__file__), '../../data/全局_设置/菜单.ini')
-    menu_path = os.path.normpath(menu_path)
-    return (os.path.exists(menu_path), menu_path)
-
-async def read_and_send_menu(menu_path: str, section: str) -> bool:
-    """读取并发送菜单内容"""
-    try:
-        config = ConfigParser()
-        with open(menu_path, 'r', encoding='utf-8') as f:
-            config.read_file(f)
-        menu_content = config.get(section, "Con").replace("/r", "\n")
-        await globals()[f"{section.replace(' ', '_')}menu"].send(menu_content)
-        logger.info(f"发送{section}菜单")
-        return True
-    except Exception as e:
-        await globals()[f"{section.replace(' ', '_')}menu"].send(f"读取{section}菜单配置时出错")
-        logger.error(f"读取{section}菜单配置时出错: {e}")
+    def _check_reload(self) -> bool:
+        try:
+            current_mtime = os.path.getmtime(MENU_PATH)
+            if current_mtime > self._last_mtime:
+                self._last_mtime = current_mtime
+                return True
+        except Exception as e:
+            logger.error(f"检查菜单修改时间失败: {e}")
         return False
 
-_last_modified_time = 0
-_menu_path = os.path.join(os.path.dirname(__file__), '../../data/全局_设置/菜单.ini')
-_menu_path = os.path.normpath(_menu_path)
-
-def check_reload_needed():
-    global _last_modified_time
-    try:
-        current_mtime = os.path.getmtime(_menu_path)
-        if current_mtime > _last_modified_time:
-            _last_modified_time = current_mtime
+    async def _send_menu(self, section: str) -> bool:
+        config = self._load_config()
+        if not config:
+            return False
+            
+        try:
+            content = config.get(section, "Con").replace("/r", "\n")
+            await self.handlers[section].send(content)
             return True
-    except:
-        pass
-    return False
+        except Exception as e:
+            await self.handlers[section].send(f"读取{section}菜单配置时出错")
+            logger.error(f"读取{section}菜单配置时出错: {e}")
+            return False
 
-async def handle_menu_section(section: str, event: MessageEvent) -> None:
-
-    if check_reload_needed():
-        reload_menu_commands()
-    
-    exists, menu_path = check_menu_config()
-    if not exists:
-        await globals()[f"{section.replace(' ', '_')}menu"].send("菜单配置文件不存在")
-        logger.error(f"菜单配置文件不存在: {menu_path}")
-        return
-    
-    await read_and_send_menu(menu_path, section)
-
-# 添加重载函数
-def reload_menu_commands():
-    global menu_commands
-    menu_commands = load_menu_commands()
-
-    for cmd, section in menu_commands.items():
-        cmd_key = f"{cmd.replace(' ', '_')}menu"
-        if cmd_key not in globals():
-            globals()[cmd_key] = on_command(cmd, rule=admin_rule, priority=15, block=True)
-    
-    register_menu_handlers()
-    logger.info("菜单配置已重载")
-
-try:
-    _last_modified_time = os.path.getmtime(_menu_path)
-except:
-    pass
-
-def register_menu_handlers():
-    for cmd, section in menu_commands.items():
-        cmd_handler = globals()[f"{cmd.replace(' ', '_')}menu"]
+    def _register_handlers(self):
+        config = self._load_config()
+        if not config:
+            return
+            
+        # 清理旧处理器
+        for handler in self.handlers.values():
+            handler.destroy()
+        self.handlers.clear()
         
-        @cmd_handler.handle()
-        async def handler(event: MessageEvent, section=section):  # 通过默认参数固定section值
-            await handle_menu_section(section, event)
+        # 注册新处理器
+        for section in config.sections():
+            handler = on_command(section, rule=admin_rule, priority=15, block=True)
+            self.handlers[section] = handler
+            
+            @handler.handle()
+            async def handle(event: MessageEvent, sec=section):
+                if self._check_reload():
+                    self._register_handlers()
+                await self._send_menu(sec)
 
-register_menu_handlers()
+menu_manager = MenuManager()

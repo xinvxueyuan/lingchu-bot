@@ -115,6 +115,10 @@ def main():
     
     args = parser.parse_args()
     
+    # 处理拖放的文件路径（Windows下拖放会带引号）
+    if args.target and args.target.startswith('"') and args.target.endswith('"'):
+        args.target = args.target[1:-1]
+    
     if args.interactive or not any(vars(args).values()):
         # 交互模式或无参数时进入交互模式
         interactive_mode()
