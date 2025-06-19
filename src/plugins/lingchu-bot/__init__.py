@@ -1,11 +1,8 @@
 from pathlib import Path
-from typing import Optional
-import asyncio  # 新增导入
 
 import nonebot
 from nonebot import get_plugin_config, logger, get_driver
 from nonebot.plugin import PluginMetadata
-from nonebot.adapters.onebot.v11 import Bot
 from .config import Config
 
 __plugin_meta__ = PluginMetadata(
@@ -30,8 +27,7 @@ sub_plugins = nonebot.load_plugins(
 )
 
 logger.success(
-    "灵初插件已加载, 当前状态: %s",
-    "开启" if plugin_config.plugins_state else "关闭"
+    "灵初插件已加载, 当前状态: %s", "开启" if plugin_config.plugins_state else "关闭"
 )
 
 from .core.init import *
