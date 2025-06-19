@@ -1,8 +1,9 @@
+""" 菜单 """
 from ..lib.basic import *
 from ..lib.event import admin_rule
 from typing import Optional
 
-# 规范化菜单配置文件的路径
+# 菜单配置文件的路径
 MENU_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "../../data/全局_设置/菜单.ini")
 )

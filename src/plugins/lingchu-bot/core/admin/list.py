@@ -1,9 +1,10 @@
+""" 名单系统 """
 from ..lib.basic import *
 from .admin_utils import check_qq_auth
 from ..lib.management import check_bot_admin_status, get_group_muted_list
 from ..lib.event import admin_rule
 
-# 创建一个通知事件处理器，优先级为 5，不阻止事件传播
+# 禁言通知事件处理器，优先级为 5，不阻止事件传播
 ban_monitor = on_notice(priority=5, block=False)
 
 
@@ -46,7 +47,7 @@ async def handle_ban_monitor(bot: Bot, event: GroupBanNoticeEvent):
             logger.error(f"自动解禁特殊权限用户失败: {str(e)}")
 
 
-# 创建一个命令处理器，支持多个命令别名，优先级为 5，阻止事件传播，需要管理员权限
+# 禁言命令处理器，支持多个命令别名，优先级为 5，阻止事件传播，需要管理员权限
 mute_list = on_command(
     "禁言列表",
     aliases={"查禁言", "查询禁言列表"},
@@ -79,7 +80,7 @@ async def handle_mute_list(bot: Bot, event: GroupMessageEvent):
     # 构建禁言成员列表消息
     msg = "当前禁言成员列表:\n"
     for member in muted_list:
-        msg += f"{member['nickname']}({member['user_id']}) - 剩余时间: {member['time_left']}秒\n"
+        msg += f"{member['nickname']}({member['user_id']})-剩余{member['time_left']}秒\n"
 
     # 发送禁言成员列表消息到群内
     await bot.send_group_msg(group_id=event.group_id, message=msg)

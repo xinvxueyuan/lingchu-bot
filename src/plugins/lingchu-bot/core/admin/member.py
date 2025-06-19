@@ -1,7 +1,4 @@
-"""
-此模块实现了群成员移出功能，只有具备管理员权限的用户才能触发该操作。
-机器人需要有管理员权限才能执行移出操作。
-"""
+""" 成员管理 """
 
 from ..lib.basic import *
 from ..lib.event import admin_rule

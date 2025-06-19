@@ -1,8 +1,4 @@
-"""
-此模块实现了群聊中禁言相关的管理功能，
-包括用户禁言、解禁以及全员禁言、解禁操作，
-仅管理员可以执行这些操作。
-"""
+""" 发言管理 """
 
 from ..lib.basic import *
 from ..lib.event import admin_rule
