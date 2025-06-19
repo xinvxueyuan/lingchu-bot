@@ -19,3 +19,5 @@
 
 - [NoneBot2官方文档](https://v2.nonebot.dev/)
 - [NoneBot2项目仓库](https://github.com/nonebot/nonebot2)
+
+nonebot2+onebot11+llonebot​+sqlite3
