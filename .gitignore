@@ -140,3 +140,6 @@ dmypy.json
 .pytype/
 
 # End of https://www.toptal.com/developers/gitignore/api/python
+
+# 全局_设置
+src/plugins/lingchu-bot/data/groups/*

@@ -41,7 +41,12 @@ async def send_bulletin(
     if not await check_bot_admin_status(event.group_id):
         return "机器人无管理员权限，无法发送公告"
     
-    if not (content := event.get_plaintext().strip()):
+    # 获取原始消息并去除命令部分
+    raw_message = event.get_plaintext().strip()
+    content = raw_message.replace("发公告", "").replace("发布公告", "").replace("群公告", "")
+    content = content.replace("群发公告", "").replace("全局公告", "").replace("分群公告", "").strip()
+    
+    if not content:
         return "公告内容不能为空"
 
     if not all_groups:
