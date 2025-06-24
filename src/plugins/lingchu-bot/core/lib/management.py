@@ -109,10 +109,13 @@ async def manage_group_notice(group_id: int, content: str, image: str | None = N
         bool: True表示发送成功，False表示发送失败
     """
     try:
+        if image:
+            # 如果有图片的处理逻辑
+            pass
         await get_bot()._send_group_notice(
             group_id=group_id,
             content=content,
-            image=image
+            is_confirmed=False  # 设置为False表示不需要群成员确认
         )
         return True
     except Exception:
