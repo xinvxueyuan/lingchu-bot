@@ -110,15 +110,22 @@ async def manage_group_notice(group_id: int, content: str, image: str | None = N
     """
     try:
         if image:
-            # 如果有图片的处理逻辑
-            pass
-        await get_bot()._send_group_notice(
-            group_id=group_id,
-            content=content,
-            is_confirmed=False  # 设置为False表示不需要群成员确认
-        )
+            # 使用OneBot V11的send_group_notice API发送带图片的公告
+            await get_bot()._send_group_notice(
+                group_id=group_id,
+                content=content,
+                image=image,  # 直接传递图片URL
+                is_confirmed=False
+            )
+        else:
+            await get_bot()._send_group_notice(
+                group_id=group_id,
+                content=content,
+                is_confirmed=False
+            )
         return True
-    except Exception:
+    except Exception as e:
+        logger.error(f"发送群公告失败: {e}")
         return False
 
 
