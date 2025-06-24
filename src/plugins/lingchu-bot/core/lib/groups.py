@@ -4,27 +4,34 @@ from .database import db_operation
 from nonebot import get_bots
 from typing import Set
 from nonebot_plugin_apscheduler import scheduler
+from .management import check_bot_admin_status
+
 
 @get_driver().on_startup
 async def check_and_create_groups_table():
-    """初始化数据库表结构
+    """初始化数据库表结构"""
+    # 确保数据库连接池已初始化
+    from .database import init_db_pool
+    init_db_pool()
     
-    在NoneBot2启动时执行：
-    1. 检查groups表是否存在
-    2. 不存在则创建表，包含id字段作为主键
-    """
-    table_exists = await db_operation(
-        operation_type="query", 
-        table_name="groups", 
-        columns="1", 
-        condition="1=0"
-    )
-    if not table_exists:
+    try:
+        # 尝试查询表是否存在
         await db_operation(
-            operation_type="create_table", 
+            operation_type="query", 
             table_name="groups", 
-            columns=["id INTEGER PRIMARY KEY"]
+            columns="1", 
+            condition="1=0"
         )
+    except ValueError as e:
+        if "表不存在" in str(e):
+            # 如果表不存在则创建
+            await db_operation(
+                operation_type="create_table", 
+                table_name="groups", 
+                columns=["id INTEGER PRIMARY KEY"]
+            )
+        else:
+            raise
     
     scheduler.add_job(
         update_groups_table,
@@ -35,51 +42,61 @@ async def check_and_create_groups_table():
     )
 
 async def update_groups_table():
-    """同步群组数据
-    
-    功能：
-    1. 获取所有机器人当前所在群组
-    2. 与数据库中的群组记录对比
-    3. 新增未记录的群组
-    4. 删除已退出的群组
-    """
-    bots = get_bots()
-    if not bots:
-        return
-    
-    # 获取当前所有群组ID
-    current_groups: Set[str] = set()
-    for bot in bots.values():
-        try:
-            groups = await bot.get_group_list()
-            current_groups.update(str(group['group_id']) for group in groups)
-        except Exception:
-            continue
-    
-    # 获取数据库中的群组记录
-    db_result = await db_operation(
-        operation_type="query", 
-        table_name="groups", 
-        columns="id"
-    )
-    db_groups: Set[str] = set()
-    if isinstance(db_result, list):
-        db_groups = {str(row[0]) for row in db_result}
-    
-    # 同步差异数据
-    for group_id in current_groups - db_groups:
-        await db_operation(
-            operation_type="insert",
-            table_name="groups",
-            data={"id": int(group_id)}
+    try:
+        logger.debug("开始执行群组数据同步...")
+        """同步群组数据
+        
+        功能：
+        1. 获取所有机器人当前所在群组
+        2. 检查机器人是否有管理权限
+        3. 与数据库中的群组记录对比
+        4. 新增未记录的群组
+        5. 删除已退出的群组
+        """
+        bots = get_bots()
+        if not bots:
+            return
+        
+        # 获取当前所有群组ID（仅记录有管理权限的群）
+        current_groups: Set[str] = set()
+        for bot in bots.values():
+            try:
+                groups = await bot.get_group_list()
+                for group in groups:
+                    # 检查机器人是否有管理权限
+                    if await check_bot_admin_status(group['group_id']):
+                        current_groups.add(str(group['group_id']))
+            except Exception:
+                continue
+        
+        # 获取数据库中的群组记录
+        db_result = await db_operation(
+            operation_type="query", 
+            table_name="groups", 
+            columns="id"
         )
-    
-    for group_id in db_groups - current_groups:
-        await db_operation(
-            operation_type="delete",
-            table_name="groups",
-            condition=f"id = {group_id}"
-        )
+        db_groups: Set[str] = set()
+        if isinstance(db_result, list):
+            db_groups = {str(row[0]) for row in db_result}
+        
+        # 同步差异数据
+        for group_id in current_groups - db_groups:
+            await db_operation(
+                operation_type="insert",
+                table_name="groups",
+                data={"id": int(group_id)}
+            )
+        
+        for group_id in db_groups - current_groups:
+            await db_operation(
+                operation_type="delete",
+                table_name="groups",
+                condition=f"id = {group_id}"
+            )
+        logger.debug("群组数据同步完成")
+    except Exception as e:
+        logger.error(f"群组数据同步失败: {e}")
+        raise
 
 
 @on_notice
@@ -143,3 +160,4 @@ async def execute_all_groups(operation: str, **kwargs):
             results[group_id] = False
     
     return results
+

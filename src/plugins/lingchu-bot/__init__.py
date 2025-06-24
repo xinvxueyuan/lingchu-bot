@@ -5,6 +5,12 @@ from nonebot import get_plugin_config, logger, get_driver
 from nonebot.plugin import PluginMetadata
 from .config import Config
 
+# 加载调度器插件
+from nonebot import require
+require("nonebot_plugin_apscheduler")
+
+
+
 __plugin_meta__ = PluginMetadata(
     name="lingchu-bot",
     description="灵初",
@@ -26,9 +32,9 @@ sub_plugins = nonebot.load_plugins(
     str(Path(__file__).parent.joinpath("plugins").resolve())
 )
 
-
-logger.success(
-    "灵初插件已加载, 当前状态: %s", "开启" if plugin_config.plugins_state else "关闭"
-)
-
 from .core.init import *
+
+# 将日志输出移到所有初始化完成后
+logger.success(
+    f"灵初插件已加载, 当前状态: {'开启' if plugin_config.plugins_state else '关闭'}"
+)

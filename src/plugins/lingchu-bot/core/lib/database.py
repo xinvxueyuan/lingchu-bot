@@ -7,9 +7,9 @@ from contextlib import contextmanager
 from typing import Iterator, Callable, TypeVar, Coroutine
 
 # 数据库连接池配置
-_db_pool: Queue[sqlite3.Connection] = Queue(maxsize=5)  # 最大连接数5的连接池
-_all_connections: List[sqlite3.Connection] = []  # 所有活跃连接列表
-DB_PATH = Path("src/plugins/lingchu-bot/data/groups.db")  # 数据库文件路径
+_db_pool: Queue[sqlite3.Connection] = Queue(maxsize=5)
+_all_connections: List[sqlite3.Connection] = []
+DB_PATH = Path(__file__).parent.parent.parent / "data/groups/groups.db"
 
 def _validate_identifier(name: str) -> None:
     """验证字符串是否为有效的Python标识符
@@ -53,13 +53,19 @@ def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
     )
 
 def init_db_pool() -> None:
-    """初始化数据库连接池
-    
-    创建数据库文件目录并建立5个数据库连接
-    """
+    """初始化数据库连接池"""
+    if not _db_pool.empty():  # 如果连接池不为空，说明已经初始化过
+        return
+        
+    # 确保目录和数据库文件存在
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if not DB_PATH.exists():
+        DB_PATH.touch()
+    
     for _ in range(5):
         conn = sqlite3.connect(str(DB_PATH))
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
         _db_pool.put(conn)
         _all_connections.append(conn)
 
