@@ -3,6 +3,7 @@ from nonebot import get_driver
 from .database import db_operation
 from nonebot import get_bots
 from typing import Set
+from nonebot_plugin_apscheduler import scheduler
 
 @get_driver().on_startup
 async def check_and_create_groups_table():
@@ -24,6 +25,14 @@ async def check_and_create_groups_table():
             table_name="groups", 
             columns=["id INTEGER PRIMARY KEY"]
         )
+    
+    scheduler.add_job(
+        update_groups_table,
+        "interval",
+        seconds=60,
+        id="update_groups_table",
+        replace_existing=True
+    )
 
 async def update_groups_table():
     """同步群组数据
@@ -72,10 +81,6 @@ async def update_groups_table():
             condition=f"id = {group_id}"
         )
 
-@get_driver().on_bot_connect
-async def handle_bot_connect():
-    """机器人连接事件处理"""
-    await update_groups_table()
 
 @on_notice
 async def handle_group_increase(event: GroupIncreaseNoticeEvent):

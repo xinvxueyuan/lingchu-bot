@@ -26,6 +26,7 @@ sub_plugins = nonebot.load_plugins(
     str(Path(__file__).parent.joinpath("plugins").resolve())
 )
 
+
 logger.success(
     "灵初插件已加载, 当前状态: %s", "开启" if plugin_config.plugins_state else "关闭"
 )
