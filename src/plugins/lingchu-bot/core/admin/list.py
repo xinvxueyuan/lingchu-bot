@@ -84,3 +84,4 @@ async def handle_mute_list(bot: Bot, event: GroupMessageEvent):
 
     # 发送禁言成员列表消息到群内
     await bot.send_group_msg(group_id=event.group_id, message=msg)
+
