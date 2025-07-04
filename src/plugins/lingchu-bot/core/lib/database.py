@@ -7,17 +7,17 @@ from contextlib import contextmanager
 from typing import Iterator, Callable, TypeVar, Coroutine
 
 # 数据库连接池配置
-_db_pool: Queue[sqlite3.Connection] = Queue(maxsize=5)
-_all_connections: List[sqlite3.Connection] = []
-DB_PATH = Path(__file__).parent.parent.parent / "data/groups/groups.db"
+_db_pool: Queue[sqlite3.Connection] = Queue(maxsize=5)  # 数据库连接池
+_all_connections: List[sqlite3.Connection] = []  # 所有活跃连接列表
+DB_PATH = Path(__file__).parent.parent.parent / "data/groups/groups.db"  # 数据库文件路径
 
 def _validate_identifier(name: str) -> None:
-    """验证字符串是否为有效的Python标识符
+    """验证字符串是否为有效的SQL标识符
     
-    Args:
+    参数:
         name: 需要验证的字符串
         
-    Raises:
+    异常:
         ValueError: 当名称不是有效标识符时抛出
     """
     if not name.isidentifier():
@@ -26,25 +26,25 @@ def _validate_identifier(name: str) -> None:
 def _execute_check(conn: sqlite3.Connection, query: str, params: tuple = ()) -> bool:
     """执行SQL查询并检查是否有结果
     
-    Args:
+    参数:
         conn: 数据库连接对象
         query: 要执行的SQL语句
         params: 查询参数元组
         
-    Returns:
-        查询是否有结果的布尔值
+    返回:
+        bool: 查询是否有结果
     """
     return bool(conn.execute(query, params).fetchone())
 
 def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
     """检查表是否存在于数据库中
     
-    Args:
+    参数:
         conn: 数据库连接对象
         table_name: 要检查的表名
         
-    Returns:
-        表是否存在的布尔值
+    返回:
+        bool: 表是否存在
     """
     return _execute_check(
         conn,
@@ -53,27 +53,32 @@ def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
     )
 
 def init_db_pool() -> None:
-    """初始化数据库连接池"""
-    if not _db_pool.empty():  # 如果连接池不为空，说明已经初始化过
+    """初始化数据库连接池
+    
+    创建5个数据库连接并放入连接池，同时初始化必要的数据库表结构
+    """
+    if not _db_pool.empty(): 
         return
         
-    # 确保目录和数据库文件存在
+    # 确保数据库目录和文件存在
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     if not DB_PATH.exists():
         DB_PATH.touch()
     
+    # 初始化连接池
     for _ in range(5):
         conn = sqlite3.connect(str(DB_PATH))
         conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA synchronous=NORMAL") 
         _db_pool.put(conn)
         _all_connections.append(conn)
+    
 
 @get_driver().on_shutdown
 async def close_db_connections() -> None:
     """关闭所有数据库连接
     
-    在应用关闭时调用，清空连接池和连接列表
+    在应用关闭时调用，确保所有连接被正确关闭
     """
     for conn in _all_connections:
         conn.close()
@@ -85,11 +90,13 @@ T = TypeVar('T')
 def get_connection() -> Iterator[sqlite3.Connection]:
     """获取数据库连接的上下文管理器
     
-    Yields:
-        可用的数据库连接
+    使用连接池管理连接，自动处理事务提交和回滚
+    
+    返回:
+        Iterator[sqlite3.Connection]: 可用的数据库连接
         
-    Note:
-        自动处理事务提交和回滚
+    注意:
+        在with块结束时自动提交事务，发生异常时回滚
     """
     conn = _db_pool.get()
     try:
@@ -104,11 +111,13 @@ def get_connection() -> Iterator[sqlite3.Connection]:
 def _with_connection(func: Callable[..., Coroutine[Any, Any, T]]) -> Callable[..., Coroutine[Any, Any, T]]:
     """数据库操作装饰器
     
-    Args:
+    自动为异步数据库操作提供连接管理
+    
+    参数:
         func: 需要包装的异步函数
         
-    Returns:
-        包装后的函数
+    返回:
+        Callable: 包装后的函数
     """
     async def wrapper(operation_type: str, table_name: str, **kwargs) -> T:
         with get_connection() as conn:
@@ -126,7 +135,7 @@ async def db_operation(
     
     支持多种数据库操作类型，包括表管理和数据CRUD
     
-    Args:
+    参数:
         conn: 数据库连接对象
         operation_type: 操作类型，支持:
             - 'create_table': 创建表
@@ -137,21 +146,23 @@ async def db_operation(
             - 'delete': 删除数据
             - 'query': 查询数据
             - 'batch_insert': 批量插入
+            - 'clean_expired_tasks': 清理过期任务
         table_name: 操作的目标表名
         **kwargs: 操作所需的其他参数
         
-    Returns:
+    返回:
         根据操作类型返回:
-        - 布尔值表示操作是否成功
-        - 列表表示查询结果
+        - bool: 操作是否成功
+        - List[Tuple]: 查询结果集
         
-    Raises:
+    异常:
         ValueError: 当表不存在或操作类型无效时抛出
     """
     _validate_identifier(table_name)
     if not _table_exists(conn, table_name) and operation_type != "create_table":
         raise ValueError(f"表不存在: {table_name}")
 
+    # 表结构操作
     if operation_type == "create_table":
         if _table_exists(conn, table_name): 
             return False
@@ -177,6 +188,7 @@ async def db_operation(
             return True
         return False
 
+    # 数据操作
     elif operation_type in ("insert", "update", "delete", "query", "batch_insert"):
         if operation_type == "insert":
             data = kwargs["data"]
@@ -221,4 +233,6 @@ async def db_operation(
             )
             return True
 
+
+        
     raise ValueError(f"无效的操作类型: {operation_type}")

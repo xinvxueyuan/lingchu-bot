@@ -3,7 +3,7 @@
 """
 from ..auth.level_validator import check_qq_auth
 from nonebot.rule import Rule
-from nonebot.adapters.onebot.v11.event import MessageEvent, GroupMessageEvent, NoticeEvent, GroupBanNoticeEvent
+from nonebot.adapters.onebot.v11.event import MessageEvent, GroupMessageEvent
 
 def is_group_admin(event: MessageEvent) -> bool:
     """
@@ -34,3 +34,27 @@ def is_group_admin(event: MessageEvent) -> bool:
 
 # 定义一个 NoneBot 规则，使用 is_group_admin 函数进行权限检查
 admin_rule = Rule(is_group_admin)
+
+def is_super_admin(event: MessageEvent) -> bool:
+    """
+    仅检查特殊权限用户(超级管理员)的规则函数
+    
+    步骤1: 必须为群消息事件
+    特殊权限: 用户通过check_qq_auth验证即视为超级管理员
+    
+    Args:
+        event: 消息事件对象
+        
+    Returns:
+        bool: 当且仅当是群消息且通过特殊权限检查时返回True
+    """
+    # 步骤1: 检查是否为群消息 (保留的必需步骤)
+    if not isinstance(event, GroupMessageEvent):
+        return False
+
+    # 特殊权限检查 (跳过普通管理员检查)
+    qq = str(event.user_id)
+    return check_qq_auth(qq)
+
+# 创建仅针对超级管理员的规则
+super_admin_rule = Rule(is_super_admin)
