@@ -121,12 +121,14 @@ async def execute_all_groups(operation: str, **kwargs: Any) -> Dict[int, bool]:
     参数:
         operation: 要执行的操作名称(来自management模块)
         **kwargs: 传递给操作的参数
+            - delay: 可选，每次操作之间的延迟时间(秒)
         
     返回:
         字典格式: {群组ID: 操作是否成功}
     """
     import inspect
     from . import management
+    import asyncio
     
     operation_map = {
         name: func 
@@ -147,12 +149,15 @@ async def execute_all_groups(operation: str, **kwargs: Any) -> Dict[int, bool]:
     
     func = operation_map[operation]
     results: Dict[int, bool] = {}
+    delay = kwargs.pop('delay', 1.0)  # 默认延迟1秒
     
     for row in db_result:
         group_id = row[0]
         try:
             kwargs['group_id'] = group_id
             results[group_id] = await func(**kwargs)
+            if delay > 0 and row != db_result[-1]:  # 不是最后一个群组时延迟
+                await asyncio.sleep(delay)
         except Exception as e:
             logger.error(f"群组 {group_id} 执行 {operation} 失败: {e}")
             results[group_id] = False

@@ -6,24 +6,18 @@ from ..lib.event import admin_rule
 from ..lib.management import manage_group_notice, check_bot_admin_status
 from ..lib.database import db_operation
 
-# 命令别名配置
-# 格式: {主命令: {别名1, 别名2, (子别名1, 子别名2)}}
-CMD_ALIASES = {
-    "发公告": {"发布公告", ("群公告",)},   # 单群公告命令别名
-    "群发公告": {"全局公告", ("分群公告",)}  # 全群广播命令别名
-}
 
 # 注册命令处理器
 bulletin = on_command(
     "发公告", 
-    aliases=CMD_ALIASES["发公告"], 
+    aliases={"发布公告","群公告"}, 
     priority=5, 
     block=True, 
     rule=admin_rule
 )
 bulletin_all = on_command(
     "群发公告", 
-    aliases=CMD_ALIASES["群发公告"], 
+    aliases={"全局公告","分群公告"}, 
     priority=5, 
     block=True, 
     rule=admin_rule
@@ -57,9 +51,16 @@ async def batch_send(group_ids: list[int], content: str, image: Optional[str] = 
     Returns:
         int: 成功发送的群数量
     """
-    tasks = [send_notice(gid, content, image) for gid in group_ids]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    return sum(1 for r in results if r is True)
+    success_count = 0
+    for gid in group_ids:
+        try:
+            if await send_notice(gid, content, image):
+                success_count += 1
+        except Exception as e:
+            logger.error(f"群{gid}公告发送失败: {e}")
+            continue
+    
+    return success_count
 
 async def process_bulletin_content(event: GroupMessageEvent) -> tuple[str, Optional[str]]:
     """处理公告内容，提取文本和图片
@@ -75,27 +76,23 @@ async def process_bulletin_content(event: GroupMessageEvent) -> tuple[str, Optio
     # 获取原始消息文本并去除命令部分
     raw_text = event.get_plaintext().strip()
     
-    # 去除所有可能的命令别名
-    for cmd in CMD_ALIASES:
-        if raw_text.startswith(cmd):
-            raw_text = raw_text[len(cmd):].strip()
+    # 从命令处理器获取所有可能的命令前缀
+    command_prefixes = set()
+    for cmd in ["发公告", "群发公告"]:
+        command_prefixes.add(cmd)
+        if cmd == "发公告":
+            command_prefixes.update(["发布公告", "群公告"])
+        elif cmd == "群发公告":
+            command_prefixes.update(["全局公告", "分群公告"])
+    
+    # 去除命令前缀
+    for prefix in sorted(command_prefixes, key=len, reverse=True):
+        if raw_text.startswith(prefix):
+            raw_text = raw_text[len(prefix):].strip()
             break
-        # 检查命令别名的集合和元组
-        for alias in CMD_ALIASES[cmd]:
-            if isinstance(alias, str) and raw_text.startswith(alias):
-                raw_text = raw_text[len(alias):].strip()
-                break
-            elif isinstance(alias, tuple):
-                for sub_alias in alias:
-                    if raw_text.startswith(sub_alias):
-                        raw_text = raw_text[len(sub_alias):].strip()
-                        break
     
     # 构建最终公告内容
-    content = "".join(
-        seg.data["text"] if seg.type == "text" else ""
-        for seg in event.message
-    ).strip()
+    content = raw_text
     
     return content, image_url
 
