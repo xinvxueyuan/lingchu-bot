@@ -1,7 +1,8 @@
 """ 发言管理 """
-
+import asyncio
+from ..lib.database import db_operation
 from ..lib.basic import *
-from ..lib.event import admin_rule
+from ..lib.event import admin_rule, super_admin_rule
 from .admin_utils import parse_target_qq
 from ..lib.management import (
     manage_user_mute,
@@ -14,20 +15,9 @@ mute = on_command("禁言", aliases={"禁"}, priority=5, block=True, rule=admin_
 # 定义解禁命令，支持别名 "解"，优先级 5，阻断其他处理，需管理员权限
 unmute = on_command("解禁", aliases={"解"}, priority=5, block=True, rule=admin_rule)
 # 定义全员禁言命令，支持多个别名，优先级 5，阻断其他处理，需管理员权限
-mute_all = on_command(
-    "全体禁言",
-    aliases={"全部禁言", "全员禁言", "全禁", "全体禁"},
-    priority=5,
-    block=True,
-    rule=admin_rule,
-)
+mute_all = on_command("全体禁言", aliases={"全部禁言", "全员禁言", "全禁", "全体禁"}, priority=5, block=True, rule=admin_rule)
 # 定义全员解禁命令，支持多个别名，优先级 5，阻断其他处理，需管理员权限
-unmute_all = on_command(
-    "全体解禁",
-    aliases={"全部解禁", "全员解禁", "全解", "全体解"},
-    priority=5,
-    block=True,
-    rule=admin_rule,
+unmute_all = on_command("全体解禁", aliases={"全部解禁", "全员解禁", "全解", "全体解"}, priority=5, block=True, rule=admin_rule
 )
 
 
@@ -146,3 +136,63 @@ async def handle_unmute_all(event: GroupMessageEvent, matcher: Matcher):
         None: 直接通过 matcher 发送消息反馈操作结果。
     """
     await handle_mute_action(event, matcher, "全员解禁")
+
+
+# 并发控制配置
+MAX_CONCURRENT = 5  # 最大并发操作数
+SEMAPHORE = asyncio.Semaphore(MAX_CONCURRENT)
+
+async def batch_mute_action(group_ids: list[int], enable: bool) -> int:
+    """批量执行禁言/解禁操作
+    Args:
+        group_ids: 目标群号列表
+        enable: True表示禁言，False表示解禁
+    Returns:
+        int: 成功操作的群数量
+    """
+    success_count = 0
+    for gid in group_ids:
+        async with SEMAPHORE:
+            try:
+                if await manage_group_mute_all(gid, enable):
+                    success_count += 1
+            except Exception as e:
+                logger.error(f"群{gid}全员{'禁言' if enable else '解禁'}失败: {e}")
+                continue
+    
+    return success_count
+
+async def handle_global_mute_action(event: GroupMessageEvent, matcher: Matcher, enable: bool) -> None:
+    """处理全局禁言/解禁逻辑
+    Args:
+        event: 群消息事件
+        matcher: 事件匹配器
+        enable: True表示禁言，False表示解禁
+    """
+    # 检查机器人管理员权限
+    if not await check_bot_admin_status(event.group_id):
+        await matcher.send("机器人无管理员权限，无法执行此操作")
+        return
+    
+    # 获取所有群组
+    db_result = await db_operation(operation_type="query", table_name="groups", columns="id")
+    if not isinstance(db_result, list) or not db_result:
+        await matcher.send("获取群组列表失败")
+        return
+    
+    success = await batch_mute_action([row[0] for row in db_result], enable)
+    await matcher.send(f"已成功{'开启' if enable else '关闭'} {success}/{len(db_result)} 个群的全员禁言")
+
+# 全局禁言/解禁命令
+global_mute = on_command("全局禁言", aliases={"全局全员禁言", "全局全禁"}, priority=5, block=True, rule=admin_rule)
+global_unmute = on_command("全局解禁", aliases={"全局全员解禁", "全局全解"}, priority=5, block=True, rule=super_admin_rule)
+
+@global_mute.handle()
+async def handle_global_mute(event: GroupMessageEvent, matcher: Matcher):
+    """处理全局禁言命令"""
+    await handle_global_mute_action(event, matcher, True)
+
+@global_unmute.handle()
+async def handle_global_unmute(event: GroupMessageEvent, matcher: Matcher):
+    """处理全局解禁命令"""
+    await handle_global_mute_action(event, matcher, False)

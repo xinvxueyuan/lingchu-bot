@@ -1,12 +1,11 @@
 from .basic import *
-from nonebot import get_driver, on_notice, get_bots, require
+from nonebot import get_driver, on_notice, get_bots
 from nonebot.log import logger
 from nonebot.adapters.onebot.v11 import GroupIncreaseNoticeEvent
 from .database import db_operation
 from typing import Set, Dict, Any
 from .management import check_bot_admin_status
 
-require("nonebot_plugin_apscheduler")
 
 @get_driver().on_startup
 async def check_and_create_groups_table() -> None:
@@ -15,7 +14,8 @@ async def check_and_create_groups_table() -> None:
     功能：
     1. 初始化数据库连接池
     2. 检查groups表是否存在，不存在则创建
-    3. 启动定时同步任务(秒级)
+    3. 检查scheduled_tasks表是否存在，不存在则创建
+    4. 启动定时同步任务(秒级)
     """
     from .database import init_db_pool
     
@@ -35,6 +35,34 @@ async def check_and_create_groups_table() -> None:
                 table_name="groups", 
                 columns=["id INTEGER PRIMARY KEY"]
             )
+
+    # 任务表初始化检查
+    try:
+        await db_operation(
+            operation_type="query",
+            table_name="scheduled_tasks",
+            columns="1",
+            condition="1=0"
+        )
+    except ValueError as e:
+        if "表不存在" in str(e):
+            await db_operation(
+                operation_type="create_table",
+                table_name="scheduled_tasks",
+                columns=[
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT",
+                    "task_type TEXT NOT NULL",  # 任务类型：global/group
+                    "group_id INTEGER",  # 群号(单群任务使用)
+                    "trigger_type TEXT NOT NULL",  # 触发类型：interval/once
+                    "interval TEXT",  # 时间间隔(定时任务使用)
+                    "operation TEXT NOT NULL",  # 操作类型
+                    "content TEXT",  # 操作内容(如公告内容)
+                    "image_url TEXT",  # 图片URL(公告使用)
+                    "create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+                    "next_run_time TIMESTAMP"  # 下次执行时间
+                ]
+            )
+            logger.info("已创建定时任务表 scheduled_tasks")
 
 
 async def update_groups_table() -> None:
@@ -91,7 +119,7 @@ async def update_groups_table() -> None:
                     condition=f"id = {group_id}"
                 )
             except Exception as e:
-                logger.error(f"删除群组 {group_id} 失败: {e}")
+                logger.error(f"删除群组 {group_id} 数据失败: {e}")
                 
         logger.debug(f"群组数据同步完成: 新增 {len(added)} 个, 删除 {len(removed)} 个")
     except Exception as e:
@@ -156,7 +184,7 @@ async def execute_all_groups(operation: str, **kwargs: Any) -> Dict[int, bool]:
         try:
             kwargs['group_id'] = group_id
             results[group_id] = await func(**kwargs)
-            if delay > 0 and row != db_result[-1]:  # 不是最后一个群组时延迟
+            if delay > 0 and row != db_result[-1]:
                 await asyncio.sleep(delay)
         except Exception as e:
             logger.error(f"群组 {group_id} 执行 {operation} 失败: {e}")

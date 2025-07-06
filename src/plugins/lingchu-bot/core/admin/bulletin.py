@@ -2,7 +2,7 @@
 from typing import Optional
 import asyncio
 from ..lib.basic import *
-from ..lib.event import admin_rule
+from ..lib.event import admin_rule, super_admin_rule
 from ..lib.management import manage_group_notice, check_bot_admin_status
 from ..lib.database import db_operation
 
@@ -20,7 +20,7 @@ bulletin_all = on_command(
     aliases={"全局公告","分群公告"}, 
     priority=5, 
     block=True, 
-    rule=admin_rule
+    rule=super_admin_rule
 )
 
 # 并发控制配置
