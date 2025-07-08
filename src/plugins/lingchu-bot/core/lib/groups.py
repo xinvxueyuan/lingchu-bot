@@ -16,6 +16,7 @@ async def check_and_create_groups_table() -> None:
     2. 检查groups表是否存在，不存在则创建
     3. 检查scheduled_tasks表是否存在，不存在则创建
     4. 启动定时同步任务(秒级)
+    5. 执行首次群组同步
     """
     from .database import init_db_pool
     
@@ -63,6 +64,9 @@ async def check_and_create_groups_table() -> None:
                 ]
             )
             logger.info("已创建定时任务表 scheduled_tasks")
+    
+    # 启动时执行首次群组同步
+    await update_groups_table()
 
 
 async def update_groups_table() -> None:
@@ -177,7 +181,7 @@ async def execute_all_groups(operation: str, **kwargs: Any) -> Dict[int, bool]:
     
     func = operation_map[operation]
     results: Dict[int, bool] = {}
-    delay = kwargs.pop('delay', 1.0)  # 默认延迟1秒
+    delay = kwargs.pop('delay', 0.0)  # 默认延迟0秒
     
     for row in db_result:
         group_id = row[0]
