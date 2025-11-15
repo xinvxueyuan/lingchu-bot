@@ -1,0 +1,41 @@
+name: Format (Black & isort)
+on: [push]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+
+      - name: 安装并设置PDM
+        uses: pdm-project/setup-pdm@v3
+        with:
+          python-version: "3.13"
+
+      - name: 安装依赖
+        run: pdm install
+
+      - name: 运行Black代码格式化
+        run: pdm run black src/
+
+      - name: 运行isort导入排序
+        run: pdm run isort src/
+
+      - name: 检查是否有代码更改
+        id: check_changes
+        run: echo "::set-output name=changed::$(git status --porcelain | wc -l)"
+
+      - name: 推回格式化后的代码
+        if: steps.check_changes.outputs.changed > 0
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add .
+          git commit -m "自动化代码格式化（Black & isort）"
+          git push
