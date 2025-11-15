@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "tamasfe.even-better-toml",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+    "ms-python.debugpy",
+    "ms-python.python"
+  ]
+}

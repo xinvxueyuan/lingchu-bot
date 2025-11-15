@@ -1,0 +1,253 @@
+# ============================================================================
+#
+# 默认生成的配置旨在突出显示 Zensical 提供的功能，
+# 并作为您自己项目的起点。
+#
+# ============================================================================
+
+[project]
+
+# site_name 显示在页面标题和浏览器窗口标题中
+#
+# 阅读更多：https://zensical.org/docs/setup/basics/#site_name
+site_name = "灵初re 使用文档"
+
+# site_description 包含在 HTML 头部，应该包含对搜索引擎有用的网站内容描述
+#
+# 阅读更多：https://zensical.org/docs/setup/basics/#site_description
+site_description = "Nonebot2驱动的QQ管理机器人"
+
+# site_author 属性。这用于 HTML 头部元素
+#
+# 阅读更多：https://zensical.org/docs/setup/basics/#site_author
+site_author = "新v学员"
+
+# site_url 是您网站的规范 URL。在构建在线文档时应该设置此项
+# 阅读更多：https://zensical.org/docs/setup/basics/#site_url
+site_url = "https://xinvxueyuan.github.io/lingchu-bot/"
+
+# 版权通知出现在页面页脚中，可以包含 HTML 片段
+#
+# 阅读更多：https://zensical.org/docs/setup/basics/#copyright
+copyright = """
+Copyright &copy; 2025 新v学员. All rights reserved.
+"""
+
+# Zensical 支持隐式导航和显式定义的导航。
+# 如果您决定不在此处定义导航，Zensical 将简单地从您的 "docs_dir" 目录结构中派生导航结构。
+# 下面的定义演示了如何使用 TOML 语法定义导航结构
+#
+# 阅读更多：https://zensical.org/docs/setup/navigation/
+# nav = [
+#   { "Get started" = "index.md" },
+#   { "Markdown in 5min" = "markdown.md" },
+# ]
+
+# 使用 "extra_css" 选项，您可以添加自己的 CSS 样式来自定义您的 Zensical 项目。您可以添加任意数量的 CSS 文件
+#
+# 提供的路径应该相对于 "docs_dir"
+#
+# 阅读更多：https://zensical.org/docs/customization/#additional-css
+#
+#extra_css = ["assets/stylesheets/extra.css"]
+
+# 使用 `extra_javascript` 选项，您可以添加自己的 JavaScript 到您的项目中，以根据需要自定义行为
+#
+# 提供的路径应该相对于 "docs_dir"
+#
+# 阅读更多：https://zensical.org/docs/customization/#additional-javascript
+#extra_javascript = ["assets/javascript/extra.js"]
+
+# ----------------------------------------------------------------------------
+# 配置主题选项的部分
+# ----------------------------------------------------------------------------
+[project.theme]
+
+# 将此更改为 "classic" 以使用传统的 Material for MkDocs 外观
+#variant = "classic"
+
+# Zensical 允许您覆盖特定的块、部分或整个模板，以及定义自己的模板。为此，请取消注释下面的 custom_dir 设置，
+# 并将其设置为您保存模板覆盖的目录
+#
+# 阅读更多：
+# - https://zensical.org/docs/customization/#extending-the-theme
+#
+#custom_dir = "overrides"
+
+# 使用 "favicon" 选项，您可以设置自己的图像用作浏览器在浏览器标题栏或标签栏中使用的图标
+# 提供的路径必须相对于 "docs_dir"
+#
+# 阅读更多：
+# - https://zensical.org/docs/setup/logo-and-icons/#favicon
+# - https://developer.mozilla.org/en-US/docs/Glossary/Favicon
+#
+#favicon = "assets/images/favicon.png"
+
+# Zensical 支持超过 60 种不同的语言。这意味着 Zensical 模板生成的标签和工具提示会被翻译
+# "language" 选项允许您设置使用的语言。此语言也在 HTML 头部元素中指示，以帮助可访问性并指导搜索引擎和翻译工具
+#
+# 默认语言是 "en"（英语）。可以创建多语言站点并配置语言选择器。有关详细信息，请参阅文档
+#
+# 阅读更多：
+# - https://zensical.org/docs/setup/language/
+#
+language = "zh"
+
+# Zensical 提供了许多功能开关，可更改文档站点的行为
+features = [
+    # Zensical 包含一个公告栏。此功能允许用户在阅读公告后关闭它
+    # https://zensical.org/docs/setup/header/#announcement-bar
+    "announce.dismiss",
+
+    # 如果您配置了仓库并开启此功能，Zensical 将为页面生成一个编辑按钮。这适用于常见的仓库托管服务
+    # https://zensical.org/docs/setup/repository/#code-actions
+    #"content.action.edit",
+
+    # 如果您配置了仓库并开启此功能，Zensical 将生成一个按钮，允许用户查看当前页面的 Markdown 代码
+    # https://zensical.org/docs/setup/repository/#code-actions
+    #"content.action.view",
+
+    # 代码注释允许您在代码块中添加带有工具提示的图标，在关键点提供解释
+    # https://zensical.org/docs/authoring/code-blocks/#code-annotations
+    "content.code.annotate",
+
+    # 此功能在代码块中打开一个按钮，允许用户在不先选择的情况下将内容复制到剪贴板
+    # https://zensical.org/docs/authoring/code-blocks/#code-copy-button
+    "content.code.copy",
+
+    # 代码块可以包含一个按钮，允许用户选择行范围
+    # https://zensical.org/docs/authoring/code-blocks/#code-selection-button
+    "content.code.select",
+
+    # Zensical 可以将脚注呈现为内联工具提示，因此用户可以在不离开文档上下文的情况下阅读脚注
+    # https://zensical.org/docs/authoring/footnotes/#footnote-tooltips
+    "content.footnote.tooltips",
+
+    # 如果您有许多具有相同标题的内容选项卡（例如，"Python"、"JavaScript"、"Cobol"），
+    # 当用户在一个中选择语言时，此功能会导致所有选项卡同时切换
+    # https://zensical.org/docs/authoring/content-tabs/#linked-content-tabs
+    "content.tabs.link",
+
+    # TODO：我不确定这个？文档中有演示吗？
+    # https://zensical.org/docs/authoring/tooltips/#improved-tooltips
+    "content.tooltips",
+
+    # 启用此功能后，当用户滚动超过某一点时，Zensical 将自动隐藏标题的部分内容
+    # https://zensical.org/docs/setup/header/#automatic-hiding
+    # "header.autohide",
+
+    # 默认情况下打开此功能以展开导航侧边栏中的所有可折叠部分
+    # https://zensical.org/docs/setup/navigation/#navigation-expansion
+    # "navigation.expand",
+
+    # 此功能在页脚中打开导航元素，允许用户导航到下一页或上一页
+    # https://zensical.org/docs/setup/footer/#navigation
+    "navigation.footer",
+
+    # 启用部分索引页面时，文档可以直接附加到部分，这对于提供概览页面特别有用
+    # https://zensical.org/docs/setup/navigation/#section-index-pages
+    "navigation.indexes",
+
+    # 启用即时导航时，对所有内部链接的点击将被拦截并通过 XHR 发送，而无需完全重新加载页面
+    # https://zensical.org/docs/setup/navigation/#instant-navigation
+    "navigation.instant",
+
+    # 通过即时预取，当用户悬停在链接上时，您的站点将开始获取页面。这将减少用户的感知加载时间
+    # https://zensical.org/docs/setup/navigation/#instant-prefetching
+    "navigation.instant.prefetch",
+
+    # 为了在慢速连接上使用即时导航时提供更好的用户体验，可以启用进度指示器
+    # https://zensical.org/docs/setup/navigation/#progress-indicator
+    "navigation.instant.progress",
+
+    # 激活导航路径时，会在每页标题上方呈现面包屑导航
+    # https://zensical.org/docs/setup/navigation/#navigation-path
+    "navigation.path",
+
+    # 启用修剪时，只有可见的导航项包含在呈现的 HTML 中，将构建的站点大小减少 33% 或更多
+    # https://zensical.org/docs/setup/navigation/#navigation-pruning
+    #"navigation.prune",
+
+    # 启用部分时，顶级部分在侧边栏中呈现为组（对于高于 1220px 的视口），但在移动设备上保持不变
+    # https://zensical.org/docs/setup/navigation/#navigation-sections
+    "navigation.sections",
+
+    # 启用选项卡时，顶级部分在标题下方的菜单层中呈现（对于高于 1220px 的视口），但在移动设备上保持不变
+    # https://zensical.org/docs/setup/navigation/#navigation-tabs
+    #"navigation.tabs",
+
+    # 启用粘性选项卡时，导航选项卡将锁定在标题下方，并在向下滚动时始终保持可见
+    # https://zensical.org/docs/setup/navigation/#sticky-navigation-tabs
+    #"navigation.tabs.sticky",
+
+    # 当用户向下滚动后再次开始向上滚动时，可以显示返回顶部按钮
+    # https://zensical.org/docs/setup/navigation/#back-to-top-button
+    "navigation.top",
+
+    # 启用锚点跟踪时，地址栏中的 URL 会自动更新为目录中高亮的活动锚点
+    # https://zensical.org/docs/setup/navigation/#anchor-tracking
+    "navigation.tracking",
+
+    # 启用搜索高亮显示时，用户点击搜索结果后，Zensical 会在跟随链接后高亮显示所有出现的位置
+    # https://zensical.org/docs/setup/search/#search-highlighting
+    "search.highlight",
+
+    # 启用目录的锚点跟随功能时，侧边栏会自动滚动，使活动锚点始终可见
+    # https://zensical.org/docs/setup/navigation/#anchor-following
+    # "toc.follow",
+
+    # 启用目录的导航集成时，它始终作为左侧导航侧边栏的一部分呈现
+    # https://zensical.org/docs/setup/navigation/#navigation-integration
+    #"toc.integrate",
+]
+
+# ----------------------------------------------------------------------------
+# 在 "palette" 子部分中，您可以配置配色方案的选项。
+# 您可以配置不同的配色方案，例如，打开暗模式，
+# 用户可以在它们之间切换。每个配色方案都可以进一步自定义
+#
+# 阅读更多：
+# - https://zensical.org/docs/setup/colors/
+# ----------------------------------------------------------------------------
+[[project.theme.palette]]
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "切换到暗色模式"
+
+[[project.theme.palette]]
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "切换到亮色模式"
+
+# ----------------------------------------------------------------------------
+# 在 "font" 子部分中，您可以配置使用的字体。默认情况下，字体
+# 从 Google Fonts 加载，为您提供来自一组适当许可的字体的广泛选择。
+# 有普通文本字体和用于代码块的等宽字体的选项
+# ----------------------------------------------------------------------------
+#[project.theme.font]
+#text = "Inter"
+#code = "Jetbrains Mono"
+
+# ----------------------------------------------------------------------------
+# 您可以使用 "icons" 子部分中的 "logo" 选项配置要在标题中显示的您自己的徽标。
+# 徽标可以是 "docs_dir" 中文件的路径，也可以是图标的路径
+#
+# 同样，您可以自定义用于标题的仓库部分的徽标。Zensical 从仓库 URL 派生此项的默认徽标。
+# 见下文...
+#
+# 还有其他图标您可以自定义。有关详细信息，请参阅文档
+#
+# 阅读更多：
+# - https://zensical.org/docs/setup/logo-and-icons
+# - https://zensical.org/docs/authoring/icons-emojis/#search
+# ----------------------------------------------------------------------------
+#[project.theme.icon]
+#logo = "lucide/smile"
+#repo = "lucide/smile"
+
+# ----------------------------------------------------------------------------
+# "extra" 部分包含杂项设置
+# ----------------------------------------------------------------------------
+#[[project.extra.social]]
+#icon = "fontawesome/brands/github"
+#link = "https://github.com/user/repo"
