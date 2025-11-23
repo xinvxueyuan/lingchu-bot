@@ -27,7 +27,7 @@ dependencies = [
     "certifi==2025.11.12",
     "chardet==5.2.0",
     "charset-normalizer==3.4.4",
-    "click==8.2.1",
+    "click==8.3.1",
     "colorama==0.4.6 ; sys_platform == 'win32'",
     "cookiecutter==2.6.0",
     "deepmerge==2.0",
