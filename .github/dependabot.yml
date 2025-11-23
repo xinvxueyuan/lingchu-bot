@@ -1,0 +1,7 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"     # 检查频率：可选 daily, weekly, monthly
+    open-pull-requests-limit: 5
