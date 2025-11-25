@@ -86,7 +86,7 @@ dependencies = [
     "rich==14.2.0",
     "rich-click==1.9.4",
     "ruff==0.14.6",
-    "sentry-sdk[loguru]==2.45.0",
+    "sentry-sdk[loguru]==2.46.0",
     "six==1.17.0",
     "sniffio==1.3.1",
     "sqlalchemy[aiosqlite]==2.0.44",
