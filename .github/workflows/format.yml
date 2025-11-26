@@ -18,25 +18,36 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 配置 Python 环境
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.13.x"
+      # - name: Setup Python
+      #   uses: actions/setup-python@v6
+      #   with:
+      #     python-version: "3.13.x"
 
-      - name: 配置 uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          python-version: "3.12"
-          enable-cache: "auto"
-
-      - name: 安装依赖
-        run: uv sync
+      - name: Setup PDM
+        uses: pdm-project/setup-pdm@v4
+      - name: Install dependencies
+        run: pdm install
 
       - name: 运行 Black 代码格式化
-        run: uv run black .
+        run: pdm run black .
 
       - name: 运行 isort 导入排序
-        run: uv run isort .
+        run: pdm run isort .
+
+      # - name: Setup uv
+      #   uses: astral-sh/setup-uv@v7
+      #   with:
+      #     python-version: "3.12"
+      #     enable-cache: "auto"
+
+      # - name: 安装依赖
+      #   run: uv sync
+
+      # - name: 运行 Black 代码格式化
+      #   run: uv run black .
+
+      # - name: 运行 isort 导入排序
+      #   run: uv run isort .
 
       - name: 检查是否有代码更改
         id: check_changes
