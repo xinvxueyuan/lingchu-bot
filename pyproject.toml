@@ -109,7 +109,7 @@ dependencies = [
     "websockets==15.0.1",
     "win32-setctime==1.2.0 ; sys_platform == 'win32'",
     "yarl==1.22.0",
-    "zensical==0.0.9",
+    "zensical==0.0.10",
 ]
 
 [project.optional-dependencies]
