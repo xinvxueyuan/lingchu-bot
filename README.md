@@ -17,7 +17,7 @@
 
 <div class="alert alert-warning" role="alert" align="center">
 <h2>🚧开发阶段，文档更新落后🚧</h2>
-<h2>⚠️包管理器由pdm变更为uv，注意兼容问题⚠️</h2>
+<h2>⚠️包管理器未定，暂时使用pdm，注意兼容问题⚠️</h2>
 </div>
 
 ## 前置条件

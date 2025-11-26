@@ -19,5 +19,6 @@ def index_init() -> None:
     """机器人核心启动索引"""
     if check_init_and_config():
         logger.info("未发现配置或配置损坏，使用默认配置")
+        from .model import models  # noqa: F401 # 导入数据库模型
     else:
-        logger.info("使用用户配置启动")
+        logger.info("使用用户配置启动灵初")
