@@ -23,7 +23,7 @@ def mount_static_files() -> None:
         static_dirs = [
             (
                 "/web",
-                plugin_dir / "lingchu-bot-rewebui" / "dist",
+                plugin_dir / "webui" / "lingchu-bot-rewebui" / "dist",
                 "lingchu_bot_rewebui",
             ),
         ]
