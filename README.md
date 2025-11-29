@@ -2,13 +2,12 @@
 <div align="center">
   <h1>✨Re-灵初bot✨</h1>
   
-![CodeRabbit Pull Request Reviews][CodeRabbit-link]
-
-![ide-link]
-
   <a name="readme-top"><img src="https://socialify.git.ci/xinvxueyuan/lingchu-bot/image?custom_description=%E7%94%B1Nonebot2%E9%A9%B1%E5%8A%A8%E7%9A%84QQ%E7%AE%A1%E7%90%86%E6%9C%BA%E5%99%A8%E4%BA%BA&description=1&font=Inter&forks=1&issues=1&language=1&name=1&owner=1&pattern=Overlapping+Hexagons&pulls=1&theme=Auto" alt="lingchu-bot" width="640" height="320" /></a>
   
 [![][license-shield]][license-link] [![][docs-shield]][docs-link] [![][github-release-shield]][github-release-link] [![][github-stars-shield]][github-stars-link]
+![CodeRabbit Pull Request Reviews][CodeRabbit-link]
+
+![ide-link]
 
 </div>
 <br/>
