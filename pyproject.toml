@@ -11,7 +11,6 @@ dependencies = [
     "nonebot-plugin-localstore==0.7.4",
     "nonebot-plugin-sentry==2.0.0",
     "nonebot-plugin-orm[aiosqlite]==0.8.2",
-    "nb-cli==1.5.0",
     "aiosqlite==0.21.0",
     "alembic==1.17.2",
     "annotated-doc==0.0.4",

@@ -26,7 +26,7 @@ jobs:
       - name: Setup PDM
         uses: pdm-project/setup-pdm@v4
       - name: Install dependencies
-        run: pdm install
+        run: pdm sync --dev
 
       - name: 运行 Black 代码格式化
         run: pdm run black .
@@ -41,7 +41,7 @@ jobs:
       #     enable-cache: "auto"
 
       # - name: 安装依赖
-      #   run: uv sync
+      #   run: uv sync --dev
 
       # - name: 运行 Black 代码格式化
       #   run: uv run black .

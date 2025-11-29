@@ -1,8 +1,8 @@
 <!-- markdownlint-disable MD033 && MD041 && MD045 && MD001-->
 <div align="center">
-  <a name="readme-top"><img src="https://socialify.git.ci/xinvxueyuan/lingchu-bot/image?custom_description=%E7%94%B1Nonebot2%E9%A9%B1%E5%8A%A8%E7%9A%84QQ%E7%AE%A1%E7%90%86%E6%9C%BA%E5%99%A8%E4%BA%BA&description=1&font=Inter&forks=1&issues=1&language=1&name=1&owner=1&pattern=Overlapping+Hexagons&pulls=1&theme=Auto" alt="lingchu-bot" width="640" height="320" /></a>
   <h1>✨Re-灵初bot✨</h1>
-
+  <a name="readme-top"><img src="https://socialify.git.ci/xinvxueyuan/lingchu-bot/image?custom_description=%E7%94%B1Nonebot2%E9%A9%B1%E5%8A%A8%E7%9A%84QQ%E7%AE%A1%E7%90%86%E6%9C%BA%E5%99%A8%E4%BA%BA&description=1&font=Inter&forks=1&issues=1&language=1&name=1&owner=1&pattern=Overlapping+Hexagons&pulls=1&theme=Auto" alt="lingchu-bot" width="640" height="320" /></a>
+  
 ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/xinvxueyuan/lingchu-bot?utm_source=oss&utm_medium=github&utm_campaign=xinvxueyuan%2Flingchu-bot&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
 [![][license-shield]][license-link] [![][docs-shield]][docs-link] [![][github-release-shield]][github-release-link] [![][github-stars-shield]][github-stars-link]
@@ -22,9 +22,12 @@
 
 ## 前置条件
 
+我们使用激进的推送策略，因此请确保您的本地仓库与远程仓库保持同步。
+
 - [git](https://git-scm.com/downloads)最新版本
 - [python](https://www.python.org/downloads/)>=3.12, <4.0版本
-- [uv](https://github.com/astral-sh/uv)最新版本
+- [uv](https://docs.astral.sh/uv/)最新版本
+- [pdm](https://pdm-project.org/zh-cn/latest/)最新版本
 
 </div>
 <div>
@@ -79,6 +82,13 @@ pdm run nb --help
 
 </div>
 <div>
+
+## 注意事项
+
+- 项目使用ruff进行代码检查，建议在开发过程中使用ruff进行代码检查。
+- 项目使用pdm进行依赖管理，建议在开发过程中使用pdm进行依赖管理。
+- 项目使用black进行代码格式化，建议在开发过程中使用black进行代码格式化。
+- 项目使用isort进行导入排序，建议在开发过程中使用isort进行导入排序。
 
 ## 文档
 
