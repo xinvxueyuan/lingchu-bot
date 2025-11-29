@@ -1,0 +1,63 @@
+name: Bump version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump-type:
+        description: '版本更新类型（遵循语义化版本：major=主版本，minor=次版本，patch=补丁版本）'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+jobs:
+  bump-version:
+    name: 版本更新与标签创建
+    permissions:
+      id-token: write
+      pull-requests: read
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 拉取完整历史，确保版本工具能正确识别之前的 Tag
+
+      - name: 配置 Python 环境
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13.x'
+
+      - name: Setup PDM
+        uses: pdm-project/setup-pdm@v4
+
+      - name: 安装版本更新工具
+        run: pdm install bump-my-version
+
+      - name: 执行版本更新
+        id: bump
+        uses: callowayproject/bump-my-version@master
+        env:
+          BUMPVERSION_TAG: "true"
+          BUMPVERSION_COMMIT: "true"
+        with:
+          args: ${{ inputs.bump-type }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 打印版本更新结果
+        if: steps.bump.outputs.bumped == 'true'
+        run: |
+          echo "✅ 版本更新成功！"
+          echo "📦 旧版本：${{ steps.bump.outputs.previous-version }}"
+          echo "📦 新版本：${{ steps.bump.outputs.current-version }}"
+          echo "🔖 标签：v${{ steps.bump.outputs.current-version }}"
+
+      - name: 版本未更新提示
+        if: steps.bump.outputs.bumped != 'true'
+        run: |
+          echo "ℹ️  版本未发生变更，请检查版本配置或更新类型是否正确"
+          echo "🔍 当前版本：${{ steps.bump.outputs.current-version }}"

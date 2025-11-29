@@ -1,6 +1,6 @@
 [project]
 name = "lingchu-bot"
-version = "0.1.0"
+version = "0.0.1"
 description = "lingchu-bot"
 readme = "README.md"
 requires-python = ">=3.12, <4.0"
@@ -230,3 +230,13 @@ keep-runtime-typing = true
 pythonVersion = "3.9"
 pythonPlatform = "All"
 typeCheckingMode = "standard"
+
+[tool.poe.tasks]
+text = ["_text-ruff"]
+_text-ruff = "pdm run ruff check ."
+format = ["_format-black", "_format-isort", "_format-ruff"]
+_format-black = "pdm run black ."
+_format-isort = "pdm run isort ."
+_format-ruff = "pdm run ruff format ."
+build = ["format", "text", "_build"]
+_build = "pdm build"

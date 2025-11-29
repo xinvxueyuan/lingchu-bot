@@ -25,6 +25,7 @@ jobs:
 
       - name: Setup PDM
         uses: pdm-project/setup-pdm@v4
+        
       - name: Install dependencies
         run: pdm sync --dev
 
