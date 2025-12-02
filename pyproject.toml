@@ -76,7 +76,7 @@ dev = [
 ]
 
 [tool.nonebot]
-plugin_dirs = ["src/plugins"]
+plugin_dirs = ["src/plugins", "src/builtin_plugins"]
 builtin_plugins = []
 
 [tool.nonebot.adapters]
@@ -91,6 +91,7 @@ nonebot-plugin-apscheduler = ["nonebot_plugin_apscheduler"]
 nonebot-plugin-localstore = ["nonebot_plugin_localstore"]
 nonebot-plugin-sentry = ["nonebot_plugin_sentry"]
 nonebot-plugin-orm = ["nonebot_plugin_orm"]
+
 [tool.ruff]
 line-length = 88
 target-version = "py39"

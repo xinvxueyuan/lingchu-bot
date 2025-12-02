@@ -1,5 +1,5 @@
 from nonebot_plugin_orm import Model
-from sqlalchemy import JSON
+from sqlalchemy import JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
@@ -48,7 +48,9 @@ class GroupConfig(Model):
     """单群配置"""
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    group_id: Mapped[int] = mapped_column(foreign_key="grouplist.group_id", unique=True)
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("lingchu_bot_grouplist.group_id"), unique=True
+    )
     group: Mapped["GroupList"] = relationship(back_populates="group_config")
     blacklist: Mapped[list[int]] = mapped_column(JSON, default=list)
     admin_list: Mapped[list[int]] = mapped_column(JSON, default=list)
@@ -69,5 +71,7 @@ class ChatConfig(Model):
     """聊天配置（私聊/临时会话）"""
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[str] = mapped_column(foreign_key="chatlist.user_id", unique=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("lingchu_bot_chatlist.user_id"), unique=True
+    )
     chat: Mapped["ChatList"] = relationship(back_populates="chat_config")
