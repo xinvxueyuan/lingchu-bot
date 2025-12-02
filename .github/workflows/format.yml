@@ -44,9 +44,8 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: 推回格式化后的代码 (仅限 Pull Request)
-        # 只有在 PR 事件中并且检测到更改时才执行
-        if: github.event_name == 'pull_request' && steps.check_changes.outputs.changed == 'true'
+      - name: 推回格式化后的代码 
+        if: steps.check_changes.outputs.changed == 'true'
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
@@ -54,10 +53,3 @@ jobs:
           # 提交信息中包含 PR 号，方便追踪
           git commit -m "style: Automated code formatting (Black & isort) for PR #${{ github.event.pull_request.number }}"
           git push
-
-      - name: 如果代码未格式化则失败 (仅限 Push 到主分支)
-        # 只有在 push 事件中并且检测到更改时才执行
-        if: github.event_name == 'push' && steps.check_changes.outputs.changed == 'true'
-        run: |
-          echo "错误：代码未格式化。请在本地运行 'pdm run poe format' 并提交。"
-          exit 1
