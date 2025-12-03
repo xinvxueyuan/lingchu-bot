@@ -2,7 +2,7 @@ from nonebot import get_plugin_config, logger
 from nonebot.plugin import PluginMetadata
 
 from .config import Config
-from .core.index import check_state, index_init
+from .core.index import index_init
 from .core.web.mount import BaseMount
 
 __plugin_meta__ = PluginMetadata(
@@ -14,9 +14,8 @@ __plugin_meta__ = PluginMetadata(
 
 config = get_plugin_config(Config)
 
-if check_state() is True:
-    logger.info("状态检查通过,等待实例连接")
-    BaseMount()
-    index_init()
-else:
-    logger.error("状态检查失败，请勿直接启动nonebot2，需先配置.env文件")
+BaseMount()
+index_init()
+
+
+logger.info("插件加载完成,等待实例连接")

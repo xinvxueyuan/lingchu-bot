@@ -25,6 +25,22 @@ class GlobalConfig(Model):
     """全局配置"""
 
     id: Mapped[int] = mapped_column(primary_key=True)
+
+
+class GlobalGroupConfig(Model):
+    """全局群聊配置"""
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # 全局黑名单
+    blacklist: Mapped[list[int]] = mapped_column(JSON, default=list)
+    # 全局管理员
+    admin_list: Mapped[list[int]] = mapped_column(JSON, default=list)
+
+
+class GlobalChatConfig(Model):
+    """全局聊天配置"""
+
+    id: Mapped[int] = mapped_column(primary_key=True)
     # 全局黑名单
     blacklist: Mapped[list[int]] = mapped_column(JSON, default=list)
     # 全局管理员
