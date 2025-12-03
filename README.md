@@ -26,13 +26,14 @@
 
 - [git](https://git-scm.com/downloads)最新版本
 - [python](https://www.python.org/downloads/)>=3.12, <4.0版本
-- [uv](https://docs.astral.sh/uv/)最新版本
 - [pdm](https://pdm-project.org/zh-cn/latest/)最新版本
 
 </div>
 <div>
 
 ## 开启项目
+
+[项目文档]([docs-link])
 
 #### 以下操作需在终端执行，且目录无中文字符
 
@@ -49,7 +50,6 @@ cd lingchu-bot
 ```
 
 安装项目依赖
-    注意:项目已包含nb-cli,可以直接在项目目录下使用‘pdm run’+‘nb命令’执行nb-cli相关操作
 
 ```bash
 pdm install --prod # 安装生产依赖
@@ -59,25 +59,8 @@ pdm install  # 或安装全部依赖(包含开发依赖)
 启动项目
 
 ```bash
-pdm run nb run # 启动项目(生产环境)
-pdm run nb run --reload # 自动重载(开发环境)
-```
-
-</div>
-<div>
-
-## 常用命令
-
-### 启动nb-cli菜单
-
-```bash
-pdm run nb
-```
-
-### 查看nb-cli帮助
-
-```bash
-pdm run nb --help
+pdm run bot.py # 启动项目(生产环境)
+pdm run bot.py --reload # 自动重载(开发环境)
 ```
 
 </div>
@@ -90,12 +73,19 @@ pdm run nb --help
 - 项目使用black进行代码格式化，建议在开发过程中使用black进行代码格式化。
 - 项目使用isort进行导入排序，建议在开发过程中使用isort进行导入排序。
 
-## 文档
+## 感谢
 
-[Nonebot2文档](https://nonebot.dev/)
+[Nonebot2](https://nonebot.dev/)
+[onebot11](https://11.onebot.dev/)
+[go-cqhttp](https://go-cqhttp.org/)
+[nonebot-plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler)
+[nonebot-plugin-orm](https://github.com/nonebot/plugin-orm)
+[httpx](https://www.python-httpx.org/)
+[websockets](https://websockets.readthedocs.io/)
+[nicegui](https://nicegui.io/)
 
 <!-- official link -->
-[docs-link]: https://github.com/xinvxueyuan/lingchu-bot/wiki
+[docs-link]: https://lingchu.zone.id/
 
 <!-- Other link-->
 [license-link]: https://www.gnu.org/licenses/gpl-3.0.html
