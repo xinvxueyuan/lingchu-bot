@@ -186,7 +186,8 @@ pythonPlatform = "All"
 typeCheckingMode = "standard"
 
 [tool.pdm.scripts]
-docs = "zensical serve"
+dev-app = "pdm run bot.py"
+dev-docs = "zensical serve"
 lint = "pdm run ruff check . --fix"
 format = "pdm run isort . && pdm run black . && pdm run ruff format ."
 build = "pdm run format && pdm run lint && pdm build"

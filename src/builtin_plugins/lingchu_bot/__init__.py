@@ -9,13 +9,16 @@ __plugin_meta__ = PluginMetadata(
     name="lingchu-bot",
     description="最新可用的现代化QQ社区管理机器人，遵循onebot11规范",
     usage="",
+    type="application",
+    supported_adapters={"nonebot.adapters.onebot.v11"},
+    homepage="https://github.com/lingchu-bot/nonebot-plugin-lingchu-bot",
     config=Config,
 )
 
 config = get_plugin_config(Config)
 
-BaseMount()
 index_init()
+BaseMount()
 
 
 logger.info("插件加载完成,等待实例连接")
