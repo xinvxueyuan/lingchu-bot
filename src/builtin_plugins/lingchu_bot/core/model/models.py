@@ -1,6 +1,9 @@
+from nonebot import require
 from nonebot_plugin_orm import Model
 from sqlalchemy import JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+require("nonebot_plugin_orm")
 
 
 class Botinfo(Model):

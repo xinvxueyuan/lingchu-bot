@@ -1,15 +1,18 @@
 from nonebot import logger
 
+from .model import models
+from .web.mount import BaseMount
 
-def check_init_and_config() -> bool:
+
+def check_init_status() -> bool | None:
     """机器人初次启动检查和配置"""
-    return True
+    return None
 
 
 def index_init() -> None:
-    """机器人核心启动索引"""
-    if check_init_and_config():
+    """机器人核心部分启动索引"""
+    BaseMount()  # 挂载WebUI
+    if check_init_status():
         logger.info("未发现配置或配置损坏，使用默认配置")
-        from .model import models  # noqa: F401 # 导入数据库模型
     else:
         logger.info("使用用户配置启动灵初")

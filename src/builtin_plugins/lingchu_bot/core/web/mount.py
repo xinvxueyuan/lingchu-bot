@@ -1,4 +1,7 @@
 from nicegui import ui
+from nonebot import require
+
+require("lingchu_bot")
 from nonebot.log import logger
 
 
@@ -13,7 +16,6 @@ class BaseMount:
             language="zh-CN",
             host="127.0.0.1",
             port=8096,
-            # reload=False,
         )
 
         @ui.page("/")
@@ -33,7 +35,6 @@ class BaseMount:
             with ui.header():
                 ui.label("灵初 Web 后台")
                 with ui.row():
-                    ui.button("管理")
                     ui.button("刷新")
                     ui.button("保存")
                     ui.button("关于")
