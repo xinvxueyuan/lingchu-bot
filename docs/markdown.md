@@ -2,56 +2,62 @@
 icon: simple/markdown
 ---
 
-# Markdown in 5min
+# 5 分钟学 Markdown
 
-## Headers
-```
-# H1 Header
-## H2 Header
-### H3 Header
-#### H4 Header
-##### H5 Header
-###### H6 Header
-```
+## 标题
 
-## Text formatting
 ```
-**bold text**
-*italic text*
-***bold and italic***
-~~strikethrough~~
-`inline code`
+# H1 标题
+## H2 标题
+### H3 标题
+#### H4 标题
+##### H5 标题
+###### H6 标题
 ```
 
-## Links and images
+## 文本格式
+
 ```
-[Link text](https://example.com)
-[Link with title](https://example.com "Hover title")
-![Alt text](image.jpg)
-![Image with title](image.jpg "Image title")
+**加粗文本**
+*斜体文本*
+***加粗加斜体***
+~~删除线~~
+`行内代码`
 ```
 
-## Lists
-```
-Unordered:
-- Item 1
-- Item 2
-  - Nested item
+## 链接与图片
 
-Ordered:
-1. First item
-2. Second item
-3. Third item
+```
+[链接文本](https://example.com)
+[带标题的链接](https://example.com "悬停标题")
+![替代文本](image.jpg)
+![带标题的图片](image.jpg "图片标题")
 ```
 
-## Blockquotes
+## 列表
+
 ```
-> This is a blockquote
-> Multiple lines
->> Nested quote
+无序：
+- 项目 1
+- 项目 2
+  - 嵌套项
+
+有序：
+1. 第一项
+2. 第二项
+3. 第三项
 ```
 
-## Code blocks
+## 引用
+
+```
+> 这是一个引用
+> 多行内容
+>> 嵌套引用
+```
+
+## 代码块
+
 ````
 ```javascript
 function hello() {
@@ -60,39 +66,44 @@ function hello() {
 ```
 ````
 
-## Tables
+## 表格
+
 ```
-| Header 1 | Header 2 | Header 3 |
-|----------|----------|----------|
-| Row 1    | Data     | Data     |
-| Row 2    | Data     | Data     |
+| 表头 1 | 表头 2 | 表头 3 |
+|--------|--------|--------|
+| 行 1   | 数据   | 数据   |
+| 行 2   | 数据   | 数据   |
 ```
 
-## Horizontal rule
+## 分割线
+
 ```
 ---
-or
+或
 ***
-or
+或
 ___
 ```
 
-## Task lists
+## 任务清单
+
 ```
-- [x] Completed task
-- [ ] Incomplete task
-- [ ] Another task
+- [x] 已完成的任务
+- [ ] 未完成的任务
+- [ ] 另一个任务
 ```
 
-## Escaping characters
+## 转义字符
+
 ```
-Use backslash to escape: \* \_ \# \`
+使用反斜杠进行转义： \* \_ \# \`
 ```
 
-## Line breaks
-```
-End a line with two spaces  
-to create a line break.
+## 换行
 
-Or use a blank line for a new paragraph.
+```
+在行末添加两个空格  
+以创建换行。
+
+或使用空行开始新段落。
 ```
