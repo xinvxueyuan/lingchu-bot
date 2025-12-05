@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - master
 
 jobs:
   format:
@@ -27,12 +26,12 @@ jobs:
         uses: pdm-project/setup-pdm@v4
         with:
           python-version: "3.13.x"
-        
+
       - name: Install dependencies
         run: pdm sync --dev
 
       - name: 运行代码格式化
-        run: pdm run poe format
+        run: pdm run format
 
       - name: 检查是否有代码更改
         id: check_changes
@@ -44,7 +43,7 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: 推回格式化后的代码 
+      - name: 推回格式化后的代码
         if: steps.check_changes.outputs.changed == 'true'
         run: |
           git config --global user.name 'GitHub Actions'

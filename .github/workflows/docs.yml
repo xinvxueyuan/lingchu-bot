@@ -2,7 +2,6 @@ name: 文档部署
 on:
   push:
     branches:
-      - master
       - main
 permissions:
   contents: read
@@ -16,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/configure-pages@v5
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
-          python-version: 3.x
+          python-version: 3.13.x
       - run: pip install zensical
       - run: zensical build --clean
       - uses: actions/upload-pages-artifact@v4

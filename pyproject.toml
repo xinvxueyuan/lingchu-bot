@@ -185,12 +185,18 @@ pythonVersion = "3.9"
 pythonPlatform = "All"
 typeCheckingMode = "standard"
 
+[tool.pdm.scripts]
+docs = "zensical serve"
+lint = "pdm run ruff check . --fix"
+format = "pdm run isort . && pdm run black . && pdm run ruff format ."
+build = "pdm run format && pdm run lint && pdm build"
+check-all = "pdm run format && pdm run lint"
 [tool.poe.tasks]
-text = ["_text-ruff"]
-_text-ruff = "pdm run ruff check ."
-format = ["_format-black", "_format-isort", "_format-ruff"]
-_format-black = "pdm run black ."
-_format-isort = "pdm run isort ."
-_format-ruff = "pdm run ruff format ."
-build = ["format", "text", "_build"]
-_build = "pdm build"
+# lint = ["_lint-ruff"]
+# _lint-ruff = "pdm run ruff check . --fix"
+# format = ["_format-black", "_format-isort", "_format-ruff"]
+# _format-black = "pdm run black ."
+# _format-isort = "pdm run isort ."
+# _format-ruff = "pdm run ruff format ."
+# build = ["format", "lint", "_build"]
+# _build = "pdm build"

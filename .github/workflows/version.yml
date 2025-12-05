@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       bump-type:
-        description: '版本更新类型（遵循语义化版本：major=主版本，minor=次版本，patch=补丁版本）'
+        description: "版本更新类型（遵循语义化版本：major=主版本，minor=次版本，patch=补丁版本）"
         required: true
-        default: 'patch'
+        default: "patch"
         type: choice
         options:
           - major
@@ -25,18 +25,15 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 拉取完整历史，确保版本工具能正确识别之前的 Tag
+          fetch-depth: 0
 
       - name: 配置 Python 环境
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13.x'
+          python-version: "3.13.x"
 
-      - name: Setup PDM
+      - name: 配置 PDM 环境
         uses: pdm-project/setup-pdm@v4
-
-      - name: 安装版本更新工具
-        run: pdm install bump-my-version
 
       - name: 执行版本更新
         id: bump
