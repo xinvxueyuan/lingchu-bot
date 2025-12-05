@@ -10,7 +10,7 @@
 # site_name 显示在页面标题和浏览器窗口标题中
 #
 # 阅读更多：https://zensical.org/docs/setup/basics/#site_name
-site_name = "灵初re 使用文档"
+site_name = "✨Re-灵初bot✨"
 
 # site_description 包含在 HTML 头部，应该包含对搜索引擎有用的网站内容描述
 #
@@ -24,7 +24,7 @@ site_author = "新v学员"
 
 # site_url 是您网站的规范 URL。在构建在线文档时应该设置此项
 # 阅读更多：https://zensical.org/docs/setup/basics/#site_url
-site_url = "https://xinvxueyuan.github.io/lingchu-bot/"
+site_url = "https://lingchu.zone.id"
 
 # 版权通知出现在页面页脚中，可以包含 HTML 片段
 #
@@ -101,7 +101,7 @@ features = [
 
     # 如果您配置了仓库并开启此功能，Zensical 将为页面生成一个编辑按钮。这适用于常见的仓库托管服务
     # https://zensical.org/docs/setup/repository/#code-actions
-    #"content.action.edit",
+    "content.action.edit",
 
     # 如果您配置了仓库并开启此功能，Zensical 将生成一个按钮，允许用户查看当前页面的 Markdown 代码
     # https://zensical.org/docs/setup/repository/#code-actions
@@ -166,7 +166,7 @@ features = [
 
     # 启用修剪时，只有可见的导航项包含在呈现的 HTML 中，将构建的站点大小减少 33% 或更多
     # https://zensical.org/docs/setup/navigation/#navigation-pruning
-    #"navigation.prune",
+    "navigation.prune",
 
     # 启用部分时，顶级部分在侧边栏中呈现为组（对于高于 1220px 的视口），但在移动设备上保持不变
     # https://zensical.org/docs/setup/navigation/#navigation-sections
@@ -178,7 +178,7 @@ features = [
 
     # 启用粘性选项卡时，导航选项卡将锁定在标题下方，并在向下滚动时始终保持可见
     # https://zensical.org/docs/setup/navigation/#sticky-navigation-tabs
-    #"navigation.tabs.sticky",
+    "navigation.tabs.sticky",
 
     # 当用户向下滚动后再次开始向上滚动时，可以显示返回顶部按钮
     # https://zensical.org/docs/setup/navigation/#back-to-top-button
@@ -194,7 +194,7 @@ features = [
 
     # 启用目录的锚点跟随功能时，侧边栏会自动滚动，使活动锚点始终可见
     # https://zensical.org/docs/setup/navigation/#anchor-following
-    # "toc.follow",
+    "toc.follow",
 
     # 启用目录的导航集成时，它始终作为左侧导航侧边栏的一部分呈现
     # https://zensical.org/docs/setup/navigation/#navigation-integration
@@ -248,6 +248,6 @@ toggle.name = "切换到亮色模式"
 # ----------------------------------------------------------------------------
 # "extra" 部分包含杂项设置
 # ----------------------------------------------------------------------------
-#[[project.extra.social]]
-#icon = "fontawesome/brands/github"
-#link = "https://github.com/user/repo"
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/xinvxueyuan/nonebot-plugin-lingchu-bot"
