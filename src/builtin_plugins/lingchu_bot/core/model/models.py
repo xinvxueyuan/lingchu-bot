@@ -10,10 +10,22 @@ class Botinfo(Model):
     """机器人信息"""
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    bot_id: Mapped[str] = mapped_column(unique=True, index=True)
+    bot_id: Mapped[int] = mapped_column(unique=True, index=True)
     bot_name: Mapped[str] = mapped_column(index=True)
-    bot_version: Mapped[str] = mapped_column(index=True)
+    core_version: Mapped[str] = mapped_column(index=True)
     bot_status: Mapped[int] = mapped_column(default=0, index=True)
+    sub_plugins: Mapped[list[str]] = mapped_column(JSON, default=list)
+    core_plugins: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
+class BotConfig(Model):
+    """机器人配置"""
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    webui_enabled: Mapped[bool] = mapped_column(default=True, index=True)
+    webui_host: Mapped[str] = mapped_column(default="127.0.0.1", index=True)
+    webui_port: Mapped[int] = mapped_column(default=8069, index=True)
+    webui_token: Mapped[str] = mapped_column(default="", index=True)
 
 
 class GlobalAdminUser(Model):
@@ -25,7 +37,7 @@ class GlobalAdminUser(Model):
 
 
 class GlobalConfig(Model):
-    """全局配置"""
+    """全局管理配置"""
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
