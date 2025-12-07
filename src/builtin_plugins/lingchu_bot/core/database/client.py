@@ -111,7 +111,7 @@ async def delete[T: Model](model: type[T], filters: dict[str, Any]) -> int:
         res = await s.execute(select(model).where(*_conds(model, filters)))
         objs = list(res.scalars().all())
         for obj in objs:
-            s.delete(obj)
+            await s.delete(obj)
         await s.commit()
         return len(objs)
 
