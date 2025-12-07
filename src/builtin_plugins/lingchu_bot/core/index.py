@@ -1,6 +1,6 @@
 from nonebot import logger
 
-from .model import models
+from .database.model import models
 from .web.mount import BaseMount
 
 

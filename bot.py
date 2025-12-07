@@ -9,6 +9,6 @@ driver.register_adapter(ONEBOT_V11Adapter)
 
 
 nonebot.load_from_toml("pyproject.toml")
-
+nonebot.load_plugins("src/builtin_plugins")
 if __name__ == "__main__":
     nonebot.run()

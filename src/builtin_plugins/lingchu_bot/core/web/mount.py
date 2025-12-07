@@ -10,14 +10,14 @@ from ...config import Config
 webui_config = get_plugin_config(Config)
 global_config = nonebot.get_driver().config
 
-if webui_config.webui_enabled:
+if True:
     web_env = global_config.environment == "prod"
     ui.run_with(
         app=nonebot.get_asgi(),
         mount_path="/webui",
         title="灵初web后台",
         dark=None,
-        storage_secret=webui_config.webui_token,
+        # storage_secret=webui_config.webui_token,
         prod_js=web_env,
         language="zh-CN",
     )

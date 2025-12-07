@@ -76,7 +76,7 @@ dev = [
 ]
 
 [tool.nonebot]
-plugin_dirs = ["src/plugins", "src/builtin_plugins"]
+plugin_dirs = ["src/plugins"]
 builtin_plugins = []
 
 [tool.nonebot.adapters]

@@ -1,3 +1,5 @@
+"""数据库模型"""
+
 from nonebot import require
 from nonebot_plugin_orm import Model
 from sqlalchemy import JSON, ForeignKey
