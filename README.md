@@ -20,20 +20,14 @@
 <h2>⚠️包管理器未定，暂时使用pdm，注意兼容问题⚠️</h2>
 </div>
 
-## 前置条件
-
-我们使用激进的推送策略，因此请确保您的本地仓库与远程仓库保持同步。
-
-- [git](https://git-scm.com/downloads)最新版本
-- [python](https://www.python.org/downloads/)>=3.12, <4.0版本
-- [pdm](https://pdm-project.org/zh-cn/latest/)最新版本
-
 </div>
 <div>
 
-## 开启项目
+## 开始使用
 
 [项目文档]([docs-link])
+
+## 开发项目
 
 #### 以下操作需在终端执行，且目录无中文字符
 
@@ -66,23 +60,27 @@ pdm run bot.py --reload # 自动重载(开发环境)
 </div>
 <div>
 
-## 注意事项
+## 兼容问题
 
-- 项目使用ruff进行代码检查，建议在开发过程中使用ruff进行代码检查。
-- 项目使用pdm进行依赖管理，建议在开发过程中使用pdm进行依赖管理。
-- 项目使用black进行代码格式化，建议在开发过程中使用black进行代码格式化。
-- 项目使用isort进行导入排序，建议在开发过程中使用isort进行导入排序。
+- websockets驱动器与nicegui不兼容，会导致onebot适配器无法正常运行。(nicegui用于web实现)
 
-## 感谢
+## 许可证
+
+本项目使用复合许可证，包含AGPL-3.0、CC BY-SA 4.0和COPYING(脱敏声明)。
+具体内容请参见[LICENSE](./LICENSE)、[LICENSE-docs](./LICENSE-docs)和[COPYING](./COPYING)。
+
+## 感谢支持
 
 [Nonebot2](https://nonebot.dev/)
+
 [onebot11](https://11.onebot.dev/)
-[go-cqhttp](https://go-cqhttp.org/)
+
 [nonebot-plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler)
+
 [nonebot-plugin-orm](https://github.com/nonebot/plugin-orm)
-[httpx](https://www.python-httpx.org/)
-[websockets](https://websockets.readthedocs.io/)
+
 [nicegui](https://nicegui.io/)
+</div>
 
 <!-- official link -->
 [docs-link]: https://lingchu.zone.id/
