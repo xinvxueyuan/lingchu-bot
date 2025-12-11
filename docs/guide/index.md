@@ -1,5 +1,5 @@
 ---
-icon: lucide/rocket
+icon: simple/markdown
 ---
 
 # 快速开始
