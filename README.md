@@ -66,7 +66,7 @@ pdm run bot.py --reload # 自动重载(开发环境)
 ## 许可证
 
 本项目使用复合许可证，包含 AGPL-3.0、CC BY-SA 4.0和COPYING(复合脱敏声明)。
-具体内容请参见[LICENSE](./LICENSE)、[LICENSE-docs](./LICENSE-docs)和[COPYING](./COPYING)。
+具体内容请参见[LICENSE](LICENSE-code)、[LICENSE-docs](./LICENSE-docs)和[COPYING](./COPYING)。
 
 ## 感谢支持
 
