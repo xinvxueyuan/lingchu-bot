@@ -1,0 +1,39 @@
+FROM python:3.13 as requirements_stage
+
+WORKDIR /wheel
+
+RUN python -m pip install --user uv
+
+COPY ./pyproject.toml \
+  ./uv.lock \
+  /wheel/
+
+RUN python -m uv export --format requirements.txt --output-file requirements.txt --no-hashes
+
+RUN python -m pip wheel --wheel-dir=/wheel --no-cache-dir --requirement ./requirements.txt
+
+RUN python -m uv tool run --no-cache --from nb-cli nb generate -f /tmp/bot.py
+
+
+FROM python:3.13-slim
+
+WORKDIR /app
+
+ENV TZ Asia/Shanghai
+ENV PYTHONPATH=/app
+
+COPY ./docker/gunicorn_conf.py ./docker/start.sh /
+RUN chmod +x /start.sh
+
+ENV APP_MODULE _main:app
+ENV MAX_WORKERS 1
+
+COPY --from=requirements_stage /tmp/bot.py /app
+COPY ./docker/_main.py /app
+COPY --from=requirements_stage /wheel /wheel
+
+RUN pip install --no-cache-dir gunicorn uvicorn[standard] nonebot2 \
+  && pip install --no-cache-dir --no-index --force-reinstall --find-links=/wheel -r /wheel/requirements.txt && rm -rf /wheel
+COPY . /app/
+
+CMD ["/start.sh"]

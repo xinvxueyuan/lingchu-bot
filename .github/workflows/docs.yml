@@ -1,0 +1,47 @@
+name: 文档部署
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - zensical.toml
+      - docs/**
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 配置 Pages
+        uses: actions/configure-pages@v5
+
+      - name: 检出代码
+        uses: actions/checkout@v6
+
+      - name: 安装uv 并依赖
+        uses: astral-sh/setup-uv@v7.1.6
+        with:
+          github-token: ${{ github.token }}
+          enable-cache: "auto"
+
+      - name: 构建文档
+        shell: bash
+        run: uvx zensical build --clean
+
+      - name: 上传 Pages 产物
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: 部署到 Pages
+        uses: actions/deploy-pages@v4
+        id: deployment

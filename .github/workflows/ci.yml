@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+      - "dev**"
+      - "releases/**"
+      - "feature/**"
+      - "fix/**"
+      - "hotfix/*"
+    paths:
+      - "**/*.yml"
+      - "**/*.py"
+  push:
+    branches:
+      - main
+      - dev
+      - "dev**"
+      - "releases/**"
+      - "feature/**"
+      - "fix/**"
+      - "hotfix/*"
+    paths:
+      - "**/*.yml"
+      - "**/*.py"
+
+permissions:
+  contents: write
+  checks: write
+  pull-requests: write
+
+jobs:
+  ruff-check:
+    name: Ruff Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 安装 uv 并依赖
+        uses: astral-sh/setup-uv@v7
+        with:
+          resolution-strategy: "highest"
+          github-token: ${{ github.token }}
+          python-version: "3.13"
+          enable-cache: "false"
+
+      - name: 安装依赖 (dev)
+        run: uv sync --only-dev
+
+      - name: 运行 ruff check
+        run: uv run ruff check .
+
+  ruff-format-check:
+    name: Ruff Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 安装 uv 并依赖
+        uses: astral-sh/setup-uv@v7
+        with:
+          resolution-strategy: "highest"
+          github-token: ${{ github.token }}
+          python-version: "3.13"
+          enable-cache: "false"
+
+      - name: 安装依赖 (dev)
+        run: uv sync --only-dev
+
+      - name: 检查格式
+        run: uv run ruff format --check .
+
+  pyright:
+    name: Pyright Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 安装 uv 并依赖
+        uses: astral-sh/setup-uv@v7
+        with:
+          resolution-strategy: "highest"
+          github-token: ${{ github.token }}
+          python-version: "3.13"
+          enable-cache: "false"
+
+      - name: 安装依赖 (dev)
+        run: uv sync --only-dev
+
+      - name: 运行 pyright 类型检查
+        run: uv run pyright .
+
+  format:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: formatting
+      cancel-in-progress: true
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 安装uv 并依赖
+        uses: astral-sh/setup-uv@v7
+        with:
+          resolution-strategy: "highest"
+          github-token: ${{ github.token }}
+          python-version: "3.13"
+          enable-cache: "false"
+
+      - name: 安装依赖
+        run: uv sync --only-dev
+
+      - name: 检查代码格式
+        run: uv run ruff format --check .
