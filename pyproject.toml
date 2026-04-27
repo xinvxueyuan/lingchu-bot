@@ -26,47 +26,44 @@ dependencies = [
     "nonebot-adapter-milky>=1.2.0",
     "nonebot-adapter-github>=0.6.0",
     "nonebot-adapter-discord>=1.1.3",
-    "pyyaml>=6.0.3",
-    "rtoml>=0.13.0",
-    "yaql>=3.2.0",
-    "ruamel-yaml>=0.19.1",
-    "tomli>=2.4.1",
-    "babel>=2.18.0",
-    "fastapi-babel>=1.0.0",
+    "nonebot-adapter-telegram>=0.1.0b20",
     "nicegui>=3.10.0",
     "flet[all]>=0.84.0",
-    "fastapi-amis-admin>=0.7.3",
-    "nonebot-adapter-telegram>=0.1.0b20",
+    "aiofiles>=25.1.0",
+    "json5>=0.14.0",
+    "babel>=2.18.0",
 ]
 
 [project.optional-dependencies]
 
 [dependency-groups]
 dev = [
-    { include-group = "devs" },
+    { include-group = "script" },
     { include-group = "test" },
     { include-group = "docs" },
+    { include-group = "lint" },
+    { include-group = "git" },
 ]
-devs = [
+script = ["poethepoet>=0.44.0"]
+git = [
+    "bump-my-version>=1.3.0",
+    "gitlint>=0.19.1",
     "commitlint>=1.13.3",
     "husky>=0.1.7",
     "prek>=0.3.8",
-    "ruff>=0.15.10",
-    "pyright>=1.1.407",
-    "bump-my-version>=1.3.0",
-    "poethepoet>=0.44.0",
 ]
 docs = ["zensical>=0.0.17"]
+lint = ["ruff>=0.15.10", "pyright>=1.1.407", "ty>=0.0.32"]
 test = ["nonebug>=0.4.3", "pytest>=8.4.2", "pytest-asyncio>=1.3.0"]
 
 [project.urls]
 Homepage = "https://lingchu.zone.id/"
-Documentation = "https://lingchu.zone.id/"
-Repository = "https://github.com/xinvxueyuan/nonebot-plugin-lingchu-bot.git"
-Issues = "https://github.com/xinvxueyuan/nonebot-plugin-lingchu-bot/issues"
+Documentation = "https://lingchu.hikarilink.org"
+Repository = "https://github.com/hikarilink/lingchu-bot.git"
+Issues = "https://github.com/hikarilink/lingchu-bot/issues"
 
 [tool.PEP639.Standards]
-license-expression = "AGPL-3.0 AND CC-BY-SA-4.0"
+license-expression = "LGPL-3.0 AND GFDL-1.3"
 
 [tool.poe.tasks]
 
