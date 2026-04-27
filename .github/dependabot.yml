@@ -1,8 +1,26 @@
 version: 2
 updates:
   - package-ecosystem: "pip"
-    target-branch: dev
+    target-branch: devlop
     directory: "/"
     schedule:
-      interval: "weekly"     # 检查频率：可选 daily, weekly, monthly
-    open-pull-requests-limit: 5
+      interval: "daily" # 检查频率：可选 daily, weekly, monthly
+    open-pull-requests-limit: 5 # 同时打开的 PR 数量限制
+    # 下面是一些可选的配置项，可以根据需要启用
+    # ignore:
+    #   - dependency-name: "example-package"
+    #     versions:
+    #       - "1.0.0"
+    #   - dependency-name: "another-package"
+    #     versions:
+    #       - "2.0.0"
+    # commit-message:
+    #   prefix: "deps"
+    #   include: "scope" # 可选项：scope, dependency-name, version
+    # versioning-strategy: increase-if-necessary # 可选项：auto, increase-if-necessary, widen, increase-if-necessary-and-widen
+    # reviewers:
+    #   - "github-username" # 指定 PR 的审查者
+    # assignees:
+    #   - "github-username" # 指定 PR 的负责人
+    # labels:
+    #   - "dependencies" # 给 PR 添加标签

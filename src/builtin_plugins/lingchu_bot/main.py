@@ -3,6 +3,7 @@ from pathlib import Path
 import nonebot
 from nonebot import get_plugin_config
 from nonebot.plugin import PluginMetadata
+from nonebot.plugin.model import Plugin
 
 from .config import Config
 
@@ -27,15 +28,12 @@ __plugin_meta__ = PluginMetadata(
     },
 )
 
-config = get_plugin_config(Config)
+config: Config = get_plugin_config(Config)
 
 from . import core
 
 core.index_init()
 
-sub_plugins = nonebot.load_plugins(
+sub_plugins: set[Plugin] = nonebot.load_plugins(
     str(Path(__file__).parent.joinpath("plugins").resolve())
 )
-
-from .core.api import apimount as apimount
-from .middleware.onebot11.event import MessageSentEvent as MessageSentEvent
