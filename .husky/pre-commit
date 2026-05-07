@@ -1,1 +1,1 @@
-uvx prek run
+uvx prek list && uvx prek run

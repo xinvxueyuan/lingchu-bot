@@ -4,11 +4,6 @@ rev = "v6.0.0"
 hooks = [{ id = "check-yaml" }, { id = "end-of-file-fixer" }]
 
 [[repos]]
-repo = "https://github.com/jorisroovers/gitlint"
-rev = "v0.19.1"
-hooks = [{ id = "gitlint" }]
-
-[[repos]]
 repo = "https://github.com/opensource-nepal/commitlint"
 rev = "v1.13.3"
 hooks = [{ id = "commitlint" }]
