@@ -6,6 +6,7 @@
     "ms-python.debugpy",
     "qwtel.sqlite-viewer",
     "ms-vscode.powershell",
-    "ms-python.python"
+    "ms-python.python",
+    "astral-sh.ty"
   ]
 }
