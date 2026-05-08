@@ -1,4 +1,20 @@
-# advanced_command_engine.py
+"""
+typed_command --- 命令解析与路由模块 / Command parsing and routing
+
+该模块实现了一套轻量的命令解析器和路由器，支持类型注解驱动的参数解析、
+布尔标志提取、子路由挂载以及中间件链执行。所有公开接口使用明确的类型注解，
+并在函数/类处添加中英文 docstring 以便国际化文档需求。
+
+This module implements a lightweight command parser and router. It supports
+type-annotation driven parameter parsing, boolean flag extraction, sub-router
+mounting, and middleware chaining. Public interfaces are fully type-annotated
+and documented in both Chinese and English.
+
+注意：抑制与 lint/typing 无关的警告应集中在模块顶部处理。
+Note: Suppressions unrelated to lint/typing should be centralized at the top
+of the module.
+"""
+
 from __future__ import annotations
 
 import inspect
@@ -23,12 +39,15 @@ _TOKEN_PATTERN = re.compile(
     r"|(\S+)"
 )
 
-# 用于 CQ 参数匹配，允许值内出现非关键逗号
 _CQ_ARGS_PATTERN = re.compile(r"([a-zA-Z0-9_]+)=(.+?)(?=,[a-zA-Z0-9_]+=|$)")
 
 
 class ParseError(Exception):
-    """命令解析错误的基类。"""
+    """命令解析错误的基本异常。
+
+    Args:
+        message: 错误信息 / Error message.
+    """
 
     def __init__(self, message: str) -> None:
         self.message = message
@@ -36,6 +55,14 @@ class ParseError(Exception):
 
 
 class Token:
+    """解析后的小型 token 对象，用于表示命令片段。
+
+    Attributes:
+        type: token 类型，例如 'str'/'word'/'cq'/'user'
+        value: 解析后的值
+        raw: 原始文本片段
+    """
+
     __slots__ = ("raw", "type", "value")
 
     def __init__(self, type_: str, value: Any, raw: str) -> None:
@@ -48,17 +75,25 @@ class Token:
 
 
 def tokenize(text: str) -> list[Token]:
-    tokens = []
+    """将输入文本切分为命令 token 列表。
+
+    Args:
+        text: 原始命令文本 / Raw command text.
+
+    Returns:
+        token 列表 / List of tokens.
+    """
+
+    tokens: list[Token] = []
     for match in _TOKEN_PATTERN.finditer(text):
         quoted, cq_type, cq_args, at, normal = match.groups()
         raw = match.group(0)
         if quoted is not None:
             tokens.append(Token("str", quoted, raw))
         elif cq_type is not None:
-            params = {}
+            params: dict[str, str] = {}
             if cq_args:
-                # 使用新正则，值可含逗号，按 key= 分割
-                cq_args = cq_args.strip(",")  # 去掉可能的首尾逗号
+                cq_args = cq_args.strip(",")
                 for sub in _CQ_ARGS_PATTERN.finditer(cq_args):
                     params[sub.group(1)] = sub.group(2)
             tokens.append(Token("cq", {"type": cq_type, "params": params}, raw))
@@ -70,6 +105,13 @@ def tokenize(text: str) -> list[Token]:
 
 
 class TypeSpec:
+    """类型解析器封装。
+
+    Attributes:
+        name: 类型名 / human readable name.
+        parser: 从 Token 解析出值的函数 / parser function.
+    """
+
     def __init__(self, name: str, parser: Callable[[Token], Any]) -> None:
         self.name = name
         self.parser = parser
@@ -202,7 +244,7 @@ def resolve_type(annotation: Any) -> Any:
 
 @dataclass
 class MatchContext:
-    """列表匹配上下文对象。"""
+    """列表匹配上下文，供列表参数处理使用。"""
 
     inner_spec: Any
     remaining_params: list["Param"]
@@ -227,6 +269,17 @@ class Literal(Node):
 
 @dataclass
 class Param(Node):
+    """表示命令参数元信息的节点。
+
+    Attributes:
+        name: 参数名
+        spec: 参数类型描述（resolve_type 返回值）
+        has_default: 是否有默认值
+        greedy: 是否为贪婪参数（吃掉剩余文本）
+        flag: 是否为布尔标志
+        flag_short: 短标志，例如 '-f'
+    """
+
     name: str
     spec: Any
     has_default: bool = False
@@ -237,6 +290,16 @@ class Param(Node):
 
 @dataclass
 class Context:
+    """执行时的上下文对象，传递给命令处理函数。
+
+    Attributes:
+        raw_text: 原始文本
+        tokens: token 列表（可选，通常由 parse 填充）
+        user_id: 用户标识（可选）
+        channel_id: 频道标识（可选）
+        extra: 额外数据字典
+    """
+
     raw_text: str = ""
     tokens: list[Token] | None = None
     user_id: Any = None
@@ -255,6 +318,17 @@ class Context:
 
 
 class MatchError:
+    """参数匹配失败时返回的错误结构。
+
+    Attributes:
+        message: 错误信息
+        param: 相关参数名（如有）
+        token: 失败的 token 或其原始文本
+        index: 失败位置
+        expected: 期望的类型描述
+        score: 错误评分（用于选择最佳错误）
+    """
+
     def __init__(  # noqa: PLR0913
         self,
         message: str,
@@ -285,6 +359,16 @@ class MatchError:
 
 
 def build_ast(name: str, func: Callable) -> tuple[list[Node], dict[str, Any]]:
+    """根据处理函数签名构建 AST 节点与默认值表。
+
+    Args:
+        name: 命令名称（字符串）。
+        func: 处理函数对象。
+
+    Returns:
+        (nodes, defaults) 二元组：节点列表与默认值映射。
+    """
+
     sig = inspect.signature(func)
     nodes: list[Node] = [Literal(name)]
     defaults: dict[str, Any] = {}
@@ -341,16 +425,17 @@ def build_ast(name: str, func: Callable) -> tuple[list[Node], dict[str, Any]]:
 def extract_flags(
     tokens: list[Token], flag_defs: dict[str, tuple[str, str | None]]
 ) -> tuple[dict[str, bool], list[Token]]:
+    """提取命令中的布尔标志并返回剩余 token 列表。
+
+    行为：遇到独立的 `--` 停止标志解析，后续全部视为普通参数。
     """
-    提取并移除布尔标志 token。遇到独立的 '--' 停止标志解析，'--' 本身不保留。
-    """
+
     flag_values = dict.fromkeys(flag_defs, False)
-    remaining = []
+    remaining: list[Token] = []
     i = 0
     while i < len(tokens):
         tok = tokens[i]
         if tok.type == "word" and tok.value == "--":
-            # 停止标志解析，后续全部作为参数
             remaining.extend(tokens[i + 1 :])
             break
         if tok.type != "word":
@@ -371,7 +456,7 @@ def extract_flags(
 
 
 def _match_union(inner_specs: list[Any], token: Token) -> Any:
-    """尝试匹配Union中的任意一个类型。"""
+    """尝试匹配 Union 中的任一类型。"""
     for inner in inner_specs:
         try:
             return match_single(token, inner)
@@ -382,7 +467,7 @@ def _match_union(inner_specs: list[Any], token: Token) -> Any:
 
 
 def _match_literal(token: Token, allowed: tuple) -> Any:
-    """匹配Literal类型。"""
+    """匹配 Literal 类型值。"""
     if token.type in ("word", "str"):
         result = next((v for v in allowed if _literal_match(token.value, v)), None)
         if result is not None:
@@ -392,6 +477,12 @@ def _match_literal(token: Token, allowed: tuple) -> Any:
 
 
 def match_single(token: Token, spec: Any) -> Any:
+    """根据 spec 将单个 token 解析为目标值。
+
+    Raises:
+        ParseError: 当 token 无法匹配 spec 时抛出。
+    """
+
     if isinstance(spec, TypeSpec):
         return spec.parser(token)
     if not isinstance(spec, tuple):
@@ -416,7 +507,8 @@ def match_single(token: Token, spec: Any) -> Any:
 
 
 def _literal_match(raw: str, v: Any) -> bool:
-    """针对 Literal 允许值 v 判断原始字符串 raw 是否匹配。"""
+    """判断原始字符串是否与 Literal 值匹配（对布尔/None 有特殊处理）。"""
+
     if isinstance(v, bool):
         r = raw.lower()
         if v:
@@ -441,8 +533,8 @@ def resolve_default_for_param(node: Param, defaults: dict[str, Any]) -> Any:
 
 
 def _unpack_list_spec(spec: Any) -> tuple[Any, bool] | None:
-    """如果 spec 是 List[X] 或 Optional[List[X]]，
-    返回 (inner_spec, is_optional)，否则返回 None。"""
+    """分析是否为 List[X] 或 Optional[List[X]]，并返回内部类型与可选性标记。"""
+
     if isinstance(spec, tuple):
         if spec[0] == "list":
             return spec[1], False
@@ -458,11 +550,15 @@ def _unpack_list_spec(spec: Any) -> tuple[Any, bool] | None:
 def _handle_list_matching(
     ctx: MatchContext,
 ) -> tuple[Any | None, int, MatchError | None]:
-    """统一处理列表匹配，返回 (values, new_pos, error)。"""
+    """统一处理列表参数的匹配逻辑。
+
+    返回 (values, new_pos, error)。当匹配失败返回适当的 MatchError 对象。
+    """
+
     min_needed = len(ctx.remaining_params)
     max_take = ctx.tlen - ctx.i - min_needed
     values = []
-    pos = ctx.i  # 当前位置，之后会逐步消耗 token
+    pos = ctx.i
     if ctx.tlen > pos and max_take > 0:
         taken = 0
         while taken < max_take and pos < ctx.tlen:
@@ -472,8 +568,6 @@ def _handle_list_matching(
                 taken += 1
             except ParseError:
                 if taken == 0:
-                    # 第一个 token 就无法匹配，此时 pos 仍等于初始 ctx.i，
-                    # 因此可直接使用 ctx.tokens[ctx.i] 引用这个失败的 token。
                     token_val = ctx.tokens[ctx.i].raw
                     error = MatchError(
                         "列表参数类型错误",
@@ -503,7 +597,13 @@ def _handle_list_matching(
 def match(
     nodes: list[Node], tokens: list[Token], defaults: dict[str, Any]
 ) -> tuple[dict[str, Any] | None, MatchError | None]:
-    result = {}
+    """将 token 列表与 AST 节点匹配并返回参数映射或错误。
+
+    Returns:
+        (result, error) 二元组：result 为参数字典或 None；error 为 MatchError 或 None。
+    """
+
+    result: dict[str, Any] = {}
     i = 0
     tlen = len(tokens)
 
@@ -541,7 +641,6 @@ def match(
             result[node.name] = values
             continue
 
-        # 普通单值参数
         if i < tlen:
             try:
                 result[node.name] = match_single(tokens[i], spec)
@@ -580,6 +679,12 @@ class TrieNode:
 
 
 class CommandRouter:
+    """命令路由器，支持注册、挂载子路由及帮助生成。
+
+    简要说明：可通过 `command` 装饰器注册处理函数，通过 `mount` 挂载子路由器，
+    并支持中间件链式调用。
+    """
+
     def __init__(self, name: str = "") -> None:
         self.root = TrieNode()
         self.name = name
@@ -588,12 +693,21 @@ class CommandRouter:
         self.mount_path: str | None = None
 
     def use(self, middleware: Callable) -> CommandRouter:
+        """注册中间件（必须为异步函数）。"""
+
         if not inspect.iscoroutinefunction(middleware):
             raise TypeError("中间件必须是异步函数")
         self.middlewares.append(middleware)
         return self
 
     def command(self, path: str, aliases: list[str] | None = None) -> Callable:
+        """装饰器：在给定路径注册命令处理函数。
+
+        Args:
+            path: 主命令路径。
+            aliases: 可选别名列表。
+        """
+
         def decorator(func: Callable) -> Callable:
             paths = [path] + (aliases or [])
             for p in paths:
@@ -626,6 +740,13 @@ class CommandRouter:
         return decorator
 
     def mount(self, path: str, router: CommandRouter) -> None:
+        """挂载子路由器到指定路径。
+
+        Raises:
+            ValueError: 当 path 为空时。
+            RuntimeError: 当目标节点已有直接注册的命令时。
+        """
+
         parts = path.strip().split()
         if not parts:
             raise ValueError("挂载路径不能为空")
@@ -644,7 +765,7 @@ class CommandRouter:
     ) -> list[str]:
         if node is None:
             node = self.root
-        lines = []
+        lines: list[str] = []
         for part, child in node.children.items():
             current_prefix = f"{prefix}{part} "
             if child.sub_router:
@@ -654,8 +775,9 @@ class CommandRouter:
         return lines
 
     def _build_route_help(self, prefix: str, routes: list) -> list[str]:
-        """为给定的路由构建帮助文本。"""
-        lines = []
+        """为给定路由生成帮助文本行列表。"""
+
+        lines: list[str] = []
         for ast, func, defaults, flag_defs in routes:
             cmd_name = next((n.value for n in ast if isinstance(n, Literal)), None)
             if not cmd_name:
@@ -670,8 +792,9 @@ class CommandRouter:
     def _build_param_reprs(
         self, ast: list[Node], defaults: dict[str, Any]
     ) -> list[str]:
-        """为AST节点构建参数表示。"""
-        param_reprs = []
+        """构建参数展示字符串列表。"""
+
+        param_reprs: list[str] = []
         for p in ast:
             if not isinstance(p, Param) or p.flag:
                 continue
@@ -682,7 +805,8 @@ class CommandRouter:
         return param_reprs
 
     def _format_param(self, p: Param, defaults: dict[str, Any]) -> str:
-        """格式化单个参数表示。"""
+        """格式化单个参数的显示字符串。"""
+
         if p.has_default:
             dv = defaults.get(p.name)
             is_optional_spec = isinstance(p.spec, tuple) and p.spec[0] == "optional"
@@ -702,6 +826,11 @@ class CommandRouter:
         return param_str
 
     def help(self, command: str | None = None) -> str:
+        """返回命令帮助文本。
+
+        如果提供 `command`，返回该命令的详细说明；否则返回注册的命令列表。
+        """
+
         if command:
             parsed = self.parse(command, dry_run=True)
             if parsed and not parsed.get("error"):
@@ -721,8 +850,9 @@ class CommandRouter:
         tokens: list[Token],
         i: int,
     ) -> tuple[dict[str, Any] | None, MatchError | None, Any]:
-        """在多个路由中找到最佳匹配。返回 (params, error, handler)."""
-        best_error = None
+        """在候选路由中选出最佳匹配并返回 (params, error, handler)。"""
+
+        best_error: MatchError | None = None
         for ast, func, defaults, flag_defs in ast_routes:
             flag_values, remaining_tokens = extract_flags(tokens[i:], flag_defs)
             result, err = match(ast, remaining_tokens, defaults)
@@ -736,12 +866,19 @@ class CommandRouter:
     def parse(  # noqa: PLR0911
         self, text: str, *, dry_run: bool = False, context: Context | None = None
     ) -> dict[str, Any]:
+        """解析命令文本并返回解析结果或错误描述。
+
+        Returns:
+            当解析成功时返回包含 `path`、`params`、`handler` 的字典；
+            失败时返回包含 `error` 的错误描述。
+        """
+
         tokens = tokenize(text)
         if not tokens:
             return {"error": True, "message": "空命令"}
 
         node = self.root
-        path_parts = []
+        path_parts: list[str] = []
         i = 0
         while (
             i < len(tokens)
@@ -787,6 +924,16 @@ class CommandRouter:
         return {"error": True, "message": "匹配失败"}
 
     async def dispatch(self, text: str, context: Context | None = None) -> Any:
+        """执行解析与分发流程，包含中间件链调用。
+
+        Args:
+            text: 原始命令文本。
+            context: 可选执行上下文。
+
+        Returns:
+            handler 的执行结果，或错误描述。
+        """
+
         if context is None:
             context = Context(raw_text=text)
 
