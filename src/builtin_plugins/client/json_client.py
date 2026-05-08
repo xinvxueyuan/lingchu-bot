@@ -1,3 +1,17 @@
+"""异步 JSON5 数据库客户端。
+
+提供基于 JSON5 文件的异步数据存取、原子写入、嵌套键路径访问和文件监听。
+支持 dict/list 路径导航、可选自动保存以及显式关闭；仅适合存放 JSON5 兼容
+对象，包括 dict、list、str、int、float、bool 和 None。
+
+Asynchronous JSON5 database client.
+
+This module provides asynchronous JSON5-backed storage with atomic writes,
+nested-key navigation, optional file watching, and explicit close semantics.
+It supports dict/list path navigation, optional auto-save, and only stores
+JSON5-compatible objects: dict, list, str, int, float, bool, and None.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -19,25 +33,52 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseError(Exception):
-    """Base exception for JSON5 database errors."""
+    """JSON5 数据库错误的基础异常。
+
+    用于表示该模块中的通用存储错误，不承载业务语义。
+
+    Base exception for JSON5 database errors.
+    This represents generic storage failures in this module and does not
+    encode application-specific semantics.
+    """
 
 
 class InvalidDefaultTypeError(TypeError, DatabaseError):
+    """默认值类型不合法时抛出。
+
+    The provided default value has an invalid type.
+    """
+
     def __init__(self, actual_type: type[Any]) -> None:
         super().__init__(f"default must be a dict, got {actual_type}")
 
 
 class DatabaseClosedError(RuntimeError, DatabaseError):
+    """数据库已关闭时抛出。
+
+    Raised when an operation is attempted after close().
+    """
+
     def __init__(self) -> None:
         super().__init__("Database is closed")
 
 
 class InvalidKeyPathError(ValueError, DatabaseError):
+    """键路径无效时抛出。
+
+    Raised when the key path is empty or not a string.
+    """
+
     def __init__(self, key_path: Any) -> None:
         super().__init__(f"Key path must be a non-empty string: {key_path!r}")
 
 
 class EmptyPathSegmentError(ValueError, DatabaseError):
+    """键路径包含空段时抛出。
+
+    Raised when a dotted path contains an empty segment.
+    """
+
     def __init__(self, key_path: str) -> None:
         super().__init__(
             f"Invalid key path: {key_path!r}, empty segments are not allowed"
@@ -45,31 +86,61 @@ class EmptyPathSegmentError(ValueError, DatabaseError):
 
 
 class LoadTaskCancelledError(RuntimeError, DatabaseError):
+    """加载任务被意外取消时抛出。
+
+    Raised when the background load task is cancelled unexpectedly.
+    """
+
     def __init__(self) -> None:
         super().__init__("Load task was unexpectedly cancelled")
 
 
 class LoadStateMismatchError(RuntimeError, DatabaseError):
+    """加载状态不一致时抛出。
+
+    Raised when loading finished but the database was not marked loaded.
+    """
+
     def __init__(self) -> None:
         super().__init__("Loading completed but database not marked as loaded")
 
 
 class CallbackTypeError(TypeError, DatabaseError):
+    """回调类型不合法时抛出。
+
+    Raised when a callback is not asynchronous or is otherwise invalid.
+    """
+
     def __init__(self) -> None:
         super().__init__("callback must be an async function (or None)")
 
 
 class AtomicReplacementError(RuntimeError, DatabaseError):
+    """原子替换文件失败时抛出。
+
+    Raised when the temporary file could not replace the target file.
+    """
+
     def __init__(self) -> None:
         super().__init__("Atomic file replacement failed")
 
 
 class WatchAlreadyRunningError(RuntimeError, DatabaseError):
+    """文件监听已在运行时抛出。
+
+    Raised when watch() is called while a watcher is already active.
+    """
+
     def __init__(self) -> None:
         super().__init__("A watcher is already running")
 
 
 class IntermediateListNoneError(ValueError, DatabaseError):
+    """列表中间位置为 None 时抛出。
+
+    Raised when navigation tries to descend through a None placeholder.
+    """
+
     def __init__(self, index: int, path: str) -> None:
         super().__init__(
             f"Cannot create intermediate dictionary at list index {index} "
@@ -79,6 +150,11 @@ class IntermediateListNoneError(ValueError, DatabaseError):
 
 
 class ParentPathResolutionError(ValueError, DatabaseError):
+    """父路径无法继续下钻时抛出。
+
+    Raised when a parent path segment cannot descend into the current node.
+    """
+
     def __init__(self, segment: str, actual_type: str, path: str) -> None:
         super().__init__(
             f"Path resolution failed: parent at segment '{segment}' is "
@@ -87,6 +163,11 @@ class ParentPathResolutionError(ValueError, DatabaseError):
 
 
 class TerminalPathResolutionError(ValueError, DatabaseError):
+    """终端路径无法解析时抛出。
+
+    Raised when the final container does not support the target key.
+    """
+
     def __init__(self, actual_type: str, target_key: str, path: str) -> None:
         super().__init__(
             f"Terminal navigation failed: container type {actual_type} does "
@@ -95,25 +176,18 @@ class TerminalPathResolutionError(ValueError, DatabaseError):
 
 
 class RobustAsyncJSON5DB:
-    """
-    Asynchronous JSON5 file database with atomic writes and nested key support.
+    """异步 JSON5 文件数据库。
 
-    Supports dict/list path navigation, optional file watching, and explicit close.
-    Stores only JSON5-compatible objects: dict, list, str, int, float, bool, None.
+    该类以 JSON5 文件为持久化后端，支持嵌套路径读写、原子保存、
+    可选自动保存和文件变化监听。数据模型仅接受 JSON5 兼容对象；
+    数值路径片段在非负时才会被解释为列表索引，删除列表索引会让
+    后续元素左移。
 
-    Numeric segments like "items.0" are list indices only when non-negative.
-    Deleting a list index shifts following elements.
-
-    Atomic save writes to .tmp.json5 first, then replaces the main file.
-    Temporary files are cleaned on load and close.
-
-    File watcher can race with concurrent writers. Coordinate writes carefully.
-
-    With auto_save=True each write deep copies data, serializes, and atomically
-    commits disk then memory. This is safe but slower for frequent updates.
-
-    Heavy work is offloaded so the event loop stays responsive unless atomic_read()
-    is used, which deep-copies under lock for stronger consistency.
+    This class uses a JSON5 file as its persistence backend and supports nested
+    path access, atomic saves, optional auto-save, and file-change watching.
+    It only accepts JSON5-compatible objects. Numeric path segments are treated
+    as list indices only when non-negative, and deleting a list index shifts
+    subsequent items.
     """
 
     __slots__ = (
@@ -142,6 +216,20 @@ class RobustAsyncJSON5DB:
         ensure_ascii: bool = False,
         default: dict[str, Any] | None = None,
     ) -> None:
+        """初始化数据库实例。
+
+        Args:
+            file_path: 数据文件路径 / Path to the data file.
+            auto_save: 是否每次修改后自动落盘。
+                Whether to persist changes immediately.
+            indent: JSON5 输出缩进 / Indentation used for serialization.
+            ensure_ascii: 是否转义非 ASCII 字符。
+                Whether to escape non-ASCII characters.
+            default: 默认数据模板 / Default data template.
+
+        Raises:
+            InvalidDefaultTypeError: default 不是字典时。
+        """
         self.file_path = Path(file_path)
         self.temp_file_path = self.file_path.with_suffix(".tmp.json5")
         self.auto_save = auto_save
@@ -150,16 +238,15 @@ class RobustAsyncJSON5DB:
 
         if default is not None and not isinstance(default, dict):
             raise InvalidDefaultTypeError(type(default))
-        # Decouple internal state from mutable objects passed by caller.
         self._raw_default: dict[str, Any] = (
             deepcopy(default) if default is not None else {}
         )
 
         self._data: dict[str, Any] = {}
-        self._lock = asyncio.Lock()  # protects _data and _loaded
+        self._lock = asyncio.Lock()
         self._loaded = False
-        self._closed = False  # prevents operations after close
-        self._load_lock = asyncio.Lock()  # ensures single loading task
+        self._closed = False
+        self._load_lock = asyncio.Lock()
         self._load_task: asyncio.Task | None = None
         self._watch_task: asyncio.Task | None = None
         self._watch_mtime: float = 0.0
@@ -170,10 +257,19 @@ class RobustAsyncJSON5DB:
 
     @property
     def is_closed(self) -> bool:
-        """Return True if the database has been closed."""
+        """判断数据库是否已关闭。
+
+        Returns:
+            已关闭返回 True / True if the database has been closed.
+        """
         return self._closed
 
     def __repr__(self) -> str:
+        """返回调试表示。
+
+        Returns:
+            便于调试的对象表示 / Debug-friendly object representation.
+        """
         status = (
             "closed" if self._closed else ("loaded" if self._loaded else "not loaded")
         )
@@ -184,39 +280,46 @@ class RobustAsyncJSON5DB:
     # ------------------------------------------------------------------
 
     async def _get_fresh_default_copy(self) -> dict[str, Any]:
-        """Asynchronously return a fresh deep-copied default template."""
+        """获取新的默认模板副本。
+
+        Returns:
+            默认模板的深拷贝 / Deep copy of the default template.
+        """
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, deepcopy, self._raw_default)
 
     async def _cleanup_temp_file_async(self) -> None:
+        """异步清理临时文件。"""
         if await aiofiles.os.path.exists(self.temp_file_path):
             with contextlib.suppress(OSError):
                 await aiofiles.os.remove(self.temp_file_path)
 
     async def close(self) -> None:
-        """Stop tasks, clean temp file, and mark database as closed."""
+        """关闭数据库并清理后台任务。
+
+        Stop watcher/load tasks, remove temporary files, and mark the database
+        as closed.
+        """
         if self._closed:
             return
         self._closed = True
 
-        # Cancel pending load to avoid post-close state changes.
         if self._load_task and not self._load_task.done():
             self._load_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._load_task
 
-        # Stop file watcher if active
         if self._watch_task is not None and not self._watch_task.done():
             self._watch_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._watch_task
         self._watch_task = None
 
-        # Delete temp file asynchronously, ignore errors if already gone
         with contextlib.suppress(Exception):
             await self._cleanup_temp_file_async()
 
     async def __aenter__(self) -> Self:
+        """进入异步上下文时自动加载数据库。"""
         await self.load()
         return self
 
@@ -228,8 +331,6 @@ class RobustAsyncJSON5DB:
     ) -> None:
         del exc_val, exc_tb
         try:
-            # auto_save=True writes on every change; manual save only on clean exit
-            # to avoid overwriting good data with an incomplete state.
             if self._loaded and exc_type is None and not self.auto_save:
                 await self.save()
         finally:
@@ -240,6 +341,18 @@ class RobustAsyncJSON5DB:
     # ------------------------------------------------------------------
 
     def _validate_path(self, key_path: str) -> list[str]:
+        """校验并拆分键路径。
+
+        Args:
+            key_path: 点分路径 / Dotted key path.
+
+        Returns:
+            路径段列表 / List of path segments.
+
+        Raises:
+            InvalidKeyPathError: 路径不是非空字符串时。
+            EmptyPathSegmentError: 路径包含空段时。
+        """
         if not key_path or not isinstance(key_path, str):
             raise InvalidKeyPathError(key_path)
         segments = key_path.split(".")
@@ -247,12 +360,15 @@ class RobustAsyncJSON5DB:
             raise EmptyPathSegmentError(key_path)
         return segments
 
-    # ------------------------------------------------------------------
-    # File I/O (caller must hold _lock)
-    # ------------------------------------------------------------------
-
     async def _unsafe_load(self, default_copy: dict[str, Any]) -> None:
-        """Load data from disk using the given default copy. Caller holds _lock."""
+        """从磁盘加载数据。
+
+        Args:
+            default_copy: 读取失败时使用的默认副本 / Default copy used on load failure.
+
+        Raises:
+            无 / None.
+        """
         if await aiofiles.os.path.exists(self.file_path):
             try:
                 async with aiofiles.open(self.file_path, encoding="utf-8") as f:
@@ -276,11 +392,9 @@ class RobustAsyncJSON5DB:
         self._loaded = True
 
     async def _do_load(self) -> None:
-        """Background loading task. Called at most once. Respects closed flag."""
-        # Prepare default copy asynchronously (outside _lock)
+        """执行后台加载任务。"""
         default_copy = await self._get_fresh_default_copy()
         async with self._lock:
-            # Abort if closed in the meantime
             if self._closed:
                 return
             if not self._loaded:
@@ -288,10 +402,12 @@ class RobustAsyncJSON5DB:
                 await self._unsafe_load(default_copy)
 
     async def _ensure_loaded(self) -> None:
-        """
-        Ensure database is loaded. Starts a single background task if not already
-        loading or loaded. All concurrent callers wait for the same task.
-        Translates task cancellation (e.g. due to close()) into a RuntimeError.
+        """确保数据库已加载。
+
+        启动时会复用同一个加载任务，多个并发调用者会等待同一任务完成。
+
+        Ensure the database is loaded. Concurrent callers wait for the same load
+        task, and cancellation caused by close() is mapped to a database error.
         """
         if self._closed:
             raise DatabaseClosedError
@@ -307,6 +423,7 @@ class RobustAsyncJSON5DB:
             raise LoadStateMismatchError
 
     async def _start_load_task(self) -> None:
+        """启动加载任务（若尚未存在）。"""
         async with self._load_lock:
             if self._loaded:
                 return
@@ -314,6 +431,7 @@ class RobustAsyncJSON5DB:
                 self._load_task = asyncio.create_task(self._do_load())
 
     async def _await_load_task(self) -> None:
+        """等待加载任务完成并转换取消异常。"""
         task = self._load_task
         if task is None:
             return
@@ -330,18 +448,24 @@ class RobustAsyncJSON5DB:
             raise
 
     async def load(self) -> None:
-        """Explicitly load database. Same as _ensure_loaded()."""
+        """显式加载数据库。
+
+        Returns:
+            None.
+        """
         await self._ensure_loaded()
 
     async def reload(
         self, callback: Callable[[], Awaitable[Any]] | None = None
     ) -> None:
-        """
-        Force reload from disk, then optionally await *callback*.
-        The callback is awaited **after** the lock is released.
+        """强制从磁盘重新加载。
 
-        Does NOT cancel existing load tasks - it waits for them to complete
-        before reloading. This avoids leaking CancelledError to other waiters.
+        如果提供 callback，会在重新加载完成后、释放锁之后再等待回调。
+        该方法不会取消已有加载任务，而是等待其完成后再继续。
+
+        Force a reload from disk. If provided, callback is awaited after reload
+        and after the lock is released. Existing load tasks are not cancelled;
+        the method waits for them to finish first.
         """
         if self._closed:
             raise DatabaseClosedError
@@ -349,10 +473,8 @@ class RobustAsyncJSON5DB:
         if callback is not None and not asyncio.iscoroutinefunction(callback):
             raise CallbackTypeError
 
-        # Prepare a fresh default copy before acquiring locks
         default_copy = await self._get_fresh_default_copy()
 
-        # Wait for any ongoing load task to settle (no cancel)
         if self._load_task and not self._load_task.done():
             result = await asyncio.gather(self._load_task, return_exceptions=True)
             load_result = result[0]
@@ -361,10 +483,8 @@ class RobustAsyncJSON5DB:
                     raise DatabaseClosedError from None
                 raise LoadTaskCancelledError from None
 
-        # Serialise reload with other loading attempts
         async with self._load_lock, self._lock:
             self._loaded = False
-            # Cancel any stale load task (should already be done, but be safe)
             if self._load_task and not self._load_task.done():
                 self._load_task.cancel()
             self._load_task = None
@@ -374,9 +494,12 @@ class RobustAsyncJSON5DB:
             await callback()
 
     async def _unsafe_save_data(self, data: dict[str, Any]) -> None:
-        """
-        Serialize *data* and atomically write it to disk.
-        Does NOT modify ``self._data``.  Caller must hold ``self._lock``.
+        """序列化并原子写入数据。
+
+        该方法不会直接修改 self._data；调用方需要持有锁。
+
+        Serialize and atomically write data to disk. This does not modify
+        self._data directly; the caller must hold the lock.
         """
         await aiofiles.os.makedirs(self.file_path.parent, exist_ok=True)
 
@@ -394,11 +517,9 @@ class RobustAsyncJSON5DB:
             logger.exception(msg)
             raise RuntimeError(msg) from e
 
-        # Write to temp file
         async with aiofiles.open(self.temp_file_path, "w", encoding="utf-8") as f:
             await f.write(content)
 
-        # Atomically replace the main file
         try:
             await aiofiles.os.replace(self.temp_file_path, self.file_path)
         except OSError as exc:
@@ -406,11 +527,9 @@ class RobustAsyncJSON5DB:
                 "Atomic replace failed. Original file is unchanged. "
                 f"Temporary file may remain at {self.temp_file_path}"
             )
-            # Best-effort cleanup of lingering temp file
             await self._cleanup_temp_file_async()
             raise AtomicReplacementError from exc
 
-        # Update watch mtime to avoid false reload triggers
         try:
             stat_result = await aiofiles.os.stat(self.file_path)
             self._watch_mtime = stat_result.st_mtime
@@ -418,18 +537,15 @@ class RobustAsyncJSON5DB:
             self._watch_mtime = 0.0
 
     async def _unsafe_save(self) -> None:
-        """Save the current ``self._data`` to disk atomically."""
+        """将当前内存数据原子保存到磁盘。"""
         await self._unsafe_save_data(self._data)
 
     async def save(self) -> None:
+        """保存当前数据。"""
         if self._closed:
             raise DatabaseClosedError
         async with self._lock:
             await self._unsafe_save()
-
-    # ------------------------------------------------------------------
-    # CRUD (auto_save=True guarantees strict atomicity: disk first, then memory)
-    # ------------------------------------------------------------------
 
     async def read(
         self,
@@ -438,18 +554,13 @@ class RobustAsyncJSON5DB:
         *,
         use_deepcopy: bool = True,
     ) -> Any:
-        """
-        Read data at *key_path*. Automatically loads database if not yet loaded.
+        """读取指定路径的数据。
 
-        If ``use_deepcopy`` is True and the value is a dict or list, the method:
-          1. Under the lock, obtains a reference to the value.
-          2. If the value is a container, performs a **shallow copy** (dict/list copy)
-             while still holding the lock.
-          3. Releases the lock.
-          4. Deep copies the shallow copy in a thread pool and returns it.
+        若尚未加载，会自动触发加载。use_deepcopy=True 时会尽量返回安全快照。
 
-        Returns a possibly **non-atomic snapshot** (see class docstring). For strong
-        consistency, use ``atomic_read()``.
+        Read data at key_path. The database is loaded automatically if needed.
+        When use_deepcopy is True and the value is a container, the method
+        returns a defensive copy.
         """
         await self._ensure_loaded()
         if self._closed:
@@ -470,26 +581,23 @@ class RobustAsyncJSON5DB:
             if not use_deepcopy or not isinstance(val, (dict, list)):
                 return val
 
-            # Shallow copy under lock to protect container structure
             if isinstance(val, dict):
                 shallow = dict(val)
             elif isinstance(val, list):
                 shallow = list(val)
             else:
-                shallow = val  # pragma: no cover
+                shallow = val
 
-        # Deepcopy outside lock in thread pool
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, deepcopy, shallow)
 
     async def atomic_read(
         self, key_path: str | None = None, default: Any = None
     ) -> Any:
-        """
-        Read data at *key_path* and return an **atomic snapshot** (strong consistency).
-        This method performs a deep copy **inside the lock** and thus may briefly
-        block the event loop for large data structures. Use only when you cannot
-        tolerate the weak consistency of ``read(use_deepcopy=True)``.
+        """原子读取指定路径的数据。
+
+        This returns a strong-consistency snapshot by deep-copying under the lock.
+        It may briefly block the event loop for large data structures.
         """
         await self._ensure_loaded()
         if self._closed:
@@ -506,31 +614,33 @@ class RobustAsyncJSON5DB:
                 if not exists:
                     return default
                 val = parent[key]
-            # Synchronous deepcopy (may block event loop)
             return deepcopy(val) if isinstance(val, (dict, list)) else val
 
     async def set(self, key_path: str, value: Any) -> None:
+        """设置或覆盖指定路径的值。"""
         await self._ensure_loaded()
         if self._closed:
             raise DatabaseClosedError
         await self._set_with_condition(key_path, value, mode="upsert")
 
     async def create(self, key_path: str, value: Any) -> bool:
+        """仅在路径不存在时创建值。"""
         await self._ensure_loaded()
         if self._closed:
             raise DatabaseClosedError
         return await self._set_with_condition(key_path, value, mode="create")
 
     async def update(self, key_path: str, value: Any) -> bool:
+        """仅在路径存在时更新值。"""
         await self._ensure_loaded()
         if self._closed:
             raise DatabaseClosedError
         return await self._set_with_condition(key_path, value, mode="update")
 
     async def _set_with_condition(self, key_path: str, value: Any, mode: str) -> bool:
+        """按模式写入单个路径。"""
         async with self._lock:
             if self.auto_save:
-                # Atomic path: operate on a deep copy, persist it, then swap
                 loop = asyncio.get_running_loop()
                 data_copy: dict[str, Any] = await loop.run_in_executor(
                     None, deepcopy, self._data
@@ -549,11 +659,9 @@ class RobustAsyncJSON5DB:
 
                 parent[key] = value
 
-                # Try to persist the new state; only replace memory on success
                 await self._unsafe_save_data(data_copy)
                 self._data = data_copy
                 return True
-            # Non-auto-save: modify in-memory directly, no disk write.
             segments = self._validate_path(key_path)
             create_missing = mode != "update"
             parent, key, exists = self._navigate_to_parent(
@@ -569,15 +677,10 @@ class RobustAsyncJSON5DB:
             return True
 
     async def set_batch(self, updates: dict[str, Any]) -> None:
-        """
-        Atomically apply a batch of updates.  If ``auto_save`` is True the new state
-        is persisted *before* the in-memory data is replaced; no partial modifications
-        are ever visible to readers or persisted on failure.
+        """批量应用更新。
 
-        Updates within a batch are applied independently; do not rely on insertion
-        order to achieve cascading changes (e.g., setting a key and then a sub-key).
-        The method operates on a deep copy of the database, applies every entry in
-        the order they are iterated, and then commits the full result atomically.
+        The batch is applied to a deep copy first and then committed atomically.
+        Updates are independent; do not rely on ordering for cascading changes.
         """
         if not updates:
             return
@@ -599,17 +702,13 @@ class RobustAsyncJSON5DB:
                 parent[key] = val
 
             if self.auto_save:
-                # Persist the new state first; only update memory on success
                 await self._unsafe_save_data(data_copy)
             self._data = data_copy
 
     async def delete(self, key_path: str) -> bool:
-        """
-        Delete the value at *key_path*.  Returns True if the key existed.
+        """删除指定路径的值。
 
-        Deleting an element from a list (when *key_path* ends with a numeric index)
-        will remove that element and shift all following items, which changes the
-        meaning of subsequent index-based accesses.
+        Returns True if the key existed. Deleting a list item shifts later items.
         """
         await self._ensure_loaded()
         if self._closed:
@@ -642,6 +741,7 @@ class RobustAsyncJSON5DB:
             return True
 
     async def exists(self, key_path: str) -> bool:
+        """判断指定路径是否存在。"""
         await self._ensure_loaded()
         if self._closed:
             raise DatabaseClosedError
@@ -651,21 +751,17 @@ class RobustAsyncJSON5DB:
             return exists
 
     async def clear(self) -> None:
+        """清空所有数据。"""
         await self._ensure_loaded()
         if self._closed:
             raise DatabaseClosedError
         async with self._lock:
             if self.auto_save:
-                # Persist an empty dict atomically
                 empty: dict[str, Any] = {}
                 await self._unsafe_save_data(empty)
                 self._data = empty
             else:
                 self._data = {}
-
-    # ------------------------------------------------------------------
-    # Internal navigation
-    # ------------------------------------------------------------------
 
     def _navigate_to_parent(
         self,
@@ -674,12 +770,10 @@ class RobustAsyncJSON5DB:
         create_missing: bool,
         root: dict[str, Any] | None = None,
     ) -> tuple[Any, Any, bool]:
-        """
-        Navigate segments and return (parent_container, key/index, exists).
-        If ``root`` is given, navigation starts there; otherwise ``self._data`` is used.
+        """导航到父容器并返回目标键。
 
-        Only non-negative integer segments are treated as list indices; negative numbers
-        are handled as dictionary keys.
+        If root is provided, navigation starts there; otherwise self._data is
+        used. Only non-negative integer segments are treated as list indices.
         """
         *parents, target_key = segments
         path = ".".join(segments)
@@ -707,6 +801,7 @@ class RobustAsyncJSON5DB:
         create_missing: bool,
         path: str,
     ) -> Any | None:
+        """逐级遍历父路径。"""
         for segment in parents:
             if isinstance(current, dict):
                 if segment not in current:
@@ -742,6 +837,7 @@ class RobustAsyncJSON5DB:
         create_missing: bool,
         path: str,
     ) -> Any | None:
+        """下钻到列表元素。"""
         if index >= len(current):
             if not create_missing:
                 return None
@@ -758,6 +854,7 @@ class RobustAsyncJSON5DB:
         create_missing: bool,
         path: str,
     ) -> tuple[Any, Any, bool]:
+        """解析最终目标键或索引。"""
         if isinstance(current, dict):
             return current, target_key, target_key in current
 
@@ -775,31 +872,15 @@ class RobustAsyncJSON5DB:
             raise TerminalPathResolutionError(actual_type, target_key, path)
         return None, None, False
 
-    # ------------------------------------------------------------------
-    # File change watcher
-    # ------------------------------------------------------------------
-
     async def watch(
         self,
         callback: Callable[[], Awaitable[Any]] | None = None,
         interval: float = 1.0,
     ) -> None:
-        """
-        Start polling the underlying file for external modifications.
-        When a change is detected the database is automatically reloaded and
-        *callback* (if provided) is awaited.
+        """开始监听文件外部修改。
 
-        Only one watcher can be active at a time. Call ``close()`` to stop it.
-
-        **Race condition warning**: Concurrent writes performed by your application
-        while the watcher is active may be overwritten by an external change, or
-        your writes may overwrite external changes.  Coordinate carefully when
-        using the watcher alongside writers.
-
-        If a reload (or the callback) fails, the error is logged and the watcher
-        continues running; the database will attempt to reload again on the next
-        detected change. External notification of such failures is not provided
-        by default - wrap the callback if you need custom error handling.
+        Only one watcher can run at a time. If a change is detected, the
+        database reloads automatically and the optional callback is awaited.
         """
         if callback is not None and not asyncio.iscoroutinefunction(callback):
             raise CallbackTypeError
@@ -814,6 +895,7 @@ class RobustAsyncJSON5DB:
         callback: Callable[[], Awaitable[Any]] | None,
         interval: float,
     ) -> None:
+        """监听循环。"""
         await self._ensure_loaded()
         try:
             stat_result = await aiofiles.os.stat(self.file_path)
