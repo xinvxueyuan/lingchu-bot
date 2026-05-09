@@ -1,3 +1,12 @@
+"""lingchu-bot核心插件主模块。
+
+此模块是lingchu-bot的入口点，负责：
+- 定义和导出NoneBot插件元数据
+- 加载配置
+- 发现并加载plugins目录下的所有子插件
+
+"""
+
 from pathlib import Path
 
 import nonebot

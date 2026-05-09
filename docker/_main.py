@@ -1,4 +1,7 @@
+import importlib
+
 import nonebot
-import bot  # noqa: F401
+
+importlib.import_module("bot")
 
 app = nonebot.get_asgi()
