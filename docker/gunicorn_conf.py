@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 import multiprocessing
 
 host = os.getenv("HOST", "0.0.0.0")
@@ -79,4 +80,4 @@ log_data = {
     "host": host,
     "port": port,
 }
-print(json.dumps(log_data))  # noqa: T201
+sys.stdout.write(f"{json.dumps(log_data)}\n")
