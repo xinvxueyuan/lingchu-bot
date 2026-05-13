@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -19,7 +20,14 @@ import pytest
 from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
 from pytest_asyncio import is_async_test
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(object=Path(__file__).parent))
+
+# ========== 环境自动检测 ==========
+if Path(".env.dev").exists():
+    os.environ["ENVIRONMENT"] = "dev"
+else:
+    os.environ["ENVIRONMENT"] = "test"
+# =================================
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -58,7 +66,6 @@ def pytest_configure(config: pytest.Config) -> None:
     driver.register_adapter(adapter=ONEBOT_V11Adapter)
 
     nonebot.load_from_toml(file_path="pyproject.toml")
-    nonebot.load_plugins("src/builtin_plugins")
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:

@@ -7,14 +7,10 @@
 
 """
 
-from pathlib import Path
-
-import nonebot
 from nonebot import get_plugin_config
 from nonebot.plugin import PluginMetadata
-from nonebot.plugin.model import Plugin
 
-from .config import Config
+from .core.config import Config
 
 __plugin_meta__ = PluginMetadata(
     name="lingchu-bot",
@@ -37,9 +33,7 @@ __plugin_meta__ = PluginMetadata(
     },
 )
 
-config: Config = get_plugin_config(Config)
+from .database import json5_store as json5_store
+from .database import orm_crud as orm_crud
 
-
-sub_plugins: set[Plugin] = nonebot.load_plugins(
-    str(Path(__file__).parent.joinpath("plugins").resolve())
-)
+config: Config = get_plugin_config(config=Config)

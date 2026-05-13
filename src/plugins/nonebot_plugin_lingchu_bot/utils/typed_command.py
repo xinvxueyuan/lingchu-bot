@@ -18,28 +18,26 @@ of the module.
 from __future__ import annotations
 
 import inspect
+import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from enum import Enum, StrEnum
 from typing import (
     TYPE_CHECKING,
     Any,
+    TypedDict,
     Union,
     get_args,
     get_origin,
 )
-from typing import Literal as LiteralType
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 _TOKEN_PATTERN = re.compile(
-    r'"([^"]*)"'
-    r"|\[CQ:([a-zA-Z0-9_]+)((?:,[a-zA-Z0-9_]+=[^,\]]*)*)\]"
-    r"|@(\d+)"
+    pattern=r'"([^\"]*)"'
     r"|(\S+)"
 )
-
-_CQ_ARGS_PATTERN = re.compile(r"([a-zA-Z0-9_]+)=(.+?)(?=,[a-zA-Z0-9_]+=|$)")
 
 
 class ParseError(Exception):
@@ -54,24 +52,29 @@ class ParseError(Exception):
         super().__init__(message)
 
 
+class TokenType(StrEnum):
+    WORD = "word"
+    STR = "str"
+
+
 class Token:
     """解析后的小型 token 对象，用于表示命令片段。
 
     Attributes:
-        type: token 类型，例如 'str'/'word'/'cq'/'user'
+        type: token 类型，例如 'str'/'word'/'user'
         value: 解析后的值
         raw: 原始文本片段
     """
 
     __slots__ = ("raw", "type", "value")
 
-    def __init__(self, type_: str, value: Any, raw: str) -> None:
-        self.type = type_
-        self.value = value
-        self.raw = raw
+    def __init__(self, type_: TokenType, value: Any, raw: str) -> None:
+        self.type: TokenType = type_
+        self.value: Any = value
+        self.raw: str = raw
 
     def __repr__(self) -> str:
-        return f"<{self.type}:{self.value}>"
+        return f"<{self.type.value}:{self.value}>"
 
 
 def tokenize(text: str) -> list[Token]:
@@ -85,22 +88,13 @@ def tokenize(text: str) -> list[Token]:
     """
 
     tokens: list[Token] = []
-    for match in _TOKEN_PATTERN.finditer(text):
-        quoted, cq_type, cq_args, at, normal = match.groups()
-        raw = match.group(0)
+    for match in _TOKEN_PATTERN.finditer(string=text):
+        quoted, normal = match.groups()
+        raw: str = match.group(0)
         if quoted is not None:
-            tokens.append(Token("str", quoted, raw))
-        elif cq_type is not None:
-            params: dict[str, str] = {}
-            if cq_args:
-                cq_args = cq_args.strip(",")
-                for sub in _CQ_ARGS_PATTERN.finditer(cq_args):
-                    params[sub.group(1)] = sub.group(2)
-            tokens.append(Token("cq", {"type": cq_type, "params": params}, raw))
-        elif at is not None:
-            tokens.append(Token("user", int(at), raw))
+            tokens.append(Token(TokenType.STR, quoted, raw))
         else:
-            tokens.append(Token("word", normal, raw))
+            tokens.append(Token(TokenType.WORD, normal, raw))
     return tokens
 
 
@@ -113,21 +107,19 @@ class TypeSpec:
     """
 
     def __init__(self, name: str, parser: Callable[[Token], Any]) -> None:
-        self.name = name
+        self.name: str = name
         self.parser = parser
 
 
 def _parse_none(token: Token) -> None:
-    if token.type == "word" and token.value.lower() in ("none", "null"):
+    if token.type == TokenType.WORD and token.value.lower() in ("none", "null"):
         return
     msg = f"期望 none/null，得到 {token.raw}"
     raise ParseError(msg) from None
 
 
 def _parse_int(token: Token) -> int:
-    if token.type == "user":
-        return token.value
-    if token.type == "word":
+    if token.type == TokenType.WORD:
         try:
             return int(token.value)
         except ValueError as err:
@@ -138,14 +130,14 @@ def _parse_int(token: Token) -> int:
 
 
 def _parse_str(token: Token) -> str:
-    if token.type in ("str", "word"):
+    if token.type in (TokenType.STR, TokenType.WORD):
         return token.value
     msg = f"期望字符串，得到 {token.raw}"
     raise ParseError(msg) from None
 
 
 def _parse_float(token: Token) -> float:
-    if token.type == "word":
+    if token.type == TokenType.WORD:
         try:
             return float(token.value)
         except ValueError as err:
@@ -156,7 +148,7 @@ def _parse_float(token: Token) -> float:
 
 
 def _parse_bool(token: Token) -> bool:
-    if token.type == "word":
+    if token.type == TokenType.WORD:
         val = token.value.lower()
         if val in ("true", "1"):
             return True
@@ -167,28 +159,42 @@ def _parse_bool(token: Token) -> bool:
 
 
 def _parse_user(token: Token) -> int:
-    if token.type == "user":
-        return token.value
-    if token.type == "cq" and token.value.get("type") == "at":
-        qq = token.value["params"].get("qq")
-        if qq is not None:
-            try:
-                return int(qq)
-            except (ValueError, TypeError) as err:
-                msg = f"CQ at 的 qq 字段无效: {qq}"
-                raise ParseError(msg) from err
-    msg = f"期望 @用户 或 CQ at，得到 {token.raw}"
+    if token.type == TokenType.WORD:
+        try:
+            return int(token.value)
+        except (ValueError, TypeError) as err:
+            msg = f"期望用户 id，得到 {token.raw}"
+            raise ParseError(msg) from err
+    msg = f"期望用户 id，得到 {token.raw}"
+    raise ParseError(msg) from None
+
+
+def _parse_json(token: Token) -> Any:
+    if token.type in (TokenType.WORD, TokenType.STR):
+        try:
+            return json.loads(token.value)
+        except (TypeError, ValueError) as err:
+            msg = f"期望 JSON，得到 {token.raw}"
+            raise ParseError(msg) from err
+    msg = f"期望 JSON，得到 {token.raw}"
     raise ParseError(msg) from None
 
 
 TYPE_REGISTRY: dict[Any, TypeSpec] = {
-    int: TypeSpec("int", _parse_int),
-    str: TypeSpec("str", _parse_str),
-    float: TypeSpec("float", _parse_float),
-    bool: TypeSpec("bool", _parse_bool),
-    "user": TypeSpec("user", _parse_user),
-    type(None): TypeSpec("none", _parse_none),
+    int: TypeSpec(name="int", parser=_parse_int),
+    str: TypeSpec(name="str", parser=_parse_str),
+    float: TypeSpec(name="float", parser=_parse_float),
+    bool: TypeSpec(name="bool", parser=_parse_bool),
+    "user": TypeSpec(name="user", parser=_parse_user),
+    "json": TypeSpec(name="json", parser=_parse_json),
+    type(None): TypeSpec(name="none", parser=_parse_none),
 }
+
+_CONTEXT_PARAM_NAMES = {"ctx", "_ctx"}
+
+
+def _is_context_param(param: inspect.Parameter) -> bool:
+    return param.name in _CONTEXT_PARAM_NAMES
 
 
 def register_type(name: str, parser: Callable[[Token], Any]) -> None:
@@ -205,41 +211,95 @@ def type_name(spec: Any) -> str:
         if kind == "optional":
             return f"Optional[{type_name(spec[1])}]"
         if kind == "union":
-            inners = ", ".join(type_name(s) for s in spec[1])
+            inners: str = ", ".join(type_name(s) for s in spec[1])
             return f"Union[{inners}]"
-        if kind == "literal":
-            allowed = ", ".join(repr(v) for v in spec[1])
-            return f"Literal[{allowed}]"
-    return str(spec)
+        if kind == "enum":
+            allowed: str = ", ".join(m.name for m in spec[1])
+            return f"Enum[{allowed}]"
+    return str(object=spec)
 
 
-def resolve_type(annotation: Any) -> Any:
-    origin = get_origin(annotation)
-    if origin is Union:
-        args = get_args(annotation)
-        none_types = [a for a in args if a is type(None)]
-        non_none_types = [a for a in args if a is not type(None)]
-        if len(none_types) == 1 and len(non_none_types) == 1:
-            inner = resolve_type(non_none_types[0])
-            return ("optional", inner)
-        return ("union", [resolve_type(a) for a in args])
+def _resolve_annotated(annotation: Any) -> Any | None:
+    """解析 Annotated[T, metadata] 类型注解，找不到匹配元数据返回 None。"""
+    if hasattr(annotation, "__metadata__"):
+        metadata: tuple = annotation.__metadata__
+        for m in metadata:
+            if isinstance(m, str) and m in TYPE_REGISTRY:
+                return TYPE_REGISTRY[m]
+        origin = get_origin(tp=annotation)
+        if origin is None:
+            return None
+        return resolve_type(annotation=origin)
+    return None
+
+
+def _resolve_union(annotation: Any) -> Any | None:
+    """解析 Union / Optional 类型注解。"""
+    origin = get_origin(tp=annotation)
+    if origin is not Union:
+        return None
+    args: tuple[Any, ...] = get_args(annotation)
+    none_types = [a for a in args if a is type(None)]
+    non_none_types: list[Any] = [a for a in args if a is not type(None)]
+    if len(none_types) == 1 and len(non_none_types) == 1:
+        inner: Any = resolve_type(annotation=non_none_types[0])
+        return ("optional", inner)
+    return ("union", [resolve_type(annotation=a) for a in args])
+
+
+def _resolve_list(annotation: Any) -> Any | None:
+    """解析 List[X] 类型注解。"""
+    origin = get_origin(tp=annotation)
     if origin is list:
-        inner = get_args(annotation)[0]
-        return ("list", resolve_type(inner))
-    if origin is LiteralType:
-        allowed = get_args(annotation)
-        return ("literal", allowed)
+        inner: Any = get_args(tp=annotation)[0]
+        return ("list", resolve_type(annotation=inner))
+    return None
+
+
+def _resolve_enum(annotation: Any) -> Any | None:
+    """解析 Enum 子类类型注解。"""
+    if isinstance(annotation, type) and issubclass(annotation, Enum):
+        if annotation is Enum:
+            return None
+        return ("enum", annotation)
+    return None
+
+
+def _resolve_registry_spec(annotation: Any) -> Any:
+    """解析字符串类型名或 TYPE_REGISTRY 中的类型。"""
     if isinstance(annotation, str):
-        spec = TYPE_REGISTRY.get(annotation)
+        spec: TypeSpec | None = TYPE_REGISTRY.get(annotation)
         if spec is None:
             msg = f"未知类型名: {annotation}"
             raise ValueError(msg) from None
         return spec
-    spec = TYPE_REGISTRY.get(annotation)
+    spec: TypeSpec | None = TYPE_REGISTRY.get(annotation)
     if spec is None:
         msg = f"未注册的类型: {annotation}"
         raise ValueError(msg) from None
     return spec
+
+
+def resolve_type(annotation: Any) -> Any:
+    """将类型注解解析为内部 spec 结构。
+
+    支持的注解形式：
+    - Annotated[T, "注册名"]：取元数据中的注册名
+    - Union / Optional：联合/可选类型
+    - List[X]：列表类型
+    - Enum 子类：枚举类型
+    - 字符串类型名（如 "user"）或 TYPE_REGISTRY 中的 type 对象
+    """
+    for resolver in (
+        _resolve_annotated,
+        _resolve_union,
+        _resolve_list,
+        _resolve_enum,
+    ):
+        result: Any | None = resolver(annotation)
+        if result is not None:
+            return result
+    return _resolve_registry_spec(annotation)
 
 
 @dataclass
@@ -262,9 +322,9 @@ class Node:
     pass
 
 
-class Literal(Node):
+class PathSegment(Node):
     def __init__(self, value: str) -> None:
-        self.value = value
+        self.value: str = value
 
 
 @dataclass
@@ -286,13 +346,13 @@ class Param(Node):
     greedy: bool = False
     flag: bool = False
     flag_short: str | None = None
+    description: str | None = None
 
 
-@dataclass
-class Context:
+class Context(TypedDict, total=False):
     """执行时的上下文对象，传递给命令处理函数。
 
-    Attributes:
+    Keys:
         raw_text: 原始文本
         tokens: token 列表（可选，通常由 parse 填充）
         user_id: 用户标识（可选）
@@ -300,21 +360,11 @@ class Context:
         extra: 额外数据字典
     """
 
-    raw_text: str = ""
-    tokens: list[Token] | None = None
-    user_id: Any = None
-    channel_id: Any = None
-    extra: dict[str, Any] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        if self.tokens is None:
-            self.tokens = []
-
-    def __getitem__(self, key: str) -> Any:
-        return self.extra[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.extra[key] = value
+    raw_text: str
+    tokens: list[Token]
+    user_id: Any | None
+    channel_id: Any | None
+    extra: dict[str, Any] | None
 
 
 class MatchError:
@@ -370,7 +420,7 @@ def build_ast(name: str, func: Callable) -> tuple[list[Node], dict[str, Any]]:
     """
 
     sig = inspect.signature(func)
-    nodes: list[Node] = [Literal(name)]
+    nodes: list[Node] = [PathSegment(name)]
     defaults: dict[str, Any] = {}
 
     params = list(sig.parameters.values())
@@ -380,10 +430,17 @@ def build_ast(name: str, func: Callable) -> tuple[list[Node], dict[str, Any]]:
             msg = f"命令处理函数不支持 *args 或 **kwargs 参数: {p.name}"
             raise ValueError(msg) from None
 
-    real_params = [p for p in params if p.name != "ctx"]
+    real_params = [p for p in params if not _is_context_param(p)]
 
     for i, p in enumerate(real_params):
         annotation = p.annotation
+        # 尝试从 Annotated 的元数据中提取描述字符串（非注册名）
+        description: str | None = None
+        if hasattr(annotation, "__metadata__"):
+            for m in reversed(annotation.__metadata__):
+                if isinstance(m, str) and m not in TYPE_REGISTRY:
+                    description = m
+                    break
         spec = (
             resolve_type(annotation)
             if annotation is not inspect.Parameter.empty
@@ -415,6 +472,7 @@ def build_ast(name: str, func: Callable) -> tuple[list[Node], dict[str, Any]]:
                 greedy=greedy,
                 flag=is_flag,
                 flag_short=flag_short,
+                description=description,
             )
         )
         if has_default:
@@ -435,10 +493,10 @@ def extract_flags(
     i = 0
     while i < len(tokens):
         tok = tokens[i]
-        if tok.type == "word" and tok.value == "--":
+        if tok.type == TokenType.WORD and tok.value == "--":
             remaining.extend(tokens[i + 1 :])
             break
-        if tok.type != "word":
+        if tok.type != TokenType.WORD:
             remaining.append(tok)
             i += 1
             continue
@@ -466,13 +524,17 @@ def _match_union(inner_specs: list[Any], token: Token) -> Any:
     raise ParseError(msg) from None
 
 
-def _match_literal(token: Token, allowed: tuple) -> Any:
-    """匹配 Literal 类型值。"""
-    if token.type in ("word", "str"):
-        result = next((v for v in allowed if _literal_match(token.value, v)), None)
-        if result is not None:
-            return result
-    msg = f"期望值 {allowed}，得到 {token.raw}"
+def _match_enum(token: Token, enum_cls: type[Enum]) -> Any:
+    """匹配 Enum 类型值。"""
+    if token.type in (TokenType.WORD, TokenType.STR):
+        for member in enum_cls:
+            if token.value == member.name:
+                return member
+        for member in enum_cls:
+            if _literal_match(token.value, member.value):
+                return member
+    allowed = ", ".join(m.name for m in enum_cls)
+    msg = f"期望枚举值 {allowed}，得到 {token.raw}"
     raise ParseError(msg) from None
 
 
@@ -491,11 +553,12 @@ def match_single(token: Token, spec: Any) -> Any:
 
     kind = spec[0]
     if kind == "optional":
+        # Optional 只是包装层，实际解析交给内部 spec。
         return match_single(token, spec[1])
     if kind == "union":
         return _match_union(spec[1], token)
-    if kind == "literal":
-        return _match_literal(token, spec[1])
+    if kind == "enum":
+        return _match_enum(token, spec[1])
     if kind == "list":
         msg = (
             "当前版本不支持嵌套列表类型，"
@@ -507,7 +570,7 @@ def match_single(token: Token, spec: Any) -> Any:
 
 
 def _literal_match(raw: str, v: Any) -> bool:
-    """判断原始字符串是否与 Literal 值匹配（对布尔/None 有特殊处理）。"""
+    """判断原始字符串是否与给定值匹配（对布尔/None 有特殊处理）。"""
 
     if isinstance(v, bool):
         r = raw.lower()
@@ -779,7 +842,7 @@ class CommandRouter:
 
         lines: list[str] = []
         for ast, func, defaults, flag_defs in routes:
-            cmd_name = next((n.value for n in ast if isinstance(n, Literal)), None)
+            cmd_name = next((n.value for n in ast if isinstance(n, PathSegment)), None)
             if not cmd_name:
                 continue
             doc = func.__doc__ or ""
@@ -819,10 +882,13 @@ class CommandRouter:
         else:
             param_str = p.name
 
-        if isinstance(p.spec, tuple) and p.spec[0] == "literal":
-            allowed = p.spec[1]
-            pattern = "{" + "|".join(str(v) for v in allowed) + "}"
+        if isinstance(p.spec, tuple) and p.spec[0] == "enum":
+            allowed = [m.name for m in p.spec[1]]
+            pattern = "{" + "|".join(allowed) + "}"
             param_str += pattern
+        # 如果有 Annotated 中的描述信息，追加到参数展示中
+        if getattr(p, "description", None):
+            param_str = f"{param_str} ({p.description})"
         return param_str
 
     def help(self, command: str | None = None) -> str:
@@ -882,7 +948,7 @@ class CommandRouter:
         i = 0
         while (
             i < len(tokens)
-            and tokens[i].type == "word"
+            and tokens[i].type == TokenType.WORD
             and tokens[i].value in node.children
         ):
             part = tokens[i].value
@@ -935,8 +1001,25 @@ class CommandRouter:
         """
 
         if context is None:
-            context = Context(raw_text=text)
+            context = {
+                "raw_text": text,
+                "tokens": [],
+                "user_id": None,
+                "channel_id": None,
+                "extra": {},
+            }
+        else:
+            if "raw_text" not in context:
+                context["raw_text"] = text
+            if context.get("tokens") is None:
+                context["tokens"] = []
+            if context.get("extra") is None:
+                context["extra"] = {}
 
+        return await self._execute_dispatch(text, context)
+
+    async def _execute_dispatch(self, text: str, context: Context) -> Any:
+        """执行分发流程的内部实现。"""
         parsed = self.parse(text, dry_run=False, context=context)
         if parsed.get("error"):
             return parsed
@@ -945,14 +1028,22 @@ class CommandRouter:
         params = dict(parsed["params"])
 
         sig = inspect.signature(handler)
-        if "ctx" in sig.parameters:
-            params["ctx"] = context
+        for param_name in _CONTEXT_PARAM_NAMES:
+            if param_name in sig.parameters:
+                params[param_name] = context
+                break
 
-        async def final_handler():
+        async def final_handler() -> Any:
             if inspect.iscoroutinefunction(handler):
                 return await handler(**params)
             return handler(**params)
 
+        return await self._run_with_middlewares(parsed, final_handler)
+
+    async def _run_with_middlewares(
+        self, parsed: dict[str, Any], final_handler: Callable
+    ) -> Any:
+        """执行中间件链。"""
         chain: list[list[Callable]] = []
         current = self
         while current:

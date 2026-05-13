@@ -32,7 +32,14 @@ dependencies = [
     "rtoml>=0.13.0",
     "arrow>=1.4.0",
     "typer>=0.25.1",
+    "nonebot-plugin-wait-a-minute>=0.5.0",
 ]
+
+[project.urls]
+Homepage = "https://lingchu.zone.id/"
+Documentation = "https://lingchu.hikarilink.org"
+Repository = "https://github.com/hikarilink/lingchu-bot.git"
+Issues = "https://github.com/hikarilink/lingchu-bot/issues"
 
 [project.optional-dependencies]
 webui = ["nicegui>=3.10.0"]
@@ -70,7 +77,7 @@ test = [
     "pytest-instafail>=0.5.0",
     "pytest-json>=0.4.0",
     "pytest-mock>=3.15.1",
-    # "pytest-xdist>=3.8.0",
+    "pytest-xdist>=3.8.0",
     "pytest-repeat>=0.9.4",
     "pytest-rerunfailures>=16.1",
     "pytest-rich>=0.2.0",
@@ -81,27 +88,33 @@ test = [
     "respx>=0.23.1",
 ]
 
-[project.urls]
-Homepage = "https://lingchu.zone.id/"
-Documentation = "https://lingchu.hikarilink.org"
-Repository = "https://github.com/hikarilink/lingchu-bot.git"
-Issues = "https://github.com/hikarilink/lingchu-bot/issues"
-
 [tool.PEP639.Standards]
 license-expression = "LGPL-3.0-or-later AND GFDL-1.3-or-later"
 
 [tool.poe.tasks]
 
+
+[tool.bumpversion]
+current_version = "0.1.0"
+commit = true
+message = "release: bump vesion from {current_version} to {new_version}"
+tag = true
+
+[[tool.bumpversion.files]]
+filename = "uv.lock"
+search = "name = \"nonebot-plugin-template\"\nversion = \"{current_version}\""
+replace = "name = \"nonebot-plugin-template\"\nversion = \"{new_version}\""
+
 [tool.nonebot]
 plugin_dirs = [
-    "src/plugins",              # 这个目录是给用户放置nonebot2插件的，用户可以在这里放置nonebot2插件，nonebot2插件会覆盖同名的项目插件。
-    "src/builtin_plugins",      # 这个目录是给项目本身的插件的，项目本身的插件会放在这里，用户不应该修改这个目录下的插件。
-    "src/local_plugins",        # 这个目录是给用户放置本地插件的，用户可以在这里放置自己编写的本地插件，本地插件会覆盖同名的项目插件。
-    "src/webui_plugins",        # 这个目录是给项目本身的 WebUI 插件的，项目本身的 WebUI 插件会放在这里，用户不应该修改这个目录下的插件。
-    "src/third_party_plugins",  # 这个目录是给项目本身的第三方插件的，项目本身的第三方插件会放在这里，用户不应该修改这个目录下的插件。
-    "src/experimental_plugins", # 这个目录是给项目本身的实验性插件的，项目本身的实验性插件会放在这里，用户不应该修改这个目录下的插件。
-    "src/legacy_plugins",       # 这个目录是给项目本身的遗留插件的，项目本身的遗留插件会放在这里，用户不应该修改这个目录下的插件。
-    "src/services_plugins",     # 这个目录是给项目本身的服务插件的，项目本身的服务插件会放在这里，用户不应该修改这个目录下的插件。
+    "src/plugins", # 这个目录是给用户放置nonebot2插件的，用户可以在这里放置nonebot2插件，nonebot2插件会覆盖同名的项目插件。
+    # "src/builtin_plugins",      # 这个目录是给项目本身的插件的，项目本身的插件会放在这里，用户不应该修改这个目录下的插件。
+    # "src/local_plugins",        # 这个目录是给用户放置本地插件的，用户可以在这里放置自己编写的本地插件，本地插件会覆盖同名的项目插件。
+    # "src/webui_plugins",        # 这个目录是给项目本身的 WebUI 插件的，项目本身的 WebUI 插件会放在这里，用户不应该修改这个目录下的插件。
+    # "src/third_party_plugins",  # 这个目录是给项目本身的第三方插件的，项目本身的第三方插件会放在这里，用户不应该修改这个目录下的插件。
+    # "src/experimental_plugins", # 这个目录是给项目本身的实验性插件的，项目本身的实验性插件会放在这里，用户不应该修改这个目录下的插件。
+    # "src/legacy_plugins",       # 这个目录是给项目本身的遗留插件的，项目本身的遗留插件会放在这里，用户不应该修改这个目录下的插件。
+    # "src/services_plugins",     # 这个目录是给项目本身的服务插件的，项目本身的服务插件会放在这里，用户不应该修改这个目录下的插件。
 ]
 
 [tool.nonebot.adapters]
@@ -233,10 +246,9 @@ asyncio_default_fixture_loop_scope = "session"
 # requires = ["uv_build>=0.11.8,<0.12"]
 # build-backend = "uv_build"
 
-# [[tool.uv.index]]
-# name = "aliyun"
-# url = "https://mirrors.aliyun.com/pypi/simple/"
-# 项目发布到 PyPI 时会自动使用 PyPI 官方源，开发时安装依赖会自动使用阿里云镜像源。
+[[tool.uv.index]]
+name = "aliyun"
+url = "https://mirrors.aliyun.com/pypi/simple/"
 
 # [project.scripts]
 # TODO: add command line entry point
