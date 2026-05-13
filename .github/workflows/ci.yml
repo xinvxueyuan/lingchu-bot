@@ -11,29 +11,36 @@ on:
       - "fix/**"
       - "hotfix/*"
     paths:
-      - "**/*.yml"
-      - "**/*.py"
+      - "**.py"
+      - ".github/workflows/*.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "prek.toml"
+      - ".pre-commit-config.yaml"
   push:
     branches:
       - main
       - dev
-      - "dev**"
-      - "releases/**"
-      - "feature/**"
-      - "fix/**"
-      - "hotfix/*"
     paths:
-      - "**/*.yml"
-      - "**/*.py"
+      - "**.py"
+      - ".github/workflows/*.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "prek.toml"
+      - ".pre-commit-config.yaml"
 
 permissions:
   contents: write
   checks: write
   pull-requests: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  ruff-check:
-    name: Ruff Check
+  ruff-quick-check:
+    name: Ruff Quick Check
     runs-on: ubuntu-latest
     steps:
       - name: 检出代码
@@ -41,22 +48,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 安装 uv 并依赖
+      - name: 安装 uv
         uses: astral-sh/setup-uv@v7
         with:
-          resolution-strategy: "highest"
-          github-token: ${{ github.token }}
           python-version: "3.13"
-          enable-cache: "false"
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
 
-      - name: 安装依赖 (dev)
-        run: uv sync --only-dev
+      - name: 安装开发依赖
+        run: uv sync --only-dev --frozen
 
       - name: 运行 ruff check
-        run: uv run ruff check .
+        run: uv run ruff check . --output-format=github
 
-  ruff-format-check:
-    name: Ruff Format Check
+      - name: 运行 ruff format (检查格式)
+        run: uv run ruff format --check .
+
+  prek-full-check:
+    name: prek Full Check
     runs-on: ubuntu-latest
     steps:
       - name: 检出代码
@@ -64,68 +75,78 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 安装 uv 并依赖
-        uses: astral-sh/setup-uv@v7
+      - name: 安装 Python
+        uses: actions/setup-python@v5
         with:
-          resolution-strategy: "highest"
-          github-token: ${{ github.token }}
           python-version: "3.13"
-          enable-cache: "false"
 
-      - name: 安装依赖 (dev)
-        run: uv sync --only-dev
+      - name: 运行 prek
+        uses: j178/prek-action@v2
+        with:
+          extra-args: '--all-files --verbose'
+          prek-version: 'latest'
+          cache: true
+          show-verbose-logs: true
 
-      - name: 检查格式
-        run: uv run ruff format --check .
-
-  pyright:
+  pyright-check:
     name: Pyright Type Check
     runs-on: ubuntu-latest
+    needs: [ruff-quick-check]
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: 安装 uv 并依赖
+      - name: 安装 uv
         uses: astral-sh/setup-uv@v7
         with:
-          resolution-strategy: "highest"
-          github-token: ${{ github.token }}
           python-version: "3.13"
-          enable-cache: "false"
+          enable-cache: true
 
-      - name: 安装依赖 (dev)
-        run: uv sync --only-dev
+      - name: 安装开发依赖
+        run: uv sync --only-dev --frozen
 
-      - name: 运行 pyright 类型检查
+      - name: 运行 pyright
         run: uv run pyright .
 
-  format:
-    if: github.event_name != 'pull_request'
+  auto-format:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     concurrency:
-      group: formatting
-      cancel-in-progress: true
-    permissions:
-      contents: write
-      pull-requests: write
+      group: format-${{ github.ref }}
+      cancel-in-progress: false
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.ref }}
 
-      - name: 安装uv 并依赖
+      - name: 安装 uv
         uses: astral-sh/setup-uv@v7
         with:
-          resolution-strategy: "highest"
-          github-token: ${{ github.token }}
           python-version: "3.13"
-          enable-cache: "false"
+          enable-cache: true
 
-      - name: 安装依赖
-        run: uv sync --only-dev
+      - name: 安装开发依赖
+        run: uv sync --only-dev --frozen
 
-      - name: 检查代码格式
-        run: uv run ruff format --check .
+      - name: 运行 ruff format (自动修复)
+        run: uv run ruff format .
+
+      - name: 运行 prek (自动修复)
+        uses: j178/prek-action@v2
+        with:
+          extra-args: '--all-files'
+          prek-version: 'latest'
+
+      - name: 提交格式化变更
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: auto-format with ruff and prek"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+          commit_author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          branch: ${{ github.ref_name }}
+          file_pattern: "*.py *.toml *.yaml *.yml *.md"

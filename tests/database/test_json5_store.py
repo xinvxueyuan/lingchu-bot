@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from _asyncio import Task
     from collections.abc import AsyncGenerator
 
-from src.builtin_plugins.client.json_client import (
+from src.plugins.nonebot_plugin_lingchu_bot.database.json5_store import (
     AtomicReplacementError,
     CallbackTypeError,
     DatabaseClosedError,
