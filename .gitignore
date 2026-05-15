@@ -60,6 +60,8 @@ coverage.xml
 .pytest_cache/
 pytestdebug.log
 cache
+pytest_cache/
+pytest.xml
 
 # Translations
 *.mo
