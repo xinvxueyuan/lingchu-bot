@@ -2,8 +2,8 @@
 
 本项目基于以下开源许可证进行分发：
 
-- 软件代码部分适用 GNU Affero 宽通用公共许可证第三版 (LGPL-3.0)
-- 用户指南、开发文档及其他创作性文本内容适用 GNU 自由文档许可证 第1.3版 (GNU FDL-1.3)
+- 软件代码部分适用 GNU Affero 宽通用公共许可证第三版 (LGPL-3.0) 及其后续版本
+- 用户指南、开发文档及其他创作性文本内容适用 GNU 自由文档许可证 第1.3版 (GNU FDL-1.3) 及其后续版本
 - 视觉元素适用 CC0 1.0 公共领域贡献许可证
 
 使用者必须遵守上述许可证的所有条款和条件。
@@ -34,8 +34,8 @@
 
 完整的许可证文本可在以下链接获取：
 
-- GNU LGPL-3.0: https://www.gnu.org/licenses/lgpl-3.0.html
-- GNU FDL-1.3: https://www.gnu.org/licenses/fdl-1.3.html
-- CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/
+- GNU LGPL-3.0: `https://www.gnu.org/licenses/lgpl-3.0.html`
+- GNU FDL-1.3: `https://www.gnu.org/licenses/fdl-1.3.html`
+- CC0 1.0: `https://creativecommons.org/publicdomain/zero/1.0/`
 
 本脱敏声明旨在确保用户在使用本项目中的媒体文件时，尊重隐私权和相关法律法规。如有任何疑问，请联系项目维护者获取更多信息。
