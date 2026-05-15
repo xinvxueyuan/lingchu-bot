@@ -188,7 +188,7 @@ pyvenv.cfg
 poetry.lock
 Pipfile.lock
 pdm.lock
-uv.lock
+# uv.lock
 
 # output
 
