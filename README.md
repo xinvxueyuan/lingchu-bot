@@ -1,5 +1,6 @@
-<!-- markdownlint-disable MD033 -->
-<h1><img src="docs/assets/images/logo-clr.svg" width = "415" height = "460" alt="lingchu-bot" align="right" id="top-image"/></h1>
+<!-- markdownlint-disable MD033 MD013 -->
+<h1><img src="docs/assets/images/logo-clr.svg" width = "415" height = "460"
+    alt="lingchu-bot" align="right" id="top-image"/></h1>
 <div align="center" id="top-rt-shield">
 
 <h1>✨Re-灵初bot✨</h1>
@@ -9,16 +10,27 @@ _Modern application-side framework implemented based on NoneBot2._
 <blockquote>おはうと、皆さん！今日もよろしくお願いします！</blockquote>
 
 <!-- 核心信息 -->
-[![许可证][license-shield]][license-link] [![最新发行版][github-release-shield]][github-release-link] [![GitHub 星标][github-stars-shield]][github-stars-link] [![总下载量][downloads-shield]][downloads-link]
+[![许可证][license-shield]][license-link]
+[![最新发行版][github-release-shield]][github-release-link]
+[![GitHub 星标][github-stars-shield]][github-stars-link]
+[![总下载量][downloads-shield]][downloads-link]
 
 <!-- 代码/依赖相关 -->
-[![主语言][top-language-shield]][top-language-link] [![代码体积][code-size-shield]][code-size-link] [![仓库大小][repo-size-shield]][repo-size-link] [![CodeRabbit 评审][CodeRabbit-link]][CodeRabbit-link]
+[![主语言][top-language-shield]][top-language-link]
+[![代码体积][code-size-shield]][code-size-link]
+[![仓库大小][repo-size-shield]][repo-size-link]
+[![CodeRabbit 评审][CodeRabbit-link]][CodeRabbit-link]
 
 <!-- 平台/支持 -->
-[![VS Code 支持][ide-link-1]][ide-link-1] [![PyCharm 支持][ide-link-2]][ide-link-2] [![托管状态][managed-link]][managed-link]
+[![VS Code 支持][ide-link-1]][ide-link-1]
+[![PyCharm 支持][ide-link-2]][ide-link-2]
+[![托管状态][managed-link]][managed-link]
 
 <!-- 文档/社区 -->
-[![文档][docs-shield]][docs-link] [![文档状态][deployments-shield]][deployments-link] [![Zread 问答][zread-shield]][zread-link] [![DeepWiki 问答][deepwiki-shield]][deepwiki-link]
+[![文档][docs-shield]][docs-link]
+[![文档状态][deployments-shield]][deployments-link]
+[![Zread 问答][zread-shield]][zread-link]
+[![DeepWiki 问答][deepwiki-shield]][deepwiki-link]
 
 </div>
 
@@ -26,17 +38,21 @@ _Modern application-side framework implemented based on NoneBot2._
 
 ## Introduction
 
-灵初bot是一款基于NoneBot2框架开发的管理机器人，旨在为用户提供强大且易用的社区管理和互动功能。通过集成多种插件和工具，灵初bot能够帮助管理员更高效的管理社交媒体，同时为各平台成员带来丰富的娱乐体验。
+灵初bot是一款基于NoneBot2框架开发的管理机器人，旨在为用户提供强大且易用的
+社区管理和互动功能。通过集成多种插件和工具，灵初bot能够帮助管理员更高效
+的管理社交媒体，同时为各平台成员带来丰富的娱乐体验。
 
 ## Quick Start
 
 > [!WARNING]
 > 🚧Pre-alpha阶段，项目暂不可用🚧
 >
-> 关注最新进展请前往本仓库的 [dev](https://github.com/lingchu-bot/lingchu-bot/tree/dev) 分支
+> 关注最新进展请前往本仓库的 [dev](
+https://github.com/lingchu-bot/lingchu-bot/tree/dev) 分支
 
-| [![GitHub.Pages][docs-shield]][docs-link] | [![文档状态][deployments-shield]][deployments-link] |
-| :---------------------------: | :-------------------------------------------------: |
+| [![GitHub.Pages][docs-shield]][docs-link] |
+[![文档状态][deployments-shield]][deployments-link] |
+| :---------------------: | :-------------------------------------------: |
 
 ## Compatibility issues
 
@@ -57,7 +73,8 @@ _Modern application-side framework implemented based on NoneBot2._
 
 ## Credits
 
-> 特别感谢 [NoneBot](https://github.com/nonebot) 组织的开发人员以及社区开发者提供的一系列优秀工具
+> 特别感谢 [NoneBot](https://github.com/nonebot) 组织的开发人员以及
+> 社区开发者提供的一系列优秀工具
 
 - [nonebot-plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler)
 
@@ -80,7 +97,8 @@ Document service
 
 - [Zensical](https://zensical.org/)
 
-其余未列出的 -> [依赖列表](https://github.com/lingchu-bot/lingchu-bot/network/dependencies)
+其余未列出的 -> [依赖列表](
+https://github.com/lingchu-bot/lingchu-bot/network/dependencies)
 
 ## About
 

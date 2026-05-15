@@ -224,3 +224,7 @@ async def milkybot_whole_unmute(
     msg: UniMessage[Text] = UniMessage(message="全体解禁成功")
     logger.info(msg)
     await whole_unmute_cmd.finish(message=msg)
+
+
+async def import_handle() -> None:
+    logger.debug("导入处理器...")

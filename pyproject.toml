@@ -106,16 +106,7 @@ search = "name = \"nonebot-plugin-template\"\nversion = \"{current_version}\""
 replace = "name = \"nonebot-plugin-template\"\nversion = \"{new_version}\""
 
 [tool.nonebot]
-plugin_dirs = [
-    "src/plugins", # 这个目录是给用户放置nonebot2插件的，用户可以在这里放置nonebot2插件，nonebot2插件会覆盖同名的项目插件。
-    # "src/builtin_plugins",      # 这个目录是给项目本身的插件的，项目本身的插件会放在这里，用户不应该修改这个目录下的插件。
-    # "src/local_plugins",        # 这个目录是给用户放置本地插件的，用户可以在这里放置自己编写的本地插件，本地插件会覆盖同名的项目插件。
-    # "src/webui_plugins",        # 这个目录是给项目本身的 WebUI 插件的，项目本身的 WebUI 插件会放在这里，用户不应该修改这个目录下的插件。
-    # "src/third_party_plugins",  # 这个目录是给项目本身的第三方插件的，项目本身的第三方插件会放在这里，用户不应该修改这个目录下的插件。
-    # "src/experimental_plugins", # 这个目录是给项目本身的实验性插件的，项目本身的实验性插件会放在这里，用户不应该修改这个目录下的插件。
-    # "src/legacy_plugins",       # 这个目录是给项目本身的遗留插件的，项目本身的遗留插件会放在这里，用户不应该修改这个目录下的插件。
-    # "src/services_plugins",     # 这个目录是给项目本身的服务插件的，项目本身的服务插件会放在这里，用户不应该修改这个目录下的插件。
-]
+plugin_dirs = ["src/plugins"]
 
 [tool.nonebot.adapters]
 nonebot-adapter-onebot = [
