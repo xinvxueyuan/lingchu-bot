@@ -22,13 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 配置 Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6.0.0
 
       - name: 检出代码
         uses: actions/checkout@v6
 
       - name: 安装uv 并依赖
-        uses: astral-sh/setup-uv@v7.1.6
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           github-token: ${{ github.token }}
           enable-cache: "auto"
@@ -38,10 +38,10 @@ jobs:
         run: uvx zensical build --clean
 
       - name: 上传 Pages 产物
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: site
 
       - name: 部署到 Pages
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5.0.0
         id: deployment

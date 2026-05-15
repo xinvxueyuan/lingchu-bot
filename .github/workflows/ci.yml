@@ -35,9 +35,10 @@ jobs:
     name: Static Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: astral-sh/setup-uv
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: "3.13"
           enable-cache: true
@@ -46,7 +47,7 @@ jobs:
           uv run -m ruff check . --output-format=github
           uv run -m ruff format --check .
       - name: Markdown Check
-        uses: DavidAnson/markdownlint-cli2-action@v19
+        uses: DavidAnson/markdownlint-cli2-action@v23.2.0
         with:
           globs: |
             "docs/**/*.md"
@@ -64,10 +65,10 @@ jobs:
       matrix:
         python-version: ["3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
@@ -85,7 +86,7 @@ jobs:
         run: uv run -m pytest --junitxml=test-results/pytest.xml
 
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
+        uses: EnricoMi/publish-unit-test-result-action@v2.23.0
         if: always()
         with:
           files: test-results/**/*.xml
@@ -97,9 +98,9 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
       - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: "3.13"
       - name: Auto Fix & Format
@@ -109,7 +110,7 @@ jobs:
           uv run -m ty check --fix || true
 
       - name: Commit Changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7.1.0
         with:
           commit_message: "style: auto-format & ty fix [skip ci]"
           file_pattern: "*.py *.toml *.yaml *.yml *.md"
