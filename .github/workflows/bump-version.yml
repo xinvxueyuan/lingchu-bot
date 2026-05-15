@@ -54,14 +54,14 @@ jobs:
         steps:
             # 1. 检出仓库代码（需 fetch 所有历史，否则标签推送失败）
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6.0.2
               with:
                   fetch-depth: 0 # 拉取完整提交历史
                   token: ${{ secrets.GITHUB_TOKEN }} # 默认 token，带写入权限
 
             # 2. 设置 Python 环境（bump-my-version 是 Python 包）
             - name: Set up Python
-              uses: actions/setup-python@v5
+              uses: actions/setup-python@v6.2.0
               with:
                   python-version: "3.10" # 兼容所有 Python 3.8+ 版本
                   cache: "pip" # 缓存 pip 依赖，加速安装
