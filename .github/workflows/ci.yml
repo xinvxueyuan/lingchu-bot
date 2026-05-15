@@ -43,12 +43,18 @@ jobs:
           enable-cache: true
       - name: Lint & Format Check (Ruff)
         run: |
-          uv run ruff check . --output-format=github
-          uv run ruff format --check .
+          uv run -m ruff check . --output-format=github
+          uv run -m ruff format --check .
       - name: Markdown Check
         uses: DavidAnson/markdownlint-cli2-action@v19
         with:
-          globs: "**/*.md"
+          globs: |
+            "docs/**/*.md"
+            "README.md"
+            "CHANGELOG.md"
+            "CONTRIBUTING.md"
+            "CODE_OF_CONDUCT.md"
+            ".github/**/*.md"
 
   tests:
     name: Tests & Type Check (Python ${{ matrix.python-version }})
@@ -70,13 +76,13 @@ jobs:
         run: uv sync --frozen
 
       - name: Type Check (Pyright)
-        run: uv run pyright .
+        run: uv run -m pyright .
 
       - name: Type Check (ty)
-        run: uv run ty check --output-format github
+        run: uv run -m ty check --output-format github
 
       - name: Run Pytest
-        run: uv run pytest --junitxml=test-results/pytest.xml
+        run: uv run -m pytest --junitxml=test-results/pytest.xml
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
@@ -98,9 +104,10 @@ jobs:
           python-version: "3.13"
       - name: Auto Fix & Format
         run: |
-          uv run ruff check --fix .
-          uv run ruff format .
-          uv run ty check --fix || true
+          uv run -m ruff check --fix .
+          uv run -m ruff format .
+          uv run -m ty check --fix || true
+
       - name: Commit Changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
