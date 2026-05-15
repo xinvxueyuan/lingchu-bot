@@ -188,4 +188,11 @@ Pipfile.lock
 pdm.lock
 uv.lock
 
+# output
+
+output
+
+# AI
+
+
 # End of https://www.toptal.com/developers/gitignore/api/python

@@ -17,6 +17,7 @@ on:
       - "uv.lock"
       - "prek.toml"
       - ".pre-commit-config.yaml"
+      - "**.md"
   push:
     branches:
       - main
@@ -28,6 +29,7 @@ on:
       - "uv.lock"
       - "prek.toml"
       - ".pre-commit-config.yaml"
+      - "**.md"
 
 permissions:
   contents: write
@@ -66,6 +68,21 @@ jobs:
       - name: 运行 ruff format (检查格式)
         run: uv run ruff format --check .
 
+  markdown-lint-check:
+    name: Markdown Lint Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 运行 markdownlint-cli2 (检查格式)
+        uses: DavidAnson/markdownlint-cli2-action@v23
+        with:
+          globs: "**/*.md"
+          config: ".markdownlint.jsonc"
+
   prek-full-check:
     name: prek Full Check
     runs-on: ubuntu-latest
@@ -83,8 +100,8 @@ jobs:
       - name: 运行 prek
         uses: j178/prek-action@v2
         with:
-          extra-args: '--all-files --verbose'
-          prek-version: 'latest'
+          extra-args: "--all-files --verbose"
+          prek-version: "latest"
           cache: true
           show-verbose-logs: true
 
@@ -138,13 +155,19 @@ jobs:
       - name: 运行 prek (自动修复)
         uses: j178/prek-action@v2
         with:
-          extra-args: '--all-files'
-          prek-version: 'latest'
+          extra-args: "--all-files"
+          prek-version: "latest"
+
+      - name: 运行 markdownlint-cli2 (自动修复)
+        uses: DavidAnson/markdownlint-cli2-action@v23
+        with:
+          globs: "**/*.md"
+          fix: true
 
       - name: 提交格式化变更
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "style: auto-format with ruff and prek"
+          commit_message: "style: auto-format with ruff and prek, and fix markdown issues"
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
           commit_author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
