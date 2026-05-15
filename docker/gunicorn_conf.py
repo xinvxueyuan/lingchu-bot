@@ -1,7 +1,7 @@
-import os
 import json
-import sys
 import multiprocessing
+import os
+import sys
 
 host = os.getenv("HOST", "0.0.0.0")
 port = os.getenv("PORT", "8080")

@@ -1,5 +1,5 @@
 [project]
-name = "lingchu-bot"
+name = "nonebot-plugin-lingchu-bot"
 version = "0.0.0-dev0"
 description = "由NoneBot2驱动，符合 PEP8 规范的管理机器人"
 keywords = ["nonebot2"]
@@ -234,9 +234,15 @@ asyncio_default_fixture_loop_scope = "session"
 pythonpath = ["src"]
 
 # TODO: add build system configuration
-# [build-system]
-# requires = ["uv_build>=0.11.8,<0.12"]
-# build-backend = "uv_build"
+[build-system]
+requires = ["uv_build>=0.11.8,<0.12"]
+build-backend = "uv_build"
+
+
+[tool.uv.build-backend]
+module-name = "nonebot_plugin_lingchu_bot"
+module-root = "src/plugins"
+
 
 [[tool.uv.index]]
 name = "aliyun"

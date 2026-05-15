@@ -41,7 +41,7 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
-      - name: Lint & Format Check
+      - name: Lint & Format Check (Ruff)
         run: |
           uv run ruff check . --output-format=github
           uv run ruff format --check .
@@ -51,12 +51,11 @@ jobs:
           globs: "**/*.md"
 
   tests:
-    name: Tests (Python ${{ matrix.python-version }})
+    name: Tests & Type Check (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # 预留扩展空间，目前只跑 3.13
         python-version: ["3.13"]
     steps:
       - uses: actions/checkout@v4
@@ -68,16 +67,17 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        # 使用 --frozen 确保锁定版本，--no-dev 可以根据需要调整
         run: uv sync --frozen
 
       - name: Type Check (Pyright)
         run: uv run pyright .
 
+      - name: Type Check (ty)
+        run: uv run ty check --output-format github
+
       - name: Run Pytest
         run: uv run pytest --junitxml=test-results/pytest.xml
 
-      # 在 PR 界面展示结果
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
@@ -85,7 +85,6 @@ jobs:
           files: test-results/**/*.xml
 
   auto-format:
-    # 仅在 push 到主分支且前序任务成功时执行
     if: github.event_name == 'push' && contains(fromJSON('["refs/heads/main", "refs/heads/dev"]'), github.ref)
     needs: [static-analysis, tests]
     permissions:
@@ -101,8 +100,10 @@ jobs:
         run: |
           uv run ruff check --fix .
           uv run ruff format .
+          uv run ty check --fix || true
       - name: Commit Changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "style: auto-format [skip ci]"
+          commit_message: "style: auto-format & ty fix [skip ci]"
           file_pattern: "*.py *.toml *.yaml *.yml *.md"
+          branch: ${{ github.ref_name }}
