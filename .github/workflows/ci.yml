@@ -3,173 +3,106 @@ name: CI
 on:
   pull_request:
     branches:
-      - main
-      - dev
-      - "dev**"
-      - "releases/**"
-      - "feature/**"
-      - "fix/**"
-      - "hotfix/*"
+      [main, dev, "dev**", "releases/**", "feature/**", "fix/**", "hotfix/*"]
     paths:
       - "**.py"
       - ".github/workflows/*.yml"
-      - "pyproject.toml"
+      - "**.toml"
       - "uv.lock"
-      - "prek.toml"
       - ".pre-commit-config.yaml"
       - "**.md"
   push:
-    branches:
-      - main
-      - dev
+    branches: [main, dev]
     paths:
       - "**.py"
       - ".github/workflows/*.yml"
-      - "pyproject.toml"
+      - "**.toml"
       - "uv.lock"
-      - "prek.toml"
       - ".pre-commit-config.yaml"
       - "**.md"
 
 permissions:
-  contents: write
+  contents: read
   checks: write
   pull-requests: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
-  ruff-quick-check:
-    name: Ruff Quick Check
+  static-analysis:
+    name: Static Analysis
     runs-on: ubuntu-latest
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: 安装 uv
-        uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.13"
           enable-cache: true
-          cache-dependency-glob: |
-            uv.lock
-            pyproject.toml
-
-      - name: 安装开发依赖
-        run: uv sync --only-dev --frozen
-
-      - name: 运行 ruff check
-        run: uv run ruff check . --output-format=github
-
-      - name: 运行 ruff format (检查格式)
-        run: uv run ruff format --check .
-
-  markdown-lint-check:
-    name: Markdown Lint Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: 运行 markdownlint-cli2 (检查格式)
-        uses: DavidAnson/markdownlint-cli2-action@v23
+      - name: Lint & Format Check
+        run: |
+          uv run ruff check . --output-format=github
+          uv run ruff format --check .
+      - name: Markdown Check
+        uses: DavidAnson/markdownlint-cli2-action@v19
         with:
           globs: "**/*.md"
-          config: ".markdownlint.jsonc"
 
-  prek-full-check:
-    name: prek Full Check
+  tests:
+    name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 预留扩展空间，目前只跑 3.13
+        python-version: ["3.13"]
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: 安装 Python
-        uses: actions/setup-python@v5
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.13"
-
-      - name: 运行 prek
-        uses: j178/prek-action@v2
-        with:
-          extra-args: "--all-files --verbose"
-          prek-version: "latest"
-          cache: true
-          show-verbose-logs: true
-
-  pyright-check:
-    name: Pyright Type Check
-    runs-on: ubuntu-latest
-    needs: [ruff-quick-check]
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: 安装 uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python-version }}
           enable-cache: true
 
-      - name: 安装开发依赖
-        run: uv sync --only-dev --frozen
+      - name: Install dependencies
+        # 使用 --frozen 确保锁定版本，--no-dev 可以根据需要调整
+        run: uv sync --frozen
 
-      - name: 运行 pyright
+      - name: Type Check (Pyright)
         run: uv run pyright .
 
-  auto-format:
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
-    runs-on: ubuntu-latest
-    concurrency:
-      group: format-${{ github.ref }}
-      cancel-in-progress: false
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref }}
+      - name: Run Pytest
+        run: uv run pytest --junitxml=test-results/pytest.xml
 
-      - name: 安装 uv
-        uses: astral-sh/setup-uv@v7
+      # 在 PR 界面展示结果
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: test-results/**/*.xml
+
+  auto-format:
+    # 仅在 push 到主分支且前序任务成功时执行
+    if: github.event_name == 'push' && contains(fromJSON('["refs/heads/main", "refs/heads/dev"]'), github.ref)
+    needs: [static-analysis, tests]
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.13"
-          enable-cache: true
-
-      - name: 安装开发依赖
-        run: uv sync --only-dev --frozen
-
-      - name: 运行 ruff format (自动修复)
-        run: uv run ruff format .
-
-      - name: 运行 prek (自动修复)
-        uses: j178/prek-action@v2
-        with:
-          extra-args: "--all-files"
-          prek-version: "latest"
-
-      - name: 运行 markdownlint-cli2 (自动修复)
-        uses: DavidAnson/markdownlint-cli2-action@v23
-        with:
-          globs: "**/*.md"
-          fix: true
-
-      - name: 提交格式化变更
+      - name: Auto Fix & Format
+        run: |
+          uv run ruff check --fix .
+          uv run ruff format .
+      - name: Commit Changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "style: auto-format with ruff and prek, and fix markdown issues"
-          commit_user_name: "github-actions[bot]"
-          commit_user_email: "github-actions[bot]@users.noreply.github.com"
-          commit_author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-          branch: ${{ github.ref_name }}
+          commit_message: "style: auto-format [skip ci]"
           file_pattern: "*.py *.toml *.yaml *.yml *.md"
