@@ -10,7 +10,7 @@ from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageE
 from nonebot.adapters.milky.message import Mention as At
 from nonebot_plugin_alconna import UniMessage
 
-from src.plugins.nonebot_plugin_lingchu_bot.command.mute import (
+from src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute import (
     milkybot_mute,
     milkybot_unmute,
     milkybot_whole_mute,
@@ -56,7 +56,7 @@ class TestWholeMute:
     ) -> None:
         """测试开启全体禁言"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.whole_mute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_mute_cmd.finish"
         ) as mock_finish:
             await milkybot_whole_mute(
                 bot=mock_bot,
@@ -76,7 +76,7 @@ class TestWholeMute:
     ) -> None:
         """测试关闭全体禁言（通过 status=False）"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.whole_mute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_mute_cmd.finish"
         ) as mock_finish:
             await milkybot_whole_mute(
                 bot=mock_bot,
@@ -95,7 +95,7 @@ class TestWholeMute:
     ) -> None:
         """测试默认参数（status=True）"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.whole_mute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_mute_cmd.finish"
         ) as mock_finish:
             await milkybot_whole_mute(
                 bot=mock_bot,
@@ -134,7 +134,7 @@ class TestUnmute:
     ) -> None:
         """测试基本解禁功能"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.member_unmute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_unmute_cmd.finish"
         ) as mock_finish:
             await milkybot_unmute(
                 user=mock_at,
@@ -166,7 +166,7 @@ class TestUnmute:
             at.data = {"user_id": user_id}
 
             with patch(
-                "src.plugins.nonebot_plugin_lingchu_bot.command.mute.member_unmute_cmd.finish"
+                "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_unmute_cmd.finish"
             ):
                 await milkybot_unmute(
                     user=at,
@@ -186,7 +186,7 @@ class TestUnmute:
     ) -> None:
         """测试解禁未被禁言的用户（API 应该仍然正常调用）"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.member_unmute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_unmute_cmd.finish"
         ) as mock_finish:
             await milkybot_unmute(
                 user=mock_at,
@@ -224,7 +224,7 @@ class TestWholeUnmute:
     ) -> None:
         """测试关闭全体禁言（解禁）"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.whole_unmute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_unmute_cmd.finish"
         ) as mock_finish:
             await milkybot_whole_unmute(
                 bot=mock_bot,
@@ -244,7 +244,7 @@ class TestWholeUnmute:
     ) -> None:
         """测试 status=True 时不应调用 API（因为函数内有 if not status）"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.whole_unmute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_unmute_cmd.finish"
         ) as mock_finish:
             await milkybot_whole_unmute(
                 bot=mock_bot,
@@ -263,7 +263,7 @@ class TestWholeUnmute:
     ) -> None:
         """测试默认参数（status=False）"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.whole_unmute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_unmute_cmd.finish"
         ) as mock_finish:
             await milkybot_whole_unmute(
                 bot=mock_bot,
@@ -304,7 +304,7 @@ class TestEdgeCases:
         max_duration = 24 * 60 * 60  # 24小时
 
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.member_mute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
         ):
             await milkybot_mute(
                 user=mock_at,
@@ -326,7 +326,7 @@ class TestEdgeCases:
     ) -> None:
         """测试负数禁言时长（应该正常传递，由 API 处理）"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.member_mute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
         ):
             await milkybot_mute(
                 user=mock_at,
@@ -348,7 +348,7 @@ class TestEdgeCases:
     ) -> None:
         """测试空字符串原因"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.member_mute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
         ) as mock_finish:
             await milkybot_mute(
                 user=mock_at,
@@ -369,7 +369,7 @@ class TestEdgeCases:
         long_reason = "A" * 1000
 
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.member_mute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
         ) as mock_finish:
             await milkybot_mute(
                 user=mock_at,
@@ -398,7 +398,7 @@ class TestIntegrationScenarios:
         """测试先禁言后解禁的顺序操作"""
         # 1. 禁言
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.member_mute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
         ):
             await milkybot_mute(
                 user=mock_at,
@@ -416,7 +416,7 @@ class TestIntegrationScenarios:
 
         # 2. 解禁
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.member_unmute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_unmute_cmd.finish"
         ):
             await milkybot_unmute(
                 user=mock_at,
@@ -443,7 +443,7 @@ class TestIntegrationScenarios:
             event.data.peer_id = group_id
 
             with patch(
-                "src.plugins.nonebot_plugin_lingchu_bot.command.mute.member_mute_cmd.finish"
+                "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
             ):
                 await milkybot_mute(
                     user=mock_at,
@@ -472,7 +472,7 @@ class TestUniMessage:
     ) -> None:
         """测试返回的消息是 UniMessage 实例"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.member_mute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
         ) as mock_finish:
             await milkybot_mute(
                 user=mock_at,
@@ -491,7 +491,7 @@ class TestUniMessage:
     ) -> None:
         """测试全体禁言消息格式"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.whole_mute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_mute_cmd.finish"
         ) as mock_finish:
             await milkybot_whole_mute(
                 bot=mock_bot,
@@ -509,7 +509,7 @@ class TestUniMessage:
     ) -> None:
         """测试全体解禁消息格式"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.command.mute.whole_unmute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_unmute_cmd.finish"
         ) as mock_finish:
             await milkybot_whole_unmute(
                 bot=mock_bot,

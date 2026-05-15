@@ -19,7 +19,7 @@ __plugin_meta__ = PluginMetadata(
     type="application",
     homepage="https://github.com/lingchu-bot/lingchu-bot",
     config=Config,
-    supported_adapters={"~onebot.v11", "~milky"},
+    supported_adapters={"~onebot.v11", "~milky", "~discord", "~telegram", "~github"},
     extra={
         "author": [
             {"name": "lingchu-bot", "email": "support@xinvstar.xyz"},

@@ -33,7 +33,7 @@ share/python-wheels/
 MANIFEST
 pip-wheel-metadata/
 share/python-wheels/
-public
+/public
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
