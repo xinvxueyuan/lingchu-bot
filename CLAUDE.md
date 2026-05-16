@@ -24,10 +24,10 @@ This project is indexed by GitNexus as **lingchu-bot** (1318 symbols, 2766 relat
 
 | Resource | Use for |
 |----------|---------|
-| `gitnexus://repo/lingchu-bot/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/lingchu-bot/clusters` | All functional areas |
-| `gitnexus://repo/lingchu-bot/processes` | All execution flows |
-| `gitnexus://repo/lingchu-bot/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/xinvxueyuan/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/xinvxueyuan/clusters` | All functional areas |
+| `gitnexus://repo/xinvxueyuan/processes` | All execution flows |
+| `gitnexus://repo/xinvxueyuan/process/{name}` | Step-by-step execution trace |
 
 ## CLI
 

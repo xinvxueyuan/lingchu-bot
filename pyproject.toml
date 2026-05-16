@@ -39,7 +39,7 @@ dependencies = [
 Homepage = "https://lingchu.zone.id/"
 Documentation = "https://lingchu.hikarilink.org"
 Repository = "https://github.com/hikarilink/lingchu-bot.git"
-Issues = "https://github.com/hikarilink/lingchu-bot/issues"
+Issues = "https://github.com/hikarilink/xinvxueyuan/issues"
 
 [project.optional-dependencies]
 webui = ["nicegui>=3.10.0"]
@@ -244,9 +244,9 @@ module-name = "nonebot_plugin_lingchu_bot"
 module-root = "src/plugins"
 
 
-[[tool.uv.index]]
-name = "aliyun"
-url = "https://mirrors.aliyun.com/pypi/simple/"
+# [[tool.uv.index]]
+# name = "aliyun"
+# url = "https://mirrors.aliyun.com/pypi/simple/"
 
 # [project.scripts]
 # TODO: add command line entry point

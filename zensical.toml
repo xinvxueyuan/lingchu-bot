@@ -31,7 +31,7 @@ site_url = "https://lingchu.zone.id/"
 
 # repo_url 是您项目的存储库 URL。如果您的文档与源代码相关
 # 阅读更多：https://zensical.org/docs/setup/repository/
-repo_url = "https://github.com/lingchu-bot/lingchu-bot"
+repo_url = "https://github.com/xinvxueyuan/lingchu-bot"
 
 # edit_uri 是您项目的编辑 URI。它指向你的文档所托管的主文件夹
 # 阅读更多：https://zensical.org/docs/setup/repository/
@@ -41,7 +41,7 @@ edit_uri = "edit/main/docs/"
 #
 # 阅读更多：https://zensical.org/docs/setup/basics/#copyright
 copyright = """
-Copyright &copy; 2025 ~ Present <a href="https://github.com/xinvxueyuan">@新v学员</a>. All rights with <a href="https://github.com/lingchu-bot">Lingchu-bot</a>.
+Copyright &copy; 2025 ~ Present <a href="https://github.com/xinvxueyuan">@新v学员</a>. All rights with <a href="https://github.com/xinvxueyuan">Lingchu-bot</a>.
 <br>
 Made with GitHub.Pages
 &emsp;
@@ -303,7 +303,7 @@ repo = "fontawesome/brands/github"
 [[project.extra.social]]
 name = "GitHub 讨论区"
 icon = "fontawesome/brands/github"
-link = "https://github.com/orgs/lingchu-bot/discussions"
+link = "https://github.com/orgs/xinvxueyuan/discussions"
 
 [project.extra.consent]
 title = "Cookie 许可"
