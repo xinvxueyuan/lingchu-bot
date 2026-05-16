@@ -110,7 +110,7 @@ jobs:
                   echo "$version_json"
 
             - name: Build
-              run: uv build --clear --frozen
+              run: uv build --clear
 
             - name: Attest build provenance
               uses: actions/attest-build-provenance@v4.1.0
