@@ -63,7 +63,7 @@ jobs:
                   enable-cache: true
 
             - name: Build
-              run: uv build --clear --frozen
+              run: uv build --clear
 
             - name: Archive build artifacts
               uses: actions/upload-artifact@v7.0.1
