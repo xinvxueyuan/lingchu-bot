@@ -1,5 +1,6 @@
 default_install_hook_types: [pre-commit]
 ci:
+  allow_requires_python: true
   autofix_prs: true
   autofix_commit_msg: "chore: auto fix by pre-commit hooks"
   autoupdate_branch: main
