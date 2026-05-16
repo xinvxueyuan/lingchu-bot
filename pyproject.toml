@@ -244,6 +244,9 @@ module-name = "nonebot_plugin_lingchu_bot"
 module-root = "src/plugins"
 # version = { source = "git" }
 
+[[tool.uv.index]]
+name = "aliyun"
+url = "https://mirrors.aliyun.com/pypi/simple/"
 
 # [project.scripts]
 # TODO: add command line entry point
