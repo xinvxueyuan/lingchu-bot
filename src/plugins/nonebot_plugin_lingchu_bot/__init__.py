@@ -39,5 +39,3 @@ from .database import json5_store as json5_store
 from .database import orm_crud as orm_crud
 
 config: Config = get_plugin_config(config=Config)
-
-__version__: Any = __plugin_meta__.extra["version"]

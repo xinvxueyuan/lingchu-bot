@@ -1,6 +1,7 @@
 [project]
 name = "nonebot-plugin-lingchu-bot"
-dynamic = ["version"]
+version = "0.0.0.dev0"
+# dynamic = ["version"]
 description = "由NoneBot2驱动，符合 PEP8 规范的管理机器人"
 keywords = ["nonebot2"]
 readme = "README.md"
@@ -56,9 +57,8 @@ dev = [
 gui = ["nicegui>=3.10.0"]
 script = ["poethepoet>=0.44.0"]
 git = [
-    "bump-my-version>=1.3.0",
+    # "bump-my-version>=1.3.0",
     "commitlint>=1.13.3",
-    "husky>=0.1.7",
     "prek>=0.3.8",
 ]
 docs = ["zensical>=0.0.17"]
@@ -94,16 +94,16 @@ license-expression = "LGPL-3.0-or-later AND GFDL-1.3-or-later"
 [tool.poe.tasks]
 
 
-[tool.bumpversion]
-current_version = "0.1.0"
-commit = true
-message = "release: bump vesion from {current_version} to {new_version}"
-tag = true
+# [tool.bumpversion]
+# current_version = "0.1.0"
+# commit = true
+# message = "release: bump vesion from {current_version} to {new_version}"
+# tag = true
 
-[[tool.bumpversion.files]]
-filename = "uv.lock"
-search = "name = \"nonebot-plugin-template\"\nversion = \"{current_version}\""
-replace = "name = \"nonebot-plugin-template\"\nversion = \"{new_version}\""
+# [[tool.bumpversion.files]]
+# filename = "uv.lock"
+# search = "name = \"nonebot-plugin-template\"\nversion = \"{current_version}\""
+# replace = "name = \"nonebot-plugin-template\"\nversion = \"{new_version}\""
 
 [tool.nonebot]
 plugin_dirs = ["src/plugins"]
@@ -242,11 +242,11 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "nonebot_plugin_lingchu_bot"
 module-root = "src/plugins"
-version = { source = "git" }
+# version = { source = "git" }
 
-# [[tool.uv.index]]
-# name = "aliyun"
-# url = "https://mirrors.aliyun.com/pypi/simple/"
+[[tool.uv.index]]
+name = "aliyun"
+url = "https://mirrors.aliyun.com/pypi/simple/"
 
 # [project.scripts]
 # TODO: add command line entry point
