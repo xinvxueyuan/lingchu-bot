@@ -59,7 +59,7 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Archive production artifacts
-              uses: echapmanFromBunnings/upload-artifact@3.0.0
+              uses: actions/upload-artifact@v7.0.1
               with:
                   name: 资产
                   path: dist
