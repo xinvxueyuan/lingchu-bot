@@ -11,8 +11,11 @@ on:
             - "fix/**"
             - "hotfix/*"
         paths:
+            - "pyproject.toml"
+            - "uv.lock"
             - "**/*.py"
             - "**/LICENSE*"
+            - ".github/workflows/ci-builds.yml"
     push:
         branches:
             - main
@@ -22,19 +25,65 @@ on:
             - "fix/**"
             - "hotfix/*"
         paths:
+            - "pyproject.toml"
+            - "uv.lock"
             - "**/*.py"
             - "**/LICENSE*"
+            - ".github/workflows/ci-builds.yml"
 
 permissions:
-    contents: write
-    pull-requests: read
-    id-token: write
-    attestations: write
+    contents: read
+
+concurrency:
+    group: ci-builds-${{ github.ref }}
+    cancel-in-progress: true
 
 jobs:
     build:
-        name: CI-Build
+        name: Build
         runs-on: ubuntu-latest
+        if: >-
+            github.event_name == 'pull_request' ||
+            github.event_name == 'workflow_dispatch' ||
+            (github.event_name == 'push' &&
+             !startsWith(github.ref, 'refs/heads/main') &&
+             !startsWith(github.ref, 'refs/heads/dev') &&
+             !startsWith(github.ref, 'refs/heads/releases/'))
+        permissions:
+            contents: read
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6.0.2
+
+            - name: Install uv
+              uses: astral-sh/setup-uv@v8.1.0
+              with:
+                  github-token: ${{ github.token }}
+                  enable-cache: true
+
+            - name: Build
+              run: uv build --clear --frozen
+
+            - name: Archive build artifacts
+              uses: actions/upload-artifact@v7.0.1
+              with:
+                  name: assets-${{ github.sha }}
+                  path: dist
+                  if-no-files-found: error
+
+    versioned-build:
+        name: Versioned build
+        runs-on: ubuntu-latest
+        if: >-
+            github.event_name == 'push' &&
+            (startsWith(github.ref, 'refs/heads/main') ||
+             startsWith(github.ref, 'refs/heads/dev') ||
+             startsWith(github.ref, 'refs/heads/releases/'))
+        permissions:
+            contents: write
+            id-token: write
+            attestations: write
 
         steps:
             - name: Checkout
@@ -42,24 +91,62 @@ jobs:
               with:
                   fetch-depth: 0
 
-            - name: Install dependencies
+            - name: Install uv
               uses: astral-sh/setup-uv@v8.1.0
               with:
                   github-token: ${{ github.token }}
-                  enable-cache: "auto"
+                  enable-cache: true
+
+            - name: Bump development version
+              id: bump
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  version_json="$(uv version --bump dev --output-format json --frozen)"
+                  new_version="$(python -c 'import json, sys; print(json.load(sys.stdin)["version"])' <<< "$version_json")"
+
+                  echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
+                  echo "$version_json"
 
             - name: Build
-              run: uv build --clear
+              run: uv build --clear --frozen
 
             - name: Attest build provenance
               uses: actions/attest-build-provenance@v4.1.0
               with:
                   subject-path: "dist/*"
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Archive production artifacts
               uses: actions/upload-artifact@v7.0.1
               with:
-                  name: 资产
+                  name: assets-${{ steps.bump.outputs.new_version }}
                   path: dist
+                  if-no-files-found: error
+
+            - name: Commit and tag
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  version="${{ steps.bump.outputs.new_version }}"
+                  tag="v${version}"
+
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+                  git add pyproject.toml uv.lock 2>/dev/null || git add pyproject.toml
+
+                  if ! git diff --cached --quiet; then
+                      git commit -m "chore: bump version to ${version} [skip ci]"
+                      git push origin "HEAD:${GITHUB_REF_NAME}"
+                  fi
+
+                  if git rev-parse "$tag" >/dev/null 2>&1; then
+                      echo "Tag ${tag} already exists locally; skipping tag creation."
+                  elif git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+                      echo "Tag ${tag} already exists on origin; skipping tag creation."
+                  else
+                      git tag "$tag"
+                      git push origin "$tag"
+                  fi
