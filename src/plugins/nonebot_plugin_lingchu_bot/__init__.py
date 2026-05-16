@@ -7,8 +7,6 @@
 
 """
 
-from typing import Any
-
 from nonebot import get_plugin_config
 from nonebot.plugin import PluginMetadata
 

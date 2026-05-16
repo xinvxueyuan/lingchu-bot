@@ -1,185 +1,185 @@
 name: Publish Version
 
 on:
-    workflow_dispatch:
-        inputs:
-            bump_components:
-                description: "手动版本组件，空格或逗号分隔：patch、patch dev、beta=2、post=20260516"
-                required: false
-                default: "patch"
-                type: string
-    push:
-        branches:
-            - main
-            - "dev*"
-            - "releases/**"
-            - "feature/**"
-            - "fix/**"
-            - "hotfix/*"
-        paths:
-            - "**/*.py"
-            - "**/LICENSE*"
-            - "pyproject.toml"
-            - "uv.lock"
-    schedule:
-        # 每日夜间执行；脚本内根据日期决定 post / alpha / beta / rc
-        - cron: "0 18 * * *"
+  workflow_dispatch:
+    inputs:
+      bump_components:
+        description: "手动版本组件，空格或逗号分隔：patch、patch dev、beta=2、post=20260516"
+        required: false
+        default: "patch"
+        type: string
+  push:
+    branches:
+      - main
+      - "dev*"
+      - "releases/**"
+      - "feature/**"
+      - "fix/**"
+      - "hotfix/*"
+    paths:
+      - "**/*.py"
+      - "**/LICENSE*"
+      - "pyproject.toml"
+      - "uv.lock"
+  schedule:
+    # 每日夜间执行；脚本内根据日期决定 post / alpha / beta / rc
+    - cron: "0 18 * * *"
 
 permissions:
-    contents: write
-    pull-requests: read
-    id-token: write
-    attestations: write
+  contents: write
+  pull-requests: read
+  id-token: write
+  attestations: write
 
 concurrency:
-    group: publish-version-${{ github.ref }}
-    cancel-in-progress: false
+  group: publish-version-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-    bump-build-upload:
-        name: Bump, Build and Upload
-        runs-on: ubuntu-latest
-        if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
+  bump-build-upload:
+    name: Bump, Build and Upload
+    runs-on: ubuntu-latest
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v6.0.2
-              with:
-                  ref: ${{ github.ref_name || 'main' }}
-                  fetch-depth: 0
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.ref_name || 'main' }}
+          fetch-depth: 0
 
-            - name: Install uv
-              uses: astral-sh/setup-uv@v8.1.0
-              with:
-                  github-token: ${{ github.token }}
-                  python-version: "3.13"
-                  enable-cache: "auto"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          github-token: ${{ github.token }}
+          python-version: "3.13"
+          enable-cache: "auto"
 
-            - name: Resolve bump components
-              id: bump_args
-              shell: bash
-              env:
-                  EVENT_NAME: ${{ github.event_name }}
-                  MANUAL_BUMP_COMPONENTS: ${{ inputs.bump_components }}
-                  GITHUB_RUN_NUMBER: ${{ github.run_number }}
-              run: |
-                  set -euo pipefail
+      - name: Resolve bump components
+        id: bump_args
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_BUMP_COMPONENTS: ${{ inputs.bump_components }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
 
-                  allowed='^(major|minor|patch|stable|alpha|beta|rc|post|dev)(=[0-9]+)?$'
+          allowed='^(major|minor|patch|stable|alpha|beta|rc|post|dev)(=[0-9]+)?$'
 
-                  components=()
-                  reason=""
+          components=()
+          reason=""
 
-                  case "$EVENT_NAME" in
-                    workflow_dispatch)
-                      raw="${MANUAL_BUMP_COMPONENTS:-patch}"
-                      normalized="${raw//,/ }"
-                      for item in $normalized; do
-                        components+=("$item")
-                      done
-                      reason="manual"
-                      ;;
+          case "$EVENT_NAME" in
+            workflow_dispatch)
+              raw="${MANUAL_BUMP_COMPONENTS:-patch}"
+              normalized="${raw//,/ }"
+              for item in $normalized; do
+                components+=("$item")
+              done
+              reason="manual"
+              ;;
 
-                    push)
-                      # 每次推送 / 提交更新 dev；使用 run_number 固定本次 CI 的 dev 编号，避免同一天重复冲突。
-                      components+=("dev=${GITHUB_RUN_NUMBER}")
-                      reason="push-dev"
-                      ;;
+            push)
+              # 每次推送 / 提交更新 dev；使用 run_number 固定本次 CI 的 dev 编号，避免同一天重复冲突。
+              components+=("dev=${GITHUB_RUN_NUMBER}")
+              reason="push-dev"
+              ;;
 
-                    schedule)
-                      today="$(date -u +%Y%m%d)"
-                      day="$(date -u +%d)"
-                      weekday="$(date -u +%u)" # 1=Mon ... 7=Sun
-                      epoch_days="$(( $(date -u +%s) / 86400 ))"
+            schedule)
+              today="$(date -u +%Y%m%d)"
+              day="$(date -u +%d)"
+              weekday="$(date -u +%u)" # 1=Mon ... 7=Sun
+              epoch_days="$(( $(date -u +%s) / 86400 ))"
 
-                      # 每日 / 夜更新 post，日期形式。
-                      components+=("post=${today}")
+              # 每日 / 夜更新 post，日期形式。
+              components+=("post=${today}")
 
-                      # 每两天更新一次 alpha。
-                      if (( epoch_days % 2 == 0 )); then
-                        components+=("alpha")
-                      fi
+              # 每两天更新一次 alpha。
+              if (( epoch_days % 2 == 0 )); then
+                components+=("alpha")
+              fi
 
-                      # 每周一更新一次 beta。
-                      if [[ "$weekday" == "1" ]]; then
-                        components+=("beta")
-                      fi
+              # 每周一更新一次 beta。
+              if [[ "$weekday" == "1" ]]; then
+                components+=("beta")
+              fi
 
-                      # 每月 1 日更新一次 rc。
-                      if [[ "$day" == "01" ]]; then
-                        components+=("rc")
-                      fi
+              # 每月 1 日更新一次 rc。
+              if [[ "$day" == "01" ]]; then
+                components+=("rc")
+              fi
 
-                      reason="scheduled"
-                      ;;
+              reason="scheduled"
+              ;;
 
-                    *)
-                      echo "Unsupported event: $EVENT_NAME" >&2
-                      exit 1
-                      ;;
-                  esac
+            *)
+              echo "Unsupported event: $EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
 
-                  if [[ ${#components[@]} -eq 0 ]]; then
-                    echo "No bump components resolved" >&2
-                    exit 1
-                  fi
+          if [[ ${#components[@]} -eq 0 ]]; then
+            echo "No bump components resolved" >&2
+            exit 1
+          fi
 
-                  args=()
-                  for item in "${components[@]}"; do
-                    if [[ ! "$item" =~ $allowed ]]; then
-                      echo "Unsupported bump component: $item" >&2
-                      echo "Allowed: major minor patch stable alpha beta rc post dev, optionally with =number" >&2
-                      exit 1
-                    fi
-                    args+=(--bump "$item")
-                  done
+          args=()
+          for item in "${components[@]}"; do
+            if [[ ! "$item" =~ $allowed ]]; then
+              echo "Unsupported bump component: $item" >&2
+              echo "Allowed: major minor patch stable alpha beta rc post dev, optionally with =number" >&2
+              exit 1
+            fi
+            args+=(--bump "$item")
+          done
 
-                  printf 'UV_BUMP_ARGS=%q ' "${args[@]}" >> "$GITHUB_ENV"
-                  echo >> "$GITHUB_ENV"
+          printf 'UV_BUMP_ARGS=%q ' "${args[@]}" >> "$GITHUB_ENV"
+          echo >> "$GITHUB_ENV"
 
-                  echo "reason=$reason" >> "$GITHUB_OUTPUT"
-                  echo "components=${components[*]}" >> "$GITHUB_OUTPUT"
-                  echo "Resolved bump components: ${components[*]}"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          echo "components=${components[*]}" >> "$GITHUB_OUTPUT"
+          echo "Resolved bump components: ${components[*]}"
 
-            - name: Pre-check version
-              shell: bash
-              run: |
-                  set -euo pipefail
-                  uv version $UV_BUMP_ARGS --dry-run
+      - name: Pre-check version
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv version $UV_BUMP_ARGS --dry-run
 
-            - name: Execute bump version
-              id: bump
-              shell: bash
-              run: |
-                  set -euo pipefail
-                  uv version $UV_BUMP_ARGS
+      - name: Execute bump version
+        id: bump
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv version $UV_BUMP_ARGS
 
-                  new_version="$(uv version --short 2>/dev/null || uv version | awk '{print $NF}')"
-                  echo "NEW_VERSION=$new_version" >> "$GITHUB_ENV"
-                  echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
-                  echo "Version bumped to: $new_version"
+          new_version="$(uv version --short 2>/dev/null || uv version | awk '{print $NF}')"
+          echo "NEW_VERSION=$new_version" >> "$GITHUB_ENV"
+          echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
+          echo "Version bumped to: $new_version"
 
-            - name: Build
-              shell: bash
-              run: uv build --clear
+      - name: Build
+        shell: bash
+        run: uv build --clear
 
-            - name: Attest build provenance
-              uses: actions/attest-build-provenance@v4.1.0
-              with:
-                  subject-path: "dist/*"
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4.1.0
+        with:
+          subject-path: "dist/*"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Upload build artifacts
-              uses: actions/upload-artifact@v7.0.1
-              with:
-                  name: assets-${{ steps.bump.outputs.new_version }}
-                  path: dist
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: assets-${{ steps.bump.outputs.new_version }}
+          path: dist
 
-            - name: Commit and tag
-              uses: stefanzweifel/git-auto-commit-action@v7.1.0
-              with:
-                  commit_message: "chore: bump version to ${{ steps.bump.outputs.new_version }} [skip ci]"
-                  tagging_message: "v${{ steps.bump.outputs.new_version }}"
-                  file_pattern: "pyproject.toml uv.lock"
-                  branch: ${{ github.ref_name || 'main' }}
+      - name: Commit and tag
+        uses: stefanzweifel/git-auto-commit-action@v7.1.0
+        with:
+          commit_message: "chore: bump version to ${{ steps.bump.outputs.new_version }} [skip ci]"
+          tagging_message: "v${{ steps.bump.outputs.new_version }}"
+          file_pattern: "pyproject.toml uv.lock"
+          branch: ${{ github.ref_name || 'main' }}
