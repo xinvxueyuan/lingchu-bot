@@ -180,7 +180,7 @@ async def milkybot_whole_mute(
         return await whole_mute_cmd.finish(message=f"全体禁言失败，操作被拒绝: {e!r}")
 
     logger.info("全体禁言成功")
-    await whole_mute_cmd.finish(message="全体禁言成功")
+    return await whole_mute_cmd.finish(message="全体禁言成功")
 
 
 @member_unmute_cmd.handle()
@@ -220,7 +220,7 @@ async def milkybot_unmute(
         )
     )
     logger.info(msg)
-    await member_unmute_cmd.finish(message=msg)
+    return await member_unmute_cmd.finish(message=msg)
 
 
 @whole_unmute_cmd.handle()
@@ -240,7 +240,7 @@ async def milkybot_whole_unmute(
         return await whole_unmute_cmd.finish(message=f"全体解禁失败，操作被拒绝: {e!r}")
 
     logger.info("全体解禁成功")
-    await whole_unmute_cmd.finish(message="全体解禁成功")
+    return await whole_unmute_cmd.finish(message="全体解禁成功")
 
 
 async def import_handle() -> Any:
