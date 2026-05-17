@@ -105,8 +105,6 @@ async def milkybot_mute(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
-    import asyncio
-
     from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 
     target_user_id = int(user.target)
@@ -119,48 +117,25 @@ async def milkybot_mute(
     else:
         target_name: str | None = user.display or ""
 
-    if event.data.sender_id != target_user_id:
-        max_retries = 3
-        retry_count = 0
-        muted = False
+    try:
+        await bot.set_group_member_mute(
+            group_id=event.data.peer_id, user_id=target_user_id, duration=duration
+        )
+    except NetworkError as e:
+        logger.error(f"禁言失败，网络异常: {e!r}")
+        return await member_mute_cmd.finish(message=f"禁言失败，网络异常: {e!r}")
+    except ActionFailed as e:
+        logger.error(f"禁言失败，操作被拒绝: {e}")
+        return await member_mute_cmd.finish(message=f"禁言失败，操作被拒绝: {e}")
 
-        while retry_count <= max_retries:
-            try:
-                await bot.set_group_member_mute(
-                    group_id=event.data.peer_id,
-                    user_id=target_user_id,
-                    duration=duration,
-                )
-                muted = True
-                break
-            except NetworkError as e:
-                retry_count += 1
-
-                if retry_count <= max_retries:
-                    wait_time: Any = 2 ** (retry_count - 1)
-                    logger.warning(
-                        f"禁言失败 (尝试 {retry_count}/{max_retries}), "
-                        f"{wait_time}秒后重试: {e}"
-                    )
-                    await asyncio.sleep(delay=wait_time)
-                else:
-                    logger.error(f"禁言失败，已重试 {max_retries} 次: {e}")
-                    await member_mute_cmd.finish(
-                        message=f"禁言失败，已重试{max_retries}次: {e}"
-                    )
-            except ActionFailed as e:
-                logger.error(f"禁言失败，操作被拒绝: {e}")
-                await member_mute_cmd.finish(message=f"禁言失败，操作被拒绝: {e}")
-
-        if muted:
-            msg = (
-                f"已禁言: \n"
-                f"名称: @{target_name}\n"
-                f"时长: {duration} 秒\n"
-                f"原因: {reason}\n"
-                f"标识: {target_user_id}"
-            )
-            await member_mute_cmd.finish(message=UniMessage(message=msg))
+    msg = (
+        f"已禁言: \n"
+        f"名称: @{target_name}\n"
+        f"时长: {duration} 秒\n"
+        f"原因: {reason}\n"
+        f"标识: {target_user_id}"
+    )
+    return await member_mute_cmd.finish(message=UniMessage(message=msg))
 
 
 @whole_mute_cmd.handle()
@@ -174,13 +149,16 @@ async def milkybot_whole_mute(
         await bot.set_group_whole_mute(group_id=event.data.peer_id, is_mute=True)
     except NetworkError as e:
         logger.error(f"全体禁言失败，网络异常: {e!r}")
-        return await whole_mute_cmd.finish(message=f"全体禁言失败，网络异常: {e!r}")
+        msg: UniMessage[Text] = UniMessage(message=f"全体禁言失败，网络异常: {e!r}")
+        return await whole_mute_cmd.finish(message=await msg.export(bot))
     except ActionFailed as e:
         logger.error(f"全体禁言失败，操作被拒绝: {e!r}")
-        return await whole_mute_cmd.finish(message=f"全体禁言失败，操作被拒绝: {e!r}")
+        msg: UniMessage[Text] = UniMessage(message=f"全体禁言失败，操作被拒绝: {e!r}")
+        return await whole_mute_cmd.finish(message=await msg.export(bot))
 
     logger.info("全体禁言成功")
-    return await whole_mute_cmd.finish(message="全体禁言成功")
+    msg: UniMessage[Text] = UniMessage(message="全体禁言成功")
+    return await whole_mute_cmd.finish(message=await msg.export(bot))
 
 
 @member_unmute_cmd.handle()
@@ -234,13 +212,16 @@ async def milkybot_whole_unmute(
         await bot.set_group_whole_mute(group_id=event.data.peer_id, is_mute=False)
     except NetworkError as e:
         logger.error(f"全体解禁失败，网络异常: {e!r}")
-        return await whole_unmute_cmd.finish(message=f"全体解禁失败，网络异常: {e!r}")
+        msg: UniMessage[Text] = UniMessage(message=f"全体解禁失败，网络异常: {e!r}")
+        return await whole_unmute_cmd.finish(message=await msg.export(bot))
     except ActionFailed as e:
         logger.error(f"全体解禁失败，操作被拒绝: {e!r}")
-        return await whole_unmute_cmd.finish(message=f"全体解禁失败，操作被拒绝: {e!r}")
+        msg: UniMessage[Text] = UniMessage(message=f"全体解禁失败，操作被拒绝: {e!r}")
+        return await whole_unmute_cmd.finish(message=await msg.export(bot))
 
     logger.info("全体解禁成功")
-    return await whole_unmute_cmd.finish(message="全体解禁成功")
+    msg: UniMessage[Text] = UniMessage(message="全体解禁成功")
+    return await whole_unmute_cmd.finish(message=await msg.export(bot))
 
 
 async def import_handle() -> Any:
