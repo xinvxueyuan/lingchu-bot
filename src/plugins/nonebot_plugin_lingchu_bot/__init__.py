@@ -35,5 +35,6 @@ __plugin_meta__ = PluginMetadata(
 
 from .database import json5_store as json5_store
 from .database import orm_crud as orm_crud
+from .start.startup import startup as startup
 
 config: Config = get_plugin_config(config=Config)

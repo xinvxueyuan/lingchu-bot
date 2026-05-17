@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from nonebot.adapters.milky import Bot as MilkyBot
 from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
-from nonebot.adapters.milky.message import Mention as At
 from nonebot_plugin_alconna import UniMessage
+from nonebot_plugin_alconna.uniseg import At
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute import (
     milkybot_mute,
@@ -33,6 +33,8 @@ def mock_event() -> MagicMock:
     event = MagicMock(spec=MilkyGroupMessageEvent)
     event.data = MagicMock()
     event.data.peer_id = 123456789
+    event.data.sender_id = 111111
+    event.data.segments = []
     return event
 
 
@@ -40,7 +42,8 @@ def mock_event() -> MagicMock:
 def mock_at() -> MagicMock:
     """创建模拟的 @ 提及对象"""
     at = MagicMock(spec=At)
-    at.data = {"user_id": 987654321}
+    at.target = "987654321"
+    at.display = "测试用户"
     return at
 
 
@@ -61,51 +64,12 @@ class TestWholeMute:
             await milkybot_whole_mute(
                 bot=mock_bot,
                 event=mock_event,
-                status=True,
             )
 
         mock_bot.set_group_whole_mute.assert_called_once_with(
             group_id=mock_event.data.peer_id, is_mute=True
         )
-        mock_finish.assert_called_once()
-        assert str(mock_finish.call_args[1]["message"]) == "全体禁言成功"
-
-    @pytest.mark.asyncio
-    async def test_whole_mute_disable(
-        self, mock_bot: MagicMock, mock_event: MagicMock
-    ) -> None:
-        """测试关闭全体禁言（通过 status=False）"""
-        with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_mute_cmd.finish"
-        ) as mock_finish:
-            await milkybot_whole_mute(
-                bot=mock_bot,
-                event=mock_event,
-                status=False,
-            )
-
-        # status=False 时不应调用 API（函数内部有条件判断）
-        mock_bot.set_group_whole_mute.assert_not_called()
-        mock_finish.assert_called_once()
-        assert str(mock_finish.call_args[1]["message"]) == "全体禁言成功"
-
-    @pytest.mark.asyncio
-    async def test_whole_mute_default_true(
-        self, mock_bot: MagicMock, mock_event: MagicMock
-    ) -> None:
-        """测试默认参数（status=True）"""
-        with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_mute_cmd.finish"
-        ) as mock_finish:
-            await milkybot_whole_mute(
-                bot=mock_bot,
-                event=mock_event,
-            )
-
-        mock_bot.set_group_whole_mute.assert_called_once_with(
-            group_id=mock_event.data.peer_id, is_mute=True
-        )
-        mock_finish.assert_called_once()
+        mock_finish.assert_called_once_with(message="全体禁言成功")
 
     @pytest.mark.asyncio
     async def test_whole_mute_api_error(
@@ -118,7 +82,99 @@ class TestWholeMute:
             await milkybot_whole_mute(
                 bot=mock_bot,
                 event=mock_event,
-                status=True,
+            )
+
+
+# ================= 禁言用户测试 =================
+
+
+class TestMute:
+    """禁言用户功能测试"""
+
+    @pytest.mark.asyncio
+    async def test_mute_uses_at_target(
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
+    ) -> None:
+        """测试从 At.target 获取禁言用户"""
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
+        ) as mock_finish:
+            await milkybot_mute(
+                user=mock_at,
+                duration=60,
+                reason="测试",
+                bot=mock_bot,
+                event=mock_event,
+            )
+
+        mock_bot.set_group_member_mute.assert_called_once_with(
+            group_id=mock_event.data.peer_id,
+            user_id=987654321,
+            duration=60,
+        )
+        mock_finish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_mute_prefers_mention_segment_user_id(
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
+    ) -> None:
+        """测试存在 mention 消息段时优先使用消息段中的用户 ID"""
+        mock_event.data.segments = [
+            {"type": "mention", "data": {"user_id": 222222, "name": "段用户"}}
+        ]
+
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
+        ):
+            await milkybot_mute(
+                user=mock_at,
+                duration=300,
+                reason="违规",
+                bot=mock_bot,
+                event=mock_event,
+            )
+
+        mock_bot.set_group_member_mute.assert_called_once_with(
+            group_id=mock_event.data.peer_id,
+            user_id=222222,
+            duration=300,
+        )
+
+    @pytest.mark.asyncio
+    async def test_mute_skips_self(
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
+    ) -> None:
+        """测试目标用户是发送者本人时不调用禁言 API"""
+        mock_event.data.sender_id = 987654321
+
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
+        ) as mock_finish:
+            await milkybot_mute(
+                user=mock_at,
+                duration=60,
+                reason="测试",
+                bot=mock_bot,
+                event=mock_event,
+            )
+
+        mock_bot.set_group_member_mute.assert_not_called()
+        mock_finish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_mute_api_error(
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
+    ) -> None:
+        """测试禁言 API 调用失败"""
+        mock_bot.set_group_member_mute.side_effect = Exception("API 调用失败")
+
+        with pytest.raises(Exception, match="API 调用失败"):
+            await milkybot_mute(
+                user=mock_at,
+                duration=60,
+                reason="测试",
+                bot=mock_bot,
+                event=mock_event,
             )
 
 
@@ -142,49 +198,27 @@ class TestUnmute:
                 event=mock_event,
             )
 
-        # 解禁时 duration 应该为 0
         mock_bot.set_group_member_mute.assert_called_once_with(
             group_id=mock_event.data.peer_id,
-            user_id=mock_at.data["user_id"],
+            user_id=987654321,
             duration=0,
         )
         mock_finish.assert_called_once()
-        assert (
-            str(mock_finish.call_args[1]["message"])
-            == f"已解禁用户 {mock_at.data['user_id']}"
-        )
+        result_message = mock_finish.call_args.kwargs["message"]
+        assert isinstance(result_message, UniMessage)
+        assert "已解禁:" in str(result_message)
+        assert "名称: 测试用户" in str(result_message)
+        assert "标识: 987654321" in str(result_message)
 
     @pytest.mark.asyncio
-    async def test_unmute_multiple_users(
-        self, mock_bot: MagicMock, mock_event: MagicMock
-    ) -> None:
-        """测试解禁多个用户"""
-        users = [111111, 222222, 333333]
-
-        for user_id in users:
-            at = MagicMock(spec=At)
-            at.data = {"user_id": user_id}
-
-            with patch(
-                "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_unmute_cmd.finish"
-            ):
-                await milkybot_unmute(
-                    user=at,
-                    bot=mock_bot,
-                    event=mock_event,
-                )
-
-            mock_bot.set_group_member_mute.assert_called_with(
-                group_id=mock_event.data.peer_id,
-                user_id=user_id,
-                duration=0,
-            )
-
-    @pytest.mark.asyncio
-    async def test_unmute_user_not_muted(
+    async def test_unmute_prefers_mention_segment_user_id(
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
-        """测试解禁未被禁言的用户（API 应该仍然正常调用）"""
+        """测试存在 mention 消息段时优先解禁消息段中的用户"""
+        mock_event.data.segments = [
+            {"type": "mention", "data": {"user_id": 333333, "name": "段用户"}}
+        ]
+
         with patch(
             "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_unmute_cmd.finish"
         ) as mock_finish:
@@ -194,8 +228,12 @@ class TestUnmute:
                 event=mock_event,
             )
 
-        mock_bot.set_group_member_mute.assert_called_once()
-        mock_finish.assert_called_once()
+        mock_bot.set_group_member_mute.assert_called_once_with(
+            group_id=mock_event.data.peer_id,
+            user_id=333333,
+            duration=0,
+        )
+        assert "名称: 段用户" in str(mock_finish.call_args.kwargs["message"])
 
     @pytest.mark.asyncio
     async def test_unmute_api_error(
@@ -229,51 +267,12 @@ class TestWholeUnmute:
             await milkybot_whole_unmute(
                 bot=mock_bot,
                 event=mock_event,
-                status=False,
             )
 
         mock_bot.set_group_whole_mute.assert_called_once_with(
             group_id=mock_event.data.peer_id, is_mute=False
         )
-        mock_finish.assert_called_once()
-        assert str(mock_finish.call_args[1]["message"]) == "全体解禁成功"
-
-    @pytest.mark.asyncio
-    async def test_whole_unmute_with_true_status(
-        self, mock_bot: MagicMock, mock_event: MagicMock
-    ) -> None:
-        """测试 status=True 时不应调用 API（因为函数内有 if not status）"""
-        with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_unmute_cmd.finish"
-        ) as mock_finish:
-            await milkybot_whole_unmute(
-                bot=mock_bot,
-                event=mock_event,
-                status=True,
-            )
-
-        # status=True 时条件 if not status 为 False，不应调用 API
-        mock_bot.set_group_whole_mute.assert_not_called()
-        mock_finish.assert_called_once()
-        assert str(mock_finish.call_args[1]["message"]) == "全体解禁成功"
-
-    @pytest.mark.asyncio
-    async def test_whole_unmute_default_false(
-        self, mock_bot: MagicMock, mock_event: MagicMock
-    ) -> None:
-        """测试默认参数（status=False）"""
-        with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_unmute_cmd.finish"
-        ) as mock_finish:
-            await milkybot_whole_unmute(
-                bot=mock_bot,
-                event=mock_event,
-            )
-
-        mock_bot.set_group_whole_mute.assert_called_once_with(
-            group_id=mock_event.data.peer_id, is_mute=False
-        )
-        mock_finish.assert_called_once()
+        mock_finish.assert_called_once_with(message="全体解禁成功")
 
     @pytest.mark.asyncio
     async def test_whole_unmute_api_error(
@@ -286,103 +285,7 @@ class TestWholeUnmute:
             await milkybot_whole_unmute(
                 bot=mock_bot,
                 event=mock_event,
-                status=False,
             )
-
-
-# ================= 边界条件测试 =================
-
-
-class TestEdgeCases:
-    """边界条件测试"""
-
-    @pytest.mark.asyncio
-    async def test_mute_max_duration(
-        self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
-    ) -> None:
-        """测试最大禁言时长"""
-        max_duration = 24 * 60 * 60  # 24小时
-
-        with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
-        ):
-            await milkybot_mute(
-                user=mock_at,
-                duration=max_duration,
-                reason="最大时长测试",
-                bot=mock_bot,
-                event=mock_event,
-            )
-
-        mock_bot.set_group_member_mute.assert_called_once_with(
-            group_id=mock_event.data.peer_id,
-            user_id=mock_at.data["user_id"],
-            duration=max_duration,
-        )
-
-    @pytest.mark.asyncio
-    async def test_mute_negative_duration(
-        self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
-    ) -> None:
-        """测试负数禁言时长（应该正常传递，由 API 处理）"""
-        with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
-        ):
-            await milkybot_mute(
-                user=mock_at,
-                duration=-1,
-                reason="负数测试",
-                bot=mock_bot,
-                event=mock_event,
-            )
-
-        mock_bot.set_group_member_mute.assert_called_once_with(
-            group_id=mock_event.data.peer_id,
-            user_id=mock_at.data["user_id"],
-            duration=-1,
-        )
-
-    @pytest.mark.asyncio
-    async def test_mute_empty_reason(
-        self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
-    ) -> None:
-        """测试空字符串原因"""
-        with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
-        ) as mock_finish:
-            await milkybot_mute(
-                user=mock_at,
-                duration=60,
-                reason="",
-                bot=mock_bot,
-                event=mock_event,
-            )
-
-        expected_msg = f"已禁言 {mock_at.data['user_id']}，时长 60 秒，原因："
-        assert str(mock_finish.call_args[1]["message"]) == expected_msg
-
-    @pytest.mark.asyncio
-    async def test_mute_very_long_reason(
-        self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
-    ) -> None:
-        """测试超长原因字符串"""
-        long_reason = "A" * 1000
-
-        with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
-        ) as mock_finish:
-            await milkybot_mute(
-                user=mock_at,
-                duration=60,
-                reason=long_reason,
-                bot=mock_bot,
-                event=mock_event,
-            )
-
-        expected_msg = (
-            f"已禁言 {mock_at.data['user_id']}，时长 60 秒，原因：{long_reason}"
-        )
-        assert str(mock_finish.call_args[1]["message"]) == expected_msg
 
 
 # ================= 集成场景测试 =================
@@ -396,7 +299,6 @@ class TestIntegrationScenarios:
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
         """测试先禁言后解禁的顺序操作"""
-        # 1. 禁言
         with patch(
             "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
         ):
@@ -410,11 +312,10 @@ class TestIntegrationScenarios:
 
         mock_bot.set_group_member_mute.assert_called_with(
             group_id=mock_event.data.peer_id,
-            user_id=mock_at.data["user_id"],
+            user_id=987654321,
             duration=600,
         )
 
-        # 2. 解禁
         with patch(
             "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_unmute_cmd.finish"
         ):
@@ -426,7 +327,7 @@ class TestIntegrationScenarios:
 
         mock_bot.set_group_member_mute.assert_called_with(
             group_id=mock_event.data.peer_id,
-            user_id=mock_at.data["user_id"],
+            user_id=987654321,
             duration=0,
         )
 
@@ -441,6 +342,8 @@ class TestIntegrationScenarios:
             event = MagicMock(spec=MilkyGroupMessageEvent)
             event.data = MagicMock()
             event.data.peer_id = group_id
+            event.data.sender_id = 111111
+            event.data.segments = []
 
             with patch(
                 "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
@@ -455,7 +358,7 @@ class TestIntegrationScenarios:
 
             mock_bot.set_group_member_mute.assert_called_with(
                 group_id=group_id,
-                user_id=mock_at.data["user_id"],
+                user_id=987654321,
                 duration=300,
             )
 
@@ -467,22 +370,20 @@ class TestUniMessage:
     """UniMessage 消息格式测试"""
 
     @pytest.mark.asyncio
-    async def test_message_is_uni_message_instance(
+    async def test_unmute_message_is_uni_message_instance(
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
-        """测试返回的消息是 UniMessage 实例"""
+        """测试解禁返回的消息是 UniMessage 实例"""
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_unmute_cmd.finish"
         ) as mock_finish:
-            await milkybot_mute(
+            await milkybot_unmute(
                 user=mock_at,
-                duration=60,
-                reason="测试",
                 bot=mock_bot,
                 event=mock_event,
             )
 
-        result_message = mock_finish.call_args[1]["message"]
+        result_message = mock_finish.call_args.kwargs["message"]
         assert isinstance(result_message, UniMessage)
 
     @pytest.mark.asyncio
@@ -496,12 +397,9 @@ class TestUniMessage:
             await milkybot_whole_mute(
                 bot=mock_bot,
                 event=mock_event,
-                status=True,
             )
 
-        result_message = mock_finish.call_args[1]["message"]
-        assert isinstance(result_message, UniMessage)
-        assert str(result_message) == "全体禁言成功"
+        assert mock_finish.call_args.kwargs["message"] == "全体禁言成功"
 
     @pytest.mark.asyncio
     async def test_whole_unmute_message_format(
@@ -514,9 +412,6 @@ class TestUniMessage:
             await milkybot_whole_unmute(
                 bot=mock_bot,
                 event=mock_event,
-                status=False,
             )
 
-        result_message = mock_finish.call_args[1]["message"]
-        assert isinstance(result_message, UniMessage)
-        assert str(result_message) == "全体解禁成功"
+        assert mock_finish.call_args.kwargs["message"] == "全体解禁成功"
