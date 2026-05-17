@@ -1,1 +1,1 @@
-uvx prek list && uvx prek run
+pnpm prepare
