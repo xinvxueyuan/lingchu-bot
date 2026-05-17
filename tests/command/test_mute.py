@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from nonebot.adapters.milky import Bot as MilkyBot
 from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
+from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 from nonebot_plugin_alconna import UniMessage
 from nonebot_plugin_alconna.uniseg import At
 
@@ -84,6 +85,42 @@ class TestWholeMute:
                 event=mock_event,
             )
 
+    @pytest.mark.asyncio
+    async def test_whole_mute_network_error(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        """测试全体禁言网络异常返回错误消息"""
+        mock_bot.set_group_whole_mute.side_effect = NetworkError("连接失败")
+
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_mute_cmd.finish"
+        ) as mock_finish:
+            await milkybot_whole_mute(
+                bot=mock_bot,
+                event=mock_event,
+            )
+
+        mock_finish.assert_called_once()
+        assert "全体禁言失败，网络异常" in mock_finish.call_args.kwargs["message"]
+
+    @pytest.mark.asyncio
+    async def test_whole_mute_action_failed(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        """测试全体禁言操作被拒绝返回错误消息"""
+        mock_bot.set_group_whole_mute.side_effect = ActionFailed(message="权限不足")
+
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_mute_cmd.finish"
+        ) as mock_finish:
+            await milkybot_whole_mute(
+                bot=mock_bot,
+                event=mock_event,
+            )
+
+        mock_finish.assert_called_once()
+        assert "全体禁言失败，操作被拒绝" in mock_finish.call_args.kwargs["message"]
+
 
 # ================= 禁言用户测试 =================
 
@@ -112,7 +149,14 @@ class TestMute:
             user_id=987654321,
             duration=60,
         )
-        mock_finish.assert_not_called()
+        mock_finish.assert_called_once()
+        result_message = mock_finish.call_args.kwargs["message"]
+        assert isinstance(result_message, UniMessage)
+        assert "已禁言:" in str(result_message)
+        assert "名称: @测试用户" in str(result_message)
+        assert "时长: 60 秒" in str(result_message)
+        assert "原因: 测试" in str(result_message)
+        assert "标识: 987654321" in str(result_message)
 
     @pytest.mark.asyncio
     async def test_mute_prefers_mention_segment_user_id(
@@ -125,7 +169,7 @@ class TestMute:
 
         with patch(
             "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
-        ):
+        ) as mock_finish:
             await milkybot_mute(
                 user=mock_at,
                 duration=300,
@@ -139,6 +183,11 @@ class TestMute:
             user_id=222222,
             duration=300,
         )
+        result_message = mock_finish.call_args.kwargs["message"]
+        assert "名称: @段用户" in str(result_message)
+        assert "时长: 300 秒" in str(result_message)
+        assert "原因: 违规" in str(result_message)
+        assert "标识: 222222" in str(result_message)
 
     @pytest.mark.asyncio
     async def test_mute_skips_self(
@@ -208,6 +257,7 @@ class TestUnmute:
         assert isinstance(result_message, UniMessage)
         assert "已解禁:" in str(result_message)
         assert "名称: 测试用户" in str(result_message)
+        assert "原因: 管理员操作「默认」" in str(result_message)
         assert "标识: 987654321" in str(result_message)
 
     @pytest.mark.asyncio
@@ -249,6 +299,44 @@ class TestUnmute:
                 event=mock_event,
             )
 
+    @pytest.mark.asyncio
+    async def test_unmute_network_error(
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
+    ) -> None:
+        """测试解禁网络异常返回错误消息"""
+        mock_bot.set_group_member_mute.side_effect = NetworkError("连接失败")
+
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_unmute_cmd.finish"
+        ) as mock_finish:
+            await milkybot_unmute(
+                user=mock_at,
+                bot=mock_bot,
+                event=mock_event,
+            )
+
+        mock_finish.assert_called_once()
+        assert "解禁失败，网络异常" in mock_finish.call_args.kwargs["message"]
+
+    @pytest.mark.asyncio
+    async def test_unmute_action_failed(
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
+    ) -> None:
+        """测试解禁操作被拒绝返回错误消息"""
+        mock_bot.set_group_member_mute.side_effect = ActionFailed(message="权限不足")
+
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_unmute_cmd.finish"
+        ) as mock_finish:
+            await milkybot_unmute(
+                user=mock_at,
+                bot=mock_bot,
+                event=mock_event,
+            )
+
+        mock_finish.assert_called_once()
+        assert "解禁失败，操作被拒绝" in mock_finish.call_args.kwargs["message"]
+
 
 # ================= 全体解禁测试 =================
 
@@ -286,6 +374,42 @@ class TestWholeUnmute:
                 bot=mock_bot,
                 event=mock_event,
             )
+
+    @pytest.mark.asyncio
+    async def test_whole_unmute_network_error(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        """测试全体解禁网络异常返回错误消息"""
+        mock_bot.set_group_whole_mute.side_effect = NetworkError("连接失败")
+
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_unmute_cmd.finish"
+        ) as mock_finish:
+            await milkybot_whole_unmute(
+                bot=mock_bot,
+                event=mock_event,
+            )
+
+        mock_finish.assert_called_once()
+        assert "全体解禁失败，网络异常" in mock_finish.call_args.kwargs["message"]
+
+    @pytest.mark.asyncio
+    async def test_whole_unmute_action_failed(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        """测试全体解禁操作被拒绝返回错误消息"""
+        mock_bot.set_group_whole_mute.side_effect = ActionFailed(message="权限不足")
+
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_unmute_cmd.finish"
+        ) as mock_finish:
+            await milkybot_whole_unmute(
+                bot=mock_bot,
+                event=mock_event,
+            )
+
+        mock_finish.assert_called_once()
+        assert "全体解禁失败，操作被拒绝" in mock_finish.call_args.kwargs["message"]
 
 
 # ================= 集成场景测试 =================
