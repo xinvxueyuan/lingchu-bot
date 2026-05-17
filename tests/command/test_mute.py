@@ -19,20 +19,17 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute import (
 )
 
 MEMBER_MUTE_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute."
-    "member_mute_cmd.finish"
+    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
 )
 MEMBER_UNMUTE_FINISH = (
     "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute."
     "member_unmute_cmd.finish"
 )
 WHOLE_MUTE_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute."
-    "whole_mute_cmd.finish"
+    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_mute_cmd.finish"
 )
 WHOLE_UNMUTE_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute."
-    "whole_unmute_cmd.finish"
+    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_unmute_cmd.finish"
 )
 
 
@@ -320,15 +317,14 @@ class TestMute:
         """测试 At.target 非数字时抛出 ValueError 且不调用 API。"""
         mock_at.target = "not-a-number"
 
-        with patch(MEMBER_MUTE_FINISH) as mock_finish:
-            with pytest.raises(ValueError):
-                await milkybot_mute(
-                    user=mock_at,
-                    duration=60,
-                    reason="测试",
-                    bot=mock_bot,
-                    event=mock_event,
-                )
+        with patch(MEMBER_MUTE_FINISH) as mock_finish, pytest.raises(ValueError):
+            await milkybot_mute(
+                user=mock_at,
+                duration=60,
+                reason="测试",
+                bot=mock_bot,
+                event=mock_event,
+            )
 
         mock_bot.set_group_member_mute.assert_not_called()
         mock_finish.assert_not_called()
@@ -500,9 +496,8 @@ class TestUnmute:
         """测试解禁 At.target 非数字时抛出 ValueError 且不调用 API。"""
         mock_at.target = "not-a-number"
 
-        with patch(MEMBER_UNMUTE_FINISH) as mock_finish:
-            with pytest.raises(ValueError):
-                await milkybot_unmute(user=mock_at, bot=mock_bot, event=mock_event)
+        with patch(MEMBER_UNMUTE_FINISH) as mock_finish, pytest.raises(ValueError):
+            await milkybot_unmute(user=mock_at, bot=mock_bot, event=mock_event)
 
         mock_bot.set_group_member_mute.assert_not_called()
         mock_finish.assert_not_called()
