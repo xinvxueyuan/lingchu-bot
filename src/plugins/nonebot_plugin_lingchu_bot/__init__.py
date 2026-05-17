@@ -19,14 +19,21 @@ __plugin_meta__ = PluginMetadata(
     type="application",
     homepage="https://github.com/xinvxueyuan/lingchu-bot",
     config=Config,
-    supported_adapters={"~onebot.v11", "~milky", "~discord", "~telegram", "~github"},
+    supported_adapters={
+        "~onebot.v11",
+        "~milky",
+        "~discord",
+        "~telegram",
+        "~github",
+        "~onebot.v12",
+    },
     extra={
         "author": [
             {"name": "lingchu-bot", "email": "support@xinvstar.xyz"},
             {"name": "xinvxueyuan", "email": "xinvxueyuan@yeah.net"},
         ],
         "maintainer": "xinvxueyuan",
-        "version": "0.0.0-dev0",
+        "version": "0.0.0",
         "priority": 50,
         "startup": True,
         "shutdown": True,

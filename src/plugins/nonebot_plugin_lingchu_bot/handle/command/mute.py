@@ -122,6 +122,7 @@ async def milkybot_mute(
     if event.data.sender_id != target_user_id:
         max_retries = 3
         retry_count = 0
+        muted = False
 
         while retry_count <= max_retries:
             try:
@@ -130,6 +131,7 @@ async def milkybot_mute(
                     user_id=target_user_id,
                     duration=duration,
                 )
+                muted = True
                 break
             except NetworkError as e:
                 retry_count += 1
@@ -149,7 +151,8 @@ async def milkybot_mute(
             except ActionFailed as e:
                 logger.error(f"禁言失败，操作被拒绝: {e}")
                 await member_mute_cmd.finish(message=f"禁言失败，操作被拒绝: {e}")
-        else:
+
+        if muted:
             msg = (
                 f"已禁言: \n"
                 f"名称: @{target_name}\n"
@@ -165,7 +168,17 @@ async def milkybot_whole_mute(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
-    await bot.set_group_whole_mute(group_id=event.data.peer_id, is_mute=True)
+    from nonebot.adapters.milky.exception import ActionFailed, NetworkError
+
+    try:
+        await bot.set_group_whole_mute(group_id=event.data.peer_id, is_mute=True)
+    except NetworkError as e:
+        logger.error(f"全体禁言失败，网络异常: {e!r}")
+        return await whole_mute_cmd.finish(message=f"全体禁言失败，网络异常: {e!r}")
+    except ActionFailed as e:
+        logger.error(f"全体禁言失败，操作被拒绝: {e!r}")
+        return await whole_mute_cmd.finish(message=f"全体禁言失败，操作被拒绝: {e!r}")
+
     logger.info("全体禁言成功")
     await whole_mute_cmd.finish(message="全体禁言成功")
 
@@ -185,16 +198,26 @@ async def milkybot_unmute(
         target_name: str | None = mention["data"]["name"]
     else:
         target_name: str | None = user.display or ""
-    await bot.set_group_member_mute(
-        group_id=event.data.peer_id, user_id=target_user_id, duration=0
-    )
+    from nonebot.adapters.milky.exception import ActionFailed, NetworkError
+
+    try:
+        await bot.set_group_member_mute(
+            group_id=event.data.peer_id, user_id=target_user_id, duration=0
+        )
+    except NetworkError as e:
+        logger.error(f"解禁失败，网络异常: {e!r}")
+        return await member_unmute_cmd.finish(message=f"解禁失败，网络异常: {e!r}")
+    except ActionFailed as e:
+        logger.error(f"解禁失败，操作被拒绝: {e!r}")
+        return await member_unmute_cmd.finish(message=f"解禁失败，操作被拒绝: {e!r}")
+
     msg: UniMessage[Text] = UniMessage(
-        message={
+        message=(
             f"已解禁: \n"
             f"名称: {target_name}\n"
             f"原因: 管理员操作「默认」\n"
             f"标识: {target_user_id}"
-        }
+        )
     )
     logger.info(msg)
     await member_unmute_cmd.finish(message=msg)
@@ -205,7 +228,17 @@ async def milkybot_whole_unmute(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
-    await bot.set_group_whole_mute(group_id=event.data.peer_id, is_mute=False)
+    from nonebot.adapters.milky.exception import ActionFailed, NetworkError
+
+    try:
+        await bot.set_group_whole_mute(group_id=event.data.peer_id, is_mute=False)
+    except NetworkError as e:
+        logger.error(f"全体解禁失败，网络异常: {e!r}")
+        return await whole_unmute_cmd.finish(message=f"全体解禁失败，网络异常: {e!r}")
+    except ActionFailed as e:
+        logger.error(f"全体解禁失败，操作被拒绝: {e!r}")
+        return await whole_unmute_cmd.finish(message=f"全体解禁失败，操作被拒绝: {e!r}")
+
     logger.info("全体解禁成功")
     await whole_unmute_cmd.finish(message="全体解禁成功")
 
