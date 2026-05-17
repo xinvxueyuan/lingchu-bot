@@ -1,34 +1,30 @@
 ---
-icon: lucide/rocket
-title: 开发指南
+icon: lucide/blocks
+title: 架构概览
 ---
 
+## 架构概览
 
+Lingchu Bot 是一个以 NoneBot2 为基础的应用侧机器人项目。当前代码将核心插件、命令处理、配置、存储和数据库辅助能力拆分在 `src/plugins/nonebot_plugin_lingchu_bot` 下。
 
-### 项目原则
+## 运行入口
 
-为了方便维护和扩展，我们遵循以下原则：
+- `bot.py`：本地启动入口，初始化 NoneBot，注册 Milky 适配器，并加载插件目录。
+- `pyproject.toml`：声明插件目录、依赖、适配器和 NoneBot 插件配置。
+- `nonebot_plugin_lingchu_bot`：核心插件包，声明插件元数据并加载共享能力。
 
-- 选择Type时，依据最小兼容性优先原则，在满足所有当前及可预见未来需求的前提下，选择列表中最靠左（兼容性最小）的类型
-- 所有内容统一采用 [UTF-8](https://www.iso.org/standard/76835.html) 编码
-- 严格遵守 PEP8 代码规范，为遵循周围代码风格或组织提案时允许破坏
-- 使用 [git-flow](https://git-flow.sh/) 工具进行迭代控制
+## 核心模块
 
-### 准备阶段
+- `core/config.py`：核心配置、localstore 路径和平台信息。
+- `database/json5_store.py`：JSON5 文件存储工具。
+- `database/orm_crud.py`：基于 `nonebot-plugin-orm` 的异步 CRUD 辅助。
+- `handle/command/mute.py`：Milky 群管理命令处理器。
+- `utils/typed_command.py`：类型注解驱动的轻量命令解析与路由工具。
 
-> 以下软件为必须
+## 适配器状态
 
-- IDE   集成开发环境
-  - (推荐 [VS code](https://code.visualstudio.com/) 或者 [PyCharm](https://www.jetbrains.com/pycharm/))
-- [git](https://git-scm.com/)         版本控制工具
-- [Python](https://www.python.org/)   编程语言 3.13 版
-  - Python 包管理工具(必选其一)
-    - [uv](https://docs.astral.sh/uv/)      🔥官方支持
-    - [Poetry](https://python-poetry.org/)  🚧接受报告
-    - [PDM](https://pdm-project.org/)       🚧接受报告
-    - ...                                   🚫不受维护
+插件元数据声明支持 OneBot V11/V12、Milky、Discord、Telegram 和 GitHub 等适配器。当前本地启动入口实际注册 Milky，其他适配器路径以后续实现和测试为准。
 
-> 以下软件为可选
+## 数据与配置边界
 
-- [nb-cli](https://cli.nonebot.dev/)    nonebot 脚手架  🥰原生推荐
-  - ```uv tool install nb-cli@latest```
+项目倾向使用 NoneBot 插件配置、localstore 和 ORM 插件提供的能力，而不是在业务代码中硬编码路径或数据库连接。

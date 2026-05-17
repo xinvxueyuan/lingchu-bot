@@ -1,0 +1,51 @@
+---
+icon: lucide/shield-check
+title: 项目政策
+---
+
+## 项目政策
+
+本页汇总贡献、安全、许可和媒体文件要求。完整条款以仓库根目录中的原始文件为准。
+
+## 贡献
+
+贡献流程、PR 要求和本地检查命令见：
+
+- <https://github.com/xinvxueyuan/lingchu-bot/blob/main/CONTRIBUTING.md>
+
+建议贡献前先确认需求范围，保护已有工作区改动，并按 GitNexus 要求做影响分析。
+
+## 行为准则
+
+社区讨论、Issue、PR 和代码审查都应遵守：
+
+- <https://github.com/xinvxueyuan/lingchu-bot/blob/main/CODE_OF_CONDUCT.md>
+
+请保持具体、尊重和可验证。
+
+## 安全
+
+安全问题和漏洞报告方式见：
+
+- <https://github.com/xinvxueyuan/lingchu-bot/blob/main/SECURITY.md>
+
+不要在公开 Issue 中发布敏感凭据、账号信息或可被滥用的细节。
+
+## 许可
+
+项目使用复合许可证：
+
+- 代码：LGPL-3.0-or-later，见 <https://github.com/xinvxueyuan/lingchu-bot/blob/main/LICENSE-code>。
+- 文档：GNU FDL-1.3-or-later，见 <https://github.com/xinvxueyuan/lingchu-bot/blob/main/LICENSE-docs>。
+- 详细策略：见 <https://github.com/xinvxueyuan/lingchu-bot/blob/main/Repository-Policy.md>。
+
+## 媒体文件脱敏
+
+媒体文件包括图片、音频、视频等。除非明确标注为 CC0 1.0，否则使用前必须进行脱敏处理。
+
+脱敏至少应考虑：
+
+- 移除或模糊个人身份信息。
+- 处理面部、车牌、位置等可识别内容。
+- 删除敏感元数据。
+- 确认衍生文件仍遵守原始许可证。

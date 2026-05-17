@@ -1,15 +1,39 @@
 ---
 icon: lucide/rocket
 title: 项目介绍
-hide:
-  - footer
 ---
 
-### Introduction
+## Lingchu Bot
 
-本项目是一个基于 NoneBot2 框架的机器人项目，用于提供高性能的自动化管理服务。
+Lingchu Bot 是一个基于 NoneBot2 的应用侧管理机器人项目。它以插件形式组织核心能力，面向群管理、命令处理、配置管理、本地存储和异步数据访问等场景。
 
-- [用户指南](user-guide/overview.md)
-- [开发指南](developer-guide/introduction.md)
+!!! warning "项目状态"
 
-### Roadmap
+    本项目仍处于 pre-alpha / development 阶段。当前代码、配置、命令行为和文档都可能继续调整，请不要把现有接口视为稳定生产接口。
+
+## 适合谁阅读
+
+- 想本地启动项目、了解当前可用能力的使用者。
+- 想为 Lingchu Bot 增加功能、测试或文档的贡献者。
+- 想了解项目结构、CI 和 GitNexus 协作流程的维护者。
+
+## 当前能力
+
+- 基于 NoneBot2 的核心插件入口。
+- 以 Milky 为当前主要运行入口的本地 `bot.py`。
+- 成员禁言、解禁、全体禁言和全体解禁等群管理命令处理器。
+- JSON5 本地存储、NoneBot localstore 路径管理和 ORM CRUD 辅助能力。
+- 面向开发者的 typed command 工具、测试和 CI 检查流程。
+
+## 快速入口
+
+- [用户指南](user-guide/overview.md)：了解项目状态、运行方式和命令能力。
+- [快速开始](user-guide/quick-start.md)：安装依赖并启动本地机器人。
+- [开发指南](developer-guide/introduction.md)：理解项目结构和开发流程。
+- [项目政策](project-policy.md)：查看贡献、安全、许可和媒体脱敏要求。
+
+## 仓库链接
+
+- 源代码：<https://github.com/xinvxueyuan/lingchu-bot>
+- 贡献指南：<https://github.com/xinvxueyuan/lingchu-bot/blob/main/CONTRIBUTING.md>
+- 安全政策：<https://github.com/xinvxueyuan/lingchu-bot/blob/main/SECURITY.md>
