@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (1318 symbols, 2766 relationships, 112 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (964 symbols, 2122 relationships, 73 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -24,10 +24,10 @@ This project is indexed by GitNexus as **lingchu-bot** (1318 symbols, 2766 relat
 
 | Resource | Use for |
 |----------|---------|
-| `gitnexus://repo/xinvxueyuan/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/xinvxueyuan/clusters` | All functional areas |
-| `gitnexus://repo/xinvxueyuan/processes` | All execution flows |
-| `gitnexus://repo/xinvxueyuan/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/lingchu-bot/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/lingchu-bot/clusters` | All functional areas |
+| `gitnexus://repo/lingchu-bot/processes` | All execution flows |
+| `gitnexus://repo/lingchu-bot/process/{name}` | Step-by-step execution trace |
 
 ## CLI
 
