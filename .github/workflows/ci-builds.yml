@@ -109,11 +109,43 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  version_json="$(uv version --bump dev --output-format json --frozen)"
+                  version_json="$(uv version --bump dev --output-format json --no-sync)"
                   new_version="$(python -c 'import json, sys; print(json.load(sys.stdin)["version"])' <<< "$version_json")"
 
                   echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
                   echo "$version_json"
+                  uv version --bump dev --dry-run --short --output-format text | xargs echo "Bumping version to:"
+
+            - name: Write version to config.py
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  python - <<'PY'
+                  from pathlib import Path
+                  import os
+                  import re
+
+                  version = os.environ["VERSION"]
+                  path = Path(os.environ["CONFIG_PATH"])
+
+                  text = path.read_text(encoding="utf-8")
+                  new_text, count = re.subn(
+                      r'core_version:\s*str\s*=\s*"[^"]*"',
+                      f'core_version: str = "{version}"',
+                      text,
+                      count=1,
+                  )
+
+                  if count != 1:
+                      raise RuntimeError("未找到唯一的 core_version 字段")
+
+                  path.write_text(new_text, encoding="utf-8")
+                  PY
+              env:
+                VERSION: ${{ steps.bump.outputs.new_version }}
+                CONFIG_PATH: src/plugins/nonebot_plugin_lingchu_bot/core/config.py
+
 
             - name: Build
               run: uv build --clear
@@ -141,7 +173,8 @@ jobs:
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-                  git add pyproject.toml uv.lock 2>/dev/null || git add pyproject.toml
+                  git add pyproject.toml uv.lock src/plugins/nonebot_plugin_lingchu_bot/core/config.py 2>/dev/null \
+                  || git add pyproject.toml src/plugins/nonebot_plugin_lingchu_bot/core/config.py uv.lock
 
                   if ! git diff --cached --quiet; then
                       git commit -m "chore: bump version to ${version} [skip ci]"
