@@ -1,0 +1,133 @@
+# English translations for nonebot-plugin-lingchu-bot.
+# Copyright (C) 2026 xinvxueyuan
+# This file is distributed under the same license as the
+# nonebot-plugin-lingchu-bot project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: nonebot-plugin-lingchu-bot 0.0.0.dev8\n"
+"Report-Msgid-Bugs-To: xinvxueyuan@yeah.net\n"
+"POT-Creation-Date: 2026-05-20 01:48+0800\n"
+"PO-Revision-Date: 2026-05-20 00:00+0800\n"
+"Last-Translator: xinvxueyuan <xinvxueyuan@yeah.net>\n"
+"Language: en_US\n"
+"Language-Team: English\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/core/config.py:57
+#, python-brace-format
+msgid ""
+"in_containers 配置错误：\n"
+"收到字符串值: {value!r}\n"
+"NoneBot2 的 .env 配置文件只接受小写的 true 或 false 作为 bool 值\n"
+"请将配置改为: IN_CONTAINERS=true 或 IN_CONTAINERS=false\n"
+"不要使用大写的 True/False 或其他格式。"
+msgstr ""
+"Invalid in_containers configuration:\n"
+"received string value: {value!r}\n"
+"NoneBot2 .env files only accept lowercase true or false for bool values.\n"
+"Please change the config to: IN_CONTAINERS=true or IN_CONTAINERS=false\n"
+"Do not use uppercase True/False or other formats."
+
+#: src/plugins/nonebot_plugin_lingchu_bot/core/config.py:89
+#, python-brace-format
+msgid ""
+"in_containers 配置错误：\n"
+"期望布尔值，但收到 {value_type}: {value!r}\n"
+"请检查 NoneBot2 配置文件。"
+msgstr ""
+"Invalid in_containers configuration:\n"
+"expected a bool, but got {value_type}: {value!r}\n"
+"Please check the NoneBot2 config file."
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:121
+msgid "违反群规「默认」"
+msgstr "Violated group rules (default)"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:130
+#, python-brace-format
+msgid "禁言失败，网络异常: {error!r}"
+msgstr "Failed to mute, network error: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:135
+#, python-brace-format
+msgid "禁言失败，操作被拒绝: {error}"
+msgstr "Failed to mute, operation rejected: {error}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:139
+#, python-brace-format
+msgid ""
+"已禁言: \n"
+"名称: @{target_name}\n"
+"时长: {duration} 秒\n"
+"原因: {reason}\n"
+"标识: {target_user_id}"
+msgstr ""
+"Muted:\n"
+"Name: @{target_name}\n"
+"Duration: {duration} seconds\n"
+"Reason: {reason}\n"
+"ID: {target_user_id}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:165
+#, python-brace-format
+msgid "全体禁言失败，网络异常: {error!r}"
+msgstr "Failed to enable whole-group mute, network error: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:171
+#, python-brace-format
+msgid "全体禁言失败，操作被拒绝: {error!r}"
+msgstr "Failed to enable whole-group mute, operation rejected: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:176
+msgid "全体禁言成功"
+msgstr "Whole-group mute enabled"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:196
+msgid "管理员操作「默认」"
+msgstr "Administrator action (default)"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:206
+#, python-brace-format
+msgid "解禁失败，网络异常: {error!r}"
+msgstr "Failed to unmute, network error: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:211
+#, python-brace-format
+msgid "解禁失败，操作被拒绝: {error!r}"
+msgstr "Failed to unmute, operation rejected: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:216
+#, python-brace-format
+msgid ""
+"已解禁: \n"
+"名称: {target_name}\n"
+"原因: {reason}\n"
+"标识: {target_user_id}"
+msgstr ""
+"Unmuted:\n"
+"Name: {target_name}\n"
+"Reason: {reason}\n"
+"ID: {target_user_id}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:242
+#, python-brace-format
+msgid "全体解禁失败，网络异常: {error!r}"
+msgstr "Failed to disable whole-group mute, network error: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:248
+#, python-brace-format
+msgid "全体解禁失败，操作被拒绝: {error!r}"
+msgstr "Failed to disable whole-group mute, operation rejected: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:253
+msgid "全体解禁成功"
+msgstr "Whole-group mute disabled"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:258
+msgid "导入mute处理器..."
+msgstr "Importing mute handlers..."

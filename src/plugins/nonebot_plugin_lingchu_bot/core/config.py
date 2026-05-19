@@ -22,6 +22,8 @@ from nonebot_plugin_localstore import (
 )
 from pydantic import BaseModel, Field
 
+from ..i18n import _
+
 
 class ConfigError(TypeError):
     """配置错误异常基类。
@@ -51,11 +53,13 @@ class InvalidInContainersError(ConfigError):
         """
         self.value = value
         super().__init__(
-            f"in_containers 配置错误：\n"
-            f"收到字符串值: {value!r}\n"
-            f"NoneBot2 的 .env 配置文件只接受小写的 true 或 false 作为 bool 值\n"
-            f"请将配置改为: IN_CONTAINERS=true 或 IN_CONTAINERS=false\n"
-            f"不要使用大写的 True/False 或其他格式。"
+            _(
+                "in_containers 配置错误：\n"
+                "收到字符串值: {value!r}\n"
+                "NoneBot2 的 .env 配置文件只接受小写的 true 或 false 作为 bool 值\n"
+                "请将配置改为: IN_CONTAINERS=true 或 IN_CONTAINERS=false\n"
+                "不要使用大写的 True/False 或其他格式。"
+            ).format(value=value)
         )
 
 
@@ -81,9 +85,11 @@ class UnexpectedInContainersTypeError(ConfigError):
         self.value = value
         self.value_type = value_type
         super().__init__(
-            f"in_containers 配置错误：\n"
-            f"期望布尔值，但收到 {value_type.__name__}: {value!r}\n"
-            f"请检查 NoneBot2 配置文件。"
+            _(
+                "in_containers 配置错误：\n"
+                "期望布尔值，但收到 {value_type}: {value!r}\n"
+                "请检查 NoneBot2 配置文件。"
+            ).format(value_type=value_type.__name__, value=value)
         )
 
 

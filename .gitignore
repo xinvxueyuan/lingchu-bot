@@ -66,6 +66,8 @@ pytest.xml
 # Translations
 *.mo
 *.pot
+!src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot
+!src/plugins/nonebot_plugin_lingchu_bot/i18n/locales/**/LC_MESSAGES/*.mo
 
 # Django stuff:
 *.log
