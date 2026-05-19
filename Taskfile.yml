@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+vars:
+  GREETING: Hello, world!
+
+tasks:
+  default:
+    desc: Print a greeting message
+    cmds:
+      - echo "{{.GREETING}}"
+    silent: true
+  up:
+    desc: Update all dependencies
+    cmds:
+      - uv sync --upgrade
+      - pnpm update
+  install:
+    desc: Install all dependencies
+    cmds:
+      - uv sync
+      - pnpm install
+  test:
+    desc: Run tests
+    cmds:
+      - uv run -m pytest
+  lint:
+    desc: Run linters and type checkers
+    cmds:
+      - uv run -m ruff check .
+      - uv run -m ty check .
+      - uv run -m pyright .
+  format:
+    desc: Format code
+    cmds:
+      - uv run -m ruff format .
+  fix:
+    desc: Fix linting and type issues
+    cmds:
+      - uv run -m ruff check --fix .
+      - uv run -m ruff format .
+      - uv run -m ty check --fix .
