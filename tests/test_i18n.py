@@ -11,6 +11,9 @@ def test_gettext_uses_default_chinese_catalog() -> None:
 
 def test_gettext_can_use_english_catalog() -> None:
     assert gettext("全体禁言成功", locale="en-US") == "Whole-group mute enabled"
+    assert gettext("管理员操作「默认」", locale="en-US") == (
+        "Administrator action (default)"
+    )
 
 
 def test_gettext_falls_back_for_unknown_message() -> None:

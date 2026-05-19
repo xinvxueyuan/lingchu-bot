@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 member_mute_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         "禁言",
-        Args["user", At]["duration?", int, 60]["reason?", str, _("违反群规「默认」")],
+        Args["user", At]["duration?", int, 60]["reason?", str, None],
     ),
     aliases={"禁言用户", "禁言群成员", "禁言成员", "禁", "封禁"},
     priority=5,
@@ -58,7 +58,7 @@ whole_mute_cmd: type[Matcher] = on_alconna(
 member_unmute_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         "解禁",
-        Args["user", At]["reason?", str, _("管理员解除禁言「默认」")],
+        Args["user", At]["reason?", str, None],
     ),
     aliases={
         "解禁用户",
@@ -103,9 +103,9 @@ whole_unmute_cmd: type[Matcher] = on_alconna(
 async def milkybot_mute(
     user: At,
     duration: int,
-    reason: str,
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
+    reason: str | None = None,
 ) -> Any:
     from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 
@@ -118,6 +118,7 @@ async def milkybot_mute(
         target_name: str | None = mention["data"]["name"]
     else:
         target_name: str | None = user.display or ""
+    reason_text = _("违反群规「默认」") if reason is None else reason
 
     try:
         await bot.set_group_member_mute(
@@ -143,7 +144,7 @@ async def milkybot_mute(
     ).format(
         target_name=target_name,
         duration=duration,
-        reason=reason,
+        reason=reason_text,
         target_user_id=target_user_id,
     )
     return await member_mute_cmd.finish(message=UniMessage(message=msg))
@@ -181,6 +182,7 @@ async def milkybot_unmute(
     user: At,
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
+    reason: str | None = None,
 ) -> Any:
     target_user_id = int(user.target)
     mention: dict | None = next(
@@ -191,6 +193,7 @@ async def milkybot_unmute(
         target_name: str | None = mention["data"]["name"]
     else:
         target_name: str | None = user.display or ""
+    reason_text = _("管理员操作「默认」") if reason is None else reason
     from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 
     try:
@@ -210,12 +213,10 @@ async def milkybot_unmute(
 
     msg: UniMessage[Text] = UniMessage(
         message=_(
-            "已解禁: \n"
-            "名称: {target_name}\n"
-            "原因: 管理员操作「默认」\n"
-            "标识: {target_user_id}"
+            "已解禁: \n名称: {target_name}\n原因: {reason}\n标识: {target_user_id}"
         ).format(
             target_name=target_name,
+            reason=reason_text,
             target_user_id=target_user_id,
         )
     )

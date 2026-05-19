@@ -22,14 +22,12 @@ def normalize_locale(locale: str | None) -> str:
     return normalized or DEFAULT_LOCALE
 
 
-def get_configured_locale() -> str:
-    """Read the configured locale from NoneBot config if available."""
-    try:
-        from nonebot import get_driver
+@lru_cache(maxsize=1)
+def _read_configured_locale() -> str:
+    """Read and cache the locale from initialized NoneBot config."""
+    from nonebot import get_driver
 
-        config = get_driver().config
-    except (ImportError, ValueError):
-        return DEFAULT_LOCALE
+    config = get_driver().config
 
     for key in ("lingchu_locale", "lc_locale", "locale"):
         value = getattr(config, key, None)
@@ -37,6 +35,14 @@ def get_configured_locale() -> str:
             return normalize_locale(value)
 
     return DEFAULT_LOCALE
+
+
+def get_configured_locale() -> str:
+    """Read the configured locale from NoneBot config if available."""
+    try:
+        return _read_configured_locale()
+    except (ImportError, ValueError):
+        return DEFAULT_LOCALE
 
 
 @lru_cache(maxsize=16)
