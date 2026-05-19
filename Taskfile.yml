@@ -41,3 +41,15 @@ tasks:
       - uv run -m ruff check --fix .
       - uv run -m ruff format .
       - uv run -m ty check --fix .
+  i18n:extract:
+    desc: Extract translatable messages
+    cmds:
+      - uv run pybabel extract -F src/plugins/nonebot_plugin_lingchu_bot/i18n/babel.cfg -o src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot src/plugins/nonebot_plugin_lingchu_bot
+  i18n:update:
+    desc: Update translation catalogs
+    cmds:
+      - uv run pybabel update -i src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot -d src/plugins/nonebot_plugin_lingchu_bot/i18n/locales -D messages
+  i18n:compile:
+    desc: Compile translation catalogs
+    cmds:
+      - uv run pybabel compile -d src/plugins/nonebot_plugin_lingchu_bot/i18n/locales -D messages
