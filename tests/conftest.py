@@ -17,7 +17,8 @@ from typing import TYPE_CHECKING
 
 import nonebot
 import pytest
-from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
+
+# from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
 from pytest_asyncio import is_async_test
 
 sys.path.insert(0, str(object=Path(__file__).parent))
@@ -33,7 +34,8 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
     from _pytest.mark.structures import MarkDecorator
-    from nonebot.internal.driver.abstract import Driver
+
+    # from nonebot.internal.driver.abstract import Driver
     from pytest_asyncio.plugin import PytestAsyncioFunction
 
 
@@ -62,8 +64,8 @@ def pytest_configure(config: pytest.Config) -> None:
     }
     nonebot.init(**init_config)
 
-    driver: Driver = nonebot.get_driver()
-    driver.register_adapter(adapter=ONEBOT_V11Adapter)
+    # driver: Driver = nonebot.get_driver()
+    # driver.register_adapter(adapter=ONEBOT_V11Adapter)
 
     nonebot.load_from_toml(file_path="pyproject.toml")
 
