@@ -25,6 +25,7 @@ nav = [
     { "开发指南" = [
         { "架构概览" = "developer-guide/introduction.md" },
         { "开发流程" = "developer-guide/workflow.md" },
+        { "提交规范" = "developer-guide/commit-style.md" },
         { "测试与 CI" = "developer-guide/testing-ci.md" },
         { "GitNexus 工作流" = "developer-guide/gitnexus.md" },
     ] },
