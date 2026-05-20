@@ -30,7 +30,8 @@ title: 开发流程
 - `docs/`
 - `refactor/`
 
-提交信息建议遵循 Conventional Commits：
+提交信息建议遵循 Conventional Commits，并可结合 Gitmoji 表达改动意图。
+完整说明见 [提交规范](commit-style.md)。
 
 ```text
 fix: 修复成员禁言成功反馈
