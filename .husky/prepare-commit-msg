@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+
+# 关键：开启交互式终端输入，否则无法使用键盘上下键选表情
+exec < /dev/tty
+
+# 调用项目本地或全局的 gitmoji
+npx gitmoji -c
