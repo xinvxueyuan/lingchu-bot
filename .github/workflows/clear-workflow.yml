@@ -26,7 +26,7 @@ jobs:
                 per_page: 100,
                 page: page
               });
-              
+
               if (runs.workflow_runs.length > 0) {
                 allRuns = allRuns.concat(runs.workflow_runs);
                 page++;
@@ -36,9 +36,9 @@ jobs:
             }
 
             // 过滤掉运行中的记录
-            const runsToDelete = allRuns.filter(run => 
-              run.status !== 'in_progress' && 
-              run.status !== 'queued' && 
+            const runsToDelete = allRuns.filter(run =>
+              run.status !== 'in_progress' &&
+              run.status !== 'queued' &&
               run.status !== 'waiting'
             );
 
