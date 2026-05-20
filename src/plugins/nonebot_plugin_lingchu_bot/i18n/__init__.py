@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import gettext as gettext_module
 from functools import lru_cache
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 DOMAIN = "messages"
 DEFAULT_LOCALE = "zh_CN"
@@ -56,9 +61,22 @@ def get_translation(locale: str | None = None) -> gettext_module.NullTranslation
     )
 
 
+async def get_translation_async(
+    locale: str | None = None,
+) -> gettext_module.NullTranslations:
+    """Return a cached gettext translation object without blocking the loop."""
+    return await asyncio.to_thread(get_translation, locale)
+
+
 def gettext(message: str, locale: str | None = None) -> str:
     """Translate a singular message."""
     return get_translation(locale or get_configured_locale()).gettext(message)
+
+
+async def gettext_async(message: str, locale: str | None = None) -> str:
+    """Translate a singular message without blocking the event loop."""
+    translation = await get_translation_async(locale or get_configured_locale())
+    return translation.gettext(message)
 
 
 def ngettext(
@@ -75,16 +93,45 @@ def ngettext(
     )
 
 
+async def ngettext_async(
+    singular: str,
+    plural: str,
+    n: int,
+    locale: str | None = None,
+) -> str:
+    """Translate a pluralized message without blocking the event loop."""
+    translation = await get_translation_async(locale or get_configured_locale())
+    return translation.ngettext(singular, plural, n)
+
+
+async def warm_translation_cache(locales: Iterable[str | None] | None = None) -> None:
+    """Load gettext catalogs in worker threads before async handlers need them."""
+    if locales is None:
+        locales = (get_configured_locale(), DEFAULT_LOCALE)
+
+    normalized = {normalize_locale(locale) for locale in locales}
+    await asyncio.gather(
+        *(get_translation_async(locale) for locale in normalized),
+        return_exceptions=False,
+    )
+
+
 _ = gettext
+_async = gettext_async
 
 __all__ = [
     "DEFAULT_LOCALE",
     "DOMAIN",
     "LOCALES_DIR",
     "_",
+    "_async",
     "get_configured_locale",
     "get_translation",
+    "get_translation_async",
     "gettext",
+    "gettext_async",
     "ngettext",
+    "ngettext_async",
     "normalize_locale",
+    "warm_translation_cache",
 ]
