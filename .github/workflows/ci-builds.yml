@@ -1,4 +1,4 @@
-name: CI-builds
+name: 👷 CI-builds
 
 on:
     workflow_dispatch:
@@ -13,6 +13,7 @@ on:
         paths:
             - "pyproject.toml"
             - "uv.lock"
+            - "Taskfile.yml"
             - "**/*.py"
             - "**/LICENSE*"
             - ".github/workflows/ci-builds.yml"
@@ -27,6 +28,7 @@ on:
         paths:
             - "pyproject.toml"
             - "uv.lock"
+            - "Taskfile.yml"
             - "**/*.py"
             - "**/LICENSE*"
             - ".github/workflows/ci-builds.yml"
@@ -40,7 +42,7 @@ concurrency:
 
 jobs:
     build:
-        name: Build
+        name: 📦 Build
         runs-on: ubuntu-latest
         if: >-
             github.event_name == 'pull_request' ||
@@ -53,22 +55,25 @@ jobs:
             contents: read
 
         steps:
-            - name: Checkout
+            - name: 📥 Checkout
               uses: actions/checkout@v6.0.2
 
-            - name: Update GitNexus index
+            - name: 🧠 Update GitNexus index
               run: npx --yes gitnexus analyze
 
-            - name: Install uv
+            - name: ⚡ Install uv
               uses: astral-sh/setup-uv@v8.1.0
               with:
                   github-token: ${{ github.token }}
                   enable-cache: true
 
-            - name: Build
-              run: uv build --clear
+            - name: 🔨 Install Task
+              uses: go-task/setup-task@v1
 
-            - name: Archive build artifacts
+            - name: 📦 Build
+              run: task ci:build
+
+            - name: 📦 Archive build artifacts
               uses: actions/upload-artifact@v7.0.1
               with:
                   name: assets-${{ github.sha }}
@@ -76,7 +81,7 @@ jobs:
                   if-no-files-found: error
 
     versioned-build:
-        name: Versioned build
+        name: 🔖 Versioned build
         runs-on: ubuntu-latest
         if: >-
             github.event_name == 'push' &&
@@ -89,103 +94,51 @@ jobs:
             attestations: write
 
         steps:
-            - name: Checkout
+            - name: 📥 Checkout
               uses: actions/checkout@v6.0.2
               with:
                   fetch-depth: 0
 
-            - name: Update GitNexus index
+            - name: 🧠 Update GitNexus index
               run: npx --yes gitnexus analyze
 
-            - name: Install uv
+            - name: ⚡ Install uv
               uses: astral-sh/setup-uv@v8.1.0
               with:
                   github-token: ${{ github.token }}
                   enable-cache: true
 
-            - name: Bump development version
+            - name: 🔨 Install Task
+              uses: go-task/setup-task@v1
+
+            - name: 🔖 Bump development version
               id: bump
               shell: bash
-              run: |
-                  set -euo pipefail
+              run: task ci:version:bump
 
-                  version_json="$(uv version --bump dev --output-format json --no-sync)"
-                  new_version="$(python -c 'import json, sys; print(json.load(sys.stdin)["version"])' <<< "$version_json")"
-
-                  echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
-                  echo "$version_json"
-                  uv version --bump dev --dry-run --short --output-format text | xargs echo "Bumping version to:"
-
-            - name: Write version to config.py
+            - name: 🏷️ Write version to config.py
               shell: bash
-              run: |
-                  set -euo pipefail
-
-                  python - <<'PY'
-                  from pathlib import Path
-                  import os
-                  import re
-
-                  version = os.environ["VERSION"]
-                  path = Path(os.environ["CONFIG_PATH"])
-
-                  text = path.read_text(encoding="utf-8")
-                  new_text, count = re.subn(
-                      r'core_version:\s*str\s*=\s*"[^"]*"',
-                      f'core_version: str = "{version}"',
-                      text,
-                      count=1,
-                  )
-
-                  if count != 1:
-                      raise RuntimeError("未找到唯一的 core_version 字段")
-
-                  path.write_text(new_text, encoding="utf-8")
-                  PY
+              run: task ci:version:write-config
               env:
                 VERSION: ${{ steps.bump.outputs.new_version }}
                 CONFIG_PATH: src/plugins/nonebot_plugin_lingchu_bot/core/config.py
 
 
-            - name: Build
-              run: uv build --clear
+            - name: 📦 Build
+              run: task ci:build
 
-            - name: Attest build provenance
+            - name: 🛡️ Attest build provenance
               uses: actions/attest-build-provenance@v4.1.0
               with:
                   subject-path: "dist/*"
 
-            - name: Archive production artifacts
+            - name: 📦 Archive production artifacts
               uses: actions/upload-artifact@v7.0.1
               with:
                   name: assets-${{ steps.bump.outputs.new_version }}
                   path: dist
                   if-no-files-found: error
 
-            - name: Commit and tag
+            - name: 🔖 Commit and tag
               shell: bash
-              run: |
-                  set -euo pipefail
-
-                  version="${{ steps.bump.outputs.new_version }}"
-                  tag="v${version}"
-
-                  git config user.name "github-actions[bot]"
-                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-                  git add pyproject.toml uv.lock src/plugins/nonebot_plugin_lingchu_bot/core/config.py 2>/dev/null \
-                  || git add pyproject.toml src/plugins/nonebot_plugin_lingchu_bot/core/config.py uv.lock
-
-                  if ! git diff --cached --quiet; then
-                      git commit -m "chore: bump version to ${version} [skip ci]"
-                      git push origin "HEAD:${GITHUB_REF_NAME}"
-                  fi
-
-                  if git rev-parse "$tag" >/dev/null 2>&1; then
-                      echo "Tag ${tag} already exists locally; skipping tag creation."
-                  elif git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
-                      echo "Tag ${tag} already exists on origin; skipping tag creation."
-                  else
-                      git tag "$tag"
-                      git push origin "$tag"
-                  fi
+              run: task ci:version:commit-tag VERSION="${{ steps.bump.outputs.new_version }}"
