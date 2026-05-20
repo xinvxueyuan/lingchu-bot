@@ -1,7 +1,17 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
-# 关键：开启交互式终端输入，否则无法使用键盘上下键选表情
-exec < /dev/tty
+# 1. 优先检查是否在 pnpm 项目中，且 pnpm 可用
+if command -v pnpm >/dev/null 2>&1; then
+  exec < /dev/tty
+  pnpm exec gitmoji --hook "$1" "$2"
 
-# 调用项目本地或全局的 gitmoji
-npx gitmoji -c
+# 2. 备选方案：如果使用的是旧版 npx
+elif npx -v >&/dev/null; then
+  exec < /dev/tty
+  npx -c "gitmoji --hook $1 $2"
+
+# 3. 保底方案：尝试全局命令
+else
+  exec < /dev/tty
+  gitmoji --hook "$1" "$2"
+fi
