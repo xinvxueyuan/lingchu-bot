@@ -35,12 +35,14 @@ tasks:
     desc: Format code
     cmds:
       - uv run -m ruff format .
+      - markdownlint-cli2 "docs/**/*.md" "src/**/*.md" "README.md"
   fix:
     desc: Fix linting and type issues
     cmds:
       - uv run -m ruff check --fix .
       - uv run -m ruff format .
       - uv run -m ty check --fix .
+      - markdownlint-cli2 --fix "**/*.md"
   i18n:extract:
     desc: Extract translatable messages
     cmds:

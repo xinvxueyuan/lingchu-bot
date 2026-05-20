@@ -1,4 +1,5 @@
 allowBuilds:
+  '@go-task/cli': true
   '@ladybugdb/core': true
   '@scarf/scarf': true
   gitnexus: true
