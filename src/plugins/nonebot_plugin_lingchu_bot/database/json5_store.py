@@ -19,7 +19,7 @@ import contextlib
 import logging
 from copy import deepcopy
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, Self, cast
 
 import aiofiles
 import aiofiles.os
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _deepcopy_async[T](value: T) -> T:
-    return await asyncio.to_thread(deepcopy, value)
+    return cast("T", await asyncio.to_thread(deepcopy, value))
 
 
 async def _json5_loads_async(content: str) -> Any:
