@@ -1,1 +1,1 @@
-uv run prek run --config prek.toml --stage pre-commit check-yaml end-of-file-fixer
+uv run prek run --config prek.toml --stage pre-commit
