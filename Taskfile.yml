@@ -2,15 +2,11 @@
 
 version: '3'
 
-vars:
-  GREETING: Hello, world!
-
 tasks:
   default:
-    desc: Print a greeting message
+    desc: List available tasks
     cmds:
-      - echo "{{.GREETING}}"
-    silent: true
+      - task --list
   up:
     desc: Update all dependencies
     cmds:
@@ -24,25 +20,149 @@ tasks:
   test:
     desc: Run tests
     cmds:
-      - uv run -m pytest
+      - uv run -m pytest {{.CLI_ARGS}}
+  test:ci:
+    desc: Run tests with CI report output
+    cmds:
+      - uv run -m pytest --junitxml=test-results/pytest.xml
   lint:
     desc: Run linters and type checkers
     cmds:
       - uv run -m ruff check .
       - uv run -m ty check .
       - uv run -m pyright .
+  lint:ruff:
+    desc: Run Ruff lint checks
+    cmds:
+      - uv run -m ruff check . {{.CLI_ARGS}}
+  lint:ruff:github:
+    desc: Run Ruff lint checks with GitHub annotations
+    cmds:
+      - uv run -m ruff check . --output-format=github
+  lint:format:
+    desc: Check Ruff formatting
+    cmds:
+      - uv run -m ruff format --check .
+  lint:markdown:
+    desc: Run Markdown lint checks
+    cmds:
+      - npx --yes markdownlint-cli2@0.22.1 "docs/**/*.md" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
+  typecheck:
+    desc: Run Python type checkers
+    cmds:
+      - uv run -m pyright .
+      - uv run -m ty check --output-format github
   format:
     desc: Format code
     cmds:
       - uv run -m ruff format .
-      - markdownlint-cli2 "docs/**/*.md" "src/**/*.md" "README.md"
+      - npx --yes markdownlint-cli2@0.22.1 "docs/**/*.md" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
   fix:
     desc: Fix linting and type issues
     cmds:
       - uv run -m ruff check --fix .
       - uv run -m ruff format .
-      - uv run -m ty check --fix .
-      - markdownlint-cli2 --fix "**/*.md"
+      - uv run -m ty check --fix . || true
+      - npx --yes markdownlint-cli2@0.22.1 --fix "docs/**/*.md" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
+  ci:static:
+    desc: Run CI static analysis checks
+    cmds:
+      - task: lint:ruff:github
+      - task: lint:format
+      - task: lint:markdown
+  ci:typecheck:
+    desc: Run CI type checks
+    cmds:
+      - task: typecheck
+  ci:test:
+    desc: Run CI tests
+    cmds:
+      - task: test:ci
+  ci:fix:
+    desc: Run CI auto-fix tasks
+    cmds:
+      - task: fix
+  ci:build:
+    desc: Build distribution artifacts for CI
+    cmds:
+      - uv build --clear
+  ci:version:bump:
+    desc: Bump the development version and emit GitHub Actions outputs
+    cmds:
+      - |
+        set -euo pipefail
+
+        version_json="$(uv version --bump dev --output-format json --no-sync)"
+        new_version="$(python -c 'import json, sys; print(json.load(sys.stdin)["version"])' <<< "$version_json")"
+
+        echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
+        echo "$version_json"
+        uv version --bump dev --dry-run --short --output-format text | xargs echo "Bumping version to:"
+  ci:version:write-config:
+    desc: Write the CI version into config.py
+    requires:
+      vars: [VERSION, CONFIG_PATH]
+    cmds:
+      - |
+        set -euo pipefail
+
+        python - <<'PY'
+        from pathlib import Path
+        import os
+        import re
+
+        version = os.environ["VERSION"]
+        path = Path(os.environ["CONFIG_PATH"])
+
+        text = path.read_text(encoding="utf-8")
+        new_text, count = re.subn(
+            r'core_version:\s*str\s*=\s*"[^"]*"',
+            f'core_version: str = "{version}"',
+            text,
+            count=1,
+        )
+
+        if count != 1:
+            raise RuntimeError("未找到唯一的 core_version 字段")
+
+        path.write_text(new_text, encoding="utf-8")
+        PY
+  ci:version:commit-tag:
+    desc: Commit CI version changes and create the release tag
+    requires:
+      vars: [VERSION]
+    cmds:
+      - |
+        set -euo pipefail
+
+        version="{{.VERSION}}"
+        tag="v${version}"
+
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+        git add pyproject.toml uv.lock src/plugins/nonebot_plugin_lingchu_bot/core/config.py 2>/dev/null \
+        || git add pyproject.toml src/plugins/nonebot_plugin_lingchu_bot/core/config.py uv.lock
+
+        if ! git diff --cached --quiet; then
+            git commit -m "🔖 chore: bump version to ${version} [skip ci]"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+        fi
+
+        if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Tag ${tag} already exists locally; skipping tag creation."
+        elif git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "Tag ${tag} already exists on origin; skipping tag creation."
+        else
+            git tag "$tag"
+            git push origin "$tag"
+        fi
+  ci:
+    desc: Run the full local CI sequence
+    cmds:
+      - task: ci:static
+      - task: ci:typecheck
+      - task: ci:test
   i18n:extract:
     desc: Extract translatable messages
     cmds:

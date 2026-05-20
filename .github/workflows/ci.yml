@@ -10,6 +10,8 @@ on:
       - "**.toml"
       - "uv.lock"
       - ".pre-commit-config.yaml"
+      - ".markdownlint.jsonc"
+      - "Taskfile.yml"
       - "**.md"
   push:
     branches: [main, dev]
@@ -19,6 +21,8 @@ on:
       - "**.toml"
       - "uv.lock"
       - ".pre-commit-config.yaml"
+      - ".markdownlint.jsonc"
+      - "Taskfile.yml"
       - "**.md"
 
 permissions:
@@ -42,20 +46,10 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
-      - name: Lint & Format Check (Ruff)
-        run: |
-          uv run -m ruff check . --output-format=github
-          uv run -m ruff format --check .
-      - name: Markdown Check
-        uses: DavidAnson/markdownlint-cli2-action@v23.2.0
-        with:
-          globs: |
-            "docs/**/*.md"
-            "README.md"
-            "CHANGELOG.md"
-            "CONTRIBUTING.md"
-            "CODE_OF_CONDUCT.md"
-            ".github/**/*.md"
+      - name: Install Task
+        uses: go-task/setup-task@v1
+      - name: Static Analysis
+        run: task ci:static
 
   tests:
     name: Tests & Type Check (Python ${{ matrix.python-version }})
@@ -72,18 +66,17 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
+      - name: Install Task
+        uses: go-task/setup-task@v1
 
       - name: Install dependencies
         run: uv sync --frozen
 
       - name: Type Check (Pyright)
-        run: uv run -m pyright .
+        run: task ci:typecheck
 
-      - name: Type Check (ty)
-        run: uv run -m ty check --output-format github
-
-      - name: Run Pytest
-        run: uv run -m pytest --junitxml=test-results/pytest.xml
+      - name: Run Tests
+        run: task ci:test
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2.23.0
@@ -103,15 +96,14 @@ jobs:
         uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: "3.13"
+      - name: Install Task
+        uses: go-task/setup-task@v1
       - name: Auto Fix & Format
-        run: |
-          uv run -m ruff check --fix .
-          uv run -m ruff format .
-          uv run -m ty check --fix || true
+        run: task ci:fix
 
       - name: Commit Changes
         uses: stefanzweifel/git-auto-commit-action@v7.1.0
         with:
-          commit_message: "style: auto-format & ty fix [skip ci]"
+          commit_message: "🎨 style: auto-format & ty fix [skip ci]"
           file_pattern: "*.py *.toml *.yaml *.yml *.md"
           branch: ${{ github.ref_name }}
