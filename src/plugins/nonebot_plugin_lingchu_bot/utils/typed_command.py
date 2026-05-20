@@ -17,6 +17,7 @@ of the module.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import re
@@ -1020,7 +1021,9 @@ class CommandRouter:
 
     async def _execute_dispatch(self, text: str, context: Context) -> Any:
         """执行分发流程的内部实现。"""
-        parsed = self.parse(text, dry_run=False, context=context)
+        parsed = await asyncio.to_thread(
+            self.parse, text, dry_run=False, context=context
+        )
         if parsed.get("error"):
             return parsed
 
@@ -1036,7 +1039,7 @@ class CommandRouter:
         async def final_handler() -> Any:
             if inspect.iscoroutinefunction(handler):
                 return await handler(**params)
-            return handler(**params)
+            return await asyncio.to_thread(handler, **params)
 
         return await self._run_with_middlewares(parsed, final_handler)
 

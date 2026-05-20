@@ -20,7 +20,7 @@ from nonebot.internal.matcher.matcher import Matcher
 from nonebot_plugin_alconna import AlconnaMatcher, UniMessage, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 
-from ...i18n import _
+from ...i18n import _async as _
 
 if TYPE_CHECKING:
     from nonebot_plugin_alconna.uniseg.segment import Text
@@ -118,7 +118,7 @@ async def milkybot_mute(
         target_name: str | None = mention["data"]["name"]
     else:
         target_name: str | None = user.display or ""
-    reason_text = _("违反群规「默认」") if reason is None else reason
+    reason_text = await _("违反群规「默认」") if reason is None else reason
 
     try:
         await bot.set_group_member_mute(
@@ -127,20 +127,22 @@ async def milkybot_mute(
     except NetworkError as e:
         logger.error(f"禁言失败，网络异常: {e!r}")
         return await member_mute_cmd.finish(
-            message=_("禁言失败，网络异常: {error!r}").format(error=e)
+            message=(await _("禁言失败，网络异常: {error!r}")).format(error=e)
         )
     except ActionFailed as e:
         logger.error(f"禁言失败，操作被拒绝: {e}")
         return await member_mute_cmd.finish(
-            message=_("禁言失败，操作被拒绝: {error}").format(error=e)
+            message=(await _("禁言失败，操作被拒绝: {error}")).format(error=e)
         )
 
-    msg = _(
-        "已禁言: \n"
-        "名称: @{target_name}\n"
-        "时长: {duration} 秒\n"
-        "原因: {reason}\n"
-        "标识: {target_user_id}"
+    msg = (
+        await _(
+            "已禁言: \n"
+            "名称: @{target_name}\n"
+            "时长: {duration} 秒\n"
+            "原因: {reason}\n"
+            "标识: {target_user_id}"
+        )
     ).format(
         target_name=target_name,
         duration=duration,
@@ -162,18 +164,18 @@ async def milkybot_whole_mute(
     except NetworkError as e:
         logger.error(f"全体禁言失败，网络异常: {e!r}")
         msg: UniMessage[Text] = UniMessage(
-            message=_("全体禁言失败，网络异常: {error!r}").format(error=e)
+            message=(await _("全体禁言失败，网络异常: {error!r}")).format(error=e)
         )
         return await whole_mute_cmd.finish(message=await msg.export(bot))
     except ActionFailed as e:
         logger.error(f"全体禁言失败，操作被拒绝: {e!r}")
         msg: UniMessage[Text] = UniMessage(
-            message=_("全体禁言失败，操作被拒绝: {error!r}").format(error=e)
+            message=(await _("全体禁言失败，操作被拒绝: {error!r}")).format(error=e)
         )
         return await whole_mute_cmd.finish(message=await msg.export(bot))
 
     logger.info("全体禁言成功")
-    msg: UniMessage[Text] = UniMessage(message=_("全体禁言成功"))
+    msg: UniMessage[Text] = UniMessage(message=await _("全体禁言成功"))
     return await whole_mute_cmd.finish(message=await msg.export(bot))
 
 
@@ -193,7 +195,7 @@ async def milkybot_unmute(
         target_name: str | None = mention["data"]["name"]
     else:
         target_name: str | None = user.display or ""
-    reason_text = _("管理员操作「默认」") if reason is None else reason
+    reason_text = await _("管理员操作「默认」") if reason is None else reason
     from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 
     try:
@@ -203,17 +205,19 @@ async def milkybot_unmute(
     except NetworkError as e:
         logger.error(f"解禁失败，网络异常: {e!r}")
         return await member_unmute_cmd.finish(
-            message=_("解禁失败，网络异常: {error!r}").format(error=e)
+            message=(await _("解禁失败，网络异常: {error!r}")).format(error=e)
         )
     except ActionFailed as e:
         logger.error(f"解禁失败，操作被拒绝: {e!r}")
         return await member_unmute_cmd.finish(
-            message=_("解禁失败，操作被拒绝: {error!r}").format(error=e)
+            message=(await _("解禁失败，操作被拒绝: {error!r}")).format(error=e)
         )
 
     msg: UniMessage[Text] = UniMessage(
-        message=_(
-            "已解禁: \n名称: {target_name}\n原因: {reason}\n标识: {target_user_id}"
+        message=(
+            await _(
+                "已解禁: \n名称: {target_name}\n原因: {reason}\n标识: {target_user_id}"
+            )
         ).format(
             target_name=target_name,
             reason=reason_text,
@@ -236,20 +240,20 @@ async def milkybot_whole_unmute(
     except NetworkError as e:
         logger.error(f"全体解禁失败，网络异常: {e!r}")
         msg: UniMessage[Text] = UniMessage(
-            message=_("全体解禁失败，网络异常: {error!r}").format(error=e)
+            message=(await _("全体解禁失败，网络异常: {error!r}")).format(error=e)
         )
         return await whole_unmute_cmd.finish(message=await msg.export(bot))
     except ActionFailed as e:
         logger.error(f"全体解禁失败，操作被拒绝: {e!r}")
         msg: UniMessage[Text] = UniMessage(
-            message=_("全体解禁失败，操作被拒绝: {error!r}").format(error=e)
+            message=(await _("全体解禁失败，操作被拒绝: {error!r}")).format(error=e)
         )
         return await whole_unmute_cmd.finish(message=await msg.export(bot))
 
     logger.info("全体解禁成功")
-    msg: UniMessage[Text] = UniMessage(message=_("全体解禁成功"))
+    msg: UniMessage[Text] = UniMessage(message=await _("全体解禁成功"))
     return await whole_unmute_cmd.finish(message=await msg.export(bot))
 
 
 async def import_handle() -> Any:
-    logger.debug(_("导入mute处理器..."))
+    logger.debug(await _("导入mute处理器..."))

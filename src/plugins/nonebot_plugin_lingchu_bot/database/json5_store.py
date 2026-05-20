@@ -32,6 +32,25 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+async def _deepcopy_async[T](value: T) -> T:
+    return await asyncio.to_thread(deepcopy, value)
+
+
+async def _json5_loads_async(content: str) -> Any:
+    return await asyncio.to_thread(json5.loads, content)
+
+
+async def _json5_dumps_async(
+    data: dict[str, Any], *, indent: int, ensure_ascii: bool
+) -> str:
+    return await asyncio.to_thread(
+        json5.dumps,
+        data,
+        indent=indent,
+        ensure_ascii=ensure_ascii,
+    )
+
+
 class DatabaseError(Exception):
     """JSON5 数据库错误的基础异常。
 
@@ -285,8 +304,7 @@ class RobustAsyncJSON5DB:
         Returns:
             默认模板的深拷贝 / Deep copy of the default template.
         """
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, deepcopy, self._raw_default)
+        return await _deepcopy_async(self._raw_default)
 
     async def _cleanup_temp_file_async(self) -> None:
         """异步清理临时文件。"""
@@ -374,8 +392,7 @@ class RobustAsyncJSON5DB:
                 async with aiofiles.open(self.file_path, encoding="utf-8") as f:
                     content = await f.read()
                 if content.strip():
-                    loop = asyncio.get_running_loop()
-                    loaded_data = await loop.run_in_executor(None, json5.loads, content)
+                    loaded_data = await _json5_loads_async(content)
                 else:
                     loaded_data = default_copy
 
@@ -503,12 +520,10 @@ class RobustAsyncJSON5DB:
         """
         await aiofiles.os.makedirs(self.file_path.parent, exist_ok=True)
 
-        def _serialize():
-            return json5.dumps(data, indent=self.indent, ensure_ascii=self.ensure_ascii)
-
-        loop = asyncio.get_running_loop()
         try:
-            content = await loop.run_in_executor(None, _serialize)
+            content = await _json5_dumps_async(
+                data, indent=self.indent, ensure_ascii=self.ensure_ascii
+            )
         except TypeError as e:
             msg = (
                 "Serialization failure: data contains "
@@ -588,8 +603,7 @@ class RobustAsyncJSON5DB:
             else:
                 shallow = val
 
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, deepcopy, shallow)
+        return await _deepcopy_async(shallow)
 
     async def atomic_read(
         self, key_path: str | None = None, default: Any = None
@@ -597,7 +611,8 @@ class RobustAsyncJSON5DB:
         """原子读取指定路径的数据。
 
         This returns a strong-consistency snapshot by deep-copying under the lock.
-        It may briefly block the event loop for large data structures.
+        Large snapshots are copied in a worker thread so the event loop stays
+        responsive while writers remain serialized by the database lock.
         """
         await self._ensure_loaded()
         if self._closed:
@@ -614,7 +629,7 @@ class RobustAsyncJSON5DB:
                 if not exists:
                     return default
                 val = parent[key]
-            return deepcopy(val) if isinstance(val, (dict, list)) else val
+            return await _deepcopy_async(val) if isinstance(val, (dict, list)) else val
 
     async def set(self, key_path: str, value: Any) -> None:
         """设置或覆盖指定路径的值。"""
@@ -641,10 +656,7 @@ class RobustAsyncJSON5DB:
         """按模式写入单个路径。"""
         async with self._lock:
             if self.auto_save:
-                loop = asyncio.get_running_loop()
-                data_copy: dict[str, Any] = await loop.run_in_executor(
-                    None, deepcopy, self._data
-                )
+                data_copy = await _deepcopy_async(self._data)
 
                 segments = self._validate_path(key_path)
                 create_missing = mode != "update"
@@ -689,10 +701,7 @@ class RobustAsyncJSON5DB:
             raise DatabaseClosedError
 
         async with self._lock:
-            loop = asyncio.get_running_loop()
-            data_copy: dict[str, Any] = await loop.run_in_executor(
-                None, deepcopy, self._data
-            )
+            data_copy = await _deepcopy_async(self._data)
 
             for path, val in updates.items():
                 segments = self._validate_path(path)
@@ -715,10 +724,7 @@ class RobustAsyncJSON5DB:
             raise DatabaseClosedError
         async with self._lock:
             if self.auto_save:
-                loop = asyncio.get_running_loop()
-                data_copy: dict[str, Any] = await loop.run_in_executor(
-                    None, deepcopy, self._data
-                )
+                data_copy = await _deepcopy_async(self._data)
 
                 segments = self._validate_path(key_path)
                 parent, key, exists = self._navigate_to_parent(
