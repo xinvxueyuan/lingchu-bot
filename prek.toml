@@ -2,8 +2,3 @@
 repo = "https://github.com/pre-commit/pre-commit-hooks"
 rev = "v6.0.0"
 hooks = [{ id = "check-yaml" }, { id = "end-of-file-fixer" }]
-
-[[repos]]
-repo = "https://github.com/opensource-nepal/commitlint"
-rev = "v1.13.3"
-hooks = [{ id = "commitlint" }]
