@@ -126,7 +126,7 @@ nonebot-plugin-orm = ["nonebot_plugin_orm"]
 nonebot-plugin-alconna = ["nonebot_plugin_alconna"]
 nonebot-plugin-htmlkit = ["nonebot_plugin_htmlkit"]
 nonebot-plugin-docs = ["nonebot_plugin_docs"]
-nonebot-plugin-sentry = ["nonebot_plugin_sentry"]
+# nonebot-plugin-sentry = ["nonebot_plugin_sentry"]
 "@local" = []
 
 [tool.ruff]
