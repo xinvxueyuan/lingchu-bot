@@ -3,12 +3,24 @@ name = "nonebot-plugin-lingchu-bot"
 version = "0.0.0.dev15"
 # dynamic = ["version"]
 description = "由NoneBot2驱动，符合 PEP8 规范的管理机器人"
-keywords = ["nonebot2"]
+keywords = ["nonebot2", "nonebot", "bot", "qq", "milky", "group-management"]
 readme = "README.md"
 license = "LGPL-3.0-or-later AND GFDL-1.3-or-later"
 license-files = ["LICENSE-code", "LICENSE-docs", "Repository-Policy.md"]
 requires-python = ">=3.13, <3.14"
-authors = []
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Plugins",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "Natural Language :: Chinese (Simplified)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Communications :: Chat",
+]
+authors = [{ name = "xinvxueyuan", email = "xinvxueyuan@yeah.net" }]
 maintainers = [{ name = "xinvxueyuan", email = "xinvxueyuan@yeah.net" }]
 dependencies = [
     "psutil>=7.2.2",
@@ -90,8 +102,6 @@ test = [
     "respx>=0.23.1",
 ]
 
-[tool.PEP639.Standards]
-license-expression = "LGPL-3.0-or-later AND GFDL-1.3-or-later"
 
 # [tool.poe.tasks]
 
