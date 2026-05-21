@@ -1,0 +1,41 @@
+---
+icon: lucide/rocket
+title: Project Introduction
+---
+
+## Lingchu Bot
+
+Lingchu Bot is an application-side management bot project based on NoneBot2. It organizes core capabilities as plugins and currently focuses on group management, command handling, configuration, local storage, and asynchronous data access.
+
+!!! warning "Project status"
+
+    This project is still in pre-alpha / development. Code, configuration, command behavior, and documentation may continue to change. Do not treat the current interfaces as stable production APIs.
+
+## Who should read this
+
+- Users who want to start the project locally and understand current capabilities.
+- Contributors who want to add features, tests, or documentation.
+- Maintainers who need to understand project structure, CI, and GitNexus workflows.
+
+## Current capabilities
+
+- A core plugin entrypoint based on NoneBot2.
+- A local `bot.py` entrypoint that currently registers Milky as the main adapter.
+- Group management command handlers for member mute, member unmute, whole-group mute, and whole-group unmute.
+- JSON5 local storage, NoneBot localstore path management, and ORM CRUD helpers.
+- gettext / Babel internationalization helpers with `zh_CN` and `en_US` catalogs.
+- Developer tooling for typed commands, prek hooks, tests, and CI checks.
+
+## Quick links
+
+- [User guide](user-guide/overview.md): understand project status, runtime setup, and command capabilities.
+- [Quick start](user-guide/quick-start.md): install dependencies and start the local bot.
+- [Developer guide](developer-guide/introduction.md): understand project structure and workflow.
+- [Project policy](project-policy.md): read contribution, security, license, and media redaction requirements.
+- [中文文档](/): return to the Chinese documentation.
+
+## Repository links
+
+- Source code: <https://github.com/xinvxueyuan/lingchu-bot>
+- Contribution guide: <https://github.com/xinvxueyuan/lingchu-bot/blob/main/CONTRIBUTING.md>
+- Security policy: <https://github.com/xinvxueyuan/lingchu-bot/blob/main/SECURITY.md>

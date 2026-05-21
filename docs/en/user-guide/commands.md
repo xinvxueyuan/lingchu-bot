@@ -1,0 +1,89 @@
+---
+icon: lucide/terminal
+title: Commands and Group Management
+---
+
+## Commands and Group Management
+
+The currently confirmed user-facing capabilities are concentrated in Milky group management commands. Commands are registered through `nonebot-plugin-alconna`, with command start tokens and command separators enabled by default.
+
+Success and failure feedback for group management commands is wired to gettext catalogs. Command trigger words are still primarily the current Chinese commands and aliases. Switching locale does not automatically add English command trigger words.
+
+## Member mute
+
+Primary command:
+
+```text
+禁言 @用户 [duration in seconds] [reason]
+```
+
+Default values:
+
+- Duration: `60` seconds.
+- Reason: `违反群规「默认」`.
+
+Common aliases include:
+
+- `禁言用户`
+- `禁言群成员`
+- `禁言成员`
+- `禁`
+- `封禁`
+
+## Member unmute
+
+Primary command:
+
+```text
+解禁 @用户 [reason]
+```
+
+Common aliases include:
+
+- `解禁用户`
+- `解禁群成员`
+- `解禁成员`
+- `解封`
+- `解除封禁`
+- `解除禁言`
+
+## Whole-group mute
+
+Primary command:
+
+```text
+全员禁言
+```
+
+Common aliases include:
+
+- `开启全体禁言`
+- `全禁`
+- `全禁言`
+- `全体禁言`
+- `开启全员禁言`
+- `禁言群`
+
+## Whole-group unmute
+
+Primary command:
+
+```text
+全体解禁
+```
+
+Common aliases include:
+
+- `全员解禁`
+- `关闭全体禁言`
+- `解除全体禁言`
+- `解禁全体`
+- `解禁全员`
+- `关闭全员禁言`
+- `解禁群`
+
+## Error feedback
+
+Group management commands return readable error messages for Milky network errors and rejected operations. Unknown exceptions are still raised outward so developers can find uncovered cases.
+
+Feedback text uses `LINGCHU_LOCALE`, `lc_locale`, or `locale` from the current NoneBot configuration. Without configuration, the default is `zh_CN`. The current repository provides `zh_CN` and `en_US` catalogs. See [Internationalization](../developer-guide/i18n.md).

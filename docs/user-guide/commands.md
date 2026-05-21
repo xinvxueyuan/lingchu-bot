@@ -7,6 +7,8 @@ title: 命令与群管理
 
 当前可确认的用户侧能力集中在 Milky 群管理命令。命令由 `nonebot-plugin-alconna` 注册，默认启用命令起始符和命令分隔符。
 
+群管理命令的成功和失败反馈已经接入 gettext 翻译目录。命令触发词仍以当前中文命令和别名为主，切换 locale 不会自动新增英文命令触发词。
+
 ## 成员禁言
 
 主命令：
@@ -83,3 +85,5 @@ title: 命令与群管理
 ## 错误反馈
 
 群管理命令会对 Milky 的网络异常和操作拒绝返回可读错误消息。未知异常仍会向外抛出，方便开发者发现未覆盖的问题。
+
+反馈文本会使用当前 NoneBot 配置中的 `LINGCHU_LOCALE`、`lc_locale` 或 `locale`。未配置时默认使用 `zh_CN`，当前仓库提供 `zh_CN` 和 `en_US` catalog。详见 [国际化](../developer-guide/i18n.md)。

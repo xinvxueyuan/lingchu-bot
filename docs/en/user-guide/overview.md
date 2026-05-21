@@ -1,0 +1,37 @@
+---
+icon: lucide/book-open
+title: User Guide Overview
+---
+
+## User Guide Overview
+
+Lingchu Bot is currently best suited for development, testing, and early trials. The documentation describes capabilities that are visible in the repository and does not promise platform behavior that has not been verified.
+
+## What you can expect
+
+- A bot project skeleton based on NoneBot2.
+- A local entrypoint that registers the Milky adapter by default.
+- A set of Milky group management command handlers.
+- Configuration, storage, and database helper modules for later feature expansion.
+- Runtime feedback translation based on gettext, currently with Simplified Chinese and English catalogs.
+
+## What you need
+
+- Python 3.13.
+- `uv`.
+- A usable Milky / NoneBot runtime environment.
+- Basic familiarity with NoneBot configuration files and adapter connection settings.
+
+## Recommended reading order
+
+1. [Quick Start](quick-start.md)
+2. [Commands and Group Management](commands.md)
+3. [Configuration](configuration.md)
+4. [Troubleshooting](troubleshooting.md)
+
+## Current limits
+
+- The project is still in pre-alpha / development.
+- `bot.py` currently registers the Milky adapter in practice. Other adapter support depends on plugin metadata and later implementation.
+- The command surface is still small. The docs only list capabilities confirmed in the current repository.
+- Runtime i18n currently covers group management feedback text. It does not mean all command trigger words are localized.
