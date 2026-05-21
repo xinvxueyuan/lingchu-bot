@@ -32,7 +32,7 @@ uv run -m pytest
 ## Markdown 检查
 
 ```bash
-npx markdownlint-cli2 "docs/**/*.md"
+npx markdownlint-cli2 "docs/**/*.md" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
 ```
 
 ## 文档构建
@@ -41,9 +41,22 @@ npx markdownlint-cli2 "docs/**/*.md"
 
 ```bash
 uvx zensical build --clean
+uvx zensical build --config-file zensical.en.toml --clean
 ```
 
 本地修改 `zensical.toml` 或 `docs/` 后，建议运行同一条命令确认站点能构建。
+
+## 国际化检查
+
+修改可翻译字符串后运行：
+
+```bash
+task i18n:extract
+task i18n:update
+task i18n:compile
+```
+
+如果只修改文档中的 i18n 说明，不需要重新生成 gettext catalog。
 
 ## CI 失败处理
 

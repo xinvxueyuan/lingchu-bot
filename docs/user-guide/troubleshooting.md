@@ -55,6 +55,8 @@ IN_CONTAINERS=True
 - 目标用户是否可以被机器人操作。
 - Milky 侧 API 是否返回网络错误或操作拒绝。
 
+如果反馈语言不符合预期，请检查 `LINGCHU_LOCALE`、`lc_locale` 或 `locale` 是否设置为当前支持的 catalog，例如 `zh_CN` 或 `en_US`。未知文本会回退为原文。
+
 ## CI 或本地检查失败
 
 查看失败命令和行号，然后只修相关范围。常用检查包括：

@@ -17,6 +17,8 @@ title: 开发流程
 6. 运行对应检查。
 7. 提交前运行 GitNexus detect changes。
 
+修改可翻译字符串时，还需要同步 Babel catalog。流程见 [国际化](i18n.md)。
+
 ## 保护工作区
 
 不要回退、格式化或重写与当前任务无关的文件。遇到已有改动时，默认认为它们来自其他贡献者或前一轮工作。
@@ -48,3 +50,5 @@ PR 应说明：
 - GitNexus 影响分析结果。
 - 已运行的检查命令。
 - 未完成事项或已知风险。
+
+如果 PR 覆盖文档站或国际化，请说明是否已经运行 Markdown lint、Zensical build 和 Babel compile。

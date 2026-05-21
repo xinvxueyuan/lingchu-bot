@@ -1,0 +1,49 @@
+---
+icon: lucide/network
+title: GitNexus Workflow
+---
+
+## GitNexus Workflow
+
+This repository uses GitNexus for code understanding and impact analysis. Before changing code symbols, confirm upstream dependencies.
+
+## Before changing code
+
+Run upstream impact before changing a function, class, or method:
+
+```text
+gitnexus_impact({target: "symbolName", direction: "upstream"})
+```
+
+Record:
+
+- Direct callers.
+- Affected flows.
+- Risk level.
+
+If the risk is `HIGH` or `CRITICAL`, pause and explain the risk before continuing.
+
+## Exploring code
+
+For unfamiliar areas, prefer query/context:
+
+```text
+gitnexus_query({query: "mute command flow"})
+gitnexus_context({name: "milkybot_mute"})
+```
+
+This helps understand execution flows before deciding where to change code.
+
+## Before committing
+
+Run detect changes before committing:
+
+```text
+gitnexus_detect_changes()
+```
+
+Confirm that changes are concentrated in expected symbols and execution flows. If the result includes unrelated files or flows, inspect the worktree first.
+
+## Renaming
+
+Do not rename symbols through global find-and-replace. Use GitNexus rename when a rename is needed, so call relationships and references are handled together.

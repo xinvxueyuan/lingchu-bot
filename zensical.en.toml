@@ -1,12 +1,12 @@
 [project]
-docs_dir = "docs"
-site_dir = "site"
-site_name = "Lingchu Bot 文档"
-site_description = "基于 NoneBot2 的 Lingchu Bot 项目文档"
+docs_dir = "docs/en"
+site_dir = "site/en"
+site_name = "Lingchu Bot Documentation"
+site_description = "Lingchu Bot project documentation based on NoneBot2"
 site_author = "xinvxueyuan"
-site_url = "https://lingchu.zone.id/"
+site_url = "https://lingchu.zone.id/en/"
 repo_url = "https://github.com/xinvxueyuan/lingchu-bot"
-edit_uri = "edit/main/docs/"
+edit_uri = "edit/main/docs/en/"
 copyright = """
 Copyright &copy; 2025 ~ Present
 <a href="https://github.com/xinvxueyuan">xinvxueyuan</a>.
@@ -14,28 +14,28 @@ Made with GitHub Pages.
 """
 
 nav = [
-    { "首页" = "index.md" },
-    { "用户指南" = [
-        { "概览" = "user-guide/overview.md" },
-        { "快速开始" = "user-guide/quick-start.md" },
-        { "命令与群管理" = "user-guide/commands.md" },
-        { "配置" = "user-guide/configuration.md" },
-        { "故障排除" = "user-guide/troubleshooting.md" },
+    { "Home" = "index.md" },
+    { "User Guide" = [
+        { "Overview" = "user-guide/overview.md" },
+        { "Quick Start" = "user-guide/quick-start.md" },
+        { "Commands and Group Management" = "user-guide/commands.md" },
+        { "Configuration" = "user-guide/configuration.md" },
+        { "Troubleshooting" = "user-guide/troubleshooting.md" },
     ] },
-    { "开发指南" = [
-        { "架构概览" = "developer-guide/introduction.md" },
-        { "开发流程" = "developer-guide/workflow.md" },
-        { "提交规范" = "developer-guide/commit-style.md" },
-        { "国际化" = "developer-guide/i18n.md" },
-        { "测试与 CI" = "developer-guide/testing-ci.md" },
-        { "GitNexus 工作流" = "developer-guide/gitnexus.md" },
+    { "Developer Guide" = [
+        { "Architecture" = "developer-guide/introduction.md" },
+        { "Workflow" = "developer-guide/workflow.md" },
+        { "Commit Style" = "developer-guide/commit-style.md" },
+        { "Internationalization" = "developer-guide/i18n.md" },
+        { "Testing and CI" = "developer-guide/testing-ci.md" },
+        { "GitNexus Workflow" = "developer-guide/gitnexus.md" },
     ] },
-    { "项目政策" = "project-policy.md" },
+    { "Project Policy" = "project-policy.md" },
 ]
 
 [project.theme]
-favicon = "assets/images/favicon.png"
-language = "zh"
+favicon = "../assets/images/favicon.png"
+language = "en"
 features = [
     "announce.dismiss",
     "content.action.edit",
@@ -61,12 +61,12 @@ features = [
 [[project.theme.palette]]
 scheme = "default"
 toggle.icon = "lucide/sun"
-toggle.name = "切换到暗色模式"
+toggle.name = "Switch to dark mode"
 
 [[project.theme.palette]]
 scheme = "slate"
 toggle.icon = "lucide/moon"
-toggle.name = "切换到亮色模式"
+toggle.name = "Switch to light mode"
 
 [project.theme.font]
 text = "Inter"
@@ -81,8 +81,8 @@ icon = "fontawesome/brands/github"
 link = "https://github.com/xinvxueyuan/lingchu-bot"
 
 [project.extra.consent]
-title = "Cookie 许可"
-description = "我们使用 Cookie 记住偏好并帮助改进文档体验。"
+title = "Cookie consent"
+description = "We use cookies to remember preferences and help improve the documentation experience."
 
 [project.extra]
 generator = false

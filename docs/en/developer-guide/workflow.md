@@ -1,0 +1,53 @@
+---
+icon: lucide/git-branch
+title: Workflow
+---
+
+## Workflow
+
+Keep development changes small, validation explicit, and impact understandable.
+
+## Recommended steps
+
+1. Clarify the goal, success criteria, and out-of-scope items.
+2. Run `git status --short` and confirm existing changes.
+3. Read related code and tests, preferring existing structure.
+4. Run GitNexus impact analysis before changing functions, classes, or methods.
+5. Implement the smallest useful change and add tests.
+6. Run the relevant checks.
+7. Run GitNexus detect changes before committing.
+
+When changing translatable strings, synchronize the Babel catalogs as well. See [Internationalization](i18n.md).
+
+## Protecting the workspace
+
+Do not revert, format, or rewrite files unrelated to the current task. When existing changes are present, assume by default that they came from another contributor or an earlier work session.
+
+## Branches and commits
+
+Common branch prefixes:
+
+- `feature/`
+- `fix/`
+- `docs/`
+- `refactor/`
+
+Commit messages should follow Conventional Commits and may use Gitmoji to express intent. See [Commit Style](commit-style.md).
+
+```text
+fix: 修复成员禁言成功反馈
+docs: 重写文档站
+test: 增加群管理异常覆盖
+```
+
+## PR description
+
+A PR should explain:
+
+- Purpose of the change.
+- Key implementation details.
+- GitNexus impact analysis results.
+- Checks that were run.
+- Open items or known risks.
+
+If the PR touches the documentation site or internationalization, note whether Markdown lint, Zensical build, and Babel compile were run.
