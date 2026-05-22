@@ -22,14 +22,23 @@ from nonebot import require
 require("nonebot_plugin_orm")
 import logging
 import time
-import warnings
-from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from nonebot_plugin_orm import Model, get_session
-from sqlalchemy import Select, func, select
-from sqlalchemy import delete as sqlalchemy_delete
-from sqlalchemy import update as sqlalchemy_update
+from sqlalchemy import (
+    Select,
+    func,
+    select,
+)
+from sqlalchemy import (
+    delete as sqlalchemy_delete,
+)
+from sqlalchemy import (
+    update as sqlalchemy_update,
+)
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.inspection import inspect
 
@@ -94,20 +103,16 @@ def _conds[T: Model](
         SQLAlchemy 布尔表达式列表 / List of SQLAlchemy boolean expressions.
 
     Raises:
-        无 / None.
+        ValueError: 筛选字段不存在时 / When a filter column is unknown.
     """
     if not filters:
         return []
+    columns = _get_column_map(model)
     c: list[ColumnElement[bool]] = []
     for k, v in filters.items():
-        col = getattr(model, k, None)
+        col = columns.get(k)
         if col is None:
-            logger.warning(
-                "Filter column '%s' not found on model '%s', ignored",
-                k,
-                model.__name__,
-            )
-            continue
+            raise ValueError(f"Unknown column '{k}' for model '{model.__name__}'")
         if v is None:
             c.append(col.is_(None))
         elif isinstance(v, Sequence) and not isinstance(v, (str, bytes)):
@@ -166,24 +171,66 @@ def _orders[T: Model](
     return o
 
 
-def _get_column_names[T: Model](model: type[T]) -> set[str] | None:
-    """获取模型可用的数据库列名集合。
+def _get_column_map[T: Model](model: type[T]) -> dict[str, Any]:
+    """获取模型可用的数据库列映射。
 
     Args:
         model: ORM 模型类 / ORM model class.
 
     Returns:
-        列名集合；无法反射时返回 None / Column-name set or None.
+        列名到列对象的映射 / Column-name to column-object map.
 
     Raises:
         无 / None.
     """
     try:
         mapper = inspect(model)
-        return {c.key for c in mapper.columns}
-    except (SQLAlchemyError, TypeError):
-        logger.warning("Cannot inspect columns for model %s", model.__name__)
-        return None
+        return {c.key: getattr(model, c.key) for c in mapper.columns}
+    except (AttributeError, SQLAlchemyError, TypeError):
+        logger.debug(
+            "Cannot inspect columns for model %s; falling back to class attributes",
+            model.__name__,
+        )
+
+    annotations = getattr(model, "__annotations__", {})
+    return {
+        name: getattr(model, name)
+        for name in annotations
+        if not name.startswith("_") and hasattr(model, name)
+    }
+
+
+def _get_column_names[T: Model](model: type[T]) -> set[str]:
+    """获取模型可用的数据库列名集合。"""
+    return set(_get_column_map(model))
+
+
+def _combined_conditions[T: Model](
+    model: type[T],
+    filters: dict[str, Any] | None,
+    conditions: Sequence[ColumnElement[bool]] | None = None,
+    *,
+    require_non_empty: bool,
+) -> list[ColumnElement[bool]]:
+    """合并字典筛选条件和直接传入的 SQLAlchemy 条件。"""
+    combined = _conds(model, filters)
+    if conditions:
+        combined.extend(conditions)
+    if require_non_empty and not combined:
+        raise ValueError(f"At least one condition is required for {model.__name__}")
+    return combined
+
+
+def _validate_column_values[T: Model](
+    model: type[T],
+    values: dict[str, Any],
+) -> dict[str, Any]:
+    """校验待写入字段均为模型列。"""
+    columns = _get_column_map(model)
+    for key in values:
+        if key not in columns:
+            raise ValueError(f"Unknown column '{key}' for model '{model.__name__}'")
+    return dict(values)
 
 
 async def _retry_create_after_conflict[T: Model](
@@ -311,9 +358,7 @@ async def _update_existing[T: Model](
         return obj
 
     stmt_update = sqlalchemy_update(model)
-    if cs:
-        stmt_update = stmt_update.where(*cs)
-    stmt_update = stmt_update.values(**update_values)
+    stmt_update = stmt_update.where(*cs).values(**update_values)
 
     try:
         await s.execute(stmt_update)
@@ -339,6 +384,7 @@ async def create[T: Model](model: type[T], **fields: Any) -> T:
     Raises:
         DatabaseError: 创建或刷新失败时 / On create or refresh failure.
     """
+    fields = _validate_column_values(model, fields)
     async with get_session() as s:
         obj = model(**fields)
         s.add(obj)
@@ -351,7 +397,12 @@ async def create[T: Model](model: type[T], **fields: Any) -> T:
         return obj
 
 
-async def get_one[T: Model](model: type[T], filters: dict[str, Any]) -> T | None:
+async def get_one[T: Model](
+    model: type[T],
+    filters: dict[str, Any],
+    *,
+    conditions: Sequence[ColumnElement[bool]] | None = None,
+) -> T | None:
     """获取符合条件的单条记录。
 
     Args:
@@ -364,12 +415,16 @@ async def get_one[T: Model](model: type[T], filters: dict[str, Any]) -> T | None
     Raises:
         DatabaseError: 查询失败时 / On query failure.
     """
+    cs = _combined_conditions(
+        model,
+        filters,
+        conditions,
+        require_non_empty=True,
+    )
     async with get_session() as s:
         try:
             stmt = select(model)
-            cs = _conds(model, filters)
-            if cs:
-                stmt = stmt.where(*cs)
+            stmt = stmt.where(*cs)
             stmt = stmt.limit(1)
             res = await s.execute(stmt)
             return res.scalar_one_or_none()
@@ -380,6 +435,8 @@ async def get_one[T: Model](model: type[T], filters: dict[str, Any]) -> T | None
 async def get_or_create[T: Model](
     model: type[T],
     defaults: dict[str, Any] | None = None,
+    *,
+    conditions: Sequence[ColumnElement[bool]] | None = None,
     **filters: Any,
 ) -> tuple[T, bool]:
     """获取一条记录，不存在则创建。
@@ -395,11 +452,15 @@ async def get_or_create[T: Model](
     Raises:
         DatabaseError: 查询、创建或重试失败时 / On query, create, or retry failure.
     """
+    cs = _combined_conditions(
+        model,
+        filters,
+        conditions,
+        require_non_empty=True,
+    )
     async with get_session() as s:
         stmt = select(model)
-        cs = _conds(model, filters)
-        if cs:
-            stmt = stmt.where(*cs)
+        stmt = stmt.where(*cs)
         stmt = stmt.limit(1)
         try:
             res = await s.execute(stmt)
@@ -413,6 +474,7 @@ async def get_or_create[T: Model](
         data = dict(filters)
         if defaults:
             data.update(defaults)
+        data = _validate_column_values(model, data)
         return await _create_with_retry(s, stmt, model, data)
 
 
@@ -420,6 +482,8 @@ async def update_or_create[T: Model](
     model: type[T],
     filters: dict[str, Any],
     defaults: dict[str, Any] | None = None,
+    *,
+    conditions: Sequence[ColumnElement[bool]] | None = None,
 ) -> tuple[T, bool]:
     """先更新，找不到则创建。
 
@@ -453,11 +517,15 @@ async def update_or_create[T: Model](
             _WARN_INTERVAL,
         )
         _last_warn_time[model.__name__] = now
+    cs = _combined_conditions(
+        model,
+        filters,
+        conditions,
+        require_non_empty=True,
+    )
     async with get_session() as s:
-        cs = _conds(model, filters)
         stmt = select(model)
-        if cs:
-            stmt = stmt.where(*cs)
+        stmt = stmt.where(*cs)
         stmt = stmt.limit(1)
         try:
             res = await s.execute(stmt)
@@ -466,12 +534,14 @@ async def update_or_create[T: Model](
             raise DatabaseError("Query failed in update_or_create") from e
 
         if obj is not None:
-            updated = await _update_existing(s, model, cs, obj, defaults or {})
+            update_values = _validate_column_values(model, defaults or {})
+            updated = await _update_existing(s, model, cs, obj, update_values)
             return updated, False
 
         data = dict(filters)
         if defaults:
             data.update(defaults)
+        data = _validate_column_values(model, data)
         return await _create_with_retry(s, stmt, model, data)
 
 
@@ -479,6 +549,8 @@ async def update[T: Model](
     model: type[T],
     filters: dict[str, Any],
     values: dict[str, Any],
+    *,
+    conditions: Sequence[ColumnElement[bool]] | None = None,
 ) -> tuple[int, bool]:
     """更新符合条件的记录。
 
@@ -494,35 +566,19 @@ async def update[T: Model](
     Raises:
         DatabaseError: 更新失败时 / On update failure.
     """
+    if not values:
+        return (0, True)
+
+    update_values = _validate_column_values(model, values)
+    cs = _combined_conditions(
+        model,
+        filters,
+        conditions,
+        require_non_empty=True,
+    )
     async with get_session() as s:
-        valid_columns = _get_column_names(model)
-        if valid_columns is not None:
-            update_values = {}
-            for k, v in values.items():
-                if k in valid_columns:
-                    update_values[k] = v
-                else:
-                    logger.warning(
-                        "Field '%s' is not a valid DB column for model '%s', ignored",
-                        k,
-                        model.__name__,
-                    )
-        else:
-            logger.warning(
-                "Cannot determine columns for '%s', skipping field validation. "
-                "Invalid fields may cause DB errors.",
-                model.__name__,
-            )
-            update_values = values
-
-        if not update_values:
-            return (0, True)
-
         stmt = sqlalchemy_update(model)
-        cs = _conds(model, filters)
-        if cs:
-            stmt = stmt.where(*cs)
-        stmt = stmt.values(**update_values)
+        stmt = stmt.where(*cs).values(**update_values)
 
         try:
             result = await s.execute(stmt)
@@ -535,7 +591,12 @@ async def update[T: Model](
             return (int(rc), True) if rc is not None else (ROWCOUNT_UNKNOWN, False)
 
 
-async def delete[T: Model](model: type[T], filters: dict[str, Any]) -> tuple[int, bool]:
+async def delete[T: Model](
+    model: type[T],
+    filters: dict[str, Any],
+    *,
+    conditions: Sequence[ColumnElement[bool]] | None = None,
+) -> tuple[int, bool]:
     """删除符合条件的记录。
 
     Args:
@@ -549,11 +610,15 @@ async def delete[T: Model](model: type[T], filters: dict[str, Any]) -> tuple[int
     Raises:
         DatabaseError: 删除失败时 / On delete failure.
     """
+    cs = _combined_conditions(
+        model,
+        filters,
+        conditions,
+        require_non_empty=True,
+    )
     async with get_session() as s:
         stmt = sqlalchemy_delete(model)
-        cs = _conds(model, filters)
-        if cs:
-            stmt = stmt.where(*cs)
+        stmt = stmt.where(*cs)
 
         try:
             result = await s.execute(stmt)
@@ -566,7 +631,12 @@ async def delete[T: Model](model: type[T], filters: dict[str, Any]) -> tuple[int
             return (int(rc), True) if rc is not None else (ROWCOUNT_UNKNOWN, False)
 
 
-async def exists[T: Model](model: type[T], filters: dict[str, Any]) -> bool:
+async def exists[T: Model](
+    model: type[T],
+    filters: dict[str, Any] | None = None,
+    *,
+    conditions: Sequence[ColumnElement[bool]] | None = None,
+) -> bool:
     """判断是否存在符合条件的记录。
 
     Args:
@@ -579,10 +649,15 @@ async def exists[T: Model](model: type[T], filters: dict[str, Any]) -> bool:
     Raises:
         DatabaseError: 判断失败时 / On existence check failure.
     """
+    cs = _combined_conditions(
+        model,
+        filters,
+        conditions,
+        require_non_empty=False,
+    )
     async with get_session() as s:
         try:
             stmt = select(1).select_from(model)
-            cs = _conds(model, filters)
             if cs:
                 stmt = stmt.where(*cs)
             stmt = stmt.limit(1)
@@ -613,31 +688,32 @@ async def bulk_create[T: Model](
     Raises:
         DatabaseError: partial 为 False 且批量创建失败时。
     """
+    validated_objs = [_validate_column_values(model, fields) for fields in objs]
     async with get_session() as s:
         if not partial:
-            instances = [model(**fields) for fields in objs]
+            instances = [model(**fields) for fields in validated_objs]
             s.add_all(instances)
-            if commit:
-                try:
+            try:
+                if commit:
                     await s.commit()
                     for obj in instances:
                         await s.refresh(obj)
-                except SQLAlchemyError as e:
-                    await s.rollback()
-                    raise DatabaseError("Bulk create failed") from e
+                else:
+                    await s.flush()
+            except SQLAlchemyError as e:
+                await s.rollback()
+                raise DatabaseError("Bulk create failed") from e
             return instances, []
 
         # Partial mode: individual savepoints
         created: list[T] = []
         failed: list[tuple[int, str]] = []
-        for idx, fields in enumerate(objs):
+        for idx, fields in enumerate(validated_objs):
             savepoint = await s.begin_nested()
             try:
                 obj = model(**fields)
                 s.add(obj)
                 await savepoint.commit()
-                if commit:
-                    await s.refresh(obj)
                 created.append(obj)
             except SQLAlchemyError as exc:
                 await savepoint.rollback()
@@ -646,13 +722,168 @@ async def bulk_create[T: Model](
                     "Skipped item %d in bulk_create (partial=True): %s", idx, msg
                 )
                 failed.append((idx, msg))
+        try:
+            if commit:
+                await s.commit()
+                for obj in created:
+                    await s.refresh(obj)
+            else:
+                await s.flush()
+        except SQLAlchemyError as e:
+            await s.rollback()
+            raise DatabaseError("Bulk create failed") from e
         return created, failed
 
 
-async def list_items[T: Model](
+def _get_session_dialect_name(s: AsyncSession) -> str:
+    """获取当前会话绑定的数据库方言名称。"""
+    bind = s.get_bind()
+    return str(bind.dialect.name)
+
+
+def _validate_upsert_conflict_target[T: Model](
+    model: type[T],
+    columns: dict[str, Any],
+    conflict_fields: Sequence[str] | None,
+    constraint: str | None,
+) -> list[str]:
+    """校验 upsert 冲突目标并返回字段列表。"""
+    if conflict_fields and constraint:
+        raise ValueError("Specify either conflict_fields or constraint, not both")
+    if not conflict_fields and not constraint:
+        raise ValueError("An upsert conflict target is required")
+
+    conflict_keys = list(conflict_fields or [])
+    for key in conflict_keys:
+        if key not in columns:
+            raise ValueError(f"Unknown column '{key}' for model '{model.__name__}'")
+    return conflict_keys
+
+
+def _prepare_upsert_update_values[T: Model](
+    model: type[T],
+    insert_values: dict[str, Any],
+    conflict_keys: Sequence[str],
+    update_values: dict[str, Any] | None,
+) -> tuple[list[str], dict[str, Any] | None]:
+    """准备 upsert 的更新字段。"""
+    if update_values is not None:
+        explicit_update_values = _validate_column_values(model, update_values)
+        if not explicit_update_values:
+            raise ValueError("At least one update column is required for upsert")
+        return [], explicit_update_values
+
+    update_keys = [key for key in insert_values if key not in conflict_keys]
+    if not update_keys:
+        raise ValueError("At least one update column is required for upsert")
+    return update_keys, None
+
+
+def _dialect_insert_statement[T: Model](
+    model: type[T],
+    dialect_name: str,
+    constraint: str | None,
+) -> Any:
+    """按数据库方言创建 upsert insert 语句。"""
+    if dialect_name == "sqlite":
+        if constraint is not None:
+            raise ValueError("SQLite upsert requires conflict_fields")
+        return sqlite_insert(model)
+    if dialect_name == "postgresql":
+        return postgresql_insert(model)
+    raise DatabaseError(f"Upsert is not supported for dialect '{dialect_name}'")
+
+
+def _upsert_set_values(
+    stmt: Any,
+    update_keys: Sequence[str],
+    explicit_update_values: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """生成 upsert 的 SET 字段。"""
+    if explicit_update_values is not None:
+        return explicit_update_values
+    return {key: getattr(stmt.excluded, key) for key in update_keys}
+
+
+def _upsert_conflict_kwargs(
+    columns: dict[str, Any],
+    conflict_keys: Sequence[str],
+    constraint: str | None,
+) -> dict[str, Any]:
+    """生成 on_conflict_do_update 的冲突目标参数。"""
+    if constraint is not None:
+        return {"constraint": constraint}
+    return {"index_elements": [columns[key] for key in conflict_keys]}
+
+
+async def upsert[T: Model](
+    model: type[T],
+    insert_values: dict[str, Any],
+    *,
+    conflict_fields: Sequence[str] | None = None,
+    constraint: str | None = None,
+    update_values: dict[str, Any] | None = None,
+) -> T:
+    """执行 PostgreSQL/SQLite 方言级原子 upsert。
+
+    Args:
+        model: ORM 模型类 / ORM model class.
+        insert_values: 插入字段 / Values used for INSERT.
+        conflict_fields: 唯一冲突字段 / Conflict-target columns.
+        constraint: PostgreSQL 约束名 / PostgreSQL constraint name.
+        update_values: 冲突时更新字段；默认使用 excluded insert values。
+
+    Returns:
+        upsert 后返回的 ORM 对象 / ORM object returned by RETURNING.
+
+    Raises:
+        ValueError: 参数或字段非法时 / On invalid arguments or columns.
+        DatabaseError: 数据库执行失败或方言不支持时 / On DB failure.
+    """
+    if not insert_values:
+        raise ValueError("insert_values cannot be empty")
+
+    insert_values = _validate_column_values(model, insert_values)
+    columns = _get_column_map(model)
+    conflict_keys = _validate_upsert_conflict_target(
+        model,
+        columns,
+        conflict_fields,
+        constraint,
+    )
+    update_keys, explicit_update_values = _prepare_upsert_update_values(
+        model,
+        insert_values,
+        conflict_keys,
+        update_values,
+    )
+
+    async with get_session() as s:
+        dialect_name = _get_session_dialect_name(s)
+        insert_stmt = _dialect_insert_statement(model, dialect_name, constraint)
+        stmt = insert_stmt.values(**insert_values)
+        set_values = _upsert_set_values(stmt, update_keys, explicit_update_values)
+        conflict_kwargs = _upsert_conflict_kwargs(columns, conflict_keys, constraint)
+
+        stmt = stmt.on_conflict_do_update(**conflict_kwargs, set_=set_values)
+        stmt = stmt.returning(model)
+
+        try:
+            result = await s.execute(stmt)
+            obj = result.scalar_one()
+            await s.commit()
+        except SQLAlchemyError as e:
+            await s.rollback()
+            raise DatabaseError("Upsert failed") from e
+        return obj
+
+
+async def list_items[T: Model](  # noqa: PLR0913
     model: type[T],
     filters: dict[str, Any] | None = None,
     order_by: Sequence[str] | None = None,
+    *,
+    conditions: Sequence[ColumnElement[bool]] | None = None,
     offset: int = 0,
     limit: int = 100,
 ) -> list[T]:
@@ -671,10 +902,15 @@ async def list_items[T: Model](
     Raises:
         DatabaseError: 查询失败时 / On query failure.
     """
+    cs = _combined_conditions(
+        model,
+        filters,
+        conditions,
+        require_non_empty=False,
+    )
     async with get_session() as s:
         try:
             stmt = select(model)
-            cs = _conds(model, filters)
             if cs:
                 stmt = stmt.where(*cs)
             os = _orders(model, order_by)
@@ -690,57 +926,11 @@ async def list_items[T: Model](
             raise DatabaseError("Failed to list records") from e
 
 
-async def async_iterate[T: Model](
-    model: type[T],
-    filters: dict[str, Any] | None = None,
-    order_by: Sequence[str] | None = None,
-    batch_size: int = 1000,
-) -> AsyncGenerator[T]:
-    """迭代大型结果集。
-
-    Args:
-        model: ORM 模型类 / ORM model class.
-        filters: 筛选条件 / Filter conditions.
-        order_by: 排序字段 / Sort fields.
-        batch_size: 每批拉取的行数 / Rows fetched per batch.
-
-    Returns:
-        逐条产出的模型对象生成器 / Async generator yielding model objects.
-
-    Raises:
-        无 / None.
-
-    Notes:
-        该函数已弃用，推荐使用 async_iterate_safe。
-        The function is deprecated; use async_iterate_safe instead.
-        会话会在生成器生命周期内保持打开，提前退出时需要显式关闭。
-    """
-    warnings.warn(
-        "async_iterate is deprecated; use async_iterate_safe instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    async with get_session() as s:
-        try:
-            stmt = select(model)
-            cs = _conds(model, filters)
-            if cs:
-                stmt = stmt.where(*cs)
-            os = _orders(model, order_by)
-            if os:
-                stmt = stmt.order_by(*os)
-            result = await s.stream(stmt, execution_options={"yield_per": batch_size})
-            async for row in result:
-                yield row[0]
-        except SQLAlchemyError:
-            logger.exception("Async iteration failed")
-            return
-
-
 async def async_iterate_safe[T: Model](  # noqa: PLR0913
     model: type[T],
     *,
     filters: dict[str, Any] | None = None,
+    conditions: Sequence[ColumnElement[bool]] | None = None,
     order_by: Sequence[str] | None = None,
     batch_size: int = 1000,
     callback: Callable[[T], Awaitable[None]] | None = None,
@@ -768,11 +958,16 @@ async def async_iterate_safe[T: Model](  # noqa: PLR0913
     if callback is not None and collect:
         raise ValueError("callback and collect are mutually exclusive")
 
+    cs = _combined_conditions(
+        model,
+        filters,
+        conditions,
+        require_non_empty=False,
+    )
     results: list[T] = []
     async with get_session() as s:
         try:
             stmt = select(model)
-            cs = _conds(model, filters)
             if cs:
                 stmt = stmt.where(*cs)
             os = _orders(model, order_by)
@@ -790,7 +985,12 @@ async def async_iterate_safe[T: Model](  # noqa: PLR0913
     return results
 
 
-async def count[T: Model](model: type[T], filters: dict[str, Any] | None = None) -> int:
+async def count[T: Model](
+    model: type[T],
+    filters: dict[str, Any] | None = None,
+    *,
+    conditions: Sequence[ColumnElement[bool]] | None = None,
+) -> int:
     """统计符合条件的记录数量。
 
     Args:
@@ -803,10 +1003,15 @@ async def count[T: Model](model: type[T], filters: dict[str, Any] | None = None)
     Raises:
         DatabaseError: 统计失败时 / On count failure.
     """
+    cs = _combined_conditions(
+        model,
+        filters,
+        conditions,
+        require_non_empty=False,
+    )
     async with get_session() as s:
         try:
             stmt = select(func.count("*")).select_from(model)
-            cs = _conds(model, filters)
             if cs:
                 stmt = stmt.where(*cs)
             res = await s.execute(stmt)
