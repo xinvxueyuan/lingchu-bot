@@ -46,7 +46,7 @@ tasks:
   lint:markdown:
     desc: Run Markdown lint checks
     cmds:
-      - npx --yes markdownlint-cli2@0.22.1 "docs/**/*.md" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
+      - pnpm exec markdownlint-cli2 "docs/**/*.md" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
   typecheck:
     desc: Run Python type checkers
     cmds:
@@ -56,14 +56,14 @@ tasks:
     desc: Format code
     cmds:
       - uv run -m ruff format .
-      - npx --yes markdownlint-cli2@0.22.1 "docs/**/*.md" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
+      - pnpm exec markdownlint-cli2 "docs/**/*.md" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
   fix:
     desc: Fix linting and type issues
     cmds:
       - uv run -m ruff check --fix .
       - uv run -m ruff format .
       - uv run -m ty check --fix . || true
-      - npx --yes markdownlint-cli2@0.22.1 --fix "docs/**/*.md" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
+      - pnpm exec markdownlint-cli2 --fix "docs/**/*.md" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
   ci:static:
     desc: Run CI static analysis checks
     cmds:
