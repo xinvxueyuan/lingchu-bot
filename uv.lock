@@ -951,7 +951,7 @@ wheels = [
 
 [[package]]
 name = "nonebot-plugin-lingchu-bot"
-version = "0.0.0.dev18"
+version = "0.0.0.dev19"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
