@@ -4,7 +4,7 @@ import { appName, gitConfig } from '@/lib/shared';
 
 const baseUrl = `https://${gitConfig.user}.github.io/${gitConfig.repo}`;
 
-export function getRSS(locale: string = 'zh') {
+export async function getRSS(locale: string = 'zh'): Promise<string> {
     const isZh = locale === 'zh';
     const feed = new Feed({
         title: isZh ? `${appName} 文档` : `${appName} Docs`,

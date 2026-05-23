@@ -7,7 +7,7 @@ interface PageDataWithReferences {
   [key: string]: unknown;
 }
 
-export function buildGraph(): Graph {
+export async function buildGraph(): Promise<Graph> {
   const pages = source.getPages();
   const graph: Graph = { links: [], nodes: [] };
 

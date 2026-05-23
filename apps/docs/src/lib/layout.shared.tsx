@@ -18,7 +18,7 @@ const labels = {
   },
 };
 
-export function baseOptions(locale = 'zh'): BaseLayoutProps {
+export async function baseOptions(locale = 'zh'): Promise<BaseLayoutProps> {
   const text = locale === 'en' ? labels.en : labels.zh;
 
   return {
