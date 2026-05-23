@@ -111,6 +111,9 @@ jobs:
       - name: Run Tests
         run: task ci:test
 
+      - name: Docs Test
+        run: task test:docs
+
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2.23.0
         if: always()

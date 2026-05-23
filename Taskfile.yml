@@ -41,11 +41,29 @@ tasks:
     cmds:
       - task: uv
         vars: { CLI_ARGS: "run -m pytest {{.CLI_ARGS}}" }
+  test:docs:
+    desc: Run docs tests
+    cmds:
+      - task: pnpm
+        vars: { CLI_ARGS: "--filter docs test" }
+  test:docs:ci:
+    desc: Run docs tests with CI report output
+    cmds:
+      - task: pnpm
+        vars: { CLI_ARGS: "--filter docs test -- --reporter=junit --reporter=json --outputFile=apps/docs/test-results/vitest.json 2>&1 || true" }
+      - task: pnpm
+        vars: { CLI_ARGS: "--filter docs test -- --reporter=junit --reporter=verbose 2>&1 || true" }
+  test:turbo:
+    desc: Run all tests through Turborepo
+    cmds:
+      - task: turbo
+        vars: { CLI_ARGS: "run test" }
   test:ci:
     desc: Run tests with CI report output
     cmds:
       - task: uv
         vars: { CLI_ARGS: "run -m pytest --junitxml=test-results/pytest.xml" }
+      - task: test:docs
   lint:
     desc: Run linters and type checkers
     cmds:
