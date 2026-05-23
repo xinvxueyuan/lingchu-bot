@@ -1,0 +1,70 @@
+---
+icon: Wrench
+title: 故障排除
+---
+
+## 故障排除
+
+本页收集当前最常见的本地启动和群管理问题。
+
+## 依赖安装失败
+
+先确认 Python 版本和 uv 是否可用：
+
+```bash
+python --version
+uv --version
+```
+
+项目要求 Python 3.13。依赖安装建议使用：
+
+```bash
+uv sync --frozen
+```
+
+## 配置布尔值报错
+
+如果看到 `in_containers 配置错误`，请检查 `.env` 或 NoneBot 配置文件。
+
+正确写法：
+
+```dotenv
+IN_CONTAINERS=true
+```
+
+错误写法：
+
+```dotenv
+IN_CONTAINERS=True
+```
+
+## 机器人无法连接平台
+
+请优先检查：
+
+- Milky 服务是否已经启动。
+- NoneBot 与 Milky 的连接配置是否一致。
+- 账号、网络、防火墙和平台侧权限是否可用。
+
+## 群管理命令失败
+
+禁言、解禁和全体禁言依赖平台权限。失败时请检查：
+
+- 机器人是否在目标群中。
+- 机器人是否具备对应管理权限。
+- 目标用户是否可以被机器人操作。
+- Milky 侧 API 是否返回网络错误或操作拒绝。
+
+如果反馈语言不符合预期，请检查 `LINGCHU_LOCALE`、`lc_locale` 或 `locale` 是否设置为当前支持的 catalog，例如 `zh_CN` 或 `en_US`。未知文本会回退为原文。
+
+## CI 或本地检查失败
+
+查看失败命令和行号，然后只修相关范围。常用检查包括：
+
+```bash
+uv run -m ruff check . --output-format=github
+uv run -m ruff format --check .
+uv run -m pyright .
+uv run -m ty check --output-format github
+uv run -m pytest
+```

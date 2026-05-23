@@ -6,24 +6,40 @@ on:
       [main, dev, "dev**", "releases/**", "feature/**", "fix/**", "hotfix/*"]
     paths:
       - "**.py"
+      - "**.ts"
+      - "**.tsx"
       - ".github/workflows/*.yml"
       - "**.toml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
       - "uv.lock"
       - ".pre-commit-config.yaml"
       - ".markdownlint.jsonc"
       - "Taskfile.yml"
       - "**.md"
+      - "apps/**"
+      - "packages/**"
   push:
     branches: [main, dev]
     paths:
       - "**.py"
+      - "**.ts"
+      - "**.tsx"
       - ".github/workflows/*.yml"
       - "**.toml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
       - "uv.lock"
       - ".pre-commit-config.yaml"
       - ".markdownlint.jsonc"
       - "Taskfile.yml"
       - "**.md"
+      - "apps/**"
+      - "packages/**"
 
 permissions:
   contents: read

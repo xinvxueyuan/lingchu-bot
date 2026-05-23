@@ -1,0 +1,54 @@
+---
+icon: GitBranch
+title: 开发流程
+---
+
+## 开发流程
+
+开发时保持改动范围小、验证明确、影响面可解释。
+
+## 推荐步骤
+
+1. 明确目标、成功标准和不做的范围。
+2. 运行 `git status --short`，确认已有改动。
+3. 阅读相关代码和测试，优先沿用现有结构。
+4. 修改函数、类或方法前运行 GitNexus 影响分析。
+5. 实施最小改动并补充测试。
+6. 运行对应检查。
+7. 提交前运行 GitNexus detect changes。
+
+修改可翻译字符串时，还需要同步 Babel catalog。流程见 [国际化](i18n.mdx)。
+
+## 保护工作区
+
+不要回退、格式化或重写与当前任务无关的文件。遇到已有改动时，默认认为它们来自其他贡献者或前一轮工作。
+
+## 分支和提交
+
+常见分支名前缀：
+
+- `feature/`
+- `fix/`
+- `docs-site/`
+- `refactor/`
+
+提交信息建议遵循 Conventional Commits，并可结合 Gitmoji 表达改动意图。
+完整说明见 [提交规范](commit-style.mdx)。
+
+```text
+fix: 修复成员禁言成功反馈
+docs: 重写文档站
+test: 增加群管理异常覆盖
+```
+
+## PR 描述
+
+PR 应说明：
+
+- 改动目的。
+- 关键实现。
+- GitNexus 影响分析结果。
+- 已运行的检查命令。
+- 未完成事项或已知风险。
+
+如果 PR 覆盖文档站或国际化，请说明是否已经运行 Markdown lint、Next.js build 和 Babel compile。

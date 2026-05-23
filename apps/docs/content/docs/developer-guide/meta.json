@@ -1,0 +1,11 @@
+{
+  "title": "开发指南",
+  "pages": [
+    "introduction",
+    "workflow",
+    "commit-style",
+    "i18n",
+    "testing-ci",
+    "gitnexus"
+  ]
+}

@@ -5,9 +5,12 @@ on:
       - main
       - dev
     paths:
-      - zensical.toml
-      - zensical.en.toml
-      - docs/**
+      - apps/docs/**
+      - packages/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - turbo.json
       - .github/workflows/docs.yml
 permissions:
   contents: read
@@ -29,22 +32,29 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v6.0.2
 
-      - name: 安装uv 并依赖
-        uses: astral-sh/setup-uv@v8.1.0
+      - name: 配置 Node
+        uses: actions/setup-node@v6
         with:
-          github-token: ${{ github.token }}
-          enable-cache: "auto"
+          node-version: 24
+
+      - name: 配置 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.2
+
+      - name: 安装 Node 依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 安装 Task
+        uses: go-task/setup-task@v1
 
       - name: 构建文档
-        shell: bash
-        run: |
-          uvx zensical build --clean
-          uvx zensical build --config-file zensical.en.toml --clean
+        run: task build:docs
 
       - name: 上传 Pages 产物
         uses: actions/upload-pages-artifact@v5.0.0
         with:
-          path: site
+          path: apps/docs/out
 
       - name: 部署到 Pages
         uses: actions/deploy-pages@v5.0.0
