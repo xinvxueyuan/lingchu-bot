@@ -1,144 +1,165 @@
 name: 👷 CI-builds
 
 on:
-    workflow_dispatch:
-    pull_request:
-        branches:
-            - main
-            - "dev*"
-            - "releases/**"
-            - "feature/**"
-            - "fix/**"
-            - "hotfix/*"
-        paths:
-            - "pyproject.toml"
-            - "uv.lock"
-            - "Taskfile.yml"
-            - "**/*.py"
-            - "**/LICENSE*"
-            - ".github/workflows/ci-builds.yml"
-    push:
-        branches:
-            - main
-            - "dev*"
-            - "releases/**"
-            - "feature/**"
-            - "fix/**"
-            - "hotfix/*"
-        paths:
-            - "pyproject.toml"
-            - "uv.lock"
-            - "Taskfile.yml"
-            - "**/*.py"
-            - "**/LICENSE*"
-            - ".github/workflows/ci-builds.yml"
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+      - "dev*"
+      - "releases/**"
+      - "feature/**"
+      - "fix/**"
+      - "hotfix/*"
+    paths:
+      - "pyproject.toml"
+      - "uv.lock"
+      - "Taskfile.yml"
+      - "**/*.py"
+      - "**/LICENSE*"
+      - ".github/workflows/ci-builds.yml"
+  push:
+    branches:
+      - main
+      - "dev*"
+      - "releases/**"
+      - "feature/**"
+      - "fix/**"
+      - "hotfix/*"
+    paths:
+      - "pyproject.toml"
+      - "uv.lock"
+      - "Taskfile.yml"
+      - "**/*.py"
+      - "**/LICENSE*"
+      - ".github/workflows/ci-builds.yml"
 
 permissions:
-    contents: read
+  contents: read
 
 concurrency:
-    group: ci-builds-${{ github.ref }}
-    cancel-in-progress: true
+  group: ci-builds-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-    build:
-        name: 📦 Build
-        runs-on: ubuntu-latest
-        if: >-
-            github.event_name == 'pull_request' ||
-            github.event_name == 'workflow_dispatch' ||
-            (github.event_name == 'push' &&
-             !startsWith(github.ref, 'refs/heads/main') &&
-             !startsWith(github.ref, 'refs/heads/dev') &&
-             !startsWith(github.ref, 'refs/heads/releases/'))
-        permissions:
-            contents: read
+  build:
+    name: 📦 Build
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       !startsWith(github.ref, 'refs/heads/main') &&
+       !startsWith(github.ref, 'refs/heads/dev') &&
+       !startsWith(github.ref, 'refs/heads/releases/'))
+    permissions:
+      contents: read
 
-        steps:
-            - name: 📥 Checkout
-              uses: actions/checkout@v6.0.2
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v6.0.2
 
-            - name: 🧠 Update GitNexus index
-              run: npx --yes gitnexus analyze
+      - name: 🧠 Update GitNexus index
+        run: npx --yes gitnexus analyze
 
-            - name: ⚡ Install uv
-              uses: astral-sh/setup-uv@v8.1.0
-              with:
-                  github-token: ${{ github.token }}
-                  enable-cache: true
+      - name: ⚡ Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
 
-            - name: 🔨 Install Task
-              uses: go-task/setup-task@v1
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v6.0.8
 
-            - name: 📦 Build
-              run: task ci:build
+      - name: 📦 Install Node dependencies
+        run: pnpm install --frozen-lockfile
 
-            - name: 📦 Archive build artifacts
-              uses: actions/upload-artifact@v7.0.1
-              with:
-                  name: assets-${{ github.sha }}
-                  path: dist
-                  if-no-files-found: error
+      - name: ⚡ Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          github-token: ${{ github.token }}
+          enable-cache: true
 
-    versioned-build:
-        name: 🔖 Versioned build
-        runs-on: ubuntu-latest
-        if: >-
-            github.event_name == 'push' &&
-            (startsWith(github.ref, 'refs/heads/main') ||
-             startsWith(github.ref, 'refs/heads/dev') ||
-             startsWith(github.ref, 'refs/heads/releases/'))
-        permissions:
-            contents: write
-            id-token: write
-            attestations: write
+      - name: 🔨 Install Task
+        uses: go-task/setup-task@v1
 
-        steps:
-            - name: 📥 Checkout
-              uses: actions/checkout@v6.0.2
-              with:
-                  fetch-depth: 0
+      - name: 📦 Build
+        run: task ci:build
 
-            - name: 🧠 Update GitNexus index
-              run: npx --yes gitnexus analyze
+      - name: 📦 Archive build artifacts
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: assets-${{ github.sha }}
+          path: dist
+          if-no-files-found: error
 
-            - name: ⚡ Install uv
-              uses: astral-sh/setup-uv@v8.1.0
-              with:
-                  github-token: ${{ github.token }}
-                  enable-cache: true
+  versioned-build:
+    name: 🔖 Versioned build
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'push' &&
+      (startsWith(github.ref, 'refs/heads/main') ||
+       startsWith(github.ref, 'refs/heads/dev') ||
+       startsWith(github.ref, 'refs/heads/releases/'))
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
 
-            - name: 🔨 Install Task
-              uses: go-task/setup-task@v1
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
 
-            - name: 🔖 Bump development version
-              id: bump
-              shell: bash
-              run: task ci:version:bump
+      - name: 🧠 Update GitNexus index
+        run: npx --yes gitnexus analyze
 
-            - name: 🏷️ Write version to config.py
-              shell: bash
-              run: task ci:version:write-config
-              env:
-                VERSION: ${{ steps.bump.outputs.new_version }}
-                CONFIG_PATH: src/plugins/nonebot_plugin_lingchu_bot/core/config.py
+      - name: ⚡ Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
 
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v6.0.8
 
-            - name: 📦 Build
-              run: task ci:build
+      - name: 📦 Install Node dependencies
+        run: pnpm install --frozen-lockfile
 
-            - name: 🛡️ Attest build provenance
-              uses: actions/attest-build-provenance@v4.1.0
-              with:
-                  subject-path: "dist/*"
+      - name: ⚡ Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          github-token: ${{ github.token }}
+          enable-cache: true
 
-            - name: 📦 Archive production artifacts
-              uses: actions/upload-artifact@v7.0.1
-              with:
-                  name: assets-${{ steps.bump.outputs.new_version }}
-                  path: dist
-                  if-no-files-found: error
+      - name: 🔨 Install Task
+        uses: go-task/setup-task@v1
 
-            - name: 🔖 Commit and tag
-              shell: bash
-              run: task ci:version:commit-tag VERSION="${{ steps.bump.outputs.new_version }}"
+      - name: 🔖 Bump development version
+        id: bump
+        shell: bash
+        run: task ci:version:bump
+
+      - name: 🏷️ Write version to config.py
+        shell: bash
+        run: task ci:version:write-config
+        env:
+          VERSION: ${{ steps.bump.outputs.new_version }}
+          CONFIG_PATH: src/plugins/nonebot_plugin_lingchu_bot/core/config.py
+
+      - name: 📦 Build
+        run: task ci:build
+
+      - name: 🛡️ Attest build provenance
+        uses: actions/attest-build-provenance@v4.1.0
+        with:
+          subject-path: "dist/*"
+
+      - name: 📦 Archive production artifacts
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: assets-${{ steps.bump.outputs.new_version }}
+          path: dist
+          if-no-files-found: error
+
+      - name: 🔖 Commit and tag
+        shell: bash
+        run: task ci:version:commit-tag VERSION="${{ steps.bump.outputs.new_version }}"
