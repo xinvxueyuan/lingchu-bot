@@ -62,7 +62,7 @@ jobs:
         run: npx --yes gitnexus analyze
 
       - name: ⚡ Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.4.0
         with:
           node-version: 24
 
@@ -79,7 +79,7 @@ jobs:
           enable-cache: true
 
       - name: 🔨 Install Task
-        uses: go-task/setup-task@v1
+        uses: go-task/setup-task@v2.1.0
 
       - name: 📦 Build
         run: task ci:build
@@ -114,7 +114,7 @@ jobs:
         run: npx --yes gitnexus analyze
 
       - name: ⚡ Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.4.0
         with:
           node-version: 24
 
@@ -131,7 +131,7 @@ jobs:
           enable-cache: true
 
       - name: 🔨 Install Task
-        uses: go-task/setup-task@v1
+        uses: go-task/setup-task@v2.1.0
 
       - name: 🔖 Bump development version
         id: bump
