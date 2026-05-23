@@ -85,6 +85,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.2
 
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6.0.8
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.1.0
         with:
