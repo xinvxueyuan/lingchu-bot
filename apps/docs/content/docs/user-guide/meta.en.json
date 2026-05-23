@@ -1,5 +1,8 @@
 {
   "title": "User Guide",
+  "description": "Documentation for users",
+  "icon": "BookOpen",
+  "root": true,
   "pages": [
     "overview",
     "quick-start",

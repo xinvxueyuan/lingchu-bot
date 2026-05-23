@@ -1,5 +1,8 @@
 {
   "title": "Developer Guide",
+  "description": "Technical documentation for developers",
+  "icon": "Code",
+  "root": true,
   "pages": [
     "introduction",
     "workflow",
