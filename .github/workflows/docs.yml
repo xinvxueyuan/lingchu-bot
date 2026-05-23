@@ -38,9 +38,7 @@ jobs:
           node-version: 24
 
       - name: 配置 pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.1.2
+        uses: pnpm/action-setup@v6.0.8
 
       - name: 安装 Node 依赖
         run: pnpm install --frozen-lockfile

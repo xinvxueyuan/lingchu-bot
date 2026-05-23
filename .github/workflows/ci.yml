@@ -62,9 +62,7 @@ jobs:
         with:
           node-version: 24
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.1.2
+        uses: pnpm/action-setup@v6.0.8
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
       - name: astral-sh/setup-uv
@@ -123,9 +121,7 @@ jobs:
         with:
           node-version: 24
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.1.2
+        uses: pnpm/action-setup@v6.0.8
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
       - name: Setup uv
