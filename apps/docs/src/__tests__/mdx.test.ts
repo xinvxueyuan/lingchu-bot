@@ -45,6 +45,16 @@ vi.mock('fumadocs-typescript', () => ({
   createFileSystemGeneratorCache: () => ({}),
 }));
 
+vi.mock('@/components/mdx/mermaid', () => ({
+  Mermaid: () => null,
+}));
+
+vi.mock('fumadocs-twoslash/ui', () => ({
+  Twoslash: () => null,
+  TwoslashPopover: () => null,
+  TwoslashCopy: () => null,
+}));
+
 import { getMDXComponents } from '@/components/mdx';
 
 describe('getMDXComponents', () => {
@@ -81,5 +91,17 @@ describe('getMDXComponents', () => {
   it('should include default MDX components', () => {
     const components = getMDXComponents();
     expect(components).toHaveProperty('pre');
+  });
+
+  it('should include Mermaid component', () => {
+    const components = getMDXComponents();
+    expect(components).toHaveProperty('Mermaid');
+  });
+
+  it('should include Twoslash components', () => {
+    const components = getMDXComponents();
+    expect(components).toHaveProperty('Twoslash');
+    expect(components).toHaveProperty('TwoslashPopover');
+    expect(components).toHaveProperty('TwoslashCopy');
   });
 });

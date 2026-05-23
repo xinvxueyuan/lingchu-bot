@@ -10,6 +10,8 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 import { InlineTOC } from 'fumadocs-ui/components/inline-toc';
 import { File, Folder, Files } from 'fumadocs-ui/components/files';
 import Link from 'fumadocs-core/link';
+import { Mermaid } from '@/components/mdx/mermaid';
+import * as Twoslash from 'fumadocs-twoslash/ui';
 
 const generator = createGenerator({
   cache: createFileSystemGeneratorCache('.next/fumadocs-typescript'),
@@ -18,6 +20,7 @@ const generator = createGenerator({
 export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
+    ...Twoslash,
     img: (props: React.ComponentProps<'img'>) => (
       <ImageZoom {...(props as Record<string, unknown>)} />
     ),
@@ -35,6 +38,7 @@ export function getMDXComponents(components?: MDXComponents) {
     Folder,
     Files,
     a: Link,
+    Mermaid,
     ...components,
   } satisfies MDXComponents;
 }
