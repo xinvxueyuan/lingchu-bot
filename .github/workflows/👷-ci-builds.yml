@@ -16,7 +16,7 @@ on:
       - "Taskfile.yml"
       - "**/*.py"
       - "**/LICENSE*"
-      - ".github/workflows/ci-builds.yml"
+      - ".github/workflows/👷-ci-builds.yml"
   push:
     branches:
       - main
@@ -31,7 +31,7 @@ on:
       - "Taskfile.yml"
       - "**/*.py"
       - "**/LICENSE*"
-      - ".github/workflows/ci-builds.yml"
+      - ".github/workflows/👷-ci-builds.yml"
 
 permissions:
   contents: read

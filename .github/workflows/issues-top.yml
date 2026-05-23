@@ -5,7 +5,7 @@ on:
 
 jobs:
     check:
-        name: Check for open issues
+        name: 🔍 Check for open issues
         runs-on: ubuntu-latest
         permissions:
             issues: read

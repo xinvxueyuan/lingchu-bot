@@ -1,4 +1,4 @@
-name: Auto Assign
+name: 👥 Auto Assign
 
 on:
     issues:
@@ -12,6 +12,7 @@ permissions:
 
 jobs:
     assign-author:
+        name: 👥 Auto Assign
         runs-on: ubuntu-latest
         steps:
             - uses: toshimaru/auto-author-assign@v3.0.2
