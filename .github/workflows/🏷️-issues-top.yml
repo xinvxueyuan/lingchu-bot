@@ -5,7 +5,7 @@ on:
 
 jobs:
     check:
-        name: Check for open issues
+        name: 🔍 Check for open issues
         runs-on: ubuntu-latest
         permissions:
             issues: read
@@ -15,7 +15,7 @@ jobs:
         steps:
             - id: check
               name: Check open issues
-              uses: actions/github-script@v6
+              uses: actions/github-script@v9.0.0
               with:
                   script: |
                       const owner = context.repo.owner;
@@ -26,7 +26,7 @@ jobs:
                       return hasIssue ? 'true' : 'false';
 
     ShowAndLabelTopIssues:
-        name: Display and label top issues.
+        name: 🏷️ Display and label top issues
         needs: check
         if: needs.check.outputs.has_open_issues == 'true'
         permissions:
@@ -36,7 +36,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Run top issues action
-              uses: rickstaa/top-issues-action@v1
+              uses: rickstaa/top-issues-action@v1.3.101
               env:
                   github_token: ${{ secrets.GITHUB_TOKEN }}
               with:
