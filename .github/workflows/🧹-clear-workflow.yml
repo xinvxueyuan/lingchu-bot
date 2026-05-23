@@ -8,6 +8,7 @@ permissions:
 
 jobs:
   clear-workflows:
+    name: 🧹 清理 Workflow 历史
     runs-on: ubuntu-latest
     steps:
       - name: Delete all non-running workflow runs

@@ -1,4 +1,4 @@
-name: 文档部署
+name: 📚 文档部署
 on:
   push:
     branches:
@@ -11,7 +11,7 @@ on:
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - turbo.json
-      - .github/workflows/docs.yml
+      - .github/workflows/📚-docs.yml
 permissions:
   contents: read
   pages: write
@@ -21,6 +21,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
+    name: 🚀 文档部署
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

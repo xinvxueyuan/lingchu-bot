@@ -52,7 +52,7 @@ concurrency:
 
 jobs:
   static-analysis:
-    name: 🔍 Static Analysis
+    name: Static Analysis
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -118,6 +118,7 @@ jobs:
           files: test-results/**/*.xml
 
   auto-format:
+    name: 🎨 Auto Fix & Format
     if: github.event_name == 'push' && contains(fromJSON('["refs/heads/main", "refs/heads/dev"]'), github.ref)
     needs: [static-analysis, tests]
     permissions:

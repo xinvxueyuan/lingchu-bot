@@ -1,11 +1,11 @@
-name: Top issues action.
+name: 🏷️ Top Issues
 on:
     schedule:
         - cron: "0 0 */1 * *"
 
 jobs:
     check:
-        name: 🔍 Check for open issues
+        name: Check for open issues
         runs-on: ubuntu-latest
         permissions:
             issues: read
