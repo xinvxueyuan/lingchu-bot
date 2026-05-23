@@ -205,7 +205,7 @@ tasks:
         || git add pyproject.toml src/plugins/nonebot_plugin_lingchu_bot/core/config.py uv.lock
 
         if ! git diff --cached --quiet; then
-            git commit -m "🔖 chore: bump version to ${version} [skip ci]"
+            git commit --no-verify -m "🔖 chore: bump version to ${version} [skip ci]"
             git push origin "HEAD:${GITHUB_REF_NAME}"
         fi
 
