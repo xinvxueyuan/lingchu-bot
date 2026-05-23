@@ -3,15 +3,15 @@ import { baseOptions, translations } from '@/lib/layout.shared';
 
 describe('layout.shared', () => {
   describe('baseOptions', () => {
-    it('should return zh options by default', () => {
-      const options = baseOptions();
+    it('should return zh options by default', async () => {
+      const options = await baseOptions();
       expect(options.nav?.title).toBe('Lingchu Bot');
       expect(options.githubUrl).toContain('xinvxueyuan');
       expect(options.githubUrl).toContain('lingchu-bot');
     });
 
-    it('should return zh docs link for zh locale', () => {
-      const options = baseOptions('zh');
+    it('should return zh docs link for zh locale', async () => {
+      const options = await baseOptions('zh');
       const docsLink = options.links?.find(
         (l) => 'text' in l && l.text === '文档',
       );
@@ -19,8 +19,8 @@ describe('layout.shared', () => {
       expect(docsLink).toHaveProperty('url', '/docs');
     });
 
-    it('should return en docs link for en locale', () => {
-      const options = baseOptions('en');
+    it('should return en docs link for en locale', async () => {
+      const options = await baseOptions('en');
       const docsLink = options.links?.find(
         (l) => 'text' in l && l.text === 'Docs',
       );
@@ -28,8 +28,8 @@ describe('layout.shared', () => {
       expect(docsLink).toHaveProperty('url', '/en/docs');
     });
 
-    it('should include githubUrl for auto-generated icon link', () => {
-      const options = baseOptions();
+    it('should include githubUrl for auto-generated icon link', async () => {
+      const options = await baseOptions();
       expect(options.githubUrl).toBe('https://github.com/xinvxueyuan/lingchu-bot');
     });
   });

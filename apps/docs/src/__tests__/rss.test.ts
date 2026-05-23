@@ -20,47 +20,47 @@ vi.mock('@/lib/source', () => ({
 import { getRSS } from '@/lib/rss';
 
 describe('getRSS', () => {
-  it('should return valid RSS XML string', () => {
-    const result = getRSS('zh');
+  it('should return valid RSS XML string', async () => {
+    const result = await getRSS('zh');
     expect(result).toContain('<?xml');
     expect(result).toContain('<rss');
     expect(result).toContain('</rss>');
   });
 
-  it('should include zh title when locale is zh', () => {
-    const result = getRSS('zh');
+  it('should include zh title when locale is zh', async () => {
+    const result = await getRSS('zh');
     expect(result).toContain('Lingchu Bot 文档');
   });
 
-  it('should include en title when locale is en', () => {
-    const result = getRSS('en');
+  it('should include en title when locale is en', async () => {
+    const result = await getRSS('en');
     expect(result).toContain('Lingchu Bot Docs');
   });
 
-  it('should include feed items from source pages', () => {
-    const result = getRSS('zh');
+  it('should include feed items from source pages', async () => {
+    const result = await getRSS('zh');
     expect(result).toContain('页面A');
     expect(result).toContain('页面B');
   });
 
-  it('should include pages even without description', () => {
-    const result = getRSS('zh');
+  it('should include pages even without description', async () => {
+    const result = await getRSS('zh');
     expect(result).toContain('页面C');
   });
 
-  it('should use baseUrl in feed id and link', () => {
-    const result = getRSS('zh');
+  it('should use baseUrl in feed id and link', async () => {
+    const result = await getRSS('zh');
     expect(result).toContain('xinvxueyuan.github.io/lingchu-bot');
   });
 
-  it('should default to zh locale', () => {
-    const zhResult = getRSS();
-    const explicitZh = getRSS('zh');
+  it('should default to zh locale', async () => {
+    const zhResult = await getRSS();
+    const explicitZh = await getRSS('zh');
     expect(zhResult).toBe(explicitZh);
   });
 
-  it('should include copyright with current year', () => {
-    const result = getRSS('zh');
+  it('should include copyright with current year', async () => {
+    const result = await getRSS('zh');
     expect(result).toContain(`All rights reserved ${new Date().getFullYear()}`);
   });
 });
