@@ -1,5 +1,8 @@
 {
   "title": "开发指南",
+  "description": "面向开发者的技术文档",
+  "icon": "Code",
+  "root": true,
   "pages": [
     "introduction",
     "workflow",

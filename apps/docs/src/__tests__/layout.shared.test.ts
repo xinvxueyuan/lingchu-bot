@@ -28,10 +28,9 @@ describe('layout.shared', () => {
       expect(docsLink).toHaveProperty('url', '/en/docs');
     });
 
-    it('should include GithubInfo custom link', () => {
+    it('should include githubUrl for auto-generated icon link', () => {
       const options = baseOptions();
-      const customLink = options.links?.find((l) => 'type' in l && l.type === 'custom');
-      expect(customLink).toBeDefined();
+      expect(options.githubUrl).toBe('https://github.com/xinvxueyuan/lingchu-bot');
     });
   });
 

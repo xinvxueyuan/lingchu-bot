@@ -21,6 +21,7 @@
     "feed": "^5.2.1",
     "flexsearch": "^0.8.212",
     "fumadocs-core": "16.9.0",
+    "fumadocs-epub": "^1.1.0",
     "fumadocs-mdx": "15.0.7",
     "fumadocs-twoslash": "^3.2.0",
     "fumadocs-typescript": "^5.2.6",
