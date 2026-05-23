@@ -12,6 +12,7 @@ import { getMDXComponents } from '@/components/mdx';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { gitConfig } from '@/lib/shared';
+import { LLMBadge } from '@/components/llm-badge';
 
 export default async function Page(props: PageProps<'/en/docs/[[...slug]]'>) {
   const params = await props.params;
@@ -26,6 +27,7 @@ export default async function Page(props: PageProps<'/en/docs/[[...slug]]'>) {
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
       <div className="flex flex-row gap-2 items-center border-b pb-6">
+        <LLMBadge locale="en" />
         <MarkdownCopyButton markdownUrl={markdownUrl} />
         <ViewOptionsPopover
           markdownUrl={markdownUrl}
