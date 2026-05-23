@@ -1,0 +1,67 @@
+---
+icon: Languages
+title: Internationalization
+---
+
+## Internationalization
+
+Lingchu Bot uses Python gettext and Babel to manage runtime feedback text. Current catalogs cover Simplified Chinese `zh_CN` and English `en_US`, mainly for success and failure feedback in group management commands.
+
+## Runtime locale
+
+i18n helpers live in `src/plugins/nonebot_plugin_lingchu_bot/i18n`. Runtime code reads NoneBot configuration in this order:
+
+1. `lingchu_locale`
+2. `lc_locale`
+3. `locale`
+
+If no usable configuration is found, the default is `zh_CN`. Locale values are normalized after reading:
+
+- `en-US` becomes `en_US`.
+- `en_US.UTF-8` becomes `en_US`.
+- Empty values fall back to `zh_CN`.
+
+gettext uses `fallback=True`, so untranslated text returns the original message instead of interrupting command handling.
+
+## Catalog structure
+
+Translation files are located at:
+
+```text
+src/plugins/nonebot_plugin_lingchu_bot/i18n/
+├── babel.cfg
+├── messages.pot
+└── locales/
+    ├── en_US/LC_MESSAGES/messages.po
+    ├── en_US/LC_MESSAGES/messages.mo
+    ├── zh_CN/LC_MESSAGES/messages.po
+    └── zh_CN/LC_MESSAGES/messages.mo
+```
+
+`messages.pot` is the extraction template, `messages.po` is the editable translation source, and `messages.mo` is the compiled runtime file.
+
+## Update flow
+
+After changing translatable strings, run:
+
+```bash
+task i18n:extract
+task i18n:update
+task i18n:compile
+```
+
+The equivalent underlying commands are maintained in `Taskfile.yml`:
+
+```bash
+uv run pybabel extract -F src/plugins/nonebot_plugin_lingchu_bot/i18n/babel.cfg -o src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot src/plugins/nonebot_plugin_lingchu_bot
+uv run pybabel update -i src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot -d src/plugins/nonebot_plugin_lingchu_bot/i18n/locales -D messages
+uv run pybabel compile -d src/plugins/nonebot_plugin_lingchu_bot/i18n/locales -D messages
+```
+
+Before compiling, check that `.po` files do not contain lingering `#, fuzzy` entries.
+
+## Async path
+
+Async handlers should use `_async`, `gettext_async`, or `ngettext_async`. These helpers load catalogs in worker threads, avoiding synchronous file reads on the event loop. Startup calls `warm_translation_cache` to prewarm the default locale.
+
+Synchronous `_` / `gettext` is only suitable for synchronous paths. Do not translate defaults that may vary by locale at module import time. Read and translate them while the handler is executing.

@@ -1,0 +1,10 @@
+{
+  "title": "User Guide",
+  "pages": [
+    "overview",
+    "quick-start",
+    "commands",
+    "configuration",
+    "troubleshooting"
+  ]
+}

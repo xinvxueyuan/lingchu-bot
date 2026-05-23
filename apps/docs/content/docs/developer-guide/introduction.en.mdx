@@ -1,0 +1,33 @@
+---
+icon: Blocks
+title: Architecture
+---
+
+## Architecture
+
+Lingchu Bot is an application-side bot project based on NoneBot2. Current code splits the core plugin, command handling, configuration, storage, and database helpers under `src/plugins/nonebot_plugin_lingchu_bot`.
+
+## Runtime entrypoints
+
+- `bot.py`: local startup entrypoint. It initializes NoneBot, registers the Milky adapter, and loads plugin directories.
+- `pyproject.toml`: declares plugin directories, dependencies, adapters, and NoneBot plugin configuration.
+- `nonebot_plugin_lingchu_bot`: core plugin package. It declares plugin metadata and loads shared capabilities.
+
+## Core modules
+
+- `core/config.py`: core configuration, localstore paths, and platform information.
+- `database/json5_store.py`: JSON5 file storage helper.
+- `database/orm_crud.py`: asynchronous CRUD helper based on `nonebot-plugin-orm`.
+- `handle/command/mute.py`: Milky group management command handlers.
+- `i18n/__init__.py`: gettext/Babel translation helpers, locale reading, and asynchronous catalog warmup.
+- `utils/typed_command.py`: lightweight command parsing and routing driven by type annotations.
+
+## Adapter status
+
+Plugin metadata declares support for adapters such as OneBot V11/V12, Milky, Discord, Telegram, and GitHub. The current local startup entrypoint actually registers Milky. Other adapter paths depend on later implementation and tests.
+
+## Data and configuration boundaries
+
+The project prefers NoneBot plugin configuration, localstore, and ORM plugin capabilities instead of hard-coded paths or database connections in business code.
+
+Potentially blocking paths such as file storage, JSON5 parsing, deepcopy, command parsing, and translation catalog loading are moved to worker threads to avoid blocking the NoneBot event loop.

@@ -1,0 +1,33 @@
+---
+icon: Blocks
+title: 架构概览
+---
+
+## 架构概览
+
+Lingchu Bot 是一个以 NoneBot2 为基础的应用侧机器人项目。当前代码将核心插件、命令处理、配置、存储和数据库辅助能力拆分在 `src/plugins/nonebot_plugin_lingchu_bot` 下。
+
+## 运行入口
+
+- `bot.py`：本地启动入口，初始化 NoneBot，注册 Milky 适配器，并加载插件目录。
+- `pyproject.toml`：声明插件目录、依赖、适配器和 NoneBot 插件配置。
+- `nonebot_plugin_lingchu_bot`：核心插件包，声明插件元数据并加载共享能力。
+
+## 核心模块
+
+- `core/config.py`：核心配置、localstore 路径和平台信息。
+- `database/json5_store.py`：JSON5 文件存储工具。
+- `database/orm_crud.py`：基于 `nonebot-plugin-orm` 的异步 CRUD 辅助。
+- `handle/command/mute.py`：Milky 群管理命令处理器。
+- `i18n/__init__.py`：gettext/Babel 翻译辅助、locale 读取和异步 catalog 预热。
+- `utils/typed_command.py`：类型注解驱动的轻量命令解析与路由工具。
+
+## 适配器状态
+
+插件元数据声明支持 OneBot V11/V12、Milky、Discord、Telegram 和 GitHub 等适配器。当前本地启动入口实际注册 Milky，其他适配器路径以后续实现和测试为准。
+
+## 数据与配置边界
+
+项目倾向使用 NoneBot 插件配置、localstore 和 ORM 插件提供的能力，而不是在业务代码中硬编码路径或数据库连接。
+
+文件存储、JSON5 解析、deepcopy、命令解析和翻译 catalog 加载等潜在阻塞路径会放到 worker thread 执行，避免阻塞 NoneBot 事件循环。

@@ -1,0 +1,48 @@
+---
+icon: Play
+title: 快速开始
+---
+
+## 快速开始
+
+本页说明如何在本地准备 Lingchu Bot。实际连接平台前，请先准备好 NoneBot 和 Milky 适配器所需的账号、网络和配置。
+
+## 环境要求
+
+- Python 3.13
+- uv
+- git
+- Milky 适配器可用的运行环境
+
+## 获取代码
+
+```bash
+git clone https://github.com/xinvxueyuan/lingchu-bot.git
+cd lingchu-bot
+```
+
+## 安装依赖
+
+```bash
+uv sync --frozen
+```
+
+## 启动
+
+```bash
+uv run python bot.py
+```
+
+`bot.py` 会初始化 NoneBot，注册 Milky 适配器，并从 `pyproject.toml` 加载本地插件目录。
+
+## 运行前检查
+
+- 确认 Python 版本为 3.13。
+- 确认 Milky 侧服务和连接配置已经准备好。
+- 确认 NoneBot 配置中的布尔值使用小写 `true` / `false`，不要写成 `True` / `False`。
+
+## 下一步
+
+- 查看 [命令与群管理](commands.mdx) 了解当前命令。
+- 查看 [配置](configuration.mdx) 了解项目配置项。
+- 遇到启动问题时查看 [故障排除](troubleshooting.mdx)。

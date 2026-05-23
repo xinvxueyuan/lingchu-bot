@@ -48,6 +48,7 @@ dependencies = [
     "typer>=0.25.1",
     "nonebot-plugin-wait-a-minute>=0.5.0",
     "nicegui>=3.10.0",
+    "openai>=2.38.0",
 ]
 
 [project.urls]
@@ -63,7 +64,6 @@ webui = ["nicegui>=3.10.0"]
 dev = [
     { include-group = "script" },
     { include-group = "test" },
-    { include-group = "docs" },
     { include-group = "lint" },
     { include-group = "git" },
     { include-group = "gui" },
@@ -75,7 +75,6 @@ git = [
     "commitlint>=1.13.3",
     "prek>=0.3.8",
 ]
-docs = ["zensical>=0.0.17"]
 lint = ["ruff>=0.15.10", "pyright>=1.1.407", "ty>=0.0.32"]
 test = [
     "nonebug>=0.4.3",

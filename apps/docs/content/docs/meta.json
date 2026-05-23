@@ -1,0 +1,10 @@
+{
+  "title": "Lingchu Bot 文档",
+  "description": "基于 NoneBot2 的 Lingchu Bot 项目文档",
+  "pages": [
+    "index",
+    "user-guide",
+    "developer-guide",
+    "project-policy"
+  ]
+}

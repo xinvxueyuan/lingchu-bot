@@ -1,0 +1,10 @@
+{
+  "title": "用户指南",
+  "pages": [
+    "overview",
+    "quick-start",
+    "commands",
+    "configuration",
+    "troubleshooting"
+  ]
+}
