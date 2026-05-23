@@ -1,14 +1,21 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
+import { uiTranslations } from 'fumadocs-ui/i18n';
+import { zhCN } from '@fumadocs/language/zh-cn';
+import { GithubInfo } from 'fumadocs-ui/components/github-info';
+import { i18n } from './i18n';
 import { appName, gitConfig } from './shared';
+
+export const translations = i18n
+  .translations()
+  .extend(uiTranslations())
+  .preset('zh', zhCN());
 
 const labels = {
   zh: {
     docs: '文档',
-    github: 'GitHub',
   },
   en: {
     docs: 'Docs',
-    github: 'GitHub',
   },
 };
 
@@ -26,9 +33,8 @@ export function baseOptions(locale = 'zh'): BaseLayoutProps {
         active: 'nested-url',
       },
       {
-        text: text.github,
-        url: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
-        external: true,
+        type: 'custom',
+        children: <GithubInfo owner={gitConfig.user} repo={gitConfig.repo} />,
       },
     ],
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,

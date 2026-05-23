@@ -3,6 +3,7 @@ import {
   SearchDialog,
   SearchDialogClose,
   SearchDialogContent,
+  SearchDialogFooter,
   SearchDialogHeader,
   SearchDialogIcon,
   SearchDialogInput,
@@ -31,6 +32,7 @@ export default function DefaultSearchDialog(props: SharedProps) {
         </SearchDialogHeader>
         <SearchDialogList items={query.data !== 'empty' ? query.data : null} />
       </SearchDialogContent>
+      <SearchDialogFooter />
     </SearchDialog>
   );
 }

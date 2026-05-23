@@ -47,6 +47,12 @@ jobs:
       - name: 安装 Task
         uses: go-task/setup-task@v2.1.0
 
+      - name: Lint
+        run: task lint:turbo
+
+      - name: Test
+        run: task test:docs
+
       - name: 构建文档
         run: task build:docs
 
