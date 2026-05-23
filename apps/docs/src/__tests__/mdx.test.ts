@@ -69,8 +69,7 @@ describe('getMDXComponents', () => {
   it('should merge custom components', () => {
     const CustomComponent = () => null;
     const components = getMDXComponents({ Custom: CustomComponent });
-    expect(components).toHaveProperty('Custom');
-    expect(components.Custom).toBe(CustomComponent);
+    expect((components as Record<string, unknown>).Custom).toBe(CustomComponent);
   });
 
   it('should allow custom components to override defaults', () => {
