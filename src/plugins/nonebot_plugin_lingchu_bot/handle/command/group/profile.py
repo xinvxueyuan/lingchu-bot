@@ -31,6 +31,16 @@ async def _set_group_avatar(
     group_id: int,
     image_uri: str,
 ) -> None:
+    """
+    根据 image_uri 的前缀选择方式并设置群头像。
+    
+    Parameters:
+    	group_id (int): 目标群号。
+    	image_uri (str): 图片资源标识。接受三种形式：
+    		- 以 "file://" 开头，表示本地文件路径（使用去除前缀的路径作为文件）。
+    		- 以 "base64://" 开头，表示 base64 编码的图片内容（使用去除前缀的 base64 字符串）。
+    		- 其它情况视为图片 URL。
+    """
     if image_uri.startswith("file://"):
         await bot.set_group_avatar(
             group_id=group_id, path=image_uri.removeprefix("file://")
@@ -49,6 +59,15 @@ async def milkybot_set_group_name(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
+    """
+    设置群名称。
+    
+    Parameters:
+    	new_group_name (str): 要设置的新群名称。
+    
+    Returns:
+    	Any: 群名称设置流程返回的结果。
+    """
     return await run_group_action(
         set_group_name_cmd,
         await _("设置群名称"),
@@ -67,6 +86,15 @@ async def milkybot_set_group_avatar(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
+    """
+    设置群头像。
+    
+    Parameters:
+    	image_uri (str): 头像资源地址，支持本地文件路径、Base64 内容或 URL。
+    
+    Returns:
+    	Any: `run_group_action` 的返回值。
+    """
     return await run_group_action(
         set_group_avatar_cmd,
         await _("设置群头像"),

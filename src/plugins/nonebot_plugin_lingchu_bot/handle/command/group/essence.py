@@ -33,6 +33,17 @@ async def milkybot_set_group_essence_message(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
+    """
+    为指定群消息设置或取消精华并返回操作结果文本。
+    
+    Parameters:
+    	message_seq (int): 目标消息在群内的序列号。
+    	is_set (bool): 为 True 时设置为精华，为 False 时取消精华。
+    	# bot 与 event 为注入的运行时对象，无需文档化。
+    
+    Returns:
+    	result (str): 描述已执行操作的结果文本（例如 "设置群精华消息: {message_seq}" 或 "取消群精华消息: {message_seq}"）。
+    """
     action_text = await _("设置") if is_set else await _("取消")
     return await run_group_action(
         set_group_essence_message_cmd,
@@ -52,6 +63,15 @@ async def milkybot_unset_group_essence_message(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
+    """
+    取消指定群消息的精华状态。
+    
+    Parameters:
+        message_seq (int): 要取消精华的群消息的序号（message sequence）。
+    
+    Returns:
+        Any: 格式化的操作结果文本，表示取消操作的结果（成功或失败信息）。
+    """
     return await milkybot_set_group_essence_message(
         message_seq=message_seq, is_set=False, bot=bot, event=event
     )
