@@ -233,4 +233,3 @@ msgstr "Set group avatar"
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/profile.py:74
 msgid "群头像已更新"
 msgstr "Group avatar updated"
-
