@@ -42,7 +42,8 @@ async def milkybot_set_group_essence_message(
         # bot 与 event 为注入的运行时对象，无需文档化。
 
     Returns:
-        result (str): 描述已执行操作的结果文本（例如 "设置群精华消息: {message_seq}" 或 "取消群精华消息: {message_seq}"）。
+        result (str): 描述已执行操作的结果文本
+        （例如 "设置群精华消息: {message_seq}" 或 "取消群精华消息: {message_seq}"）。
     """
     action_text = await _("设置") if is_set else await _("取消")
     operation = await _("设置群精华消息") if is_set else await _("取消群精华消息")

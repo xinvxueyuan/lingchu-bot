@@ -66,7 +66,9 @@ async def milkybot_send_group_announcement(
 
     Parameters:
         content (str): 公告文本内容。
-        image_uri (str | None): 可选图片资源定位；支持三种格式：以`file://`开头表示本地文件路径，以`base64://`开头表示图片的 Base64 编码，其余视作图片 URL。为 None 时仅发送文本公告。
+        image_uri (str | None): 可选图片资源定位；支持三种格式：以
+        `file://`开头表示本地文件路径，以`base64://`开头表示图片的 Base64 编码，
+        其余视作图片 URL。为 None 时仅发送文本公告。
         bot: 由框架提供的 MilkyBot 实例（省略常见服务的详细说明）。
         event: 群消息事件对象，用于获取目标群 ID（省略常见事件参数的详细说明）。
 

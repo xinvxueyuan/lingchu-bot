@@ -16,14 +16,19 @@ type GroupAction = Callable[[], Awaitable[Any]]
 
 def target_user(user: At, event: MilkyGroupMessageEvent) -> tuple[int, str]:
     """
-    解析 At 对象的 target 为用户 ID，并从群消息的 segments 中查找对应的 mention 来确定返回的显示名。
+    解析 At 对象的 target 为用户 ID，并从群消息的 segments 中查找对应的
+    mention 来确定返回的显示名。
 
-    如果 user.target 无法转换为整数，则抛出 ValueError，消息为 "无效的用户 ID: {user.target!r}"。
-    如果在 event.data.segments 中找到与该用户 ID 匹配的 mention，则返回该 mention 中的 name（不存在时回退到 user.display，再不存在则返回空字符串）；否则返回 user.display（若不存在则为空字符串）。
+    如果 user.target 无法转换为整数，则抛出 ValueError，消息为
+    "无效的用户 ID: {user.target!r}"。
+    如果在 event.data.segments 中找到与该用户 ID 匹配的 mention，则返回该
+    mention 中的 name（不存在时回退到 user.display，再不存在则返回空字符串）；
+    否则返回 user.display（若不存在则为空字符串）。
 
     Parameters:
         user (At): 含有 target 和 display 的 At 对象。
-        event (MilkyGroupMessageEvent): 群消息事件，函数会在其 data.segments 中查找 mention.
+        event (MilkyGroupMessageEvent): 群消息事件，函数会在其
+        data.segments 中查找 mention.
 
     Returns:
         tuple[int, str]: (目标用户 ID, 用于显示的用户名)
@@ -57,9 +62,11 @@ async def finish_action_error(
     根据异常类型记录错误并通过命令对象结束匹配器，发送对应的失败提示消息。
 
     Parameters:
-        command (GroupCommand): 用于调用 finish 来结束匹配器并发送回复的命令/匹配器类型实例。
+        command (GroupCommand): 用于调用 finish 来结束匹配器并发送回复的
+        命令/匹配器类型实例。
         operation (str): 发生错误的操作名称，用于构造提示消息中的操作描述。
-        error (ActionFailed | NetworkError): 导致操作失败的异常；`NetworkError` 表示网络异常，其他情况视为操作被拒绝。
+        error (ActionFailed | NetworkError): 导致操作失败的异常；`NetworkError`
+        表示网络异常，其他情况视为操作被拒绝。
 
     Returns:
         Any: 调用 `command.finish(...)` 的返回值（由匹配器的 `finish` 方法返回的结果）。
