@@ -63,9 +63,9 @@ uv run python bot.py
 
 ## 开发与验证
 
-CI 会检查 Ruff、Markdown、Pyright、ty 和 pytest。提交前建议至少运行与本次改动相关的检查。
+CI 会检查 Ruff、Markdown、Pyright、ty、pytest 和文档站 lint/test。提交前建议至少运行与本次改动相关的检查。
 
-本仓库同时包含一个 Turborepo 工作区，用于开发 Next.js 版文档站和前端包。文档站源码位于 [apps/docs](apps/docs/)。
+本仓库同时包含一个 Turborepo 工作区，用于开发 Next.js 版文档站和前端包。文档站源码位于 [apps/docs](apps/docs/)，基于 [Fumadocs](https://fumadocs.dev/) 构建，支持中英双语、RSS 订阅、Mermaid 图表、Twoslash 代码悬停、EPUB 导出、LLM 友好文本（`/llms.txt`、`/llms-full.txt`）和文档关系图谱。
 
 Ruff：
 
@@ -81,16 +81,29 @@ uv run -m pyright .
 uv run -m ty check --output-format github
 ```
 
-测试：
+Python 测试：
 
 ```bash
 uv run -m pytest
 ```
 
-只修改文档时，至少确认 Markdown 检查可通过：
+文档站 lint 与测试：
 
 ```bash
-npx markdownlint-cli2 README.md
+pnpm --filter docs lint
+pnpm --filter docs test
+```
+
+文档构建：
+
+```bash
+pnpm turbo run build --filter=docs
+```
+
+Markdown 检查：
+
+```bash
+pnpm exec markdownlint-cli2 README.md
 ```
 
 ## 贡献
@@ -115,6 +128,9 @@ npx markdownlint-cli2 README.md
 - [nonebot-plugin-localstore](https://github.com/nonebot/plugin-localstore)
 - [nonebot-plugin-orm](https://github.com/nonebot/plugin-orm)
 - [nonebot-plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler)
+- [Fumadocs](https://fumadocs.dev/)
+- [Next.js](https://nextjs.org/)
+- [Vitest](https://vitest.dev/)
 - [Ruff](https://docs.astral.sh/ruff/)
 - [Pyright](https://microsoft.github.io/pyright/)
 - [ty](https://docs.astral.sh/ty/)

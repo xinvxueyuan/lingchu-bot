@@ -29,6 +29,17 @@ uv run -m pytest
 
 If only one module changed, run the related test file first, then broaden the scope as needed.
 
+## Docs Site Tests and Lint
+
+The docs site uses Vitest for unit tests and ESLint for code checks:
+
+```bash
+pnpm --filter docs test
+pnpm --filter docs lint
+```
+
+After changing `apps/docs`, run both test and lint to confirm no regressions.
+
 ## Markdown checks
 
 ```bash

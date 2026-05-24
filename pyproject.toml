@@ -53,9 +53,9 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://lingchu.zone.id/"
-Documentation = "https://lingchu.hikarilink.org"
-Repository = "https://github.com/hikarilink/lingchu-bot.git"
-Issues = "https://github.com/hikarilink/xinvxueyuan/issues"
+Documentation = "https://lingchu.zone.id/"
+Repository = "https://github.com/xinvxueyuan/lingchu-bot.git"
+Issues = "https://github.com/xinvxueyuan/lingchu-bot/issues"
 
 [project.optional-dependencies]
 webui = ["nicegui>=3.10.0"]

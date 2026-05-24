@@ -29,6 +29,17 @@ uv run -m pytest
 
 如果只改了某个模块，可以先跑相关测试文件，再按需要扩大范围。
 
+## 文档站测试与 Lint
+
+文档站使用 Vitest 运行单元测试，ESLint 进行代码检查：
+
+```bash
+pnpm --filter docs test
+pnpm --filter docs lint
+```
+
+修改 `apps/docs` 后，建议同时运行测试和 lint 确认无回归。
+
 ## Markdown 检查
 
 ```bash
