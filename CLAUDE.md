@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (1513 symbols, 3105 relationships, 107 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (1646 symbols, 3310 relationships, 116 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -132,6 +132,12 @@ task build:docs                     # Build docs via Turborepo
 task ci                             # Full local CI sequence
 ```
 
+## Git Hooks
+
+- **pre-commit**: Runs `prek` (lint/format checks) + `gitnexus analyze` (auto-refresh code index)
+- **prepare-commit-msg**: Interactive gitmoji commit message via `pnpm exec gitmoji --hook`
+- Set `$env:HUSKY='0'` to skip hooks when needed (e.g., automated commits)
+
 ## Architecture Decisions
 
 - All server components and route handlers in `apps/docs` are async functions
@@ -147,6 +153,7 @@ Use conventional commit + gitmoji: `😍 feat:`, `🐛 fix:`, `📝 docs:`, `⚡
 ## CI
 
 GitHub Actions runs on push to `main`/`dev` and on PRs:
+
 - **Static Analysis**: Ruff + Markdown + Turborepo lint
 - **Tests & Type Check**: Pyright + ty + pytest + docs test
 - **Auto Format**: On push to main/dev, auto-fix and commit
