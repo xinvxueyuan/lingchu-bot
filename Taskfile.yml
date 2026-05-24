@@ -103,6 +103,13 @@ tasks:
       - uv build --clear
       - pnpm turbo run build
 
+  ci:docs:
+    desc: "[CI] Docs-only check, test and build (no Python toolchain required)"
+    cmds:
+      - pnpm turbo run lint
+      - pnpm --filter docs test
+      - pnpm turbo run build
+
   ci:version:bump:
     desc: "[CI] Bump development version and emit GitHub Actions outputs"
     cmds:
