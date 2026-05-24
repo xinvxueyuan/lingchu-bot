@@ -32,7 +32,7 @@ Lingchu Bot 当前仓库包含两类入口：
 ## 功能概览
 
 - 命令处理：基于 `nonebot-plugin-alconna` 和项目内 typed command 工具组织命令解析。
-- 群管理能力：包含成员禁言、解禁、全体禁言和全体解禁等 Milky 群管理处理器。
+- 群管理能力：包含成员禁言、解禁、群资料设置、管理员设置、群公告、精华消息、踢人和退群等 Milky 群管理处理器。
 - 配置管理：通过 NoneBot 插件配置和 Pydantic 模型集中声明运行配置。
 - 本地存储：使用 `nonebot-plugin-localstore` 管理数据、配置和缓存目录。
 - 数据访问：提供 JSON5 存储工具和基于 `nonebot-plugin-orm` 的异步 CRUD 辅助能力。
