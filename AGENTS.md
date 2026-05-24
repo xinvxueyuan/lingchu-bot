@@ -75,7 +75,7 @@ lingchu-bot/
 ├── src/plugins/nonebot_plugin_lingchu_bot/   # Core NoneBot plugin
 │   ├── core/           # Config, platform info
 │   ├── database/       # JSON5 store, ORM CRUD helpers
-│   ├── handle/         # Command handlers (mute, etc.)
+│   ├── handle/         # Command handlers (mute, group settings/actions, etc.)
 │   ├── i18n/           # Babel/gettext translations
 │   └── utils/          # Typed command tools
 ├── apps/docs/          # Fumadocs documentation site

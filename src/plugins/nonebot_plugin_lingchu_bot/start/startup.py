@@ -1,11 +1,18 @@
 from nonebot.internal.driver.abstract import Driver
 
+from ..handle.command.group import import_handle as group_import_handle
 from ..handle.command.mute import import_handle as mute_import_handle
 from ..i18n import warm_translation_cache
 
 
 async def startup() -> None:
+    """
+    在应用启动时预热翻译缓存并注册命令处理器。
+
+    依次执行：预热翻译缓存、导入并注册“group”命令处理器、导入并注册“mute”命令处理器。
+    """
     await warm_translation_cache()
+    await group_import_handle()
     await mute_import_handle()
 
 

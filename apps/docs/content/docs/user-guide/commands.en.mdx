@@ -82,6 +82,25 @@ Common aliases include:
 - `关闭全员禁言`
 - `解禁群`
 
+## Group settings and operations
+
+These commands map to Milky group APIs except APIs whose Chinese names start with get, delete, accept, or reject. Commands act on the current group by default, and `@用户` resolves to the target group member.
+
+| Capability | Primary command |
+| --- | --- |
+| Set group name | `设置群名称 <new group name>` |
+| Set group avatar | `设置群头像 <image_uri>` |
+| Set member card | `设置群名片 @用户 <card>` |
+| Set member special title | `设置群头衔 @用户 <title>` |
+| Set member admin | `设置群管理员 @用户 [true/false]` |
+| Unset member admin | `取消群管理员 @用户` |
+| Kick group member | `踢出群成员 @用户 [reject add request]` |
+| Send announcement | `发送群公告 <content> [image_uri]` |
+| Set essence message | `设置群精华消息 <message_seq> [true/false]` |
+| Unset essence message | `取消群精华消息 <message_seq>` |
+| Leave current group | `退出群` |
+`image_uri` supports the `file://`, `http(s)://`, and `base64://` formats from Milky documentation. Quote names, announcements, cards, or titles that contain spaces so command separators do not split them.
+
 ## Error feedback
 
 Group management commands return readable error messages for Milky network errors and rejected operations. Unknown exceptions are still raised outward so developers can find uncovered cases.
