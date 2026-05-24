@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nonebot-plugin-lingchu-bot 0.0.0.dev8\n"
 "Report-Msgid-Bugs-To: xinvxueyuan@yeah.net\n"
-"POT-Creation-Date: 2026-05-20 01:48+0800\n"
+"POT-Creation-Date: 2026-05-24 16:00+0800\n"
 "PO-Revision-Date: 2026-05-20 00:00+0800\n"
 "Last-Translator: xinvxueyuan <xinvxueyuan@yeah.net>\n"
 "Language: en_US\n"
@@ -58,7 +58,7 @@ msgstr "Failed to mute, network error: {error!r}"
 msgid "禁言失败，操作被拒绝: {error}"
 msgstr "Failed to mute, operation rejected: {error}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:139
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:140
 #, python-brace-format
 msgid ""
 "已禁言: \n"
@@ -73,35 +73,35 @@ msgstr ""
 "Reason: {reason}\n"
 "ID: {target_user_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:165
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:167
 #, python-brace-format
 msgid "全体禁言失败，网络异常: {error!r}"
 msgstr "Failed to enable whole-group mute, network error: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:171
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:173
 #, python-brace-format
 msgid "全体禁言失败，操作被拒绝: {error!r}"
 msgstr "Failed to enable whole-group mute, operation rejected: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:176
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:178
 msgid "全体禁言成功"
 msgstr "Whole-group mute enabled"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:196
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:198
 msgid "管理员操作「默认」"
 msgstr "Administrator action (default)"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:206
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:208
 #, python-brace-format
 msgid "解禁失败，网络异常: {error!r}"
 msgstr "Failed to unmute, network error: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:211
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:213
 #, python-brace-format
 msgid "解禁失败，操作被拒绝: {error!r}"
 msgstr "Failed to unmute, operation rejected: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:216
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:219
 #, python-brace-format
 msgid ""
 "已解禁: \n"
@@ -114,20 +114,123 @@ msgstr ""
 "Reason: {reason}\n"
 "ID: {target_user_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:242
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:243
 #, python-brace-format
 msgid "全体解禁失败，网络异常: {error!r}"
 msgstr "Failed to disable whole-group mute, network error: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:248
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:249
 #, python-brace-format
 msgid "全体解禁失败，操作被拒绝: {error!r}"
 msgstr "Failed to disable whole-group mute, operation rejected: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:253
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:254
 msgid "全体解禁成功"
 msgstr "Whole-group mute disabled"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:258
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:259
 msgid "导入mute处理器..."
 msgstr "Importing mute handlers..."
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/__init__.py:16
+msgid "导入group处理器..."
+msgstr "Importing group handlers..."
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:58
+msgid "发送群公告"
+msgstr "Send group announcement"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:60
+msgid "群公告已发送"
+msgstr "Group announcement sent"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/common.py:35
+#, python-brace-format
+msgid "{operation}失败，网络异常: {error!r}"
+msgstr "{operation} failed, network error: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/common.py:42
+#, python-brace-format
+msgid "{operation}失败，操作被拒绝: {error!r}"
+msgstr "{operation} failed, operation rejected: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/essence.py:36
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:108
+msgid "设置"
+msgstr "Set"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/essence.py:36
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:108
+msgid "取消"
+msgstr "Unset"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/essence.py:39
+msgid "设置群精华消息"
+msgstr "Set group essence message"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/essence.py:43
+#, python-brace-format
+msgid "{action}群精华消息: {message_seq}"
+msgstr "{action} group essence message: {message_seq}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/lifecycle.py:29
+msgid "退出群"
+msgstr "Leave group"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/lifecycle.py:31
+msgid "已退出当前群"
+msgstr "Left current group"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:64
+msgid "设置群名片"
+msgstr "Set group member card"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:68
+#, python-brace-format
+msgid "已设置群名片: {target_name}({target_user_id}) -> {card}"
+msgstr "Group member card set: {target_name}({target_user_id}) -> {card}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:84
+msgid "设置群成员专属头衔"
+msgstr "Set group member special title"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:91
+#, python-brace-format
+msgid "已设置群头衔: {target_name}({target_user_id}) -> {special_title}"
+msgstr "Group title set: {target_name}({target_user_id}) -> {special_title}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:111
+msgid "设置群管理员"
+msgstr "Set group admin"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:115
+#, python-brace-format
+msgid "{action}群管理员: {target_name}({target_user_id})"
+msgstr "{action} group admin: {target_name}({target_user_id})"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:144
+msgid "踢出群成员"
+msgstr "Kick group member"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:150
+#, python-brace-format
+msgid "已踢出群成员: {target_name}({target_user_id})"
+msgstr "Group member kicked: {target_name}({target_user_id})"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/profile.py:54
+msgid "设置群名称"
+msgstr "Set group name"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/profile.py:58
+#, python-brace-format
+msgid "群名称已设置为: {new_group_name}"
+msgstr "Group name set to: {new_group_name}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/profile.py:72
+msgid "设置群头像"
+msgstr "Set group avatar"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/profile.py:74
+msgid "群头像已更新"
+msgstr "Group avatar updated"
+
