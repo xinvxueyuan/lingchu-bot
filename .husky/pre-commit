@@ -1,1 +1,2 @@
 uv run prek run --config prek.toml --stage pre-commit
+pnpm exec gitnexus analyze
