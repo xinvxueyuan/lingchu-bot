@@ -41,3 +41,113 @@ This project is indexed by GitNexus as **lingchu-bot** (1513 symbols, 3105 relat
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+# Project Context
+
+## Overview
+
+Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains a Python backend plugin (`nonebot-plugin-lingchu-bot`) and a Next.js documentation site (`apps/docs`).
+
+## Tech Stack
+
+### Python Backend
+
+- Python 3.13, managed by `uv`
+- NoneBot2 with Milky adapter
+- `nonebot-plugin-alconna` for command parsing
+- `nonebot-plugin-orm` (aiosqlite) for async database
+- `nonebot-plugin-localstore` for file storage
+- Ruff (lint + format), Pyright, ty (type check), pytest (test)
+
+### Documentation Site (`apps/docs`)
+
+- Next.js 16 + Fumadocs 16 (static export)
+- React 19, Tailwind CSS 4, TypeScript 6
+- Vitest + @testing-library/react (unit tests), ESLint (lint)
+- Features: i18n (zh/en), RSS, Mermaid, Twoslash, EPUB export, LLM-friendly text (`/llms.txt`, `/llms-full.txt`), document relationship graph
+- All server components, route handlers, and lib functions are async
+- Turborepo workspace, pnpm package manager
+
+## Project Structure
+
+```
+lingchu-bot/
+├── src/plugins/nonebot_plugin_lingchu_bot/   # Core NoneBot plugin
+│   ├── core/           # Config, platform info
+│   ├── database/       # JSON5 store, ORM CRUD helpers
+│   ├── handle/         # Command handlers (mute, etc.)
+│   ├── i18n/           # Babel/gettext translations
+│   └── utils/          # Typed command tools
+├── apps/docs/          # Fumadocs documentation site
+│   ├── content/docs/   # MDX content (zh + en)
+│   ├── src/
+│   │   ├── app/        # Next.js App Router pages & routes
+│   │   ├── components/ # React components (graph-view, mdx, mermaid)
+│   │   ├── lib/        # Shared logic (source, rss, build-graph, layout)
+│   │   └── __tests__/  # Vitest unit tests
+│   └── source.config.ts # Fumadocs MDX config
+├── packages/           # Shared frontend packages
+├── bot.py              # Local run entry
+├── pyproject.toml      # Python project config
+├── package.json        # Monorepo root (pnpm + Turborepo)
+└── Taskfile.yml        # Task runner for CI/local commands
+```
+
+## Development Commands
+
+### Python
+
+```bash
+uv sync --frozen                    # Install dependencies
+uv run python bot.py                # Run bot locally
+uv run -m ruff check . --output-format=github  # Lint
+uv run -m ruff format --check .     # Format check
+uv run -m pyright .                 # Type check (Pyright)
+uv run -m ty check --output-format github  # Type check (ty)
+uv run -m pytest                    # Run tests
+```
+
+### Documentation Site
+
+```bash
+pnpm --filter docs dev              # Dev server
+pnpm --filter docs lint             # ESLint
+pnpm --filter docs test             # Vitest
+pnpm turbo run build --filter=docs  # Production build
+```
+
+### Markdown
+
+```bash
+pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
+```
+
+### Task Runner (Taskfile)
+
+```bash
+task ci:static                      # Ruff + format + markdown + turbo lint
+task ci:typecheck                   # Pyright + ty + turbo check-types
+task ci:test                        # pytest + docs test
+task build:docs                     # Build docs via Turborepo
+task ci                             # Full local CI sequence
+```
+
+## Architecture Decisions
+
+- All server components and route handlers in `apps/docs` are async functions
+- `baseOptions()`, `buildGraph()`, `getRSS()` return Promises
+- i18n uses `hideLocale: 'default-locale'` — default locale (zh) omits prefix in URLs
+- Client components use `useSyncExternalStore` instead of `useState` + `useEffect` for mount detection
+- GitNexus is used for code intelligence, impact analysis, and safe refactoring
+
+## Commit Convention
+
+Use conventional commit + gitmoji: `😍 feat:`, `🐛 fix:`, `📝 docs:`, `⚡ perf:`, etc.
+
+## CI
+
+GitHub Actions runs on push to `main`/`dev` and on PRs:
+- **Static Analysis**: Ruff + Markdown + Turborepo lint
+- **Tests & Type Check**: Pyright + ty + pytest + docs test
+- **Auto Format**: On push to main/dev, auto-fix and commit
+- **Docs Deploy**: Build and deploy to GitHub Pages
