@@ -1,13 +1,14 @@
+from importlib import import_module
 from typing import Any
 
 from nonebot import logger
 
 from ....i18n import _async as _
-from . import announcement, essence, lifecycle, member, profile
 
 __all__ = ("import_handle",)
 
-_REGISTERED_MODULES = (announcement, essence, lifecycle, member, profile)
+for module_name in ("announcement", "essence", "lifecycle", "member", "profile"):
+    import_module(f"{__name__}.{module_name}")
 
 
 async def import_handle() -> Any:

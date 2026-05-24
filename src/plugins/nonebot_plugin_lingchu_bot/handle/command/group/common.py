@@ -14,13 +14,24 @@ type GroupCommand = type[AlconnaMatcher | Matcher]
 type GroupAction = Callable[[], Awaitable[Any]]
 
 
-def target_user(user: At, event: MilkyGroupMessageEvent) -> tuple[Any, str]:
-    target_user_id: int = int(user.target)
+def target_user(user: At, event: MilkyGroupMessageEvent) -> tuple[int, str]:
+    try:
+        target_user_id: int = int(user.target)
+    except (TypeError, ValueError) as error:
+        msg = f"无效的用户 ID: {user.target!r}"
+        raise ValueError(msg) from error
+
     mention: dict[str, Any] | None = next(
-        (item for item in event.data.segments if item.get("type") == "mention"), None
+        (
+            item
+            for item in event.data.segments
+            if item.get("type") == "mention"
+            and str(item.get("data", {}).get("user_id")) == str(target_user_id)
+        ),
+        None,
     )
     if mention:
-        return mention["data"]["user_id"], mention["data"].get("name") or ""
+        return target_user_id, mention["data"].get("name") or user.display or ""
     return target_user_id, user.display or ""
 
 
