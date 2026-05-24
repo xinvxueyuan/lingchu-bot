@@ -2,179 +2,109 @@
 
 version: "3"
 
+vars:
+  MD_GLOB: >-
+    "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**"
+    "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
+
 tasks:
   default:
     desc: List available tasks
     cmds:
       - task --list
-  uv:
-    aliases: [u]
-    desc: Proxy uv commands
-    cmds:
-      - uv {{.CLI_ARGS}}
-  pnpm:
-    aliases: [p]
-    desc: Proxy pnpm commands
-    cmds:
-      - pnpm {{.CLI_ARGS}}
-  turbo:
-    aliases: [t]
-    desc: Proxy Turborepo commands through pnpm
-    cmds:
-      - pnpm turbo {{.CLI_ARGS}}
-  up:
-    desc: Update all dependencies
-    cmds:
-      - task: uv
-        vars: { CLI_ARGS: "sync --upgrade" }
-      - task: pnpm
-        vars: { CLI_ARGS: "update" }
+
   install:
     desc: Install all dependencies
     cmds:
-      - task: uv
-        vars: { CLI_ARGS: "sync" }
-      - task: pnpm
-        vars: { CLI_ARGS: "install" }
+      - uv sync
+      - pnpm install
+
+  up:
+    desc: Update all dependencies
+    cmds:
+      - uv sync --upgrade
+      - pnpm update
+
+  check:
+    desc: Run all static checks (lint + format + markdown + type check)
+    cmds:
+      - uv run -m ruff check . --output-format=github
+      - uv run -m ruff format --check .
+      - pnpm exec markdownlint-cli2 {{.MD_GLOB}}
+      - pnpm turbo run lint
+      - uv run -m pyright .
+      - uv run -m ty check --output-format github
+      - pnpm turbo run check-types
+
   test:
-    desc: Run tests
+    desc: Run all tests (Python + Docs)
     cmds:
-      - task: uv
-        vars: { CLI_ARGS: "run -m pytest {{.CLI_ARGS}}" }
-  test:docs:
-    desc: Run docs tests
-    cmds:
-      - task: pnpm
-        vars: { CLI_ARGS: "--filter docs test" }
-  test:docs:ci:
-    desc: Run docs tests with CI report output
-    cmds:
-      - task: pnpm
-        vars: { CLI_ARGS: "--filter docs test -- --reporter=junit --reporter=json --outputFile=apps/docs/test-results/vitest.json 2>&1 || true" }
-      - task: pnpm
-        vars: { CLI_ARGS: "--filter docs test -- --reporter=junit --reporter=verbose 2>&1 || true" }
-  test:turbo:
-    desc: Run all tests through Turborepo
-    cmds:
-      - task: turbo
-        vars: { CLI_ARGS: "run test" }
-  test:ci:
-    desc: Run tests with CI report output
-    cmds:
-      - task: uv
-        vars: { CLI_ARGS: "run -m pytest --junitxml=test-results/pytest.xml" }
-      - task: test:docs
-  lint:
-    desc: Run linters and type checkers
-    cmds:
-      - task: uv
-        vars: { CLI_ARGS: "run -m ruff check ." }
-      - task: uv
-        vars: { CLI_ARGS: "run -m ty check ." }
-      - task: uv
-        vars: { CLI_ARGS: "run -m pyright ." }
-  lint:ruff:
-    desc: Run Ruff lint checks
-    cmds:
-      - task: uv
-        vars: { CLI_ARGS: "run -m ruff check . {{.CLI_ARGS}}" }
-  lint:ruff:github:
-    desc: Run Ruff lint checks with GitHub annotations
-    cmds:
-      - task: uv
-        vars: { CLI_ARGS: "run -m ruff check . --output-format=github" }
-  lint:format:
-    desc: Check Ruff formatting
-    cmds:
-      - task: uv
-        vars: { CLI_ARGS: "run -m ruff format --check ." }
-  lint:markdown:
-    desc: Run Markdown lint checks
-    cmds:
-      - task: pnpm
-        vars:
-          {
-            CLI_ARGS: 'exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"',
-          }
-  lint:turbo:
-    desc: Run Turborepo lint checks
-    cmds:
-      - task: turbo
-        vars: { CLI_ARGS: "run lint" }
-  typecheck:
-    desc: Run Python type checkers
-    cmds:
-      - task: uv
-        vars: { CLI_ARGS: "run -m pyright ." }
-      - task: uv
-        vars: { CLI_ARGS: "run -m ty check --output-format github" }
+      - uv run -m pytest {{.CLI_ARGS}}
+      - pnpm --filter docs test
+
   format:
-    desc: Format code
+    desc: Format all code
     cmds:
-      - task: uv
-        vars: { CLI_ARGS: "run -m ruff format ." }
-      - task: pnpm
-        vars:
-          {
-            CLI_ARGS: 'exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"',
-          }
+      - uv run -m ruff format .
+      - pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}
+
   fix:
-    desc: Fix linting and type issues
+    desc: Auto-fix all linting and type issues
     cmds:
-      - task: uv
-        vars: { CLI_ARGS: "run -m ruff check --fix ." }
-      - task: uv
-        vars: { CLI_ARGS: "run -m ruff format ." }
-      - task: uv
-        vars: { CLI_ARGS: "run -m ty check --fix . || true" }
-      - task: pnpm
-        vars:
-          {
-            CLI_ARGS: 'exec markdownlint-cli2 --fix "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"',
-          }
-  typecheck:turbo:
-    desc: Run Turborepo type checks
+      - uv run -m ruff check --fix .
+      - uv run -m ruff format .
+      - uv run -m ty check --fix . || true
+      - pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}
+
+  build:
+    desc: Build all workspaces
     cmds:
-      - task: turbo
-        vars: { CLI_ARGS: "run check-types" }
-  build:turbo:
-    desc: Build Turborepo workspaces
+      - pnpm turbo run build
+
+  ci:
+    desc: Run the full local CI sequence
     cmds:
-      - task: turbo
-        vars: { CLI_ARGS: "run build" }
-  build:docs:
-    desc: Build the documentation app through Turborepo
-    cmds:
-      - task: turbo
-        vars: { CLI_ARGS: "run build --filter=docs" }
+      - task: check
+      - task: test
+      - task: build
+
   ci:static:
-    desc: Run CI static analysis checks
+    desc: "[CI] Static analysis checks"
     cmds:
-      - task: lint:ruff:github
-      - task: lint:format
-      - task: lint:markdown
-      - task: lint:turbo
+      - uv run -m ruff check . --output-format=github
+      - uv run -m ruff format --check .
+      - pnpm exec markdownlint-cli2 {{.MD_GLOB}}
+      - pnpm turbo run lint
+
   ci:typecheck:
-    desc: Run CI type checks
+    desc: "[CI] Type checks"
     cmds:
-      - task: typecheck
-      - task: typecheck:turbo
+      - uv run -m pyright .
+      - uv run -m ty check --output-format github
+      - pnpm turbo run check-types
+
   ci:test:
-    desc: Run CI tests
+    desc: "[CI] Tests with report output"
     cmds:
-      - task: test:ci
+      - uv run -m pytest --junitxml=test-results/pytest.xml
+      - pnpm --filter docs test
+
   ci:fix:
-    desc: Run CI auto-fix tasks
+    desc: "[CI] Auto-fix and format"
     cmds:
-      - task: fix
+      - uv run -m ruff check --fix .
+      - uv run -m ruff format .
+      - uv run -m ty check --fix . || true
+      - pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}
+
   ci:build:
-    desc: Build distribution artifacts for CI
+    desc: "[CI] Build distribution artifacts"
     cmds:
-      - task: uv
-        vars: { CLI_ARGS: "build --clear" }
-      - task: build:docs
+      - uv build --clear
+      - pnpm turbo run build
+
   ci:version:bump:
-    desc: Bump the development version and emit GitHub Actions outputs
+    desc: "[CI] Bump development version and emit GitHub Actions outputs"
     cmds:
       - |
         set -euo pipefail
@@ -185,8 +115,9 @@ tasks:
         echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
         echo "$version_json"
         uv version --bump dev --dry-run --short --output-format text | xargs echo "Bumping version to:"
+
   ci:version:write-config:
-    desc: Write the CI version into config.py
+    desc: "[CI] Write version into config.py"
     requires:
       vars: [VERSION, CONFIG_PATH]
     cmds:
@@ -214,8 +145,9 @@ tasks:
 
         path.write_text(new_text, encoding="utf-8")
         PY
+
   ci:version:commit-tag:
-    desc: Commit CI version changes and create the release tag
+    desc: "[CI] Commit version changes and create release tag"
     requires:
       vars: [VERSION]
     cmds:
@@ -246,34 +178,10 @@ tasks:
             git tag "$tag"
             git push origin "$tag"
         fi
-  ci:
-    desc: Run the full local CI sequence
+
+  i18n:
+    desc: Extract, update and compile i18n messages
     cmds:
-      - task: ci:static
-      - task: ci:typecheck
-      - task: ci:test
-      - task: build:turbo
-  i18n:extract:
-    desc: Extract translatable messages
-    cmds:
-      - task: uv
-        vars:
-          {
-            CLI_ARGS: "run pybabel extract -F src/plugins/nonebot_plugin_lingchu_bot/i18n/babel.cfg -o src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot src/plugins/nonebot_plugin_lingchu_bot",
-          }
-  i18n:update:
-    desc: Update translation catalogs
-    cmds:
-      - task: uv
-        vars:
-          {
-            CLI_ARGS: "run pybabel update -i src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot -d src/plugins/nonebot_plugin_lingchu_bot/i18n/locales -D messages",
-          }
-  i18n:compile:
-    desc: Compile translation catalogs
-    cmds:
-      - task: uv
-        vars:
-          {
-            CLI_ARGS: "run pybabel compile -d src/plugins/nonebot_plugin_lingchu_bot/i18n/locales -D messages",
-          }
+      - uv run pybabel extract -F src/plugins/nonebot_plugin_lingchu_bot/i18n/babel.cfg -o src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot src/plugins/nonebot_plugin_lingchu_bot
+      - uv run pybabel update -i src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot -d src/plugins/nonebot_plugin_lingchu_bot/i18n/locales -D messages
+      - uv run pybabel compile -d src/plugins/nonebot_plugin_lingchu_bot/i18n/locales -D messages

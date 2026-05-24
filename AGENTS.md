@@ -125,11 +125,15 @@ pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/
 ### Task Runner (Taskfile)
 
 ```bash
-task ci:static                      # Ruff + format + markdown + turbo lint
-task ci:typecheck                   # Pyright + ty + turbo check-types
-task ci:test                        # pytest + docs test
-task build:docs                     # Build docs via Turborepo
+task install                        # Install all dependencies
+task up                             # Update all dependencies
+task check                          # All static checks (lint + format + markdown + type check)
+task test                           # All tests (Python + Docs)
+task format                         # Format all code
+task fix                            # Auto-fix all linting and type issues
+task build                          # Build all workspaces
 task ci                             # Full local CI sequence
+task i18n                           # Extract, update and compile i18n
 ```
 
 ## Git Hooks
