@@ -2,6 +2,7 @@
 # GitNexus — Code Intelligence
 
 This project is indexed by GitNexus as **lingchu-bot** (1749 symbols, 3531 relationships, 126 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (1396 symbols, 2857 relationships, 101 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
