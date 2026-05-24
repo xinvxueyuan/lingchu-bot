@@ -6,7 +6,7 @@
 
 ## 报告漏洞
 
-请通过 [GitHub Issues](https://github.com/xinvxueyuan/xinvxueyuan/issues) 报告漏洞。
+请通过 [GitHub Issues](https://github.com/xinvxueyuan/lingchu-bot/issues) 报告漏洞。
 
 在报告漏洞时，请包含以下信息：
 

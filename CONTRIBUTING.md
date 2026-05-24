@@ -48,7 +48,7 @@ gitnexus_impact({target: "symbolName", direction: "upstream"})
 
 ## 开发与验证命令
 
-CI 当前会检查 Ruff、Markdown、Pyright、ty 和 pytest。提交前尽量在本地跑与改动相关的检查。
+CI 当前会检查 Ruff、Markdown、Pyright、ty、pytest 和文档站 lint/test。提交前尽量在本地跑与改动相关的检查。
 
 Ruff 检查和格式检查：
 
@@ -70,7 +70,24 @@ uv run -m ty check --output-format github
 uv run -m pytest
 ```
 
-只改文档时，至少确认 Markdown 可以通过 CI 的 Markdown Check；如果本地没有 markdownlint，可在 PR 中说明已人工检查标题层级、链接和代码块围栏。
+文档站 lint 与测试：
+
+```bash
+pnpm --filter docs lint
+pnpm --filter docs test
+```
+
+文档构建：
+
+```bash
+pnpm turbo run build --filter=docs
+```
+
+Markdown 检查：
+
+```bash
+pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
+```
 
 需要自动修复格式时，请只对相关文件运行格式化命令，避免把无关文件卷进 PR：
 
