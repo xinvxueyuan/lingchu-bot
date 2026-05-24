@@ -37,17 +37,18 @@ async def milkybot_set_group_essence_message(
     为指定群消息设置或取消精华并返回操作结果文本。
 
     Parameters:
-    	message_seq (int): 目标消息在群内的序列号。
-    	is_set (bool): 为 True 时设置为精华，为 False 时取消精华。
-    	# bot 与 event 为注入的运行时对象，无需文档化。
+        message_seq (int): 目标消息在群内的序列号。
+        is_set (bool): 为 True 时设置为精华，为 False 时取消精华。
+        # bot 与 event 为注入的运行时对象，无需文档化。
 
     Returns:
-    	result (str): 描述已执行操作的结果文本（例如 "设置群精华消息: {message_seq}" 或 "取消群精华消息: {message_seq}"）。
+        result (str): 描述已执行操作的结果文本（例如 "设置群精华消息: {message_seq}" 或 "取消群精华消息: {message_seq}"）。
     """
     action_text = await _("设置") if is_set else await _("取消")
+    operation = await _("设置群精华消息") if is_set else await _("取消群精华消息")
     return await run_group_action(
         set_group_essence_message_cmd,
-        await _("设置群精华消息"),
+        operation,
         lambda: bot.set_group_essence_message(
             group_id=event.data.peer_id, message_seq=message_seq, is_set=is_set
         ),
