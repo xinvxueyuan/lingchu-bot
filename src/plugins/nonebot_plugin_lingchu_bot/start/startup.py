@@ -8,7 +8,7 @@ from ..i18n import warm_translation_cache
 async def startup() -> None:
     """
     在应用启动时预热翻译缓存并注册命令处理器。
-    
+
     依次执行：预热翻译缓存、导入并注册“group”命令处理器、导入并注册“mute”命令处理器。
     """
     await warm_translation_cache()

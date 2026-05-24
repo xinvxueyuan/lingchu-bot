@@ -14,7 +14,7 @@ for module_name in ("announcement", "essence", "lifecycle", "member", "profile")
 async def import_handle() -> Any:
     """
     导入并触发 group 处理器的初始化提示。
-    
+
     该协程在运行时记录一条调试级别的本地化日志，提示“导入group处理器...”。
     """
     logger.debug(await _("导入group处理器..."))

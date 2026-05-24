@@ -33,7 +33,7 @@ async def _set_group_avatar(
 ) -> None:
     """
     根据 image_uri 的前缀选择方式并设置群头像。
-    
+
     Parameters:
     	group_id (int): 目标群号。
     	image_uri (str): 图片资源标识。接受三种形式：
@@ -61,10 +61,10 @@ async def milkybot_set_group_name(
 ) -> Any:
     """
     设置群名称。
-    
+
     Parameters:
     	new_group_name (str): 要设置的新群名称。
-    
+
     Returns:
     	Any: 群名称设置流程返回的结果。
     """
@@ -88,10 +88,10 @@ async def milkybot_set_group_avatar(
 ) -> Any:
     """
     设置群头像。
-    
+
     Parameters:
     	image_uri (str): 头像资源地址，支持本地文件路径、Base64 内容或 URL。
-    
+
     Returns:
     	Any: `run_group_action` 的返回值。
     """

@@ -60,11 +60,11 @@ async def milkybot_set_group_member_card(
 ) -> Any:
     """
     为群内指定用户设置群名片。
-    
+
     Parameters:
         user (At): 要设置名片的目标用户（消息中的 At 段或可解析的目标）。
         card (str): 要为该用户设置的群名片文本。
-    
+
     Returns:
         Any: 操作执行结果或响应，具体类型取决于底层适配器实现。
     """
@@ -90,13 +90,13 @@ async def milkybot_set_group_member_special_title(
 ) -> Any:
     """
     为指定群成员设置专属头衔。
-    
+
     根据消息中 @ 指定的目标用户，将其群内专属头衔更新为给定文本，并返回操作的执行结果。
-    
+
     Parameters:
         user (At): 消息中 @ 的目标用户。
         special_title (str): 要设置的专属头衔文本。
-    
+
     Returns:
         Any: 操作结果，通常为成功提示字符串或底层 API 的返回值。
     """
@@ -128,7 +128,7 @@ async def milkybot_set_group_member_admin(
 ) -> Any:
     """
     设置或取消指定群成员的管理员权限。
-    
+
     @param user: 要操作的目标用户（At 消息段），用于解析目标用户 ID 与显示名称。
     @param is_set: 若为 True 则设置为管理员；若为 False 则取消管理员。
     @return: 调用群组操作后的返回结果，表示执行该管理员权限变更的响应或状态。
@@ -157,10 +157,10 @@ async def milkybot_unset_group_member_admin(
 ) -> Any:
     """
     对指定群成员执行取消管理员操作。
-    
+
     Parameters:
         user (At): 表示目标用户的 At 段，用于定位要取消管理员权限的群成员。
-    
+
     Returns:
         Any: 操作的返回值，取决于底层处理器实现（例如操作响应或 None）。
     """
@@ -178,7 +178,7 @@ async def milkybot_kick_group_member(
 ) -> Any:
     """
     踢出指定群成员并返回该群操作的执行结果。
-    
+
     参数:
         user (At): 表示要被踢出的目标用户的 At 段或标识。
         reject_add_request (bool): 若为 True，则同时拒绝该用户的加群请求。

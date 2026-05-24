@@ -242,7 +242,7 @@ async def test_target_user_falls_back_to_at_display_when_mention_name_empty(
 ) -> None:
     """
     验证当匹配的 mention 的 name 为空时，目标用户展示使用 At.display 回退。
-    
+
     该测试调用设置群名片的处理函数并断言 finish 输出包含 At 的显示信息（例如 "测试用户(987654321)"）。
     """
     mock_bot.set_group_member_card = AsyncMock()

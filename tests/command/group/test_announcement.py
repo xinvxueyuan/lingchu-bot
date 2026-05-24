@@ -59,7 +59,7 @@ async def test_send_group_announcement_maps_base64_uri(
 ) -> None:
     """
     验证当 image_uri 使用 base64:// 前缀时，将其映射为 `base64` 参数并调用 send_group_announcement。
-    
+
     调用 milkybot_send_group_announcement 时传入 image_uri="base64://aGVsbG8="，断言 bot.send_group_announcement 以 group_id=mock_event.data.peer_id、content="公告" 和 base64="aGVsbG8=" 被调用一次。
     """
     mock_bot.send_group_announcement = AsyncMock()

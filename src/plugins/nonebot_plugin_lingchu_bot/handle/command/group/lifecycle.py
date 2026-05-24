@@ -26,10 +26,10 @@ async def milkybot_quit_group(
 ) -> Any:
     """
     在当前群聊中使机器人退出该群组。
-    
+
     Parameters:
         event (MilkyGroupMessageEvent): 包含目标群 ID 的群消息事件；使用 event.data.peer_id 作为要退出的群组 ID。
-    
+
     Returns:
         Any: 操作执行结果，表示退出群组请求的处理结果（具体类型由运行时实现决定）。
     """

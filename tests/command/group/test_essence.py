@@ -23,7 +23,7 @@ async def test_set_group_essence_message_calls_milky_api(
 ) -> None:
     """
     验证在设置群精华消息时会向 Milky API 发送正确的参数并产生期望的完成文案。
-    
+
     断言 bot.set_group_essence_message 被调用一次且参数包含 group_id=event.data.peer_id、message_seq=100 和 is_set=True，并且被 patch 的 finish 文本为 "设置群精华消息: 100"。
     """
     mock_bot.set_group_essence_message = AsyncMock()
@@ -99,7 +99,7 @@ async def test_set_group_essence_message_action_failed_returns_readable_message(
 ) -> None:
     """
     验证当底层抛出 ActionFailed 时，完成文案包含“设置群精华消息失败，操作被拒绝”。
-    
+
     测试通过将 mock_bot.set_group_essence_message 设置为抛出 ActionFailed，调用 milkybot_set_group_essence_message 后断言 finish 文本包含上述提示。
     """
     from nonebot.adapters.milky.exception import ActionFailed
