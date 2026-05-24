@@ -83,3 +83,65 @@ async def test_group_action_rejected_returns_readable_message(
         )
 
     assert "设置群名称失败，操作被拒绝" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_set_group_avatar_maps_file_uri(
+    mock_bot: MagicMock, mock_event: MagicMock
+) -> None:
+    mock_bot.set_group_avatar = AsyncMock()
+
+    with patch(SET_GROUP_AVATAR_FINISH) as mock_finish:
+        await milkybot_set_group_avatar(
+            image_uri="file:///tmp/avatar.png", bot=mock_bot, event=mock_event
+        )
+
+    mock_bot.set_group_avatar.assert_called_once_with(
+        group_id=mock_event.data.peer_id, path="/tmp/avatar.png"
+    )
+    assert finish_text(mock_finish) == "群头像已更新"
+
+
+@pytest.mark.asyncio
+async def test_set_group_avatar_maps_http_url(
+    mock_bot: MagicMock, mock_event: MagicMock
+) -> None:
+    mock_bot.set_group_avatar = AsyncMock()
+
+    with patch(SET_GROUP_AVATAR_FINISH) as mock_finish:
+        await milkybot_set_group_avatar(
+            image_uri="https://example.com/avatar.jpg", bot=mock_bot, event=mock_event
+        )
+
+    mock_bot.set_group_avatar.assert_called_once_with(
+        group_id=mock_event.data.peer_id, url="https://example.com/avatar.jpg"
+    )
+    assert finish_text(mock_finish) == "群头像已更新"
+
+
+@pytest.mark.asyncio
+async def test_set_group_avatar_network_error_returns_readable_message(
+    mock_bot: MagicMock, mock_event: MagicMock
+) -> None:
+    mock_bot.set_group_avatar = AsyncMock(side_effect=NetworkError("timeout"))
+
+    with patch(SET_GROUP_AVATAR_FINISH) as mock_finish:
+        await milkybot_set_group_avatar(
+            image_uri="https://example.com/avatar.jpg", bot=mock_bot, event=mock_event
+        )
+
+    assert "设置群头像失败，网络异常" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_set_group_avatar_action_failed_returns_readable_message(
+    mock_bot: MagicMock, mock_event: MagicMock
+) -> None:
+    mock_bot.set_group_avatar = AsyncMock(side_effect=ActionFailed(message="权限不足"))
+
+    with patch(SET_GROUP_AVATAR_FINISH) as mock_finish:
+        await milkybot_set_group_avatar(
+            image_uri="https://example.com/avatar.jpg", bot=mock_bot, event=mock_event
+        )
+
+    assert "设置群头像失败，操作被拒绝" in finish_text(mock_finish)
