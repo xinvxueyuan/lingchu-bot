@@ -68,7 +68,7 @@ async def test_set_group_member_admin_matches_requested_mention(
     mock_bot.set_group_member_admin.assert_called_once_with(
         group_id=mock_event.data.peer_id, user_id=987654321, is_set=True
     )
-    assert "设置群管理员: 目标用户(987654321)" in finish_text(mock_finish)
+    assert "设置群管理员: 测试用户(987654321)" in finish_text(mock_finish)
     assert "错误用户" not in finish_text(mock_finish)
 
 

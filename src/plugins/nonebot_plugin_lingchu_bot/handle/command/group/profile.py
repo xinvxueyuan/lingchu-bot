@@ -1,12 +1,54 @@
+import hashlib
+from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 from arclet.alconna import Alconna, Args
+from nonebot import get_driver
 from nonebot.adapters.milky import Bot as MilkyBot
 from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
+from nonebot.drivers import Request
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
+from nonebot_plugin_alconna.uniseg import Image as UniImage
 
+from ....core.config import plugin_config
 from ....i18n import _async as _
-from .common import run_group_action
+from .common import run_group_action_milky
+
+
+async def _resolve_image_path(image: UniImage) -> Path | None:
+    raw = getattr(image, "raw", None)
+    if raw is not None:
+        raw_bytes = raw.getvalue() if isinstance(raw, BytesIO) else raw
+        cache_dir = plugin_config.cache_dir / "announcement_images"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        md5 = hashlib.md5(raw_bytes).hexdigest()
+        cache_path = cache_dir / f"{md5}.png"
+        cache_path.write_bytes(raw_bytes)
+        return cache_path
+
+    path = getattr(image, "path", None)
+    if path is not None:
+        return Path(path)
+
+    url = getattr(image, "url", None)
+    if url is not None:
+        driver = get_driver()
+        get_session = getattr(driver, "get_session", None)
+        if get_session is not None:
+            async with get_session() as session:
+                request = Request("GET", url)
+                response = await session.request(request)
+                content = response.content
+                cache_dir = plugin_config.cache_dir / "announcement_images"
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                md5 = hashlib.md5(content).hexdigest()
+                cache_path = cache_dir / f"{md5}.png"
+                cache_path.write_bytes(content)
+                return cache_path
+
+    return None
+
 
 set_group_name_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna("设置群名称", Args["new_group_name", str]),
@@ -17,41 +59,13 @@ set_group_name_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_start=True,
 )
 set_group_avatar_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna("设置群头像", Args["image_uri", str]),
+    command=Alconna("设置群头像", Args["image", UniImage]),
     aliases={"改群头像", "修改群头像"},
     priority=5,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,
 )
-
-
-async def _set_group_avatar(
-    bot: MilkyBot,
-    group_id: int,
-    image_uri: str,
-) -> None:
-    """
-    根据 image_uri 的前缀选择方式并设置群头像。
-
-    Parameters:
-        group_id (int): 目标群号。
-        image_uri (str): 图片资源标识。接受三种形式：
-                - 以 "file://" 开头，表示本地文件路径（使用去除前缀的路径作为文件）。
-                - 以 "base64://" 开头，表示 base64 编码的图片内容
-            （使用去除前缀的 base64 字符串）。
-                - 其它情况视为图片 URL。
-    """
-    if image_uri.startswith("file://"):
-        await bot.set_group_avatar(
-            group_id=group_id, path=image_uri.removeprefix("file://")
-        )
-    elif image_uri.startswith("base64://"):
-        await bot.set_group_avatar(
-            group_id=group_id, base64=image_uri.removeprefix("base64://")
-        )
-    else:
-        await bot.set_group_avatar(group_id=group_id, url=image_uri)
 
 
 @set_group_name_cmd.handle()
@@ -69,7 +83,7 @@ async def milkybot_set_group_name(
     Returns:
         Any: 群名称设置流程返回的结果。
     """
-    return await run_group_action(
+    return await run_group_action_milky(
         set_group_name_cmd,
         await _("设置群名称"),
         lambda: bot.set_group_name(
@@ -83,22 +97,14 @@ async def milkybot_set_group_name(
 
 @set_group_avatar_cmd.handle()
 async def milkybot_set_group_avatar(
-    image_uri: str,
+    image: UniImage,
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
-    """
-    设置群头像。
-
-    Parameters:
-        image_uri (str): 头像资源地址，支持本地文件路径、Base64 内容或 URL。
-
-    Returns:
-        Any: `run_group_action` 的返回值。
-    """
-    return await run_group_action(
+    image_path = await _resolve_image_path(image)
+    return await run_group_action_milky(
         set_group_avatar_cmd,
         await _("设置群头像"),
-        lambda: _set_group_avatar(bot, event.data.peer_id, image_uri),
+        lambda: bot.set_group_avatar(group_id=event.data.peer_id, path=image_path),
         await _("群头像已更新"),
     )

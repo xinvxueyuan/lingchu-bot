@@ -1,15 +1,60 @@
+import hashlib
+from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 from arclet.alconna import Alconna, Args
+from nonebot import get_driver
 from nonebot.adapters.milky import Bot as MilkyBot
 from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
+from nonebot.adapters.onebot.v11 import Bot as OneBot
+from nonebot.adapters.onebot.v11.event import GroupMessageEvent as OneGroupMessageEvent
+from nonebot.drivers import Request
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
+from nonebot_plugin_alconna.uniseg import Image as UniImage
+from packaging.version import InvalidVersion, parse
 
+from ....core.config import plugin_config
 from ....i18n import _async as _
-from .common import run_group_action
+from .common import run_group_action_milky, run_group_action_onebot11
+
+
+async def _resolve_image_path(image: UniImage) -> Path | None:
+    raw = getattr(image, "raw", None)
+    if raw is not None:
+        raw_bytes = raw.getvalue() if isinstance(raw, BytesIO) else raw
+        cache_dir = plugin_config.cache_dir / "announcement_images"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        md5 = hashlib.md5(raw_bytes).hexdigest()
+        cache_path = cache_dir / f"{md5}.png"
+        cache_path.write_bytes(raw_bytes)
+        return cache_path
+
+    path = getattr(image, "path", None)
+    if path is not None:
+        return Path(path)
+
+    url = getattr(image, "url", None)
+    if url is not None:
+        driver = get_driver()
+        get_session = getattr(driver, "get_session", None)
+        if get_session is not None:
+            async with get_session() as session:
+                request = Request("GET", url)
+                response = await session.request(request)
+                content = response.content
+                cache_dir = plugin_config.cache_dir / "announcement_images"
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                md5 = hashlib.md5(content).hexdigest()
+                cache_path = cache_dir / f"{md5}.png"
+                cache_path.write_bytes(content)
+                return cache_path
+
+    return None
+
 
 send_group_announcement_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna("发送群公告", Args["content", str]["image_uri?", str, None]),
+    command=Alconna("发送群公告", Args["content", str]["image?", UniImage, None]),
     aliases={"发群公告", "群公告"},
     priority=5,
     block=True,
@@ -18,66 +63,76 @@ send_group_announcement_cmd: type[AlconnaMatcher] = on_alconna(
 )
 
 
-async def _send_group_announcement(
-    bot: MilkyBot,
-    group_id: int,
-    content: str,
-    image_uri: str | None,
-) -> None:
-    """
-    发送群公告到指定群，支持本地文件、Base64 字符串和 URL 三种图片来源。
-
-    如果 image_uri 为 None 则仅发送文本内容；否则根据 image_uri 前缀选择图片参数：
-    - 以 "file://" 开头时将其余部分作为本地文件路径；
-    - 以 "base64://" 开头时将其余部分作为 Base64 编码内容；
-    - 其他情况视为图片的 URL。
-    """
-    if image_uri is None:
-        await bot.send_group_announcement(group_id=group_id, content=content)
-    elif image_uri.startswith("file://"):
-        await bot.send_group_announcement(
-            group_id=group_id,
-            content=content,
-            path=image_uri.removeprefix("file://"),
-        )
-    elif image_uri.startswith("base64://"):
-        await bot.send_group_announcement(
-            group_id=group_id,
-            content=content,
-            base64=image_uri.removeprefix("base64://"),
-        )
-    else:
-        await bot.send_group_announcement(
-            group_id=group_id,
-            content=content,
-            url=image_uri,
-        )
-
-
 @send_group_announcement_cmd.handle()
 async def milkybot_send_group_announcement(
     content: str,
-    image_uri: str | None,
+    image: UniImage,
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
-    """
-    处理“发送群公告”命令并在对应群组发送文本与可选图片公告。
+    image_path = await _resolve_image_path(image)
+    impl_info = await bot.get_impl_info()
 
-    Parameters:
-        content (str): 公告文本内容。
-        image_uri (str | None): 可选图片资源定位；支持三种格式：以
-        `file://`开头表示本地文件路径，以`base64://`开头表示图片的 Base64 编码，
-        其余视作图片 URL。为 None 时仅发送文本公告。
-        bot: 由框架提供的 MilkyBot 实例（省略常见服务的详细说明）。
-        event: 群消息事件对象，用于获取目标群 ID（省略常见事件参数的详细说明）。
+    match impl_info.impl_name:
+        case "LLBot":
+            pass
+        case _:
+            await send_group_announcement_cmd.finish(await _("不支持的 Milky 实现"))
+            return
 
-    Returns:
-        Any: 发送操作的结果或状态信息，具体格式由底层实现决定。
-    """
-    return await run_group_action(
+    await run_group_action_milky(
         send_group_announcement_cmd,
         await _("发送群公告"),
-        lambda: _send_group_announcement(bot, event.data.peer_id, content, image_uri),
+        lambda: bot.send_group_announcement(
+            group_id=event.data.peer_id,
+            content=content,
+            path=image_path,
+        ),
+        await _("群公告已发送"),
+    )
+
+
+async def onebot_v11_send_group_announcement(
+    content: str,
+    image: UniImage,
+    bot: OneBot,
+    event: OneGroupMessageEvent,
+) -> Any:
+    image_path = await _resolve_image_path(image)
+    version_info = await bot.get_version_info()
+
+    if version_info.get("data", {}).get("protocol_version") != "v11":
+        await send_group_announcement_cmd.finish(await _("不支持的 OneBot 协议版本"))
+    if version_info.get("status") != "ok":
+        await send_group_announcement_cmd.finish(await _("OneBot 状态异常"))
+    if version_info.get("retcode", -1) != 0:
+        await send_group_announcement_cmd.finish(await _("OneBot 调用失败"))
+
+    raw_version = version_info.get("data", {}).get("version", "0")
+    try:
+        current_version = parse(raw_version)
+    except InvalidVersion:
+        current_version = parse("0")
+
+    app_name = version_info.get("data", {}).get("app_name")
+
+    match app_name:
+        case "LLOneBot" if current_version >= parse("7.12.0"):
+            pass
+        case "NapCat.Onebot" if current_version >= parse("4.18.0"):
+            pass
+        case _:
+            await send_group_announcement_cmd.finish(await _("不支持的 OneBot 版本"))
+            return
+
+    await run_group_action_onebot11(
+        send_group_announcement_cmd,
+        await _("发送群公告"),
+        lambda: bot.call_api(
+            "_send_group_notice",
+            group_id=event.group_id,
+            content=content,
+            image=image_path,
+        ),
         await _("群公告已发送"),
     )

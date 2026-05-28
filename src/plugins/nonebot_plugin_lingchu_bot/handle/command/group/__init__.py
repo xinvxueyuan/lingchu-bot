@@ -7,7 +7,7 @@ from ....i18n import _async as _
 
 __all__ = ("import_handle",)
 
-for module_name in ("announcement", "essence", "lifecycle", "member", "profile"):
+for module_name in ("announcement", "lifecycle", "member", "profile"):
     import_module(f"{__name__}.{module_name}")
 
 

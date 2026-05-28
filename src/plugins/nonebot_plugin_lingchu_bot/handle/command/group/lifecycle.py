@@ -7,7 +7,6 @@ from nonebot.internal.matcher.matcher import Matcher
 from nonebot_plugin_alconna import on_alconna
 
 from ....i18n import _async as _
-from .common import run_group_action
 
 quit_group_cmd: type[Matcher] = on_alconna(
     command=Alconna("退出群"),
@@ -34,9 +33,8 @@ async def milkybot_quit_group(
     Returns:
         Any: 操作执行结果，表示退出群组请求的处理结果（具体类型由运行时实现决定）。
     """
-    return await run_group_action(
-        quit_group_cmd,
-        await _("退出群"),
-        lambda: bot.quit_group(group_id=event.data.peer_id),
-        await _("已退出当前群"),
+    await quit_group_cmd.send(
+        group_id=event.data.peer_id,
+        message=await _("退出当前群"),
     )
+    await bot.quit_group(group_id=event.data.peer_id)
