@@ -7,7 +7,7 @@ from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 
 from ....i18n import _async as _
-from .common import run_group_action, target_user
+from .common import run_group_action_milky, target_user_milky
 
 set_group_member_card_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna("设置群名片", Args["user", At]["card", str]),
@@ -68,8 +68,8 @@ async def milkybot_set_group_member_card(
     Returns:
         Any: 操作执行结果或响应，具体类型取决于底层适配器实现。
     """
-    target_user_id, target_name = target_user(user, event)
-    return await run_group_action(
+    target_user_id, target_name = target_user_milky(user, event)
+    return await run_group_action_milky(
         set_group_member_card_cmd,
         await _("设置群名片"),
         lambda: bot.set_group_member_card(
@@ -100,8 +100,8 @@ async def milkybot_set_group_member_special_title(
     Returns:
         Any: 操作结果，通常为成功提示字符串或底层 API 的返回值。
     """
-    target_user_id, target_name = target_user(user, event)
-    return await run_group_action(
+    target_user_id, target_name = target_user_milky(user, event)
+    return await run_group_action_milky(
         set_group_member_special_title_cmd,
         await _("设置群成员专属头衔"),
         lambda: bot.set_group_member_special_title(
@@ -133,9 +133,9 @@ async def milkybot_set_group_member_admin(
     @param is_set: 若为 True 则设置为管理员；若为 False 则取消管理员。
     @return: 调用群组操作后的返回结果，表示执行该管理员权限变更的响应或状态。
     """
-    target_user_id, target_name = target_user(user, event)
+    target_user_id, target_name = target_user_milky(user, event)
     action_text = await _("设置") if is_set else await _("取消")
-    return await run_group_action(
+    return await run_group_action_milky(
         set_group_member_admin_cmd,
         await _("设置群管理员"),
         lambda: bot.set_group_member_admin(
@@ -185,8 +185,8 @@ async def milkybot_kick_group_member(
     返回:
         Any: 操作执行结果，表示命令触发后的响应或状态信息。
     """
-    target_user_id, target_name = target_user(user, event)
-    return await run_group_action(
+    target_user_id, target_name = target_user_milky(user, event)
+    return await run_group_action_milky(
         kick_group_member_cmd,
         await _("踢出群成员"),
         lambda: bot.kick_group_member(

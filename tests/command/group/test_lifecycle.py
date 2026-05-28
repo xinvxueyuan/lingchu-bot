@@ -9,50 +9,47 @@ import pytest
 from src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.lifecycle import (
     milkybot_quit_group,
 )
-from tests.command.group.conftest import finish_text
 
-QUIT_GROUP_FINISH = (
+QUIT_GROUP_SEND = (
     "src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.lifecycle."
-    "quit_group_cmd.finish"
+    "quit_group_cmd.send"
 )
 
 
 @pytest.mark.asyncio
-async def test_quit_group_calls_milky_api(
+async def test_quit_group_sends_message_and_calls_api(
     mock_bot: MagicMock, mock_event: MagicMock
 ) -> None:
     mock_bot.quit_group = AsyncMock()
 
-    with patch(QUIT_GROUP_FINISH) as mock_finish:
+    with patch(QUIT_GROUP_SEND) as mock_send:
         await milkybot_quit_group(bot=mock_bot, event=mock_event)
 
+    mock_send.assert_called_once_with(
+        group_id=mock_event.data.peer_id, message="退出当前群"
+    )
     mock_bot.quit_group.assert_called_once_with(group_id=mock_event.data.peer_id)
-    assert finish_text(mock_finish) == "已退出当前群"
 
 
 @pytest.mark.asyncio
-async def test_quit_group_network_error_returns_readable_message(
+async def test_quit_group_propagates_network_error(
     mock_bot: MagicMock, mock_event: MagicMock
 ) -> None:
     from nonebot.adapters.milky.exception import NetworkError
 
     mock_bot.quit_group = AsyncMock(side_effect=NetworkError("connection refused"))
 
-    with patch(QUIT_GROUP_FINISH) as mock_finish:
+    with patch(QUIT_GROUP_SEND), pytest.raises(NetworkError):
         await milkybot_quit_group(bot=mock_bot, event=mock_event)
-
-    assert "退出群失败，网络异常" in finish_text(mock_finish)
 
 
 @pytest.mark.asyncio
-async def test_quit_group_action_failed_returns_readable_message(
+async def test_quit_group_propagates_action_failed_error(
     mock_bot: MagicMock, mock_event: MagicMock
 ) -> None:
     from nonebot.adapters.milky.exception import ActionFailed
 
     mock_bot.quit_group = AsyncMock(side_effect=ActionFailed(message="操作失败"))
 
-    with patch(QUIT_GROUP_FINISH) as mock_finish:
+    with patch(QUIT_GROUP_SEND), pytest.raises(ActionFailed):
         await milkybot_quit_group(bot=mock_bot, event=mock_event)
-
-    assert "退出群失败，操作被拒绝" in finish_text(mock_finish)

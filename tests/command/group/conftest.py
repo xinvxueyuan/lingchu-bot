@@ -12,12 +12,17 @@ def finish_text(mock_finish: MagicMock) -> str:
 
     Parameters:
         mock_finish (MagicMock): 表示被调用的 `finish` 的 mock；
-            函数最近一次调用的关键字参数中应包含 `"message"`。
+            函数最近一次调用可能包含 "message" 关键字参数或位置参数。
 
     Returns:
         str: 最近一次 `finish` 调用中 `message` 参数的字符串表示。
     """
-    return str(mock_finish.call_args.kwargs["message"])
+    call_args = mock_finish.call_args
+    if "message" in call_args.kwargs:
+        return str(call_args.kwargs["message"])
+    if call_args.args:
+        return str(call_args.args[0])
+    return ""
 
 
 @pytest.fixture

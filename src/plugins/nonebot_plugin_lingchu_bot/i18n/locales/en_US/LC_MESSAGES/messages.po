@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nonebot-plugin-lingchu-bot 0.0.0.dev8\n"
 "Report-Msgid-Bugs-To: xinvxueyuan@yeah.net\n"
-"POT-Creation-Date: 2026-05-24 16:00+0800\n"
+"POT-Creation-Date: 2026-05-29 00:40+0800\n"
 "PO-Revision-Date: 2026-05-20 00:00+0800\n"
 "Last-Translator: xinvxueyuan <xinvxueyuan@yeah.net>\n"
 "Language: en_US\n"
@@ -132,104 +132,117 @@ msgstr "Whole-group mute disabled"
 msgid "导入mute处理器..."
 msgstr "Importing mute handlers..."
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/__init__.py:16
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/__init__.py:20
 msgid "导入group处理器..."
 msgstr "Importing group handlers..."
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:58
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:80
+msgid "不支持的 Milky 实现"
+msgstr "Unsupported Milky implementation"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:85
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:130
 msgid "发送群公告"
 msgstr "Send group announcement"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:60
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:91
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:137
 msgid "群公告已发送"
 msgstr "Group announcement sent"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/common.py:35
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:105
+msgid "不支持的 OneBot 协议版本"
+msgstr "Unsupported OneBot protocol version"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:107
+msgid "OneBot 状态异常"
+msgstr "OneBot status abnormal"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:109
+msgid "OneBot 调用失败"
+msgstr "OneBot call failed"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:125
+msgid "不支持的 OneBot 版本"
+msgstr "Unsupported OneBot version"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/common.py:57
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/common.py:99
+msgid "协议端功能异常，等待上游修复"
+msgstr "Protocol error, waiting for upstream fix"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/common.py:207
 #, python-brace-format
 msgid "{operation}失败，网络异常: {error!r}"
 msgstr "{operation} failed, network error: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/common.py:42
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/common.py:214
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/common.py:267
 #, python-brace-format
 msgid "{operation}失败，操作被拒绝: {error!r}"
 msgstr "{operation} failed, operation rejected: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/essence.py:36
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:108
-msgid "设置"
-msgstr "Set"
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/lifecycle.py:38
+msgid "退出当前群"
+msgstr "Leave current group"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/essence.py:36
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:108
-msgid "取消"
-msgstr "Unset"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/essence.py:39
-msgid "设置群精华消息"
-msgstr "Set group essence message"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/essence.py:43
-#, python-brace-format
-msgid "{action}群精华消息: {message_seq}"
-msgstr "{action} group essence message: {message_seq}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/lifecycle.py:29
-msgid "退出群"
-msgstr "Leave group"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/lifecycle.py:31
-msgid "已退出当前群"
-msgstr "Left current group"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:64
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:74
 msgid "设置群名片"
 msgstr "Set group member card"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:68
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:78
 #, python-brace-format
 msgid "已设置群名片: {target_name}({target_user_id}) -> {card}"
 msgstr "Group member card set: {target_name}({target_user_id}) -> {card}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:84
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:106
 msgid "设置群成员专属头衔"
 msgstr "Set group member special title"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:91
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:113
 #, python-brace-format
 msgid "已设置群头衔: {target_name}({target_user_id}) -> {special_title}"
 msgstr "Group title set: {target_name}({target_user_id}) -> {special_title}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:111
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:137
+msgid "设置"
+msgstr "Set"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:137
+msgid "取消"
+msgstr "Unset"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:140
 msgid "设置群管理员"
 msgstr "Set group admin"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:115
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:144
 #, python-brace-format
 msgid "{action}群管理员: {target_name}({target_user_id})"
 msgstr "{action} group admin: {target_name}({target_user_id})"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:144
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:191
 msgid "踢出群成员"
 msgstr "Kick group member"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:150
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/member.py:197
 #, python-brace-format
 msgid "已踢出群成员: {target_name}({target_user_id})"
 msgstr "Group member kicked: {target_name}({target_user_id})"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/profile.py:54
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/profile.py:88
 msgid "设置群名称"
 msgstr "Set group name"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/profile.py:58
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/profile.py:92
 #, python-brace-format
 msgid "群名称已设置为: {new_group_name}"
 msgstr "Group name set to: {new_group_name}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/profile.py:72
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/profile.py:107
 msgid "设置群头像"
 msgstr "Set group avatar"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/profile.py:74
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/profile.py:109
 msgid "群头像已更新"
 msgstr "Group avatar updated"
