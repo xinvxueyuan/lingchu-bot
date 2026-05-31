@@ -16,7 +16,9 @@ from ....i18n import _async as _
 from .common import run_group_action_milky
 
 
-async def _resolve_image_path(image: UniImage) -> Path | None:
+async def _resolve_image_path(image: UniImage | None) -> Path | None:
+    if image is None:
+        return None
     raw = getattr(image, "raw", None)
     if raw is not None:
         raw_bytes = raw.getvalue() if isinstance(raw, BytesIO) else raw
@@ -59,7 +61,7 @@ set_group_name_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_start=True,
 )
 set_group_avatar_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna("设置群头像", Args["image", UniImage]),
+    command=Alconna("设置群头像", Args["image", UniImage | None]),
     aliases={"改群头像", "修改群头像"},
     priority=5,
     block=True,
@@ -97,11 +99,13 @@ async def milkybot_set_group_name(
 
 @set_group_avatar_cmd.handle()
 async def milkybot_set_group_avatar(
-    image: UniImage,
+    image: UniImage | None,
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
     image_path = await _resolve_image_path(image)
+    if image_path is None:
+        await set_group_avatar_cmd.finish(await _("请上传一张图片"))
     return await run_group_action_milky(
         set_group_avatar_cmd,
         await _("设置群头像"),

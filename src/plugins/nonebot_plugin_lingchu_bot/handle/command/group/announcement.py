@@ -7,8 +7,10 @@ from arclet.alconna import Alconna, Args
 from nonebot import get_driver
 from nonebot.adapters.milky import Bot as MilkyBot
 from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
-from nonebot.adapters.onebot.v11 import Bot as OneBot
-from nonebot.adapters.onebot.v11.event import GroupMessageEvent as OneGroupMessageEvent
+from nonebot.adapters.onebot.v11 import Bot as OneBot11
+from nonebot.adapters.onebot.v11.event import (
+    GroupMessageEvent as OneBBot11_GroupMessageEvent,
+)
 from nonebot.drivers import Request
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import Image as UniImage
@@ -62,20 +64,46 @@ send_group_announcement_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_start=True,
 )
 
+# test_onebot_v11_send_group_announcement_cmd: type[AlconnaMatcher] = on_alconna(
+#     command=Alconna(
+#         "测试onebotv11发送群公告", Args["content", str]["image?", UniImage, None]
+#     ),
+#     aliases={"测试onebotv11发送群公告", "测试onebotv11群公告"},
+#     priority=5,
+#     block=True,
+#     use_cmd_sep=True,
+#     use_cmd_start=True,
+# )
+
+# test_milkybot_send_group_announcement_cmd: type[AlconnaMatcher] = on_alconna(
+#     command=Alconna(
+#         "测试milkybot发送群公告", Args["content", str]["image?", UniImage, None]
+#     ),
+#     aliases={"测试milkybot发送群公告", "测试milkybot群公告"},
+#     priority=5,
+#     block=True,
+#     use_cmd_sep=True,
+#     use_cmd_start=True,
+# )
+
 
 @send_group_announcement_cmd.handle()
 async def milkybot_send_group_announcement(
     content: str,
-    image: UniImage,
+    image: UniImage | None,
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
-) -> Any:
-    image_path = await _resolve_image_path(image)
+) -> None:
+    image_path = await _resolve_image_path(image) if image is not None else None
     impl_info = await bot.get_impl_info()
 
     match impl_info.impl_name:
         case "LLBot":
-            pass
+            if image is not None:
+                await send_group_announcement_cmd.finish(
+                    await _("协议端功能异常，等待上游修复")
+                )
+                return
         case _:
             await send_group_announcement_cmd.finish(await _("不支持的 Milky 实现"))
             return
@@ -94,11 +122,11 @@ async def milkybot_send_group_announcement(
 
 async def onebot_v11_send_group_announcement(
     content: str,
-    image: UniImage,
-    bot: OneBot,
-    event: OneGroupMessageEvent,
-) -> Any:
-    image_path = await _resolve_image_path(image)
+    image: UniImage | None,
+    bot: OneBot11,
+    event: OneBBot11_GroupMessageEvent,
+) -> None:
+    image_path = await _resolve_image_path(image) if image is not None else None
     version_info = await bot.get_version_info()
 
     if version_info.get("data", {}).get("protocol_version") != "v11":
