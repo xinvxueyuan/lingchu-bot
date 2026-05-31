@@ -166,6 +166,7 @@ msgstr "OneBot call failed"
 msgid "不支持的 OneBot 版本"
 msgstr "Unsupported OneBot version"
 
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/announcement.py:93
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/common.py:57
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/common.py:99
 msgid "协议端功能异常，等待上游修复"
