@@ -31,7 +31,7 @@ tasks:
       - uv run -m ruff check . --output-format=github
       - uv run -m ruff format --check .
       - pnpm exec markdownlint-cli2 {{.MD_GLOB}}
-      - pnpm turbo run lint
+      - pnpm turbo run lint --log-order=stream
       - uv run -m pyright .
       - uv run -m ty check --output-format github
       - pnpm turbo run check-types
