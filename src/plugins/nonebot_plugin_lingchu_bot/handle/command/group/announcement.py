@@ -1,7 +1,6 @@
 import hashlib
 from io import BytesIO
 from pathlib import Path
-from typing import Any
 
 from arclet.alconna import Alconna, Args
 from nonebot import get_driver
