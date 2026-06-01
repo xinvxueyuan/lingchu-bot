@@ -1,4 +1,4 @@
-FROM python:3.13 as requirements_stage
+FROM python:3.13 AS requirements_stage
 
 WORKDIR /wheel
 
@@ -34,6 +34,11 @@ COPY --from=requirements_stage /wheel /wheel
 
 RUN pip install --no-cache-dir gunicorn uvicorn[standard] nonebot2 \
   && pip install --no-cache-dir --no-index --force-reinstall --find-links=/wheel -r /wheel/requirements.txt && rm -rf /wheel
-COPY . /app/
+RUN groupadd --system app \
+  && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app \
+  && chown -R app:app /app /start.sh /gunicorn_conf.py
+COPY --chown=app:app . /app/
+
+USER app
 
 CMD ["/start.sh"]

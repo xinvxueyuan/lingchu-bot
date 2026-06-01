@@ -1,5 +1,6 @@
 'use client';
 
+import DOMPurify from 'dompurify';
 import { use, useId, useSyncExternalStore } from 'react';
 import { useTheme } from 'next-themes';
 
@@ -22,6 +23,27 @@ export function Mermaid({ chart }: { chart: string }) {
 
 const cache = new Map<string, Promise<unknown>>();
 
+export function getMermaidConfig(resolvedTheme?: string) {
+    return {
+        startOnLoad: false,
+        securityLevel: 'strict' as const,
+        htmlLabels: false,
+        flowchart: {
+            htmlLabels: false,
+        },
+        fontFamily: 'inherit',
+        themeCSS: 'margin: 1.5rem auto 0;',
+        theme: resolvedTheme === 'dark' ? 'dark' as const : 'default' as const,
+    };
+}
+
+export function sanitizeMermaidSvg(svg: string) {
+    return DOMPurify.sanitize(svg, {
+        RETURN_TRUSTED_TYPE: false,
+        USE_PROFILES: { svg: true, svgFilters: true },
+    });
+}
+
 function cachePromise<T>(key: string, setPromise: () => Promise<T>): Promise<T> {
     const cached = cache.get(key);
     if (cached) return cached as Promise<T>;
@@ -36,26 +58,31 @@ function MermaidContent({ chart }: { chart: string }) {
     const { resolvedTheme } = useTheme();
     const { default: mermaid } = use(cachePromise('mermaid', () => import('mermaid')));
 
-    mermaid.initialize({
-        startOnLoad: false,
-        securityLevel: 'loose',
-        fontFamily: 'inherit',
-        themeCSS: 'margin: 1.5rem auto 0;',
-        theme: resolvedTheme === 'dark' ? 'dark' : 'default',
-    });
+    mermaid.initialize(getMermaidConfig(resolvedTheme));
 
     const { svg, bindFunctions } = use(
         cachePromise(`${chart}-${resolvedTheme}`, () => {
             return mermaid.render(id, chart.replaceAll('\\n', '\n'));
         }),
     );
+    const sanitizedSvg = sanitizeMermaidSvg(svg);
 
     return (
         <div
             ref={(container) => {
-                if (container) bindFunctions?.(container);
+                if (!container) return;
+
+                const svgDocument = new DOMParser().parseFromString(sanitizedSvg, 'image/svg+xml');
+                const svgElement = svgDocument.documentElement;
+
+                if (svgElement.nodeName.toLowerCase() === 'parsererror') {
+                    container.replaceChildren();
+                    return;
+                }
+
+                container.replaceChildren(container.ownerDocument.importNode(svgElement, true));
+                bindFunctions?.(container);
             }}
-            dangerouslySetInnerHTML={{ __html: svg }}
         />
     );
 }

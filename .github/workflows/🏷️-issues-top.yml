@@ -15,7 +15,8 @@ jobs:
         steps:
             - id: check
               name: Check open issues
-              uses: actions/github-script@v9.0.0
+              # pinned from actions/github-script@v9.0.0
+              uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71
               with:
                   script: |
                       const owner = context.repo.owner;
@@ -36,7 +37,8 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Run top issues action
-              uses: rickstaa/top-issues-action@v1.3.101
+              # pinned from rickstaa/top-issues-action@v1.3.101
+              uses: rickstaa/top-issues-action@0a79beccd974036d3dcedf7f021ec3e14b7a3e16
               env:
                   github_token: ${{ secrets.GITHUB_TOKEN }}
               with:
