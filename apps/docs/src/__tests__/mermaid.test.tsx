@@ -35,13 +35,14 @@ describe('Mermaid', () => {
 
   it('sanitizes Mermaid SVG before rendering', () => {
     const sanitizedSvg = sanitizeMermaidSvg(
-      '<svg><script>alert(1)</script><g onclick="alert(1)"><text>safe</text></g></svg>',
+      '<svg><style>.node{fill:red}</style><script>alert(1)</script><g onclick="alert(1)"><text>safe</text></g></svg>',
     );
     const element = new DOMParser().parseFromString(sanitizedSvg, 'image/svg+xml').documentElement;
 
+    expect(element.querySelector('style')?.textContent).toBe('.node{fill:red}');
     expect(element.querySelector('script')).not.toBeInTheDocument();
     expect(element.querySelector('[onclick]')).not.toBeInTheDocument();
-    expect(element.textContent).toBe('safe');
+    expect(element.querySelector('text')?.textContent).toBe('safe');
   });
 
   it('does not render Mermaid content before mount', () => {

@@ -41,6 +41,7 @@ export function sanitizeMermaidSvg(svg: string) {
     return DOMPurify.sanitize(svg, {
         RETURN_TRUSTED_TYPE: false,
         USE_PROFILES: { svg: true, svgFilters: true },
+        ADD_TAGS: ['style'],
     });
 }
 
