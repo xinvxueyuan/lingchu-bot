@@ -1,7 +1,7 @@
 'use client';
 
 import DOMPurify from 'dompurify';
-import { use, useId, useSyncExternalStore } from 'react';
+import { use, useId, useMemo, useSyncExternalStore } from 'react';
 import { useTheme } from 'next-themes';
 
 const emptySubscribe = () => () => { };
@@ -80,13 +80,11 @@ function MermaidContent({ chart }: { chart: string }) {
     const { resolvedTheme } = useTheme();
     const { default: mermaid } = use(cachePromise('mermaid', () => import('mermaid')));
 
-    mermaid.initialize(getMermaidConfig(resolvedTheme));
-
-    const { svg, bindFunctions } = use(
-        cachePromise(`${id}-${chart}-${resolvedTheme}`, () => {
-            return mermaid.render(id, chart.replaceAll('\\n', '\n'));
-        }),
-    );
+    const renderPromise = useMemo(() => {
+        mermaid.initialize(getMermaidConfig(resolvedTheme));
+        return mermaid.render(id, chart.replaceAll('\\n', '\n'));
+    }, [chart, id, mermaid, resolvedTheme]);
+    const { svg, bindFunctions } = use(renderPromise);
     const sanitizedSvg = sanitizeMermaidSvg(svg);
 
     return (
