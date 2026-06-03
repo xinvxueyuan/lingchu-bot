@@ -1,6 +1,7 @@
 from typing import Any
 
 from arclet.alconna import Alconna, Args
+from nonebot import logger
 from nonebot.adapters.milky import Bot as MilkyBot
 from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
@@ -198,3 +199,7 @@ async def milkybot_kick_group_member(
             target_name=target_name, target_user_id=target_user_id
         ),
     )
+
+
+async def import_handle() -> Any:
+    logger.debug(await _("导入member处理器..."))

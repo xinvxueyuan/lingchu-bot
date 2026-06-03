@@ -1,6 +1,7 @@
 from typing import Any
 
 from arclet.alconna import Alconna
+from nonebot import logger
 from nonebot.adapters.milky import Bot as MilkyBot
 from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
 from nonebot.internal.matcher.matcher import Matcher
@@ -38,3 +39,7 @@ async def milkybot_quit_group(
         message=await _("退出当前群"),
     )
     await bot.quit_group(group_id=event.data.peer_id)
+
+
+async def import_handle() -> Any:
+    logger.debug(await _("导入lifecycle处理器..."))
