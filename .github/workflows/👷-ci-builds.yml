@@ -59,9 +59,6 @@ jobs:
         # pinned from actions/checkout@v6.0.2
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
-      - name: 🧠 Update GitNexus index
-        run: npx --yes gitnexus analyze
-
       - name: ⚡ Setup Node
         # pinned from actions/setup-node@v6.4.0
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
@@ -70,7 +67,7 @@ jobs:
 
       - name: 📦 Setup pnpm
         # pinned from pnpm/action-setup@v6.0.8
-        uses: pnpm/action-setup@d15e628ca66d93ee5f352c71671a7bc6a97af5c9
+        uses: pnpm/action-setup@d15a628ca66d93ee5f352c71671a7bc6a97af5c9
 
       - name: 📦 Install Node dependencies
         run: pnpm install --frozen-lockfile
@@ -117,9 +114,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 🧠 Update GitNexus index
-        run: npx --yes gitnexus analyze
-
       - name: ⚡ Setup Node
         # pinned from actions/setup-node@v6.4.0
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
@@ -128,7 +122,7 @@ jobs:
 
       - name: 📦 Setup pnpm
         # pinned from pnpm/action-setup@v6.0.8
-        uses: pnpm/action-setup@d15e628ca66d93ee5f352c71671a7bc6a97af5c9
+        uses: pnpm/action-setup@d15a628ca66d93ee5f352c71671a7bc6a97af5c9
 
       - name: 📦 Install Node dependencies
         run: pnpm install --frozen-lockfile
