@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-lingchu-bot"
-version = "0.0.0.dev29"
+version = "0.0.0.dev30"
 # dynamic = ["version"]
 description = "由NoneBot2驱动，符合 PEP8 规范的管理机器人"
 keywords = ["nonebot2", "nonebot", "bot", "qq", "milky", "group-management"]

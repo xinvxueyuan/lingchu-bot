@@ -107,7 +107,7 @@ class Config(BaseModel):
 
     """
 
-    core_version: str = "0.0.0.dev29"
+    core_version: str = "0.0.0.dev30"
     superuser_key: str = "123456789abcdef"
     data_dir: Path = Field(default_factory=get_plugin_data_dir)
     config_dir: Path = Field(default_factory=get_plugin_config_dir)
