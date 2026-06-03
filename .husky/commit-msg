@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Commit Message 校验: gitmoji + Conventional Commits
+# 规范: https://gitmoji.dev/  |  https://www.conventionalcommits.org/
+
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+echo "🔍 正在校验 Commit Message 格式..."
+
+# 取第一条非注释、非空行作为待校验内容(避免被 Git 自动生成的注释污染)
+CLEAN_MSG=$(printf '%s\n' "$COMMIT_MSG" | grep -v '^#' | grep -v '^[[:space:]]*$' | head -1)
+
+if [ -z "$CLEAN_MSG" ]; then
+    echo "❌ 错误: 提交信息不能为空！"
+    exit 1
+fi
+
+# gitmoji 官方 emoji 列表(来源: https://gitmoji.dev/)
+# 包含 variation selector(️)以与 gitmoji.dev 严格对齐
+GITMOJI=(
+    "🎨" "⚡️" "🔥" "🐛" "🚑️" "✨" "📝" "🚀" "💄" "🎉"
+    "✅" "🔒️" "🔐" "🔖" "🚨" "🚧" "💚" "⬇️" "⬆️" "📌"
+    "👷" "📈" "♻️" "➕" "➖" "🔧" "🔨" "🌐" "✏️" "💩"
+    "⏪️" "🔀" "📦️" "👽️" "🚚" "📄" "💥" "🍱" "♿️" "💡"
+    "🍻" "💬" "🗃️" "🔊" "🔇" "👥" "🚸" "🏗️" "📱" "🤡"
+    "🥚" "🙈" "📸" "⚗️" "🔍️" "🏷️" "🌱" "🚩" "🥅" "💫"
+    "🗑️" "🛂" "🩹" "🧐" "⚰️" "🧪" "👔" "🩺" "🧱" "🧑‍💻"
+    "💸" "🧵" "🦺" "✈️" "🦖"
+)
+
+# 拼接 emoji 模式: (🎨|⚡️|🔥|...)
+EMOJI_PATTERN=$(printf "%s|" "${GITMOJI[@]}")
+EMOJI_PATTERN="${EMOJI_PATTERN%|}"
+
+# Conventional Commits 允许的 type(Angular 规范)
+TYPES="feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert"
+
+# 完整正则: ^<gitmoji> <type>[!](<scope>)?[!]: <subject>
+# ! = 破坏性变更标记,可出现在 type 后或 scope 后
+REG_EXP="^(${EMOJI_PATTERN}) (${TYPES})(!)?(\([^\)]+\))?(!)?: .+"
+
+if [[ ! "$CLEAN_MSG" =~ $REG_EXP ]]; then
+    echo "--------------------------------------------------------"
+    echo "❌ 格式错误！不符合 gitmoji + Conventional Commits 规范。"
+    echo ""
+    echo "💡 正确格式: <gitmoji> <type>[!](<scope>)?[!]: <subject>"
+    echo "   ! = 破坏性变更标记, 可放在 type 后或 scope 后"
+    echo ""
+    echo "📌 常用示例:"
+    echo "   ✨ feat: 新增功能"
+    echo "   🐛 fix: 修复登录失败"
+    echo "   📝 docs: 更新 API 文档"
+    echo "   ♻️  refactor(auth): 重构鉴权模块"
+    echo "   ⚡️  perf: 优化查询性能"
+    echo "   💥 feat!(api): 重写接口(破坏性变更)"
+    echo ""
+    echo "💡 运行 'task gitmoji' 查看完整中文速查表"
+    echo "🔗 在线列表: https://gitmoji.dev/"
+    echo "--------------------------------------------------------"
+    exit 1
+fi
+
+echo "✅ Commit Message 格式验证通过！"

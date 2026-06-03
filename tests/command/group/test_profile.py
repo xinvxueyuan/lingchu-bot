@@ -10,17 +10,10 @@ from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 from src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.profile import (
     milkybot_set_group_avatar,
     milkybot_set_group_name,
+    set_group_avatar_cmd,
+    set_group_name_cmd,
 )
 from tests.command.group.conftest import finish_text
-
-SET_GROUP_NAME_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.profile."
-    "set_group_name_cmd.finish"
-)
-SET_GROUP_AVATAR_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.profile."
-    "set_group_avatar_cmd.finish"
-)
 
 
 def create_mock_image(raw: bytes | None = None) -> MagicMock:
@@ -38,7 +31,7 @@ async def test_set_group_name_calls_milky_api(
 ) -> None:
     mock_bot.set_group_name = AsyncMock()
 
-    with patch(SET_GROUP_NAME_FINISH) as mock_finish:
+    with patch.object(set_group_name_cmd, "finish") as mock_finish:
         await milkybot_set_group_name(
             new_group_name="新群名", bot=mock_bot, event=mock_event
         )
@@ -55,7 +48,7 @@ async def test_set_group_avatar_without_image(
 ) -> None:
     mock_bot.set_group_avatar = AsyncMock()
 
-    with patch(SET_GROUP_AVATAR_FINISH) as mock_finish:
+    with patch.object(set_group_avatar_cmd, "finish") as mock_finish:
         await milkybot_set_group_avatar(
             image=create_mock_image(), bot=mock_bot, event=mock_event
         )
@@ -73,7 +66,7 @@ async def test_group_action_network_error_returns_readable_message(
 ) -> None:
     mock_bot.set_group_name = AsyncMock(side_effect=NetworkError("连接失败"))
 
-    with patch(SET_GROUP_NAME_FINISH) as mock_finish:
+    with patch.object(set_group_name_cmd, "finish") as mock_finish:
         await milkybot_set_group_name(
             new_group_name="新群名", bot=mock_bot, event=mock_event
         )
@@ -87,7 +80,7 @@ async def test_group_action_rejected_returns_readable_message(
 ) -> None:
     mock_bot.set_group_name = AsyncMock(side_effect=ActionFailed(message="权限不足"))
 
-    with patch(SET_GROUP_NAME_FINISH) as mock_finish:
+    with patch.object(set_group_name_cmd, "finish") as mock_finish:
         await milkybot_set_group_name(
             new_group_name="新群名", bot=mock_bot, event=mock_event
         )
@@ -101,7 +94,7 @@ async def test_set_group_avatar_network_error_returns_readable_message(
 ) -> None:
     mock_bot.set_group_avatar = AsyncMock(side_effect=NetworkError("timeout"))
 
-    with patch(SET_GROUP_AVATAR_FINISH) as mock_finish:
+    with patch.object(set_group_avatar_cmd, "finish") as mock_finish:
         await milkybot_set_group_avatar(
             image=create_mock_image(), bot=mock_bot, event=mock_event
         )
@@ -115,7 +108,7 @@ async def test_set_group_avatar_action_failed_returns_readable_message(
 ) -> None:
     mock_bot.set_group_avatar = AsyncMock(side_effect=ActionFailed(message="权限不足"))
 
-    with patch(SET_GROUP_AVATAR_FINISH) as mock_finish:
+    with patch.object(set_group_avatar_cmd, "finish") as mock_finish:
         await milkybot_set_group_avatar(
             image=create_mock_image(), bot=mock_bot, event=mock_event
         )

@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (1570 symbols, 3240 relationships, 118 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (1561 symbols, 3206 relationships, 115 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -152,7 +152,7 @@ task i18n                           # Extract, update and compile i18n
 
 ## Commit Convention
 
-Use conventional commit + gitmoji: `😍 feat:`, `🐛 fix:`, `📝 docs:`, `⚡ perf:`, etc.
+Use conventional commit + gitmoji: `✨ feat:`, `🐛 fix:`, `📝 docs:`, `⚡ perf:`, etc.
 
 ## CI
 

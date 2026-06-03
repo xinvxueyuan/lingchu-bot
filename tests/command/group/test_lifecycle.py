@@ -8,11 +8,7 @@ import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.lifecycle import (
     milkybot_quit_group,
-)
-
-QUIT_GROUP_SEND = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.lifecycle."
-    "quit_group_cmd.send"
+    quit_group_cmd,
 )
 
 
@@ -22,7 +18,7 @@ async def test_quit_group_sends_message_and_calls_api(
 ) -> None:
     mock_bot.quit_group = AsyncMock()
 
-    with patch(QUIT_GROUP_SEND) as mock_send:
+    with patch.object(quit_group_cmd, "send") as mock_send:
         await milkybot_quit_group(bot=mock_bot, event=mock_event)
 
     mock_send.assert_called_once_with(
@@ -39,7 +35,7 @@ async def test_quit_group_propagates_network_error(
 
     mock_bot.quit_group = AsyncMock(side_effect=NetworkError("connection refused"))
 
-    with patch(QUIT_GROUP_SEND), pytest.raises(NetworkError):
+    with patch.object(quit_group_cmd, "send"), pytest.raises(NetworkError):
         await milkybot_quit_group(bot=mock_bot, event=mock_event)
 
 
@@ -51,5 +47,5 @@ async def test_quit_group_propagates_action_failed_error(
 
     mock_bot.quit_group = AsyncMock(side_effect=ActionFailed(message="操作失败"))
 
-    with patch(QUIT_GROUP_SEND), pytest.raises(ActionFailed):
+    with patch.object(quit_group_cmd, "send"), pytest.raises(ActionFailed):
         await milkybot_quit_group(bot=mock_bot, event=mock_event)

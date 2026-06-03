@@ -8,13 +8,9 @@ import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.announcement import (
     milkybot_send_group_announcement,
+    send_group_announcement_cmd,
 )
 from tests.command.group.conftest import finish_text
-
-SEND_GROUP_ANNOUNCEMENT_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.announcement."
-    "send_group_announcement_cmd.finish"
-)
 
 
 def create_mock_image(raw: bytes | None = None) -> MagicMock:
@@ -33,7 +29,7 @@ async def test_send_group_announcement_without_image(
     mock_bot.send_group_announcement = AsyncMock()
     mock_bot.get_impl_info = AsyncMock(return_value=MagicMock(impl_name="LLBot"))
 
-    with patch(SEND_GROUP_ANNOUNCEMENT_FINISH) as mock_finish:
+    with patch.object(send_group_announcement_cmd, "finish") as mock_finish:
         await milkybot_send_group_announcement(
             content="公告", image=None, bot=mock_bot, event=mock_event
         )
@@ -51,7 +47,7 @@ async def test_send_group_announcement_unsupported_milky_impl(
 ) -> None:
     mock_bot.get_impl_info = AsyncMock(return_value=MagicMock(impl_name="UnknownBot"))
 
-    with patch(SEND_GROUP_ANNOUNCEMENT_FINISH) as mock_finish:
+    with patch.object(send_group_announcement_cmd, "finish") as mock_finish:
         await milkybot_send_group_announcement(
             content="公告", image=create_mock_image(), bot=mock_bot, event=mock_event
         )
@@ -68,7 +64,7 @@ async def test_send_group_announcement_network_error_returns_readable_message(
     mock_bot.send_group_announcement = AsyncMock(side_effect=NetworkError("timeout"))
     mock_bot.get_impl_info = AsyncMock(return_value=MagicMock(impl_name="LLBot"))
 
-    with patch(SEND_GROUP_ANNOUNCEMENT_FINISH) as mock_finish:
+    with patch.object(send_group_announcement_cmd, "finish") as mock_finish:
         await milkybot_send_group_announcement(
             content="公告", image=None, bot=mock_bot, event=mock_event
         )
@@ -87,7 +83,7 @@ async def test_send_group_announcement_action_failed_returns_readable_message(
     )
     mock_bot.get_impl_info = AsyncMock(return_value=MagicMock(impl_name="LLBot"))
 
-    with patch(SEND_GROUP_ANNOUNCEMENT_FINISH) as mock_finish:
+    with patch.object(send_group_announcement_cmd, "finish") as mock_finish:
         await milkybot_send_group_announcement(
             content="公告", image=None, bot=mock_bot, event=mock_event
         )
