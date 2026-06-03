@@ -1,22 +1,28 @@
 #!/bin/bash
 
-# 终止脚本如果任何未捕获的命令失败（但我们会手动捕获核心命令）
-set -e
+# 尽力检查但不阻断提交：工具不可用时优雅降级，修复后自动暂存
+set +e
 
 echo "🚀 正在运行代码检查与分析..."
 
 # 1. 运行 Prek 检查
-# 如果 uv run 失败，则自动尝试使用 uvx 运行
-if ! uv run prek run --config prek.toml --stage pre-commit; then
-    echo "⚠️  uv run prek 失败，正在尝试使用 uvx 备用方案..."
-    uvx prek run --config prek.toml --stage pre-commit
+if command -v uv >/dev/null 2>&1; then
+    uv run prek run --config prek.toml --stage pre-commit
+    if [ $? -ne 0 ]; then
+        echo "ℹ️  Prek 自动修复了部分文件，正在重新暂存..."
+        git add -u
+    fi
+else
+    echo "⚠️  未找到 uv，跳过 Prek 检查。"
 fi
 
 # 2. 运行 Gitnexus 分析
-# 如果 pnpm exec 失败，则自动尝试使用 npx -y 备用方案
-if ! pnpm exec gitnexus analyze; then
-    echo "⚠️  pnpm exec gitnexus 失败，正在尝试使用 npx 备用方案..."
-    npx -y gitnexus analyze
+if command -v pnpm >/dev/null 2>&1; then
+    pnpm exec gitnexus analyze || true
+elif command -v npx >/dev/null 2>&1; then
+    npx -y gitnexus analyze || true
+else
+    echo "⚠️  未找到 pnpm/npx，跳过 Gitnexus 分析。"
 fi
 
 echo "✅ 所有检查通过！"

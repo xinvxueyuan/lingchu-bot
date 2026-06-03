@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from arclet.alconna import Alconna, Args
-from nonebot import get_driver
+from nonebot import get_driver, logger
 from nonebot.adapters.milky import Bot as MilkyBot
 from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
 from nonebot.drivers import Request
@@ -112,3 +112,7 @@ async def milkybot_set_group_avatar(
         lambda: bot.set_group_avatar(group_id=event.data.peer_id, path=image_path),
         await _("群头像已更新"),
     )
+
+
+async def import_handle() -> Any:
+    logger.debug(await _("导入profile处理器..."))

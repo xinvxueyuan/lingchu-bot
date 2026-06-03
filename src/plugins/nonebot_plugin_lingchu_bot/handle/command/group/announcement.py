@@ -1,9 +1,10 @@
 import hashlib
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 
 from arclet.alconna import Alconna, Args
-from nonebot import get_driver
+from nonebot import get_driver, logger
 from nonebot.adapters.milky import Bot as MilkyBot
 from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
 from nonebot.adapters.onebot.v11 import Bot as OneBot11
@@ -163,3 +164,7 @@ async def onebot_v11_send_group_announcement(
         ),
         await _("群公告已发送"),
     )
+
+
+async def import_handle() -> Any:
+    logger.debug(await _("导入announcement处理器..."))
