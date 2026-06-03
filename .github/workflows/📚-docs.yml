@@ -43,7 +43,7 @@ jobs:
 
       - name: 配置 pnpm
         # pinned from pnpm/action-setup@v6.0.8
-        uses: pnpm/action-setup@d15a628ca66d93ee5f352c71671a7bc6a97af5c9
+        uses: pnpm/action-setup@d15e628ca66d93ee5f352c71671a7bc6a97af5c9
 
       - name: 安装 Node 依赖
         run: pnpm install --frozen-lockfile
