@@ -11,25 +11,15 @@ from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 from nonebot_plugin_alconna import UniMessage
 from nonebot_plugin_alconna.uniseg import At
 
-from src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute import (
+from src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.mute import (
+    member_mute_cmd,
+    member_unmute_cmd,
     milkybot_mute,
     milkybot_unmute,
     milkybot_whole_mute,
     milkybot_whole_unmute,
-)
-
-MEMBER_MUTE_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.member_mute_cmd.finish"
-)
-MEMBER_UNMUTE_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute."
-    "member_unmute_cmd.finish"
-)
-WHOLE_MUTE_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_mute_cmd.finish"
-)
-WHOLE_UNMUTE_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.mute.whole_unmute_cmd.finish"
+    whole_mute_cmd,
+    whole_unmute_cmd,
 )
 
 
@@ -85,7 +75,7 @@ class TestWholeMute:
         self, mock_bot: MagicMock, mock_event: MagicMock
     ) -> None:
         """测试开启全体禁言。"""
-        with patch(WHOLE_MUTE_FINISH) as mock_finish:
+        with patch.object(whole_mute_cmd, "finish") as mock_finish:
             await milkybot_whole_mute(bot=mock_bot, event=mock_event)
 
         mock_bot.set_group_whole_mute.assert_called_once_with(
@@ -110,7 +100,7 @@ class TestWholeMute:
         """测试全体禁言网络异常返回错误消息。"""
         mock_bot.set_group_whole_mute.side_effect = NetworkError("连接失败")
 
-        with patch(WHOLE_MUTE_FINISH) as mock_finish:
+        with patch.object(whole_mute_cmd, "finish") as mock_finish:
             await milkybot_whole_mute(bot=mock_bot, event=mock_event)
 
         assert "全体禁言失败，网络异常" in finish_text(mock_finish)
@@ -122,7 +112,7 @@ class TestWholeMute:
         """测试全体禁言操作被拒绝返回错误消息。"""
         mock_bot.set_group_whole_mute.side_effect = ActionFailed(message="权限不足")
 
-        with patch(WHOLE_MUTE_FINISH) as mock_finish:
+        with patch.object(whole_mute_cmd, "finish") as mock_finish:
             await milkybot_whole_mute(bot=mock_bot, event=mock_event)
 
         assert "全体禁言失败，操作被拒绝" in finish_text(mock_finish)
@@ -139,7 +129,7 @@ class TestMute:
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
         """测试从 At.target 获取禁言用户。"""
-        with patch(MEMBER_MUTE_FINISH) as mock_finish:
+        with patch.object(member_mute_cmd, "finish") as mock_finish:
             await milkybot_mute(
                 user=mock_at,
                 duration=60,
@@ -172,7 +162,7 @@ class TestMute:
             {"type": "mention", "data": {"user_id": 333333, "name": "第二用户"}},
         ]
 
-        with patch(MEMBER_MUTE_FINISH) as mock_finish:
+        with patch.object(member_mute_cmd, "finish") as mock_finish:
             await milkybot_mute(
                 user=mock_at,
                 duration=300,
@@ -201,7 +191,7 @@ class TestMute:
             {"type": "image", "data": {"url": "https://example.invalid/a.png"}},
         ]
 
-        with patch(MEMBER_MUTE_FINISH) as mock_finish:
+        with patch.object(member_mute_cmd, "finish") as mock_finish:
             await milkybot_mute(
                 user=mock_at,
                 duration=120,
@@ -224,7 +214,7 @@ class TestMute:
         """测试目标用户是发送者本人时仍调用禁言 API。"""
         mock_event.data.sender_id = 987654321
 
-        with patch(MEMBER_MUTE_FINISH) as mock_finish:
+        with patch.object(member_mute_cmd, "finish") as mock_finish:
             await milkybot_mute(
                 user=mock_at,
                 duration=60,
@@ -250,7 +240,7 @@ class TestMute:
         duration: int,
     ) -> None:
         """测试禁言时长边界值原样传给 API。"""
-        with patch(MEMBER_MUTE_FINISH) as mock_finish:
+        with patch.object(member_mute_cmd, "finish") as mock_finish:
             await milkybot_mute(
                 user=mock_at,
                 duration=duration,
@@ -276,7 +266,7 @@ class TestMute:
         reason: str,
     ) -> None:
         """测试禁言原因原样写入成功消息。"""
-        with patch(MEMBER_MUTE_FINISH) as mock_finish:
+        with patch.object(member_mute_cmd, "finish") as mock_finish:
             await milkybot_mute(
                 user=mock_at,
                 duration=60,
@@ -299,7 +289,7 @@ class TestMute:
         """测试 At.display 为空时名称按当前逻辑为空字符串。"""
         mock_at.display = display
 
-        with patch(MEMBER_MUTE_FINISH) as mock_finish:
+        with patch.object(member_mute_cmd, "finish") as mock_finish:
             await milkybot_mute(
                 user=mock_at,
                 duration=60,
@@ -317,7 +307,10 @@ class TestMute:
         """测试 At.target 非数字时抛出 ValueError 且不调用 API。"""
         mock_at.target = "not-a-number"
 
-        with patch(MEMBER_MUTE_FINISH) as mock_finish, pytest.raises(ValueError):
+        with (
+            patch.object(member_mute_cmd, "finish") as mock_finish,
+            pytest.raises(ValueError),
+        ):
             await milkybot_mute(
                 user=mock_at,
                 duration=60,
@@ -338,7 +331,7 @@ class TestMute:
             {"type": "mention", "data": {"user_id": "222222", "name": "字符串ID"}}
         ]
 
-        with patch(MEMBER_MUTE_FINISH) as mock_finish:
+        with patch.object(member_mute_cmd, "finish") as mock_finish:
             await milkybot_mute(
                 user=mock_at,
                 duration=60,
@@ -377,7 +370,7 @@ class TestMute:
         """测试禁言网络异常返回错误消息。"""
         mock_bot.set_group_member_mute.side_effect = NetworkError("连接失败")
 
-        with patch(MEMBER_MUTE_FINISH) as mock_finish:
+        with patch.object(member_mute_cmd, "finish") as mock_finish:
             await milkybot_mute(
                 user=mock_at,
                 duration=60,
@@ -395,7 +388,7 @@ class TestMute:
         """测试禁言操作被拒绝返回错误消息。"""
         mock_bot.set_group_member_mute.side_effect = ActionFailed(message="权限不足")
 
-        with patch(MEMBER_MUTE_FINISH) as mock_finish:
+        with patch.object(member_mute_cmd, "finish") as mock_finish:
             await milkybot_mute(
                 user=mock_at,
                 duration=60,
@@ -418,7 +411,7 @@ class TestUnmute:
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
         """测试基本解禁功能。"""
-        with patch(MEMBER_UNMUTE_FINISH) as mock_finish:
+        with patch.object(member_unmute_cmd, "finish") as mock_finish:
             await milkybot_unmute(user=mock_at, bot=mock_bot, event=mock_event)
 
         mock_bot.set_group_member_mute.assert_called_once_with(
@@ -443,7 +436,7 @@ class TestUnmute:
             {"type": "mention", "data": {"user_id": 444444, "name": "第二用户"}},
         ]
 
-        with patch(MEMBER_UNMUTE_FINISH) as mock_finish:
+        with patch.object(member_unmute_cmd, "finish") as mock_finish:
             await milkybot_unmute(user=mock_at, bot=mock_bot, event=mock_event)
 
         mock_bot.set_group_member_mute.assert_called_once_with(
@@ -462,7 +455,7 @@ class TestUnmute:
         """测试解禁时非 mention 消息段会被忽略。"""
         mock_event.data.segments = [{"type": "text", "data": {"text": "hello"}}]
 
-        with patch(MEMBER_UNMUTE_FINISH) as mock_finish:
+        with patch.object(member_unmute_cmd, "finish") as mock_finish:
             await milkybot_unmute(user=mock_at, bot=mock_bot, event=mock_event)
 
         mock_bot.set_group_member_mute.assert_called_once_with(
@@ -484,7 +477,7 @@ class TestUnmute:
         """测试解禁时 At.display 为空会使用空名称。"""
         mock_at.display = display
 
-        with patch(MEMBER_UNMUTE_FINISH) as mock_finish:
+        with patch.object(member_unmute_cmd, "finish") as mock_finish:
             await milkybot_unmute(user=mock_at, bot=mock_bot, event=mock_event)
 
         assert "名称: \n" in finish_text(mock_finish)
@@ -496,7 +489,10 @@ class TestUnmute:
         """测试解禁 At.target 非数字时抛出 ValueError 且不调用 API。"""
         mock_at.target = "not-a-number"
 
-        with patch(MEMBER_UNMUTE_FINISH) as mock_finish, pytest.raises(ValueError):
+        with (
+            patch.object(member_unmute_cmd, "finish") as mock_finish,
+            pytest.raises(ValueError),
+        ):
             await milkybot_unmute(user=mock_at, bot=mock_bot, event=mock_event)
 
         mock_bot.set_group_member_mute.assert_not_called()
@@ -519,7 +515,7 @@ class TestUnmute:
         """测试解禁网络异常返回错误消息。"""
         mock_bot.set_group_member_mute.side_effect = NetworkError("连接失败")
 
-        with patch(MEMBER_UNMUTE_FINISH) as mock_finish:
+        with patch.object(member_unmute_cmd, "finish") as mock_finish:
             await milkybot_unmute(user=mock_at, bot=mock_bot, event=mock_event)
 
         assert "解禁失败，网络异常" in finish_text(mock_finish)
@@ -531,7 +527,7 @@ class TestUnmute:
         """测试解禁操作被拒绝返回错误消息。"""
         mock_bot.set_group_member_mute.side_effect = ActionFailed(message="权限不足")
 
-        with patch(MEMBER_UNMUTE_FINISH) as mock_finish:
+        with patch.object(member_unmute_cmd, "finish") as mock_finish:
             await milkybot_unmute(user=mock_at, bot=mock_bot, event=mock_event)
 
         assert "解禁失败，操作被拒绝" in finish_text(mock_finish)
@@ -548,7 +544,7 @@ class TestWholeUnmute:
         self, mock_bot: MagicMock, mock_event: MagicMock
     ) -> None:
         """测试关闭全体禁言（解禁）。"""
-        with patch(WHOLE_UNMUTE_FINISH) as mock_finish:
+        with patch.object(whole_unmute_cmd, "finish") as mock_finish:
             await milkybot_whole_unmute(bot=mock_bot, event=mock_event)
 
         mock_bot.set_group_whole_mute.assert_called_once_with(
@@ -573,7 +569,7 @@ class TestWholeUnmute:
         """测试全体解禁网络异常返回错误消息。"""
         mock_bot.set_group_whole_mute.side_effect = NetworkError("连接失败")
 
-        with patch(WHOLE_UNMUTE_FINISH) as mock_finish:
+        with patch.object(whole_unmute_cmd, "finish") as mock_finish:
             await milkybot_whole_unmute(bot=mock_bot, event=mock_event)
 
         assert "全体解禁失败，网络异常" in finish_text(mock_finish)
@@ -585,7 +581,7 @@ class TestWholeUnmute:
         """测试全体解禁操作被拒绝返回错误消息。"""
         mock_bot.set_group_whole_mute.side_effect = ActionFailed(message="权限不足")
 
-        with patch(WHOLE_UNMUTE_FINISH) as mock_finish:
+        with patch.object(whole_unmute_cmd, "finish") as mock_finish:
             await milkybot_whole_unmute(bot=mock_bot, event=mock_event)
 
         assert "全体解禁失败，操作被拒绝" in finish_text(mock_finish)
@@ -602,7 +598,7 @@ class TestIntegrationScenarios:
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
         """测试先禁言后解禁的顺序操作。"""
-        with patch(MEMBER_MUTE_FINISH):
+        with patch.object(member_mute_cmd, "finish"):
             await milkybot_mute(
                 user=mock_at,
                 duration=600,
@@ -617,7 +613,7 @@ class TestIntegrationScenarios:
             duration=600,
         )
 
-        with patch(MEMBER_UNMUTE_FINISH):
+        with patch.object(member_unmute_cmd, "finish"):
             await milkybot_unmute(user=mock_at, bot=mock_bot, event=mock_event)
 
         mock_bot.set_group_member_mute.assert_called_with(
@@ -640,7 +636,7 @@ class TestIntegrationScenarios:
             event.data.sender_id = 111111
             event.data.segments = []
 
-            with patch(MEMBER_MUTE_FINISH):
+            with patch.object(member_mute_cmd, "finish"):
                 await milkybot_mute(
                     user=mock_at,
                     duration=300,
@@ -667,7 +663,7 @@ class TestUniMessage:
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
         """测试禁言返回的消息是 UniMessage 实例。"""
-        with patch(MEMBER_MUTE_FINISH) as mock_finish:
+        with patch.object(member_mute_cmd, "finish") as mock_finish:
             await milkybot_mute(
                 user=mock_at,
                 duration=60,
@@ -683,7 +679,7 @@ class TestUniMessage:
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
         """测试解禁返回的消息是 UniMessage 实例。"""
-        with patch(MEMBER_UNMUTE_FINISH) as mock_finish:
+        with patch.object(member_unmute_cmd, "finish") as mock_finish:
             await milkybot_unmute(user=mock_at, bot=mock_bot, event=mock_event)
 
         assert isinstance(finish_message(mock_finish), UniMessage)
@@ -693,7 +689,7 @@ class TestUniMessage:
         self, mock_bot: MagicMock, mock_event: MagicMock
     ) -> None:
         """测试全体禁言导出后的消息格式。"""
-        with patch(WHOLE_MUTE_FINISH) as mock_finish:
+        with patch.object(whole_mute_cmd, "finish") as mock_finish:
             await milkybot_whole_mute(bot=mock_bot, event=mock_event)
 
         assert finish_text(mock_finish) == "全体禁言成功"
@@ -703,7 +699,7 @@ class TestUniMessage:
         self, mock_bot: MagicMock, mock_event: MagicMock
     ) -> None:
         """测试全体解禁导出后的消息格式。"""
-        with patch(WHOLE_UNMUTE_FINISH) as mock_finish:
+        with patch.object(whole_unmute_cmd, "finish") as mock_finish:
             await milkybot_whole_unmute(bot=mock_bot, event=mock_event)
 
         assert finish_text(mock_finish) == "全体解禁成功"

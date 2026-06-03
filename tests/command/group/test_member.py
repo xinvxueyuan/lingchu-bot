@@ -8,26 +8,17 @@ import pytest
 from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.member import (
+    kick_group_member_cmd,
     milkybot_kick_group_member,
     milkybot_set_group_member_admin,
     milkybot_set_group_member_card,
     milkybot_set_group_member_special_title,
     milkybot_unset_group_member_admin,
+    set_group_member_admin_cmd,
+    set_group_member_card_cmd,
+    set_group_member_special_title_cmd,
 )
 from tests.command.group.conftest import finish_text
-
-SET_GROUP_MEMBER_ADMIN_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.member."
-    "set_group_member_admin_cmd.finish"
-)
-SET_GROUP_MEMBER_CARD_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.member."
-    "set_group_member_card_cmd.finish"
-)
-KICK_GROUP_MEMBER_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.member."
-    "kick_group_member_cmd.finish"
-)
 
 
 @pytest.mark.asyncio
@@ -39,7 +30,7 @@ async def test_set_group_member_admin_ignores_unmatched_mention_segment(
         {"type": "mention", "data": {"user_id": 222222, "name": "第一用户"}}
     ]
 
-    with patch(SET_GROUP_MEMBER_ADMIN_FINISH) as mock_finish:
+    with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await milkybot_set_group_member_admin(
             user=mock_at, is_set=True, bot=mock_bot, event=mock_event
         )
@@ -60,7 +51,7 @@ async def test_set_group_member_admin_matches_requested_mention(
         {"type": "mention", "data": {"user_id": 987654321, "name": "目标用户"}},
     ]
 
-    with patch(SET_GROUP_MEMBER_ADMIN_FINISH) as mock_finish:
+    with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await milkybot_set_group_member_admin(
             user=mock_at, is_set=True, bot=mock_bot, event=mock_event
         )
@@ -79,7 +70,10 @@ async def test_set_group_member_admin_invalid_target_raises_value_error(
     mock_bot.set_group_member_admin = AsyncMock()
     mock_at.target = "not-a-number"
 
-    with patch(SET_GROUP_MEMBER_ADMIN_FINISH) as mock_finish, pytest.raises(ValueError):
+    with (
+        patch.object(set_group_member_admin_cmd, "finish") as mock_finish,
+        pytest.raises(ValueError),
+    ):
         await milkybot_set_group_member_admin(
             user=mock_at, is_set=True, bot=mock_bot, event=mock_event
         )
@@ -94,7 +88,7 @@ async def test_set_group_member_card_uses_at_target(
 ) -> None:
     mock_bot.set_group_member_card = AsyncMock()
 
-    with patch(SET_GROUP_MEMBER_CARD_FINISH) as mock_finish:
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
         await milkybot_set_group_member_card(
             user=mock_at, card="新名片", bot=mock_bot, event=mock_event
         )
@@ -111,7 +105,7 @@ async def test_kick_group_member_passes_reject_flag(
 ) -> None:
     mock_bot.kick_group_member = AsyncMock()
 
-    with patch(KICK_GROUP_MEMBER_FINISH) as mock_finish:
+    with patch.object(kick_group_member_cmd, "finish") as mock_finish:
         await milkybot_kick_group_member(
             user=mock_at,
             reject_add_request=True,
@@ -127,19 +121,13 @@ async def test_kick_group_member_passes_reject_flag(
     assert "已踢出群成员: 测试用户(987654321)" in finish_text(mock_finish)
 
 
-SET_GROUP_MEMBER_SPECIAL_TITLE_FINISH = (
-    "src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.member."
-    "set_group_member_special_title_cmd.finish"
-)
-
-
 @pytest.mark.asyncio
 async def test_set_group_member_special_title_calls_milky_api(
     mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_bot.set_group_member_special_title = AsyncMock()
 
-    with patch(SET_GROUP_MEMBER_SPECIAL_TITLE_FINISH) as mock_finish:
+    with patch.object(set_group_member_special_title_cmd, "finish") as mock_finish:
         await milkybot_set_group_member_special_title(
             user=mock_at, special_title="精英", bot=mock_bot, event=mock_event
         )
@@ -156,7 +144,7 @@ async def test_unset_group_member_admin_delegates_with_is_set_false(
 ) -> None:
     mock_bot.set_group_member_admin = AsyncMock()
 
-    with patch(SET_GROUP_MEMBER_ADMIN_FINISH) as mock_finish:
+    with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await milkybot_unset_group_member_admin(
             user=mock_at, bot=mock_bot, event=mock_event
         )
@@ -173,7 +161,7 @@ async def test_kick_group_member_default_reject_false(
 ) -> None:
     mock_bot.kick_group_member = AsyncMock()
 
-    with patch(KICK_GROUP_MEMBER_FINISH) as mock_finish:
+    with patch.object(kick_group_member_cmd, "finish") as mock_finish:
         await milkybot_kick_group_member(
             user=mock_at,
             reject_add_request=False,
@@ -195,7 +183,7 @@ async def test_set_group_member_card_network_error_returns_readable_message(
 ) -> None:
     mock_bot.set_group_member_card = AsyncMock(side_effect=NetworkError("timeout"))
 
-    with patch(SET_GROUP_MEMBER_CARD_FINISH) as mock_finish:
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
         await milkybot_set_group_member_card(
             user=mock_at, card="新名片", bot=mock_bot, event=mock_event
         )
@@ -211,7 +199,7 @@ async def test_set_group_member_card_action_failed_returns_readable_message(
         side_effect=ActionFailed(message="权限不足")
     )
 
-    with patch(SET_GROUP_MEMBER_CARD_FINISH) as mock_finish:
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
         await milkybot_set_group_member_card(
             user=mock_at, card="新名片", bot=mock_bot, event=mock_event
         )
@@ -227,7 +215,7 @@ async def test_target_user_falls_back_to_at_display_when_no_segments(
     mock_bot.set_group_member_card = AsyncMock()
     mock_event.data.segments = []
 
-    with patch(SET_GROUP_MEMBER_CARD_FINISH) as mock_finish:
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
         await milkybot_set_group_member_card(
             user=mock_at, card="名片", bot=mock_bot, event=mock_event
         )
@@ -250,7 +238,7 @@ async def test_target_user_falls_back_to_at_display_when_mention_name_empty(
         {"type": "mention", "data": {"user_id": 987654321, "name": ""}}
     ]
 
-    with patch(SET_GROUP_MEMBER_CARD_FINISH) as mock_finish:
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
         await milkybot_set_group_member_card(
             user=mock_at, card="名片", bot=mock_bot, event=mock_event
         )

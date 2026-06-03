@@ -1,7 +1,7 @@
 from nonebot.internal.driver.abstract import Driver
 
 from ..handle.command.group import import_handle as group_import_handle
-from ..handle.command.mute import import_handle as mute_import_handle
+from ..handle.command.group.mute import import_handle as mute_import_handle
 from ..i18n import warm_translation_cache
 
 

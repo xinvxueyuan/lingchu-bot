@@ -20,7 +20,7 @@ from nonebot.internal.matcher.matcher import Matcher
 from nonebot_plugin_alconna import AlconnaMatcher, UniMessage, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 
-from ...i18n import _async as _
+from ....i18n import _async as _
 
 if TYPE_CHECKING:
     from nonebot_plugin_alconna.uniseg.segment import Text

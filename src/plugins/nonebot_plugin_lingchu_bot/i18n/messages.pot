@@ -35,21 +35,21 @@ msgid ""
 "请检查 NoneBot2 配置文件。"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:121
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:121
 msgid "违反群规「默认」"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:130
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:130
 #, python-brace-format
 msgid "禁言失败，网络异常: {error!r}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:135
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:135
 #, python-brace-format
 msgid "禁言失败，操作被拒绝: {error}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:140
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:140
 #, python-brace-format
 msgid ""
 "已禁言: \n"
@@ -59,35 +59,35 @@ msgid ""
 "标识: {target_user_id}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:167
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:167
 #, python-brace-format
 msgid "全体禁言失败，网络异常: {error!r}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:173
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:173
 #, python-brace-format
 msgid "全体禁言失败，操作被拒绝: {error!r}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:178
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:178
 msgid "全体禁言成功"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:198
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:198
 msgid "管理员操作「默认」"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:208
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:208
 #, python-brace-format
 msgid "解禁失败，网络异常: {error!r}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:213
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:213
 #, python-brace-format
 msgid "解禁失败，操作被拒绝: {error!r}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:219
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:219
 #, python-brace-format
 msgid ""
 "已解禁: \n"
@@ -96,21 +96,21 @@ msgid ""
 "标识: {target_user_id}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:243
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:243
 #, python-brace-format
 msgid "全体解禁失败，网络异常: {error!r}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:249
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:249
 #, python-brace-format
 msgid "全体解禁失败，操作被拒绝: {error!r}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:254
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:254
 msgid "全体解禁成功"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py:259
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py:259
 msgid "导入mute处理器..."
 msgstr ""
 

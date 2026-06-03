@@ -1,17 +1,36 @@
 #!/usr/bin/env bash
 
-# 1. 优先检查是否在 pnpm 项目中，且 pnpm 可用
-if command -v pnpm >/dev/null 2>&1; then
-  exec < /dev/tty
-  pnpm exec gitmoji --hook "$1" "$2"
+# 发生错误时不立即退出，允许条件分支处理 fallback
+set +e
 
-# 2. 备选方案：如果使用的是旧版 npx
-elif npx -v >&/dev/null; then
-  exec < /dev/tty
-  npx -c "gitmoji --hook $1 $2"
+# 统一重定向标准输入，确保交互式 CLI（如 gitmoji）可以正常读取用户输入
+exec < /dev/tty
 
-# 3. 保底方案：尝试全局命令
+# 获取传入的参数
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+
+echo "🔧 正在启动 Gitmoji 交互界面..."
+
+# 1. 优先尝试 pnpm 项目本地的 gitmoji
+if command -v pnpm >/dev/null 2>&1 && pnpm exec gitmoji --version >/dev/null 2>&1; then
+    pnpm exec gitmoji --hook "$COMMIT_MSG_FILE" "$COMMIT_SOURCE"
+    exit $?
+
+# 2. 备选方案：尝试使用 npx 直接运行（兼容新旧版 npx）
+elif command -v npx >/dev/null 2>&1; then
+    # 使用 --no-install 优先尝试本地 node_modules，失败则动态下载运行
+    npx gitmoji --hook "$COMMIT_MSG_FILE" "$COMMIT_SOURCE"
+    exit $?
+
+# 3. 保底方案：尝试全局安装的 gitmoji
+elif command -v gitmoji >/dev/null 2>&1; then
+    gitmoji --hook "$COMMIT_MSG_FILE" "$COMMIT_SOURCE"
+    exit $?
+
+# 4. 终极提示：未找到任何可用命令
 else
-  exec < /dev/tty
-  gitmoji --hook "$1" "$2"
+    echo "❌ 错误: 未检测到 pnpm、npx 或全局 gitmoji 命令。"
+    echo "💡 请先运行 'npm install -g gitmoji-cli' 或在项目中安装 gitmoji。"
+    exit 1
 fi
