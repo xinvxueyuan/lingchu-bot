@@ -1,6 +1,9 @@
 # ----- Project -----
 
-# .env.*
+.env
+.env.*
+**/.env
+**/.env.*
 .dockerignore
 Dockerfile
 docker-compose.yml
