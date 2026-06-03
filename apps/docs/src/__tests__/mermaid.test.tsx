@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
-import { getMermaidConfig, Mermaid, sanitizeMermaidSvg } from '@/components/mdx/mermaid';
+import {
+  getMermaidConfig,
+  Mermaid,
+  renderMermaidSvg,
+  sanitizeMermaidSvg,
+} from '@/components/mdx/mermaid';
 
 const mermaidMock = vi.hoisted(() => ({
   initialize: vi.fn(),
@@ -53,11 +58,42 @@ describe('Mermaid', () => {
     expect(mermaidMock.render).not.toHaveBeenCalled();
   });
 
-  it('does not use React raw HTML injection', async () => {
-    const { readFile } = await import('node:fs/promises');
-    const source = await readFile('src/components/mdx/mermaid.tsx', 'utf8');
+  it('renders sanitized Mermaid SVG through DOM replacement', () => {
+    const container = document.createElement('div');
+    const bindFunctions = vi.fn();
 
-    expect(source).not.toContain(['dangerously', 'SetInnerHTML'].join(''));
-    expect(source).toContain('replaceChildren');
+    renderMermaidSvg(
+      container,
+      '<svg xmlns="http://www.w3.org/2000/svg"><text>safe</text></svg>',
+      bindFunctions,
+    );
+
+    expect(container.querySelector('svg text')?.textContent).toBe('safe');
+    expect(bindFunctions).toHaveBeenCalledWith(container);
+  });
+
+  it('clears invalid Mermaid SVG parse errors before binding functions', () => {
+    const container = document.createElement('div');
+    const bindFunctions = vi.fn();
+    const domParserSpy = vi.spyOn(globalThis, 'DOMParser');
+
+    container.append(document.createElement('svg'));
+    domParserSpy.mockImplementation(function DOMParserMock() {
+      const doc = document.implementation.createDocument(
+        'http://www.w3.org/1999/xhtml',
+        'parsererror',
+        null,
+      );
+
+      return {
+        parseFromString: vi.fn(() => doc),
+      } as unknown as DOMParser;
+    });
+
+    renderMermaidSvg(container, '<svg><g></svg', bindFunctions);
+
+    expect(container.innerHTML).toBe('');
+    expect(bindFunctions).not.toHaveBeenCalled();
+    domParserSpy.mockRestore();
   });
 });
