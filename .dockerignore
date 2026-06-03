@@ -1,6 +1,9 @@
 # ----- Project -----
 
-# .env.*
+.env
+.env.*
+**/.env
+**/.env.*
 .dockerignore
 Dockerfile
 docker-compose.yml
@@ -167,6 +170,23 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
+
+# Repository and local workspace state
+.git
+.gitnexus
+.worktrees
+.cache
+.turbo
+**/.turbo
+**/.next
+**/node_modules
+cache
+data
+dist
+output
+site
+apps/
+packages/
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
