@@ -43,17 +43,16 @@ jobs:
 
       - name: 配置 pnpm
         # pinned from pnpm/action-setup@v6.0.8
-        uses: pnpm/action-setup@d15e628ca66d93ee5f352c71671a7bc6a97af5c9
+        uses: pnpm/action-setup@d15a628ca66d93ee5f352c71671a7bc6a97af5c9
 
       - name: 安装 Node 依赖
         run: pnpm install --frozen-lockfile
 
-      - name: 安装 Task
-        # pinned from go-task/setup-task@v2.1.0
-        uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa
+      - name: Lint & Test
+        run: pnpm turbo run lint && pnpm --filter docs test
 
-      - name: Check, Test & Build
-        run: task ci:docs
+      - name: Build
+        run: pnpm turbo run build --filter=docs
 
       - name: 上传 Pages 产物
         # pinned from actions/upload-pages-artifact@v5.0.0
