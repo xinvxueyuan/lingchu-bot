@@ -11,27 +11,22 @@ COMMIT_SOURCE=$2
 
 # 条件1: $COMMIT_SOURCE 非空且非 template → 消息已通过 -m/-F/merge/squash/amend 提供
 if [ -n "$COMMIT_SOURCE" ] && [ "$COMMIT_SOURCE" != "template" ]; then
-    echo "ℹ️  提交消息已手动提供（来源: $COMMIT_SOURCE），跳过交互式 gitmoji。"
     exit 0
 fi
 
-# 条件2: 标准输入不是 TTY → 非交互式环境（IDE、CI 等）
-if [ ! -t 0 ]; then
-    echo "ℹ️  非交互式环境，跳过交互式 gitmoji。"
-    exit 0
-fi
-
-# 条件3: 提交消息文件已有用户编写的非空内容 → IDE 预填消息
+# 条件2: 提交消息文件已有用户编写的非空内容 → IDE 预填消息
 FIRST_LINE=$(grep -v '^#' "$COMMIT_MSG_FILE" | grep -v '^[[:space:]]*$' | head -1)
 if [ -n "$FIRST_LINE" ]; then
-    echo "ℹ️  提交消息已预填，跳过交互式 gitmoji。"
     exit 0
 fi
 
-# --- 仅在交互式终端 + 空白消息时启动 gitmoji ---
+# --- 尝试连接终端启动 gitmoji ---
 
-# 统一重定向标准输入，确保交互式 CLI（如 gitmoji）可以正常读取用户输入
-exec < /dev/tty
+# 尝试重定向 stdin 到 /dev/tty（git hooks 的 stdin 不连接终端）
+# 如果失败说明无终端可用（IDE、CI 等），静默跳过
+if ! exec < /dev/tty 2>/dev/null; then
+    exit 0
+fi
 
 echo "🔧 正在启动 Gitmoji 交互界面..."
 
