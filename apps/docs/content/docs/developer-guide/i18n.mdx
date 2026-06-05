@@ -45,12 +45,10 @@ src/plugins/nonebot_plugin_lingchu_bot/i18n/
 修改可翻译字符串后，按顺序运行：
 
 ```bash
-task i18n:extract
-task i18n:update
-task i18n:compile
+task i18n
 ```
 
-等价底层命令在 `Taskfile.yml` 中维护：
+`task i18n` 会按顺序执行提取、更新和编译。等价底层命令在 `Taskfile.yml` 中维护：
 
 ```bash
 uv run pybabel extract -F src/plugins/nonebot_plugin_lingchu_bot/i18n/babel.cfg -o src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot src/plugins/nonebot_plugin_lingchu_bot

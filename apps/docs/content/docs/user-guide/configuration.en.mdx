@@ -11,7 +11,7 @@ Lingchu Bot uses NoneBot plugin configuration and Pydantic models to manage core
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `core_version` | `0.0.0-dev0` | Core plugin version marker |
+| `core_version` | `0.0.0.dev36` | Core plugin version marker |
 | `superuser_key` | `123456789abcdef` | Superuser authentication key |
 | `data_dir` | localstore data directory | Data file directory |
 | `config_dir` | localstore config directory | Configuration file directory |
@@ -51,10 +51,10 @@ NoneBot configuration files only accept standard JSON lowercase `true` / `false`
 
 ## Local runtime paths
 
-`bot.py` sets:
+The repository root currently does not ship a committed local `bot.py`. Project-level localstore paths are controlled by NoneBot configuration; see `.env.example`:
 
-```python
-LOCALSTORE_USE_CWD = True
+```dotenv
+LOCALSTORE_USE_CWD=true
 ```
 
 This means localstore-related directories prefer the current working directory, which is convenient for local development and debugging.

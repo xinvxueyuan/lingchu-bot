@@ -3,17 +3,19 @@
 This is the Fumadocs/Next.js static documentation app for Lingchu Bot.
 Its documentation source lives in `content/docs`.
 
-Run the development server:
+Run commands from the repository root with pnpm:
 
 ```bash
-npm run dev
-# or
-pnpm dev
-# or
-yarn dev
+pnpm --filter docs dev
+pnpm --filter docs lint
+pnpm --filter docs test
+pnpm --filter docs run lint:links
+pnpm turbo run build --filter=docs
 ```
 
 Open [localhost:3000](http://localhost:3000) with your browser.
+
+The root `Taskfile.yml` is the preferred automation surface for cross-project work. Use `task check`, `task test`, `task build`, or `task ci` when a change spans Python code, docs, packages, and shared tooling.
 
 ## Explore
 

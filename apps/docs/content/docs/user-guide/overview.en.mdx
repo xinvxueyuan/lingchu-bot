@@ -10,9 +10,10 @@ Lingchu Bot is currently best suited for development, testing, and early trials.
 ## What you can expect
 
 - A bot project skeleton based on NoneBot2.
-- A local entrypoint that registers the Milky adapter by default.
-- A set of Milky group management command handlers.
+- A core plugin package that can be loaded as a local NoneBot plugin directory.
+- A set of currently implemented and tested Milky group management command handlers.
 - Configuration, storage, and database helper modules for later feature expansion.
+- Extension room for later multi-adapter and non-group-management features.
 - Runtime feedback translation based on gettext, currently with Simplified Chinese and English catalogs.
 
 ## What you need
@@ -32,6 +33,7 @@ Lingchu Bot is currently best suited for development, testing, and early trials.
 ## Current limits
 
 - The project is still in pre-alpha / development.
-- `bot.py` currently registers the Milky adapter in practice. Other adapter support depends on plugin metadata and later implementation.
+- The repository root currently does not ship a committed local `bot.py`; the Docker build generates a runtime `/tmp/bot.py`, and existing NoneBot projects can load `src/plugins` according to `pyproject.toml`.
+- Milky group management is the currently implemented and tested business path. Other adapters and non-group-management capabilities depend on later implementation and tests.
 - The command surface is still small. The docs only list capabilities confirmed in the current repository.
 - Runtime i18n currently covers group management feedback text. It does not mean all command trigger words are localized.

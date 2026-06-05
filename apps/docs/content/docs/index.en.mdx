@@ -20,16 +20,17 @@ Lingchu Bot is an application-side management bot project based on NoneBot2. It 
 ## Current capabilities
 
 - A core plugin entrypoint based on NoneBot2.
-- A local `bot.py` entrypoint that currently registers Milky as the main adapter.
-- Group management command handlers for member mute/unmute, group profile updates, admin changes, announcements, essence messages, kicks, and leaving a group.
+- `pyproject.toml` declarations for local plugin directories, adapters, and NoneBot dependency plugins.
+- Currently implemented and tested Milky group management handlers: member mute/unmute, whole-group mute/unmute, group profile updates, member management, announcements, kicks, and leaving a group.
 - JSON5 local storage, NoneBot localstore path management, and ORM CRUD helpers.
 - gettext / Babel internationalization helpers with `zh_CN` and `en_US` catalogs.
 - Developer tooling for typed commands, prek hooks, tests, and CI checks.
+- Extension room for later multi-adapter and non-group-management features.
 
 ## Quick links
 
 - [User guide](/en/docs/user-guide/overview): understand project status, runtime setup, and command capabilities.
-- [Quick start](/en/docs/user-guide/quick-start): install dependencies and start the local bot.
+- [Quick start](/en/docs/user-guide/quick-start): install dependencies and choose plugin loading or Docker runtime setup.
 - [Developer guide](/en/docs/developer-guide/introduction): understand project structure and workflow.
 - [Project policy](/en/docs/project-policy): read contribution, security, license, and media redaction requirements.
 - [中文文档](/docs): return to the Chinese documentation.

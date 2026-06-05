@@ -5,18 +5,25 @@ title: Commit Style
 
 ## Commit Style
 
-Project commit messages are based on Conventional Commits and may use [Gitmoji](https://gitmoji.dev/) before the type to express the change intent. Gitmoji is only a readability supplement. It does not replace a clear type, scope, and summary.
+Project commit messages use [Gitmoji](https://gitmoji.dev/) + Conventional Commits. `.husky/commit-msg` enforces the first-line format, and the full rule is maintained in `.trae/rules/git-commit-message.md`.
 
 ## Recommended format
 
 ```text
-<emoji> <type>(<scope>): <summary>
+<gitmoji> <type>(<scope>): <summary>
 ```
 
 The scope is optional:
 
 ```text
-<emoji> <type>: <summary>
+<gitmoji> <type>: <summary>
+```
+
+Breaking changes may add `!` after the type or after the scope:
+
+```text
+💥 feat!(api): remove the old endpoint
+💥 feat(api)!: remove the old endpoint
 ```
 
 ## Common examples
@@ -33,11 +40,11 @@ The scope is optional:
 
 - Use a short imperative or descriptive summary that explains what changed.
 - Keep each commit focused on one primary purpose and avoid mixing unrelated code and documentation changes.
-- If unsure which emoji to use, run `pnpm exec gitmoji -c` and select one interactively.
+- If unsure which emoji to use, run `task gitmoji` for the Chinese quick reference, or let the `prepare-commit-msg` hook start `pnpm exec gitmoji --hook`.
 - Add background, risk, or breaking-change details in the commit body when needed.
 
 ## Local checks
 
 Before committing, run the relevant checks. Documentation changes should at least confirm that Markdown structure, links, and fenced code blocks are sound. Code changes should use the commands in [Testing and CI](testing-ci).
 
-The repository `prepare-commit-msg` hook helps check commit messages. In non-interactive environments, confirm hook behavior before rewriting unpushed commits so unrelated files are not included.
+The repository `prepare-commit-msg` hook tries to start Gitmoji in an interactive terminal. Non-interactive environments may skip the interactive hook, but `commit-msg` still validates the first line; automation must generate a compliant message itself.

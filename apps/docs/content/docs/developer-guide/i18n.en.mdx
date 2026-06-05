@@ -45,12 +45,10 @@ src/plugins/nonebot_plugin_lingchu_bot/i18n/
 After changing translatable strings, run:
 
 ```bash
-task i18n:extract
-task i18n:update
-task i18n:compile
+task i18n
 ```
 
-The equivalent underlying commands are maintained in `Taskfile.yml`:
+`task i18n` extracts, updates, and compiles catalogs in order. The equivalent underlying commands are maintained in `Taskfile.yml`:
 
 ```bash
 uv run pybabel extract -F src/plugins/nonebot_plugin_lingchu_bot/i18n/babel.cfg -o src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot src/plugins/nonebot_plugin_lingchu_bot

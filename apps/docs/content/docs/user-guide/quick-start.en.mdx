@@ -29,16 +29,19 @@ uv sync --frozen
 
 ## Start
 
-```bash
-uv run python bot.py
-```
+The current working tree does not ship a committed root-level `bot.py`. Lingchu Bot is primarily a NoneBot plugin package, and `[tool.nonebot]` in `pyproject.toml` declares `plugin_dirs = ["src/plugins"]`.
 
-`bot.py` initializes NoneBot, registers the Milky adapter, and loads the local plugin directory from `pyproject.toml`.
+You can load this repository as a local plugin directory from an existing NoneBot project, or run it through the Docker build flow provided by the repository. The Docker image generates the runtime `/tmp/bot.py` with `nb-cli` during build.
+
+```bash
+docker compose up --build
+```
 
 ## Pre-run checklist
 
 - Confirm that Python is version 3.13.
 - Confirm that the Milky-side service and connection settings are ready.
+- Confirm that the target NoneBot project loads `src/plugins`, or that you are using the repository Docker runner.
 - Confirm that Boolean values in NoneBot configuration use lowercase `true` / `false`, not `True` / `False`.
 
 ## Next steps
