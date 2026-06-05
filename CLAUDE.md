@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (1568 symbols, 3241 relationships, 118 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (1580 symbols, 3253 relationships, 118 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -41,6 +41,39 @@ This project is indexed by GitNexus as **lingchu-bot** (1568 symbols, 3241 relat
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+## Available Agent Skills
+
+Use this as a routing index for the current assistant environment. Load detailed skill instructions only when the task triggers them.
+
+### Documentation Lookup
+
+- **Context7 / find-docs**: Fetch current docs for libraries, frameworks, SDKs, APIs, CLIs, and cloud services. Resolve the library ID first unless the user provides `/org/project`, then query docs with the user's full question.
+- **openai-docs**: Use for OpenAI product/API questions and prefer official OpenAI sources.
+
+### Code Intelligence And Git
+
+- **GitNexus**: Use the project-local GitNexus skills for architecture, debugging, impact analysis, refactoring, PR review, and CLI operations. Honor the GitNexus requirements above before editing symbols or committing.
+- **prek**: Use the project-local `prek` skill when setting up or running hook checks.
+- **GitHub**: Use GitHub skills for repository, issue, pull request, review-comment, CI, and publish workflows.
+
+### Frontend, Browser, And Deployment
+
+- **Browser / Playwright / Chrome**: Use Browser for local in-app browser verification, Playwright for terminal-driven browser automation, and Chrome when the user's existing browser state is required.
+- **Vercel**: Use Vercel skills for Next.js, React, shadcn/ui, AI SDK, deployments, Vercel API/CLI, storage, auth, payments, cron, functions, routing middleware, workflow, and verification.
+- **Cloudflare**: Use Cloudflare skills for Workers, Wrangler, Durable Objects, Agents SDK, MCP servers, sandbox SDK, and platform configuration.
+
+### Artifacts And Media
+
+- **Documents / Presentations / Spreadsheets / PDF**: Use these for `.docx`, slide decks, spreadsheet files, and PDFs.
+- **imagegen**: Use for raster image generation and image edits.
+
+### Skill Authoring
+
+- **skill-creator**: Use when creating or updating skills.
+- **skill-installer / plugin-creator**: Use when installing skills or scaffolding Codex plugins.
+
+See `.agents/skills/available-skills/SKILL.md` and `.claude/skills/available-skills/SKILL.md` for the project-local copy of this skill index.
 
 # Project Context
 
