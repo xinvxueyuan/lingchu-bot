@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (1571 symbols, 3237 relationships, 118 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (1568 symbols, 3241 relationships, 118 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -87,7 +87,7 @@ lingchu-bot/
 │   │   └── __tests__/  # Vitest unit tests
 │   └── source.config.ts # Fumadocs MDX config
 ├── packages/           # Shared frontend packages
-├── bot.py              # Local run entry
+├── Dockerfile          # Container runner generation via nb-cli
 ├── pyproject.toml      # Python project config
 ├── package.json        # Monorepo root (pnpm + Turborepo)
 └── Taskfile.yml        # Task runner for CI/local commands
@@ -99,7 +99,9 @@ lingchu-bot/
 
 ```bash
 uv sync --frozen                    # Install dependencies
-uv run python bot.py                # Run bot locally
+# No committed root bot.py; load src/plugins from an existing NoneBot project
+# or use Docker, whose build generates /tmp/bot.py via nb-cli.
+docker compose up --build           # Run with the container runner
 uv run -m ruff check . --output-format=github  # Lint
 uv run -m ruff format --check .     # Format check
 uv run -m pyright .                 # Type check (Pyright)

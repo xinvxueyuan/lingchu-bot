@@ -47,8 +47,8 @@ description: "Use when the user asks how code works, wants to understand archite
 
 ## Lingchu Bot Command Modules
 
-- `src/plugins/nonebot_plugin_lingchu_bot/handle/command/mute.py`: Milky mute, unmute, and whole-group mute handlers.
-- `src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/`: Milky group profile, member management, announcement, essence, kick, and leave handlers split by responsibility.
+- `src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py`: Milky mute, unmute, and whole-group mute handlers.
+- `src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/`: currently implemented Milky group profile, member management, announcement, kick, and leave handlers split by responsibility. Essence-message handling is a future feature candidate, not a registered command in the current source.
 - `src/plugins/nonebot_plugin_lingchu_bot/start/startup.py`: imports command modules after i18n catalog warmup.
 
 ## Tools

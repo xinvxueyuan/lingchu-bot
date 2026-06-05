@@ -29,16 +29,19 @@ uv sync --frozen
 
 ## 启动
 
-```bash
-uv run python bot.py
-```
+当前工作树没有提交根目录 `bot.py`。Lingchu Bot 以 NoneBot 插件包为主，`pyproject.toml` 的 `[tool.nonebot]` 已声明 `plugin_dirs = ["src/plugins"]`。
 
-`bot.py` 会初始化 NoneBot，注册 Milky 适配器，并从 `pyproject.toml` 加载本地插件目录。
+你可以把本仓库作为本地插件目录加载到已有 NoneBot 项目中，或使用仓库提供的 Docker 构建流程运行。Docker 镜像构建阶段会通过 `nb-cli` 生成运行用 `/tmp/bot.py`。
+
+```bash
+docker compose up --build
+```
 
 ## 运行前检查
 
 - 确认 Python 版本为 3.13。
 - 确认 Milky 侧服务和连接配置已经准备好。
+- 确认目标 NoneBot 项目已加载 `src/plugins`，或正在使用仓库 Docker runner。
 - 确认 NoneBot 配置中的布尔值使用小写 `true` / `false`，不要写成 `True` / `False`。
 
 ## 下一步

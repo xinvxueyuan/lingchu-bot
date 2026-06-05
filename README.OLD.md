@@ -38,17 +38,22 @@ _Modern application-side framework implemented based on NoneBot2._
 
 ## Introduction
 
-灵初bot是一款基于NoneBot2框架开发的管理机器人，旨在为用户提供强大且易用的
-社区管理和互动功能。通过集成多种插件和工具，灵初bot能够帮助管理员更高效
-的管理社交媒体，同时为各平台成员带来丰富的娱乐体验。
+灵初bot是一款基于 NoneBot2 框架开发的应用侧机器人项目。当前仓库以
+`nonebot-plugin-lingchu-bot` 插件包为核心，已经实现并测试覆盖的业务能力
+主要集中在 Milky 群管理命令；项目结构仍保留多适配器和非群管理功能的后续
+迭代空间。
 
 ## Quick Start
 
 > [!WARNING]
-> 🚧Pre-alpha阶段，项目暂不可用🚧
+> 🚧Pre-alpha / development 阶段🚧
 >
-> 关注最新进展请前往本仓库的 [dev](
-https://github.com/xinvxueyuan/xinvxueyuan/tree/dev) 分支
+> 当前接口、命令行为和运行方式仍可能调整。请以源码、测试和新版
+> [README.md](README.md) / 在线文档为准。
+
+当前工作树没有提交根目录 `bot.py`。本仓库以 NoneBot 插件包和
+`pyproject.toml` 的 `[tool.nonebot]` 配置为主；Docker 构建流程会通过
+`nb-cli` 生成运行用 `/tmp/bot.py`。
 
 | [![GitHub.Pages][docs-shield]][docs-link] | [![文档状态][deployments-shield]][deployments-link] |
 | :---: | :---: |

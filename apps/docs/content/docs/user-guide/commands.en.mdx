@@ -84,7 +84,7 @@ Common aliases include:
 
 ## Group settings and operations
 
-These commands map to Milky group APIs except APIs whose Chinese names start with get, delete, accept, or reject. Commands act on the current group by default, and `@用户` resolves to the target group member.
+These commands are the Milky group management handlers registered in the current source. Commands act on the current group by default, and `@用户` resolves to the target group member. Plugin metadata and project configuration preserve room for multi-adapter expansion, but the table does not list future capabilities as currently available commands.
 
 | Capability | Primary command |
 | --- | --- |
@@ -96,10 +96,11 @@ These commands map to Milky group APIs except APIs whose Chinese names start wit
 | Unset member admin | `取消群管理员 @用户` |
 | Kick group member | `踢出群成员 @用户 [reject add request]` |
 | Send announcement | `发送群公告 <content> [image_uri]` |
-| Set essence message | `设置群精华消息 <message_seq> [true/false]` |
-| Unset essence message | `取消群精华消息 <message_seq>` |
 | Leave current group | `退出群` |
-`image_uri` supports the `file://`, `http(s)://`, and `base64://` formats from Milky documentation. Quote names, announcements, cards, or titles that contain spaces so command separators do not split them.
+
+The announcement and group avatar commands accept `UniImage` values from `nonebot-plugin-alconna`. The current implementation resolves raw image bytes, local paths, or downloadable URLs into cached files before passing them to adapter APIs. Quote names, announcements, cards, or titles that contain spaces so command separators do not split them.
+
+Essence message management and similar capabilities are candidates for later iterations. They are not registered user-triggered commands in the current source.
 
 ## Error feedback
 

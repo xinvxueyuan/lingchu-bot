@@ -5,40 +5,42 @@ title: 测试与 CI
 
 ## 测试与 CI
 
-CI 由 GitHub Actions 运行，主要包含静态检查、类型检查、测试和文档部署。
+CI 由 GitHub Actions 运行，主要包含静态检查、类型检查、测试、构建、自动格式修复和文档部署。仓库本地自动化以 `Taskfile.yml` 为主入口。
 
-## 静态检查
+## Taskfile 主入口
+
+```bash
+task check
+task test
+task build
+task ci
+```
+
+`task check` 覆盖 Ruff、Ruff format check、Markdown lint、Turbo lint、Pyright、ty 和 Turbo type check。`task test` 覆盖 Python pytest 和 docs Vitest。`task ci` 会按顺序运行 check、test 和 build。
+
+## Python / code 聚焦检查
 
 ```bash
 uv run -m ruff check . --output-format=github
 uv run -m ruff format --check .
-```
-
-## 类型检查
-
-```bash
 uv run -m pyright .
 uv run -m ty check --output-format github
-```
-
-## 测试
-
-```bash
 uv run -m pytest
 ```
 
 如果只改了某个模块，可以先跑相关测试文件，再按需要扩大范围。
 
-## 文档站测试与 Lint
+## Docs / frontend 聚焦检查
 
-文档站使用 Vitest 运行单元测试，ESLint 进行代码检查：
+文档站使用 pnpm、Vitest、ESLint、Fumadocs 和 Turbo：
 
 ```bash
-pnpm --filter docs test
 pnpm --filter docs lint
+pnpm --filter docs test
+pnpm --filter docs run lint:links
+pnpm turbo run check-types --filter=docs
+pnpm turbo run build --filter=docs
 ```
-
-修改 `apps/docs` 后，建议同时运行测试和 lint 确认无回归。
 
 ## Markdown 检查
 
@@ -46,27 +48,22 @@ pnpm --filter docs lint
 pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
 ```
 
-## 文档构建
-
-文档部署工作流使用：
-
-```bash
-pnpm turbo run build --filter=docs
-```
-
-本地修改 `apps/docs` 后，建议运行同一条命令确认站点能构建。
-
 ## 国际化检查
 
 修改可翻译字符串后运行：
 
 ```bash
-task i18n:extract
-task i18n:update
-task i18n:compile
+task i18n
 ```
 
 如果只修改文档中的 i18n 说明，不需要重新生成 gettext catalog。
+
+## CI 工作流
+
+- `🧪 CI`：Static Analysis 运行 `task ci:static`；Tests & Type Check 运行 Pyright、ty 和 pytest；Docs Check 运行 Turbo lint/type check 和 docs test。
+- `👷 CI-builds`：运行 `task ci:build`；在 `main`、`dev`、`releases/**` 的 push 上还会 bump dev version、写回 `core_version`、构建、归档产物、生成 provenance 并提交 tag。
+- `📚 文档部署`：docs 相关路径 push 到 `main` 或 `dev` 时，运行 pnpm/turbo lint、docs test 和 docs build，然后部署 GitHub Pages。
+- Auto Fix & Format：`main` 和 `dev` push 上，在 CI 通过后运行 `task ci:fix` 并可能自动提交格式修复。
 
 ## CI 失败处理
 
