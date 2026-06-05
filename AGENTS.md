@@ -110,7 +110,7 @@ lingchu-bot/
 │   ├── database/       # JSON5 store, ORM CRUD helpers
 │   ├── handle/         # Command handlers (mute, group settings/actions, etc.)
 │   ├── i18n/           # Babel/gettext translations
-│   └── utils/          # Typed command tools
+│   └── utils/          # General command tools
 ├── apps/docs/          # Fumadocs documentation site
 │   ├── content/docs/   # MDX content (zh + en)
 │   ├── src/
@@ -192,6 +192,7 @@ Use conventional commit + gitmoji: `✨ feat:`, `🐛 fix:`, `📝 docs:`, `⚡ 
 ## CI
 
 GitHub Actions runs on push to `main`/`dev` and on PRs:
+
 - **Static Analysis**: Ruff + Markdown + Turborepo lint
 - **Tests & Type Check**: Pyright + ty + pytest + docs test
 - **Auto Format**: On push to main/dev, auto-fix and commit
