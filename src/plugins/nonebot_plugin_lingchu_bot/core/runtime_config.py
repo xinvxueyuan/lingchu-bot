@@ -141,13 +141,20 @@ def _dotenv_overrides(global_config: NoneBotConfig) -> dict[str, str]:
 
 
 def _coerce_env_value(raw: str, annotation: Any) -> Any:
-    """Coerce a string env value to the expected Python type."""
+    """Coerce a string env value to the expected Python type.
+
+    Returns ``None`` when the value cannot be converted, so the caller
+    will skip it and fall back to the default.
+    """
     if annotation is bool:
         return raw.lower() in ("1", "true", "yes")
-    if annotation is int:
-        return int(raw)
-    if annotation is float:
-        return float(raw)
+    try:
+        if annotation is int:
+            return int(raw)
+        if annotation is float:
+            return float(raw)
+    except ValueError:
+        return None
     return raw
 
 
@@ -158,7 +165,9 @@ def _env_overrides(dotenv_values: dict[str, str]) -> dict[str, Any]:
         env_key = field_name.upper()
         raw = os.environ.get(env_key) or dotenv_values.get(env_key)
         if raw is not None:
-            result[field_name] = _coerce_env_value(raw, field_info.annotation)
+            coerced = _coerce_env_value(raw, field_info.annotation)
+            if coerced is not None:
+                result[field_name] = coerced
     return result
 
 
