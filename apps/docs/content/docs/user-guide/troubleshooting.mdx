@@ -42,9 +42,18 @@ IN_CONTAINERS=True
 
 请优先检查：
 
-- Milky 服务是否已经启动。
-- NoneBot 与 Milky 的连接配置是否一致。
+- 当前启用适配器对应的服务是否已经启动；默认是 OneBot V11。
+- NoneBot 与当前启用适配器的连接配置是否一致。
 - 账号、网络、防火墙和平台侧权限是否可用。
+
+## 同平台适配器冲突
+
+如果启动时报出 `Lingchu adapter conflict`，说明同一平台出现了多个已知适配器。
+
+- 未配置 `LINGCHUAdapter` 时，QQ 平台同时注册 `~onebot.v11`、`~milky`、`~qq` 或 `~onebot.v12` 中的多个会启动失败。
+- 如果需要固定使用 OneBot V11，请配置 `LINGCHUAdapter = "~onebot.v11"`。
+- 如果需要固定使用 Milky，请配置 `LINGCHUAdapter = "~milky"`。
+- 不要在同一平台显式配置多个适配器，例如 `LINGCHUAdapter = "~milky+~onebot.v11"` 会直接失败。
 
 ## 群管理命令失败
 
@@ -53,7 +62,7 @@ IN_CONTAINERS=True
 - 机器人是否在目标群中。
 - 机器人是否具备对应管理权限。
 - 目标用户是否可以被机器人操作。
-- Milky 侧 API 是否返回网络错误或操作拒绝。
+- 当前启用适配器侧 API 是否返回网络错误或操作拒绝。
 
 如果反馈语言不符合预期，请检查 `LINGCHU_LOCALE`、`lc_locale` 或 `locale` 是否设置为当前支持的 catalog，例如 `zh_CN` 或 `en_US`。未知文本会回退为原文。
 

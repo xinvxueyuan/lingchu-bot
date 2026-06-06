@@ -5,17 +5,95 @@ title: Configuration
 
 ## Configuration
 
-Lingchu Bot uses NoneBot plugin configuration and Pydantic models to manage core settings. The current core settings are concentrated in the `Config` model.
+Lingchu Bot stores lightweight runtime settings in a plugin-owned JSON5 configuration file while reusing NoneBot2's global configuration parser.
 
-## Core settings
+On first startup, the plugin creates `config.json5`. Its path is provided by `nonebot-plugin-localstore` and belongs to the plugin configuration directory, not the data or cache directory.
 
-| Setting | Default | Description |
-| --- | --- | --- |
-| `core_version` | `0.0.0.dev36` | Core plugin version marker |
-| `superuser_key` | `123456789abcdef` | Superuser authentication key |
-| `data_dir` | localstore data directory | Data file directory |
-| `config_dir` | localstore config directory | Configuration file directory |
-| `cache_dir` | localstore cache directory | Cache file directory |
+Runtime configuration priority, from highest to lowest, is:
+
+1. OS environment variables
+2. NoneBot dotenv / global configuration
+3. `config.json5`
+4. Code defaults
+
+OS environment variable and dotenv loading, case handling, Boolean parsing, path parsing, and env-file selection follow NoneBot's own behavior. Lingchu Bot does not implement separate dotenv discovery.
+
+## Runtime settings
+
+| Setting                                                  | Default           | Description                                                             |
+| -------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------- |
+| `superuser_key`                                          | `123456789abcdef` | Superuser authentication key                                            |
+| `message_store_enabled`                                  | `true`            | Whether to enable message-store runtime hooks                           |
+| `message_store_retention_days`                           | `30`              | Number of days to retain message records; `0` disables day-based expiry |
+| `message_store_summary_limit`                            | `500`             | Maximum length for text, data, and result summaries                     |
+| `message_store_record_api_calls`                         | `true`            | Whether to record platform API call summaries                           |
+| `message_store_cleanup_enabled`                          | `true`            | Whether to clean expired message records during shutdown                |
+| `lingchu_adapter` / `LINGCHUAdapter` / `LINGCHU_ADAPTER` | unset             | Selects the enabled adapter for each platform                           |
+
+Example `config.json5`:
+
+```json5
+{
+  superuser_key: "123456789abcdef",
+  message_store_enabled: true,
+  message_store_retention_days: 30,
+  message_store_summary_limit: 500,
+  message_store_record_api_calls: true,
+  message_store_cleanup_enabled: true,
+  lingchu_adapter: "~onebot.v11",
+}
+```
+
+NoneBot global configuration can still override JSON5:
+
+```toml
+LINGCHUAdapter = "~telegram+~onebot.v11+~discord"
+```
+
+Or in a `.env` file:
+
+```dotenv
+LINGCHUAdapter=~onebot.v11
+```
+
+If the same key appears in OS environment variables, dotenv, and `config.json5`, the OS environment variable wins.
+
+## Core path settings
+
+`core_version`, `data_dir`, `config_dir`, `cache_dir`, and system platform helpers are still provided by the core `Config`. Paths come from `nonebot-plugin-localstore`:
+
+- `data_dir`: data file directory.
+- `config_dir`: configuration file directory.
+- `cache_dir`: cache file directory.
+
+## Adapter selection
+
+Lingchu Bot groups concrete adapters into platform capabilities. Only one adapter is enabled per platform by default. The current QQ platform priority is:
+
+1. `~onebot.v11`
+2. `~milky`
+3. `~qq`
+4. `~onebot.v12`
+
+When unset, QQ uses `~onebot.v11`. To select an adapter explicitly, set a global NoneBot configuration value:
+
+```toml
+LINGCHUAdapter = "~telegram+~onebot.v11+~discord"
+```
+
+Only the QQ platform profile is implemented at the moment, so `~telegram` and `~discord` are ignored in this example, while QQ selects `~onebot.v11`. To enable Milky:
+
+```toml
+LINGCHUAdapter = "~milky"
+```
+
+Explicitly configuring multiple known adapters for the same platform fails startup:
+
+```toml
+LINGCHUAdapter = "~milky+~onebot.v11"
+```
+
+When `LINGCHUAdapter` is unset, runtime registration of multiple known QQ adapters also fails startup. Once one QQ adapter is configured explicitly, other same-platform adapters may still be imported or registered, but Lingchu Bot treats them as absent. They do not participate in platform resolution, message storage, or API call recording.
 
 ## Internationalization settings
 

@@ -16,9 +16,9 @@ from nonebot.message import (
 )
 from nonebot.typing import T_State  # noqa: TC002
 
-from ..core.config import plugin_config
+from ..core.runtime_config import runtime_config
 from ..database.orm_crud import DatabaseError
-from ..platforms import get_platform_profile
+from ..platforms import get_platform_profile, is_known_adapter
 from ..repositories import message_store as repository
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ class NormalizedMessageEvent:
 def _truncate(value: str | None, limit: int | None = None) -> str | None:
     if value is None:
         return None
-    size = limit if limit is not None else plugin_config.message_store_summary_limit
+    size = limit if limit is not None else runtime_config.message_store_summary_limit
     if size <= 0 or len(value) <= size:
         return value
     return f"{value[:size]}..."
@@ -93,10 +93,12 @@ def _adapter_name(bot: Bot) -> str:
         return "unknown"
 
 
-def _platform_name(adapter_name: str) -> str:
+def _platform_name(adapter_name: str) -> str | None:
     profile = get_platform_profile(adapter_name)
     if profile is not None:
         return profile.platform_id
+    if is_known_adapter(adapter_name):
+        return None
     return adapter_name.lower()
 
 
@@ -170,11 +172,13 @@ def _plain_text(event: Event) -> str | None:
     return _truncate(str(message)) if message is not None else None
 
 
-def normalize_message_event(bot: Bot, event: Event) -> NormalizedMessageEvent:
+def normalize_message_event(bot: Bot, event: Event) -> NormalizedMessageEvent | None:
     """Normalize an adapter event into message-store metadata."""
     adapter = _adapter_name(bot)
-    bot_id = _stringify(getattr(bot, "self_id", None), limit=128) or "unknown"
     platform = _platform_name(adapter)
+    if platform is None:
+        return None
+    bot_id = _stringify(getattr(bot, "self_id", None), limit=128) or "unknown"
     identity = MessageIdentity(
         platform=platform,
         adapter=adapter,
@@ -198,7 +202,7 @@ def _state_identity(state: T_State) -> MessageIdentity | None:
 
 async def initialize_message_store() -> None:
     """Initialize message storage runtime resources."""
-    if not plugin_config.message_store_enabled:
+    if not runtime_config.message_store_enabled:
         logger.info("Message store is disabled")
         return
     logger.info("Message store initialized")
@@ -206,7 +210,7 @@ async def initialize_message_store() -> None:
 
 async def shutdown_message_store() -> None:
     """Run lightweight shutdown maintenance for message storage."""
-    if not plugin_config.message_store_enabled:
+    if not runtime_config.message_store_enabled:
         return
     await cleanup_expired_messages()
 
@@ -214,13 +218,13 @@ async def shutdown_message_store() -> None:
 async def cleanup_expired_messages() -> tuple[int, bool]:
     """Delete expired message records according to configuration."""
     if (
-        not plugin_config.message_store_enabled
-        or not plugin_config.message_store_cleanup_enabled
+        not runtime_config.message_store_enabled
+        or not runtime_config.message_store_cleanup_enabled
     ):
         return (0, True)
     try:
         return await repository.cleanup_expired_messages(
-            retention_days=plugin_config.message_store_retention_days
+            retention_days=runtime_config.message_store_retention_days
         )
     except DatabaseError:
         logger.exception("Failed to cleanup expired message records")
@@ -229,12 +233,15 @@ async def cleanup_expired_messages() -> tuple[int, bool]:
 
 async def record_bot_lifecycle(bot: Bot, event_type: str) -> bool:
     """Record bot connect/disconnect lifecycle as an auxiliary store event."""
-    if not plugin_config.message_store_enabled:
+    if not runtime_config.message_store_enabled:
         return False
     adapter = _adapter_name(bot)
+    platform = _platform_name(adapter)
+    if platform is None:
+        return False
     try:
         await repository.record_api_call(
-            platform=_platform_name(adapter),
+            platform=platform,
             adapter=adapter,
             bot_id=_stringify(getattr(bot, "self_id", None), limit=128) or "unknown",
             api_name=event_type,
@@ -255,9 +262,11 @@ async def message_store_preprocessor(
     state: T_State,
 ) -> None:
     """Store incoming event metadata before matcher processing."""
-    if not plugin_config.message_store_enabled:
+    if not runtime_config.message_store_enabled:
         return
     normalized = normalize_message_event(bot, event)
+    if normalized is None:
+        return
     state[STATE_KEY] = normalized.identity
     try:
         await repository.record_event_received(
@@ -292,7 +301,7 @@ async def message_store_run_postprocessor(
     state: T_State,
 ) -> None:
     """Update message processing status after a matcher run."""
-    if not plugin_config.message_store_enabled:
+    if not runtime_config.message_store_enabled:
         return
     identity = _state_identity(state)
     if identity is None:
@@ -333,14 +342,17 @@ async def message_store_on_called_api(
 ) -> None:
     """Record platform API call results when configured."""
     if (
-        not plugin_config.message_store_enabled
-        or not plugin_config.message_store_record_api_calls
+        not runtime_config.message_store_enabled
+        or not runtime_config.message_store_record_api_calls
     ):
         return
     adapter = _adapter_name(bot)
+    platform = _platform_name(adapter)
+    if platform is None:
+        return
     try:
         await repository.record_api_call(
-            platform=_platform_name(adapter),
+            platform=platform,
             adapter=adapter,
             bot_id=_stringify(getattr(bot, "self_id", None), limit=128) or "unknown",
             api_name=api,

@@ -5,14 +5,14 @@ title: Quick Start
 
 ## Quick Start
 
-This page explains how to prepare Lingchu Bot locally. Before connecting to a real platform, prepare the account, network, and configuration required by NoneBot and the Milky adapter.
+This page explains how to prepare Lingchu Bot locally. Before connecting to a real platform, prepare the account, network, and configuration required by NoneBot and the enabled adapter. The QQ platform enables OneBot V11 by default; configure Milky explicitly if you need it.
 
 ## Requirements
 
 - Python 3.13
 - uv
 - git
-- A runtime environment usable by the Milky adapter
+- A runtime environment usable by the enabled QQ adapter; OneBot V11 is the default
 
 ## Get the code
 
@@ -40,7 +40,8 @@ docker compose up --build
 ## Pre-run checklist
 
 - Confirm that Python is version 3.13.
-- Confirm that the Milky-side service and connection settings are ready.
+- Confirm that the service and connection settings for the enabled adapter are ready.
+- If runtime will register multiple QQ adapters, configure `LINGCHUAdapter` first, for example `LINGCHUAdapter = "~onebot.v11"` or `LINGCHUAdapter = "~milky"`.
 - Confirm that the target NoneBot project loads `src/plugins`, or that you are using the repository Docker runner.
 - Confirm that Boolean values in NoneBot configuration use lowercase `true` / `false`, not `True` / `False`.
 

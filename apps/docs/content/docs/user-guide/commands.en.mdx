@@ -5,7 +5,7 @@ title: Commands and Group Management
 
 ## Commands and Group Management
 
-The currently confirmed user-facing capabilities are concentrated in Milky group management commands. Commands are registered through `nonebot-plugin-alconna`, with command start tokens and command separators enabled by default.
+The currently confirmed user-facing capabilities are concentrated in QQ group management commands. Commands are registered through `nonebot-plugin-alconna`, with command start tokens and command separators enabled by default. The QQ platform uses OneBot V11 by default; set `LINGCHUAdapter = "~milky"` if you need Milky.
 
 Success and failure feedback for group management commands is wired to gettext catalogs. Command trigger words are still primarily the current Chinese commands and aliases. Switching locale does not automatically add English command trigger words.
 
@@ -84,7 +84,7 @@ Common aliases include:
 
 ## Group settings and operations
 
-These commands are the Milky group management handlers registered in the current source. Commands act on the current group by default, and `@用户` resolves to the target group member. Plugin metadata and project configuration preserve room for multi-adapter expansion, but the table does not list future capabilities as currently available commands.
+These commands are the QQ group management handlers registered in the current source. Commands act on the current group by default, and `@用户` resolves to the target group member. The plugin enables only one QQ adapter per platform selection; the table does not list future capabilities as currently available commands.
 
 | Capability | Primary command |
 | --- | --- |
@@ -104,6 +104,6 @@ Essence message management and similar capabilities are candidates for later ite
 
 ## Error feedback
 
-Group management commands return readable error messages for Milky network errors and rejected operations. Unknown exceptions are still raised outward so developers can find uncovered cases.
+Group management commands return readable error messages for covered adapter network errors and rejected operations. Unknown exceptions are still raised outward so developers can find uncovered cases.
 
 Feedback text uses `LINGCHU_LOCALE`, `lc_locale`, or `locale` from the current NoneBot configuration. Without configuration, the default is `zh_CN`. The current repository provides `zh_CN` and `en_US` catalogs. See [Internationalization](../developer-guide/i18n).

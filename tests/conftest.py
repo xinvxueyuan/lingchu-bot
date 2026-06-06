@@ -60,6 +60,7 @@ def pytest_configure(config: pytest.Config) -> None:
     init_config: dict[str, str] = {
         "LOCALSTORE_USE_CWD": "True",
         "DRIVER": "~fastapi+~httpx+~websockets",
+        "LINGCHUAdapter": "~onebot.v11",
     }
     nonebot.init(**init_config)
 
