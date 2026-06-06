@@ -153,8 +153,8 @@ tasks:
         path.write_text(new_text, encoding="utf-8")
         PY
 
-  ci:version:commit-tag:
-    desc: "[CI] Commit version changes and create release tag"
+  ci:version:tag-only:
+    desc: "[CI] Create release tag only (no commit push to avoid branch divergence)"
     requires:
       vars: [VERSION]
     cmds:
@@ -164,19 +164,6 @@ tasks:
         version="{{.VERSION}}"
         tag="v${version}"
 
-        export HUSKY=0
-
-        git config user.name "github-actions[bot]"
-        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-        git add pyproject.toml uv.lock src/plugins/nonebot_plugin_lingchu_bot/core/config.py 2>/dev/null \
-        || git add pyproject.toml src/plugins/nonebot_plugin_lingchu_bot/core/config.py uv.lock
-
-        if ! git diff --cached --quiet; then
-            git commit --no-verify -m "🔖 chore: bump version to ${version} [skip ci]"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-        fi
-
         if git rev-parse "$tag" >/dev/null 2>&1; then
             echo "Tag ${tag} already exists locally; skipping tag creation."
         elif git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
@@ -185,6 +172,41 @@ tasks:
             git tag "$tag"
             git push origin "$tag"
         fi
+
+  ci:version:from-tag:
+    desc: "[CI] Restore version from a git tag into config.py (for release builds)"
+    requires:
+      vars: [TAG, CONFIG_PATH]
+    cmds:
+      - |
+        set -euo pipefail
+
+        version="{{.TAG}}"
+        version="${version#v}"
+
+        export VERSION="$version" CONFIG_PATH="{{.CONFIG_PATH}}"
+        python - <<'PY'
+        from pathlib import Path
+        import os
+        import re
+
+        version = os.environ["VERSION"]
+        path = Path(os.environ["CONFIG_PATH"])
+
+        text = path.read_text(encoding="utf-8")
+        new_text, count = re.subn(
+            r'core_version:\s*str\s*=\s*"[^"]*"',
+            f'core_version: str = "{version}"',
+            text,
+            count=1,
+        )
+
+        if count != 1:
+            raise RuntimeError("未找到唯一的 core_version 字段")
+
+        path.write_text(new_text, encoding="utf-8")
+        print(f"Restored version {version} into {path}")
+        PY
 
   i18n:
     desc: Extract, update and compile i18n messages
