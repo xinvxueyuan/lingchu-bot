@@ -4,11 +4,20 @@ from arclet.alconna import Alconna, Args
 from nonebot import logger
 from nonebot.adapters.milky import Bot as MilkyBot
 from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
+from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
+from nonebot.adapters.onebot.v11.event import (
+    GroupMessageEvent as OneBot11GroupMessageEvent,
+)
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 
 from ....i18n import _async as _
-from .common import run_group_action_milky, target_user_milky
+from .common import (
+    run_group_action_milky,
+    run_group_action_onebot11,
+    target_user_milky,
+    target_user_onebot11,
+)
 
 set_group_member_card_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna("设置群名片", Args["user", At]["card", str]),
@@ -82,6 +91,26 @@ async def milkybot_set_group_member_card(
     )
 
 
+@set_group_member_card_cmd.handle()
+async def onebot11_set_group_member_card(
+    user: At,
+    card: str,
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
+) -> Any:
+    target_user_id, target_name = target_user_onebot11(user, event)
+    return await run_group_action_onebot11(
+        set_group_member_card_cmd,
+        await _("设置群名片"),
+        lambda: bot.set_group_card(
+            group_id=event.group_id, user_id=target_user_id, card=card
+        ),
+        (await _("已设置群名片: {target_name}({target_user_id}) -> {card}")).format(
+            target_name=target_name, target_user_id=target_user_id, card=card
+        ),
+    )
+
+
 @set_group_member_special_title_cmd.handle()
 async def milkybot_set_group_member_special_title(
     user: At,
@@ -109,6 +138,33 @@ async def milkybot_set_group_member_special_title(
             group_id=event.data.peer_id,
             user_id=target_user_id,
             special_title=special_title,
+        ),
+        (
+            await _("已设置群头衔: {target_name}({target_user_id}) -> {special_title}")
+        ).format(
+            target_name=target_name,
+            target_user_id=target_user_id,
+            special_title=special_title,
+        ),
+    )
+
+
+@set_group_member_special_title_cmd.handle()
+async def onebot11_set_group_member_special_title(
+    user: At,
+    special_title: str,
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
+) -> Any:
+    target_user_id, target_name = target_user_onebot11(user, event)
+    return await run_group_action_onebot11(
+        set_group_member_special_title_cmd,
+        await _("设置群成员专属头衔"),
+        lambda: bot.set_group_special_title(
+            group_id=event.group_id,
+            user_id=target_user_id,
+            special_title=special_title,
+            duration=-1,
         ),
         (
             await _("已设置群头衔: {target_name}({target_user_id}) -> {special_title}")
@@ -150,6 +206,29 @@ async def milkybot_set_group_member_admin(
     )
 
 
+@set_group_member_admin_cmd.handle()
+async def onebot11_set_group_member_admin(
+    user: At,
+    is_set: bool,  # noqa: FBT001
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
+) -> Any:
+    target_user_id, target_name = target_user_onebot11(user, event)
+    action_text = await _("设置") if is_set else await _("取消")
+    return await run_group_action_onebot11(
+        set_group_member_admin_cmd,
+        await _("设置群管理员"),
+        lambda: bot.set_group_admin(
+            group_id=event.group_id, user_id=target_user_id, enable=is_set
+        ),
+        (await _("{action}群管理员: {target_name}({target_user_id})")).format(
+            action=action_text,
+            target_name=target_name,
+            target_user_id=target_user_id,
+        ),
+    )
+
+
 @unset_group_member_admin_cmd.handle()
 async def milkybot_unset_group_member_admin(
     user: At,
@@ -166,6 +245,17 @@ async def milkybot_unset_group_member_admin(
         Any: 操作的返回值，取决于底层处理器实现（例如操作响应或 None）。
     """
     return await milkybot_set_group_member_admin(
+        user=user, is_set=False, bot=bot, event=event
+    )
+
+
+@unset_group_member_admin_cmd.handle()
+async def onebot11_unset_group_member_admin(
+    user: At,
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
+) -> Any:
+    return await onebot11_set_group_member_admin(
         user=user, is_set=False, bot=bot, event=event
     )
 
@@ -192,6 +282,28 @@ async def milkybot_kick_group_member(
         await _("踢出群成员"),
         lambda: bot.kick_group_member(
             group_id=event.data.peer_id,
+            user_id=target_user_id,
+            reject_add_request=reject_add_request,
+        ),
+        (await _("已踢出群成员: {target_name}({target_user_id})")).format(
+            target_name=target_name, target_user_id=target_user_id
+        ),
+    )
+
+
+@kick_group_member_cmd.handle()
+async def onebot11_kick_group_member(
+    user: At,
+    reject_add_request: bool,  # noqa: FBT001
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
+) -> Any:
+    target_user_id, target_name = target_user_onebot11(user, event)
+    return await run_group_action_onebot11(
+        kick_group_member_cmd,
+        await _("踢出群成员"),
+        lambda: bot.set_group_kick(
+            group_id=event.group_id,
             user_id=target_user_id,
             reject_add_request=reject_add_request,
         ),

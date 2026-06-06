@@ -1,7 +1,13 @@
+from nonebot.adapters import Bot
 from nonebot.internal.driver.abstract import Driver
 
-from ..handle.command.group import import_handle as group_import_handle
+from ..handle.commands.group import import_handle as group_import_handle
 from ..i18n import warm_translation_cache
+from ..services.messagestore import (
+    initialize_message_store,
+    record_bot_lifecycle,
+    shutdown_message_store,
+)
 
 
 async def startup() -> None:
@@ -12,6 +18,7 @@ async def startup() -> None:
     """
     await warm_translation_cache()
     await group_import_handle()
+    await initialize_message_store()
 
 
 from nonebot import get_driver
@@ -20,24 +27,20 @@ driver: Driver = get_driver()
 
 
 @driver.on_startup
-async def do_something() -> None:
-    # TODO: 这里可以放一些启动时需要执行的代码，比如预加载一些数据等
-    pass
+async def initialize_runtime_services() -> None:
+    await startup()
 
 
 @driver.on_shutdown
-async def do_something_else() -> None:
-    # TODO: 这里可以放一些关闭时需要执行的代码，比如清理资源等
-    pass
+async def shutdown_runtime_services() -> None:
+    await shutdown_message_store()
 
 
 @driver.on_bot_connect
-async def do_something_else_else() -> None:
-    # TODO: 这里可以放一些机器人连接时需要执行的代码，比如发送欢迎消息等
-    pass
+async def record_bot_connected(bot: Bot) -> None:
+    await record_bot_lifecycle(bot, "bot_connected")
 
 
 @driver.on_bot_disconnect
-async def do_something_else_else_else() -> None:
-    # TODO: 这里可以放一些机器人断开连接时需要执行的代码，比如发送告别消息等
-    pass
+async def record_bot_disconnected(bot: Bot) -> None:
+    await record_bot_lifecycle(bot, "bot_disconnected")

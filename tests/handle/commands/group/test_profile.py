@@ -7,13 +7,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 
-from src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.profile import (
+from src.plugins.nonebot_plugin_lingchu_bot.handle.commands.group.profile import (
     milkybot_set_group_avatar,
     milkybot_set_group_name,
+    onebot11_set_group_name,
     set_group_avatar_cmd,
     set_group_name_cmd,
 )
-from tests.command.group.conftest import finish_text
+from tests.handle.commands.group.conftest import finish_text
 
 
 def create_mock_image(raw: bytes | None = None) -> MagicMock:
@@ -114,3 +115,22 @@ async def test_set_group_avatar_action_failed_returns_readable_message(
         )
 
     assert "设置群头像失败，操作被拒绝" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_onebot11_set_group_name_calls_v11_api(
+    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+) -> None:
+    mock_onebot11_bot.set_group_name = AsyncMock()
+
+    with patch.object(set_group_name_cmd, "finish") as mock_finish:
+        await onebot11_set_group_name(
+            new_group_name="新群名",
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+        )
+
+    mock_onebot11_bot.set_group_name.assert_called_once_with(
+        group_id=mock_onebot11_event.group_id, group_name="新群名"
+    )
+    assert finish_text(mock_finish) == "群名称已设置为: 新群名"

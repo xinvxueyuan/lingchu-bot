@@ -88,10 +88,10 @@ def target_user_onebot11(user: At, event: Onebot11GroupMessageEvent) -> tuple[in
     for segment in event.message:
         if (
             segment.type == "at"
-            and segment.data.get("data", {}).get("user_id")
-            and str(segment.data["data"]["user_id"]) == str(target_user_id)
+            and segment.data.get("qq")
+            and str(segment.data["qq"]) == str(target_user_id)
         ):
-            mention_name = segment.data.get("data", {}).get("name")
+            mention_name = segment.data.get("name")
             break
 
     if mention_name:

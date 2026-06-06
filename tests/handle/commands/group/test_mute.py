@@ -11,13 +11,17 @@ from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 from nonebot_plugin_alconna import UniMessage
 from nonebot_plugin_alconna.uniseg import At
 
-from src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.mute import (
+from src.plugins.nonebot_plugin_lingchu_bot.handle.commands.group.mute import (
     member_mute_cmd,
     member_unmute_cmd,
     milkybot_mute,
     milkybot_unmute,
     milkybot_whole_mute,
     milkybot_whole_unmute,
+    onebot11_mute,
+    onebot11_unmute,
+    onebot11_whole_mute,
+    onebot11_whole_unmute,
     whole_mute_cmd,
     whole_unmute_cmd,
 )
@@ -702,4 +706,85 @@ class TestUniMessage:
         with patch.object(whole_unmute_cmd, "finish") as mock_finish:
             await milkybot_whole_unmute(bot=mock_bot, event=mock_event)
 
+        assert finish_text(mock_finish) == "全体解禁成功"
+
+
+class TestOneBot11Mute:
+    """OneBot11 禁言 API 映射测试。"""
+
+    @pytest.mark.asyncio
+    async def test_onebot11_mute_calls_set_group_ban(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_at: MagicMock,
+    ) -> None:
+        mock_onebot11_bot.set_group_ban = AsyncMock()
+
+        with patch.object(member_mute_cmd, "finish") as mock_finish:
+            await onebot11_mute(
+                user=mock_at,
+                duration=300,
+                reason="违规",
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+            )
+
+        mock_onebot11_bot.set_group_ban.assert_called_once_with(
+            group_id=mock_onebot11_event.group_id,
+            user_id=987654321,
+            duration=300,
+        )
+        assert "已禁言:" in finish_text(mock_finish)
+        assert "名称: @测试用户" in finish_text(mock_finish)
+
+    @pytest.mark.asyncio
+    async def test_onebot11_unmute_calls_set_group_ban_duration_zero(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_at: MagicMock,
+    ) -> None:
+        mock_onebot11_bot.set_group_ban = AsyncMock()
+
+        with patch.object(member_unmute_cmd, "finish") as mock_finish:
+            await onebot11_unmute(
+                user=mock_at, bot=mock_onebot11_bot, event=mock_onebot11_event
+            )
+
+        mock_onebot11_bot.set_group_ban.assert_called_once_with(
+            group_id=mock_onebot11_event.group_id,
+            user_id=987654321,
+            duration=0,
+        )
+        assert "已解禁:" in finish_text(mock_finish)
+
+    @pytest.mark.asyncio
+    async def test_onebot11_whole_mute_calls_set_group_whole_ban(
+        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    ) -> None:
+        mock_onebot11_bot.set_group_whole_ban = AsyncMock()
+
+        with patch.object(whole_mute_cmd, "finish") as mock_finish:
+            await onebot11_whole_mute(bot=mock_onebot11_bot, event=mock_onebot11_event)
+
+        mock_onebot11_bot.set_group_whole_ban.assert_called_once_with(
+            group_id=mock_onebot11_event.group_id, enable=True
+        )
+        assert finish_text(mock_finish) == "全体禁言成功"
+
+    @pytest.mark.asyncio
+    async def test_onebot11_whole_unmute_calls_set_group_whole_ban(
+        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    ) -> None:
+        mock_onebot11_bot.set_group_whole_ban = AsyncMock()
+
+        with patch.object(whole_unmute_cmd, "finish") as mock_finish:
+            await onebot11_whole_unmute(
+                bot=mock_onebot11_bot, event=mock_onebot11_event
+            )
+
+        mock_onebot11_bot.set_group_whole_ban.assert_called_once_with(
+            group_id=mock_onebot11_event.group_id, enable=False
+        )
         assert finish_text(mock_finish) == "全体解禁成功"

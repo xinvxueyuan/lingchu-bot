@@ -3,6 +3,10 @@ from unittest.mock import MagicMock
 import pytest
 from nonebot.adapters.milky import Bot as MilkyBot
 from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
+from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
+from nonebot.adapters.onebot.v11.event import (
+    GroupMessageEvent as OneBot11GroupMessageEvent,
+)
 from nonebot_plugin_alconna.uniseg import At
 
 
@@ -53,6 +57,22 @@ def mock_bot() -> MagicMock:
     bot = MagicMock(spec=MilkyBot)
     bot.adapter = MagicMock()
     bot.adapter.get_name.return_value = "Milky"
+    return bot
+
+
+@pytest.fixture
+def mock_onebot11_event() -> MagicMock:
+    event = MagicMock(spec=OneBot11GroupMessageEvent)
+    event.group_id = 123456789
+    event.message = []
+    return event
+
+
+@pytest.fixture
+def mock_onebot11_bot() -> MagicMock:
+    bot = MagicMock(spec=OneBot11Bot)
+    bot.adapter = MagicMock()
+    bot.adapter.get_name.return_value = "OneBot V11"
     return bot
 
 
