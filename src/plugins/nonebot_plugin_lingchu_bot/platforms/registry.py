@@ -61,7 +61,7 @@ PLATFORM_PROFILES: Final[tuple[PlatformProfile, ...]] = (
                 "qq",
             }
         ),
-        nonebot_adapters=frozenset({"~milky", "~onebot.v11"}),
+        nonebot_adapters=frozenset({"~qq", "~milky", "~onebot.v11", "~onebot.v12"}),
         capabilities=QQ_CAPABILITIES,
     ),
 )

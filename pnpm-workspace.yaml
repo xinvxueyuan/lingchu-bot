@@ -11,7 +11,7 @@ allowBuilds:
   '@scarf/scarf': true
   esbuild: true
   gitnexus: true
-  onnxruntime-node: true
+  onnxruntime-node: false
   protobufjs: true
   sharp: true
   tree-sitter: true
