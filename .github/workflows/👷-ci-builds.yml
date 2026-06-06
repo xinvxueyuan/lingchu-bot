@@ -167,6 +167,6 @@ jobs:
           path: dist
           if-no-files-found: error
 
-      - name: 🔖 Commit and tag
+      - name: 🏷️ Create version tag
         shell: bash
-        run: task ci:version:commit-tag VERSION="${{ steps.bump.outputs.new_version }}"
+        run: task ci:version:tag-only VERSION="${{ steps.bump.outputs.new_version }}"
