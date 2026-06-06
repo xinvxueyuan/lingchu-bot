@@ -15,7 +15,7 @@ def test_qq_profile_groups_existing_adapters() -> None:
 
 
 def test_supported_adapters_are_declared_from_profiles() -> None:
-    assert get_supported_adapters() == {"~milky", "~onebot.v11"}
+    assert get_supported_adapters() == {"~qq", "~milky", "~onebot.v11", "~onebot.v12"}
 
 
 def test_iter_platform_profiles_defaults_to_implemented() -> None:
