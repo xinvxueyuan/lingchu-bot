@@ -7,7 +7,6 @@ from typing import Any, Final
 
 from nonebot import get_driver
 from nonebot.compat import type_validate_python
-from nonebot.config import BaseSettings
 from nonebot_plugin_localstore import get_plugin_config_file
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError
 
@@ -79,28 +78,33 @@ def load_runtime_json_defaults(
 
 
 def _nonebot_runtime_overrides() -> dict[str, Any]:
+    """Extract lingchu_adapter value from NoneBot global config.
+
+    NoneBot has already parsed .env files and OS environment variables into
+    ``global_config``, so re-reading dotenv via private APIs would be redundant.
+    We simply extract the relevant key(s) from the already-parsed config.
+    """
     try:
         global_config = get_driver().config
     except ValueError:
         return {}
 
-    init_values = global_config.model_dump()
+    dumped = global_config.model_dump()
+    result: dict[str, Any] = {}
     for key in (
         "lingchu_adapter",
         "LINGCHUAdapter",
         "LINGCHU_ADAPTER",
         "lingchuadapter",
     ):
-        if hasattr(global_config, key):
-            init_values[key] = getattr(global_config, key)
-
-    return BaseSettings._settings_build_values(
-        RuntimeConfig,
-        init_values,
-        env_file=global_config._env_file,
-        env_file_encoding=global_config._env_file_encoding,
-        env_nested_delimiter=global_config._env_nested_delimiter,
-    )
+        value = dumped.get(key)
+        if value is not None:
+            result[key] = value
+        elif hasattr(global_config, key):
+            attr = getattr(global_config, key)
+            if attr is not None:
+                result[key] = attr
+    return result
 
 
 def _normalize_runtime_aliases(values: dict[str, Any]) -> dict[str, Any]:
