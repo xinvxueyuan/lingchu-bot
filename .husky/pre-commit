@@ -25,4 +25,18 @@ else
     echo "⚠️  未找到 pnpm/npx，跳过 Gitnexus 分析。"
 fi
 
+# 3. Gitnexus 可能更新 CLAUDE.md / AGENTS.md，自动暂存变更
+CHANGED=""
+for f in CLAUDE.md AGENTS.md; do
+    if git diff --name-only -- "$f" 2>/dev/null | grep -q . || \
+       git diff --cached --name-only -- "$f" 2>/dev/null | grep -q . || \
+       git ls-files --others --exclude-standard -- "$f" 2>/dev/null | grep -q .; then
+        CHANGED="$CHANGED $f"
+    fi
+done
+if [ -n "$CHANGED" ]; then
+    echo "ℹ️  检测到 Gitnexus 更新了$CHANGED，正在暂存..."
+    git add $CHANGED
+fi
+
 echo "✅ 所有检查通过！"
