@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from nonebot import get_driver
 from nonebot.compat import type_validate_python
 from nonebot_plugin_localstore import get_plugin_config_file
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError
+
+if TYPE_CHECKING:
+    from nonebot.config import Config as NoneBotConfig
 
 from ..database.json5_store import (
     DatabaseError,
@@ -77,33 +81,115 @@ def load_runtime_json_defaults(
         raise RuntimeConfigError(path, exc) from exc
 
 
-def _nonebot_runtime_overrides() -> dict[str, Any]:
-    """Extract lingchu_adapter value from NoneBot global config.
+def _parse_dotenv(path: Path) -> dict[str, str]:
+    """Minimal .env parser: reads KEY=VALUE lines, ignores comments/blanks."""
+    result: dict[str, str] = {}
+    if not path.is_file():
+        return result
+    for raw_line in path.read_text(encoding="utf-8-sig").splitlines():
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "=" not in stripped:
+            continue
+        key, _, value = stripped.partition("=")
+        key = key.strip()
+        value = value.strip().strip("'\"")
+        if key:
+            result[key] = value
+    return result
 
-    NoneBot has already parsed .env files and OS environment variables into
-    ``global_config``, so re-reading dotenv via private APIs would be redundant.
-    We simply extract the relevant key(s) from the already-parsed config.
+
+def _alias_map_from_model() -> dict[str, str]:
+    """Build a mapping from validation alias to field name for RuntimeConfig."""
+    alias_to_field: dict[str, str] = {}
+    for field_name, field_info in RuntimeConfig.model_fields.items():
+        if field_info.validation_alias is not None and isinstance(
+            field_info.validation_alias, AliasChoices
+        ):
+            for alias in field_info.validation_alias.choices:
+                if isinstance(alias, str):
+                    alias_to_field[alias] = field_name
+    return alias_to_field
+
+
+def _global_config_overrides(global_config: NoneBotConfig) -> dict[str, Any]:
+    """Extract alias-resolved values from NoneBot global_config."""
+    dumped = global_config.model_dump()
+    alias_to_field = _alias_map_from_model()
+    result: dict[str, Any] = {}
+    for source_key, target_field in alias_to_field.items():
+        value = dumped.get(source_key)
+        if value is None and hasattr(global_config, source_key):
+            value = getattr(global_config, source_key)
+        if value is not None:
+            result[target_field] = value
+    return result
+
+
+def _dotenv_overrides(global_config: NoneBotConfig) -> dict[str, str]:
+    """Read runtime config values from NoneBot's dotenv file."""
+    env_file = getattr(global_config, "_env_file", None)
+    if env_file is None:
+        return {}
+    # pydantic-settings _env_file can be a tuple of paths
+    env_paths = env_file if isinstance(env_file, (list, tuple)) else [env_file]
+    combined: dict[str, str] = {}
+    for p in env_paths:
+        combined.update(_parse_dotenv(Path(p)))
+    return combined
+
+
+def _coerce_env_value(raw: str, annotation: Any) -> Any:
+    """Coerce a string env value to the expected Python type."""
+    if annotation is bool:
+        return raw.lower() in ("1", "true", "yes")
+    if annotation is int:
+        return int(raw)
+    if annotation is float:
+        return float(raw)
+    return raw
+
+
+def _env_overrides(dotenv_values: dict[str, str]) -> dict[str, Any]:
+    """Collect env/dotenv overrides for all RuntimeConfig fields."""
+    result: dict[str, Any] = {}
+    for field_name, field_info in RuntimeConfig.model_fields.items():
+        env_key = field_name.upper()
+        raw = os.environ.get(env_key) or dotenv_values.get(env_key)
+        if raw is not None:
+            result[field_name] = _coerce_env_value(raw, field_info.annotation)
+    return result
+
+
+def _nonebot_runtime_overrides() -> dict[str, Any]:
+    """Extract runtime config overrides from NoneBot config and OS env vars.
+
+    NoneBot's ``global_config`` contains values parsed from .env files and
+    its own settings.  However, NoneBot only exposes fields it knows about
+    (driver, superusers, plugin-declared configs, etc.).  Arbitrary
+    environment variables like ``MESSAGE_STORE_SUMMARY_LIMIT`` are **not**
+    reflected in ``global_config.model_dump()``.
+
+    Priority (highest first):
+    1. OS environment variables (``os.environ``)
+    2. NoneBot dotenv file (``_env_file``)
+    3. NoneBot ``global_config`` (for alias-resolved fields like lingchu_adapter)
     """
     try:
         global_config = get_driver().config
     except ValueError:
-        return {}
+        global_config = None
 
-    dumped = global_config.model_dump()
     result: dict[str, Any] = {}
-    for key in (
-        "lingchu_adapter",
-        "LINGCHUAdapter",
-        "LINGCHU_ADAPTER",
-        "lingchuadapter",
-    ):
-        value = dumped.get(key)
-        if value is not None:
-            result[key] = value
-        elif hasattr(global_config, key):
-            attr = getattr(global_config, key)
-            if attr is not None:
-                result[key] = attr
+
+    if global_config is not None:
+        result |= _global_config_overrides(global_config)
+        dotenv_values = _dotenv_overrides(global_config)
+    else:
+        dotenv_values = {}
+
+    result |= _env_overrides(dotenv_values)
     return result
 
 
