@@ -1,8 +1,10 @@
 from nonebot.adapters import Bot
 from nonebot.internal.driver.abstract import Driver
 
+from ..core.runtime_config import ensure_runtime_config_file
 from ..handle.commands.group import import_handle as group_import_handle
 from ..i18n import warm_translation_cache
+from ..platforms import validate_platform_adapter_selection
 from ..services.messagestore import (
     initialize_message_store,
     record_bot_lifecycle,
@@ -16,6 +18,10 @@ async def startup() -> None:
 
     依次执行：预热翻译缓存、导入并注册 group 命令处理器（含所有子模块）。
     """
+    ensure_runtime_config_file()
+    validate_platform_adapter_selection(
+        tuple(str(adapter_name) for adapter_name in driver._adapters)
+    )
     await warm_translation_cache()
     await group_import_handle()
     await initialize_message_store()

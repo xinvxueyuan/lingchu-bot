@@ -100,7 +100,6 @@ class Config(BaseModel):
 
     Attributes:
         core_version: 核心插件版本号。
-        superuser_key: 超级用户认证密钥。
         data_dir: 数据存储目录路径。
         config_dir: 配置文件存储目录路径。
         cache_dir: 缓存文件存储目录路径。
@@ -108,15 +107,58 @@ class Config(BaseModel):
     """
 
     core_version: str = "0.0.0.dev39"
-    superuser_key: str = "123456789abcdef"
     data_dir: Path = Field(default_factory=get_plugin_data_dir)
     config_dir: Path = Field(default_factory=get_plugin_config_dir)
     cache_dir: Path = Field(default_factory=get_plugin_cache_dir)
-    message_store_enabled: bool = True
-    message_store_retention_days: int = Field(default=30, ge=0)
-    message_store_summary_limit: int = Field(default=500, ge=0)
-    message_store_record_api_calls: bool = True
-    message_store_cleanup_enabled: bool = True
+
+    @property
+    def superuser_key(self) -> str:
+        """Return the runtime superuser key from lightweight config."""
+        from .runtime_config import get_runtime_config
+
+        return get_runtime_config().superuser_key
+
+    @property
+    def message_store_enabled(self) -> bool:
+        """Return whether message storage hooks are enabled."""
+        from .runtime_config import get_runtime_config
+
+        return get_runtime_config().message_store_enabled
+
+    @property
+    def message_store_retention_days(self) -> int:
+        """Return message record retention days."""
+        from .runtime_config import get_runtime_config
+
+        return get_runtime_config().message_store_retention_days
+
+    @property
+    def message_store_summary_limit(self) -> int:
+        """Return message summary truncation limit."""
+        from .runtime_config import get_runtime_config
+
+        return get_runtime_config().message_store_summary_limit
+
+    @property
+    def message_store_record_api_calls(self) -> bool:
+        """Return whether platform API call summaries are recorded."""
+        from .runtime_config import get_runtime_config
+
+        return get_runtime_config().message_store_record_api_calls
+
+    @property
+    def message_store_cleanup_enabled(self) -> bool:
+        """Return whether expired message cleanup is enabled."""
+        from .runtime_config import get_runtime_config
+
+        return get_runtime_config().message_store_cleanup_enabled
+
+    @property
+    def lingchu_adapter(self) -> str | list[str] | None:
+        """Return configured adapter selection from lightweight config."""
+        from .runtime_config import get_runtime_config
+
+        return get_runtime_config().lingchu_adapter
 
     @property
     def in_containers(self) -> bool:

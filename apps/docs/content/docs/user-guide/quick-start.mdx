@@ -5,14 +5,14 @@ title: 快速开始
 
 ## 快速开始
 
-本页说明如何在本地准备 Lingchu Bot。实际连接平台前，请先准备好 NoneBot 和 Milky 适配器所需的账号、网络和配置。
+本页说明如何在本地准备 Lingchu Bot。实际连接平台前，请先准备好 NoneBot 和当前启用适配器所需的账号、网络和配置。QQ 平台默认启用 OneBot V11；如需 Milky，请在配置中显式指定。
 
 ## 环境要求
 
 - Python 3.13
 - uv
 - git
-- Milky 适配器可用的运行环境
+- 当前启用的 QQ 平台适配器可用的运行环境；默认是 OneBot V11
 
 ## 获取代码
 
@@ -40,7 +40,8 @@ docker compose up --build
 ## 运行前检查
 
 - 确认 Python 版本为 3.13。
-- 确认 Milky 侧服务和连接配置已经准备好。
+- 确认当前启用适配器的服务和连接配置已经准备好。
+- 如果运行时会同时注册多个 QQ 适配器，请先配置 `LINGCHUAdapter`，例如 `LINGCHUAdapter = "~onebot.v11"` 或 `LINGCHUAdapter = "~milky"`。
 - 确认目标 NoneBot 项目已加载 `src/plugins`，或正在使用仓库 Docker runner。
 - 确认 NoneBot 配置中的布尔值使用小写 `true` / `false`，不要写成 `True` / `False`。
 

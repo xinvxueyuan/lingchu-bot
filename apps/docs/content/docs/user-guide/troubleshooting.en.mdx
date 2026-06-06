@@ -42,9 +42,18 @@ IN_CONTAINERS=True
 
 Check these first:
 
-- Whether the Milky service has started.
-- Whether NoneBot and Milky connection settings match.
+- Whether the service for the enabled adapter has started; the default is OneBot V11.
+- Whether NoneBot and the enabled adapter connection settings match.
 - Whether the account, network, firewall, and platform permissions are usable.
+
+## Same-platform adapter conflict
+
+If startup reports `Lingchu adapter conflict`, multiple known adapters were found for the same platform.
+
+- When `LINGCHUAdapter` is unset, startup fails if QQ registers more than one of `~onebot.v11`, `~milky`, `~qq`, or `~onebot.v12`.
+- To pin OneBot V11, set `LINGCHUAdapter = "~onebot.v11"`.
+- To pin Milky, set `LINGCHUAdapter = "~milky"`.
+- Do not explicitly configure multiple adapters for the same platform. For example, `LINGCHUAdapter = "~milky+~onebot.v11"` fails immediately.
 
 ## Group management command fails
 
@@ -53,7 +62,7 @@ Mute, unmute, and whole-group mute depend on platform permissions. When they fai
 - Whether the bot is in the target group.
 - Whether the bot has the required management permission.
 - Whether the target user can be operated on by the bot.
-- Whether the Milky-side API reports a network error or rejected operation.
+- Whether the enabled adapter API reports a network error or rejected operation.
 
 If feedback appears in an unexpected language, check whether `LINGCHU_LOCALE`, `lc_locale`, or `locale` is set to a supported catalog such as `zh_CN` or `en_US`. Unknown text falls back to the original message.
 

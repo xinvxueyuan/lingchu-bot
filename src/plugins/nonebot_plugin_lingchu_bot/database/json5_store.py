@@ -72,6 +72,22 @@ class InvalidDefaultTypeError(TypeError, DatabaseError):
         super().__init__(f"default must be a dict, got {actual_type}")
 
 
+class InvalidJSON5RootTypeError(TypeError, DatabaseError):
+    """JSON5 文件根对象不是字典时抛出。"""
+
+    def __init__(self, file_path: Path, actual_type: type[Any]) -> None:
+        super().__init__(
+            f"JSON5 root in {file_path} must be a dict, got {actual_type.__name__}"
+        )
+
+
+class JSON5FileReadError(RuntimeError, DatabaseError):
+    """JSON5 文件读取或解析失败时抛出。"""
+
+    def __init__(self, file_path: Path, reason: BaseException) -> None:
+        super().__init__(f"Failed to read JSON5 file {file_path}: {reason}")
+
+
 class DatabaseClosedError(RuntimeError, DatabaseError):
     """数据库已关闭时抛出。
 
@@ -152,6 +168,65 @@ class WatchAlreadyRunningError(RuntimeError, DatabaseError):
 
     def __init__(self) -> None:
         super().__init__("A watcher is already running")
+
+
+def load_json5_dict_sync(
+    file_path: str | Path,
+    *,
+    default: dict[str, Any] | None = None,
+    merge_default: bool = False,
+) -> dict[str, Any]:
+    """同步读取 JSON5 字典文件。
+
+    该 helper 面向插件导入期等不能 await 的轻量配置场景。文件不存在或
+    内容为空时返回 default 的深拷贝；文件存在但解析失败时抛出明确错误。
+    """
+    path = Path(file_path)
+    default_copy: dict[str, Any] = deepcopy(default) if default is not None else {}
+    if not path.exists():
+        return default_copy
+
+    try:
+        content = path.read_text(encoding="utf-8")
+        loaded = json5.loads(content) if content.strip() else default_copy
+    except (OSError, ValueError) as exc:
+        raise JSON5FileReadError(path, exc) from exc
+
+    if not isinstance(loaded, dict):
+        raise InvalidJSON5RootTypeError(path, type(loaded))
+
+    if not merge_default:
+        return loaded
+    return default_copy | loaded
+
+
+def ensure_json5_dict_file_sync(
+    file_path: str | Path,
+    default: dict[str, Any],
+    *,
+    indent: int = 2,
+    ensure_ascii: bool = False,
+) -> Path:
+    """确保 JSON5 字典文件存在，已存在时不覆盖。"""
+    path = Path(file_path)
+    if path.exists():
+        return path
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_suffix(".tmp.json5")
+    try:
+        content = json5.dumps(
+            default,
+            indent=indent,
+            ensure_ascii=ensure_ascii,
+        )
+        temp_path.write_text(content, encoding="utf-8")
+        temp_path.replace(path)
+    except (OSError, TypeError, ValueError) as exc:
+        with contextlib.suppress(OSError):
+            temp_path.unlink()
+        raise JSON5FileReadError(path, exc) from exc
+    return path
 
 
 class IntermediateListNoneError(ValueError, DatabaseError):
