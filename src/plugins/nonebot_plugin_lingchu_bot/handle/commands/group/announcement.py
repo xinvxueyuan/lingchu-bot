@@ -120,6 +120,7 @@ async def milkybot_send_group_announcement(
     )
 
 
+@send_group_announcement_cmd.handle()
 async def onebot_v11_send_group_announcement(
     content: str,
     image: UniImage | None,

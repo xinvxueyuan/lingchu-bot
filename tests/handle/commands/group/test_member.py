@@ -7,18 +7,23 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 
-from src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.member import (
+from src.plugins.nonebot_plugin_lingchu_bot.handle.commands.group.member import (
     kick_group_member_cmd,
     milkybot_kick_group_member,
     milkybot_set_group_member_admin,
     milkybot_set_group_member_card,
     milkybot_set_group_member_special_title,
     milkybot_unset_group_member_admin,
+    onebot11_kick_group_member,
+    onebot11_set_group_member_admin,
+    onebot11_set_group_member_card,
+    onebot11_set_group_member_special_title,
+    onebot11_unset_group_member_admin,
     set_group_member_admin_cmd,
     set_group_member_card_cmd,
     set_group_member_special_title_cmd,
 )
-from tests.command.group.conftest import finish_text
+from tests.handle.commands.group.conftest import finish_text
 
 
 @pytest.mark.asyncio
@@ -244,3 +249,130 @@ async def test_target_user_falls_back_to_at_display_when_mention_name_empty(
         )
 
     assert "测试用户(987654321)" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_onebot11_set_group_member_card_calls_v11_api(
+    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+) -> None:
+    mock_onebot11_bot.set_group_card = AsyncMock()
+
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
+        await onebot11_set_group_member_card(
+            user=mock_at,
+            card="新名片",
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+        )
+
+    mock_onebot11_bot.set_group_card.assert_called_once_with(
+        group_id=mock_onebot11_event.group_id, user_id=987654321, card="新名片"
+    )
+    assert "已设置群名片: 测试用户(987654321) -> 新名片" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_onebot11_set_group_member_special_title_calls_v11_api(
+    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+) -> None:
+    mock_onebot11_bot.set_group_special_title = AsyncMock()
+
+    with patch.object(set_group_member_special_title_cmd, "finish") as mock_finish:
+        await onebot11_set_group_member_special_title(
+            user=mock_at,
+            special_title="精英",
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+        )
+
+    mock_onebot11_bot.set_group_special_title.assert_called_once_with(
+        group_id=mock_onebot11_event.group_id,
+        user_id=987654321,
+        special_title="精英",
+        duration=-1,
+    )
+    assert "已设置群头衔: 测试用户(987654321) -> 精英" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_onebot11_set_group_member_admin_calls_v11_api(
+    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+) -> None:
+    mock_onebot11_bot.set_group_admin = AsyncMock()
+
+    with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
+        await onebot11_set_group_member_admin(
+            user=mock_at,
+            is_set=True,
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+        )
+
+    mock_onebot11_bot.set_group_admin.assert_called_once_with(
+        group_id=mock_onebot11_event.group_id, user_id=987654321, enable=True
+    )
+    assert "设置群管理员: 测试用户(987654321)" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_onebot11_unset_group_member_admin_calls_v11_api(
+    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+) -> None:
+    mock_onebot11_bot.set_group_admin = AsyncMock()
+
+    with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
+        await onebot11_unset_group_member_admin(
+            user=mock_at, bot=mock_onebot11_bot, event=mock_onebot11_event
+        )
+
+    mock_onebot11_bot.set_group_admin.assert_called_once_with(
+        group_id=mock_onebot11_event.group_id, user_id=987654321, enable=False
+    )
+    assert "取消群管理员: 测试用户(987654321)" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_onebot11_kick_group_member_passes_reject_flag(
+    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+) -> None:
+    mock_onebot11_bot.set_group_kick = AsyncMock()
+
+    with patch.object(kick_group_member_cmd, "finish") as mock_finish:
+        await onebot11_kick_group_member(
+            user=mock_at,
+            reject_add_request=True,
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+        )
+
+    mock_onebot11_bot.set_group_kick.assert_called_once_with(
+        group_id=mock_onebot11_event.group_id,
+        user_id=987654321,
+        reject_add_request=True,
+    )
+    assert "已踢出群成员: 测试用户(987654321)" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_onebot11_target_user_reads_matching_at_segment(
+    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+) -> None:
+    mock_onebot11_bot.set_group_card = AsyncMock()
+    mock_at.display = ""
+    wrong_segment = MagicMock(type="at", data={"qq": "111111", "name": "错误用户"})
+    target_segment = MagicMock(type="at", data={"qq": "987654321", "name": "目标用户"})
+    mock_onebot11_event.message = [wrong_segment, target_segment]
+
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
+        await onebot11_set_group_member_card(
+            user=mock_at,
+            card="新名片",
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+        )
+
+    mock_onebot11_bot.set_group_card.assert_called_once_with(
+        group_id=mock_onebot11_event.group_id, user_id=987654321, card="新名片"
+    )
+    assert "目标用户(987654321)" in finish_text(mock_finish)
+    assert "错误用户" not in finish_text(mock_finish)

@@ -112,6 +112,11 @@ class Config(BaseModel):
     data_dir: Path = Field(default_factory=get_plugin_data_dir)
     config_dir: Path = Field(default_factory=get_plugin_config_dir)
     cache_dir: Path = Field(default_factory=get_plugin_cache_dir)
+    message_store_enabled: bool = True
+    message_store_retention_days: int = Field(default=30, ge=0)
+    message_store_summary_limit: int = Field(default=500, ge=0)
+    message_store_record_api_calls: bool = True
+    message_store_cleanup_enabled: bool = True
 
     @property
     def in_containers(self) -> bool:

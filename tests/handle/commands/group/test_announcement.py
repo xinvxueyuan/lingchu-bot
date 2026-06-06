@@ -6,11 +6,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.plugins.nonebot_plugin_lingchu_bot.handle.command.group.announcement import (
+from src.plugins.nonebot_plugin_lingchu_bot.handle.commands.group.announcement import (
     milkybot_send_group_announcement,
+    onebot_v11_send_group_announcement,
     send_group_announcement_cmd,
 )
-from tests.command.group.conftest import finish_text
+from tests.handle.commands.group.conftest import finish_text
 
 
 def create_mock_image(raw: bytes | None = None) -> MagicMock:
@@ -89,3 +90,73 @@ async def test_send_group_announcement_action_failed_returns_readable_message(
         )
 
     assert "发送群公告失败，操作被拒绝" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("app_name", "version"),
+    [("LLOneBot", "7.12.0"), ("NapCat.Onebot", "4.18.0")],
+)
+async def test_onebot11_send_group_announcement_calls_extension_api(
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    app_name: str,
+    version: str,
+) -> None:
+    mock_onebot11_bot.get_version_info = AsyncMock(
+        return_value={
+            "status": "ok",
+            "retcode": 0,
+            "data": {
+                "protocol_version": "v11",
+                "app_name": app_name,
+                "version": version,
+            },
+        }
+    )
+    mock_onebot11_bot.call_api = AsyncMock()
+
+    with patch.object(send_group_announcement_cmd, "finish") as mock_finish:
+        await onebot_v11_send_group_announcement(
+            content="公告",
+            image=None,
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+        )
+
+    mock_onebot11_bot.call_api.assert_called_once_with(
+        "_send_group_notice",
+        group_id=mock_onebot11_event.group_id,
+        content="公告",
+        image=None,
+    )
+    assert finish_text(mock_finish) == "群公告已发送"
+
+
+@pytest.mark.asyncio
+async def test_onebot11_send_group_announcement_rejects_unsupported_impl(
+    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+) -> None:
+    mock_onebot11_bot.get_version_info = AsyncMock(
+        return_value={
+            "status": "ok",
+            "retcode": 0,
+            "data": {
+                "protocol_version": "v11",
+                "app_name": "UnknownBot",
+                "version": "1.0.0",
+            },
+        }
+    )
+    mock_onebot11_bot.call_api = AsyncMock()
+
+    with patch.object(send_group_announcement_cmd, "finish") as mock_finish:
+        await onebot_v11_send_group_announcement(
+            content="公告",
+            image=None,
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+        )
+
+    mock_onebot11_bot.call_api.assert_not_called()
+    assert "不支持的 OneBot 版本" in finish_text(mock_finish)
