@@ -156,7 +156,7 @@ async def test_message_store_preprocessor_records_unknown_adapter(
     record_event.assert_awaited_once()
     record_event_args = record_event.await_args
     assert record_event_args is not None
-    assert record_event_args.kwargs["platform"] == "custom"
+    assert record_event_args.kwargs["platform"] == "unknown"
 
 
 async def test_message_store_preprocessor_swallows_database_errors(

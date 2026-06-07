@@ -62,3 +62,13 @@ def test_configured_adapter_suppresses_runtime_conflict() -> None:
 
 def test_iter_platform_profiles_defaults_to_implemented() -> None:
     assert [profile.platform_id for profile in iter_platform_profiles()] == ["qq"]
+
+
+def test_is_adapter_enabled_returns_false_for_unknown_adapter() -> None:
+    """未知适配器不应被视为已启用。"""
+    assert not is_adapter_enabled("NonexistentAdapter")
+
+
+def test_get_platform_profile_returns_none_for_unknown_adapter() -> None:
+    """未知适配器没有对应的平台 profile。"""
+    assert get_platform_profile("UnknownProtocol") is None
