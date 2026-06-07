@@ -84,6 +84,8 @@ class PlatformAdapterConflictError(RuntimeError):
         )
 
 
+UNKNOWN_PLATFORM_ID: Final[str] = "unknown"
+
 QQ_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset(
     {
         PlatformCapability.GROUP_MANAGEMENT,
@@ -245,7 +247,7 @@ def is_adapter_enabled(
     """Return whether a concrete adapter is selected for its platform."""
     adapter_id = _resolve_known_adapter_id(adapter_name)
     if adapter_id is None:
-        return True
+        return False
     return adapter_id in resolve_enabled_adapters(configured)
 
 

@@ -18,7 +18,7 @@ from nonebot.typing import T_State  # noqa: TC002
 
 from ..core.runtime_config import runtime_config
 from ..database.orm_crud import DatabaseError
-from ..platforms import get_platform_profile, is_known_adapter
+from ..platforms import UNKNOWN_PLATFORM_ID, get_platform_profile, is_known_adapter
 from ..repositories import message_store as repository
 
 logger = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ def _platform_name(adapter_name: str) -> str | None:
         return profile.platform_id
     if is_known_adapter(adapter_name):
         return None
-    return adapter_name.lower()
+    return UNKNOWN_PLATFORM_ID
 
 
 def _event_data(event: Event) -> Any:
