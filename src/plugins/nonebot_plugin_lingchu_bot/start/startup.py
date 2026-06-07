@@ -1,4 +1,4 @@
-from nonebot import get_driver, logger
+from nonebot import get_adapters, get_driver, logger
 from nonebot.adapters import Bot
 from nonebot.internal.driver.abstract import Driver
 
@@ -26,7 +26,7 @@ async def startup() -> None:
     """
     ensure_runtime_config_file()
     registered_adapter_names = tuple(
-        str(adapter_name) for adapter_name in driver._adapters
+        str(adapter_name) for adapter_name in get_adapters()
     )
     validate_enabled_adapters_loaded(registered_adapter_names)
     enabled_adapters = resolve_enabled_adapters()

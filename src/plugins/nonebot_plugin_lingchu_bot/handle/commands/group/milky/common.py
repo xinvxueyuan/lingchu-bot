@@ -32,8 +32,8 @@ def target_user_milky(user: At, event: MilkyGroupMessageEvent) -> tuple[int, str
         None,
     )
     if mention:
-        return target_user_id, mention["data"].get("name") or ""
-    return target_user_id, ""
+        return target_user_id, mention["data"].get("name") or user.display or ""
+    return target_user_id, user.display or ""
 
 
 async def finish_action_error_milky(

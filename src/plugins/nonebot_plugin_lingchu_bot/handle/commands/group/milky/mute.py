@@ -10,6 +10,7 @@ from nonebot_plugin_alconna.uniseg import At
 from .....i18n import _async as _
 from ..common import selected_adapter_handle
 from ..mute import member_mute_cmd, member_unmute_cmd, whole_mute_cmd, whole_unmute_cmd
+from .common import target_user_milky
 
 if TYPE_CHECKING:
     from nonebot_plugin_alconna.uniseg.segment import Text
@@ -23,15 +24,10 @@ async def milkybot_mute(
     event: MilkyGroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
-    target_user_id = int(user.target)
-    mention: dict | None = next(
-        (item for item in event.data.segments if item.get("type") == "mention"), None
-    )
-    if mention:
-        target_user_id: int = mention["data"]["user_id"]
-        target_name: str | None = mention["data"]["name"]
-    else:
-        target_name: str | None = user.display or ""
+    try:
+        target_user_id, target_name = target_user_milky(user, event)
+    except ValueError as error:
+        return await member_mute_cmd.finish(message=str(error))
     reason_text = await _("违反群规「默认」") if reason is None else reason
 
     try:
@@ -98,15 +94,10 @@ async def milkybot_unmute(
     event: MilkyGroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
-    target_user_id = int(user.target)
-    mention: dict | None = next(
-        (item for item in event.data.segments if item.get("type") == "mention"), None
-    )
-    if mention:
-        target_user_id: int = mention["data"]["user_id"]
-        target_name: str | None = mention["data"]["name"]
-    else:
-        target_name: str | None = user.display or ""
+    try:
+        target_user_id, target_name = target_user_milky(user, event)
+    except ValueError as error:
+        return await member_unmute_cmd.finish(message=str(error))
     reason_text = await _("管理员操作「默认」") if reason is None else reason
 
     try:

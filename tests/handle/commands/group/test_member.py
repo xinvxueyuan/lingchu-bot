@@ -213,6 +213,26 @@ async def test_set_group_member_card_action_failed_returns_readable_message(
 
 
 @pytest.mark.asyncio
+async def test_target_user_uses_milky_mention_name_when_at_display_empty(
+    mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
+) -> None:
+    """At.display 为空时从 Milky 原始 mention 段兜底取得 name。"""
+    mock_bot.set_group_member_card = AsyncMock()
+    mock_at.display = ""
+    mock_event.data.segments = [
+        {"type": "mention", "data": {"user_id": 987654321, "name": "Milky真实名"}}
+    ]
+
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
+        await milkybot_set_group_member_card(
+            user=mock_at, card="名片", bot=mock_bot, event=mock_event
+        )
+
+    assert "Milky真实名(987654321)" in finish_text(mock_finish)
+    assert "测试用户" not in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
 async def test_target_user_falls_back_to_at_display_when_no_segments(
     mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
 ) -> None:
