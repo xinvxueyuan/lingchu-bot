@@ -5,6 +5,37 @@
 COMMIT_MSG_FILE=$1
 COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
 
+# --- 自动追加 Signed-off-by (等效 git commit -s) ---
+
+SIGNOFF_NAME=$(git config user.name)
+SIGNOFF_EMAIL=$(git config user.email)
+
+if [ -n "$SIGNOFF_NAME" ] && [ -n "$SIGNOFF_EMAIL" ]; then
+    SIGNOFF_LINE="Signed-off-by: ${SIGNOFF_NAME} <${SIGNOFF_EMAIL}>"
+
+    # 检查是否已存在相同的 Signed-off-by 行，避免重复追加
+    if ! grep -qF "$SIGNOFF_LINE" "$COMMIT_MSG_FILE"; then
+        # 提取非注释内容（去除尾部空行）和注释部分
+        BODY=$(sed '/^#/d' "$COMMIT_MSG_FILE" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+        COMMENTS=$(grep '^#' "$COMMIT_MSG_FILE" || true)
+
+        {
+            printf '%s\n\n%s\n' "$BODY" "$SIGNOFF_LINE"
+            if [ -n "$COMMENTS" ]; then
+                printf '%s\n' "$COMMENTS"
+            fi
+        } > "$COMMIT_MSG_FILE"
+
+        # 去除多余连续空行，保持格式整洁
+        sed -i '/^$/N;/^\n$/d' "$COMMIT_MSG_FILE"
+
+        # 重新读取更新后的消息
+        COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+    fi
+fi
+
+# --- 格式校验 ---
+
 echo "🔍 正在校验 Commit Message 格式..."
 
 # 取第一条非注释、非空行作为待校验内容(避免被 Git 自动生成的注释污染)
