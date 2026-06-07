@@ -72,7 +72,11 @@ jobs:
         # pinned from go-task/setup-task@v2.1.0
         uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa
       - name: Static Analysis
-        run: task ci:static
+        run: |
+          # Auto-fix before check to self-heal fixable issues
+          uv run -m ruff check --fix .
+          uv run -m ruff format .
+          task ci:static
 
   tests:
     name: 🧪 Tests & Type Check
