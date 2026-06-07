@@ -2,6 +2,8 @@ import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.platforms import (
     PlatformAdapterConflictError,
+    PlatformAdapterNotLoadedError,
+    PlatformAdapterUnknownError,
     PlatformCapability,
     get_platform_profile,
     get_supported_adapters,
@@ -25,7 +27,14 @@ def test_supported_adapters_are_declared_from_profiles() -> None:
 
 
 def test_configured_adapter_selects_known_platform_adapter() -> None:
-    assert get_supported_adapters("~telegram+~onebot.v11+~discord") == {"~onebot.v11"}
+    assert get_supported_adapters("~onebot.v11") == {"~onebot.v11"}
+
+
+def test_configured_unknown_adapter_raises() -> None:
+    with pytest.raises(PlatformAdapterUnknownError) as exc_info:
+        get_supported_adapters("~telegram+~onebot.v11+~discord")
+
+    assert exc_info.value.adapters == frozenset({"~telegram", "~discord"})
 
 
 def test_configured_milky_selects_milky_profile() -> None:
@@ -44,12 +53,8 @@ def test_configured_same_platform_adapters_raise() -> None:
     assert exc_info.value.source == "configuration"
 
 
-def test_runtime_same_platform_adapters_raise_without_config() -> None:
-    with pytest.raises(PlatformAdapterConflictError) as exc_info:
-        validate_platform_adapter_selection(("Milky", "OneBot V11"), configured=None)
-
-    assert exc_info.value.platform_id == "qq"
-    assert exc_info.value.source == "runtime"
+def test_runtime_same_platform_adapters_are_allowed_when_default_is_loaded() -> None:
+    validate_platform_adapter_selection(("Milky", "OneBot V11"), configured=None)
 
 
 def test_configured_adapter_suppresses_runtime_conflict() -> None:
@@ -58,6 +63,36 @@ def test_configured_adapter_suppresses_runtime_conflict() -> None:
         configured="~onebot.v11",
     )
     assert not is_adapter_enabled("Milky", "~onebot.v11")
+
+
+def test_default_adapter_must_be_loaded() -> None:
+    with pytest.raises(PlatformAdapterNotLoadedError) as exc_info:
+        validate_platform_adapter_selection(("Milky",), configured=None)
+
+    assert exc_info.value.adapter_id == "~onebot.v11"
+    assert exc_info.value.registered_adapters == frozenset({"~milky"})
+
+
+def test_configured_adapter_must_be_loaded() -> None:
+    with pytest.raises(PlatformAdapterNotLoadedError) as exc_info:
+        validate_platform_adapter_selection(("OneBot V11",), configured="~milky")
+
+    assert exc_info.value.adapter_id == "~milky"
+    assert exc_info.value.registered_adapters == frozenset({"~onebot.v11"})
+
+
+def test_configured_adapter_passes_when_loaded_with_extra_adapters() -> None:
+    validate_platform_adapter_selection(
+        ("Milky", "OneBot V11"),
+        configured="~milky",
+    )
+
+
+def test_unknown_registered_adapter_does_not_affect_selection() -> None:
+    validate_platform_adapter_selection(
+        ("Milky", "OneBot V11", "Telegram"),
+        configured="~milky",
+    )
 
 
 def test_iter_platform_profiles_defaults_to_implemented() -> None:

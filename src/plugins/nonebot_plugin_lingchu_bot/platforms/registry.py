@@ -84,6 +84,54 @@ class PlatformAdapterConflictError(RuntimeError):
         )
 
 
+class PlatformAdapterNotLoadedError(RuntimeError):
+    """Lingchu selected an adapter that NoneBot did not register."""
+
+    def __init__(
+        self,
+        *,
+        adapter_id: str,
+        registered_adapters: frozenset[str],
+    ) -> None:
+        self.adapter_id = adapter_id
+        self.registered_adapters = registered_adapters
+        registered = (
+            ", ".join(sorted(registered_adapters)) if registered_adapters else "none"
+        )
+        profile = _ADAPTER_PROFILE_INDEX.get(adapter_id.casefold())
+        display_name = adapter_id
+        if profile is not None:
+            display_map = {
+                nb_id: display for display, nb_id in profile.adapter_name_map
+            }
+            display_name = display_map.get(adapter_id, adapter_id)
+        super().__init__(
+            "Lingchu 已选择适配器 "
+            f"{adapter_id} ({display_name})，但 NoneBot 未加载/注册该适配器。"
+            f"\n当前 NoneBot 已注册的 Lingchu 已知适配器：{registered}"
+            "\n请加载匹配的 NoneBot 适配器，或修改 LINGCHUAdapter。"
+        )
+
+
+class PlatformAdapterUnknownError(RuntimeError):
+    """Lingchu adapter configuration contains unknown adapter ids."""
+
+    def __init__(self, adapters: frozenset[str]) -> None:
+        self.adapters = adapters
+        adapter_list = ", ".join(sorted(adapters))
+        known = ", ".join(
+            adapter_id
+            for profile in iter_platform_profiles()
+            for adapter_id in profile.nonebot_adapters
+        )
+        super().__init__(
+            "LINGCHUAdapter 声明了 Lingchu 尚未实现或无法识别的适配器："
+            f"{adapter_list}。"
+            f"\n当前可选择的适配器：{known}"
+            "\n请改用已实现的 Lingchu 适配器，或等待对应平台 profile 实现。"
+        )
+
+
 UNKNOWN_PLATFORM_ID: Final[str] = "unknown"
 
 QQ_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset(
@@ -224,6 +272,16 @@ def _configured_profile_adapters(
     )
 
 
+def _unknown_configured_adapters(
+    configured_adapters: tuple[str, ...],
+) -> frozenset[str]:
+    return frozenset(
+        adapter
+        for adapter in configured_adapters
+        if _resolve_known_adapter_id(adapter) is None
+    )
+
+
 def resolve_enabled_adapters(
     configured: AdapterConfig | object = _UNSET,
 ) -> set[str]:
@@ -234,6 +292,9 @@ def resolve_enabled_adapters(
         else cast("AdapterConfig", configured)
     )
     configured_adapters = parse_configured_adapters(raw_config)
+    unknown_adapters = _unknown_configured_adapters(configured_adapters)
+    if unknown_adapters:
+        raise PlatformAdapterUnknownError(unknown_adapters)
     return {
         _profile_enabled_adapter(profile, configured_adapters, source="configuration")
         for profile in iter_platform_profiles()
@@ -261,29 +322,37 @@ def validate_platform_adapter_selection(
     configured: AdapterConfig | object = _UNSET,
 ) -> None:
     """Validate runtime adapter registration against Lingchu platform selection."""
+    validate_enabled_adapters_loaded(registered_adapter_names, configured)
+
+
+def resolve_registered_adapters(
+    registered_adapter_names: tuple[str, ...],
+) -> set[str]:
+    """Resolve NoneBot registered adapter names to Lingchu adapter ids."""
+    return {
+        adapter_id
+        for adapter_name in registered_adapter_names
+        if (adapter_id := _resolve_known_adapter_id(adapter_name)) is not None
+    }
+
+
+def validate_enabled_adapters_loaded(
+    registered_adapter_names: tuple[str, ...],
+    configured: AdapterConfig | object = _UNSET,
+) -> None:
+    """Validate every Lingchu-enabled adapter is registered by NoneBot."""
     raw_config = (
         _global_configured_adapters()
         if configured is _UNSET
         else cast("AdapterConfig", configured)
     )
-    configured_adapters = parse_configured_adapters(raw_config)
-    resolve_enabled_adapters(raw_config)
-
-    for profile in iter_platform_profiles():
-        if _configured_profile_adapters(profile, configured_adapters):
-            continue
-        registered = frozenset(
-            adapter_id
-            for adapter_name in registered_adapter_names
-            if (adapter_id := _resolve_known_adapter_id(adapter_name))
-            in profile.nonebot_adapters
+    enabled = resolve_enabled_adapters(raw_config)
+    registered = resolve_registered_adapters(registered_adapter_names)
+    for adapter_id in sorted(enabled - registered):
+        raise PlatformAdapterNotLoadedError(
+            adapter_id=adapter_id,
+            registered_adapters=frozenset(registered),
         )
-        if len(registered) > 1:
-            raise PlatformAdapterConflictError(
-                platform_id=profile.platform_id,
-                adapters=registered,
-                source="runtime",
-            )
 
 
 def get_platform_profile(

@@ -69,22 +69,19 @@ async def test_set_group_member_admin_matches_requested_mention(
 
 
 @pytest.mark.asyncio
-async def test_set_group_member_admin_invalid_target_raises_value_error(
+async def test_set_group_member_admin_invalid_target_finishes_with_error(
     mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_bot.set_group_member_admin = AsyncMock()
     mock_at.target = "not-a-number"
 
-    with (
-        patch.object(set_group_member_admin_cmd, "finish") as mock_finish,
-        pytest.raises(ValueError),
-    ):
+    with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await milkybot_set_group_member_admin(
             user=mock_at, is_set=True, bot=mock_bot, event=mock_event
         )
 
     mock_bot.set_group_member_admin.assert_not_called()
-    mock_finish.assert_not_called()
+    assert "无效的用户 ID: 'not-a-number'" in finish_text(mock_finish)
 
 
 @pytest.mark.asyncio
@@ -210,6 +207,60 @@ async def test_set_group_member_card_action_failed_returns_readable_message(
         )
 
     assert "设置群名片失败，操作被拒绝" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_milky_member_commands_invalid_target_finish_without_api_call(
+    mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
+) -> None:
+    mock_bot.set_group_member_card = AsyncMock()
+    mock_bot.set_group_member_special_title = AsyncMock()
+    mock_bot.kick_group_member = AsyncMock()
+    mock_at.target = "not-a-number"
+
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
+        await milkybot_set_group_member_card(
+            user=mock_at, card="名片", bot=mock_bot, event=mock_event
+        )
+    mock_bot.set_group_member_card.assert_not_called()
+    assert "无效的用户 ID: 'not-a-number'" in finish_text(mock_finish)
+
+    with patch.object(set_group_member_special_title_cmd, "finish") as mock_finish:
+        await milkybot_set_group_member_special_title(
+            user=mock_at, special_title="头衔", bot=mock_bot, event=mock_event
+        )
+    mock_bot.set_group_member_special_title.assert_not_called()
+    assert "无效的用户 ID: 'not-a-number'" in finish_text(mock_finish)
+
+    with patch.object(kick_group_member_cmd, "finish") as mock_finish:
+        await milkybot_kick_group_member(
+            user=mock_at,
+            reject_add_request=True,
+            bot=mock_bot,
+            event=mock_event,
+        )
+    mock_bot.kick_group_member.assert_not_called()
+    assert "无效的用户 ID: 'not-a-number'" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_target_user_uses_milky_mention_name_when_at_display_empty(
+    mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
+) -> None:
+    """At.display 为空时从 Milky 原始 mention 段兜底取得 name。"""
+    mock_bot.set_group_member_card = AsyncMock()
+    mock_at.display = ""
+    mock_event.data.segments = [
+        {"type": "mention", "data": {"user_id": 987654321, "name": "Milky真实名"}}
+    ]
+
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
+        await milkybot_set_group_member_card(
+            user=mock_at, card="名片", bot=mock_bot, event=mock_event
+        )
+
+    assert "Milky真实名(987654321)" in finish_text(mock_finish)
+    assert "测试用户" not in finish_text(mock_finish)
 
 
 @pytest.mark.asyncio
@@ -354,7 +405,7 @@ async def test_onebot11_kick_group_member_passes_reject_flag(
 
 
 @pytest.mark.asyncio
-async def test_onebot11_target_user_reads_matching_at_segment(
+async def test_target_user_onebot11_uses_at_segment_name_when_at_display_empty(
     mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_onebot11_bot.set_group_card = AsyncMock()
@@ -375,4 +426,5 @@ async def test_onebot11_target_user_reads_matching_at_segment(
         group_id=mock_onebot11_event.group_id, user_id=987654321, card="新名片"
     )
     assert "目标用户(987654321)" in finish_text(mock_finish)
+    assert "测试用户" not in finish_text(mock_finish)
     assert "错误用户" not in finish_text(mock_finish)

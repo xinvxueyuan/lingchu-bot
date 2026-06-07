@@ -41,7 +41,7 @@ docker compose up --build
 
 - 确认 Python 版本为 3.13。
 - 确认当前启用适配器的服务和连接配置已经准备好。
-- 如果运行时会同时注册多个 QQ 适配器，请先配置 `LINGCHUAdapter`，例如 `LINGCHUAdapter = "~onebot.v11"` 或 `LINGCHUAdapter = "~milky"`。
+- 如果运行时会同时注册多个 QQ 适配器，Lingchu Bot 只会启用 `LINGCHUAdapter` 选中的业务代码；请确认选中的适配器也已经由 NoneBot 加载。
 - 确认目标 NoneBot 项目已加载 `src/plugins`，或正在使用仓库 Docker runner。
 - 确认 NoneBot 配置中的布尔值使用小写 `true` / `false`，不要写成 `True` / `False`。
 

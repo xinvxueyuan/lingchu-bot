@@ -156,10 +156,12 @@ class TestMute:
         assert "标识: 987654321" in str(result_message)
 
     @pytest.mark.asyncio
-    async def test_mute_prefers_first_mention_segment(
+    async def test_mute_matches_mention_segment_by_at_target(
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
-        """测试存在多个 mention 消息段时只使用第一个。"""
+        """测试存在多个 mention 消息段时按 At.target 匹配目标。"""
+        mock_at.target = "333333"
+        mock_at.display = ""
         mock_event.data.segments = [
             {"type": "text", "data": {"text": "前缀"}},
             {"type": "mention", "data": {"user_id": 222222, "name": "第一用户"}},
@@ -177,13 +179,13 @@ class TestMute:
 
         mock_bot.set_group_member_mute.assert_called_once_with(
             group_id=mock_event.data.peer_id,
-            user_id=222222,
+            user_id=333333,
             duration=300,
         )
         result_message = finish_text(mock_finish)
-        assert "名称: @第一用户" in result_message
-        assert "标识: 222222" in result_message
-        assert "第二用户" not in result_message
+        assert "名称: @第二用户" in result_message
+        assert "标识: 333333" in result_message
+        assert "第一用户" not in result_message
 
     @pytest.mark.asyncio
     async def test_mute_ignores_non_mention_segments(
@@ -305,16 +307,13 @@ class TestMute:
         assert "名称: @\n" in finish_text(mock_finish)
 
     @pytest.mark.asyncio
-    async def test_mute_invalid_at_target_raises_value_error(
+    async def test_mute_invalid_at_target_finishes_with_error(
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
-        """测试 At.target 非数字时抛出 ValueError 且不调用 API。"""
+        """测试 At.target 非数字时结束匹配器且不调用 API。"""
         mock_at.target = "not-a-number"
 
-        with (
-            patch.object(member_mute_cmd, "finish") as mock_finish,
-            pytest.raises(ValueError),
-        ):
+        with patch.object(member_mute_cmd, "finish") as mock_finish:
             await milkybot_mute(
                 user=mock_at,
                 duration=60,
@@ -324,13 +323,15 @@ class TestMute:
             )
 
         mock_bot.set_group_member_mute.assert_not_called()
-        mock_finish.assert_not_called()
+        assert "无效的用户 ID: 'not-a-number'" in finish_text(mock_finish)
 
     @pytest.mark.asyncio
-    async def test_mute_passes_mention_user_id_through(
+    async def test_mute_converts_matching_mention_target_to_int(
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
-        """测试 mention user_id 非 int 时按当前逻辑原样传给 API。"""
+        """测试匹配的 mention 目标按 At.target 安全转换为 int。"""
+        mock_at.target = "222222"
+        mock_at.display = ""
         mock_event.data.segments = [
             {"type": "mention", "data": {"user_id": "222222", "name": "字符串ID"}}
         ]
@@ -346,7 +347,7 @@ class TestMute:
 
         mock_bot.set_group_member_mute.assert_called_once_with(
             group_id=mock_event.data.peer_id,
-            user_id="222222",
+            user_id=222222,
             duration=60,
         )
         assert "标识: 222222" in finish_text(mock_finish)
@@ -431,10 +432,12 @@ class TestUnmute:
         assert "标识: 987654321" in str(result_message)
 
     @pytest.mark.asyncio
-    async def test_unmute_prefers_first_mention_segment(
+    async def test_unmute_matches_mention_segment_by_at_target(
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
-        """测试存在多个 mention 消息段时只解禁第一个。"""
+        """测试存在多个 mention 消息段时按 At.target 解禁目标。"""
+        mock_at.target = "444444"
+        mock_at.display = ""
         mock_event.data.segments = [
             {"type": "mention", "data": {"user_id": 333333, "name": "第一用户"}},
             {"type": "mention", "data": {"user_id": 444444, "name": "第二用户"}},
@@ -445,12 +448,12 @@ class TestUnmute:
 
         mock_bot.set_group_member_mute.assert_called_once_with(
             group_id=mock_event.data.peer_id,
-            user_id=333333,
+            user_id=444444,
             duration=0,
         )
         result_message = finish_text(mock_finish)
-        assert "名称: 第一用户" in result_message
-        assert "第二用户" not in result_message
+        assert "名称: 第二用户" in result_message
+        assert "第一用户" not in result_message
 
     @pytest.mark.asyncio
     async def test_unmute_ignores_non_mention_segments(
@@ -487,20 +490,17 @@ class TestUnmute:
         assert "名称: \n" in finish_text(mock_finish)
 
     @pytest.mark.asyncio
-    async def test_unmute_invalid_at_target_raises_value_error(
+    async def test_unmute_invalid_at_target_finishes_with_error(
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
-        """测试解禁 At.target 非数字时抛出 ValueError 且不调用 API。"""
+        """测试解禁 At.target 非数字时结束匹配器且不调用 API。"""
         mock_at.target = "not-a-number"
 
-        with (
-            patch.object(member_unmute_cmd, "finish") as mock_finish,
-            pytest.raises(ValueError),
-        ):
+        with patch.object(member_unmute_cmd, "finish") as mock_finish:
             await milkybot_unmute(user=mock_at, bot=mock_bot, event=mock_event)
 
         mock_bot.set_group_member_mute.assert_not_called()
-        mock_finish.assert_not_called()
+        assert "无效的用户 ID: 'not-a-number'" in finish_text(mock_finish)
 
     @pytest.mark.asyncio
     async def test_unmute_api_error(
