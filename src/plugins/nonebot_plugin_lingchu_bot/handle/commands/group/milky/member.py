@@ -23,7 +23,10 @@ async def milkybot_set_group_member_card(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
-    target_user_id, target_name = target_user_milky(user, event)
+    try:
+        target_user_id, target_name = target_user_milky(user, event)
+    except ValueError as error:
+        return await set_group_member_card_cmd.finish(message=str(error))
     return await run_group_action_milky(
         set_group_member_card_cmd,
         await _("设置群名片"),
@@ -43,7 +46,10 @@ async def milkybot_set_group_member_special_title(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
-    target_user_id, target_name = target_user_milky(user, event)
+    try:
+        target_user_id, target_name = target_user_milky(user, event)
+    except ValueError as error:
+        return await set_group_member_special_title_cmd.finish(message=str(error))
     return await run_group_action_milky(
         set_group_member_special_title_cmd,
         await _("设置群成员专属头衔"),
@@ -69,7 +75,10 @@ async def milkybot_set_group_member_admin(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
-    target_user_id, target_name = target_user_milky(user, event)
+    try:
+        target_user_id, target_name = target_user_milky(user, event)
+    except ValueError as error:
+        return await set_group_member_admin_cmd.finish(message=str(error))
     action_text = await _("设置") if is_set else await _("取消")
     return await run_group_action_milky(
         set_group_member_admin_cmd,
@@ -103,7 +112,10 @@ async def milkybot_kick_group_member(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
 ) -> Any:
-    target_user_id, target_name = target_user_milky(user, event)
+    try:
+        target_user_id, target_name = target_user_milky(user, event)
+    except ValueError as error:
+        return await kick_group_member_cmd.finish(message=str(error))
     return await run_group_action_milky(
         kick_group_member_cmd,
         await _("踢出群成员"),

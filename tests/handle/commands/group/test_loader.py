@@ -93,3 +93,30 @@ async def test_group_loader_imports_only_milky_modules(
     await group_loader.import_handle()
 
     assert loaded_modules == ["milky_only"]
+
+
+@pytest.mark.asyncio
+async def test_group_loader_skips_enabled_adapter_without_handlers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    loaded_modules: list[str] = []
+
+    def fake_import_module(module_path: str) -> Any:
+        loaded_modules.append(module_path)
+        return SimpleNamespace()
+
+    monkeypatch.setattr(group_loader, "resolve_enabled_adapters", lambda: {"~unknown"})
+    monkeypatch.setattr(
+        group_loader,
+        "_ADAPTER_SUBMODULES",
+        {
+            "~onebot.v11": ("onebot11_only",),
+            "~milky": ("milky_only",),
+        },
+    )
+    monkeypatch.setattr(group_loader, "import_module", fake_import_module)
+    group_loader._loaded_handlers.clear()
+
+    await group_loader.import_handle()
+
+    assert loaded_modules == []
