@@ -27,7 +27,7 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
 
 The plugin declares adapters by platform capability instead of treating every imported concrete adapter as enabled. The currently implemented profile is QQ, with known adapter priority `~onebot.v11`, `~milky`, `~qq`, then `~onebot.v12`. When unset, the default is OneBot V11; `LINGCHUAdapter` can switch the selection explicitly, for example `LINGCHUAdapter = "~milky"`.
 
-Explicitly configuring multiple known adapters for the same platform raises `PlatformAdapterConflictError`. When unset, runtime registration of multiple known QQ adapters also fails startup. After one QQ adapter is selected explicitly, other same-platform adapters are treated as absent and do not participate in platform resolution, message storage, or API call recording. Other platform profiles and non-group-management capabilities depend on later implementation and tests.
+Explicitly configuring multiple known adapters for the same platform raises `PlatformAdapterConflictError`. When unset, runtime registration of multiple known QQ adapters also fails startup. After one QQ adapter is selected explicitly, other same-platform adapters are treated as absent and do not participate in platform resolution, message storage, or API call recording. Unknown adapters are not considered enabled by `is_adapter_enabled()`; message storage groups them under the stable `unknown` platform. Other platform profiles and non-group-management capabilities depend on later implementation and tests.
 
 ## Data and configuration boundaries
 

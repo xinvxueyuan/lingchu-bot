@@ -81,7 +81,7 @@ When unset, QQ uses `~onebot.v11`. To select an adapter explicitly, set a global
 LINGCHUAdapter = "~telegram+~onebot.v11+~discord"
 ```
 
-Only the QQ platform profile is implemented at the moment, so `~telegram` and `~discord` are ignored in this example, while QQ selects `~onebot.v11`. To enable Milky:
+Only the QQ platform profile is implemented at the moment, so `~telegram` and `~discord` are not treated as enabled known adapters in this example, while QQ selects `~onebot.v11`. To enable Milky:
 
 ```toml
 LINGCHUAdapter = "~milky"
@@ -94,6 +94,8 @@ LINGCHUAdapter = "~milky+~onebot.v11"
 ```
 
 When `LINGCHUAdapter` is unset, runtime registration of multiple known QQ adapters also fails startup. Once one QQ adapter is configured explicitly, other same-platform adapters may still be imported or registered, but Lingchu Bot treats them as absent. They do not participate in platform resolution, message storage, or API call recording.
+
+An unknown adapter that does not belong to any platform profile is not considered enabled. Message storage still accepts its events, but writes the `platform` field as `unknown`. This gives downstream displays a stable Unknown bucket instead of treating the raw adapter name as a platform ID.
 
 ## Internationalization settings
 
