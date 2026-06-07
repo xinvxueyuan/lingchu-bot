@@ -1,10 +1,10 @@
 """Platform capability registry for Lingchu Bot."""
 
 from .registry import (
+    UNKNOWN_PLATFORM_ID,
     PlatformAdapterConflictError,
     PlatformCapability,
     PlatformProfile,
-    UNKNOWN_PLATFORM_ID,
     get_platform_profile,
     get_supported_adapter_names,
     get_supported_adapters,
@@ -17,10 +17,10 @@ from .registry import (
 )
 
 __all__ = [
+    "UNKNOWN_PLATFORM_ID",
     "PlatformAdapterConflictError",
     "PlatformCapability",
     "PlatformProfile",
-    "UNKNOWN_PLATFORM_ID",
     "get_platform_profile",
     "get_supported_adapter_names",
     "get_supported_adapters",
