@@ -52,3 +52,15 @@ title: 提交规范
 中的命令验证。
 
 仓库中的 `prepare-commit-msg` hook 会在可交互终端中尝试启动 Gitmoji。非交互环境可以跳过交互钩子，但 `commit-msg` 仍会校验首行；自动化提交必须自行生成合规消息。
+
+## 自动签名
+
+`commit-msg` hook 会自动在提交信息末尾追加 `Signed-off-by` 行（等效于 `git commit -s`），签名信息取自 `git config user.name` 和 `git config user.email`。如果提交信息中已存在相同的签名行则不会重复追加。
+
+```text
+✨ feat: 新增群管理功能
+
+Signed-off-by: Your Name <your@email.com>
+```
+
+手动使用 `git commit -s` 时，git 自身也会追加签名，hook 检测到后不会重复添加。
