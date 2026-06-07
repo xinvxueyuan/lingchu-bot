@@ -1,10 +1,16 @@
+from nonebot import get_driver, logger
 from nonebot.adapters import Bot
 from nonebot.internal.driver.abstract import Driver
 
 from ..core.runtime_config import ensure_runtime_config_file
 from ..handle.commands.group import import_handle as group_import_handle
+from ..i18n import _async as _
 from ..i18n import warm_translation_cache
-from ..platforms import validate_platform_adapter_selection
+from ..platforms import (
+    resolve_enabled_adapters,
+    resolve_registered_adapters,
+    validate_enabled_adapters_loaded,
+)
 from ..services.messagestore import (
     initialize_message_store,
     record_bot_lifecycle,
@@ -19,15 +25,28 @@ async def startup() -> None:
     依次执行：预热翻译缓存、导入并注册 group 命令处理器（含所有子模块）。
     """
     ensure_runtime_config_file()
-    validate_platform_adapter_selection(
-        tuple(str(adapter_name) for adapter_name in driver._adapters)
+    registered_adapter_names = tuple(
+        str(adapter_name) for adapter_name in driver._adapters
     )
+    validate_enabled_adapters_loaded(registered_adapter_names)
+    enabled_adapters = resolve_enabled_adapters()
+    registered_adapters = resolve_registered_adapters(registered_adapter_names)
+    ignored_adapters = registered_adapters - enabled_adapters
+    logger.info(
+        (await _("Lingchu 启用适配器: {adapters}")).format(
+            adapters=sorted(enabled_adapters)
+        )
+    )
+    if ignored_adapters:
+        logger.debug(
+            (await _("Lingchu 忽略未选中的已注册适配器: {adapters}")).format(
+                adapters=sorted(ignored_adapters)
+            )
+        )
     await warm_translation_cache()
     await group_import_handle()
     await initialize_message_store()
 
-
-from nonebot import get_driver
 
 driver: Driver = get_driver()
 

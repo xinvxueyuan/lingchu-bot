@@ -46,14 +46,17 @@ IN_CONTAINERS=True
 - NoneBot 与当前启用适配器的连接配置是否一致。
 - 账号、网络、防火墙和平台侧权限是否可用。
 
-## 同平台适配器冲突
+## 适配器选择与加载
 
-如果启动时报出 `Lingchu adapter conflict`，说明同一平台出现了多个已知适配器。
+Lingchu Bot 只按 `LINGCHUAdapter` 选择业务代码，不控制 NoneBot 实际加载哪些适配器。
 
-- 未配置 `LINGCHUAdapter` 时，QQ 平台同时注册 `~onebot.v11`、`~milky`、`~qq` 或 `~onebot.v12` 中的多个会启动失败。
-- 如果需要固定使用 OneBot V11，请配置 `LINGCHUAdapter = "~onebot.v11"`。
-- 如果需要固定使用 Milky，请配置 `LINGCHUAdapter = "~milky"`。
+- 未配置 `LINGCHUAdapter` 时，Lingchu Bot 默认启用 `~onebot.v11`；请确认 NoneBot 已加载 OneBot V11。
+- 如果需要固定使用 OneBot V11，请配置 `LINGCHUAdapter = "~onebot.v11"`，并加载 OneBot V11 适配器。
+- 如果需要固定使用 Milky，请配置 `LINGCHUAdapter = "~milky"`，并加载 Milky 适配器。
 - 不要在同一平台显式配置多个适配器，例如 `LINGCHUAdapter = "~milky+~onebot.v11"` 会直接失败。
+- 不要在 `LINGCHUAdapter` 中显式声明 Lingchu 未实现或无法识别的适配器；运行时额外注册的未知适配器会被忽略。
+- 如果报出 `PlatformAdapterNotLoadedError`，说明选中的适配器没有被 NoneBot 加载/注册；请加载匹配适配器，或把 `LINGCHUAdapter` 改成已加载的适配器。
+- 额外注册的同平台适配器不会触发冲突，Lingchu Bot 会把未选中的适配器视为未启用。
 
 ## 群管理命令失败
 

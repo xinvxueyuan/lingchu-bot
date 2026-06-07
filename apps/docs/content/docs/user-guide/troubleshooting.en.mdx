@@ -46,14 +46,17 @@ Check these first:
 - Whether NoneBot and the enabled adapter connection settings match.
 - Whether the account, network, firewall, and platform permissions are usable.
 
-## Same-platform adapter conflict
+## Adapter selection and loading
 
-If startup reports `Lingchu adapter conflict`, multiple known adapters were found for the same platform.
+Lingchu Bot only selects business code through `LINGCHUAdapter`; it does not control which adapters NoneBot actually loads.
 
-- When `LINGCHUAdapter` is unset, startup fails if QQ registers more than one of `~onebot.v11`, `~milky`, `~qq`, or `~onebot.v12`.
-- To pin OneBot V11, set `LINGCHUAdapter = "~onebot.v11"`.
-- To pin Milky, set `LINGCHUAdapter = "~milky"`.
+- When `LINGCHUAdapter` is unset, Lingchu Bot enables `~onebot.v11` by default; make sure NoneBot has loaded OneBot V11.
+- To pin OneBot V11, set `LINGCHUAdapter = "~onebot.v11"` and load the OneBot V11 adapter.
+- To pin Milky, set `LINGCHUAdapter = "~milky"` and load the Milky adapter.
 - Do not explicitly configure multiple adapters for the same platform. For example, `LINGCHUAdapter = "~milky+~onebot.v11"` fails immediately.
+- Do not explicitly declare adapters Lingchu has not implemented or cannot recognize in `LINGCHUAdapter`; extra unknown adapters registered at runtime are ignored.
+- If startup reports `PlatformAdapterNotLoadedError`, the selected adapter was not loaded or registered by NoneBot; load the matching adapter or change `LINGCHUAdapter` to one that is already loaded.
+- Extra registered same-platform adapters do not create a conflict. Lingchu Bot treats unselected adapters as disabled.
 
 ## Group management command fails
 

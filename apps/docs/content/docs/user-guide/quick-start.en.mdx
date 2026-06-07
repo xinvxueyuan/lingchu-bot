@@ -41,7 +41,7 @@ docker compose up --build
 
 - Confirm that Python is version 3.13.
 - Confirm that the service and connection settings for the enabled adapter are ready.
-- If runtime will register multiple QQ adapters, configure `LINGCHUAdapter` first, for example `LINGCHUAdapter = "~onebot.v11"` or `LINGCHUAdapter = "~milky"`.
+- If runtime registers multiple QQ adapters, Lingchu Bot only enables the business code selected by `LINGCHUAdapter`; make sure the selected adapter has also been loaded by NoneBot.
 - Confirm that the target NoneBot project loads `src/plugins`, or that you are using the repository Docker runner.
 - Confirm that Boolean values in NoneBot configuration use lowercase `true` / `false`, not `True` / `False`.
 

@@ -1,34 +1,13 @@
-from typing import TYPE_CHECKING, Any
+from importlib import import_module
+from typing import Any
 
 from arclet.alconna import Alconna, Args
 from nonebot import logger
-
-# from nonebot.adapters.discord import Bot as DiscordBot
-# from nonebot.adapters.discord import MessageEvent as DiscordEvent
-# from nonebot.adapters.github import Bot as GitHubBot
-# from nonebot.adapters.github import Event as GitHubEvent
-from nonebot.adapters.milky import Bot as MilkyBot
-from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
-from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
-from nonebot.adapters.onebot.v11.event import (
-    GroupMessageEvent as OneBot11GroupMessageEvent,
-)
 from nonebot.internal.matcher.matcher import Matcher
-
-# from nonebot.adapters.onebot.v11 import Bot as OneBotV11Bot
-# from nonebot.adapters.onebot.v11 import MessageEvent as OneBotV11Event
-# from nonebot.adapters.onebot.v12 import Bot as OneBotV12Bot
-# from nonebot.adapters.onebot.v12 import MessageEvent as OneBotV12Event
-# from nonebot.adapters.telegram import Bot as TelegramBot
-# from nonebot.adapters.telegram import Event as TelegramEvent
-from nonebot_plugin_alconna import AlconnaMatcher, UniMessage, on_alconna
+from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 
 from ....i18n import _async as _
-from .common import run_group_action_onebot11, target_user_onebot11
-
-if TYPE_CHECKING:
-    from nonebot_plugin_alconna.uniseg.segment import Text
 
 member_mute_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
@@ -103,247 +82,25 @@ whole_unmute_cmd: type[Matcher] = on_alconna(
     use_cmd_start=True,
 )
 
-
-@member_mute_cmd.handle()
-async def milkybot_mute(
-    user: At,
-    duration: int,
-    bot: MilkyBot,
-    event: MilkyGroupMessageEvent,
-    reason: str | None = None,
-) -> Any:
-    from nonebot.adapters.milky.exception import ActionFailed, NetworkError
-
-    target_user_id = int(user.target)
-    mention: dict | None = next(
-        (item for item in event.data.segments if item.get("type") == "mention"), None
-    )
-    if mention:
-        target_user_id: int = mention["data"]["user_id"]
-        target_name: str | None = mention["data"]["name"]
-    else:
-        target_name: str | None = user.display or ""
-    reason_text = await _("违反群规「默认」") if reason is None else reason
-
-    try:
-        await bot.set_group_member_mute(
-            group_id=event.data.peer_id, user_id=target_user_id, duration=duration
-        )
-    except NetworkError as e:
-        logger.error(f"禁言失败，网络异常: {e!r}")
-        return await member_mute_cmd.finish(
-            message=(await _("禁言失败，网络异常: {error!r}")).format(error=e)
-        )
-    except ActionFailed as e:
-        logger.error(f"禁言失败，操作被拒绝: {e}")
-        return await member_mute_cmd.finish(
-            message=(await _("禁言失败，操作被拒绝: {error}")).format(error=e)
-        )
-
-    msg = (
-        await _(
-            "已禁言: \n"
-            "名称: @{target_name}\n"
-            "时长: {duration} 秒\n"
-            "原因: {reason}\n"
-            "标识: {target_user_id}"
-        )
-    ).format(
-        target_name=target_name,
-        duration=duration,
-        reason=reason_text,
-        target_user_id=target_user_id,
-    )
-    return await member_mute_cmd.finish(message=UniMessage(message=msg))
+_LAZY_EXPORTS = {
+    "milkybot_mute": ".milky.mute",
+    "milkybot_whole_mute": ".milky.mute",
+    "milkybot_unmute": ".milky.mute",
+    "milkybot_whole_unmute": ".milky.mute",
+    "onebot11_mute": ".onebot_v11.mute",
+    "onebot11_whole_mute": ".onebot_v11.mute",
+    "onebot11_unmute": ".onebot_v11.mute",
+    "onebot11_whole_unmute": ".onebot_v11.mute",
+}
 
 
-@whole_mute_cmd.handle()
-async def milkybot_whole_mute(
-    bot: MilkyBot,
-    event: MilkyGroupMessageEvent,
-) -> Any:
-    from nonebot.adapters.milky.exception import ActionFailed, NetworkError
-
-    try:
-        await bot.set_group_whole_mute(group_id=event.data.peer_id, is_mute=True)
-    except NetworkError as e:
-        logger.error(f"全体禁言失败，网络异常: {e!r}")
-        msg: UniMessage[Text] = UniMessage(
-            message=(await _("全体禁言失败，网络异常: {error!r}")).format(error=e)
-        )
-        return await whole_mute_cmd.finish(message=await msg.export(bot))
-    except ActionFailed as e:
-        logger.error(f"全体禁言失败，操作被拒绝: {e!r}")
-        msg: UniMessage[Text] = UniMessage(
-            message=(await _("全体禁言失败，操作被拒绝: {error!r}")).format(error=e)
-        )
-        return await whole_mute_cmd.finish(message=await msg.export(bot))
-
-    logger.info("全体禁言成功")
-    msg: UniMessage[Text] = UniMessage(message=await _("全体禁言成功"))
-    return await whole_mute_cmd.finish(message=await msg.export(bot))
-
-
-@member_mute_cmd.handle()
-async def onebot11_mute(
-    user: At,
-    duration: int,
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
-    reason: str | None = None,
-) -> Any:
-    target_user_id, target_name = target_user_onebot11(user, event)
-    reason_text = await _("违反群规「默认」") if reason is None else reason
-    return await run_group_action_onebot11(
-        member_mute_cmd,
-        await _("禁言"),
-        lambda: bot.set_group_ban(
-            group_id=event.group_id, user_id=target_user_id, duration=duration
-        ),
-        (
-            await _(
-                "已禁言: \n"
-                "名称: @{target_name}\n"
-                "时长: {duration} 秒\n"
-                "原因: {reason}\n"
-                "标识: {target_user_id}"
-            )
-        ).format(
-            target_name=target_name,
-            duration=duration,
-            reason=reason_text,
-            target_user_id=target_user_id,
-        ),
-    )
-
-
-@whole_mute_cmd.handle()
-async def onebot11_whole_mute(
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
-) -> Any:
-    return await run_group_action_onebot11(
-        whole_mute_cmd,
-        await _("全体禁言"),
-        lambda: bot.set_group_whole_ban(group_id=event.group_id, enable=True),
-        await _("全体禁言成功"),
-    )
-
-
-@member_unmute_cmd.handle()
-async def milkybot_unmute(
-    user: At,
-    bot: MilkyBot,
-    event: MilkyGroupMessageEvent,
-    reason: str | None = None,
-) -> Any:
-    target_user_id = int(user.target)
-    mention: dict | None = next(
-        (item for item in event.data.segments if item.get("type") == "mention"), None
-    )
-    if mention:
-        target_user_id: int = mention["data"]["user_id"]
-        target_name: str | None = mention["data"]["name"]
-    else:
-        target_name: str | None = user.display or ""
-    reason_text = await _("管理员操作「默认」") if reason is None else reason
-    from nonebot.adapters.milky.exception import ActionFailed, NetworkError
-
-    try:
-        await bot.set_group_member_mute(
-            group_id=event.data.peer_id, user_id=target_user_id, duration=0
-        )
-    except NetworkError as e:
-        logger.error(f"解禁失败，网络异常: {e!r}")
-        return await member_unmute_cmd.finish(
-            message=(await _("解禁失败，网络异常: {error!r}")).format(error=e)
-        )
-    except ActionFailed as e:
-        logger.error(f"解禁失败，操作被拒绝: {e!r}")
-        return await member_unmute_cmd.finish(
-            message=(await _("解禁失败，操作被拒绝: {error!r}")).format(error=e)
-        )
-
-    msg: UniMessage[Text] = UniMessage(
-        message=(
-            await _(
-                "已解禁: \n名称: {target_name}\n原因: {reason}\n标识: {target_user_id}"
-            )
-        ).format(
-            target_name=target_name,
-            reason=reason_text,
-            target_user_id=target_user_id,
-        )
-    )
-    logger.info(msg)
-    return await member_unmute_cmd.finish(message=msg)
-
-
-@whole_unmute_cmd.handle()
-async def milkybot_whole_unmute(
-    bot: MilkyBot,
-    event: MilkyGroupMessageEvent,
-) -> Any:
-    from nonebot.adapters.milky.exception import ActionFailed, NetworkError
-
-    try:
-        await bot.set_group_whole_mute(group_id=event.data.peer_id, is_mute=False)
-    except NetworkError as e:
-        logger.error(f"全体解禁失败，网络异常: {e!r}")
-        msg: UniMessage[Text] = UniMessage(
-            message=(await _("全体解禁失败，网络异常: {error!r}")).format(error=e)
-        )
-        return await whole_unmute_cmd.finish(message=await msg.export(bot))
-    except ActionFailed as e:
-        logger.error(f"全体解禁失败，操作被拒绝: {e!r}")
-        msg: UniMessage[Text] = UniMessage(
-            message=(await _("全体解禁失败，操作被拒绝: {error!r}")).format(error=e)
-        )
-        return await whole_unmute_cmd.finish(message=await msg.export(bot))
-
-    logger.info("全体解禁成功")
-    msg: UniMessage[Text] = UniMessage(message=await _("全体解禁成功"))
-    return await whole_unmute_cmd.finish(message=await msg.export(bot))
-
-
-@member_unmute_cmd.handle()
-async def onebot11_unmute(
-    user: At,
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
-    reason: str | None = None,
-) -> Any:
-    target_user_id, target_name = target_user_onebot11(user, event)
-    reason_text = await _("管理员操作「默认」") if reason is None else reason
-    return await run_group_action_onebot11(
-        member_unmute_cmd,
-        await _("解禁"),
-        lambda: bot.set_group_ban(
-            group_id=event.group_id, user_id=target_user_id, duration=0
-        ),
-        (
-            await _(
-                "已解禁: \n名称: {target_name}\n原因: {reason}\n标识: {target_user_id}"
-            )
-        ).format(
-            target_name=target_name,
-            reason=reason_text,
-            target_user_id=target_user_id,
-        ),
-    )
-
-
-@whole_unmute_cmd.handle()
-async def onebot11_whole_unmute(
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
-) -> Any:
-    return await run_group_action_onebot11(
-        whole_unmute_cmd,
-        await _("全体解禁"),
-        lambda: bot.set_group_whole_ban(group_id=event.group_id, enable=False),
-        await _("全体解禁成功"),
-    )
+def __getattr__(name: str) -> Any:
+    if name not in _LAZY_EXPORTS:
+        raise AttributeError(name)
+    module = import_module(_LAZY_EXPORTS[name], __package__)
+    value = getattr(module, name)
+    globals()[name] = value
+    return value
 
 
 async def import_handle() -> Any:

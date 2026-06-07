@@ -3,6 +3,8 @@
 from .registry import (
     UNKNOWN_PLATFORM_ID,
     PlatformAdapterConflictError,
+    PlatformAdapterNotLoadedError,
+    PlatformAdapterUnknownError,
     PlatformCapability,
     PlatformProfile,
     get_platform_profile,
@@ -13,12 +15,16 @@ from .registry import (
     iter_platform_profiles,
     parse_configured_adapters,
     resolve_enabled_adapters,
+    resolve_registered_adapters,
+    validate_enabled_adapters_loaded,
     validate_platform_adapter_selection,
 )
 
 __all__ = [
     "UNKNOWN_PLATFORM_ID",
     "PlatformAdapterConflictError",
+    "PlatformAdapterNotLoadedError",
+    "PlatformAdapterUnknownError",
     "PlatformCapability",
     "PlatformProfile",
     "get_platform_profile",
@@ -29,5 +35,7 @@ __all__ = [
     "iter_platform_profiles",
     "parse_configured_adapters",
     "resolve_enabled_adapters",
+    "resolve_registered_adapters",
+    "validate_enabled_adapters_loaded",
     "validate_platform_adapter_selection",
 ]
