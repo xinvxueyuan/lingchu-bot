@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nonebot-plugin-lingchu-bot 0.0.0.dev8\n"
 "Report-Msgid-Bugs-To: xinvxueyuan@yeah.net\n"
-"POT-Creation-Date: 2026-06-07 01:03+0800\n"
+"POT-Creation-Date: 2026-06-07 21:11+0800\n"
 "PO-Revision-Date: 2026-05-20 00:00+0800\n"
 "Last-Translator: xinvxueyuan <xinvxueyuan@yeah.net>\n"
 "Language: zh_CN\n"
@@ -44,147 +44,146 @@ msgstr ""
 "期望布尔值，但收到 {value_type}: {value!r}\n"
 "请检查 NoneBot2 配置文件。"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/__init__.py:26
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/__init__.py:38
 msgid "导入group处理器..."
 msgstr "导入group处理器..."
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/announcement.py:104
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/__init__.py:43
+#, python-brace-format
+msgid "Lingchu 未为适配器 {adapter_id} 声明 group 处理器"
+msgstr "Lingchu 未为适配器 {adapter_id} 声明 group 处理器"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/__init__.py:49
+#, python-brace-format
+msgid "Lingchu 为适配器 {adapter_id} 导入 group 处理器"
+msgstr "Lingchu 为适配器 {adapter_id} 导入 group 处理器"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/announcement.py:76
+msgid "导入announcement处理器..."
+msgstr "导入announcement处理器..."
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/lifecycle.py:36
+msgid "导入lifecycle处理器..."
+msgstr "导入lifecycle处理器..."
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:76
+msgid "导入member处理器..."
+msgstr "导入member处理器..."
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:107
+msgid "导入mute处理器..."
+msgstr "导入mute处理器..."
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/profile.py:87
+msgid "导入profile处理器..."
+msgstr "导入profile处理器..."
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/announcement.py:25
 msgid "协议端功能异常，等待上游修复"
 msgstr "协议端功能异常，等待上游修复"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/announcement.py:108
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/announcement.py:29
 msgid "不支持的 Milky 实现"
 msgstr "不支持的 Milky 实现"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/announcement.py:113
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/announcement.py:159
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/announcement.py:34
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/announcement.py:50
 msgid "发送群公告"
 msgstr "发送群公告"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/announcement.py:119
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/announcement.py:166
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/announcement.py:40
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/announcement.py:57
 msgid "群公告已发送"
 msgstr "群公告已发送"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/announcement.py:134
-msgid "不支持的 OneBot 协议版本"
-msgstr "不支持的 OneBot 协议版本"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/announcement.py:136
-msgid "OneBot 状态异常"
-msgstr "OneBot 状态异常"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/announcement.py:138
-msgid "OneBot 调用失败"
-msgstr "OneBot 调用失败"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/announcement.py:154
-msgid "不支持的 OneBot 版本"
-msgstr "不支持的 OneBot 版本"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/announcement.py:171
-#, fuzzy
-msgid "导入announcement处理器..."
-msgstr "导入mute处理器..."
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/common.py:123
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/common.py:47
 #, python-brace-format
 msgid "{operation}失败，网络异常: {error!r}"
 msgstr "{operation}失败，网络异常: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/common.py:130
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/common.py:183
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/common.py:54
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/common.py:51
 #, python-brace-format
 msgid "{operation}失败，操作被拒绝: {error!r}"
 msgstr "{operation}失败，操作被拒绝: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/lifecycle.py:44
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/lifecycle.py:56
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/lifecycle.py:58
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/lifecycle.py:18
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/lifecycle.py:21
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/lifecycle.py:23
 msgid "退出当前群"
 msgstr "退出当前群"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/lifecycle.py:63
-#, fuzzy
-msgid "导入lifecycle处理器..."
-msgstr "导入mute处理器..."
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:84
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:104
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/member.py:29
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/member.py:31
 msgid "设置群名片"
 msgstr "设置群名片"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:88
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:108
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/member.py:33
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/member.py:35
 #, python-brace-format
 msgid "已设置群名片: {target_name}({target_user_id}) -> {card}"
 msgstr "已设置群名片: {target_name}({target_user_id}) -> {card}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:136
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:162
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/member.py:49
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/member.py:51
 msgid "设置群成员专属头衔"
 msgstr "设置群成员专属头衔"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:143
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:170
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/member.py:56
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/member.py:59
 #, python-brace-format
 msgid "已设置群头衔: {target_name}({target_user_id}) -> {special_title}"
 msgstr "已设置群头衔: {target_name}({target_user_id}) -> {special_title}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:194
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:217
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/member.py:73
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/member.py:76
 msgid "设置"
 msgstr "设置"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:194
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:217
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/member.py:73
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/member.py:76
 msgid "取消"
 msgstr "取消"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:197
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:220
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/member.py:76
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/member.py:79
 msgid "设置群管理员"
 msgstr "设置群管理员"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:201
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:224
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/member.py:80
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/member.py:83
 #, python-brace-format
 msgid "{action}群管理员: {target_name}({target_user_id})"
 msgstr "{action}群管理员: {target_name}({target_user_id})"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:282
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:304
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/member.py:109
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/member.py:112
 msgid "踢出群成员"
 msgstr "踢出群成员"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:288
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:310
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/member.py:115
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/member.py:118
 #, python-brace-format
 msgid "已踢出群成员: {target_name}({target_user_id})"
 msgstr "已踢出群成员: {target_name}({target_user_id})"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/member.py:317
-#, fuzzy
-msgid "导入member处理器..."
-msgstr "导入mute处理器..."
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:126
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:196
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:35
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/mute.py:24
 msgid "违反群规「默认」"
 msgstr "违反群规「默认」"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:135
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:44
 #, python-brace-format
 msgid "禁言失败，网络异常: {error!r}"
 msgstr "禁言失败，网络异常: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:140
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:49
 #, python-brace-format
 msgid "禁言失败，操作被拒绝: {error}"
 msgstr "禁言失败，操作被拒绝: {error}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:145
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:205
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:54
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/mute.py:33
 #, python-brace-format
 msgid ""
 "已禁言: \n"
@@ -199,47 +198,38 @@ msgstr ""
 "原因: {reason}\n"
 "标识: {target_user_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:172
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:79
 #, python-brace-format
 msgid "全体禁言失败，网络异常: {error!r}"
 msgstr "全体禁言失败，网络异常: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:178
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:85
 #, python-brace-format
 msgid "全体禁言失败，操作被拒绝: {error!r}"
 msgstr "全体禁言失败，操作被拒绝: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:183
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:229
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:90
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/mute.py:57
 msgid "全体禁言成功"
 msgstr "全体禁言成功"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:199
-msgid "禁言"
-msgstr ""
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:227
-#, fuzzy
-msgid "全体禁言"
-msgstr "全体禁言成功"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:249
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:317
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:110
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/mute.py:69
 msgid "管理员操作「默认」"
 msgstr "管理员操作「默认」"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:259
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:119
 #, python-brace-format
 msgid "解禁失败，网络异常: {error!r}"
 msgstr "解禁失败，网络异常: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:264
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:124
 #, python-brace-format
 msgid "解禁失败，操作被拒绝: {error!r}"
 msgstr "解禁失败，操作被拒绝: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:270
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:326
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:130
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/mute.py:78
 #, python-brace-format
 msgid ""
 "已解禁: \n"
@@ -252,58 +242,82 @@ msgstr ""
 "原因: {reason}\n"
 "标识: {target_user_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:294
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:152
 #, python-brace-format
 msgid "全体解禁失败，网络异常: {error!r}"
 msgstr "全体解禁失败，网络异常: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:300
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:158
 #, python-brace-format
 msgid "全体解禁失败，操作被拒绝: {error!r}"
 msgstr "全体解禁失败，操作被拒绝: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:305
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:345
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/mute.py:163
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/mute.py:97
 msgid "全体解禁成功"
 msgstr "全体解禁成功"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:320
-msgid "解禁"
-msgstr ""
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:343
-#, fuzzy
-msgid "全体解禁"
-msgstr "全体解禁成功"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/mute.py:350
-msgid "导入mute处理器..."
-msgstr "导入mute处理器..."
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/profile.py:94
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/profile.py:112
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/profile.py:21
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/profile.py:22
 msgid "设置群名称"
 msgstr "设置群名称"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/profile.py:98
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/profile.py:114
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/profile.py:25
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/profile.py:24
 #, python-brace-format
 msgid "群名称已设置为: {new_group_name}"
 msgstr "群名称已设置为: {new_group_name}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/profile.py:128
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/profile.py:39
 msgid "请上传一张图片"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/profile.py:131
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/profile.py:42
 msgid "设置群头像"
 msgstr "设置群头像"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/profile.py:133
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/milky/profile.py:44
 msgid "群头像已更新"
 msgstr "群头像已更新"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/profile.py:138
-#, fuzzy
-msgid "导入profile处理器..."
-msgstr "导入group处理器..."
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/announcement.py:25
+msgid "不支持的 OneBot 协议版本"
+msgstr "不支持的 OneBot 协议版本"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/announcement.py:27
+msgid "OneBot 状态异常"
+msgstr "OneBot 状态异常"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/announcement.py:29
+msgid "OneBot 调用失败"
+msgstr "OneBot 调用失败"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/announcement.py:45
+msgid "不支持的 OneBot 版本"
+msgstr "不支持的 OneBot 版本"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/mute.py:27
+msgid "禁言"
+msgstr "禁言"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/mute.py:55
+msgid "全体禁言"
+msgstr "全体禁言"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/mute.py:72
+msgid "解禁"
+msgstr "解禁"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/commands/group/onebot_v11/mute.py:95
+msgid "全体解禁"
+msgstr "全体解禁"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:36
+#, python-brace-format
+msgid "Lingchu 启用适配器: {adapters}"
+msgstr "Lingchu 启用适配器: {adapters}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:42
+#, python-brace-format
+msgid "Lingchu 忽略未选中的已注册适配器: {adapters}"
+msgstr "Lingchu 忽略未选中的已注册适配器: {adapters}"
