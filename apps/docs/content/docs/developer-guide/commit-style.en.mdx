@@ -48,3 +48,15 @@ Breaking changes may add `!` after the type or after the scope:
 Before committing, run the relevant checks. Documentation changes should at least confirm that Markdown structure, links, and fenced code blocks are sound. Code changes should use the commands in [Testing and CI](testing-ci).
 
 The repository `prepare-commit-msg` hook tries to start Gitmoji in an interactive terminal. Non-interactive environments may skip the interactive hook, but `commit-msg` still validates the first line; automation must generate a compliant message itself.
+
+## Auto sign-off
+
+The `commit-msg` hook automatically appends a `Signed-off-by` line to the commit message (equivalent to `git commit -s`). The name and email are read from `git config user.name` and `git config user.email`. If an identical sign-off line already exists, it will not be duplicated.
+
+```text
+✨ feat: add group management
+
+Signed-off-by: Your Name <your@email.com>
+```
+
+When using `git commit -s` manually, git itself also appends the sign-off; the hook detects this and skips adding a duplicate.
