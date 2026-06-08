@@ -23,6 +23,6 @@
     "markdownlint-cli2": "0.22.1",
     "prettier": "^3.8.3",
     "turbo": "^2.9.16",
-    "typescript": "5.9.2"
+    "typescript": "6.0.3"
   }
 }

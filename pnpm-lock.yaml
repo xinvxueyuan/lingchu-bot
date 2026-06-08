@@ -16,7 +16,7 @@ importers:
         version: 2.9.16(eslint@10.4.0(jiti@2.7.0))(turbo@2.9.16)
       gitmoji-cli:
         specifier: ^9.7.0
-        version: 9.7.0(@types/node@25.9.1)
+        version: 9.7.0(@types/node@25.9.2)
       gitnexus:
         specifier: ^1.6.5
         version: 1.6.5(graphology-types@0.24.8)(zod@4.4.3)
@@ -33,8 +33,8 @@ importers:
         specifier: ^2.9.16
         version: 2.9.16
       typescript:
-        specifier: 5.9.2
-        version: 5.9.2
+        specifier: 6.0.3
+        version: 6.0.3
 
   apps/docs:
     dependencies:
@@ -1920,8 +1920,8 @@ packages:
   '@types/node@25.8.0':
     resolution: {integrity: sha512-TCFSk8IZh+iLX1xtksoBVtdmgL+1IX0fC9BeU4QqFSuNdN/K+HUlhqOzEmSYYpZUVsLYcPqc9KX+60iDuninSQ==}
 
-  '@types/node@25.9.1':
-    resolution: {integrity: sha512-xfrlY7UD5rMJk3ZVJP8BNzS28J36YJg+xp+LPXV1TdWxr8uMH5A860QNxYDGQe/ylDSgjxE52Q9VnO7p75tJxg==}
+  '@types/node@25.9.2':
+    resolution: {integrity: sha512-G05zqtJhcDLb8uslf5EjCxXg9G1KQxiV8OS0R26IC//Eoyitzqe8z37I7cqvnZlrlSfgocQRfSn/AHBZJJFyGw==}
 
   '@types/react-dom@19.2.2':
     resolution: {integrity: sha512-9KQPoO6mZCi7jcIStSnlOWn2nEF3mNmyr3rIAsGnAbQKYbRLyqmeSc39EVgtxXVia+LMT8j3knZLAZAh+xLmrw==}
@@ -5604,6 +5604,11 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  semver@7.8.2:
+    resolution: {integrity: sha512-c8jsqUZm3omBOI66G90z1Dyw5z622G8oLG+omfsHBJf3CWQTlOcwOjvOG6wtiNfW6anKm/eA39LMwMtMez2TiQ==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   send@0.19.2:
     resolution: {integrity: sha512-VMbMxbDeehAxpOtWJXlcUS5E8iXh6QmN+BkRX1GARS3wRaXEEgzCcB10gTQazO42tpNIya8xIyNx8fll1OFPrg==}
     engines: {node: '>= 0.8.0'}
@@ -7042,12 +7047,12 @@ snapshots:
   '@img/sharp-win32-x64@0.34.5':
     optional: true
 
-  '@inquirer/external-editor@1.0.3(@types/node@25.9.1)':
+  '@inquirer/external-editor@1.0.3(@types/node@25.9.2)':
     dependencies:
       chardet: 2.1.1
       iconv-lite: 0.7.2
     optionalDependencies:
-      '@types/node': 25.9.1
+      '@types/node': 25.9.2
 
   '@inquirer/figures@1.0.15': {}
 
@@ -8017,7 +8022,7 @@ snapshots:
     dependencies:
       undici-types: 7.24.6
 
-  '@types/node@25.9.1':
+  '@types/node@25.9.2':
     dependencies:
       undici-types: 7.24.6
 
@@ -8756,7 +8761,7 @@ snapshots:
       fs-extra: 11.3.5
       node-api-headers: 1.9.0
       rc: 1.2.8
-      semver: 7.8.1
+      semver: 7.8.2
       tar: 7.5.16
       url-join: 4.0.1
       which: 6.0.1
@@ -8813,7 +8818,7 @@ snapshots:
       dot-prop: 9.0.0
       env-paths: 3.0.0
       json-schema-typed: 8.0.2
-      semver: 7.8.1
+      semver: 7.8.2
       uint8array-extras: 1.5.0
 
   config-chain@1.1.13:
@@ -10296,14 +10301,14 @@ snapshots:
 
   github-slugger@2.0.0: {}
 
-  gitmoji-cli@9.7.0(@types/node@25.9.1):
+  gitmoji-cli@9.7.0(@types/node@25.9.2):
     dependencies:
       chalk: 5.6.2
       conf: 13.1.0
       execa: 8.0.1
       fuse.js: 7.1.0
-      inquirer: 9.3.8(@types/node@25.9.1)
-      inquirer-autocomplete-prompt: 3.0.1(inquirer@9.3.8(@types/node@25.9.1))
+      inquirer: 9.3.8(@types/node@25.9.2)
+      inquirer-autocomplete-prompt: 3.0.1(inquirer@9.3.8(@types/node@25.9.2))
       meow: 13.2.0
       node-fetch: 3.3.2
       ora: 8.2.0
@@ -10383,14 +10388,14 @@ snapshots:
       es6-error: 4.1.1
       matcher: 3.0.0
       roarr: 2.15.4
-      semver: 7.8.1
+      semver: 7.8.2
       serialize-error: 7.0.1
 
   global-agent@4.1.3:
     dependencies:
       globalthis: 1.0.4
       matcher: 4.0.0
-      semver: 7.8.1
+      semver: 7.8.2
       serialize-error: 8.1.0
 
   global-directory@4.0.1:
@@ -10668,18 +10673,18 @@ snapshots:
 
   inline-style-parser@0.2.7: {}
 
-  inquirer-autocomplete-prompt@3.0.1(inquirer@9.3.8(@types/node@25.9.1)):
+  inquirer-autocomplete-prompt@3.0.1(inquirer@9.3.8(@types/node@25.9.2)):
     dependencies:
       ansi-escapes: 6.2.1
       figures: 5.0.0
-      inquirer: 9.3.8(@types/node@25.9.1)
+      inquirer: 9.3.8(@types/node@25.9.2)
       picocolors: 1.1.1
       run-async: 2.4.1
       rxjs: 7.8.2
 
-  inquirer@9.3.8(@types/node@25.9.1):
+  inquirer@9.3.8(@types/node@25.9.2):
     dependencies:
-      '@inquirer/external-editor': 1.0.3(@types/node@25.9.1)
+      '@inquirer/external-editor': 1.0.3(@types/node@25.9.2)
       '@inquirer/figures': 1.0.15
       ansi-escapes: 4.3.2
       cli-width: 4.1.0
@@ -10740,7 +10745,7 @@ snapshots:
 
   is-bun-module@2.0.0:
     dependencies:
-      semver: 7.8.1
+      semver: 7.8.2
 
   is-callable@1.2.7: {}
 
@@ -12042,7 +12047,7 @@ snapshots:
       ky: 1.14.3
       registry-auth-token: 5.1.1
       registry-url: 6.0.1
-      semver: 7.8.1
+      semver: 7.8.2
 
   package-manager-detector@1.6.0: {}
 
@@ -12204,7 +12209,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.1
-      '@types/node': 25.9.1
+      '@types/node': 25.9.2
       long: 5.3.2
 
   proxy-addr@2.0.7:
@@ -12636,6 +12641,8 @@ snapshots:
   semver@7.8.0: {}
 
   semver@7.8.1: {}
+
+  semver@7.8.2: {}
 
   send@0.19.2:
     dependencies:
@@ -13422,7 +13429,7 @@ snapshots:
       is-npm: 6.1.0
       latest-version: 9.0.0
       pupa: 3.3.0
-      semver: 7.8.1
+      semver: 7.8.2
       xdg-basedir: 5.1.0
 
   uri-js@4.4.1:
