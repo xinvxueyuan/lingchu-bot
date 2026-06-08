@@ -22,6 +22,7 @@ async def onebot11_mute(
 ) -> Any:
     target_user_id, target_name = target_user_onebot11(user, event)
     reason_text = await _("违反群规「默认」") if reason is None else reason
+    name_display = f"@{target_name}" if target_name else str(target_user_id)
     return await run_group_action_onebot11(
         member_mute_cmd,
         await _("禁言"),
@@ -31,13 +32,13 @@ async def onebot11_mute(
         (
             await _(
                 "已禁言: \n"
-                "名称: @{target_name}\n"
+                "名称: {name_display}\n"
                 "时长: {duration} 秒\n"
                 "原因: {reason}\n"
                 "标识: {target_user_id}"
             )
         ).format(
-            target_name=target_name,
+            name_display=name_display,
             duration=duration,
             reason=reason_text,
             target_user_id=target_user_id,
@@ -67,6 +68,7 @@ async def onebot11_unmute(
 ) -> Any:
     target_user_id, target_name = target_user_onebot11(user, event)
     reason_text = await _("管理员操作「默认」") if reason is None else reason
+    name_display = target_name or str(target_user_id)
     return await run_group_action_onebot11(
         member_unmute_cmd,
         await _("解禁"),
@@ -75,10 +77,10 @@ async def onebot11_unmute(
         ),
         (
             await _(
-                "已解禁: \n名称: {target_name}\n原因: {reason}\n标识: {target_user_id}"
+                "已解禁: \n名称: {name_display}\n原因: {reason}\n标识: {target_user_id}"
             )
         ).format(
-            target_name=target_name,
+            name_display=name_display,
             reason=reason_text,
             target_user_id=target_user_id,
         ),

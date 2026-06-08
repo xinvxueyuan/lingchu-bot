@@ -27,14 +27,17 @@ async def milkybot_set_group_member_card(
         target_user_id, target_name = target_user_milky(user, event)
     except ValueError as error:
         return await set_group_member_card_cmd.finish(message=str(error))
+    name_display = (
+        f"{target_name}({target_user_id})" if target_name else str(target_user_id)
+    )
     return await run_group_action_milky(
         set_group_member_card_cmd,
         await _("设置群名片"),
         lambda: bot.set_group_member_card(
             group_id=event.data.peer_id, user_id=target_user_id, card=card
         ),
-        (await _("已设置群名片: {target_name}({target_user_id}) -> {card}")).format(
-            target_name=target_name, target_user_id=target_user_id, card=card
+        (await _("已设置群名片: {name_display} -> {card}")).format(
+            name_display=name_display, card=card
         ),
     )
 
@@ -50,6 +53,9 @@ async def milkybot_set_group_member_special_title(
         target_user_id, target_name = target_user_milky(user, event)
     except ValueError as error:
         return await set_group_member_special_title_cmd.finish(message=str(error))
+    name_display = (
+        f"{target_name}({target_user_id})" if target_name else str(target_user_id)
+    )
     return await run_group_action_milky(
         set_group_member_special_title_cmd,
         await _("设置群成员专属头衔"),
@@ -58,11 +64,8 @@ async def milkybot_set_group_member_special_title(
             user_id=target_user_id,
             special_title=special_title,
         ),
-        (
-            await _("已设置群头衔: {target_name}({target_user_id}) -> {special_title}")
-        ).format(
-            target_name=target_name,
-            target_user_id=target_user_id,
+        (await _("已设置群头衔: {name_display} -> {special_title}")).format(
+            name_display=name_display,
             special_title=special_title,
         ),
     )
@@ -80,16 +83,18 @@ async def milkybot_set_group_member_admin(
     except ValueError as error:
         return await set_group_member_admin_cmd.finish(message=str(error))
     action_text = await _("设置") if is_set else await _("取消")
+    name_display = (
+        f"{target_name}({target_user_id})" if target_name else str(target_user_id)
+    )
     return await run_group_action_milky(
         set_group_member_admin_cmd,
         await _("设置群管理员"),
         lambda: bot.set_group_member_admin(
             group_id=event.data.peer_id, user_id=target_user_id, is_set=is_set
         ),
-        (await _("{action}群管理员: {target_name}({target_user_id})")).format(
+        (await _("{action}群管理员: {name_display}")).format(
             action=action_text,
-            target_name=target_name,
-            target_user_id=target_user_id,
+            name_display=name_display,
         ),
     )
 
@@ -116,6 +121,9 @@ async def milkybot_kick_group_member(
         target_user_id, target_name = target_user_milky(user, event)
     except ValueError as error:
         return await kick_group_member_cmd.finish(message=str(error))
+    name_display = (
+        f"{target_name}({target_user_id})" if target_name else str(target_user_id)
+    )
     return await run_group_action_milky(
         kick_group_member_cmd,
         await _("踢出群成员"),
@@ -124,7 +132,5 @@ async def milkybot_kick_group_member(
             user_id=target_user_id,
             reject_add_request=reject_add_request,
         ),
-        (await _("已踢出群成员: {target_name}({target_user_id})")).format(
-            target_name=target_name, target_user_id=target_user_id
-        ),
+        (await _("已踢出群成员: {name_display}")).format(name_display=name_display),
     )

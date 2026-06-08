@@ -243,6 +243,11 @@ def _resolve_known_adapter_id(adapter_name: str) -> str | None:
     )
 
 
+def resolve_adapter_id(adapter_name: str) -> str | None:
+    """Resolve a display or NoneBot adapter name to Lingchu's canonical id."""
+    return _resolve_known_adapter_id(adapter_name)
+
+
 def _profile_enabled_adapter(
     profile: PlatformProfile,
     configured_adapters: tuple[str, ...],

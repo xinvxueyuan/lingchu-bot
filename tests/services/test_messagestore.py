@@ -58,11 +58,14 @@ def test_normalize_message_event_truncates_text(
 
     assert normalized is not None
     assert normalized.identity.platform == "qq"
+    assert normalized.identity.adapter == "~onebot.v11"
     assert normalized.identity.bot_id == "bot-1"
     assert normalized.identity.conversation_id == "group-1"
     assert normalized.identity.message_id == "msg-1"
     assert normalized.user_id == "user-1"
     assert normalized.text_summary == "hello worl..."
+    assert normalized.raw_message == '"hello"'
+    assert '"peer_id": "group-1"' in (normalized.raw_event or "")
 
 
 def test_normalize_message_event_handles_missing_message_id(
@@ -137,9 +140,10 @@ async def test_message_store_preprocessor_records_configured_milky(
     record_event_args = record_event.await_args
     assert record_event_args is not None
     assert record_event_args.kwargs["platform"] == "qq"
+    assert record_event_args.kwargs["adapter"] == "~milky"
 
 
-async def test_message_store_preprocessor_records_unknown_adapter(
+async def test_message_store_preprocessor_skips_unknown_adapter(
     monkeypatch: pytest.MonkeyPatch,
     enabled_config: SimpleNamespace,
 ) -> None:
@@ -153,10 +157,23 @@ async def test_message_store_preprocessor_records_unknown_adapter(
         {},
     )
 
-    record_event.assert_awaited_once()
-    record_event_args = record_event.await_args
-    assert record_event_args is not None
-    assert record_event_args.kwargs["platform"] == "unknown"
+    record_event.assert_not_awaited()
+
+
+async def test_message_store_preprocessor_skips_meta_event(
+    monkeypatch: pytest.MonkeyPatch,
+    enabled_config: SimpleNamespace,
+) -> None:
+    monkeypatch.setattr(messagestore, "runtime_config", enabled_config)
+    record_event = AsyncMock()
+    monkeypatch.setattr(messagestore.repository, "record_event_received", record_event)
+    event = make_event()
+    event.get_type.return_value = "meta_event"
+    event.get_event_name.return_value = "meta_event.heartbeat"
+
+    await messagestore.message_store_preprocessor(make_bot(), event, {})
+
+    record_event.assert_not_awaited()
 
 
 async def test_message_store_preprocessor_swallows_database_errors(
@@ -180,8 +197,8 @@ async def test_run_postprocessor_updates_status(
     record_result = AsyncMock()
     monkeypatch.setattr(messagestore.repository, "record_matcher_result", record_result)
     identity = messagestore.MessageIdentity(
-        platform="milky",
-        adapter="Milky",
+        platform="qq",
+        adapter="~milky",
         bot_id="bot-1",
         conversation_id="group-1",
         message_id="msg-1",
@@ -198,6 +215,7 @@ async def test_run_postprocessor_updates_status(
     record_result.assert_awaited_once()
     record_result_args = record_result.await_args
     assert record_result_args is not None
+    assert record_result_args.kwargs["adapter"] == "~milky"
     assert record_result_args.kwargs["process_status"] == "handled"
 
 
@@ -221,6 +239,7 @@ async def test_on_called_api_records_result(
     record_api_args = record_api.await_args
     assert record_api_args is not None
     assert record_api_args.kwargs["api_name"] == "send_message"
+    assert record_api_args.kwargs["adapter"] == "~onebot.v11"
 
 
 async def test_lifecycle_and_api_recording_skip_disabled_known_adapter(

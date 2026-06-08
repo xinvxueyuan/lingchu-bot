@@ -16,7 +16,9 @@ from ..common import GroupCommand
 type GroupAction = Callable[[], Awaitable[Any]]
 
 
-def target_user_onebot11(user: At, event: Onebot11GroupMessageEvent) -> tuple[int, str]:
+def target_user_onebot11(
+    user: At, event: Onebot11GroupMessageEvent
+) -> tuple[int, str | None]:
     try:
         target_user_id: int = int(user.target)
     except (TypeError, ValueError) as error:
@@ -38,7 +40,7 @@ def target_user_onebot11(user: At, event: Onebot11GroupMessageEvent) -> tuple[in
 
     if mention_name:
         return target_user_id, mention_name
-    return target_user_id, ""
+    return target_user_id, None
 
 
 async def finish_action_error_onebot11(

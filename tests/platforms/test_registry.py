@@ -9,6 +9,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.platforms import (
     get_supported_adapters,
     is_adapter_enabled,
     iter_platform_profiles,
+    resolve_adapter_id,
     validate_platform_adapter_selection,
 )
 
@@ -28,6 +29,12 @@ def test_supported_adapters_are_declared_from_profiles() -> None:
 
 def test_configured_adapter_selects_known_platform_adapter() -> None:
     assert get_supported_adapters("~onebot.v11") == {"~onebot.v11"}
+
+
+def test_resolve_adapter_id_normalizes_display_and_canonical_names() -> None:
+    assert resolve_adapter_id("OneBot V11") == "~onebot.v11"
+    assert resolve_adapter_id("~milky") == "~milky"
+    assert resolve_adapter_id("unknown") is None
 
 
 def test_configured_unknown_adapter_raises() -> None:

@@ -285,14 +285,14 @@ class TestMute:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("display", ["", None])
-    async def test_mute_empty_display_uses_empty_name(
+    async def test_mute_empty_display_uses_user_id_as_name(
         self,
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_at: MagicMock,
         display: str | None,
     ) -> None:
-        """测试 At.display 为空时名称按当前逻辑为空字符串。"""
+        """测试 At.display 为空时名称回退为用户 ID。"""
         mock_at.display = display
 
         with patch.object(member_mute_cmd, "finish") as mock_finish:
@@ -304,7 +304,7 @@ class TestMute:
                 event=mock_event,
             )
 
-        assert "名称: @\n" in finish_text(mock_finish)
+        assert "名称: 987654321\n" in finish_text(mock_finish)
 
     @pytest.mark.asyncio
     async def test_mute_invalid_at_target_finishes_with_error(
@@ -474,20 +474,20 @@ class TestUnmute:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("display", ["", None])
-    async def test_unmute_empty_display_uses_empty_name(
+    async def test_unmute_empty_display_uses_user_id_as_name(
         self,
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_at: MagicMock,
         display: str | None,
     ) -> None:
-        """测试解禁时 At.display 为空会使用空名称。"""
+        """测试解禁时 At.display 为空会使用用户 ID 作为名称。"""
         mock_at.display = display
 
         with patch.object(member_unmute_cmd, "finish") as mock_finish:
             await milkybot_unmute(user=mock_at, bot=mock_bot, event=mock_event)
 
-        assert "名称: \n" in finish_text(mock_finish)
+        assert "名称: 987654321\n" in finish_text(mock_finish)
 
     @pytest.mark.asyncio
     async def test_unmute_invalid_at_target_finishes_with_error(
