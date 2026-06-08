@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
 from typing import Any
@@ -18,12 +19,13 @@ from nonebot.typing import T_State  # noqa: TC002
 
 from ..core.runtime_config import runtime_config
 from ..database.orm_crud import DatabaseError
-from ..platforms import UNKNOWN_PLATFORM_ID, get_platform_profile, is_known_adapter
+from ..platforms import get_platform_profile, resolve_adapter_id
 from ..repositories import message_store as repository
 
 logger = logging.getLogger(__name__)
 STATE_KEY = "_lingchu_message_record_identity"
 SUMMARY_LIMIT = 500
+RAW_PAYLOAD_MAX_DEPTH = 8
 
 
 @dataclass(slots=True)
@@ -46,6 +48,8 @@ class NormalizedMessageEvent:
     event_type: str
     message_type: str | None
     text_summary: str | None
+    raw_message: str | None
+    raw_event: str | None
 
 
 def _truncate(value: str | None, limit: int | None = None) -> str | None:
@@ -93,13 +97,14 @@ def _adapter_name(bot: Bot) -> str:
         return "unknown"
 
 
-def _platform_name(adapter_name: str) -> str | None:
-    profile = get_platform_profile(adapter_name)
-    if profile is not None:
-        return profile.platform_id
-    if is_known_adapter(adapter_name):
+def _adapter_identity(adapter_name: str) -> tuple[str, str] | None:
+    adapter_id = resolve_adapter_id(adapter_name)
+    if adapter_id is None:
         return None
-    return UNKNOWN_PLATFORM_ID
+    profile = get_platform_profile(adapter_id)
+    if profile is not None:
+        return (profile.platform_id, adapter_id)
+    return None
 
 
 def _event_data(event: Event) -> Any:
@@ -112,6 +117,11 @@ def _event_type(event: Event) -> str:
         or _safe_call(event, "get_type")
         or type(event).__name__
     )
+
+
+def _event_category(event: Event) -> str | None:
+    value = _safe_call(event, "get_type")
+    return str(value) if value is not None else None
 
 
 def _message_type(event: Event) -> str | None:
@@ -172,16 +182,79 @@ def _plain_text(event: Event) -> str | None:
     return _truncate(str(message)) if message is not None else None
 
 
+def _jsonable(value: Any, *, depth: int = 0) -> Any:  # noqa: C901, PLR0911
+    if depth > RAW_PAYLOAD_MAX_DEPTH:
+        return repr(value)
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    if isinstance(value, dict):
+        return {
+            str(key): _jsonable(item, depth=depth + 1) for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [_jsonable(item, depth=depth + 1) for item in value]
+
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump) and type(value).__module__ != "unittest.mock":
+        try:
+            return _jsonable(
+                model_dump(mode="json", by_alias=True, exclude_none=False),
+                depth=depth + 1,
+            )
+        except (TypeError, ValueError, AttributeError):
+            pass
+
+    data = getattr(value, "data", None)
+    if data is not None and data is not value:
+        return _jsonable(data, depth=depth + 1)
+
+    if hasattr(value, "__dict__") and type(value).__module__ != "unittest.mock":
+        raw = {
+            key: item for key, item in vars(value).items() if not key.startswith("_")
+        }
+        if raw:
+            return _jsonable(raw, depth=depth + 1)
+
+    return str(value)
+
+
+def _json_summary(value: Any) -> str | None:
+    if value is None:
+        return None
+    try:
+        return json.dumps(_jsonable(value), ensure_ascii=False, sort_keys=True)
+    except (TypeError, ValueError):
+        return json.dumps(str(value), ensure_ascii=False)
+
+
+def _raw_message(event: Event) -> str | None:
+    message = _safe_call(event, "get_message")
+    if message is None:
+        message = _first_attr(event, "message")
+    if message is None:
+        message = _first_attr(_event_data(event), "message", "segments")
+    return _json_summary(message)
+
+
+def _raw_event(event: Event) -> str | None:
+    return _json_summary(event)
+
+
 def normalize_message_event(bot: Bot, event: Event) -> NormalizedMessageEvent | None:
     """Normalize an adapter event into message-store metadata."""
-    adapter = _adapter_name(bot)
-    platform = _platform_name(adapter)
-    if platform is None:
+    if _event_category(event) != "message":
         return None
+    adapter = _adapter_name(bot)
+    adapter_identity = _adapter_identity(adapter)
+    if adapter_identity is None:
+        return None
+    platform, adapter_id = adapter_identity
     bot_id = _stringify(getattr(bot, "self_id", None), limit=128) or "unknown"
     identity = MessageIdentity(
         platform=platform,
-        adapter=adapter,
+        adapter=adapter_id,
         bot_id=bot_id,
         conversation_id=_conversation_id(event),
         message_id=_message_id(event),
@@ -192,6 +265,8 @@ def normalize_message_event(bot: Bot, event: Event) -> NormalizedMessageEvent | 
         event_type=_event_type(event),
         message_type=_message_type(event),
         text_summary=_plain_text(event),
+        raw_message=_raw_message(event),
+        raw_event=_raw_event(event),
     )
 
 
@@ -236,18 +311,20 @@ async def record_bot_lifecycle(bot: Bot, event_type: str) -> bool:
     if not runtime_config.message_store_enabled:
         return False
     adapter = _adapter_name(bot)
-    platform = _platform_name(adapter)
-    if platform is None:
+    adapter_identity = _adapter_identity(adapter)
+    if adapter_identity is None:
         return False
+    platform, adapter_id = adapter_identity
     try:
         await repository.record_api_call(
             platform=platform,
-            adapter=adapter,
+            adapter=adapter_id,
             bot_id=_stringify(getattr(bot, "self_id", None), limit=128) or "unknown",
             api_name=event_type,
             data_summary=None,
             result_summary=None,
             exception_summary=None,
+            audit_type="lifecycle",
         )
     except DatabaseError:
         logger.exception("Failed to record bot lifecycle event: %s", event_type)
@@ -279,6 +356,8 @@ async def message_store_preprocessor(
             event_type=normalized.event_type,
             message_type=normalized.message_type,
             text_summary=normalized.text_summary,
+            raw_message=normalized.raw_message,
+            raw_event=normalized.raw_event,
         )
     except DatabaseError:
         logger.exception("Failed to record incoming message event")
@@ -312,6 +391,7 @@ async def message_store_run_postprocessor(
     try:
         await repository.record_matcher_result(
             platform=identity.platform,
+            adapter=identity.adapter,
             bot_id=identity.bot_id,
             conversation_id=identity.conversation_id,
             message_id=identity.message_id,
@@ -347,13 +427,14 @@ async def message_store_on_called_api(
     ):
         return
     adapter = _adapter_name(bot)
-    platform = _platform_name(adapter)
-    if platform is None:
+    adapter_identity = _adapter_identity(adapter)
+    if adapter_identity is None:
         return
+    platform, adapter_id = adapter_identity
     try:
         await repository.record_api_call(
             platform=platform,
-            adapter=adapter,
+            adapter=adapter_id,
             bot_id=_stringify(getattr(bot, "self_id", None), limit=128) or "unknown",
             api_name=api,
             data_summary=_stringify(data),

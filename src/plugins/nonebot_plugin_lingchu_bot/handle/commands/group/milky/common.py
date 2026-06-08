@@ -12,7 +12,9 @@ from ..common import GroupCommand
 type GroupAction = Callable[[], Awaitable[Any]]
 
 
-def target_user_milky(user: At, event: MilkyGroupMessageEvent) -> tuple[int, str]:
+def target_user_milky(
+    user: At, event: MilkyGroupMessageEvent
+) -> tuple[int, str | None]:
     try:
         target_user_id: int = int(user.target)
     except (TypeError, ValueError) as error:
@@ -32,8 +34,8 @@ def target_user_milky(user: At, event: MilkyGroupMessageEvent) -> tuple[int, str
         None,
     )
     if mention:
-        return target_user_id, mention["data"].get("name") or user.display or ""
-    return target_user_id, user.display or ""
+        return target_user_id, mention["data"].get("name") or None
+    return target_user_id, None
 
 
 async def finish_action_error_milky(

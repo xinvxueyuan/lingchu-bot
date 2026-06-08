@@ -29,6 +29,7 @@ async def milkybot_mute(
     except ValueError as error:
         return await member_mute_cmd.finish(message=str(error))
     reason_text = await _("违反群规「默认」") if reason is None else reason
+    name_display = f"@{target_name}" if target_name else str(target_user_id)
 
     try:
         await bot.set_group_member_mute(
@@ -48,13 +49,13 @@ async def milkybot_mute(
     msg = (
         await _(
             "已禁言: \n"
-            "名称: @{target_name}\n"
+            "名称: {name_display}\n"
             "时长: {duration} 秒\n"
             "原因: {reason}\n"
             "标识: {target_user_id}"
         )
     ).format(
-        target_name=target_name,
+        name_display=name_display,
         duration=duration,
         reason=reason_text,
         target_user_id=target_user_id,
@@ -99,6 +100,7 @@ async def milkybot_unmute(
     except ValueError as error:
         return await member_unmute_cmd.finish(message=str(error))
     reason_text = await _("管理员操作「默认」") if reason is None else reason
+    name_display = target_name or str(target_user_id)
 
     try:
         await bot.set_group_member_mute(
@@ -118,10 +120,10 @@ async def milkybot_unmute(
     msg: UniMessage[Text] = UniMessage(
         message=(
             await _(
-                "已解禁: \n名称: {target_name}\n原因: {reason}\n标识: {target_user_id}"
+                "已解禁: \n名称: {name_display}\n原因: {reason}\n标识: {target_user_id}"
             )
         ).format(
-            target_name=target_name,
+            name_display=name_display,
             reason=reason_text,
             target_user_id=target_user_id,
         )
