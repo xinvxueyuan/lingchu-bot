@@ -1,12 +1,16 @@
 #!/bin/bash
 
-# 尽力检查但不阻断提交：工具不可用时优雅降级，修复后自动暂存
+# Pre-commit hook: 自动修复 → 快速检查 → 慢速检查 → 非阻断分析
+# 原则：快反馈优先，阻断性检查在前，非阻断分析放最后
 set +e
 
-echo "🚀 正在运行代码检查与分析..."
+echo "🚀 正在运行代码检查..."
 
-# 1. 运行 Prek 检查
+# ── Phase 1: 自动修复 ──────────────────────────────────
+
+# Prek: lint/format 自动修复 + 重新暂存
 if command -v uv >/dev/null 2>&1; then
+    echo "🔧 正在运行 Prek 自动修复..."
     uv run prek run --config prek.toml --stage pre-commit
     if [ $? -ne 0 ]; then
         echo "ℹ️  Prek 自动修复了部分文件，正在重新暂存..."
@@ -16,7 +20,65 @@ else
     echo "⚠️  未找到 uv，跳过 Prek 检查。"
 fi
 
-# 2. 运行 Gitnexus 分析
+# ── Phase 2: 快速检查（秒级）──────────────────────────
+
+# Ruff lint
+if command -v uv >/dev/null 2>&1; then
+    echo "🔍 正在运行 Ruff lint..."
+    uv run -m ruff check . --output-format=github
+    if [ $? -ne 0 ]; then
+        echo "❌ Ruff lint 检查失败，请修复后重新提交。"
+        exit 1
+    fi
+fi
+
+# Ruff format
+if command -v uv >/dev/null 2>&1; then
+    echo "🔍 正在运行 Ruff format 检查..."
+    uv run -m ruff format --check .
+    if [ $? -ne 0 ]; then
+        echo "❌ Ruff format 检查失败，请运行 'task format' 后重新提交。"
+        exit 1
+    fi
+fi
+
+# ── Phase 3: 类型检查（十秒级）────────────────────────
+
+# Pyright
+if command -v uv >/dev/null 2>&1; then
+    echo "🔍 正在运行 Pyright 类型检查..."
+    uv run -m pyright .
+    if [ $? -ne 0 ]; then
+        echo "❌ Pyright 类型检查失败，请修复后重新提交。"
+        exit 1
+    fi
+fi
+
+# ty
+if command -v uv >/dev/null 2>&1; then
+    echo "🔍 正在运行 ty 类型检查..."
+    uv run -m ty check --output-format github
+    if [ $? -ne 0 ]; then
+        echo "❌ ty 类型检查失败，请修复后重新提交。"
+        exit 1
+    fi
+fi
+
+# ── Phase 4: 测试（十秒级）────────────────────────────
+
+# pytest
+if command -v uv >/dev/null 2>&1; then
+    echo "🧪 正在运行 pytest..."
+    uv run -m pytest -x -q
+    if [ $? -ne 0 ]; then
+        echo "❌ pytest 测试失败，请修复后重新提交。"
+        exit 1
+    fi
+fi
+
+# ── Phase 5: 非阻断分析 ────────────────────────────────
+
+# Gitnexus: 更新代码索引，失败不阻断提交
 if command -v pnpm >/dev/null 2>&1; then
     pnpm exec gitnexus analyze || true
 elif command -v npx >/dev/null 2>&1; then
@@ -25,7 +87,7 @@ else
     echo "⚠️  未找到 pnpm/npx，跳过 Gitnexus 分析。"
 fi
 
-# 3. Gitnexus 可能更新 CLAUDE.md / AGENTS.md，自动暂存变更
+# Gitnexus 可能更新 CLAUDE.md / AGENTS.md，自动暂存变更
 CHANGED=""
 for f in CLAUDE.md AGENTS.md; do
     if git diff --name-only -- "$f" 2>/dev/null | grep -q . || \
@@ -37,56 +99,6 @@ done
 if [ -n "$CHANGED" ]; then
     echo "ℹ️  检测到 Gitnexus 更新了$CHANGED，正在暂存..."
     git add $CHANGED
-fi
-
-# 4. Ruff lint
-if command -v uv >/dev/null 2>&1; then
-    echo "🔍 正在运行 Ruff lint..."
-    uv run -m ruff check . --output-format=github
-    if [ $? -ne 0 ]; then
-        echo "❌ Ruff lint 检查失败，请修复后重新提交。"
-        exit 1
-    fi
-fi
-
-# 5. Ruff format
-if command -v uv >/dev/null 2>&1; then
-    echo "🔍 正在运行 Ruff format 检查..."
-    uv run -m ruff format --check .
-    if [ $? -ne 0 ]; then
-        echo "❌ Ruff format 检查失败，请运行 'task format' 后重新提交。"
-        exit 1
-    fi
-fi
-
-# 6. Pyright 类型检查
-if command -v uv >/dev/null 2>&1; then
-    echo "🔍 正在运行 Pyright 类型检查..."
-    uv run -m pyright .
-    if [ $? -ne 0 ]; then
-        echo "❌ Pyright 类型检查失败，请修复后重新提交。"
-        exit 1
-    fi
-fi
-
-# 7. ty 类型检查
-if command -v uv >/dev/null 2>&1; then
-    echo "🔍 正在运行 ty 类型检查..."
-    uv run -m ty check --output-format github
-    if [ $? -ne 0 ]; then
-        echo "❌ ty 类型检查失败，请修复后重新提交。"
-        exit 1
-    fi
-fi
-
-# 8. pytest 测试
-if command -v uv >/dev/null 2>&1; then
-    echo "🧪 正在运行 pytest..."
-    uv run -m pytest -x -q
-    if [ $? -ne 0 ]; then
-        echo "❌ pytest 测试失败，请修复后重新提交。"
-        exit 1
-    fi
 fi
 
 echo "✅ 所有检查通过！"
