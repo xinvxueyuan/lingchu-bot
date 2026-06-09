@@ -24,7 +24,7 @@ async def milkybot_set_group_member_card(
     event: MilkyGroupMessageEvent,
 ) -> Any:
     try:
-        target_user_id, target_name = target_user_milky(user, event)
+        target_user_id, target_name = await target_user_milky(user, bot, event)
     except ValueError as error:
         return await set_group_member_card_cmd.finish(message=str(error))
     name_display = (
@@ -50,7 +50,7 @@ async def milkybot_set_group_member_special_title(
     event: MilkyGroupMessageEvent,
 ) -> Any:
     try:
-        target_user_id, target_name = target_user_milky(user, event)
+        target_user_id, target_name = await target_user_milky(user, bot, event)
     except ValueError as error:
         return await set_group_member_special_title_cmd.finish(message=str(error))
     name_display = (
@@ -79,7 +79,7 @@ async def milkybot_set_group_member_admin(
     event: MilkyGroupMessageEvent,
 ) -> Any:
     try:
-        target_user_id, target_name = target_user_milky(user, event)
+        target_user_id, target_name = await target_user_milky(user, bot, event)
     except ValueError as error:
         return await set_group_member_admin_cmd.finish(message=str(error))
     action_text = await _("设置") if is_set else await _("取消")
@@ -118,7 +118,7 @@ async def milkybot_kick_group_member(
     event: MilkyGroupMessageEvent,
 ) -> Any:
     try:
-        target_user_id, target_name = target_user_milky(user, event)
+        target_user_id, target_name = await target_user_milky(user, bot, event)
     except ValueError as error:
         return await kick_group_member_cmd.finish(message=str(error))
     name_display = (
