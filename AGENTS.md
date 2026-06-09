@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2302 symbols, 4645 relationships, 193 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2303 symbols, 4646 relationships, 193 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -173,7 +173,8 @@ task i18n                           # Extract, update and compile i18n
 
 ## Git Hooks
 
-- **pre-commit**: Runs `prek` (lint/format checks) + `gitnexus analyze` (auto-refresh code index)
+- **pre-commit**: 条件触发检查 — Prek auto-fix（始终）→ Ruff lint/format（Python 变更时）→ Pyright/ty（Python 变更时）→ pytest（Python 变更时）→ Docs ESLint/type-check/Vitest（docs 变更时）→ Gitnexus analyze（始终，非阻断）
+- **commit-msg**: gitmoji + Conventional Commits 格式校验 + 自动追加 Signed-off-by（含 trailer 块检测）
 - **prepare-commit-msg**: Interactive gitmoji commit message via `pnpm exec gitmoji --hook`
 - Set `$env:HUSKY='0'` to skip hooks when needed (e.g., automated commits)
 
@@ -263,3 +264,11 @@ When removing functions/helpers:
 - OneBot V11 returns `dict` → mock with `return_value={}`
 - Milky returns pydantic `Model` objects → mock with `MagicMock(card="", nickname="")` so attribute access works
 - Never use `dict` as mock return value for APIs that return Model objects — attribute access (`obj.card`) will raise `AttributeError`
+
+### Git Hooks Optimization
+
+- **Pre-commit 应按变更文件类型条件触发检查**：用 `git diff --cached --name-only --diff-filter=ACMR` 收集暂存文件，通过 `has_pattern()` 检测文件后缀/路径，无 Python 变更时跳过 Ruff/Pyright/ty/pytest，无 Docs 变更时跳过 ESLint/type-check/Vitest，可节省 30-60 秒
+- **Signed-off-by 追加需检测 trailer 块**：已有 trailer（如 `Closes #`、`BREAKING CHANGE:`、`Reviewed-by:`）时应追加到同一块（无空行分隔），无 trailer 时才用空行分隔
+- **空行清理不能破坏消息结构**：`sed '/^$/N;/^\n$/d'` 会删除所有连续空行，破坏 subject-body-trailer 结构；应仅压缩 ≥3 连续空行为 2 个
+- **重复签名检测需忽略尾部空白**：`grep -qF` 可能因行尾空白差异误判，应先 `sed 's/[[:space:]]*$//'` 去尾空白再 `grep -qxF` 精确整行匹配
+- **空消息体不应追加 Signed-off-by**：空提交消息由格式校验拦截即可，追加签名到空文件无意义

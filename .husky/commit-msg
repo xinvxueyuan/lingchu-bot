@@ -13,21 +13,47 @@ SIGNOFF_EMAIL=$(git config user.email)
 if [ -n "$SIGNOFF_NAME" ] && [ -n "$SIGNOFF_EMAIL" ]; then
     SIGNOFF_LINE="Signed-off-by: ${SIGNOFF_NAME} <${SIGNOFF_EMAIL}>"
 
-    # 检查是否已存在相同的 Signed-off-by 行，避免重复追加
-    if ! grep -qF "$SIGNOFF_LINE" "$COMMIT_MSG_FILE"; then
-        # 提取非注释内容（去除尾部空行）和注释部分
-        BODY=$(sed '/^#/d' "$COMMIT_MSG_FILE" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+    # 读取非注释行（保留空行结构）
+    BODY_NO_COMMENTS=$(sed '/^#/d' "$COMMIT_MSG_FILE")
+
+    # 边界1: 消息体为空或仅空行 → 不追加（空提交消息由后续格式校验拦截）
+    if ! printf '%s' "$BODY_NO_COMMENTS" | grep -q '[^[:space:]]'; then
+        COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+    # 边界2: 已存在相同 Signed-off-by（精确匹配，忽略尾部空白差异）
+    elif printf '%s' "$BODY_NO_COMMENTS" | sed 's/[[:space:]]*$//' | grep -qxF "$SIGNOFF_LINE"; then
+        COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+    else
+        # 提取注释部分（保留原始顺序）
         COMMENTS=$(grep '^#' "$COMMIT_MSG_FILE" || true)
 
+        # 去除尾部空行，保留内部结构
+        BODY=$(printf '%s' "$BODY_NO_COMMENTS" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+
+        # 检测是否已有 trailer 块（以 Token: 格式结尾的段落）
+        # trailer 行格式: ^[A-Za-z-]+: .+  或  ^[A-Za-z-]+ #.+（如 Fixes #123）
+        LAST_NON_EMPTY=$(printf '%s' "$BODY" | grep -v '^[[:space:]]*$' | tail -1)
+        HAS_TRAILER=false
+        if printf '%s' "$LAST_NON_EMPTY" | grep -qE '^[A-Za-z][A-Za-z0-9_-]+[[:space:]]*(:|#)'; then
+            HAS_TRAILER=true
+        fi
+
+        # 构建新消息
         {
-            printf '%s\n\n%s\n' "$BODY" "$SIGNOFF_LINE"
+            if [ "$HAS_TRAILER" = true ]; then
+                # 已有 trailer 块 → 追加到同一块（仅一个换行分隔）
+                printf '%s\n%s\n' "$BODY" "$SIGNOFF_LINE"
+            else
+                # 无 trailer 块 → 用空行分隔后追加
+                printf '%s\n\n%s\n' "$BODY" "$SIGNOFF_LINE"
+            fi
             if [ -n "$COMMENTS" ]; then
                 printf '%s\n' "$COMMENTS"
             fi
         } > "$COMMIT_MSG_FILE"
 
-        # 去除多余连续空行，保持格式整洁
-        sed -i '/^$/N;/^\n$/d' "$COMMIT_MSG_FILE"
+        # 仅清理 trailer 区域前可能产生的多余连续空行（≥3个连续空行压缩为2个）
+        # 不破坏 subject 与 body 之间、body 与 trailer 之间的单空行结构
+        awk 'BEGIN{blank=0} /^[[:space:]]*$/{blank++;if(blank<=2)print;next} {blank=0;print}' "$COMMIT_MSG_FILE" > "$COMMIT_MSG_FILE.tmp" && mv "$COMMIT_MSG_FILE.tmp" "$COMMIT_MSG_FILE"
 
         # 重新读取更新后的消息
         COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")

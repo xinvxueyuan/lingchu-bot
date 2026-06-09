@@ -1,14 +1,55 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Pre-commit hook: 自动修复 → 快速检查 → 慢速检查 → 非阻断分析
 # 原则：快反馈优先，阻断性检查在前，非阻断分析放最后
+# 优化：仅当变更文件命中检查范围时才执行对应检查，缩短无关注变更的提交耗时
 set +e
+
+# ── 变更检测 ────────────────────────────────────────────
+# 收集暂存区变更文件列表（含重命名目标），用于按需触发检查
+
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)
+
+# has_pattern <glob_pattern>... — 任一模式匹配到暂存文件则返回 0
+has_pattern() {
+    for pattern in "$@"; do
+        if printf '%s\n' "$STAGED_FILES" | grep -qE "$pattern"; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# 检测各领域是否有变更
+HAS_PYTHON=false
+HAS_PY_CONFIG=false   # pyproject.toml / ruff.toml / uv.lock 等 Python 配置
+HAS_DOCS=false        # apps/docs/ 下的前端/文档变更
+
+if has_pattern '\.py$'; then
+    HAS_PYTHON=true
+fi
+if has_pattern '(^|/)(pyproject\.toml|ruff\.toml|\.ruff\.toml|uv\.lock|\.python-version)$'; then
+    HAS_PY_CONFIG=true
+fi
+if has_pattern '^apps/docs/.*\.(ts|tsx|css|mdx|mjs|json)$'; then
+    HAS_DOCS=true
+fi
+# docs 配置文件变更也触发
+if has_pattern '^apps/docs/(next\.config\.mjs|source\.config\.ts|tsconfig\.json|vitest\.config\.ts|eslint\.config\.mjs|postcss\.config\.mjs|package\.json)$'; then
+    HAS_DOCS=true
+fi
+
+# Python 相关检查：.py 文件或 Python 配置变更时触发
+NEEDS_PYTHON_CHECK=false
+if [ "$HAS_PYTHON" = true ] || [ "$HAS_PY_CONFIG" = true ]; then
+    NEEDS_PYTHON_CHECK=true
+fi
 
 echo "🚀 正在运行代码检查..."
 
 # ── Phase 1: 自动修复 ──────────────────────────────────
 
-# Prek: lint/format 自动修复 + 重新暂存
+# Prek: lint/format 自动修复 + 重新暂存（始终运行，prek 自身按 stage 过滤）
 if command -v uv >/dev/null 2>&1; then
     echo "🔧 正在运行 Prek 自动修复..."
     uv run prek run --config prek.toml --stage pre-commit
@@ -22,61 +63,109 @@ fi
 
 # ── Phase 2: 快速检查（秒级）──────────────────────────
 
-# Ruff lint
-if command -v uv >/dev/null 2>&1; then
-    echo "🔍 正在运行 Ruff lint..."
-    uv run -m ruff check . --output-format=github
-    if [ $? -ne 0 ]; then
-        echo "❌ Ruff lint 检查失败，请修复后重新提交。"
-        exit 1
+if [ "$NEEDS_PYTHON_CHECK" = true ]; then
+    # Ruff lint
+    if command -v uv >/dev/null 2>&1; then
+        echo "🔍 正在运行 Ruff lint..."
+        uv run -m ruff check . --output-format=github
+        if [ $? -ne 0 ]; then
+            echo "❌ Ruff lint 检查失败，请修复后重新提交。"
+            exit 1
+        fi
     fi
-fi
 
-# Ruff format
-if command -v uv >/dev/null 2>&1; then
-    echo "🔍 正在运行 Ruff format 检查..."
-    uv run -m ruff format --check .
-    if [ $? -ne 0 ]; then
-        echo "❌ Ruff format 检查失败，请运行 'task format' 后重新提交。"
-        exit 1
+    # Ruff format
+    if command -v uv >/dev/null 2>&1; then
+        echo "🔍 正在运行 Ruff format 检查..."
+        uv run -m ruff format --check .
+        if [ $? -ne 0 ]; then
+            echo "❌ Ruff format 检查失败，请运行 'task format' 后重新提交。"
+            exit 1
+        fi
     fi
+else
+    echo "⏭️  无 Python 变更，跳过 Ruff lint/format 检查。"
 fi
 
 # ── Phase 3: 类型检查（十秒级）────────────────────────
 
-# Pyright
-if command -v uv >/dev/null 2>&1; then
-    echo "🔍 正在运行 Pyright 类型检查..."
-    uv run -m pyright .
-    if [ $? -ne 0 ]; then
-        echo "❌ Pyright 类型检查失败，请修复后重新提交。"
-        exit 1
+if [ "$NEEDS_PYTHON_CHECK" = true ]; then
+    # Pyright
+    if command -v uv >/dev/null 2>&1; then
+        echo "🔍 正在运行 Pyright 类型检查..."
+        uv run -m pyright .
+        if [ $? -ne 0 ]; then
+            echo "❌ Pyright 类型检查失败，请修复后重新提交。"
+            exit 1
+        fi
     fi
-fi
 
-# ty
-if command -v uv >/dev/null 2>&1; then
-    echo "🔍 正在运行 ty 类型检查..."
-    uv run -m ty check --output-format github
-    if [ $? -ne 0 ]; then
-        echo "❌ ty 类型检查失败，请修复后重新提交。"
-        exit 1
+    # ty
+    if command -v uv >/dev/null 2>&1; then
+        echo "🔍 正在运行 ty 类型检查..."
+        uv run -m ty check --output-format github
+        if [ $? -ne 0 ]; then
+            echo "❌ ty 类型检查失败，请修复后重新提交。"
+            exit 1
+        fi
     fi
+else
+    echo "⏭️  无 Python 变更，跳过 Pyright/ty 类型检查。"
 fi
 
 # ── Phase 4: 测试（十秒级）────────────────────────────
 
-# pytest
-if command -v uv >/dev/null 2>&1; then
-    echo "🧪 正在运行 pytest..."
-    uv run -m pytest -x -q
-    if [ $? -ne 0 ]; then
-        echo "❌ pytest 测试失败，请修复后重新提交。"
-        exit 1
+if [ "$NEEDS_PYTHON_CHECK" = true ]; then
+    # pytest
+    if command -v uv >/dev/null 2>&1; then
+        echo "🧪 正在运行 pytest..."
+        uv run -m pytest -x -q
+        if [ $? -ne 0 ]; then
+            echo "❌ pytest 测试失败，请修复后重新提交。"
+            exit 1
+        fi
     fi
+else
+    echo "⏭️  无 Python 变更，跳过 pytest 测试。"
 fi
 
-# ── Phase 5: 非阻断分析 ────────────────────────────────
+# ── Phase 5: Docs 检查（十秒级）────────────────────────
+
+if [ "$HAS_DOCS" = true ]; then
+    # Docs ESLint
+    if command -v pnpm >/dev/null 2>&1; then
+        echo "🔍 正在运行 Docs ESLint..."
+        pnpm --filter docs lint
+        if [ $? -ne 0 ]; then
+            echo "❌ Docs ESLint 检查失败，请修复后重新提交。"
+            exit 1
+        fi
+    fi
+
+    # Docs Type Check
+    if command -v pnpm >/dev/null 2>&1; then
+        echo "🔍 正在运行 Docs 类型检查..."
+        pnpm --filter docs check-types
+        if [ $? -ne 0 ]; then
+            echo "❌ Docs 类型检查失败，请修复后重新提交。"
+            exit 1
+        fi
+    fi
+
+    # Docs Vitest
+    if command -v pnpm >/dev/null 2>&1; then
+        echo "🧪 正在运行 Docs Vitest..."
+        pnpm --filter docs test
+        if [ $? -ne 0 ]; then
+            echo "❌ Docs 测试失败，请修复后重新提交。"
+            exit 1
+        fi
+    fi
+else
+    echo "⏭️  无 Docs 变更，跳过 Docs 检查。"
+fi
+
+# ── Phase 6: 非阻断分析 ────────────────────────────────
 
 # Gitnexus: 更新代码索引，失败不阻断提交
 if command -v pnpm >/dev/null 2>&1; then
