@@ -25,7 +25,7 @@ async def onebot11_set_group_member_card(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
-    target_user_id, target_name = target_user_onebot11(user, event)
+    target_user_id, target_name = await target_user_onebot11(user, bot, event)
     name_display = (
         f"{target_name}({target_user_id})" if target_name else str(target_user_id)
     )
@@ -48,7 +48,7 @@ async def onebot11_set_group_member_special_title(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
-    target_user_id, target_name = target_user_onebot11(user, event)
+    target_user_id, target_name = await target_user_onebot11(user, bot, event)
     name_display = (
         f"{target_name}({target_user_id})" if target_name else str(target_user_id)
     )
@@ -75,7 +75,7 @@ async def onebot11_set_group_member_admin(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
-    target_user_id, target_name = target_user_onebot11(user, event)
+    target_user_id, target_name = await target_user_onebot11(user, bot, event)
     action_text = await _("设置") if is_set else await _("取消")
     name_display = (
         f"{target_name}({target_user_id})" if target_name else str(target_user_id)
@@ -111,7 +111,7 @@ async def onebot11_kick_group_member(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
-    target_user_id, target_name = target_user_onebot11(user, event)
+    target_user_id, target_name = await target_user_onebot11(user, bot, event)
     name_display = (
         f"{target_name}({target_user_id})" if target_name else str(target_user_id)
     )

@@ -20,7 +20,7 @@ async def onebot11_mute(
     event: OneBot11GroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
-    target_user_id, target_name = target_user_onebot11(user, event)
+    target_user_id, target_name = await target_user_onebot11(user, bot, event)
     reason_text = await _("违反群规「默认」") if reason is None else reason
     name_display = f"@{target_name}" if target_name else str(target_user_id)
     return await run_group_action_onebot11(
@@ -66,9 +66,9 @@ async def onebot11_unmute(
     event: OneBot11GroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
-    target_user_id, target_name = target_user_onebot11(user, event)
+    target_user_id, target_name = await target_user_onebot11(user, bot, event)
     reason_text = await _("管理员操作「默认」") if reason is None else reason
-    name_display = target_name or str(target_user_id)
+    name_display = f"@{target_name}" if target_name else str(target_user_id)
     return await run_group_action_onebot11(
         member_unmute_cmd,
         await _("解禁"),

@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from nonebot.adapters.milky.exception import ActionFailed, NetworkError
+from nonebot.adapters.onebot.v11.exception import ActionFailed as OB11ActionFailed
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle.commands.group.member import (
     kick_group_member_cmd,
@@ -264,6 +265,26 @@ async def test_target_user_uses_milky_mention_name_when_at_display_empty(
 
 
 @pytest.mark.asyncio
+async def test_target_user_milky_returns_empty_name_before_id_display_fallback(
+    mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
+) -> None:
+    """At.display 与 mention name 都不存在且 API 也不返回名称时，回退用户 ID。"""
+    mock_bot.set_group_member_card = AsyncMock()
+    mock_at.display = None
+    mock_event.data.segments = []
+    mock_bot.get_group_member_info = AsyncMock(
+        return_value=MagicMock(card="", nickname="")
+    )
+
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
+        await milkybot_set_group_member_card(
+            user=mock_at, card="名片", bot=mock_bot, event=mock_event
+        )
+
+    assert "已设置群名片: 987654321 -> 名片" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
 async def test_target_user_falls_back_to_at_display_when_no_segments(
     mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
 ) -> None:
@@ -405,14 +426,74 @@ async def test_onebot11_kick_group_member_passes_reject_flag(
 
 
 @pytest.mark.asyncio
-async def test_target_user_onebot11_uses_at_segment_name_when_at_display_empty(
+async def test_target_user_milky_falls_back_to_api_nickname(
+    mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
+) -> None:
+    """At.display 与 mention name 都不存在时，通过 API 获取昵称。"""
+    mock_bot.set_group_member_card = AsyncMock()
+    mock_at.display = None
+    mock_event.data.segments = []
+    mock_bot.get_group_member_info = AsyncMock(
+        return_value=MagicMock(card="", nickname="API昵称")
+    )
+
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
+        await milkybot_set_group_member_card(
+            user=mock_at, card="名片", bot=mock_bot, event=mock_event
+        )
+
+    assert "API昵称(987654321)" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_target_user_milky_falls_back_to_api_card(
+    mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
+) -> None:
+    """At.display 与 mention name 都不存在时，API 优先返回 card。"""
+    mock_bot.set_group_member_card = AsyncMock()
+    mock_at.display = None
+    mock_event.data.segments = []
+    mock_bot.get_group_member_info = AsyncMock(
+        return_value=MagicMock(card="群名片", nickname="昵称")
+    )
+
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
+        await milkybot_set_group_member_card(
+            user=mock_at, card="名片", bot=mock_bot, event=mock_event
+        )
+
+    assert "群名片(987654321)" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_target_user_milky_api_failure_falls_back_to_id(
+    mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
+) -> None:
+    """API 调用失败时回退到用户 ID。"""
+    mock_bot.set_group_member_card = AsyncMock()
+    mock_at.display = None
+    mock_event.data.segments = []
+    mock_bot.get_group_member_info = AsyncMock(side_effect=ActionFailed())
+
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
+        await milkybot_set_group_member_card(
+            user=mock_at, card="名片", bot=mock_bot, event=mock_event
+        )
+
+    assert "已设置群名片: 987654321 -> 名片" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_target_user_onebot11_falls_back_to_api_nickname(
     mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
 ) -> None:
+    """At.display 与消息段名称都不存在时，通过 API 获取昵称。"""
     mock_onebot11_bot.set_group_card = AsyncMock()
-    mock_at.display = ""
-    wrong_segment = MagicMock(type="at", data={"qq": "111111", "name": "错误用户"})
-    target_segment = MagicMock(type="at", data={"qq": "987654321", "name": "目标用户"})
-    mock_onebot11_event.message = [wrong_segment, target_segment]
+    mock_at.display = None
+    mock_onebot11_event.message = []
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        return_value={"card": "", "nickname": "API昵称"}
+    )
 
     with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
         await onebot11_set_group_member_card(
@@ -422,9 +503,25 @@ async def test_target_user_onebot11_uses_at_segment_name_when_at_display_empty(
             event=mock_onebot11_event,
         )
 
-    mock_onebot11_bot.set_group_card.assert_called_once_with(
-        group_id=mock_onebot11_event.group_id, user_id=987654321, card="新名片"
-    )
-    assert "目标用户(987654321)" in finish_text(mock_finish)
-    assert "测试用户" not in finish_text(mock_finish)
-    assert "错误用户" not in finish_text(mock_finish)
+    assert "API昵称(987654321)" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_target_user_onebot11_api_failure_falls_back_to_id(
+    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+) -> None:
+    """API 调用失败时回退到用户 ID。"""
+    mock_onebot11_bot.set_group_card = AsyncMock()
+    mock_at.display = None
+    mock_onebot11_event.message = []
+    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=OB11ActionFailed())
+
+    with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
+        await onebot11_set_group_member_card(
+            user=mock_at,
+            card="新名片",
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+        )
+
+    assert "已设置群名片: 987654321 -> 新名片" in finish_text(mock_finish)

@@ -2,6 +2,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from nonebot import logger
+from nonebot.adapters.milky import Bot as MilkyBot
 from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
 from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 from nonebot_plugin_alconna.uniseg import At
@@ -12,9 +13,9 @@ from ..common import GroupCommand
 type GroupAction = Callable[[], Awaitable[Any]]
 
 
-def target_user_milky(
-    user: At, event: MilkyGroupMessageEvent
-) -> tuple[int, str | None]:
+async def target_user_milky(
+    user: At, bot: MilkyBot, event: MilkyGroupMessageEvent
+) -> tuple[int, str]:
     try:
         target_user_id: int = int(user.target)
     except (TypeError, ValueError) as error:
@@ -34,8 +35,24 @@ def target_user_milky(
         None,
     )
     if mention:
-        return target_user_id, mention["data"].get("name") or None
-    return target_user_id, None
+        name = mention["data"].get("name") or ""
+        if name:
+            return target_user_id, name
+
+    try:
+        member_info = await bot.get_group_member_info(
+            group_id=event.data.peer_id, user_id=target_user_id
+        )
+        name = member_info.card or member_info.nickname
+        if name:
+            return target_user_id, name
+    except (ActionFailed, NetworkError):
+        logger.debug(
+            f"获取群成员信息失败: "
+            f"group_id={event.data.peer_id}, user_id={target_user_id}"
+        )
+
+    return target_user_id, ""
 
 
 async def finish_action_error_milky(
