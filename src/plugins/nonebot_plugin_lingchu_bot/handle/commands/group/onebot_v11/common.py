@@ -2,6 +2,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from nonebot import logger
+from nonebot.adapters.onebot.v11 import Bot as Onebot11Bot
 from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent as Onebot11GroupMessageEvent,
 )
@@ -16,9 +17,9 @@ from ..common import GroupCommand
 type GroupAction = Callable[[], Awaitable[Any]]
 
 
-def target_user_onebot11(
-    user: At, event: Onebot11GroupMessageEvent
-) -> tuple[int, str | None]:
+async def target_user_onebot11(
+    user: At, bot: Onebot11Bot, event: Onebot11GroupMessageEvent
+) -> tuple[int, str]:
     try:
         target_user_id: int = int(user.target)
     except (TypeError, ValueError) as error:
@@ -28,19 +29,19 @@ def target_user_onebot11(
     if user.display:
         return target_user_id, user.display
 
-    mention_name: str | None = None
-    for segment in event.message:
-        if (
-            segment.type == "at"
-            and segment.data.get("qq")
-            and str(segment.data["qq"]) == str(target_user_id)
-        ):
-            mention_name = segment.data.get("name")
-            break
+    try:
+        member_info = await bot.get_group_member_info(
+            group_id=event.group_id, user_id=target_user_id
+        )
+        name = member_info.get("card") or member_info.get("nickname") or ""
+        if name:
+            return target_user_id, str(name)
+    except Onebot11ActionFailed:
+        logger.debug(
+            f"获取群成员信息失败: group_id={event.group_id}, user_id={target_user_id}"
+        )
 
-    if mention_name:
-        return target_user_id, mention_name
-    return target_user_id, None
+    return target_user_id, ""
 
 
 async def finish_action_error_onebot11(

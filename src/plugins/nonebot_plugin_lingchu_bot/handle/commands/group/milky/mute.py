@@ -25,7 +25,7 @@ async def milkybot_mute(
     reason: str | None = None,
 ) -> Any:
     try:
-        target_user_id, target_name = target_user_milky(user, event)
+        target_user_id, target_name = await target_user_milky(user, bot, event)
     except ValueError as error:
         return await member_mute_cmd.finish(message=str(error))
     reason_text = await _("违反群规「默认」") if reason is None else reason
@@ -96,11 +96,11 @@ async def milkybot_unmute(
     reason: str | None = None,
 ) -> Any:
     try:
-        target_user_id, target_name = target_user_milky(user, event)
+        target_user_id, target_name = await target_user_milky(user, bot, event)
     except ValueError as error:
         return await member_unmute_cmd.finish(message=str(error))
     reason_text = await _("管理员操作「默认」") if reason is None else reason
-    name_display = target_name or str(target_user_id)
+    name_display = f"@{target_name}" if target_name else str(target_user_id)
 
     try:
         await bot.set_group_member_mute(

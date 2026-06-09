@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from nonebot.adapters.milky import Bot as MilkyBot
@@ -57,6 +57,7 @@ def mock_bot() -> MagicMock:
     bot = MagicMock(spec=MilkyBot)
     bot.adapter = MagicMock()
     bot.adapter.get_name.return_value = "Milky"
+    bot.get_group_member_info = AsyncMock(return_value=MagicMock(card="", nickname=""))
     return bot
 
 
@@ -73,6 +74,7 @@ def mock_onebot11_bot() -> MagicMock:
     bot = MagicMock(spec=OneBot11Bot)
     bot.adapter = MagicMock()
     bot.adapter.get_name.return_value = "OneBot V11"
+    bot.get_group_member_info = AsyncMock(return_value={})
     return bot
 
 

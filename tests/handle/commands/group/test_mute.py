@@ -45,6 +45,7 @@ def mock_bot() -> MagicMock:
     bot.adapter.get_name.return_value = "Milky"
     bot.set_group_member_mute = AsyncMock()
     bot.set_group_whole_mute = AsyncMock()
+    bot.get_group_member_info = AsyncMock(return_value=MagicMock(card="", nickname=""))
     return bot
 
 
@@ -161,7 +162,7 @@ class TestMute:
     ) -> None:
         """测试存在多个 mention 消息段时按 At.target 匹配目标。"""
         mock_at.target = "333333"
-        mock_at.display = ""
+        mock_at.display = None
         mock_event.data.segments = [
             {"type": "text", "data": {"text": "前缀"}},
             {"type": "mention", "data": {"user_id": 222222, "name": "第一用户"}},
@@ -427,7 +428,7 @@ class TestUnmute:
         result_message = finish_message(mock_finish)
         assert isinstance(result_message, UniMessage)
         assert "已解禁:" in str(result_message)
-        assert "名称: 测试用户" in str(result_message)
+        assert "名称: @测试用户" in str(result_message)
         assert "原因: 管理员操作「默认」" in str(result_message)
         assert "标识: 987654321" in str(result_message)
 
@@ -437,7 +438,7 @@ class TestUnmute:
     ) -> None:
         """测试存在多个 mention 消息段时按 At.target 解禁目标。"""
         mock_at.target = "444444"
-        mock_at.display = ""
+        mock_at.display = None
         mock_event.data.segments = [
             {"type": "mention", "data": {"user_id": 333333, "name": "第一用户"}},
             {"type": "mention", "data": {"user_id": 444444, "name": "第二用户"}},
@@ -452,7 +453,7 @@ class TestUnmute:
             duration=0,
         )
         result_message = finish_text(mock_finish)
-        assert "名称: 第二用户" in result_message
+        assert "名称: @第二用户" in result_message
         assert "第一用户" not in result_message
 
     @pytest.mark.asyncio
@@ -470,7 +471,7 @@ class TestUnmute:
             user_id=987654321,
             duration=0,
         )
-        assert "名称: 测试用户" in finish_text(mock_finish)
+        assert "名称: @测试用户" in finish_text(mock_finish)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("display", ["", None])
