@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2272 symbols, 4594 relationships, 191 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2302 symbols, 4645 relationships, 193 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -197,3 +197,69 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 - **Tests & Type Check**: Pyright + ty + pytest + docs test
 - **Auto Format**: On push to main/dev, auto-fix and commit
 - **Docs Deploy**: Build and deploy to GitHub Pages
+
+## Lessons Learned
+
+### Cross-Cutting Change Checklist
+
+When modifying business logic (especially adapter-layer code), changes MUST propagate to all affected areas **before considering the task done**:
+
+1. **Source code** — `src/plugins/nonebot_plugin_lingchu_bot/`
+2. **Tests** — `tests/` (add/update tests for new behavior, remove tests for deleted behavior)
+3. **i18n** — `src/plugins/nonebot_plugin_lingchu_bot/i18n/` (run `task i18n` if user-facing strings change)
+4. **Docs** — `apps/docs/content/docs/` (update command docs if behavior changes)
+
+After changes, always run the full check suite: `task check && task test`
+
+### Use MCP / Skills Proactively
+
+- **NapCat API MCP** (`mcp_NapCat_-_API_Wen_Dang_*`): Use to look up OneBot V11 API specs (parameters, response fields) before writing adapter calls. Avoid guessing API signatures.
+- **Context7 / find-docs**: Use for up-to-date library docs (NoneBot2, Alconna, Pydantic, etc.) — training data may be outdated.
+- **GitNexus MCP**: Run `gitnexus_impact` / `gitnexus_context` before editing symbols; run `gitnexus_detect_changes` before committing.
+- **WebSearch / WebFetch**: Use when MCP tools don't cover the needed info (e.g., third-party API changelogs).
+- Rule of thumb: **When touching adapter boundaries, external APIs, or unfamiliar libraries, always verify via MCP/skills first** — don't rely on memory or assumptions.
+
+### Session Epilogue: Update AGENTS.md
+
+At the end of every conversation that involves code changes, review what went wrong or what took extra iterations, and append reusable lessons to this `Lessons Learned` section. This prevents repeating the same mistakes.
+
+### Adapter API Differences
+
+Same-named APIs return different types across adapters:
+
+| API | OneBot V11 | Milky |
+|-----|-----------|-------|
+| `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
+| `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
+
+Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+
+### Function Signature Changes
+
+When changing a function signature (sync→async, adding/removing params):
+
+1. Use `Grep` to find ALL callers across the entire codebase
+2. Update every caller — not just the obvious ones (check `mute.py`, `member.py`, etc.)
+3. Update test fixtures (`conftest.py`) and test functions that construct mock objects
+4. Run `ruff check`, `pyright`, `ty check`, and `pytest` to catch missed updates
+
+### Exception Handling in Tests
+
+- Test `side_effect` exceptions must match the actual `except` clause in source code
+- `ActionFailed()` from Milky and OneBot V11 adapters may not accept positional arguments — always check the constructor signature
+- Use `ruff check` to catch BLE001 (blind `except Exception`) — prefer specific adapter exceptions
+
+### Removing Code
+
+When removing functions/helpers:
+
+1. `Grep` for all references (including tests) before deletion
+2. Remove associated tests that test the deleted behavior
+3. Remove unused imports that were only needed by the deleted code
+4. Verify no other module re-exports or depends on the removed symbol
+
+### Mock Object Patterns for Adapter Models
+
+- OneBot V11 returns `dict` → mock with `return_value={}`
+- Milky returns pydantic `Model` objects → mock with `MagicMock(card="", nickname="")` so attribute access works
+- Never use `dict` as mock return value for APIs that return Model objects — attribute access (`obj.card`) will raise `AttributeError`
