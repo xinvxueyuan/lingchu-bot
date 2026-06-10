@@ -1,6 +1,6 @@
 {
-  "title": "用户指南",
-  "description": "面向用户的使用文档",
+  "title": "User Guide",
+  "description": "Documentation for users",
   "icon": "BookOpen",
   "root": true,
   "pages": [

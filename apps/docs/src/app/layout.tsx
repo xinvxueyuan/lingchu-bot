@@ -10,8 +10,8 @@ export const metadata: Metadata = {
   alternates: {
     types: {
       'application/rss+xml': [
-        { title: `${appName} 文档`, url: `${baseUrl}/rss.xml` },
-        { title: `${appName} Docs`, url: `${baseUrl}/en/rss.xml` },
+        { title: `${appName} Docs`, url: `${baseUrl}/rss.xml` },
+        { title: `${appName} 文档`, url: `${baseUrl}/zh/rss.xml` },
       ],
     },
   },
@@ -19,10 +19,10 @@ export const metadata: Metadata = {
 
 export default async function Layout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body className="flex flex-col min-h-screen" suppressHydrationWarning>
         <Banner variant="rainbow">
-          🎉 Lingchu Bot 文档已上线，欢迎查阅！
+          Lingchu Bot documentation is now live — check it out!
         </Banner>
         <Provider>{children}</Provider>
       </body>

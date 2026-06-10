@@ -8,21 +8,21 @@ export default function HomePage() {
         Lingchu Bot
       </h1>
       <p className="mb-8 max-w-2xl text-base leading-7 text-fd-muted-foreground">
-        基于 NoneBot2 的应用侧管理机器人项目文档，覆盖当前用户指南、开发流程、国际化、
-        测试与 GitNexus 工作流。
+        Documentation for the Lingchu Bot application-side management bot, including user guides,
+        development workflow, internationalization, testing, and GitNexus practices.
       </p>
       <div className="flex flex-wrap gap-3">
         <Link
           href="/docs"
           className="rounded-md bg-fd-primary px-4 py-2 text-sm font-medium text-fd-primary-foreground"
         >
-          简体中文
+          Open docs
         </Link>
         <Link
-          href="/en/docs"
+          href="/zh/docs"
           className="rounded-md border px-4 py-2 text-sm font-medium text-fd-foreground"
         >
-          English
+          简体中文
         </Link>
       </div>
     </div>

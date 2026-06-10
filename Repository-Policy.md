@@ -1,41 +1,43 @@
-版权声明-许可条款遵守
+# Repository Policy — License Compliance
 
-本项目基于以下开源许可证进行分发：
+> English | [中文](.github/note/Repository-Policy-zh.md)
 
-- 软件代码部分适用 GNU Affero 宽通用公共许可证第三版 (LGPL-3.0) 及其后续版本
-- 用户指南、开发文档及其他创作性文本内容适用 GNU 自由文档许可证 第1.3版 (GNU FDL-1.3) 及其后续版本
-- 视觉元素适用 CC0 1.0 公共领域贡献许可证
+This project is distributed under the following open-source licenses:
 
-使用者必须遵守上述许可证的所有条款和条件。
+- Software code is licensed under the GNU Lesser General Public License v3.0 (LGPL-3.0) or later
+- User guides, development documentation, and other creative text content are licensed under the GNU Free Documentation License v1.3 (GNU FDL-1.3) or later
+- Visual elements are licensed under CC0 1.0 Universal Public Domain Dedication
 
-媒体文件脱敏要求：
+Users must comply with all terms and conditions of the above licenses.
 
-对于本项目中的媒体文件（包括但不限于图片、音频、视频等），若其未明确标注适用 CC0 1.0 公共领域贡献许可证，则在使用时必须进行脱敏处理。
+## Media File Anonymization Requirements
 
-脱敏处理包括但不限于：
+For media files in this project (including but not limited to images, audio, video, etc.) that are not explicitly marked as licensed under CC0 1.0 Universal Public Domain Dedication, anonymization (desensitization) processing is required before use.
 
-1. 移除或模糊化所有个人身份信息
-2. 处理面部、车牌号等可识别特征
-3. 删除或替换敏感位置信息
-4. 匿名化任何可能识别个人或实体的数据
+Anonymization processing includes but is not limited to:
 
-合规使用说明：
+1. Removing or blurring all personally identifiable information
+2. Processing faces, license plates, and other recognizable features
+3. Deleting or replacing sensitive location information
+4. Anonymizing any data that could identify individuals or entities
 
-- 仅标注为 CC0 1.0 的媒体文件可无需脱敏直接使用
-- 使用非 CC0 1.0 媒体文件时，必须在遵守相应许可证的同时完成脱敏
-- 经脱敏处理的衍生媒体文件仍需遵守原始许可证条款
-- 使用者对脱敏处理的合规性承担全部责任
+## Compliance Guidelines
 
-免责声明：
+- Only media files marked as CC0 1.0 may be used directly without anonymization
+- When using non-CC0 1.0 media files, anonymization must be completed while complying with the applicable license
+- Derivative media files that have been anonymized must still comply with the original license terms
+- Users bear full responsibility for the compliance of their anonymization processing
 
-项目维护者不对使用者未适当脱敏导致的任何隐私侵权、法律纠纷或损失承担责任。建议在使用前咨询法律专业人士。
+## Disclaimer
 
-许可证文本：
+Project maintainers are not responsible for any privacy infringement, legal disputes, or losses arising from users' failure to properly anonymize content. Consulting a legal professional before use is recommended.
 
-完整的许可证文本可在以下链接获取：
+## License Texts
+
+Full license texts are available at the following links:
 
 - GNU LGPL-3.0: `https://www.gnu.org/licenses/lgpl-3.0.html`
 - GNU FDL-1.3: `https://www.gnu.org/licenses/fdl-1.3.html`
 - CC0 1.0: `https://creativecommons.org/publicdomain/zero/1.0/`
 
-本脱敏声明旨在确保用户在使用本项目中的媒体文件时，尊重隐私权和相关法律法规。如有任何疑问，请联系项目维护者获取更多信息。
+This anonymization statement is intended to ensure that users respect privacy rights and applicable laws when using media files from this project. For any questions, please contact the project maintainers for more information.

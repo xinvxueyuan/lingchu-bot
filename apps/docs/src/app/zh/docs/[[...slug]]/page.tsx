@@ -15,9 +15,9 @@ import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { gitConfig } from '@/lib/shared';
 import { LLMBadge } from '@/components/llm-badge';
 
-export default async function Page(props: PageProps<'/en/docs/[[...slug]]'>) {
+export default async function Page(props: PageProps<'/zh/docs/[[...slug]]'>) {
   const params = await props.params;
-  const page = source.getPage(params.slug, 'en');
+  const page = source.getPage(params.slug, 'zh');
   if (!page) notFound();
 
   const MDX = page.data.body;
@@ -28,7 +28,7 @@ export default async function Page(props: PageProps<'/en/docs/[[...slug]]'>) {
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
       <div className="flex flex-row gap-2 items-center border-b pb-6">
-        <LLMBadge locale="en" />
+        <LLMBadge locale="zh" />
         <MarkdownCopyButton markdownUrl={markdownUrl} />
         <ViewOptionsPopover
           markdownUrl={markdownUrl}
@@ -48,16 +48,16 @@ export default async function Page(props: PageProps<'/en/docs/[[...slug]]'>) {
 }
 
 export async function generateStaticParams() {
-  return source.getPages('en').map((page) => ({
+  return source.getPages('zh').map((page) => ({
     slug: page.slugs,
   }));
 }
 
 export async function generateMetadata(
-  props: PageProps<'/en/docs/[[...slug]]'>,
+  props: PageProps<'/zh/docs/[[...slug]]'>,
 ): Promise<Metadata> {
   const params = await props.params;
-  const page = source.getPage(params.slug, 'en');
+  const page = source.getPage(params.slug, 'zh');
   if (!page) notFound();
 
   return {

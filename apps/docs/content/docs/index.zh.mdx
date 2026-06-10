@@ -1,0 +1,44 @@
+---
+icon: Rocket
+title: 项目介绍
+---
+
+## Lingchu Bot
+
+Lingchu Bot 是一个基于 NoneBot2 的应用侧管理机器人项目。它以插件形式组织核心能力，面向群管理、命令处理、配置管理、本地存储和异步数据访问等场景。
+
+> **项目状态**
+>
+> 本项目仍处于 pre-alpha / development 阶段。当前代码、配置、命令行为和文档都可能继续调整，请不要把现有接口视为稳定生产接口。
+
+## 适合谁阅读
+
+- 想本地启动项目、了解当前可用能力的使用者。
+- 想为 Lingchu Bot 增加功能、测试或文档的贡献者。
+- 想了解项目结构、CI 和 GitNexus 协作流程的维护者。
+
+## 当前能力
+
+- 基于 NoneBot2 的核心插件入口。
+- 通过 `pyproject.toml` 声明本地插件目录、可用适配器和 NoneBot 依赖插件。
+- QQ 平台同一时间只启用一个适配器；默认选择 `~onebot.v11`，可用 `LINGCHUAdapter` 显式切换到 Milky。
+- 当前已实现并测试覆盖的 QQ 群管理处理器：成员禁言/解禁、全体禁言/解禁、群资料设置、成员管理、群公告、踢人和退群。
+- 可选消息存储：记录事件接收、处理状态、Bot 生命周期和平台 API 调用摘要，并把未知适配器归入 `unknown` 平台。
+- JSON5 本地存储、NoneBot localstore 路径管理和 ORM CRUD 辅助能力。
+- gettext / Babel 国际化辅助，当前包含 `zh_CN` 与 `en_US` 目录。
+- 面向开发者的 prek 钩子、测试和 CI 检查流程。
+- 面向后续迭代的跨平台和非群管理功能扩展空间。
+
+## 快速入口
+
+- [用户指南](/docs/user-guide/overview)：了解项目状态、运行方式和命令能力。
+- [快速开始](/docs/user-guide/quick-start)：安装依赖并选择插件加载或 Docker 运行方式。
+- [开发指南](/docs/developer-guide/introduction)：理解项目结构和开发流程。
+- [International docs](/en/docs)：阅读英文文档入口。
+- [项目政策](/docs/project-policy)：查看贡献、安全、许可和媒体脱敏要求。
+
+## 仓库链接
+
+- 源代码：[https://github.com/xinvxueyuan/lingchu-bot](https://github.com/xinvxueyuan/lingchu-bot)
+- 贡献指南：[https://github.com/xinvxueyuan/lingchu-bot/blob/main/CONTRIBUTING.md](https://github.com/xinvxueyuan/lingchu-bot/blob/main/CONTRIBUTING.md)
+- 安全政策：[https://github.com/xinvxueyuan/lingchu-bot/blob/main/SECURITY.md](https://github.com/xinvxueyuan/lingchu-bot/blob/main/SECURITY.md)

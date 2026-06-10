@@ -1,52 +1,52 @@
 ---
 icon: Play
-title: 快速开始
+title: Quick Start
 ---
 
-## 快速开始
+## Quick Start
 
-本页说明如何在本地准备 Lingchu Bot。实际连接平台前，请先准备好 NoneBot 和当前启用适配器所需的账号、网络和配置。QQ 平台默认启用 OneBot V11；如需 Milky，请在配置中显式指定。
+This page explains how to prepare Lingchu Bot locally. Before connecting to a real platform, prepare the account, network, and configuration required by NoneBot and the enabled adapter. The QQ platform enables OneBot V11 by default; configure Milky explicitly if you need it.
 
-## 环境要求
+## Requirements
 
 - Python 3.13
 - uv
 - git
-- 当前启用的 QQ 平台适配器可用的运行环境；默认是 OneBot V11
+- A runtime environment usable by the enabled QQ adapter; OneBot V11 is the default
 
-## 获取代码
+## Get the code
 
 ```bash
 git clone https://github.com/xinvxueyuan/lingchu-bot.git
 cd lingchu-bot
 ```
 
-## 安装依赖
+## Install dependencies
 
 ```bash
 uv sync --frozen
 ```
 
-## 启动
+## Start
 
-当前工作树没有提交根目录 `bot.py`。Lingchu Bot 以 NoneBot 插件包为主，`pyproject.toml` 的 `[tool.nonebot]` 已声明 `plugin_dirs = ["src/plugins"]`。
+The current working tree does not ship a committed root-level `bot.py`. Lingchu Bot is primarily a NoneBot plugin package, and `[tool.nonebot]` in `pyproject.toml` declares `plugin_dirs = ["src/plugins"]`.
 
-你可以把本仓库作为本地插件目录加载到已有 NoneBot 项目中，或使用仓库提供的 Docker 构建流程运行。Docker 镜像构建阶段会通过 `nb-cli` 生成运行用 `/tmp/bot.py`。
+You can load this repository as a local plugin directory from an existing NoneBot project, or run it through the Docker build flow provided by the repository. The Docker image generates the runtime `/tmp/bot.py` with `nb-cli` during build.
 
 ```bash
 docker compose up --build
 ```
 
-## 运行前检查
+## Pre-run checklist
 
-- 确认 Python 版本为 3.13。
-- 确认当前启用适配器的服务和连接配置已经准备好。
-- 如果运行时会同时注册多个 QQ 适配器，Lingchu Bot 只会启用 `LINGCHUAdapter` 选中的业务代码；请确认选中的适配器也已经由 NoneBot 加载。
-- 确认目标 NoneBot 项目已加载 `src/plugins`，或正在使用仓库 Docker runner。
-- 确认 NoneBot 配置中的布尔值使用小写 `true` / `false`，不要写成 `True` / `False`。
+- Confirm that Python is version 3.13.
+- Confirm that the service and connection settings for the enabled adapter are ready.
+- If runtime registers multiple QQ adapters, Lingchu Bot only enables the business code selected by `LINGCHUAdapter`; make sure the selected adapter has also been loaded by NoneBot.
+- Confirm that the target NoneBot project loads `src/plugins`, or that you are using the repository Docker runner.
+- Confirm that Boolean values in NoneBot configuration use lowercase `true` / `false`, not `True` / `False`.
 
-## 下一步
+## Next steps
 
-- 查看 [命令与群管理](commands) 了解当前命令。
-- 查看 [配置](configuration) 了解项目配置项。
-- 遇到启动问题时查看 [故障排除](troubleshooting)。
+- Read [Commands and Group Management](commands) for current commands.
+- Read [Configuration](configuration) for project configuration.
+- Read [Troubleshooting](troubleshooting) when startup fails.

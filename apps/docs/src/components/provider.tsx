@@ -27,7 +27,7 @@ function switchLocale(pathname: string, currentLocale: string, targetLocale: str
 export function Provider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const locale = pathname.startsWith('/en') ? 'en' : 'zh';
+  const locale = pathname.startsWith('/zh') ? 'zh' : 'en';
 
   const onLocaleChange = useCallback(
     (newLocale: string) => {

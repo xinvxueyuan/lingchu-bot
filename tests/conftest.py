@@ -61,6 +61,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "LOCALSTORE_USE_CWD": "True",
         "DRIVER": "~fastapi+~httpx+~websockets",
         "LINGCHUAdapter": "~onebot.v11",
+        "lingchu_locale": "zh_CN",
     }
     nonebot.init(**init_config)
 

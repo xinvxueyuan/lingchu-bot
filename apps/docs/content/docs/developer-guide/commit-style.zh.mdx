@@ -1,0 +1,66 @@
+---
+icon: SmilePlus
+title: 提交规范
+---
+
+## 提交规范
+
+项目提交信息使用 [Gitmoji](https://gitmoji.dev/) + Conventional Commits。
+`.husky/commit-msg` 会强制校验首行格式，完整规则维护在
+`.trae/rules/git-commit-message.md`。
+
+## 推荐格式
+
+```text
+<gitmoji> <type>(<scope>): <summary>
+```
+
+作用域可省略：
+
+```text
+<gitmoji> <type>: <summary>
+```
+
+破坏性变更可在 type 后或 scope 后添加 `!`：
+
+```text
+💥 feat!(api): 移除旧接口
+💥 feat(api)!: 移除旧接口
+```
+
+## 常用示例
+
+```text
+✨ feat(command): 增加新的群管理命令
+🐛 fix(mute): 修正禁言失败反馈
+📝 docs: 更新快速开始说明
+✅ test(database): 覆盖 JSON5 存储异常分支
+♻️ refactor(config): 简化配置加载流程
+```
+
+## 使用建议
+
+- 摘要使用祈使或陈述式短句，说明这次提交做了什么。
+- 一次提交只表达一个主要目的，避免混合无关代码和文档改动。
+- 不确定 emoji 时可以运行 `task gitmoji` 查看中文速查表，或让 `prepare-commit-msg` hook 启动 `pnpm exec gitmoji --hook`。
+- 需要说明背景、风险或破坏性变更时，在提交正文补充。
+
+## 本地检查
+
+提交前建议先运行对应检查。文档改动至少确认 Markdown 文件结构、
+链接和代码块围栏没有明显问题；代码改动按 [测试与 CI](testing-ci)
+中的命令验证。
+
+仓库中的 `prepare-commit-msg` hook 会在可交互终端中尝试启动 Gitmoji。非交互环境可以跳过交互钩子，但 `commit-msg` 仍会校验首行；自动化提交必须自行生成合规消息。
+
+## 自动签名
+
+`commit-msg` hook 会自动在提交信息末尾追加 `Signed-off-by` 行（等效于 `git commit -s`），签名信息取自 `git config user.name` 和 `git config user.email`。如果提交信息中已存在相同的签名行则不会重复追加。
+
+```text
+✨ feat: 新增群管理功能
+
+Signed-off-by: Your Name <your@email.com>
+```
+
+手动使用 `git commit -s` 时，git 自身也会追加签名，hook 检测到后不会重复添加。

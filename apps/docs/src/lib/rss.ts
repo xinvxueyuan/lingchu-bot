@@ -4,12 +4,12 @@ import { appName, gitConfig } from '@/lib/shared';
 
 const baseUrl = `https://${gitConfig.user}.github.io/${gitConfig.repo}`;
 
-export async function getRSS(locale: string = 'zh'): Promise<string> {
-    const isZh = locale === 'zh';
+export async function getRSS(locale: string = 'en'): Promise<string> {
+    const isEn = locale === 'en';
     const feed = new Feed({
-        title: isZh ? `${appName} 文档` : `${appName} Docs`,
-        id: `${baseUrl}${isZh ? '/docs' : '/en/docs'}`,
-        link: `${baseUrl}${isZh ? '/docs' : '/en/docs'}`,
+        title: isEn ? `${appName} Docs` : `${appName} 文档`,
+        id: `${baseUrl}${isEn ? '/docs' : '/zh/docs'}`,
+        link: `${baseUrl}${isEn ? '/docs' : '/zh/docs'}`,
         language: locale,
         favicon: `${baseUrl}/icon.png`,
         copyright: `All rights reserved ${new Date().getFullYear()}, ${appName}`,
