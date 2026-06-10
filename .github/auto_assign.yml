@@ -1,0 +1,57 @@
+# https://probot.github.io/apps/auto-assign/
+# Install the app: https://github.com/apps/auto-assign
+
+# 是否自动添加 Reviewers
+addReviewers: true
+
+# 是否自动添加 Assignees
+# 可选：
+#   true    = 自动添加 assignees
+#   false   = 不自动添加 assignees
+#   author  = 将 PR 创建者设为 assignee
+addAssignees: author
+
+# =========
+# Reviewers
+# =========
+
+# GitHub 用户名，不要加 @
+reviewers:
+  - xinvxueyuan
+
+# 每个 PR 随机添加几个 reviewers
+# 0 = 添加全部 reviewers
+numberOfReviewers: 0
+
+# =========
+# Assignees
+# =========
+
+# 如果设置 assignees，会覆盖默认从 reviewers 中取 assignee 的行为
+# addAssignees: author 时此字段无效
+# assignees:
+#   - assigneeA
+
+# 每个 PR 添加几个 assignees
+# 0 = 添加全部 assignees
+# 不设置时会沿用 numberOfReviewers
+# numberOfAssignees: 0
+
+# =================
+# Skip Rules
+# =================
+
+# PR 标题包含这些关键词时，不自动添加 reviewers / assignees
+skipKeywords:
+  - wip
+  - WIP
+  - draft
+  - Draft
+  - do not review
+  - no review
+
+# 这些用户创建 PR 时，跳过自动添加 reviewers / assignees
+skipUsers:
+  - dependabot[bot]
+  - renovate[bot]
+  - github-actions[bot]

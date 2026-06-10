@@ -1,0 +1,11 @@
+# https://probot.github.io/apps/issuelabeler/
+# Install the app: https://github.com/apps/issuelabeler
+
+# Number of labels to fetch (optional). Defaults to 20
+
+numLabels: "40"
+
+# These labels will not be used even if the issue contains them
+excludeLabels:
+  - pinned
+  - needs-more-info
