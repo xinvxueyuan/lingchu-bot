@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2339 symbols, 4691 relationships, 196 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2345 symbols, 4701 relationships, 197 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -130,48 +130,84 @@ lingchu-bot/
 
 ## Development Commands
 
-### Python
+> Use granular commands for faster feedback during development. Only run `task check` / `task test` for full verification before commits.
+
+### Python — Lint & Format
 
 ```bash
-uv sync --frozen                    # Install dependencies
-# No committed root bot.py; load src/plugins from an existing NoneBot project
-# or use Docker, whose build generates /tmp/bot.py via nb-cli.
-docker compose up --build           # Run with the container runner
-uv run -m ruff check . --output-format=github  # Lint
-uv run -m ruff format --check .     # Format check
-uv run -m pyright .                 # Type check (Pyright)
-uv run -m ty check --output-format github  # Type check (ty)
-uv run -m pytest                    # Run tests
+uv run -m ruff check . --output-format=github   # Lint only
+uv run -m ruff check --fix .                     # Auto-fix lint issues
+uv run -m ruff format --check .                  # Format check only
+uv run -m ruff format .                          # Apply formatting
 ```
 
-### Documentation Site
+### Python — Type Check
 
 ```bash
-pnpm --filter docs dev              # Dev server
-pnpm --filter docs lint             # ESLint
-pnpm --filter docs test             # Vitest
-pnpm turbo run build --filter=docs  # Production build
+uv run -m pyright .                              # Pyright type check
+uv run -m ty check --output-format github        # ty type check
 ```
 
-### Markdown
+### Python — Test
 
 ```bash
-pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" ".github/**/*.md"
+uv run -m pytest                                 # All tests
+uv run -m pytest tests/handle/commands/group/    # Specific test directory
+uv run -m pytest -k "test_mute"                  # By keyword
+uv run -m pytest --lf                            # Re-run last failures
 ```
 
-### Task Runner (Taskfile)
+### Docs Site — Lint & Type Check
 
 ```bash
-task install                        # Install all dependencies
-task up                             # Update all dependencies
-task check                          # All static checks (lint + format + markdown + type check)
-task test                           # All tests (Python + Docs)
-task format                         # Format all code
-task fix                            # Auto-fix all linting and type issues
-task build                          # Build all workspaces
-task ci                             # Full local CI sequence
-task i18n                           # Extract, update and compile i18n
+pnpm --filter docs lint                          # ESLint for docs site
+pnpm turbo run check-types                       # TypeScript type check (all workspaces)
+pnpm --filter docs exec tsc --noEmit             # TypeScript check (docs only)
 ```
+
+### Docs Site — Test
+
+```bash
+pnpm --filter docs test                          # Vitest for docs site
+```
+
+### Docs Site — Dev & Build
+
+```bash
+pnpm --filter docs dev                           # Dev server
+pnpm turbo run build --filter=docs               # Production build
+```
+
+### Markdown Lint
+
+```bash
+pnpm exec markdownlint-cli2 {{.MD_GLOB}}         # Check (use the MD_GLOB from Taskfile.yml)
+pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}   # Auto-fix
+```
+
+### i18n
+
+```bash
+task i18n                                        # Extract + update + compile translations
+```
+
+### Task Runner — Full Verification
+
+```bash
+task check                                       # All static checks (ruff lint + format + markdown + ESLint + pyright + ty + tsc)
+task test                                        # All tests (pytest + Vitest)
+task ci                                          # check + test + build
+```
+
+### Quick Reference: What to Run When
+
+| What changed | Minimum checks before commit |
+|---|---|
+| Python source only | `ruff check` + `ruff format --check` + `pyright` + `ty check` + `pytest` |
+| Docs site only | `pnpm --filter docs lint` + `pnpm --filter docs test` + `tsc --noEmit` |
+| Markdown only | `markdownlint-cli2` |
+| i18n strings | `task i18n` + `pytest` |
+| Mixed / unsure | `task check && task test` |
 
 ## Git Hooks
 
@@ -179,6 +215,15 @@ task i18n                           # Extract, update and compile i18n
 - **commit-msg**: gitmoji + Conventional Commits format validation + auto-append Signed-off-by (with trailer block detection)
 - **prepare-commit-msg**: Interactive gitmoji commit message via `pnpm exec gitmoji --hook`
 - Set `$env:HUSKY='0'` to skip hooks when needed (e.g., automated commits)
+
+## Agent Preferences
+
+These rules are injected as context for every conversation. Treat them as hard constraints.
+
+- **No commits or pushes without explicit user instruction** — never auto-commit, auto-push, or assume the user wants a commit after finishing a task. Wait for the user to say so.
+- **Write persistent preferences into AGENTS.md** — memory files and session context are ephemeral; AGENTS.md is the single source of truth for project-level rules and user preferences. When the user says "remember this" or expresses a preference, add it here.
+- **Prefer granular checks over full `task check`** — use the Quick Reference table above to run only the checks relevant to what changed. Full `task check && task test` is for pre-commit verification, not for every intermediate step.
+- **Sync Chinese/English documents** — when editing AGENTS.md, always propagate the same structural changes to `.github/note/AGENTS-zh.md` and vice versa.
 
 ## Architecture Decisions
 

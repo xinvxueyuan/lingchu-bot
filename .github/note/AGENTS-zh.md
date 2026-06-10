@@ -129,48 +129,84 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 
 ## Development Commands
 
-### Python
+> 开发时使用颗粒度命令获取更快反馈。仅在提交前运行 `task check` / `task test` 做完整验证。
+
+### Python — Lint & Format
 
 ```bash
-uv sync --frozen                    # Install dependencies
-# No committed root bot.py; load src/plugins from an existing NoneBot project
-# or use Docker, whose build generates /tmp/bot.py via nb-cli.
-docker compose up --build           # Run with the container runner
-uv run -m ruff check . --output-format=github  # Lint
-uv run -m ruff format --check .     # Format check
-uv run -m pyright .                 # Type check (Pyright)
-uv run -m ty check --output-format github  # Type check (ty)
-uv run -m pytest                    # Run tests
+uv run -m ruff check . --output-format=github   # 仅 lint
+uv run -m ruff check --fix .                     # 自动修复 lint 问题
+uv run -m ruff format --check .                  # 仅格式检查
+uv run -m ruff format .                          # 应用格式化
 ```
 
-### Documentation Site
+### Python — Type Check
 
 ```bash
-pnpm --filter docs dev              # Dev server
-pnpm --filter docs lint             # ESLint
-pnpm --filter docs test             # Vitest
-pnpm turbo run build --filter=docs  # Production build
+uv run -m pyright .                              # Pyright 类型检查
+uv run -m ty check --output-format github        # ty 类型检查
 ```
 
-### Markdown
+### Python — Test
 
 ```bash
-pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" ".github/**/*.md"
+uv run -m pytest                                 # 全部测试
+uv run -m pytest tests/handle/commands/group/    # 指定测试目录
+uv run -m pytest -k "test_mute"                  # 按关键字筛选
+uv run -m pytest --lf                            # 重跑上次失败的测试
 ```
 
-### Task Runner (Taskfile)
+### Docs Site — Lint & Type Check
 
 ```bash
-task install                        # Install all dependencies
-task up                             # Update all dependencies
-task check                          # All static checks (lint + format + markdown + type check)
-task test                           # All tests (Python + Docs)
-task format                         # Format all code
-task fix                            # Auto-fix all linting and type issues
-task build                          # Build all workspaces
-task ci                             # Full local CI sequence
-task i18n                           # Extract, update and compile i18n
+pnpm --filter docs lint                          # ESLint（docs 站点）
+pnpm turbo run check-types                       # TypeScript 类型检查（所有工作区）
+pnpm --filter docs exec tsc --noEmit             # TypeScript 检查（仅 docs）
 ```
+
+### Docs Site — Test
+
+```bash
+pnpm --filter docs test                          # Vitest（docs 站点）
+```
+
+### Docs Site — Dev & Build
+
+```bash
+pnpm --filter docs dev                           # 开发服务器
+pnpm turbo run build --filter=docs               # 生产构建
+```
+
+### Markdown Lint
+
+```bash
+pnpm exec markdownlint-cli2 {{.MD_GLOB}}         # 检查（MD_GLOB 见 Taskfile.yml）
+pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}   # 自动修复
+```
+
+### i18n
+
+```bash
+task i18n                                        # 提取 + 更新 + 编译翻译
+```
+
+### Task Runner — Full Verification
+
+```bash
+task check                                       # 全部静态检查（ruff lint + format + markdown + ESLint + pyright + ty + tsc）
+task test                                        # 全部测试（pytest + Vitest）
+task ci                                          # check + test + build
+```
+
+### Quick Reference: What to Run When
+
+| What changed | Minimum checks before commit |
+|---|---|
+| Python source only | `ruff check` + `ruff format --check` + `pyright` + `ty check` + `pytest` |
+| Docs site only | `pnpm --filter docs lint` + `pnpm --filter docs test` + `tsc --noEmit` |
+| Markdown only | `markdownlint-cli2` |
+| i18n strings | `task i18n` + `pytest` |
+| Mixed / unsure | `task check && task test` |
 
 ## Git Hooks
 
@@ -178,6 +214,15 @@ task i18n                           # Extract, update and compile i18n
 - **commit-msg**: gitmoji + Conventional Commits 格式校验 + 自动追加 Signed-off-by（含 trailer 块检测）
 - **prepare-commit-msg**: Interactive gitmoji commit message via `pnpm exec gitmoji --hook`
 - Set `$env:HUSKY='0'` to skip hooks when needed (e.g., automated commits)
+
+## Agent Preferences
+
+以下规则作为上下文注入每次对话，视为硬约束。
+
+- **未经用户明确指示不得提交或推送** — 绝不自动提交、自动推送，或假设用户在完成任务后需要提交。等待用户明确要求。
+- **持久偏好写入 AGENTS.md** — memory 文件和会话上下文都是临时的；AGENTS.md 是项目级规则和用户偏好的唯一真实来源。当用户说"记住这个"或表达偏好时，写到这里。
+- **优先使用颗粒度检查而非完整 `task check`** — 使用上方的 Quick Reference 表，只运行与变更相关的检查。完整 `task check && task test` 用于提交前验证，而非每一步中间操作。
+- **同步中英文文档** — 编辑 AGENTS.md 时，始终将相同的结构变更同步到 `.github/note/AGENTS-zh.md`，反之亦然。
 
 ## Architecture Decisions
 
