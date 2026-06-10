@@ -335,4 +335,3 @@ msgstr "Lingchu ignored unselected registered adapters: {adapters}"
 
 #~ msgid "已踢出群成员: {target_name}({target_user_id})"
 #~ msgstr "Group member kicked: {target_name}({target_user_id})"
-

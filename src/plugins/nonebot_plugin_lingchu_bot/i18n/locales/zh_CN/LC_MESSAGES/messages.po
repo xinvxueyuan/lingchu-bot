@@ -335,4 +335,3 @@ msgstr "Lingchu 忽略未选中的已注册适配器: {adapters}"
 
 #~ msgid "已踢出群成员: {target_name}({target_user_id})"
 #~ msgstr "已踢出群成员: {target_name}({target_user_id})"
-

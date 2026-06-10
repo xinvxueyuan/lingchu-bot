@@ -341,3 +341,24 @@ Remove-Item $env:TEMP\commit-msg.txt
 ```
 
 Or use single-line `-m` with `\n` (less readable for long bodies).
+
+### CI Failure Patterns
+
+When pushing to GitHub, check all three CI workflows (not just the one that passed):
+
+1. **pre-commit.ci** — runs `end-of-file-fixer`, `trailing-whitespace`, etc. If it reports "files were modified by this hook", those files lack trailing newlines or have trailing whitespace. Fix locally and push again. Common culprits: `.po`/`.pot` files (Babel output may omit trailing newline), `.turbo/preferences/` JSON files, generated files.
+2. **CodeQL / GitHub Pages deploy** — `Requires authentication` errors are **repository permission issues**, not code issues. Check: Settings → Actions → General → Workflow permissions (must be "Read and write"), and ensure `id-token: write` is in the workflow's `permissions` block for OIDC-dependent jobs (Pages deploy, CodeQL).
+3. **`.next` cache staleness** — after renaming/moving route directories (e.g., `en/` → `zh/`), the `.next/dev/types/validator.ts` cache may reference old paths and cause TypeScript errors. Delete `apps/docs/.next/` and re-run `task check` before committing.
+
+Rule of thumb: **after every push, wait for all CI workflows to complete and investigate failures before moving on.**
+
+### Use Existing Skills Before Manual Work
+
+Before manually running checks or fixing issues, check if a skill already handles it:
+
+- **pre-commit.ci failures** → use the **prek** skill (`.agents/skills/prek/SKILL.md`) to reproduce and fix pre-commit hook failures locally, instead of manually running each hook
+- **Code intelligence** → use **GitNexus** skills instead of manual grep/find
+- **Library docs** → use **Context7 / find-docs** instead of web search
+- **GitHub workflows** → use **GitHub** skills for PR/issue/CI operations
+
+Rule of thumb: **when a CI check fails or you need to do something repetitive, first check `.agents/skills/` and `.claude/skills/` for an existing skill that automates it.**
