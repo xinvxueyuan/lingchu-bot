@@ -1,6 +1,8 @@
 <!-- markdownlint-disable MD033 MD013 -->
 # Lingchu Bot
 
+> [English](README.md) | 中文
+
 [![License](https://img.shields.io/github/license/xinvxueyuan/lingchu-bot)](LICENSE-code)
 [![Release](https://img.shields.io/github/v/release/xinvxueyuan/lingchu-bot)](https://github.com/xinvxueyuan/lingchu-bot/releases)
 [![Python](https://img.shields.io/badge/python-3.13-blue)](pyproject.toml)

@@ -1,18 +1,20 @@
-# 安全策略
+# Security Policy
 
-## 支持的版本
+> English | [中文](.github/note/SECURITY-zh.md)
 
-当前处于开发阶段，不支持任何历史版本的安全更新。
+## Supported Versions
 
-## 报告漏洞
+This project is currently in active development. No historical versions are supported for security updates.
 
-请通过 [GitHub Issues](https://github.com/xinvxueyuan/lingchu-bot/issues) 报告漏洞。
+## Reporting a Vulnerability
 
-在报告漏洞时，请包含以下信息：
+Please report vulnerabilities via [GitHub Issues](https://github.com/xinvxueyuan/lingchu-bot/issues).
 
-- 漏洞的描述
-- 复现步骤
-- 可能的影响
-- 建议的修复方法（如果有）
-- 其他相关信息（如果有）
-- 漏洞的影响范围（例如，仅影响部分用户、所有用户等）
+When reporting a vulnerability, please include the following information:
+
+- A description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Suggested fix (if any)
+- Any additional relevant information
+- Scope of impact (e.g., affects only some users, all users, etc.)

@@ -13,54 +13,60 @@ excludeLabels:
 # Custom configuration to override default behaviour
 # Control explicitly what gets added and when
 custom:
-  # Bug reports: title contains [错误]
+  # Bug reports
   - location: title
     keywords:
+      - "[Bug]"
       - "[错误]"
       - "bug"
       - "错误"
     labels:
       - bug
 
-  # Feature requests: title contains [功能]
+  # Feature requests
   - location: title
     keywords:
+      - "[Feature]"
       - "[功能]"
       - "feature"
       - "功能"
     labels:
       - feature request
 
-  # Enhancements: title contains [增强]
+  # Enhancements
   - location: title
     keywords:
+      - "[Enhancement]"
       - "[增强]"
       - "enhancement"
       - "增强"
     labels:
       - enhancement
 
-  # Documentation: title contains [文档]
+  # Documentation
   - location: title
     keywords:
+      - "[Docs]"
       - "[文档]"
       - "documentation"
       - "文档"
     labels:
       - documentation
 
-  # Corrections: title contains [评议]
+  # Corrections
   - location: title
     keywords:
+      - "[Correction]"
       - "[评议]"
       - "correction"
       - "评议"
     labels:
       - correction
 
-  # Help wanted: title contains [联系]
+  # Help wanted / Contact
   - location: title
     keywords:
+      - "[Contact]"
       - "[联系]"
       - "help"
       - "联系"
@@ -70,25 +76,26 @@ custom:
   # Area labels from body keywords
   - location: body
     keywords:
-      - "数据库"
       - "database"
+      - "数据库"
       - "orm"
     labels:
       - area/database
 
   - location: body
     keywords:
-      - "国际化"
       - "i18n"
-      - "翻译"
+      - "国际化"
       - "translation"
+      - "翻译"
     labels:
       - area/i18n
 
   - location: body
     keywords:
-      - "文档"
       - "docs"
+      - "文档"
+      - "documentation"
       - "文档站点"
     labels:
       - area/docs
@@ -105,7 +112,7 @@ custom:
     keywords:
       - "CI"
       - "GitHub Actions"
-      - "工作流"
       - "workflow"
+      - "工作流"
     labels:
       - area/ci

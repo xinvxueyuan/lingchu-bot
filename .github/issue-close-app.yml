@@ -8,31 +8,48 @@ comment: >
   provide the required information so we can help you.
 
 issueConfigs:
-  # Bug report: title starts with [错误]
+  # Bug report
   - content:
+      - "Bug"
+      - "Reproduce"
+      - "Expected"
+      # Chinese keywords (legacy)
       - "错误"
       - "重现"
       - "预期"
 
-  # Feature request: title starts with [功能]
+  # Feature request
   - content:
+      - "Feature"
+      - "Solution"
+      # Chinese keywords (legacy)
       - "功能"
       - "期望"
 
-  # Enhancement: title starts with [增强]
+  # Enhancement
   - content:
+      - "Enhancement"
+      - "Improve"
+      # Chinese keywords (legacy)
       - "增强"
       - "改进"
 
-  # Documentation issue: title starts with [文档]
+  # Documentation issue
   - content:
+      - "Documentation"
+      # Chinese keywords (legacy)
       - "文档"
 
-  # Correction: title starts with [评议]
+  # Correction
   - content:
+      - "Correction"
+      - "Suggest"
+      # Chinese keywords (legacy)
       - "评议"
       - "建议"
 
-  # Contact: title starts with [联系]
+  # Contact
   - content:
+      - "Contact"
+      # Chinese keywords (legacy)
       - "联系"
