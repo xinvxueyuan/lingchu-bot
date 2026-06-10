@@ -1,0 +1,72 @@
+# https://probot.github.io/apps/boring-cyborg/
+# Install the app: https://github.com/apps/boring-cyborg
+
+##### Labeler ##########################################################################################################
+
+# Add labels to PRs based on the paths that are modified
+labelPRBasedOnFilePath:
+  area/core:
+    - src/plugins/nonebot_plugin_lingchu_bot/core/*
+    - src/plugins/nonebot_plugin_lingchu_bot/core/**/*
+
+  area/commands:
+    - src/plugins/nonebot_plugin_lingchu_bot/handle/commands/*
+    - src/plugins/nonebot_plugin_lingchu_bot/handle/commands/**/*
+
+  area/database:
+    - src/plugins/nonebot_plugin_lingchu_bot/database/*
+    - src/plugins/nonebot_plugin_lingchu_bot/database/**/*
+
+  area/i18n:
+    - src/plugins/nonebot_plugin_lingchu_bot/i18n/*
+    - src/plugins/nonebot_plugin_lingchu_bot/i18n/**/*
+
+  area/platforms:
+    - src/plugins/nonebot_plugin_lingchu_bot/platforms/*
+    - src/plugins/nonebot_plugin_lingchu_bot/platforms/**/*
+
+  area/docs:
+    - apps/docs/*
+    - apps/docs/**/*
+    - "*.md"
+    - "*.mdx"
+
+  area/ci:
+    - .github/workflows/*
+    - .github/workflows/**/*
+    - .husky/*
+    - Taskfile.yml
+    - prek.toml
+    - pyproject.toml
+
+  area/docker:
+    - docker/*
+    - docker/**/*
+    - Dockerfile
+    - docker-compose.yml
+
+  area/deps:
+    - uv.lock
+    - pnpm-lock.yaml
+    - package.json
+    - pyproject.toml
+
+  area/tests:
+    - tests/*
+    - tests/**/*
+
+labelerFlags:
+  # Re-add labels on PR updates even if removed by user
+  labelOnPRUpdates: true
+
+##### Title Validator ##################################################################################################
+
+# Verify PR titles match gitmoji + conventional commits format
+verifyTitles:
+  # Matches: ✨ feat: ... / 🐛 fix(scope): ... / 💥 feat!(api): ...
+  titleRegexp: '^\S+ (feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(!)?(\(.+\))?: .+'
+  alwaysUsePrTitle: true
+  validateEitherPrOrSingleCommitTitle: true
+  statusTitle: "Commit Style"
+  successMessage: "Title follows gitmoji + conventional commits format"
+  failureMessage: "Title must follow: <gitmoji> <type>[!(<scope>)]: <subject> — see .trae/rules/git-commit-message.md"

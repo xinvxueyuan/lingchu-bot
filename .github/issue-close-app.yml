@@ -1,0 +1,38 @@
+# https://probot.github.io/apps/close-issue-app/
+# Install the app: https://github.com/apps/close-issue-app
+
+# Comment that will be sent if an issue is judged to be closed
+comment: >
+  This issue has been automatically closed because it does not appear to
+  follow the issue template. Please use the appropriate issue template and
+  provide the required information so we can help you.
+
+issueConfigs:
+  # Bug report: title starts with [错误]
+  - content:
+      - "错误"
+      - "重现"
+      - "预期"
+
+  # Feature request: title starts with [功能]
+  - content:
+      - "功能"
+      - "期望"
+
+  # Enhancement: title starts with [增强]
+  - content:
+      - "增强"
+      - "改进"
+
+  # Documentation issue: title starts with [文档]
+  - content:
+      - "文档"
+
+  # Correction: title starts with [评议]
+  - content:
+      - "评议"
+      - "建议"
+
+  # Contact: title starts with [联系]
+  - content:
+      - "联系"
