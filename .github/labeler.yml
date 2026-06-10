@@ -1,11 +1,111 @@
+# yaml-language-server: $schema=
 # https://probot.github.io/apps/issuelabeler/
 # Install the app: https://github.com/apps/issuelabeler
 
-# Number of labels to fetch (optional). Defaults to 20
+# Number of labels to fetch (optional). Defaults to 100
+# numLabels: 40
 
-numLabels: "40"
-
-# These labels will not be used even if the issue contains them
+# These labels will not be used even if the issue contains them (optional)
 excludeLabels:
   - pinned
   - needs-more-info
+
+# Custom configuration to override default behaviour
+# Control explicitly what gets added and when
+custom:
+  # Bug reports: title contains [错误]
+  - location: title
+    keywords:
+      - "[错误]"
+      - "bug"
+      - "错误"
+    labels:
+      - bug
+
+  # Feature requests: title contains [功能]
+  - location: title
+    keywords:
+      - "[功能]"
+      - "feature"
+      - "功能"
+    labels:
+      - feature request
+
+  # Enhancements: title contains [增强]
+  - location: title
+    keywords:
+      - "[增强]"
+      - "enhancement"
+      - "增强"
+    labels:
+      - enhancement
+
+  # Documentation: title contains [文档]
+  - location: title
+    keywords:
+      - "[文档]"
+      - "documentation"
+      - "文档"
+    labels:
+      - documentation
+
+  # Corrections: title contains [评议]
+  - location: title
+    keywords:
+      - "[评议]"
+      - "correction"
+      - "评议"
+    labels:
+      - correction
+
+  # Help wanted: title contains [联系]
+  - location: title
+    keywords:
+      - "[联系]"
+      - "help"
+      - "联系"
+    labels:
+      - help wanted
+
+  # Area labels from body keywords
+  - location: body
+    keywords:
+      - "数据库"
+      - "database"
+      - "orm"
+    labels:
+      - area/database
+
+  - location: body
+    keywords:
+      - "国际化"
+      - "i18n"
+      - "翻译"
+      - "translation"
+    labels:
+      - area/i18n
+
+  - location: body
+    keywords:
+      - "文档"
+      - "docs"
+      - "文档站点"
+    labels:
+      - area/docs
+
+  - location: body
+    keywords:
+      - "Docker"
+      - "docker"
+      - "容器"
+    labels:
+      - area/docker
+
+  - location: body
+    keywords:
+      - "CI"
+      - "GitHub Actions"
+      - "工作流"
+      - "workflow"
+    labels:
+      - area/ci
