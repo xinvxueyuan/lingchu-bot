@@ -1,6 +1,6 @@
 {
-  "title": "开发指南",
-  "description": "面向开发者的技术文档",
+  "title": "Developer Guide",
+  "description": "Technical documentation for developers",
   "icon": "Code",
   "root": true,
   "pages": [

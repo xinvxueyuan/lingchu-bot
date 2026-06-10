@@ -77,6 +77,8 @@ Project-local skill indexes are available at `.agents/skills/available-skills/SK
 
 # Project Context
 
+> English | [中文](.github/note/AGENTS-zh.md)
+
 ## Overview
 
 Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains a Python backend plugin (`nonebot-plugin-lingchu-bot`) and a Next.js documentation site (`apps/docs`).
@@ -97,7 +99,7 @@ Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains a Py
 - Next.js 16 + Fumadocs 16 (static export)
 - React 19, Tailwind CSS 4, TypeScript 6
 - Vitest + @testing-library/react (unit tests), ESLint (lint)
-- Features: i18n (zh/en), RSS, Mermaid, Twoslash, EPUB export, LLM-friendly text (`/llms.txt`, `/llms-full.txt`), document relationship graph
+- Features: i18n (en/zh), RSS, Mermaid, Twoslash, EPUB export, LLM-friendly text (`/llms.txt`, `/llms-full.txt`), document relationship graph
 - All server components, route handlers, and lib functions are async
 - Turborepo workspace, pnpm package manager
 
@@ -112,7 +114,7 @@ lingchu-bot/
 │   ├── i18n/           # Babel/gettext translations
 │   └── utils/          # General command tools
 ├── apps/docs/          # Fumadocs documentation site
-│   ├── content/docs/   # MDX content (zh + en)
+│   ├── content/docs/   # MDX content (en + zh)
 │   ├── src/
 │   │   ├── app/        # Next.js App Router pages & routes
 │   │   ├── components/ # React components (graph-view, mdx, mermaid)
@@ -154,7 +156,7 @@ pnpm turbo run build --filter=docs  # Production build
 ### Markdown
 
 ```bash
-pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" ".github/**/*.md"
+pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" ".github/**/*.md"
 ```
 
 ### Task Runner (Taskfile)
@@ -173,8 +175,8 @@ task i18n                           # Extract, update and compile i18n
 
 ## Git Hooks
 
-- **pre-commit**: 条件触发检查 — Prek auto-fix（始终）→ Ruff lint/format（Python 变更时）→ Pyright/ty（Python 变更时）→ pytest（Python 变更时）→ Docs ESLint/type-check/Vitest（docs 变更时）→ Gitnexus analyze（始终，非阻断）
-- **commit-msg**: gitmoji + Conventional Commits 格式校验 + 自动追加 Signed-off-by（含 trailer 块检测）
+- **pre-commit**: Conditional checks — Prek auto-fix (always) → Ruff lint/format (on Python changes) → Pyright/ty (on Python changes) → pytest (on Python changes) → Docs ESLint/type-check/Vitest (on docs changes) → Gitnexus analyze (always, non-blocking)
+- **commit-msg**: gitmoji + Conventional Commits format validation + auto-append Signed-off-by (with trailer block detection)
 - **prepare-commit-msg**: Interactive gitmoji commit message via `pnpm exec gitmoji --hook`
 - Set `$env:HUSKY='0'` to skip hooks when needed (e.g., automated commits)
 
@@ -182,7 +184,7 @@ task i18n                           # Extract, update and compile i18n
 
 - All server components and route handlers in `apps/docs` are async functions
 - `baseOptions()`, `buildGraph()`, `getRSS()` return Promises
-- i18n uses `hideLocale: 'default-locale'` — default locale (zh) omits prefix in URLs
+- i18n uses `hideLocale: 'default-locale'` — default locale (en) omits prefix in URLs
 - Client components use `useSyncExternalStore` instead of `useState` + `useEffect` for mount detection
 - GitNexus is used for code intelligence, impact analysis, and safe refactoring
 
@@ -200,6 +202,8 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 - **Docs Deploy**: Build and deploy to GitHub Pages
 
 ## Lessons Learned
+
+> **Timeliness warning**: Lessons below reflect the state of the codebase and dependencies at the time they were written. Before relying on any lesson, verify it still holds — APIs change, packages add exports, and CI configs evolve. When a lesson becomes outdated, update or remove it rather than propagating stale assumptions.
 
 ### Cross-Cutting Change Checklist
 
@@ -267,8 +271,74 @@ When removing functions/helpers:
 
 ### Git Hooks Optimization
 
-- **Pre-commit 应按变更文件类型条件触发检查**：用 `git diff --cached --name-only --diff-filter=ACMR` 收集暂存文件，通过 `has_pattern()` 检测文件后缀/路径，无 Python 变更时跳过 Ruff/Pyright/ty/pytest，无 Docs 变更时跳过 ESLint/type-check/Vitest，可节省 30-60 秒
-- **Signed-off-by 追加需检测 trailer 块**：已有 trailer（如 `Closes #`、`BREAKING CHANGE:`、`Reviewed-by:`）时应追加到同一块（无空行分隔），无 trailer 时才用空行分隔
-- **空行清理不能破坏消息结构**：`sed '/^$/N;/^\n$/d'` 会删除所有连续空行，破坏 subject-body-trailer 结构；应仅压缩 ≥3 连续空行为 2 个
-- **重复签名检测需忽略尾部空白**：`grep -qF` 可能因行尾空白差异误判，应先 `sed 's/[[:space:]]*$//'` 去尾空白再 `grep -qxF` 精确整行匹配
-- **空消息体不应追加 Signed-off-by**：空提交消息由格式校验拦截即可，追加签名到空文件无意义
+- **Pre-commit should conditionally trigger checks by file type**: Use `git diff --cached --name-only --diff-filter=ACMR` to collect staged files, detect file extensions/paths via `has_pattern()`, skip Ruff/Pyright/ty/pytest when no Python changes, skip ESLint/type-check/Vitest when no docs changes — saves 30-60 seconds
+- **Signed-off-by appending needs trailer block detection**: When existing trailers (e.g., `Closes #`, `BREAKING CHANGE:`, `Reviewed-by:`) are present, append to the same block (no blank line separation); only use blank line separation when no trailers exist
+- **Blank line cleanup must not break message structure**: `sed '/^$/N;/^\n$/d'` removes all consecutive blank lines, breaking subject-body-trailer structure; only compress ≥3 consecutive blank lines to 2
+- **Duplicate signature detection must ignore trailing whitespace**: `grep -qF` may misjudge due to trailing whitespace differences; strip trailing whitespace with `sed 's/[[:space:]]*$//'` first, then use `grep -qxF` for exact full-line matching
+- **Empty message body should not append Signed-off-by**: Empty commit messages are caught by format validation; appending a signature to an empty file is meaningless
+
+### Switching i18n Default Locale
+
+- **Fumadocs language packs**: `@fumadocs/language` exports locale packs for languages it supports (e.g., `zh-cn`, `zh-tw`); English (`en-us`) is built-in by default and does not need a separate import. When switching the default language to English, `layout.shared.tsx` only needs `preset('zh', zhCN())` for Chinese — no English pack import is required. Always check `@fumadocs/language` exports for the current list before assuming a locale is or isn't available.
+- **Override locale in test environment rather than changing assertions**: After changing Python `DEFAULT_LOCALE` from `zh_CN` to `en_US`, all tests asserting Chinese translations will fail. The correct approach is to add `"lingchu_locale": "zh_CN"` in `tests/conftest.py`'s `nonebot.init()` to override back to Chinese, avoiding modifying hundreds of test assertions individually, while also validating the locale configuration override mechanism.
+- **Fumadocs i18n file naming convention**: Default language MDX files have no suffix (`page.mdx`), non-default language files have a locale suffix (`page.zh.mdx`); same for `meta.json`. When switching the default language, content files must be renamed in bulk.
+
+### CI and Lint Coverage for New Paths
+
+When adding, moving, or renaming files or directories, verify that CI and lint configurations still cover them. Check and update:
+
+1. **Markdown lint** — `markdownlint-cli2` glob patterns in `Taskfile.yml` and `package.json` scripts
+2. **ESLint / TypeScript** — `tsconfig.json` includes, `eslint.config` overrides, Vitest coverage paths
+3. **Ruff / Pyright / ty** — `pyproject.toml` source paths and exclusion patterns
+4. **GitHub Actions** — trigger paths in `on.push.paths` / `on.pull_request.paths`
+5. **GitNexus** — re-analyze if new source directories are introduced
+
+Example: adding `.github/note/` required updating the `markdownlint-cli2` glob to include `.github/**/*.md` (already covered), but if the directory had been `.github/notes/` or a new top-level `legal/` dir, the lint command would have silently skipped it.
+
+### Multi-Language File Synchronization
+
+When a file has translated counterparts (e.g., `AGENTS.md` ↔ `.github/note/AGENTS-zh.md`, `CONTRIBUTING.md` ↔ `.github/note/CONTRIBUTING-zh.md`), changes to one version MUST be propagated to all other language versions. This includes:
+
+1. **Content changes** — any substantive edit (new section, updated command, corrected fact) must be reflected in every language version
+2. **Structural changes** — adding/removing headings, reordering sections, or changing links must be mirrored
+3. **Cross-references** — when a file references another file that was renamed or moved, update the link in all language versions
+4. **Lint/CI configs** — when adding new files or directories, update glob patterns and check lists in all relevant configs (see "CI and Lint Coverage for New Paths" above)
+5. **Documentation mirrors** — if a command or config snippet appears in `AGENTS.md`, `CONTRIBUTING.md`, `CLAUDE.md`, and `apps/docs/content/docs/`, update all of them
+
+Rule of thumb: **after editing any file, search for its name or key phrases across the entire repo to find all copies and references that need updating.**
+
+### Pre-Commit Verification Checklist
+
+Before every commit, run the full verification pipeline. Do NOT skip even if you think changes are "only docs" — docs changes can break builds, type checks, and tests too.
+
+**Mandatory sequence:**
+
+1. `task check` — runs all static checks (Ruff lint/format, Markdown lint, ESLint, type check)
+2. `task test` — runs Python pytest + docs Vitest
+3. `task i18n` — if any user-facing strings changed, re-extract and compile translations
+4. `gitnexus_detect_changes()` — verify change scope matches intent
+5. Only then commit
+
+**Common mistakes to avoid:**
+
+- Skipping checks "because it's just a doc change" — docs changes can break builds, type generation, and i18n routing
+- Forgetting `task i18n` after modifying translatable strings — stale `.po`/`.mo` files cause runtime locale errors
+- Committing without running `gitnexus_detect_changes()` — you may miss unintended side effects
+
+### PowerShell Commit Syntax
+
+PowerShell does not support bash heredoc (`<<'EOF'`). For multi-line commit messages in PowerShell, use a temp file:
+
+```powershell
+$msg = @"
+📝 docs(i18n): 切换默认语言为英文
+
+- body line 1
+- body line 2
+"@
+$msg | Out-File -Encoding utf8 -FilePath $env:TEMP\commit-msg.txt
+$env:HUSKY='0'; git commit -F $env:TEMP\commit-msg.txt
+Remove-Item $env:TEMP\commit-msg.txt
+```
+
+Or use single-line `-m` with `\n` (less readable for long bodies).

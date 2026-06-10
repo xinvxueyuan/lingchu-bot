@@ -1,27 +1,27 @@
 ---
 icon: GitBranch
-title: 开发流程
+title: Workflow
 ---
 
-## 开发流程
+## Workflow
 
-开发时保持改动范围小、验证明确、影响面可解释。仓库使用 `Taskfile.yml` 作为自动化主入口：Python/code 侧通过 `uv`，docs/frontend 侧通过 `pnpm`，跨工作区任务通过 Turbo 编排。
+Keep development changes small, validation explicit, and impact understandable. The repository uses `Taskfile.yml` as the main automation entrypoint: Python/code work runs through `uv`, docs/frontend work runs through `pnpm`, and cross-workspace tasks are orchestrated by Turbo.
 
-## 推荐步骤
+## Recommended steps
 
-1. 明确目标、成功标准和不做的范围。
-2. 运行 `git status --short`，确认已有改动。
-3. 阅读相关代码和测试，优先沿用现有结构。
-4. 修改函数、类或方法前运行 GitNexus/codegraph 影响分析。
-5. 实施最小改动并补充测试。
-6. 通过 `task check`、`task test` 或更聚焦的 `uv` / `pnpm` 命令运行对应检查。
-7. 提交前运行 GitNexus detect changes。
+1. Clarify the goal, success criteria, and out-of-scope items.
+2. Run `git status --short` and confirm existing changes.
+3. Read related code and tests, preferring existing structure.
+4. Run GitNexus/codegraph impact analysis before changing functions, classes, or methods.
+5. Implement the smallest useful change and add tests.
+6. Run the relevant checks through `task check`, `task test`, or focused `uv` / `pnpm` commands.
+7. Run GitNexus detect changes before committing.
 
-修改可翻译字符串时，还需要同步 Babel catalog。流程见 [国际化](i18n)。
+When changing translatable strings, synchronize the Babel catalogs as well. See [Internationalization](i18n).
 
-## 自动化入口
+## Automation entrypoints
 
-优先使用这些 Taskfile 任务：
+Prefer these Taskfile tasks:
 
 ```bash
 task install
@@ -32,22 +32,22 @@ task ci
 task i18n
 ```
 
-只改 Python 代码时可以使用 `uv run ...` 聚焦验证；只改 docs 或前端包时可以使用 `pnpm --filter docs ...` 或 `pnpm turbo run ...` 聚焦验证。
+For Python-only changes, use focused `uv run ...` checks when appropriate. For docs or frontend-package changes, use focused `pnpm --filter docs ...` or `pnpm turbo run ...` checks.
 
-## 辅助工具映射
+## Tooling map
 
-- GitNexus / codegraph：理解代码结构、影响面和变更范围。
-- Context7：查询库、框架、SDK、CLI 或云服务的当前文档。
-- Husky / prek：本地提交钩子和 pre-commit 检查。
-- Turbo：docs 与 packages 的跨工作区 lint、type check 和 build 编排。
+- GitNexus / codegraph: understand code structure, impact, and change scope.
+- Context7: query current documentation for libraries, frameworks, SDKs, CLI tools, or cloud services.
+- Husky / prek: local Git hooks and pre-commit checks.
+- Turbo: cross-workspace lint, type check, and build orchestration for docs and packages.
 
-## 保护工作区
+## Protecting the workspace
 
-不要回退、格式化或重写与当前任务无关的文件。遇到已有改动时，默认认为它们来自其他贡献者或前一轮工作。
+Do not revert, format, or rewrite files unrelated to the current task. When existing changes are present, assume by default that they came from another contributor or an earlier work session.
 
-## 分支和提交
+## Branches and commits
 
-常见分支名前缀：
+Common branch prefixes:
 
 - `feature/`
 - `fix/`
@@ -56,9 +56,9 @@ task i18n
 - `docs/`
 - `refactor/`
 
-GitHub Actions 还会匹配 `feature/**`、`fix/**`、`hotfix/*`、`releases/**`、`main` 和 `dev` 等分支。具体目标分支以维护者或 PR 页面要求为准。
+GitHub Actions also match branches such as `feature/**`, `fix/**`, `hotfix/*`, `releases/**`, `main`, and `dev`. The actual target branch should follow maintainer or PR-page guidance.
 
-提交信息必须遵循 gitmoji + Conventional Commits。完整说明见 [提交规范](commit-style)。
+Commit messages must follow gitmoji + Conventional Commits. See [Commit Style](commit-style).
 
 ```text
 🐛 fix: 修复成员禁言成功反馈
@@ -66,14 +66,14 @@ GitHub Actions 还会匹配 `feature/**`、`fix/**`、`hotfix/*`、`releases/**`
 ✅ test: 增加群管理异常覆盖
 ```
 
-## PR 描述
+## PR description
 
-PR 应说明：
+A PR should explain:
 
-- 改动目的。
-- 关键实现。
-- GitNexus 影响分析结果。
-- 已运行的检查命令。
-- 未完成事项或已知风险。
+- Purpose of the change.
+- Key implementation details.
+- GitNexus impact analysis results.
+- Checks that were run.
+- Open items or known risks.
 
-如果 PR 覆盖文档站或国际化，请说明是否已经运行 Markdown lint、docs lint/test/build 和 `task i18n`。
+If the PR touches the documentation site or internationalization, note whether Markdown lint, docs lint/test/build, and `task i18n` were run.

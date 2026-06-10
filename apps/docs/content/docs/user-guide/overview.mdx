@@ -1,44 +1,43 @@
 ---
 icon: BookOpen
-title: 用户指南概览
+title: User Guide Overview
 ---
 
-## 用户指南概览
+## User Guide Overview
 
-Lingchu Bot 当前更适合开发、测试和早期试用。文档会尽量描述仓库中已经能看到的能力，不承诺尚未验证的平台行为。
+Lingchu Bot is currently best suited for development, testing, and early trials. The documentation describes capabilities that are visible in the repository and does not promise platform behavior that has not been verified.
 
-## 你可以期待什么
+## What you can expect
 
-- 一个基于 NoneBot2 的机器人项目骨架。
-- 一个可作为 NoneBot 本地插件目录加载的核心插件包。
-- 一组当前已实现并测试覆盖的 QQ 群管理命令处理器。
-- 面向后续功能扩展的配置、存储和数据库辅助模块。
-- QQ 平台适配器互斥选择：默认 OneBot V11，可通过 `LINGCHUAdapter` 显式切换。
-- 可选消息存储，用于记录事件、处理状态、Bot 生命周期和平台 API 调用摘要。
-- 面向跨平台和非群管理功能的后续迭代空间。
-- 基于 gettext 的运行时反馈翻译，当前提供简体中文和英文目录。
+- A bot project skeleton based on NoneBot2.
+- A core plugin package that can be loaded as a local NoneBot plugin directory.
+- A set of currently implemented and tested QQ group management command handlers.
+- Configuration, storage, and database helper modules for later feature expansion.
+- Mutually exclusive QQ adapter selection: OneBot V11 by default, with explicit switching through `LINGCHUAdapter`.
+- Optional message storage for events, processing status, bot lifecycle events, and platform API call summaries.
+- Extension room for later cross-platform and non-group-management features.
+- Runtime feedback translation based on gettext, currently with Simplified Chinese and English catalogs.
 
-## 你需要准备什么
+## What you need
 
-- Python 3.13。
-- `uv`。
-- 可连接的 NoneBot 运行环境和当前启用适配器的账号、网络与连接配置。
-- 对 NoneBot 配置文件和适配器连接方式的基本了解。
+- Python 3.13.
+- `uv`.
+- A usable NoneBot runtime environment plus account, network, and connection settings for the enabled adapter.
+- Basic familiarity with NoneBot configuration files and adapter connection settings.
 
-## 推荐阅读顺序
+## Recommended reading order
 
-1. [快速开始](quick-start)
-2. [命令与群管理](commands)
-3. [配置](configuration)
-4. [故障排除](troubleshooting)
-5. [International docs](/en/docs)
+1. [Quick Start](quick-start)
+2. [Commands and Group Management](commands)
+3. [Configuration](configuration)
+4. [Troubleshooting](troubleshooting)
 
-## 当前限制
+## Current limits
 
-- 项目仍处于 pre-alpha / development 阶段。
-- 仓库根目录当前没有提交本地 `bot.py`；Docker 构建会生成运行用 `/tmp/bot.py`，已有 NoneBot 项目可按 `pyproject.toml` 加载 `src/plugins`。
-- QQ 群管理是当前已实现并测试覆盖的业务路径；默认适配器是 OneBot V11，Milky 需要通过 `LINGCHUAdapter = "~milky"` 显式启用。
-- `LINGCHUAdapter` 选中的适配器必须已由 NoneBot 加载；额外注册的同平台适配器会被视为未启用。
-- 其他平台和非群管理能力以后续实现和测试为准。
-- 命令覆盖范围仍较小，文档只列出当前仓库可确认的能力。
-- 运行时 i18n 当前覆盖群管理反馈文本，不表示所有命令触发词都已本地化。
+- The project is still in pre-alpha / development.
+- The repository root currently does not ship a committed local `bot.py`; the Docker build generates a runtime `/tmp/bot.py`, and existing NoneBot projects can load `src/plugins` according to `pyproject.toml`.
+- QQ group management is the currently implemented and tested business path. The default adapter is OneBot V11; Milky must be enabled explicitly with `LINGCHUAdapter = "~milky"`.
+- The adapter selected by `LINGCHUAdapter` must be loaded by NoneBot; extra registered same-platform adapters are treated as disabled.
+- Other platforms and non-group-management capabilities depend on later implementation and tests.
+- The command surface is still small. The docs only list capabilities confirmed in the current repository.
+- Runtime i18n currently covers group management feedback text. It does not mean all command trigger words are localized.

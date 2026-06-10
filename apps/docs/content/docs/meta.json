@@ -1,6 +1,6 @@
 {
-  "title": "Lingchu Bot 文档",
-  "description": "基于 NoneBot2 的 Lingchu Bot 项目文档",
+  "title": "Lingchu Bot Documentation",
+  "description": "Lingchu Bot project documentation based on NoneBot2",
   "pages": [
     "index",
     "user-guide",

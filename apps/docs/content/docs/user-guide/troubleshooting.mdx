@@ -1,77 +1,77 @@
 ---
 icon: Wrench
-title: 故障排除
+title: Troubleshooting
 ---
 
-## 故障排除
+## Troubleshooting
 
-本页收集当前最常见的本地启动和群管理问题。
+This page collects the most common local startup and group management issues currently covered by the project.
 
-## 依赖安装失败
+## Dependency installation fails
 
-先确认 Python 版本和 uv 是否可用：
+First confirm that Python and uv are available:
 
 ```bash
 python --version
 uv --version
 ```
 
-项目要求 Python 3.13。依赖安装建议使用：
+The project requires Python 3.13. Dependency installation should use:
 
 ```bash
 uv sync --frozen
 ```
 
-## 配置布尔值报错
+## Boolean configuration errors
 
-如果看到 `in_containers 配置错误`，请检查 `.env` 或 NoneBot 配置文件。
+If you see an `in_containers 配置错误` error, check `.env` or the NoneBot configuration file.
 
-正确写法：
+Correct:
 
 ```dotenv
 IN_CONTAINERS=true
 ```
 
-错误写法：
+Incorrect:
 
 ```dotenv
 IN_CONTAINERS=True
 ```
 
-## 机器人无法连接平台
+## Bot cannot connect to the platform
 
-请优先检查：
+Check these first:
 
-- 当前启用适配器对应的服务是否已经启动；默认是 OneBot V11。
-- NoneBot 与当前启用适配器的连接配置是否一致。
-- 账号、网络、防火墙和平台侧权限是否可用。
+- Whether the service for the enabled adapter has started; the default is OneBot V11.
+- Whether NoneBot and the enabled adapter connection settings match.
+- Whether the account, network, firewall, and platform permissions are usable.
 
-## 适配器选择与加载
+## Adapter selection and loading
 
-Lingchu Bot 只按 `LINGCHUAdapter` 选择业务代码，不控制 NoneBot 实际加载哪些适配器。
+Lingchu Bot only selects business code through `LINGCHUAdapter`; it does not control which adapters NoneBot actually loads.
 
-- 未配置 `LINGCHUAdapter` 时，Lingchu Bot 默认启用 `~onebot.v11`；请确认 NoneBot 已加载 OneBot V11。
-- 如果需要固定使用 OneBot V11，请配置 `LINGCHUAdapter = "~onebot.v11"`，并加载 OneBot V11 适配器。
-- 如果需要固定使用 Milky，请配置 `LINGCHUAdapter = "~milky"`，并加载 Milky 适配器。
-- 不要在同一平台显式配置多个适配器，例如 `LINGCHUAdapter = "~milky+~onebot.v11"` 会直接失败。
-- 不要在 `LINGCHUAdapter` 中显式声明 Lingchu 未实现或无法识别的适配器；运行时额外注册的未知适配器会被忽略。
-- 如果报出 `PlatformAdapterNotLoadedError`，说明选中的适配器没有被 NoneBot 加载/注册；请加载匹配适配器，或把 `LINGCHUAdapter` 改成已加载的适配器。
-- 额外注册的同平台适配器不会触发冲突，Lingchu Bot 会把未选中的适配器视为未启用。
+- When `LINGCHUAdapter` is unset, Lingchu Bot enables `~onebot.v11` by default; make sure NoneBot has loaded OneBot V11.
+- To pin OneBot V11, set `LINGCHUAdapter = "~onebot.v11"` and load the OneBot V11 adapter.
+- To pin Milky, set `LINGCHUAdapter = "~milky"` and load the Milky adapter.
+- Do not explicitly configure multiple adapters for the same platform. For example, `LINGCHUAdapter = "~milky+~onebot.v11"` fails immediately.
+- Do not explicitly declare adapters Lingchu has not implemented or cannot recognize in `LINGCHUAdapter`; extra unknown adapters registered at runtime are ignored.
+- If startup reports `PlatformAdapterNotLoadedError`, the selected adapter was not loaded or registered by NoneBot; load the matching adapter or change `LINGCHUAdapter` to one that is already loaded.
+- Extra registered same-platform adapters do not create a conflict. Lingchu Bot treats unselected adapters as disabled.
 
-## 群管理命令失败
+## Group management command fails
 
-禁言、解禁和全体禁言依赖平台权限。失败时请检查：
+Mute, unmute, and whole-group mute depend on platform permissions. When they fail, check:
 
-- 机器人是否在目标群中。
-- 机器人是否具备对应管理权限。
-- 目标用户是否可以被机器人操作。
-- 当前启用适配器侧 API 是否返回网络错误或操作拒绝。
+- Whether the bot is in the target group.
+- Whether the bot has the required management permission.
+- Whether the target user can be operated on by the bot.
+- Whether the enabled adapter API reports a network error or rejected operation.
 
-如果反馈语言不符合预期，请检查 `LINGCHU_LOCALE`、`lc_locale` 或 `locale` 是否设置为当前支持的 catalog，例如 `zh_CN` 或 `en_US`。未知文本会回退为原文。
+If feedback appears in an unexpected language, check whether `LINGCHU_LOCALE`, `lc_locale`, or `locale` is set to a supported catalog such as `zh_CN` or `en_US`. Unknown text falls back to the original message.
 
-## CI 或本地检查失败
+## CI or local checks fail
 
-查看失败命令和行号，然后只修相关范围。常用检查包括：
+Read the failing command and line number, then fix only the related scope. Common checks include:
 
 ```bash
 uv run -m ruff check . --output-format=github

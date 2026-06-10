@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 DOMAIN = "messages"
-DEFAULT_LOCALE = "zh_CN"
+DEFAULT_LOCALE = "en_US"
 LOCALES_DIR = Path(__file__).parent / "locales"
 
 

@@ -17,7 +17,7 @@ import { LLMBadge } from '@/components/llm-badge';
 
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const params = await props.params;
-  const page = source.getPage(params.slug, 'zh');
+  const page = source.getPage(params.slug, 'en');
   if (!page) notFound();
 
   const MDX = page.data.body;
@@ -28,7 +28,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
       <div className="flex flex-row gap-2 items-center border-b pb-6">
-        <LLMBadge locale="zh" />
+        <LLMBadge locale="en" />
         <MarkdownCopyButton markdownUrl={markdownUrl} />
         <ViewOptionsPopover
           markdownUrl={markdownUrl}
@@ -48,14 +48,14 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
 }
 
 export async function generateStaticParams() {
-  return source.getPages('zh').map((page) => ({
+  return source.getPages('en').map((page) => ({
     slug: page.slugs,
   }));
 }
 
 export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): Promise<Metadata> {
   const params = await props.params;
-  const page = source.getPage(params.slug, 'zh');
+  const page = source.getPage(params.slug, 'en');
   if (!page) notFound();
 
   return {

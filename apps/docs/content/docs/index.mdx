@@ -1,44 +1,44 @@
 ---
 icon: Rocket
-title: 项目介绍
+title: Project Introduction
 ---
 
 ## Lingchu Bot
 
-Lingchu Bot 是一个基于 NoneBot2 的应用侧管理机器人项目。它以插件形式组织核心能力，面向群管理、命令处理、配置管理、本地存储和异步数据访问等场景。
+Lingchu Bot is an application-side management bot project based on NoneBot2. It organizes core capabilities as plugins and currently focuses on group management, command handling, configuration, local storage, and asynchronous data access.
 
-> **项目状态**
+> **Project status**
 >
-> 本项目仍处于 pre-alpha / development 阶段。当前代码、配置、命令行为和文档都可能继续调整，请不要把现有接口视为稳定生产接口。
+> This project is still in pre-alpha / development. Code, configuration, command behavior, and documentation may continue to change. Do not treat the current interfaces as stable production APIs.
 
-## 适合谁阅读
+## Who should read this
 
-- 想本地启动项目、了解当前可用能力的使用者。
-- 想为 Lingchu Bot 增加功能、测试或文档的贡献者。
-- 想了解项目结构、CI 和 GitNexus 协作流程的维护者。
+- Users who want to start the project locally and understand current capabilities.
+- Contributors who want to add features, tests, or documentation.
+- Maintainers who need to understand project structure, CI, and GitNexus workflows.
 
-## 当前能力
+## Current capabilities
 
-- 基于 NoneBot2 的核心插件入口。
-- 通过 `pyproject.toml` 声明本地插件目录、可用适配器和 NoneBot 依赖插件。
-- QQ 平台同一时间只启用一个适配器；默认选择 `~onebot.v11`，可用 `LINGCHUAdapter` 显式切换到 Milky。
-- 当前已实现并测试覆盖的 QQ 群管理处理器：成员禁言/解禁、全体禁言/解禁、群资料设置、成员管理、群公告、踢人和退群。
-- 可选消息存储：记录事件接收、处理状态、Bot 生命周期和平台 API 调用摘要，并把未知适配器归入 `unknown` 平台。
-- JSON5 本地存储、NoneBot localstore 路径管理和 ORM CRUD 辅助能力。
-- gettext / Babel 国际化辅助，当前包含 `zh_CN` 与 `en_US` 目录。
-- 面向开发者的 prek 钩子、测试和 CI 检查流程。
-- 面向后续迭代的跨平台和非群管理功能扩展空间。
+- A core plugin entrypoint based on NoneBot2.
+- `pyproject.toml` declarations for local plugin directories, available adapters, and NoneBot dependency plugins.
+- Only one adapter is enabled for the QQ platform at a time; the default is `~onebot.v11`, and `LINGCHUAdapter` can switch the selection to Milky explicitly.
+- Currently implemented and tested QQ group management handlers: member mute/unmute, whole-group mute/unmute, group profile updates, member management, announcements, kicks, and leaving a group.
+- Optional message storage for received events, processing status, bot lifecycle events, and platform API call summaries, with unknown adapters grouped under the `unknown` platform.
+- JSON5 local storage, NoneBot localstore path management, and ORM CRUD helpers.
+- gettext / Babel internationalization helpers with `zh_CN` and `en_US` catalogs.
+- Developer tooling for general commands, prek hooks, tests, and CI checks.
+- Extension room for later cross-platform and non-group-management features.
 
-## 快速入口
+## Quick links
 
-- [用户指南](/docs/user-guide/overview)：了解项目状态、运行方式和命令能力。
-- [快速开始](/docs/user-guide/quick-start)：安装依赖并选择插件加载或 Docker 运行方式。
-- [开发指南](/docs/developer-guide/introduction)：理解项目结构和开发流程。
-- [International docs](/en/docs)：阅读英文文档入口。
-- [项目政策](/docs/project-policy)：查看贡献、安全、许可和媒体脱敏要求。
+- [User guide](/en/docs/user-guide/overview): understand project status, runtime setup, and command capabilities.
+- [Quick start](/en/docs/user-guide/quick-start): install dependencies and choose plugin loading or Docker runtime setup.
+- [Developer guide](/en/docs/developer-guide/introduction): understand project structure and workflow.
+- [Project policy](/en/docs/project-policy): read contribution, security, license, and media redaction requirements.
+- [中文文档](/docs): return to the Chinese documentation.
 
-## 仓库链接
+## Repository links
 
-- 源代码：[https://github.com/xinvxueyuan/lingchu-bot](https://github.com/xinvxueyuan/lingchu-bot)
-- 贡献指南：[https://github.com/xinvxueyuan/lingchu-bot/blob/main/CONTRIBUTING.md](https://github.com/xinvxueyuan/lingchu-bot/blob/main/CONTRIBUTING.md)
-- 安全政策：[https://github.com/xinvxueyuan/lingchu-bot/blob/main/SECURITY.md](https://github.com/xinvxueyuan/lingchu-bot/blob/main/SECURITY.md)
+- Source code: [https://github.com/xinvxueyuan/lingchu-bot](https://github.com/xinvxueyuan/lingchu-bot)
+- Contribution guide: [https://github.com/xinvxueyuan/lingchu-bot/blob/main/CONTRIBUTING.md](https://github.com/xinvxueyuan/lingchu-bot/blob/main/CONTRIBUTING.md)
+- Security policy: [https://github.com/xinvxueyuan/lingchu-bot/blob/main/SECURITY.md](https://github.com/xinvxueyuan/lingchu-bot/blob/main/SECURITY.md)

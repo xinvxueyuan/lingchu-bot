@@ -14,7 +14,7 @@ export const source = loader({
 
 export function getPageImage(page: (typeof source)['$inferPage']) {
   const segments =
-    page.locale === 'en' ? ['en', ...page.slugs, 'image.png'] : [...page.slugs, 'image.png'];
+    page.locale === 'zh' ? ['zh', ...page.slugs, 'image.png'] : [...page.slugs, 'image.png'];
 
   return {
     segments,
@@ -24,7 +24,7 @@ export function getPageImage(page: (typeof source)['$inferPage']) {
 
 export function getPageMarkdownUrl(page: (typeof source)['$inferPage']) {
   const segments =
-    page.locale === 'en' ? ['en', ...page.slugs, 'content.md'] : [...page.slugs, 'content.md'];
+    page.locale === 'zh' ? ['zh', ...page.slugs, 'content.md'] : [...page.slugs, 'content.md'];
 
   return {
     segments,

@@ -1,36 +1,36 @@
 ---
 icon: Blocks
-title: 架构概览
+title: Architecture
 ---
 
-## 架构概览
+## Architecture
 
-Lingchu Bot 是一个以 NoneBot2 为基础的应用侧机器人项目。当前代码将核心插件、命令处理、配置、存储和数据库辅助能力拆分在 `src/plugins/nonebot_plugin_lingchu_bot` 下。
+Lingchu Bot is an application-side bot project based on NoneBot2. Current code splits the core plugin, command handling, configuration, storage, and database helpers under `src/plugins/nonebot_plugin_lingchu_bot`.
 
-## 运行入口
+## Runtime entrypoints
 
-- `pyproject.toml`：声明插件目录、依赖、适配器和 NoneBot 插件配置，是当前本地插件加载配置的来源。
-- `Dockerfile` / `docker-compose.yml`：容器运行入口，构建阶段通过 `nb-cli` 生成运行用 `/tmp/bot.py`。
-- `nonebot_plugin_lingchu_bot`：核心插件包，声明插件元数据并加载共享能力。
+- `pyproject.toml`: declares plugin directories, dependencies, adapters, and NoneBot plugin configuration, and is the current source for local plugin loading configuration.
+- `Dockerfile` / `docker-compose.yml`: container runtime entrypoints; the build generates the runtime `/tmp/bot.py` with `nb-cli`.
+- `nonebot_plugin_lingchu_bot`: core plugin package. It declares plugin metadata and loads shared capabilities.
 
-## 核心模块
+## Core modules
 
-- `core/config.py`：核心配置、localstore 路径和平台信息。
-- `database/json5_store.py`：JSON5 文件存储工具。
-- `database/orm_crud.py`：基于 `nonebot-plugin-orm` 的异步 CRUD 辅助。
-- `handle/commands/group/`：当前已实现并测试覆盖的 QQ 群资料、成员管理、禁言、解禁、全体禁言、公告、踢人和退群命令处理器。
-- `i18n/__init__.py`：gettext/Babel 翻译辅助、locale 读取和异步 catalog 预热。
-- `platforms/registry.py`：平台能力与具体适配器的映射、优先级选择和同平台互斥校验。
-- `services/messagestore.py`：消息事件、处理结果、Bot 生命周期和平台 API 调用摘要记录。
+- `core/config.py`: core configuration, localstore paths, and platform information.
+- `database/json5_store.py`: JSON5 file storage helper.
+- `database/orm_crud.py`: asynchronous CRUD helper based on `nonebot-plugin-orm`.
+- `handle/commands/group/`: currently implemented and tested QQ group profile, member management, mute, unmute, whole-group mute, announcement, kick, and leave command handlers.
+- `i18n/__init__.py`: gettext/Babel translation helpers, locale reading, and asynchronous catalog warmup.
+- `platforms/registry.py`: platform capabilities, concrete adapter mapping, priority selection, and same-platform conflict validation.
+- `services/messagestore.py`: summary recording for message events, processing results, bot lifecycle events, and platform API calls.
 
-## 适配器状态
+## Adapter status
 
-插件按平台能力声明适配器，而不是把所有导入的具体适配器都视为可用。当前已实现 QQ 平台 profile，已知适配器优先级为 `~onebot.v11`、`~milky`、`~qq`、`~onebot.v12`。未配置时默认启用 OneBot V11；`LINGCHUAdapter` 可以显式切换，例如 `LINGCHUAdapter = "~milky"`。
+The plugin declares adapters by platform capability instead of treating every imported concrete adapter as enabled. The currently implemented profile is QQ, with known adapter priority `~onebot.v11`, `~milky`, `~qq`, then `~onebot.v12`. When unset, the default is OneBot V11; `LINGCHUAdapter` can switch the selection explicitly, for example `LINGCHUAdapter = "~milky"`.
 
-同一平台显式配置多个已知适配器会抛出 `PlatformAdapterConflictError`。Lingchu Bot 不控制 NoneBot 实际导入或注册哪些适配器；它只校验被选中的适配器已经由 NoneBot 加载/注册。未配置时默认选择 `~onebot.v11`，如果 OneBot V11 未加载会抛出 `PlatformAdapterNotLoadedError`；显式选择 Milky 时也要求 Milky 已加载。其他同平台适配器即使被导入或注册，也会被视为未启用，不参与平台识别、消息存储或 API 调用记录。`LINGCHUAdapter` 中显式声明 Lingchu 未实现或无法识别的适配器会启动失败；运行时额外出现的未知适配器不会被 `is_adapter_enabled()` 判定为已启用，消息存储会把它们归入统一的 `unknown` 平台。其他平台 profile 和非群管理能力以后续实现和测试为准。
+Explicitly configuring multiple known adapters for the same platform raises `PlatformAdapterConflictError`. Lingchu Bot does not control which adapters NoneBot actually imports or registers; it only checks that the selected adapter has been loaded and registered by NoneBot. When unset, Lingchu selects `~onebot.v11` by default and raises `PlatformAdapterNotLoadedError` if OneBot V11 is not loaded; selecting Milky explicitly requires Milky to be loaded as well. Other same-platform adapters may still be imported or registered, but Lingchu treats them as disabled and excludes them from platform resolution, message storage, and API call recording. Explicitly declaring an adapter that Lingchu has not implemented or cannot recognize in `LINGCHUAdapter` fails startup. Extra unknown adapters seen at runtime are not considered enabled by `is_adapter_enabled()`; message storage groups them under the stable `unknown` platform. Other platform profiles and non-group-management capabilities depend on later implementation and tests.
 
-## 数据与配置边界
+## Data and configuration boundaries
 
-项目倾向使用 NoneBot 插件配置、localstore 和 ORM 插件提供的能力，而不是在业务代码中硬编码路径或数据库连接。
+The project prefers NoneBot plugin configuration, localstore, and ORM plugin capabilities instead of hard-coded paths or database connections in business code.
 
-文件存储、JSON5 解析、deepcopy、命令解析和翻译 catalog 加载等潜在阻塞路径会放到 worker thread 执行，避免阻塞 NoneBot 事件循环。
+Potentially blocking paths such as file storage, JSON5 parsing, deepcopy, command parsing, and translation catalog loading are moved to worker threads to avoid blocking the NoneBot event loop.

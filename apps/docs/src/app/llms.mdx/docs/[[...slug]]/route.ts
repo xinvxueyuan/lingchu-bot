@@ -5,8 +5,8 @@ export const revalidate = false;
 
 export async function GET(_req: Request, { params }: RouteContext<'/llms.mdx/docs/[[...slug]]'>) {
   const { slug } = await params;
-  const locale = slug?.[0] === 'en' ? 'en' : 'zh';
-  const pageSlug = locale === 'en' ? slug?.slice(1, -1) : slug?.slice(0, -1);
+  const locale = slug?.[0] === 'zh' ? 'zh' : 'en';
+  const pageSlug = locale === 'zh' ? slug?.slice(1, -1) : slug?.slice(0, -1);
   const page = source.getPage(pageSlug, locale);
   if (!page) notFound();
 

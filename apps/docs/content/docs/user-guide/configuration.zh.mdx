@@ -1,0 +1,140 @@
+---
+icon: Settings
+title: 配置
+---
+
+## 配置
+
+Lingchu Bot 将轻量运行配置保存在插件专用的 JSON5 配置文件中，并继续复用 NoneBot2 的全局配置解析机制。
+
+首次启动时会生成 `config.json5`。文件位置由 `nonebot-plugin-localstore` 决定，属于插件配置目录，而不是数据目录或缓存目录。
+
+运行配置优先级从高到低为：
+
+1. OS 环境变量
+2. NoneBot dotenv / 全局配置
+3. `config.json5`
+4. 代码默认值
+
+OS 环境变量和 dotenv 的读取、大小写处理、布尔值解析、路径解析和 env 文件选择都遵循 NoneBot 自身规则。Lingchu Bot 不单独实现 dotenv 查找逻辑。
+
+## 运行配置项
+
+| 配置项                                                   | 默认值            | 说明                                   |
+| -------------------------------------------------------- | ----------------- | -------------------------------------- |
+| `superuser_key`                                          | `123456789abcdef` | 超级用户认证密钥                       |
+| `message_store_enabled`                                  | `true`            | 是否启用消息存储运行时钩子             |
+| `message_store_retention_days`                           | `30`              | 消息记录保留天数，`0` 表示不按天数过期 |
+| `message_store_summary_limit`                            | `500`             | 文本、数据和结果摘要的最大长度         |
+| `message_store_record_api_calls`                         | `true`            | 是否记录平台 API 调用摘要              |
+| `message_store_cleanup_enabled`                          | `true`            | 是否在关闭时清理过期消息记录           |
+| `lingchu_adapter` / `LINGCHUAdapter` / `LINGCHU_ADAPTER` | 未配置            | 指定每个平台启用的适配器               |
+
+`config.json5` 示例：
+
+```json5
+{
+  superuser_key: "123456789abcdef",
+  message_store_enabled: true,
+  message_store_retention_days: 30,
+  message_store_summary_limit: 500,
+  message_store_record_api_calls: true,
+  message_store_cleanup_enabled: true,
+  lingchu_adapter: "~onebot.v11",
+}
+```
+
+NoneBot 全局配置仍可覆盖 JSON5，例如：
+
+```toml
+LINGCHUAdapter = "~onebot.v11"
+```
+
+或在 `.env` 文件中：
+
+```dotenv
+LINGCHUAdapter=~onebot.v11
+```
+
+如果同一个键同时出现在 OS 环境变量、dotenv 和 `config.json5` 中，最终使用 OS 环境变量的值。
+
+## 核心路径配置
+
+`core_version`、`data_dir`、`config_dir`、`cache_dir` 和系统平台判断仍由核心 `Config` 提供。路径来自 `nonebot-plugin-localstore`：
+
+- `data_dir`：数据文件目录。
+- `config_dir`：配置文件目录。
+- `cache_dir`：缓存文件目录。
+
+## 适配器选择
+
+Lingchu Bot 会把多个具体适配器归并到同一平台能力中。同一平台默认只能启用一个适配器。当前 QQ 平台的默认优先级为：
+
+1. `~onebot.v11`
+2. `~milky`
+3. `~qq`
+4. `~onebot.v12`
+
+未配置时，QQ 平台默认启用 `~onebot.v11`。如需显式指定，可在 NoneBot 全局配置中写入：
+
+```toml
+LINGCHUAdapter = "~onebot.v11"
+```
+
+当前只有 QQ 平台 profile 已实现；因此上例中 QQ 平台选择 `~onebot.v11`。如果需要启用 Milky：
+
+```toml
+LINGCHUAdapter = "~milky"
+```
+
+同一平台显式配置多个已知适配器会启动失败：
+
+```toml
+LINGCHUAdapter = "~milky+~onebot.v11"
+```
+
+Lingchu Bot 不控制 NoneBot 实际导入或注册哪些适配器；它只按 `LINGCHUAdapter` 选择业务代码，并校验被选中的适配器已经由 NoneBot 加载/注册。未配置时默认选择 `~onebot.v11`，因此 OneBot V11 必须已经加载。显式配置 Milky 时，如果 NoneBot 未加载 Milky，也会启动失败。其他同平台适配器即使被导入或注册，也会被 Lingchu Bot 视为未启用，不参与平台识别、消息存储或 API 调用记录。`LINGCHUAdapter` 中显式声明 Lingchu 未实现或无法识别的适配器会启动失败；运行时额外注册的未知适配器仍会被忽略。
+
+不属于任何平台 profile 的未知适配器不会被判断为已启用适配器；但消息存储仍会接收它们的事件，并把 `platform` 字段统一写为 `unknown`。这样下游展示可以稳定呈现为 Unknown，而不是把原始适配器名称当成平台 ID。
+
+## 国际化配置
+
+运行时翻译会按顺序读取 NoneBot 配置中的以下键：
+
+1. `lingchu_locale`
+2. `lc_locale`
+3. `locale`
+
+推荐在 `.env` 中使用项目专用键：
+
+```dotenv
+LINGCHU_LOCALE=zh_CN
+```
+
+当前可用目录包括 `zh_CN` 和 `en_US`。locale 会先做规范化处理，例如 `en-US` 和 `en_US.UTF-8` 都会转换为 gettext 可用的 `en_US`。未配置、配置为空或 NoneBot 尚未初始化时，默认使用 `zh_CN`。
+
+## 容器环境标记
+
+`in_containers` 来自 NoneBot 全局配置。它必须是布尔值。
+
+```dotenv
+IN_CONTAINERS=true
+```
+
+不要写成：
+
+```dotenv
+IN_CONTAINERS=True
+```
+
+NoneBot 配置文件只接受 JSON 标准的小写 `true` / `false`。如果传入字符串形式的布尔值，项目会抛出明确的配置错误。
+
+## 本地运行路径
+
+仓库根目录当前没有提交本地 `bot.py`。localstore 的项目级路径由 NoneBot 配置控制，示例配置见 `.env.example`：
+
+```dotenv
+LOCALSTORE_USE_CWD=true
+```
+
+这意味着 localstore 相关目录会优先落在当前工作目录，方便本地开发和调试。

@@ -10,16 +10,16 @@ export const translations = i18n
   .preset('zh', zhCN());
 
 const labels = {
-  zh: {
-    docs: '文档',
-  },
   en: {
     docs: 'Docs',
   },
+  zh: {
+    docs: '文档',
+  },
 };
 
-export async function baseOptions(locale = 'zh'): Promise<BaseLayoutProps> {
-  const text = locale === 'en' ? labels.en : labels.zh;
+export async function baseOptions(locale = 'en'): Promise<BaseLayoutProps> {
+  const text = locale === 'zh' ? labels.zh : labels.en;
 
   return {
     nav: {
@@ -28,7 +28,7 @@ export async function baseOptions(locale = 'zh'): Promise<BaseLayoutProps> {
     links: [
       {
         text: text.docs,
-        url: locale === 'en' ? '/en/docs' : '/docs',
+        url: locale === 'zh' ? '/zh/docs' : '/docs',
         active: 'nested-url',
       },
     ],

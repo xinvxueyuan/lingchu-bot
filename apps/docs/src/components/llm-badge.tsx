@@ -4,9 +4,9 @@ import { buttonVariants } from 'fumadocs-ui/components/ui/button';
 
 export function LLMBadge({ locale }: { locale?: string }) {
     const label =
-        locale === 'en'
-            ? 'AI-friendly docs available via llms.txt'
-            : '可通过 llms.txt 获取 AI 友好文档';
+        locale === 'zh'
+            ? '可通过 llms.txt 获取 AI 友好文档'
+            : 'AI-friendly docs available via llms.txt';
 
     return (
         <a
