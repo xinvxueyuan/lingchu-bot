@@ -223,6 +223,63 @@ task ci                                          # check + test + build
 - **持久偏好写入 AGENTS.md** — memory 文件和会话上下文都是临时的；AGENTS.md 是项目级规则和用户偏好的唯一真实来源。当用户说"记住这个"或表达偏好时，写到这里。
 - **优先使用颗粒度检查而非完整 `task check`** — 使用上方的 Quick Reference 表，只运行与变更相关的检查。完整 `task check && task test` 用于提交前验证，而非每一步中间操作。
 - **同步中英文文档** — 编辑 AGENTS.md 时，始终将相同的结构变更同步到 `.github/note/AGENTS-zh.md`，反之亦然。
+- **同步 AGENTS.md 和 CLAUDE.md** — 这两个文件共享相同的结构和内容（GitNexus 块、项目上下文、开发命令、经验教训等）。编辑任一文件时，始终将相同的结构变更同步到另一个。唯一允许的差异是 Claude Code 行为准则段落，仅存在于 `CLAUDE.md` 中。
+
+## AI 上下文注入地图
+
+所有向 AI 编码代理注入上下文的文件和目录。使用此地图了解每个注入点的作用和加载时机，避免重复读取。
+
+### 根级文件
+
+| 文件 | 加载时机 | 用途 |
+|------|----------|------|
+| `AGENTS.md` | 每次对话（Trae、Codex） | 项目规则、约定、开发命令、经验教训的唯一真实来源。也包含 GitNexus 配置块。 |
+| `CLAUDE.md` | 每次对话（Claude Code） | 与 `AGENTS.md` 相同角色，但面向 Claude Code。包含 GitNexus 块、项目上下文、开发命令和行为准则（简洁优先、精准修改、目标驱动执行）。大部分内容与 `AGENTS.md` 重复。 |
+
+### Trae IDE 规则（`.trae/rules/`）
+
+| 文件 | 加载时机 | 用途 |
+|------|----------|------|
+| `.trae/rules/git-commit-message.md` | 始终应用（Trae） | Gitmoji + Conventional Commits 格式规范。通过正则校验强制执行提交信息格式。 |
+
+### 技能目录
+
+技能**按需加载** — 仅当用户任务匹配触发条件时加载，不会注入每次对话。
+
+#### `.agents/skills/`（Trae / Codex）
+
+| 技能 | 触发条件 | 用途 |
+|------|----------|------|
+| `available-skills/` | 选择加载哪个技能时 | 所有可用技能的紧凑路由索引。列出项目本地、编码、前端、云、制品和技能创作技能。 |
+| `gitnexus/gitnexus-cli/` | 运行 GitNexus CLI 命令（analyze、status、clean、wiki） | GitNexus 操作的 CLI 任务参考。 |
+| `gitnexus/gitnexus-debugging/` | 调试 bug、追踪错误、"为什么 X 失败？" | 科学调试工作流：假设 → 插桩 → 复现 → 分析 → 修复 → 验证。 |
+| `gitnexus/gitnexus-exploring/` | 理解架构、"X 是怎么工作的？" | 通过知识图谱探索代码：执行流、符号关系。 |
+| `gitnexus/gitnexus-guide/` | 关于 GitNexus 工具/模式/工作流的问题 | 所有 GitNexus MCP 工具、资源和图谱模式的快速参考。 |
+| `gitnexus/gitnexus-impact-analysis/` | "改 X 会破坏什么？"、编辑前安全检查 | 爆炸半径分析：深度 1/2/3 的上下游影响。 |
+| `gitnexus/gitnexus-refactoring/` | 重命名、提取、拆分、移动代码 | 使用知识图谱 + 文本搜索的多文件协调重命名。 |
+| `hf-cli/` | Hugging Face Hub 操作（模型、数据集、空间、存储桶、端点、作业） | `hf` 命令的完整 CLI 参考 — 认证、上传/下载、缓存、仓库、论文、集合、端点、作业。 |
+| `prek/` | 设置或运行 `prek` Git 钩子 | `prek`（Rust 版 `pre-commit` 替代品）的配置、安装和工作流指南。 |
+| `react-doctor/` | 完成 React 功能、修复 bug、`/doctor`、扫描/分诊 React 代码 | React 代码库健康扫描器（安全性、性能、正确性、架构）。输出 0–100 分。包含规则解释和配置参考。 |
+
+#### `.claude/skills/`（Claude Code）
+
+`.agents/skills/` 的子集 — 包含 `available-skills/`、所有 `gitnexus/*` 技能和 `prek/`。不包含 `hf-cli/` 或 `react-doctor/`（仅限 Trae/Codex）。
+
+### 跨语言对应文件
+
+| 文件 | 用途 |
+|------|------|
+| `.github/note/AGENTS-zh.md` | `AGENTS.md` 的中文翻译。必须与结构变更保持同步。 |
+
+### 自动注入的内容
+
+仅以下内容在**每次**对话中自动注入，无需显式加载：
+
+1. **`AGENTS.md`**（Claude Code 中为 `CLAUDE.md`）— 完整文件内容
+2. **`.trae/rules/git-commit-message.md`** — 仅 Trae，始终应用
+3. **技能描述** — 每个 `SKILL.md` frontmatter 中的 `description` 字段列在工具的 `available_skills` 中，但完整的 `SKILL.md` 内容仅在技能被调用时加载
+
+其他所有内容（技能文件、参考文档、清单）仅在匹配任务触发技能时**按需加载**。
 
 ## Architecture Decisions
 

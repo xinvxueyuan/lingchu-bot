@@ -5,45 +5,104 @@ title: GitNexus 工作流
 
 ## GitNexus 工作流
 
-本仓库使用 GitNexus 做代码理解和影响面分析。修改代码符号前必须先确认上游依赖。
+本仓库使用 [GitNexus](https://github.com/abhigyanpatwari/GitNexus) 做代码理解和影响面分析。GitNexus 将代码库索引为知识图谱，通过 CLI 命令和 MCP 工具提供服务。
 
-## 修改前
+## 初始化
 
-修改函数、类或方法前运行 upstream impact：
+```bash
+# 索引仓库（在仓库根目录运行）
+npx gitnexus analyze
 
-```text
-gitnexus_impact({target: "symbolName", direction: "upstream"})
+# 为编辑器配置 MCP（一次性）
+npx gitnexus setup
+
+# 检查索引状态
+npx gitnexus status
+
+# 列出所有已索引的仓库
+npx gitnexus list
 ```
 
-记录以下信息：
-
-- 直接调用者。
-- 受影响流程。
-- 风险等级。
-
-如果风险是 `HIGH` 或 `CRITICAL`，先暂停并说明风险，不要直接继续改动。
+如果索引过期（例如大量代码变更后），重新运行 `npx gitnexus analyze` 刷新。
 
 ## 探索代码
 
-陌生区域优先使用 query/context：
+使用 CLI 命令理解架构和执行流：
 
-```text
-gitnexus_query({query: "mute command flow"})
-gitnexus_context({name: "milkybot_mute"})
+```bash
+# 从知识图谱生成仓库 wiki
+npx gitnexus wiki
+
+# 使用自定义模型生成 wiki
+npx gitnexus wiki --model gpt-4o-mini
 ```
 
-这样可以先理解执行流，再决定改动位置。
+无需安装即可快速探索，使用 [Web UI](https://gitnexus.vercel.app) 或启动本地服务器：
+
+```bash
+# 启动本地 HTTP 服务器，供 Web UI 连接
+npx gitnexus serve
+```
+
+## 修改前
+
+修改函数、类或方法前检查上游影响：
+
+1. 运行 `npx gitnexus status` 确认索引是最新的。
+2. 在 AI 编辑器中使用 MCP 工具运行影响面分析（见下方提示框）。
+3. 记录：直接调用者、受影响流程、风险等级。
+4. 如果风险是 `HIGH` 或 `CRITICAL`，先暂停并说明风险，不要直接继续改动。
 
 ## 提交前
 
-提交前运行 detect changes：
+确认变更仅影响预期的符号和执行流：
 
-```text
-gitnexus_detect_changes()
-```
-
-确认变更集中在预期符号和执行流。如果结果包含无关文件或流程，先检查工作区。
+1. 如有需要，运行 `npx gitnexus analyze` 刷新索引。
+2. 在 AI 编辑器中使用 MCP `detect_changes` 工具检查影响范围。
+3. 如果结果包含无关文件或流程，先检查工作区。
 
 ## 重命名
 
-不要用全局查找替换重命名符号。需要重命名时使用 GitNexus rename，以便同时处理调用关系和引用点。
+不要用全局查找替换重命名符号。使用 GitNexus 的 `rename` MCP 工具，以便同时处理调用关系和引用点。
+
+## CLI 参考
+
+```bash
+gitnexus analyze [path]              # 索引仓库（或更新过期索引）
+gitnexus analyze --force             # 完全重建：重新解析 + 图谱重建 + FTS 重建
+gitnexus analyze --repair-fts        # 仅重建/验证现有数据的 FTS 索引
+gitnexus analyze --skip-embeddings   # 跳过嵌入生成（更快）
+gitnexus analyze --embeddings [n]    # 启用嵌入生成（较慢，搜索更好）
+gitnexus analyze --skills            # 生成仓库专属技能文件
+gitnexus analyze --skip-skills       # 跳过安装技能文件
+gitnexus analyze --skip-agents-md    # 保留自定义 AGENTS.md/CLAUDE.md 编辑
+gitnexus analyze --skip-git          # 索引非 Git 仓库的文件夹
+gitnexus analyze --verbose           # 记录跳过的文件
+gitnexus setup                       # 为编辑器配置 MCP（一次性）
+gitnexus mcp                         # 启动 MCP 服务器（stdio）
+gitnexus serve                       # 启动本地 HTTP 服务器供 Web UI 使用
+gitnexus list                        # 列出所有已索引的仓库
+gitnexus status                      # 显示当前仓库的索引状态
+gitnexus clean                       # 删除当前仓库的索引
+gitnexus clean --all --force         # 删除所有索引
+gitnexus wiki [path]                 # 从知识图谱生成仓库 wiki
+gitnexus wiki --model <model>        # 使用自定义 LLM 模型生成 wiki
+gitnexus wiki --base-url <url>       # 使用自定义 LLM API 地址生成 wiki
+```
+
+> [!NOTE]
+> 面向 AI 代理（MCP 工具）
+>
+> 上方命令供**人类**在终端中使用。AI 编码代理（Claude Code、Cursor、Codex 等）通过 MCP 工具而非 CLI 命令访问 GitNexus：
+>
+> | MCP 工具 | 用途 |
+> |----------|------|
+> | `gitnexus_query` | 按概念搜索执行流 |
+> | `gitnexus_context` | 符号的 360 度视图（调用者、被调用者、参与的流程） |
+> | `gitnexus_impact` | 符号的爆炸半径分析 |
+> | `gitnexus_detect_changes` | Git 差异影响分析 |
+> | `gitnexus_rename` | 多文件协调重命名 |
+> | `gitnexus_cypher` | 原始图谱查询 |
+> | `gitnexus_list_repos` | 列出已索引的仓库 |
+>
+> AI 代理应参考 `AGENTS.md`（Claude Code 为 `CLAUDE.md`）以及 `.agents/skills/gitnexus/` / `.claude/skills/gitnexus/` 中的技能文件获取详细的 MCP 使用说明。
