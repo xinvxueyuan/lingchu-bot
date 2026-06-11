@@ -165,7 +165,23 @@ else
     echo "⏭️  无 Docs 变更，跳过 Docs 检查。"
 fi
 
-# ── Phase 6: 非阻断分析 ────────────────────────────────
+# ── Phase 6: React Doctor（十秒级）───────────────────────
+
+if [ "$HAS_DOCS" = true ]; then
+    if command -v npx >/dev/null 2>&1; then
+        echo "🩺 正在运行 React Doctor..."
+        NO_COLOR=1 npx react-doctor@latest . --fail-on error --no-telemetry --project docs,web
+        if [ $? -ne 0 ]; then
+            echo "❌ React Doctor 发现错误，请修复后重新提交。"
+            echo "💡 运行 'pnpm doctor -- --verbose' 查看详细信息。"
+            exit 1
+        fi
+    fi
+else
+    echo "⏭️  无 Docs 变更，跳过 React Doctor 检查。"
+fi
+
+# ── Phase 7: 非阻断分析 ────────────────────────────────
 
 # Gitnexus: 更新代码索引，失败不阻断提交
 if command -v pnpm >/dev/null 2>&1; then
