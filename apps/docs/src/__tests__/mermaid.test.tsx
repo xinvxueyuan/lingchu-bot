@@ -1,65 +1,73 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, it, expect, vi } from "vitest";
+import { render } from "@testing-library/react";
 import {
   getMermaidConfig,
-  Mermaid,
   renderMermaidSvg,
   sanitizeMermaidSvg,
-} from '@/components/mdx/mermaid';
+} from "@/components/mdx/mermaid-utils";
+import { Mermaid } from "@/components/mdx/mermaid";
 
 const mermaidMock = vi.hoisted(() => ({
   initialize: vi.fn(),
-  render: vi.fn(() => Promise.resolve({ svg: '<svg><text>test</text></svg>', bindFunctions: vi.fn() })),
+  render: vi.fn(() =>
+    Promise.resolve({
+      svg: "<svg><text>test</text></svg>",
+      bindFunctions: vi.fn(),
+    }),
+  ),
 }));
 
-vi.mock('next-themes', () => ({
-  useTheme: () => ({ resolvedTheme: 'light' }),
+vi.mock("next-themes", () => ({
+  useTheme: () => ({ resolvedTheme: "light" }),
 }));
 
-vi.mock('mermaid', () => ({
+vi.mock("mermaid", () => ({
   default: mermaidMock,
 }));
 
-describe('Mermaid', () => {
-  it('uses strict Mermaid security settings', () => {
-    expect(getMermaidConfig('light')).toEqual(
+describe("Mermaid", () => {
+  it("uses strict Mermaid security settings", () => {
+    expect(getMermaidConfig("light")).toEqual(
       expect.objectContaining({
-        securityLevel: 'strict',
+        securityLevel: "strict",
         htmlLabels: false,
         flowchart: { htmlLabels: false },
-        theme: 'default',
+        theme: "default",
       }),
     );
 
-    expect(getMermaidConfig('dark')).toEqual(
+    expect(getMermaidConfig("dark")).toEqual(
       expect.objectContaining({
-        theme: 'dark',
+        theme: "dark",
       }),
     );
   });
 
-  it('sanitizes Mermaid SVG before rendering', () => {
+  it("sanitizes Mermaid SVG before rendering", () => {
     const sanitizedSvg = sanitizeMermaidSvg(
       '<svg><style>.node{fill:red}</style><script>alert(1)</script><g onclick="alert(1)"><text>safe</text></g></svg>',
     );
-    const element = new DOMParser().parseFromString(sanitizedSvg, 'image/svg+xml').documentElement;
+    const element = new DOMParser().parseFromString(
+      sanitizedSvg,
+      "image/svg+xml",
+    ).documentElement;
 
-    expect(element.querySelector('style')?.textContent).toBe('.node{fill:red}');
-    expect(element.querySelector('script')).not.toBeInTheDocument();
-    expect(element.querySelector('[onclick]')).not.toBeInTheDocument();
-    expect(element.querySelector('text')?.textContent).toBe('safe');
+    expect(element.querySelector("style")?.textContent).toBe(".node{fill:red}");
+    expect(element.querySelector("script")).not.toBeInTheDocument();
+    expect(element.querySelector("[onclick]")).not.toBeInTheDocument();
+    expect(element.querySelector("text")?.textContent).toBe("safe");
   });
 
-  it('does not render Mermaid content before mount', () => {
+  it("does not render Mermaid content before mount", () => {
     const { container } = render(<Mermaid chart="graph TD; A-->B" />);
 
-    expect(container.innerHTML).toBe('');
+    expect(container.innerHTML).toBe("");
     expect(mermaidMock.initialize).not.toHaveBeenCalled();
     expect(mermaidMock.render).not.toHaveBeenCalled();
   });
 
-  it('renders sanitized Mermaid SVG through DOM replacement', () => {
-    const container = document.createElement('div');
+  it("renders sanitized Mermaid SVG through DOM replacement", () => {
+    const container = document.createElement("div");
     const bindFunctions = vi.fn();
 
     renderMermaidSvg(
@@ -68,20 +76,22 @@ describe('Mermaid', () => {
       bindFunctions,
     );
 
-    expect(container.querySelector('svg text')?.textContent).toBe('safe');
+    expect(container.querySelector("svg text")?.textContent).toBe("safe");
     expect(bindFunctions).toHaveBeenCalledWith(container);
   });
 
-  it('clears invalid Mermaid SVG parse errors before binding functions', () => {
-    const container = document.createElement('div');
+  it("clears invalid Mermaid SVG parse errors before binding functions", () => {
+    const container = document.createElement("div");
     const bindFunctions = vi.fn();
-    const domParserSpy = vi.spyOn(globalThis, 'DOMParser');
+    const domParserSpy = vi.spyOn(globalThis, "DOMParser");
 
-    container.append(document.createElement('svg'));
+    container.append(
+      document.createElementNS("http://www.w3.org/2000/svg", "svg"),
+    );
     domParserSpy.mockImplementation(function DOMParserMock() {
       const doc = document.implementation.createDocument(
-        'http://www.w3.org/1999/xhtml',
-        'parsererror',
+        "http://www.w3.org/1999/xhtml",
+        "parsererror",
         null,
       );
 
@@ -90,9 +100,9 @@ describe('Mermaid', () => {
       } as unknown as DOMParser;
     });
 
-    renderMermaidSvg(container, '<svg><g></svg', bindFunctions);
+    renderMermaidSvg(container, "<svg><g></svg", bindFunctions);
 
-    expect(container.innerHTML).toBe('');
+    expect(container.innerHTML).toBe("");
     expect(bindFunctions).not.toHaveBeenCalled();
     domParserSpy.mockRestore();
   });

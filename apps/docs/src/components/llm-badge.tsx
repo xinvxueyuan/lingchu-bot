@@ -1,4 +1,5 @@
 import { Bot } from 'lucide-react';
+import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { buttonVariants } from 'fumadocs-ui/components/ui/button';
 
@@ -9,7 +10,7 @@ export function LLMBadge({ locale }: { locale?: string }) {
             : 'AI-friendly docs available via llms.txt';
 
     return (
-        <a
+        <Link
             href="/llms.txt"
             target="_blank"
             rel="noopener noreferrer"
@@ -24,6 +25,6 @@ export function LLMBadge({ locale }: { locale?: string }) {
             )}
         >
             <Bot className="size-3.5" />
-        </a>
+        </Link>
     );
 }

@@ -1,4 +1,12 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { appName } from '@/lib/shared';
+
+export const metadata: Metadata = {
+  title: `${appName} 文档`,
+  description:
+    '基于 NoneBot2 的应用侧管理机器人项目文档，覆盖用户指南、开发流程、国际化、测试与 GitNexus 工作流。',
+};
 
 export default function ChineseHomePage() {
   return (
