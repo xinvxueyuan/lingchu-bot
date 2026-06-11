@@ -474,6 +474,15 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 - **SVG 元素必须使用 `createElementNS`**：即使在测试代码中，`document.createElement('svg')` 也是错误的——应使用 `document.createElementNS('http://www.w3.org/2000/svg', 'svg')`。Linter（Edge Tools、hint）会标记此问题，且影响 SVG 渲染行为。
 - **`useMDXComponents` vs `getMDXComponents`**：Fumadocs MDX 约定导出 `useMDXComponents` 用于 MDX provider 模式（`source.config.ts` 中的 `providerImportSource`）。即使项目当前通过 `components` prop 显式传递 `getMDXComponents()`，也应保留 `useMDXComponents`，因为它是 fumadocs 自动 MDX 组件解析的标准入口点。在 `doctor.config.ts` 中抑制 `deslop/unused-export` 以处理框架必需的重导出。
 
+### 查询官方文档验证框架语法
+
+为 Fumadocs（或任何框架）编写 MDX 内容时，**绝不假设语法** — 始终对照官方文档和项目实际配置进行验证。示例：
+
+- Fumadocs 使用 `<Callout>` JSX 组件做提示框，**不是** GitHub 风格的 `>[!NOTE]` 引用块。`>[!NOTE]` 语法只会渲染为普通引用块，而非带样式的提示框。
+- 在 MDX 中使用任何框架特有的组件或语法前，检查：(1) 通过 Context7 / find-docs 查阅框架官方文档，(2) 项目内容文件中的已有用法，(3) MDX 组件提供者配置（如 `source.config.ts`、`mdx.tsx`）。
+
+经验法则：**如果在项目现有内容文件中没见过该语法，先查官方文档再写。**
+
 ### 待回退变更
 
 规则抑制和临时变通方案，在触发条件改变后应予回退。定期审查此节（如更新依赖或重构时）。

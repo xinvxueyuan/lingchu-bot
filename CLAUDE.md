@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2409 symbols, 4777 relationships, 202 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2411 symbols, 4779 relationships, 202 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -391,6 +391,15 @@ When removing functions/helpers:
 - Default language files have no suffix (e.g., `gitnexus.mdx`)
 - Non-default language files use `.{locale}.mdx` suffix (e.g., `gitnexus.zh.mdx`)
 - `@fumadocs/language` exports supported language packages; English is built-in default (no need to import separately)
+
+### Verify Framework Syntax Against Official Docs
+
+When writing MDX content for Fumadocs (or any framework), **never assume syntax** — always verify against official documentation and the project's actual setup. Examples:
+
+- Fumadocs uses `<Callout>` JSX component for admonitions, **not** GitHub-style `>[!NOTE]` blockquotes. The `>[!NOTE]` syntax renders as a plain blockquote, not a styled callout.
+- Before using any framework-specific component or syntax in MDX, check: (1) the framework's official docs via Context7 / find-docs, (2) existing usage in the project's content files, (3) the MDX component provider setup (e.g., `source.config.ts`, `mdx.tsx`).
+
+Rule of thumb: **if you haven't seen the syntax used in the project's existing content files, verify it against official docs before writing it.**
 
 ### Pending Rollbacks
 
