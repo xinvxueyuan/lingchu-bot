@@ -4,25 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint --max-warnings 0",
-    "check-types": "next typegen && tsc --noEmit"
-  },
-  "dependencies": {
-    "@repo/ui": "workspace:*",
-    "next": "16.2.9",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
-  },
-  "devDependencies": {
-    "@repo/eslint-config": "workspace:*",
-    "@repo/typescript-config": "workspace:*",
-    "@types/node": "^25.9.2",
-    "@types/react": "19.2.17",
-    "@types/react-dom": "19.2.3",
-    "eslint": "^10.4.1",
-    "typescript": "6.0.3"
+    "dev": "echo 'web app is temporarily disabled'",
+    "build": "echo 'web app is temporarily disabled'",
+    "lint": "echo 'web app is temporarily disabled'",
+    "check-types": "echo 'web app is temporarily disabled'"
   }
 }
