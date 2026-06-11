@@ -9,7 +9,9 @@ Lingchu Bot stores lightweight runtime settings in a plugin-owned JSON5 configur
 
 On first startup, the plugin creates `config.json5`. Its path is provided by `nonebot-plugin-localstore` and belongs to the plugin configuration directory, not the data or cache directory.
 
-Runtime configuration priority, from highest to lowest, is:
+<Callout title="Configuration priority">
+
+Runtime configuration priority, from highest to lowest:
 
 1. OS environment variables
 2. NoneBot dotenv / global configuration
@@ -18,17 +20,49 @@ Runtime configuration priority, from highest to lowest, is:
 
 OS environment variable and dotenv loading, case handling, Boolean parsing, path parsing, and env-file selection follow NoneBot's own behavior. Lingchu Bot does not implement separate dotenv discovery.
 
+</Callout>
+
 ## Runtime settings
 
-| Setting                                                  | Default           | Description                                                             |
-| -------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------- |
-| `superuser_key`                                          | `123456789abcdef` | Superuser authentication key                                            |
-| `message_store_enabled`                                  | `true`            | Whether to enable message-store runtime hooks                           |
-| `message_store_retention_days`                           | `30`              | Number of days to retain message records; `0` disables day-based expiry |
-| `message_store_summary_limit`                            | `500`             | Maximum length for text, data, and result summaries                     |
-| `message_store_record_api_calls`                         | `true`            | Whether to record platform API call summaries                           |
-| `message_store_cleanup_enabled`                          | `true`            | Whether to clean expired message records during shutdown                |
-| `lingchu_adapter` / `LINGCHUAdapter` / `LINGCHU_ADAPTER` | unset             | Selects the enabled adapter for each platform                           |
+<TypeTable
+  type={{
+    superuser_key: {
+      type: "string",
+      default: "123456789abcdef",
+      description: "Superuser authentication key",
+    },
+    message_store_enabled: {
+      type: "boolean",
+      default: "true",
+      description: "Whether to enable message-store runtime hooks",
+    },
+    message_store_retention_days: {
+      type: "number",
+      default: "30",
+      description: "Number of days to retain message records; 0 disables day-based expiry",
+    },
+    message_store_summary_limit: {
+      type: "number",
+      default: "500",
+      description: "Maximum length for text, data, and result summaries",
+    },
+    message_store_record_api_calls: {
+      type: "boolean",
+      default: "true",
+      description: "Whether to record platform API call summaries",
+    },
+    message_store_cleanup_enabled: {
+      type: "boolean",
+      default: "true",
+      description: "Whether to clean expired message records during shutdown",
+    },
+    lingchu_adapter: {
+      type: "string",
+      default: "unset",
+      description: "Selects the enabled adapter for each platform (env: LINGCHUAdapter / LINGCHU_ADAPTER)",
+    },
+  }}
+/>
 
 Example `config.json5`:
 
@@ -62,9 +96,11 @@ If the same key appears in OS environment variables, dotenv, and `config.json5`,
 
 `core_version`, `data_dir`, `config_dir`, `cache_dir`, and system platform helpers are still provided by the core `Config`. Paths come from `nonebot-plugin-localstore`:
 
-- `data_dir`: data file directory.
-- `config_dir`: configuration file directory.
-- `cache_dir`: cache file directory.
+| Path | Purpose |
+| --- | --- |
+| `data_dir` | Data file directory |
+| `config_dir` | Configuration file directory |
+| `cache_dir` | Cache file directory |
 
 ## Adapter selection
 
@@ -77,15 +113,28 @@ Lingchu Bot groups concrete adapters into platform capabilities. Only one adapte
 
 When unset, QQ uses `~onebot.v11`. To select an adapter explicitly, set a global NoneBot configuration value:
 
+<Tabs items={['OneBot V11', 'Milky']}>
+  <Tab value="OneBot V11">
+
 ```toml
 LINGCHUAdapter = "~onebot.v11"
 ```
 
-Only the QQ platform profile is implemented at the moment, so QQ selects `~onebot.v11` in this example. To enable Milky:
+Default selection. Make sure NoneBot has loaded the OneBot V11 adapter.
+
+  </Tab>
+  <Tab value="Milky">
 
 ```toml
 LINGCHUAdapter = "~milky"
 ```
+
+Requires the Milky adapter to be loaded by NoneBot.
+
+  </Tab>
+</Tabs>
+
+<Callout type="warn" title="Conflict prevention">
 
 Explicitly configuring multiple known adapters for the same platform fails startup:
 
@@ -93,7 +142,9 @@ Explicitly configuring multiple known adapters for the same platform fails start
 LINGCHUAdapter = "~milky+~onebot.v11"
 ```
 
-Lingchu Bot does not control which adapters NoneBot actually imports or registers; it only selects business code through `LINGCHUAdapter` and checks that the selected adapter has been loaded and registered by NoneBot. When unset, Lingchu selects `~onebot.v11` by default, so OneBot V11 must be loaded. If Milky is selected explicitly but NoneBot has not loaded Milky, startup fails as well. Other same-platform adapters may still be imported or registered, but Lingchu Bot treats them as disabled. They do not participate in platform resolution, message storage, or API call recording. Explicitly declaring an adapter that Lingchu has not implemented or cannot recognize in `LINGCHUAdapter` fails startup; extra unknown adapters registered at runtime are still ignored.
+Lingchu Bot does not control which adapters NoneBot actually imports or registers; it only selects business code through `LINGCHUAdapter` and checks that the selected adapter has been loaded and registered by NoneBot.
+
+</Callout>
 
 An unknown adapter that does not belong to any platform profile is not considered enabled. Message storage still accepts its events, but writes the `platform` field as `unknown`. This gives downstream displays a stable Unknown bucket instead of treating the raw adapter name as a platform ID.
 
@@ -121,13 +172,11 @@ Available catalogs currently include `zh_CN` and `en_US`. Locale names are norma
 IN_CONTAINERS=true
 ```
 
-Do not write:
+<Callout type="warn" title="Boolean format">
 
-```dotenv
-IN_CONTAINERS=True
-```
+Do not write `IN_CONTAINERS=True`. NoneBot configuration files only accept standard JSON lowercase `true` / `false`. If a string-like Boolean is passed in, the project raises a clear configuration error.
 
-NoneBot configuration files only accept standard JSON lowercase `true` / `false`. If a string-like Boolean is passed in, the project raises a clear configuration error.
+</Callout>
 
 ## Local runtime paths
 

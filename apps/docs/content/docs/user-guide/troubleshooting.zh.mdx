@@ -5,24 +5,28 @@ title: 故障排除
 
 ## 故障排除
 
-本页收集当前最常见的本地启动和群管理问题。
+本页收集项目当前覆盖的最常见的本地启动和群管理问题。
 
-## 依赖安装失败
+## 安装与启动
 
-先确认 Python 版本和 uv 是否可用：
+<Accordions type="single">
+  <Accordion title="依赖安装失败">
+
+首先确认 Python 和 uv 是否可用：
 
 ```bash
 python --version
 uv --version
 ```
 
-项目要求 Python 3.13。依赖安装建议使用：
+项目要求 Python 3.13。依赖安装应使用：
 
 ```bash
 uv sync --frozen
 ```
 
-## 配置布尔值报错
+  </Accordion>
+  <Accordion title="布尔配置错误">
 
 如果看到 `in_containers 配置错误`，请检查 `.env` 或 NoneBot 配置文件。
 
@@ -38,40 +42,62 @@ IN_CONTAINERS=true
 IN_CONTAINERS=True
 ```
 
-## 机器人无法连接平台
+NoneBot 配置文件只接受标准 JSON 小写 `true` / `false`。
 
-请优先检查：
+  </Accordion>
+  <Accordion title="Bot 无法连接平台">
 
-- 当前启用适配器对应的服务是否已经启动；默认是 OneBot V11。
-- NoneBot 与当前启用适配器的连接配置是否一致。
-- 账号、网络、防火墙和平台侧权限是否可用。
+请确认已启用适配器的服务是否已启动（默认为 OneBot V11），NoneBot 与已启用适配器的连接设置是否匹配，以及账号、网络、防火墙和平台权限是否可用。
 
-## 适配器选择与加载
+  </Accordion>
+</Accordions>
 
-Lingchu Bot 只按 `LINGCHUAdapter` 选择业务代码，不控制 NoneBot 实际加载哪些适配器。
+## 适配器选择
 
-- 未配置 `LINGCHUAdapter` 时，Lingchu Bot 默认启用 `~onebot.v11`；请确认 NoneBot 已加载 OneBot V11。
-- 如果需要固定使用 OneBot V11，请配置 `LINGCHUAdapter = "~onebot.v11"`，并加载 OneBot V11 适配器。
-- 如果需要固定使用 Milky，请配置 `LINGCHUAdapter = "~milky"`，并加载 Milky 适配器。
-- 不要在同一平台显式配置多个适配器，例如 `LINGCHUAdapter = "~milky+~onebot.v11"` 会直接失败。
-- 不要在 `LINGCHUAdapter` 中显式声明 Lingchu 未实现或无法识别的适配器；运行时额外注册的未知适配器会被忽略。
-- 如果报出 `PlatformAdapterNotLoadedError`，说明选中的适配器没有被 NoneBot 加载/注册；请加载匹配适配器，或把 `LINGCHUAdapter` 改成已加载的适配器。
-- 额外注册的同平台适配器不会触发冲突，Lingchu Bot 会把未选中的适配器视为未启用。
+<Accordions type="single">
+  <Accordion title="LINGCHUAdapter 未设置">
 
-## 群管理命令失败
+当 `LINGCHUAdapter` 未设置时，Lingchu Bot 默认启用 `~onebot.v11`；请确保 NoneBot 已加载 OneBot V11。
 
-禁言、解禁和全体禁言依赖平台权限。失败时请检查：
+  </Accordion>
+  <Accordion title="PlatformAdapterNotLoadedError">
 
-- 机器人是否在目标群中。
-- 机器人是否具备对应管理权限。
-- 目标用户是否可以被机器人操作。
-- 当前启用适配器侧 API 是否返回网络错误或操作拒绝。
+选中的适配器未被 NoneBot 加载或注册。请加载对应的适配器，或将 `LINGCHUAdapter` 改为已加载的适配器。
 
-如果反馈语言不符合预期，请检查 `LINGCHU_LOCALE`、`lc_locale` 或 `locale` 是否设置为当前支持的 catalog，例如 `zh_CN` 或 `en_US`。未知文本会回退为原文。
+  </Accordion>
+  <Accordion title="同一平台配置了多个适配器">
 
-## CI 或本地检查失败
+不要为同一平台显式配置多个适配器。例如 `LINGCHUAdapter = "~milky+~onebot.v11"` 会立即失败。
 
-查看失败命令和行号，然后只修相关范围。常用检查包括：
+  </Accordion>
+  <Accordion title="运行时注册了未知适配器">
+
+额外注册的同平台适配器不会产生冲突。Lingchu Bot 将未选中的适配器视为已禁用。不属于任何平台 profile 的未知适配器不被视为已启用；消息存储会将其 `platform` 字段写入 `unknown`。
+
+  </Accordion>
+</Accordions>
+
+## 群管理
+
+<Accordions type="single">
+  <Accordion title="禁言或解禁命令失败">
+
+禁言、解禁和全体禁言依赖平台权限。失败时请检查 Bot 是否在目标群中、是否拥有所需管理权限、目标用户是否可被 Bot 操作，以及已启用适配器 API 是否报告网络错误或操作被拒绝。
+
+  </Accordion>
+  <Accordion title="反馈语言不正确">
+
+检查 `LINGCHU_LOCALE`、`lc_locale` 或 `locale` 是否设置为支持的目录，如 `zh_CN` 或 `en_US`。未知文本会回退到原始消息。
+
+  </Accordion>
+</Accordions>
+
+## CI 或本地检查
+
+<Accordions type="single">
+  <Accordion title="检查命令失败">
+
+阅读失败的命令和行号，然后只修复相关范围。常用检查包括：
 
 ```bash
 uv run -m ruff check . --output-format=github
@@ -80,3 +106,12 @@ uv run -m pyright .
 uv run -m ty check --output-format github
 uv run -m pytest
 ```
+
+  </Accordion>
+</Accordions>
+
+<Callout title="仍未解决？">
+
+如果你的问题未在此列出，请查看[配置](configuration)页面的详细设置，或在 [GitHub](https://github.com/xinvxueyuan/lingchu-bot/issues) 提交 issue。
+
+</Callout>

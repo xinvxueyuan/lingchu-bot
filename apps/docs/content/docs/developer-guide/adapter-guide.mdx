@@ -1,0 +1,105 @@
+---
+icon: Plug
+title: Adapter Guide
+---
+
+## Adapter Guide
+
+Lingchu Bot uses a platform profile system to map abstract platform capabilities to concrete NoneBot adapters. This page explains how the adapter registry works, how to select an adapter, and how to add support for a new platform.
+
+## How adapter selection works
+
+The adapter registry lives in `platforms/registry.py`. Each platform profile declares:
+
+- A list of known adapters in priority order.
+- A default adapter used when `LINGCHUAdapter` is not set.
+- Validation logic that prevents conflicting adapter selections.
+
+When the plugin starts, it reads `LINGCHUAdapter` from NoneBot's global configuration and resolves it against the registered platform profiles. Only the selected adapter is considered "enabled"; all other adapters are treated as disabled, even if NoneBot has loaded them.
+
+## QQ platform profile
+
+The QQ platform is the only currently implemented profile. Its known adapter priority is:
+
+| Priority | Adapter | NoneBot package |
+| --- | --- | --- |
+| 1 (default) | `~onebot.v11` | `nonebot-adapter-onebot` |
+| 2 | `~milky` | `nonebot-adapter-milky` |
+| 3 | `~qq` | `nonebot-adapter-qq` |
+| 4 | `~onebot.v12` | `nonebot-adapter-onebot` |
+
+<Tabs items={['OneBot V11', 'Milky', 'QQ Official', 'OneBot V12']}>
+  <Tab value="OneBot V11">
+
+The default adapter. Requires a running OneBot V11 implementation (such as NapCat, Lagrange, or LLOneBot) connected to NoneBot via WebSocket or HTTP.
+
+Configuration in `.env`:
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+  </Tab>
+  <Tab value="Milky">
+
+A newer QQ adapter. Set `LINGCHUAdapter = "~milky"` and install the Milky adapter.
+
+Configuration in `.env`:
+
+```dotenv
+LINGCHUAdapter=~milky
+```
+
+  </Tab>
+  <Tab value="QQ Official">
+
+The official QQ bot adapter. Set `LINGCHUAdapter = "~qq"` and install the QQ adapter.
+
+<Callout type="warn" title="Limited API support">
+
+The QQ official adapter has a different API surface from OneBot V11. Some group management commands may not be available or may behave differently.
+
+</Callout>
+
+  </Tab>
+  <Tab value="OneBot V12">
+
+The OneBot V12 standard adapter. Set `LINGCHUAdapter = "~onebot.v12"` and ensure the OneBot V12 implementation is running.
+
+  </Tab>
+</Tabs>
+
+## Error handling
+
+The adapter registry raises specific exceptions when configuration is invalid:
+
+| Exception | Cause |
+| --- | --- |
+| `PlatformAdapterConflictError` | Multiple known adapters explicitly configured for the same platform |
+| `PlatformAdapterNotLoadedError` | The selected adapter was not loaded or registered by NoneBot |
+
+<Callout type="warn" title="Startup failure">
+
+Explicitly declaring an adapter that Lingchu has not implemented or cannot recognize in `LINGCHUAdapter` fails startup. Extra unknown adapters registered at runtime are ignored.
+
+</Callout>
+
+## Unknown adapters
+
+An adapter that does not belong to any platform profile is not considered enabled. Message storage still accepts its events, but writes the `platform` field as `unknown`. This gives downstream displays a stable Unknown bucket instead of treating the raw adapter name as a platform ID.
+
+## Adding a new platform profile
+
+To add support for a new platform (for example, Telegram or Discord):
+
+1. Create a new platform profile class in `platforms/` that declares the platform name, known adapters, and default adapter.
+2. Register the profile in `platforms/registry.py`.
+3. Add the corresponding adapter dependency to `pyproject.toml`.
+4. Update the adapter selection documentation.
+
+<Callout title="Contributing">
+
+Platform profile contributions are welcome. Open an issue first to discuss the scope and API differences before submitting a PR.
+
+</Callout>

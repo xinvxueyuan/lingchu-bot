@@ -7,7 +7,10 @@ title: Troubleshooting
 
 This page collects the most common local startup and group management issues currently covered by the project.
 
-## Dependency installation fails
+## Installation and startup
+
+<Accordions type="single">
+  <Accordion title="Dependency installation fails">
 
 First confirm that Python and uv are available:
 
@@ -22,7 +25,8 @@ The project requires Python 3.13. Dependency installation should use:
 uv sync --frozen
 ```
 
-## Boolean configuration errors
+  </Accordion>
+  <Accordion title="Boolean configuration errors">
 
 If you see an `in_containers 配置错误` error, check `.env` or the NoneBot configuration file.
 
@@ -38,38 +42,60 @@ Incorrect:
 IN_CONTAINERS=True
 ```
 
-## Bot cannot connect to the platform
+NoneBot configuration files only accept standard JSON lowercase `true` / `false`.
 
-Check these first:
+  </Accordion>
+  <Accordion title="Bot cannot connect to the platform">
 
-- Whether the service for the enabled adapter has started; the default is OneBot V11.
-- Whether NoneBot and the enabled adapter connection settings match.
-- Whether the account, network, firewall, and platform permissions are usable.
+Whether the service for the enabled adapter has started; the default is OneBot V11. Whether NoneBot and the enabled adapter connection settings match. Whether the account, network, firewall, and platform permissions are usable.
 
-## Adapter selection and loading
+  </Accordion>
+</Accordions>
 
-Lingchu Bot only selects business code through `LINGCHUAdapter`; it does not control which adapters NoneBot actually loads.
+## Adapter selection
 
-- When `LINGCHUAdapter` is unset, Lingchu Bot enables `~onebot.v11` by default; make sure NoneBot has loaded OneBot V11.
-- To pin OneBot V11, set `LINGCHUAdapter = "~onebot.v11"` and load the OneBot V11 adapter.
-- To pin Milky, set `LINGCHUAdapter = "~milky"` and load the Milky adapter.
-- Do not explicitly configure multiple adapters for the same platform. For example, `LINGCHUAdapter = "~milky+~onebot.v11"` fails immediately.
-- Do not explicitly declare adapters Lingchu has not implemented or cannot recognize in `LINGCHUAdapter`; extra unknown adapters registered at runtime are ignored.
-- If startup reports `PlatformAdapterNotLoadedError`, the selected adapter was not loaded or registered by NoneBot; load the matching adapter or change `LINGCHUAdapter` to one that is already loaded.
-- Extra registered same-platform adapters do not create a conflict. Lingchu Bot treats unselected adapters as disabled.
+<Accordions type="single">
+  <Accordion title="LINGCHUAdapter is unset">
 
-## Group management command fails
+When `LINGCHUAdapter` is unset, Lingchu Bot enables `~onebot.v11` by default; make sure NoneBot has loaded OneBot V11.
 
-Mute, unmute, and whole-group mute depend on platform permissions. When they fail, check:
+  </Accordion>
+  <Accordion title="PlatformAdapterNotLoadedError">
 
-- Whether the bot is in the target group.
-- Whether the bot has the required management permission.
-- Whether the target user can be operated on by the bot.
-- Whether the enabled adapter API reports a network error or rejected operation.
+The selected adapter was not loaded or registered by NoneBot. Load the matching adapter or change `LINGCHUAdapter` to one that is already loaded.
 
-If feedback appears in an unexpected language, check whether `LINGCHU_LOCALE`, `lc_locale`, or `locale` is set to a supported catalog such as `zh_CN` or `en_US`. Unknown text falls back to the original message.
+  </Accordion>
+  <Accordion title="Multiple adapters for the same platform">
 
-## CI or local checks fail
+Do not explicitly configure multiple adapters for the same platform. For example, `LINGCHUAdapter = "~milky+~onebot.v11"` fails immediately.
+
+  </Accordion>
+  <Accordion title="Unknown adapter registered at runtime">
+
+Extra registered same-platform adapters do not create a conflict. Lingchu Bot treats unselected adapters as disabled. Unknown adapters that do not belong to any platform profile are not considered enabled; message storage writes their `platform` field as `unknown`.
+
+  </Accordion>
+</Accordions>
+
+## Group management
+
+<Accordions type="single">
+  <Accordion title="Mute or unmute command fails">
+
+Mute, unmute, and whole-group mute depend on platform permissions. When they fail, check whether the bot is in the target group, whether the bot has the required management permission, whether the target user can be operated on by the bot, and whether the enabled adapter API reports a network error or rejected operation.
+
+  </Accordion>
+  <Accordion title="Feedback appears in the wrong language">
+
+Check whether `LINGCHU_LOCALE`, `lc_locale`, or `locale` is set to a supported catalog such as `zh_CN` or `en_US`. Unknown text falls back to the original message.
+
+  </Accordion>
+</Accordions>
+
+## CI or local checks
+
+<Accordions type="single">
+  <Accordion title="Check commands fail">
 
 Read the failing command and line number, then fix only the related scope. Common checks include:
 
@@ -80,3 +106,12 @@ uv run -m pyright .
 uv run -m ty check --output-format github
 uv run -m pytest
 ```
+
+  </Accordion>
+</Accordions>
+
+<Callout title="Still stuck?">
+
+If your issue is not listed here, check the [Configuration](configuration) page for detailed settings, or open an issue at [GitHub](https://github.com/xinvxueyuan/lingchu-bot/issues).
+
+</Callout>

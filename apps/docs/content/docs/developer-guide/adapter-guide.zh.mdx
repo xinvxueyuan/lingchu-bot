@@ -1,0 +1,105 @@
+---
+icon: Plug
+title: 适配器指南
+---
+
+## 适配器指南
+
+Lingchu Bot 使用平台 profile 系统将抽象的平台能力映射到具体的 NoneBot 适配器。本页说明适配器注册表的工作原理、如何选择适配器，以及如何添加新平台支持。
+
+## 适配器选择的工作原理
+
+适配器注册表位于 `platforms/registry.py`。每个平台 profile 声明：
+
+- 按优先级排列的已知适配器列表。
+- 未设置 `LINGCHUAdapter` 时使用的默认适配器。
+- 防止适配器选择冲突的校验逻辑。
+
+插件启动时，从 NoneBot 全局配置读取 `LINGCHUAdapter`，并根据已注册的平台 profile 进行解析。只有选中的适配器被视为"已启用"；所有其他适配器被视为已禁用，即使 NoneBot 已加载它们。
+
+## QQ 平台 profile
+
+QQ 平台是当前唯一实现的 profile。其已知适配器优先级为：
+
+| 优先级 | 适配器 | NoneBot 包 |
+| --- | --- | --- |
+| 1（默认） | `~onebot.v11` | `nonebot-adapter-onebot` |
+| 2 | `~milky` | `nonebot-adapter-milky` |
+| 3 | `~qq` | `nonebot-adapter-qq` |
+| 4 | `~onebot.v12` | `nonebot-adapter-onebot` |
+
+<Tabs items={['OneBot V11', 'Milky', 'QQ 官方', 'OneBot V12']}>
+  <Tab value="OneBot V11">
+
+默认适配器。需要运行中的 OneBot V11 实现（如 NapCat、Lagrange 或 LLOneBot）通过 WebSocket 或 HTTP 连接到 NoneBot。
+
+`.env` 配置：
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+  </Tab>
+  <Tab value="Milky">
+
+较新的 QQ 适配器。设置 `LINGCHUAdapter = "~milky"` 并安装 Milky 适配器。
+
+`.env` 配置：
+
+```dotenv
+LINGCHUAdapter=~milky
+```
+
+  </Tab>
+  <Tab value="QQ 官方">
+
+QQ 官方机器人适配器。设置 `LINGCHUAdapter = "~qq"` 并安装 QQ 适配器。
+
+<Callout type="warn" title="API 支持有限">
+
+QQ 官方适配器的 API 接口与 OneBot V11 不同。部分群管理命令可能不可用或行为不同。
+
+</Callout>
+
+  </Tab>
+  <Tab value="OneBot V12">
+
+OneBot V12 标准适配器。设置 `LINGCHUAdapter = "~onebot.v12"` 并确保 OneBot V12 实现正在运行。
+
+  </Tab>
+</Tabs>
+
+## 错误处理
+
+适配器注册表在配置无效时抛出特定异常：
+
+| 异常 | 原因 |
+| --- | --- |
+| `PlatformAdapterConflictError` | 为同一平台显式配置了多个已知适配器 |
+| `PlatformAdapterNotLoadedError` | 选中的适配器未被 NoneBot 加载或注册 |
+
+<Callout type="warn" title="启动失败">
+
+在 `LINGCHUAdapter` 中显式声明 Lingchu 未实现或无法识别的适配器会导致启动失败。运行时额外出现的未知适配器会被忽略。
+
+</Callout>
+
+## 未知适配器
+
+不属于任何平台 profile 的适配器不被视为已启用。消息存储仍会接受其事件，但会将 `platform` 字段写入 `unknown`。这为下游展示提供了稳定的 Unknown 分桶，而非将原始适配器名称视为平台 ID。
+
+## 添加新的平台 profile
+
+要添加对新平台（如 Telegram 或 Discord）的支持：
+
+1. 在 `platforms/` 中创建新的平台 profile 类，声明平台名称、已知适配器和默认适配器。
+2. 在 `platforms/registry.py` 中注册 profile。
+3. 将对应的适配器依赖添加到 `pyproject.toml`。
+4. 更新适配器选择文档。
+
+<Callout title="贡献">
+
+欢迎平台 profile 贡献。请先提交 issue 讨论范围和 API 差异，然后再提交 PR。
+
+</Callout>

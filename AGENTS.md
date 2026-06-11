@@ -105,28 +105,7 @@ Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains a Py
 
 ## Project Structure
 
-```
-lingchu-bot/
-├── src/plugins/nonebot_plugin_lingchu_bot/   # Core NoneBot plugin
-│   ├── core/           # Config, platform info
-│   ├── database/       # JSON5 store, ORM CRUD helpers
-│   ├── handle/         # Command handlers (mute, group settings/actions, etc.)
-│   ├── i18n/           # Babel/gettext translations
-│   └── utils/          # General command tools
-├── apps/docs/          # Fumadocs documentation site
-│   ├── content/docs/   # MDX content (en + zh)
-│   ├── src/
-│   │   ├── app/        # Next.js App Router pages & routes
-│   │   ├── components/ # React components (graph-view, mdx, mermaid)
-│   │   ├── lib/        # Shared logic (source, rss, build-graph, layout)
-│   │   └── __tests__/  # Vitest unit tests
-│   └── source.config.ts # Fumadocs MDX config
-├── packages/           # Shared frontend packages
-├── Dockerfile          # Container runner generation via nb-cli
-├── pyproject.toml      # Python project config
-├── package.json        # Monorepo root (pnpm + Turborepo)
-└── Taskfile.yml        # Task runner for CI/local commands
-```
+> See the [Project Directory Tree](#project-directory-tree) section below for the complete annotated tree with file-level descriptions.
 
 ## Development Commands
 
@@ -220,6 +199,7 @@ task ci                                          # check + test + build
 
 These rules are injected as context for every conversation. Treat them as hard constraints.
 
+- **Always check git workspace status before committing** — before any commit, run `git status` and `git diff` to verify all necessary changes are tracked, no unintended files are staged, and the working tree is clean. Never commit blindly.
 - **No commits or pushes without explicit user instruction** — never auto-commit, auto-push, or assume the user wants a commit after finishing a task. Wait for the user to say so.
 - **Write persistent preferences into AGENTS.md** — memory files and session context are ephemeral; AGENTS.md is the single source of truth for project-level rules and user preferences. When the user says "remember this" or expresses a preference, add it here.
 - **Prefer granular checks over full `task check`** — use the Quick Reference table above to run only the checks relevant to what changed. Full `task check && task test` is for pre-commit verification, not for every intermediate step.
@@ -368,6 +348,598 @@ When removing functions/helpers:
 ### Mock Object Patterns for Adapter Models
 
 - OneBot V11 returns `dict` → mock with `return_value={}`
+
+## Docs Site Component Catalog
+
+Complete inventory of all functional components in `apps/docs/`. Each entry covers purpose, inputs/outputs, tech details, and usage examples.
+
+### 1. React UI Components (`src/components/`)
+
+#### 1.1 `GraphView` — Document Relationship Graph
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `@/components/graph-view.GraphView` |
+| **Purpose** | Renders an interactive force-directed graph of all documentation pages and their cross-references, enabling visual navigation of the doc site structure. |
+| **Tech** | `react-force-graph-2d` + `d3-force` (forceCollide, forceLink, forceManyBody). Client-only via `lazy()` + `useSyncExternalStore` mount detection. Hover highlights neighbors; click navigates via `fumadocs-core/framework` router. |
+| **Props** | `graph: Graph` where `Graph = { nodes: Node[], links: Link[] }`, `Node = { text: string, description?: string, url: string }`, `Link = { source: string, target: string }` |
+| **Output** | Renders a `<canvas>` element (600px height) with SVG tooltip overlay. No return value. |
+| **Best practice** | Call `buildGraph()` server-side and pass the result as props. Graph data is static at build time. |
+| **Limitations** | Client-only rendering — SSR will skip the graph. Requires `react-force-graph-2d` which bundles d3 (~200KB). |
+
+**Use cases:**
+
+1. **Homepage graph** — Show all docs and their relationships on the landing page:
+
+   ```tsx
+   import { GraphView } from '@/components/graph-view';
+   import { buildGraph } from '@/lib/build-graph';
+   // In server component:
+   const graph = await buildGraph();
+   return <GraphView graph={graph} />;
+   ```
+
+2. **Filtered subgraph** — Pass only nodes matching a tag or section to show a focused view.
+3. **Debug linking** — Use the graph to visually verify that all pages are reachable and cross-linked.
+
+---
+
+#### 1.2 `LLMBadge` — AI-Friendly Docs Indicator
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `@/components/llm-badge.LLMBadge` |
+| **Purpose** | A small icon button that links to `/llms.txt`, signaling that the documentation is available in an LLM-friendly text format. |
+| **Tech** | `lucide-react` Bot icon, `fumadocs-ui` button variants, `next/link`. |
+| **Props** | `locale?: string` — `'zh'` shows Chinese tooltip, any other value shows English. |
+| **Output** | Renders a ghost-variant icon `<Link>` pointing to `/llms.txt`. |
+
+**Use cases:**
+
+1. **Navbar badge** — Add to the docs layout nav bar to indicate LLM-friendly docs availability.
+2. **Footer link** — Place in the page footer as a discoverable link.
+3. **Custom locale** — Pass `locale="zh"` for Chinese-language tooltip text.
+
+---
+
+#### 1.3 `Provider` — App-Wide Context Provider
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `@/components/provider.Provider` |
+| **Purpose** | Wraps the app with Fumadocs `RootProvider`, configuring i18n locale switching and the search dialog. |
+| **Tech** | `fumadocs-ui/provider/next.RootProvider`, `fumadocs-ui/i18n.i18nProvider`, custom `switchLocale()` path manipulation. Client component. |
+| **Props** | `children: ReactNode` |
+| **Output** | Provides i18n context + search dialog context to children. |
+| **Key behavior** | `switchLocale()` handles 3 cases: default→other (prepend segment), other→default (remove segment), other→other (replace segment). |
+
+**Use cases:**
+
+1. **Root layout** — Wrap `{children}` in `src/app/layout.tsx` with `<Provider>`.
+2. **Custom locale logic** — Extend `switchLocale()` for additional locale routing patterns.
+3. **Custom search** — Replace `SearchDialog` import to use a different search implementation.
+
+---
+
+#### 1.4 `DefaultSearchDialog` — Full-Text Search
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `@/components/search.default` (default export) |
+| **Purpose** | Provides a client-side full-text search dialog using FlexSearch static index, with i18n-aware locale filtering. |
+| **Tech** | `fumadocs-core/search/client.useDocsSearch` + `flexsearchStaticClient`, `fumadocs-ui/components/dialog/search.*`. |
+| **Props** | `SharedProps` from fumadocs (open/close state). |
+| **Output** | Renders a modal search dialog with overlay, input, result list, and footer. |
+
+**Use cases:**
+
+1. **Default search** — Passed to `RootProvider` via `search={{ SearchDialog }}` prop.
+2. **Standalone search** — Import and render directly in a custom layout.
+3. **Locale-aware** — Automatically filters results by current locale via `useI18n()`.
+
+---
+
+### 2. MDX Components (`src/components/mdx.tsx`)
+
+These components are registered in `getMDXComponents()` and available in all `.mdx` files without import.
+
+#### 2.1 `Accordion` / `Accordions` — Collapsible Sections
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `fumadocs-ui/components/accordion.Accordion`, `Accordions` |
+| **Purpose** | Collapsible FAQ-style sections. `Accordions` wraps multiple `Accordion` items with single/multi expand mode. |
+| **Props (Accordions)** | `type: "single" | "multiple"` — single allows only one open at a time. |
+| **Props (Accordion)** | `title: string` — header text. Children are the collapsible content. |
+| **MDX usage** | `<Accordions type="single"><Accordion title="Q1">Answer</Accordion></Accordions>` |
+| **Limitation** | Children must be plain text or inline JSX — Markdown list syntax (`- item`) inside `<Accordion>` causes MDX parse errors. Use prose text instead. |
+
+**Use cases:**
+
+1. **FAQ page** — Wrap Q&A pairs in Accordions for expandable troubleshooting.
+2. **Detailed explanations** — Collapse verbose content under a summary title.
+3. **Version-specific notes** — Show different instructions per version in separate accordions.
+
+---
+
+#### 2.2 `AutoTypeTable` — Auto-Generated Type Table
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `fumadocs-typescript/ui.AutoTypeTable` |
+| **Purpose** | Generates a typed property table from TypeScript type definitions in the project, eliminating manual table maintenance. |
+| **Tech** | Uses `fumadocs-typescript` generator with file-system cache (`.next/fumadocs-typescript`). |
+| **Props** | `Partial<AutoTypeTableProps>` — typically `path: string` pointing to a TypeScript source file. |
+| **MDX usage** | `<AutoTypeTable path="./my-types.ts" />` |
+| **Limitation** | Requires the TypeScript file to exist at build time. Only works with exported types. |
+
+**Use cases:**
+
+1. **Config reference** — Auto-generate a config options table from the actual TypeScript config interface.
+2. **API params** — Document request/response types directly from source.
+3. **Component props** — Show prop tables for React components.
+
+---
+
+#### 2.3 `TypeTable` — Manual Type Table
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `fumadocs-ui/components/type-table.TypeTable` |
+| **Purpose** | Manually define a typed property table with full control over each entry's type, default, and description. |
+| **Props** | `type: Record<string, { type: string, default?: string, description: string, required?: boolean }>` |
+| **MDX usage** | See `configuration.mdx` for a working example. |
+| **Best practice** | Use when the type source is not a TypeScript file (e.g., Python config, environment variables). |
+
+**Use cases:**
+
+1. **Environment variables** — Document `.env` variables with types and defaults.
+2. **Python config** — Map Python config fields to a structured table.
+3. **Hybrid docs** — Mix auto-generated and manual type tables in the same page.
+
+---
+
+#### 2.4 `Tabs` / `Tab` — Tabbed Content
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `fumadocs-ui/components/tabs.Tabs`, `Tab` |
+| **Purpose** | Show mutually exclusive content panels, ideal for platform-specific or adapter-specific instructions. |
+| **Props (Tabs)** | `items: string[]` — tab labels. |
+| **Props (Tab)** | `value: string` — must match an item from `items`. |
+| **MDX usage** | `<Tabs items={['OneBot V11', 'Milky']}><Tab value="OneBot V11">...</Tab><Tab value="Milky">...</Tab></Tabs>` |
+
+**Use cases:**
+
+1. **Adapter guide** — Show per-adapter configuration in separate tabs.
+2. **OS-specific setup** — Linux/macOS/Windows installation steps.
+3. **Runtime mode** — Plugin directory vs Docker deployment instructions.
+
+---
+
+#### 2.5 `Steps` / `Step` — Sequential Steps
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `fumadocs-ui/components/steps.Steps`, `Step` |
+| **Purpose** | Render numbered sequential steps with automatic numbering and visual progress. |
+| **Props** | No required props. Each `<Step>` wraps one step's content (typically a heading + body). |
+| **MDX usage** | `<Steps><Step>### Step 1\nContent</Step><Step>### Step 2\nContent</Step></Steps>` |
+
+**Use cases:**
+
+1. **Quick start** — Installation and setup steps.
+2. **Deployment** — Step-by-step deployment procedure.
+3. **Migration** — Version upgrade migration steps.
+
+---
+
+#### 2.6 `Files` / `Folder` / `File` — Directory Tree
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `fumadocs-ui/components/files.Files`, `Folder`, `File` |
+| **Purpose** | Visualize a project directory tree with collapsible folders. |
+| **Props (Folder)** | `name: string`, `defaultOpen?: boolean` |
+| **Props (File)** | `name: string` |
+| **MDX usage** | `<Files><Folder name="src" defaultOpen><File name="index.ts" /></Folder></Files>` |
+
+**Use cases:**
+
+1. **Project structure** — Show the source code layout in developer guide.
+2. **Config file location** — Highlight where config files live.
+3. **New contributor onboarding** — Visual map of the codebase.
+
+---
+
+#### 2.7 `InlineTOC` — Inline Table of Contents
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `fumadocs-ui/components/inline-toc.InlineTOC` |
+| **Purpose** | Render an inline (non-sidebar) table of contents within the page content. |
+| **Props** | Not yet used in current docs. Available for future pages that need in-content navigation. |
+
+---
+
+#### 2.8 `Mermaid` — Diagram Rendering
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `@/components/mdx/mermaid.Mermaid` |
+| **Purpose** | Render Mermaid diagrams (flowcharts, sequence diagrams, etc.) inside MDX content. |
+| **Tech** | Lazy-loads `mermaid` library, renders to SVG, sanitizes with DOMPurify (`securityLevel: 'strict'`). Supports light/dark theme via `next-themes`. Client-only. |
+| **Props** | `chart: string` — Mermaid diagram syntax. |
+| **MDX usage** | Code fence with `mermaid` language: <code>```mermaid\ngraph TD; A-->B;\n```</code> |
+| **Security** | SVG output is sanitized via DOMPurify with `USE_PROFILES: { svg: true, svgFilters: true }`. `htmlLabels: false` prevents inline HTML in labels. |
+| **Helper module** | `mermaid-utils.ts` exports `getMermaidConfig()`, `sanitizeMermaidSvg()`, `renderMermaidSvg()`. |
+
+**Use cases:**
+
+1. **Architecture diagram** — Show system component relationships.
+2. **Flow chart** — Visualize decision trees or process flows.
+3. **Sequence diagram** — Illustrate API call sequences between bot and platform.
+
+---
+
+#### 2.9 `ImageZoom` — Clickable Image Zoom
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `fumadocs-ui/components/image-zoom.ImageZoom` |
+| **Purpose** | Wraps all `<img>` tags to enable click-to-zoom functionality. |
+| **Tech** | Applied globally via `mdx.tsx` — replaces the default `img` renderer. |
+| **No explicit usage needed** — all images in MDX automatically get zoom behavior. |
+
+---
+
+#### 2.10 Twoslash — TypeScript Code Hover
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `fumadocs-twoslash/ui.*` |
+| **Purpose** | Adds hover-to-inspect and inline error tooltips to TypeScript code blocks. |
+| **Tech** | `fumadocs-twoslash` + `twoslash`. Registered via `...Twoslash` spread in `getMDXComponents()`. |
+| **MDX usage** | Code fence with `twoslash` meta: <code>```ts twoslash\nconst x: string = 1;\n```</code> |
+
+---
+
+### 3. Library Modules (`src/lib/`)
+
+#### 3.1 `source.ts` — Content Source API
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `@/lib/source` |
+| **Purpose** | Creates the Fumadocs content source loader, providing page tree, search index, and page metadata. |
+| **Key exports** | `source` (loader instance), `getPageImage()`, `getPageMarkdownUrl()`, `getLLMText()` |
+| **Dependencies** | `collections/server` (generated by `fumadocs-mdx`), `./i18n`, `./shared` |
+| **Tech** | `fumadocs-core/source.loader` with `lucideIconsPlugin()` for icon resolution in page tree. |
+
+**Use cases:**
+
+1. **Page enumeration** — `source.getPages()` returns all pages; `source.getPages('zh')` filters by locale.
+2. **OG image URL** — `getPageImage(page)` returns the OG image route segments.
+3. **LLM text** — `getLLMText(page)` returns markdown-formatted page content for `/llms.txt` routes.
+
+---
+
+#### 3.2 `build-graph.ts` — Document Relationship Graph Builder
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `@/lib/build-graph.buildGraph` |
+| **Purpose** | Builds the force-graph data (nodes + links) from the page tree and extracted cross-references. |
+| **Input** | None (reads from `source` singleton). |
+| **Output** | `Promise<Graph>` — `{ nodes: Node[], links: Link[] }` where each node has `id`, `url`, `text`, `description`. |
+| **Dependencies** | `@/lib/source`, `@/components/graph-view` (types), `fumadocs-mdx` (ExtractedReference type). |
+| **How it works** | Iterates all pages, creates a node per page, then reads `extractedReferences` from MDX post-processing to create links between pages. |
+
+**Use cases:**
+
+1. **Homepage graph** — `const graph = await buildGraph(); <GraphView graph={graph} />`
+2. **Link validation** — Check for orphan nodes (pages with no links).
+3. **Sitemap generation** — Use node URLs as sitemap entries.
+
+---
+
+#### 3.3 `rss.ts` — RSS Feed Generator
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `@/lib/rss.getRSS` |
+| **Purpose** | Generates an RSS 2.0 XML feed from the documentation page tree. |
+| **Input** | `locale?: string` (default `'en'`) |
+| **Output** | `Promise<string>` — RSS 2.0 XML string |
+| **Dependencies** | `feed` package, `@/lib/source`, `@/lib/shared` |
+
+**Use cases:**
+
+1. **RSS route** — Used in `src/app/rss.xml/route.ts` and `src/app/zh/rss.xml/route.ts`.
+2. **Feed preview** — Generate and inspect feed content during development.
+3. **Multi-locale** — Call with `locale='zh'` for Chinese feed.
+
+---
+
+#### 3.4 `i18n.ts` — Internationalization Config
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `@/lib/i18n.i18n` |
+| **Purpose** | Defines the i18n configuration: supported languages, default locale, and URL behavior. |
+| **Config** | `defaultLanguage: "en"`, `languages: ["en", "zh"]`, `hideLocale: "default-locale"` (English URLs omit `/en/` prefix). |
+| **Convention** | English: `content/docs/foo.mdx`, Chinese: `content/docs/foo.zh.mdx`. Meta: `meta.json` / `meta.zh.json`. |
+
+---
+
+#### 3.5 `shared.ts` — Shared Constants
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `@/lib/shared` |
+| **Exports** | `appName: 'Lingchu Bot'`, `docsRoute: '/docs'`, `docsImageRoute: '/og/docs'`, `docsContentRoute: '/llms.mdx/docs'`, `gitConfig: { user, repo, branch }` |
+
+---
+
+#### 3.6 `layout.shared.tsx` — Layout Configuration
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `@/lib/layout.shared` |
+| **Key exports** | `translations` (i18n UI translations), `baseOptions(locale?)` (nav title, links, GitHub URL) |
+| **Dependencies** | `fumadocs-ui/layouts/shared`, `fumadocs-ui/i18n`, `@fumadocs/language/zh-cn`, `./i18n`, `./shared` |
+
+---
+
+#### 3.7 `cn.ts` — Class Name Utility
+
+| Field | Detail |
+|-------|--------|
+| **Full name** | `@/lib/cn.cn` |
+| **Purpose** | Re-exports `tailwind-merge`'s `twMerge` as `cn` for conditional class merging. |
+| **Usage** | `className={cn('base-class', condition && 'conditional-class')}` |
+
+---
+
+### 4. Route Handlers (`src/app/`)
+
+| Route | File | Purpose |
+|-------|------|---------|
+| `/api/search` | `api/search/route.ts` | FlexSearch static index API endpoint |
+| `/docs/[[...slug]]` | `docs/[[...slug]]/page.tsx` | Dynamic docs page renderer (en) |
+| `/zh/docs/[[...slug]]` | `zh/docs/[[...slug]]/page.tsx` | Dynamic docs page renderer (zh) |
+| `/og/docs/[...slug]` | `og/docs/[...slug]/route.tsx` | OG image generation per page |
+| `/llms.txt` | `llms.txt/route.ts` | LLM-friendly concise text index |
+| `/llms-full.txt` | `llms-full.txt/route.ts` | LLM-friendly full content |
+| `/llms.mdx/docs/[[...slug]]` | `llms.mdx/docs/[[...slug]]/route.ts` | Per-page markdown content for LLMs |
+| `/rss.xml` | `rss.xml/route.ts` | RSS feed (en) |
+| `/zh/rss.xml` | `zh/rss.xml/route.ts` | RSS feed (zh) |
+| `/export/epub` | `export/epub/route.ts` | EPUB export (en) |
+| `/zh/export/epub` | `zh/export/epub/route.ts` | EPUB export (zh) |
+
+---
+
+### 5. Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `source.config.ts` | Fumadocs MDX config: remark plugins (AutoTypeTable, MdxFiles, Mermaid), rehype code options (Twoslash, themes), last-modified plugin |
+| `next.config.mjs` | Next.js config with Fumadocs static export settings |
+| `vitest.config.ts` | Vitest config: jsdom environment, CSS ignore, path aliases |
+| `eslint.config.mjs` | ESLint flat config with Next.js rules |
+| `postcss.config.mjs` | PostCSS with `@tailwindcss/postcss` |
+
+## Project Directory Tree
+
+```
+lingchu-bot/
+├── .agents/                          # Trae/Codex skill definitions
+│   └── skills/
+│       ├── available-skills/         # Skill routing index
+│       ├── gitnexus/                 # GitNexus skills (exploring, debugging, impact, refactoring, CLI, guide)
+│       ├── hf-cli/                   # Hugging Face Hub CLI skill
+│       ├── prek/                     # Prek (Rust pre-commit alternative) skill
+│       └── react-doctor/             # React codebase health scanner
+├── .claude/                          # Claude Code skill definitions (subset of .agents/)
+│   └── skills/
+├── .github/
+│   └── note/AGENTS-zh.md            # Chinese translation of AGENTS.md
+├── .husky/                           # Git hooks (pre-commit, commit-msg, prepare-commit-msg)
+├── .trae/rules/                      # Trae IDE always-applied rules
+│   └── git-commit-message.md         # Gitmoji + Conventional Commits spec
+├── src/
+│   └── plugins/nonebot_plugin_lingchu_bot/   # Core Python plugin
+│       ├── __init__.py               # Plugin entry point, matcher registration
+│       ├── core/
+│       │   ├── config.py             # Plugin config model (Pydantic)
+│       │   ├── runtime_config.py     # Runtime configuration helpers
+│       │   └── sub_plugins.py        # Sub-plugin loader
+│       ├── database/
+│       │   ├── json5_store.py        # JSON5-based key-value store
+│       │   ├── message_storage.py    # Message persistence service
+│       │   ├── models.py             # ORM models (aiosqlite)
+│       │   └── orm_crud.py           # Async CRUD helpers
+│       ├── handle/
+│       │   └── commands/
+│       │       └── group/            # Group management commands
+│       │           ├── __init__.py   # Command registration
+│       │           ├── announcement.py  # Group announcements
+│       │           ├── common.py     # Shared command utilities
+│       │           ├── lifecycle.py  # Group lifecycle events
+│       │           ├── member.py     # Member management
+│       │           ├── profile.py    # Group profile settings
+│       │           └── milky/        # Milky adapter-specific implementations
+│       ├── i18n/                     # Babel/gettext translations (en, zh)
+│       └── utils/                    # General command tools
+├── apps/
+│   └── docs/                         # Fumadocs documentation site
+│       ├── content/docs/             # MDX content
+│       │   ├── index.mdx             # Docs landing page (en)
+│       │   ├── index.zh.mdx          # Docs landing page (zh)
+│       │   ├── meta.json             # Navigation config (en)
+│       │   ├── meta.zh.json          # Navigation config (zh)
+│       │   ├── project-policy.mdx    # Contribution/security/license policy
+│       │   ├── user-guide/           # User-facing documentation
+│       │   │   ├── overview.mdx      # Bot overview & capabilities
+│       │   │   ├── quick-start.mdx   # Installation & first run
+│       │   │   ├── commands.mdx      # Command reference
+│       │   │   ├── configuration.mdx # Configuration options
+│       │   │   └── troubleshooting.mdx # Common issues & solutions
+│       │   └── developer-guide/      # Developer documentation
+│       │       ├── introduction.mdx  # Project structure & architecture
+│       │       ├── adapter-guide.mdx # Adapter selection & configuration
+│       │       ├── message-store.mdx # Message storage service
+│       │       ├── workflow.mdx      # Development workflow
+│       │       ├── commit-style.mdx  # Commit conventions
+│       │       ├── i18n.mdx          # Internationalization guide
+│       │       ├── testing-ci.mdx    # Testing & CI pipeline
+│       │       └── gitnexus.mdx      # GitNexus code intelligence
+│       ├── src/
+│       │   ├── app/                  # Next.js App Router
+│       │   │   ├── layout.tsx        # Root layout (en)
+│       │   │   ├── docs/             # Docs pages & layout
+│       │   │   ├── zh/               # Chinese locale pages
+│       │   │   ├── api/search/       # Search index API
+│       │   │   ├── og/               # OG image generation
+│       │   │   ├── llms.txt/         # LLM-friendly text routes
+│       │   │   ├── rss.xml/          # RSS feed routes
+│       │   │   └── export/epub/      # EPUB export routes
+│       │   ├── components/           # React components
+│       │   │   ├── mdx.tsx           # MDX component registry
+│       │   │   ├── graph-view.tsx    # Document relationship graph
+│       │   │   ├── llm-badge.tsx     # AI-friendly docs badge
+│       │   │   ├── provider.tsx      # App-wide context provider
+│       │   │   ├── search.tsx        # Full-text search dialog
+│       │   │   └── mdx/mermaid.tsx   # Mermaid diagram renderer
+│       │   ├── lib/                  # Shared logic
+│       │   │   ├── source.ts         # Content source API
+│       │   │   ├── build-graph.ts    # Graph data builder
+│       │   │   ├── rss.ts            # RSS feed generator
+│       │   │   ├── i18n.ts           # i18n configuration
+│       │   │   ├── shared.ts         # Shared constants
+│       │   │   ├── layout.shared.tsx # Layout configuration
+│       │   │   └── cn.ts             # Class name utility
+│       │   └── __tests__/            # Vitest test files (12 files, 60 tests)
+│       ├── source.config.ts          # Fumadocs MDX pipeline config
+│       ├── next.config.mjs           # Next.js config
+│       ├── vitest.config.ts          # Test config
+│       └── eslint.config.mjs         # Lint config
+├── packages/
+│   ├── eslint-config/                # Shared ESLint configs (base, next, react-internal)
+│   ├── typescript-config/            # Shared TS configs (base, nextjs, react-library)
+│   └── ui/                           # Shared UI components (button, card, code)
+├── tests/                            # Python test suite
+├── Dockerfile                        # Container runner (nb-cli generated)
+├── pyproject.toml                    # Python project config (uv, ruff, pyright, pytest)
+├── package.json                      # Monorepo root (pnpm + Turborepo)
+├── Taskfile.yml                      # Task runner for CI/local commands
+└── AGENTS.md                         # This file — project context for AI agents
+```
+
+## Core Module Dependencies
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                        apps/docs                                  │
+│                                                                   │
+│  layout.tsx ──► provider.tsx ──► RootProvider (fumadocs)         │
+│       │                           ├── i18n context                │
+│       │                           └── search.tsx (FlexSearch)    │
+│       │                                                          │
+│       ├──► layout.shared.tsx ──► i18n.ts, shared.ts             │
+│       │                                                          │
+│       └──► docs/[[...slug]]/page.tsx ──► source.ts              │
+│                                              ├── build-graph.ts  │
+│                                              │     └── graph-view.tsx │
+│                                              ├── rss.ts          │
+│                                              └── shared.ts       │
+│                                                                   │
+│  mdx.tsx ──► Accordion, Tabs, Steps, Files, TypeTable,          │
+│              AutoTypeTable, Mermaid, Twoslash, ImageZoom         │
+│              └── mermaid.tsx ──► mermaid-utils.ts (DOMPurify)   │
+│                                                                   │
+│  Route handlers:                                                  │
+│    /og/*     ──► source.ts (getPageImage)                        │
+│    /llms*    ──► source.ts (getLLMText)                          │
+│    /rss.xml  ──► rss.ts ──► source.ts                            │
+│    /export   ──► fumadocs-epub ──► source.ts                     │
+│    /api/search ──► FlexSearch static index                       │
+└──────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────┐
+│              Python Plugin (nonebot_plugin_lingchu_bot)           │
+│                                                                   │
+│  __init__.py ──► core/config.py ──► Pydantic settings            │
+│              ──► core/sub_plugins.py ──► handle/commands/*       │
+│              ──► database/orm_crud.py ──► models.py (aiosqlite)  │
+│              ──► database/json5_store.py ──► JSON5 KV store      │
+│              ──► database/message_storage.py ──► message hooks   │
+│              ──► i18n/ ──► Babel gettext catalogs                │
+│                                                                   │
+│  handle/commands/group/                                           │
+│    ├── common.py ──► utils/ (shared command tools)               │
+│    ├── member.py ──► orm_crud, adapter API                       │
+│    ├── announcement.py ──► adapter API                            │
+│    ├── lifecycle.py ──► adapter API, json5_store                 │
+│    ├── profile.py ──► adapter API, json5_store                   │
+│    └── milky/ ──► Milky-adapter-specific overrides               │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+## Quick Start Guide
+
+### Environment Setup
+
+1. **Prerequisites**: Python 3.13+, Node.js 22+, pnpm 11+, uv (Python package manager)
+2. **Clone**: `git clone https://github.com/xinvxueyuan/lingchu-bot.git && cd lingchu-bot`
+3. **Install Python deps**: `uv sync --frozen`
+4. **Install Node deps**: `pnpm install`
+5. **Verify**: `task check && task test`
+
+### Common Commands
+
+| Task | Command |
+|------|---------|
+| Dev server (docs) | `pnpm --filter docs dev` |
+| Build docs | `pnpm turbo run build --filter=docs` |
+| Test docs | `pnpm --filter docs test` |
+| Lint docs | `pnpm --filter docs lint` |
+| Type check docs | `pnpm turbo run check-types --filter=docs` |
+| Test Python | `uv run -m pytest` |
+| Lint Python | `uv run -m ruff check .` |
+| Full check (all) | `task check && task test` |
+| i18n extract | `task i18n` |
+
+### Development Flow
+
+1. Create a feature branch from `dev`
+2. Make changes (Python, docs, or both)
+3. Run relevant checks from the "Quick Reference" table above
+4. Commit with gitmoji + conventional commit format
+5. Push and create PR to `dev`
+
+### Contribution Rules
+
+- Follow commit convention: `✨ feat:`, `🐛 fix:`, `📝 docs:`, etc.
+- Sync en/zh documentation for any doc changes
+- Run `task check && task test` before requesting review
+- Update `AGENTS.md` (and `AGENTS-zh.md`) when project structure or conventions change
+
+### Documentation Update Mechanism
+
+When the project structure, components, or conventions change:
+
+1. **AGENTS.md** — Update the Project Directory Tree, Component Catalog, and Lessons Learned sections
+2. **AGENTS-zh.md** — Sync the same structural changes to the Chinese version
+3. **CLAUDE.md** — Propagate identical structural changes
+4. **MDX docs** — Update `content/docs/` pages if user-facing behavior changes
+5. **meta.json** — Add new doc pages to the navigation config
+6. **i18n** — Run `task i18n` if Python user-facing strings change
+
+> **Rule**: Any PR that modifies project structure, adds/removes components, or changes conventions MUST update AGENTS.md as part of the PR.
+
+### Mock Object Patterns for Adapter Models (continued)
+
 - Milky returns pydantic `Model` objects → mock with `MagicMock(card="", nickname="")` so attribute access works
 - Never use `dict` as mock return value for APIs that return Model objects — attribute access (`obj.card`) will raise `AttributeError`
 

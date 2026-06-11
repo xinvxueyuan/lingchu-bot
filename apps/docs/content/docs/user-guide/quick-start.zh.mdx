@@ -5,48 +5,91 @@ title: 快速开始
 
 ## 快速开始
 
-本页说明如何在本地准备 Lingchu Bot。实际连接平台前，请先准备好 NoneBot 和当前启用适配器所需的账号、网络和配置。QQ 平台默认启用 OneBot V11；如需 Milky，请在配置中显式指定。
+本页说明如何在本地准备 Lingchu Bot。在连接到真实平台之前，请准备好 NoneBot 和已启用适配器所需的账号、网络和配置。QQ 平台默认启用 OneBot V11；如需 Milky 请显式配置。
 
 ## 环境要求
 
 - Python 3.13
 - uv
 - git
-- 当前启用的 QQ 平台适配器可用的运行环境；默认是 OneBot V11
+- 已启用 QQ 适配器可用的运行环境；默认为 OneBot V11
 
-## 获取代码
+## 安装步骤
+
+<Steps>
+<Step>
+
+### 获取代码
 
 ```bash
 git clone https://github.com/xinvxueyuan/lingchu-bot.git
 cd lingchu-bot
 ```
 
-## 安装依赖
+</Step>
+<Step>
+
+### 安装依赖
 
 ```bash
 uv sync --frozen
 ```
 
-## 启动
+</Step>
+<Step>
 
-当前工作树没有提交根目录 `bot.py`。Lingchu Bot 以 NoneBot 插件包为主，`pyproject.toml` 的 `[tool.nonebot]` 已声明 `plugin_dirs = ["src/plugins"]`。
+### 选择运行方式
 
-你可以把本仓库作为本地插件目录加载到已有 NoneBot 项目中，或使用仓库提供的 Docker 构建流程运行。Docker 镜像构建阶段会通过 `nb-cli` 生成运行用 `/tmp/bot.py`。
+<Tabs items={['插件目录', 'Docker']}>
+  <Tab value="插件目录">
+
+将本仓库作为本地插件目录加载到已有的 NoneBot 项目中。确保目标 NoneBot 项目加载了 `src/plugins`：
+
+```toml
+# 在 NoneBot 项目的 pyproject.toml 中
+[tool.nonebot]
+plugin_dirs = ["path/to/lingchu-bot/src/plugins"]
+```
+
+  </Tab>
+  <Tab value="Docker">
+
+仓库提供了 Docker 构建流程。Docker 镜像在构建阶段通过 `nb-cli` 生成运行用 `/tmp/bot.py`：
 
 ```bash
 docker compose up --build
 ```
 
-## 运行前检查
+  </Tab>
+</Tabs>
+
+</Step>
+</Steps>
+
+## 启动前检查
 
 - 确认 Python 版本为 3.13。
-- 确认当前启用适配器的服务和连接配置已经准备好。
-- 如果运行时会同时注册多个 QQ 适配器，Lingchu Bot 只会启用 `LINGCHUAdapter` 选中的业务代码；请确认选中的适配器也已经由 NoneBot 加载。
-- 确认目标 NoneBot 项目已加载 `src/plugins`，或正在使用仓库 Docker runner。
-- 确认 NoneBot 配置中的布尔值使用小写 `true` / `false`，不要写成 `True` / `False`。
+- 确认已启用适配器的服务和连接设置已就绪。
+- 如果运行时注册了多个 QQ 适配器，Lingchu Bot 只启用 `LINGCHUAdapter` 选择的业务代码；请确保选中的适配器也已被 NoneBot 加载。
+- 确认目标 NoneBot 项目加载了 `src/plugins`，或者你正在使用仓库的 Docker 运行方式。
+- 确认 NoneBot 配置中的布尔值使用小写 `true` / `false`，而非 `True` / `False`。
+
+<Callout type="warn" title="布尔值格式">
+
+NoneBot 配置文件只接受标准 JSON 小写 `true` / `false`。使用 `True` / `False` 会在启动时抛出配置错误。
+
+</Callout>
 
 ## 下一步
 
-- 查看 [命令与群管理](commands) 了解当前命令。
-- 查看 [配置](configuration) 了解项目配置项。
-- 遇到启动问题时查看 [故障排除](troubleshooting)。
+<Cards>
+  <Card href="/docs/user-guide/commands" title="命令">
+    当前群管理命令和别名
+  </Card>
+  <Card href="/docs/user-guide/configuration" title="配置">
+    运行时设置、适配器选择和路径配置
+  </Card>
+  <Card href="/docs/user-guide/troubleshooting" title="故障排除">
+    常见启动和群管理问题
+  </Card>
+</Cards>
