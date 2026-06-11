@@ -1,4 +1,12 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { appName } from '@/lib/shared';
+
+export const metadata: Metadata = {
+  title: appName,
+  description:
+    'Documentation for the Lingchu Bot application-side management bot, including user guides, development workflow, internationalization, testing, and GitNexus practices.',
+};
 
 export default function HomePage() {
   return (

@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2345 symbols, 4701 relationships, 197 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2351 symbols, 4709 relationships, 197 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -408,3 +408,21 @@ Before manually running checks or fixing issues, check if a skill already handle
 - **GitHub workflows** → use **GitHub** skills for PR/issue/CI operations
 
 Rule of thumb: **when a CI check fails or you need to do something repetitive, first check `.agents/skills/` and `.claude/skills/` for an existing skill that automates it.**
+
+### React Doctor Integration
+
+- **CLI auto-generated files need manual customization**: `npx react-doctor@latest install` creates a GitHub Actions workflow and npm script, but they won't match project conventions. After running the CLI, always customize: emoji workflow name, pinned action SHAs, path filters for trigger, `project` scoping for monorepos, and `blocking` level.
+- **`doctor.config.ts` should document rule overrides**: When setting rules to `warn`/`off`, add a comment explaining why (e.g., fumadocs-generated exports that are framework-required but flagged as unused). This prevents future contributors from blindly re-enabling them.
+- **SVG elements must use `createElementNS`**: Even in test code, `document.createElement('svg')` is incorrect — use `document.createElementNS('http://www.w3.org/2000/svg', 'svg')`. Linters (Edge Tools, hint) flag this, and it affects SVG rendering behavior.
+- **`useMDXComponents` vs `getMDXComponents`**: Fumadocs MDX convention exports `useMDXComponents` for the MDX provider pattern (`providerImportSource` in `source.config.ts`). Even if the project currently passes `getMDXComponents()` explicitly via `components` prop, `useMDXComponents` should be kept as it's the standard fumadocs entry point for automatic MDX component resolution. Suppress `deslop/unused-export` in `doctor.config.ts` for framework-required re-exports.
+
+### Pending Rollbacks
+
+Rule suppressions and temporary workarounds that should be reverted once the triggering condition changes. Review this section periodically (e.g., when updating dependencies or refactoring).
+
+| What | Where | Why suppressed | Rollback condition |
+|------|-------|---------------|-------------------|
+| `deslop/unused-export: "off"` | `doctor.config.ts` | `useMDXComponents` in `mdx.tsx` is a framework-required re-export but currently unused (no `providerImportSource` in `source.config.ts`) | Remove this suppression once `useMDXComponents` is actually consumed (e.g., after adding `providerImportSource` to `source.config.ts` or importing it elsewhere) |
+
+- **Non-component exports break Fast Refresh**: Utility functions (`getMermaidConfig`, `sanitizeMermaidSvg`, `renderMermaidSvg`) exported from a component file (`mermaid.tsx`) trigger `react-doctor/only-export-components`. Extract them to a separate non-component module (e.g., `mermaid-utils.ts`) and import from there. Update test imports accordingly.
+- **`/llms.txt` is a route handler, not a static file**: When linking to Next.js route handlers from components, use `<Link>` (not plain `<a>`) — they're internal routes that benefit from client-side navigation.
