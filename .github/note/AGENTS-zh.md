@@ -411,6 +411,8 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 ### React Doctor 集成
 
 - **CLI 自动生成的文件需要手动定制**：`npx react-doctor@latest install` 会创建 GitHub Actions 工作流和 npm 脚本，但不会匹配项目规范。运行 CLI 后务必定制：emoji 工作流名称、固定 action SHA、触发路径过滤、monorepo 的 `project` 作用域、`blocking` 级别。
+- **避免使用 `millionco/react-doctor@v2` action 直至上游修复发布**：该 action 存在已知 bug——detached HEAD 导致 diff 回退、ANSI 转义码泄漏到 PR 评论（上游 PR #80 待合并）。改用 CLI 直接运行（`npx react-doctor@latest`）并设置 `NO_COLOR=1` 环境变量。上游修复发布后重新评估。
+- **CI 中使用 `--fail-on error` 而非 `warning`**：React Doctor 的 `blocking: warning` 会导致任何 warning 都使 CI 失败（退出码 1）。使用 `--fail-on error` 仅在错误级别阻断；warning 应为信息性提示。pre-commit hook 同理——仅阻断错误。
 - **`doctor.config.ts` 应记录规则覆盖原因**：将规则设为 `warn`/`off` 时，添加注释说明原因（如 fumadocs 生成的导出是框架必需的但被标记为未使用）。这防止后续贡献者盲目重新启用。
 - **SVG 元素必须使用 `createElementNS`**：即使在测试代码中，`document.createElement('svg')` 也是错误的——应使用 `document.createElementNS('http://www.w3.org/2000/svg', 'svg')`。Linter（Edge Tools、hint）会标记此问题，且影响 SVG 渲染行为。
 - **`useMDXComponents` vs `getMDXComponents`**：Fumadocs MDX 约定导出 `useMDXComponents` 用于 MDX provider 模式（`source.config.ts` 中的 `providerImportSource`）。即使项目当前通过 `components` prop 显式传递 `getMDXComponents()`，也应保留 `useMDXComponents`，因为它是 fumadocs 自动 MDX 组件解析的标准入口点。在 `doctor.config.ts` 中抑制 `deslop/unused-export` 以处理框架必需的重导出。
@@ -422,5 +424,7 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 | 内容 | 位置 | 抑制原因 | 回退条件 |
 |------|------|---------|---------|
 | `deslop/unused-export: "off"` | `doctor.config.ts` | `mdx.tsx` 中的 `useMDXComponents` 是框架必需的重导出，但当前未被消费（`source.config.ts` 未配置 `providerImportSource`） | 当 `useMDXComponents` 被实际消费后移除此抑制（如添加 `providerImportSource` 到 `source.config.ts` 或在其他地方导入它） |
+| 使用 CLI 而非 `millionco/react-doctor@v2` action | `.github/workflows/react-doctor.yml` | 上游 action 存在 bug：detached HEAD、ANSI 泄漏到 PR 评论（PR #80 待合并） | 上游修复发布后切换回 action（关注 PR #80） |
+
 - **非组件导出破坏 Fast Refresh**：从组件文件（`mermaid.tsx`）导出工具函数（`getMermaidConfig`、`sanitizeMermaidSvg`、`renderMermaidSvg`）会触发 `react-doctor/only-export-components`。应将它们提取到独立的非组件模块（如 `mermaid-utils.ts`）并从那里导入。同时更新测试导入。
 - **`/llms.txt` 是路由处理器而非静态文件**：从组件链接到 Next.js 路由处理器时，应使用 `<Link>`（而非普通 `<a>`）——它们是内部路由，可受益于客户端导航。
