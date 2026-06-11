@@ -362,8 +362,9 @@ When removing functions/helpers:
 
 ### Markdown Table Alignment (MD060)
 
-- `markdownlint-cli2` v0.22+ enforces MD060 (table column style) which requires pipe alignment. CJK characters make alignment unreliable because character widths vary by renderer.
-- **Fix**: Disabled MD060 globally in `.markdownlint.jsonc` since the project has mixed CJK/Latin content. When adding new tables, use consistent spacing but don't spend time on pixel-perfect alignment.
+- `markdownlint-cli2` v0.22+ enforces MD060 (table column style). The default style `aligned` requires visual pipe alignment, which is unreliable with CJK characters because character display width (2 columns for CJK) differs from character count (1 per CJK char in source).
+- **Fix**: Set MD060 style to `consistent` in `.markdownlint.jsonc` — this only requires that each column's pipes appear at the same character position across all rows, without demanding visual alignment. This works correctly for both pure-ASCII and mixed CJK/Latin tables.
+- **Do not** disable MD060 entirely — `consistent` style still catches real formatting errors (missing pipes, inconsistent column counts) while avoiding false positives from CJK width mismatches.
 
 ## Docs Site Component Catalog
 
