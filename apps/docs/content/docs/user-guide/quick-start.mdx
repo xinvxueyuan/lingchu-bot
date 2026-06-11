@@ -14,28 +14,57 @@ This page explains how to prepare Lingchu Bot locally. Before connecting to a re
 - git
 - A runtime environment usable by the enabled QQ adapter; OneBot V11 is the default
 
-## Get the code
+## Setup steps
+
+<Steps>
+<Step>
+
+### Get the code
 
 ```bash
 git clone https://github.com/xinvxueyuan/lingchu-bot.git
 cd lingchu-bot
 ```
 
-## Install dependencies
+</Step>
+<Step>
+
+### Install dependencies
 
 ```bash
 uv sync --frozen
 ```
 
-## Start
+</Step>
+<Step>
 
-The current working tree does not ship a committed root-level `bot.py`. Lingchu Bot is primarily a NoneBot plugin package, and `[tool.nonebot]` in `pyproject.toml` declares `plugin_dirs = ["src/plugins"]`.
+### Choose a runtime mode
 
-You can load this repository as a local plugin directory from an existing NoneBot project, or run it through the Docker build flow provided by the repository. The Docker image generates the runtime `/tmp/bot.py` with `nb-cli` during build.
+<Tabs items={['Plugin directory', 'Docker']}>
+  <Tab value="Plugin directory">
+
+Load this repository as a local plugin directory from an existing NoneBot project. Make sure the target NoneBot project loads `src/plugins`:
+
+```toml
+# In the NoneBot project's pyproject.toml
+[tool.nonebot]
+plugin_dirs = ["path/to/lingchu-bot/src/plugins"]
+```
+
+  </Tab>
+  <Tab value="Docker">
+
+The repository provides a Docker build flow. The Docker image generates the runtime `/tmp/bot.py` with `nb-cli` during build:
 
 ```bash
 docker compose up --build
 ```
+
+  </Tab>
+</Tabs>
+
+</Step>
+</Steps>
 
 ## Pre-run checklist
 
@@ -45,8 +74,22 @@ docker compose up --build
 - Confirm that the target NoneBot project loads `src/plugins`, or that you are using the repository Docker runner.
 - Confirm that Boolean values in NoneBot configuration use lowercase `true` / `false`, not `True` / `False`.
 
+<Callout type="warn" title="Boolean values">
+
+NoneBot configuration files only accept standard JSON lowercase `true` / `false`. Using `True` / `False` will raise a configuration error at startup.
+
+</Callout>
+
 ## Next steps
 
-- Read [Commands and Group Management](commands) for current commands.
-- Read [Configuration](configuration) for project configuration.
-- Read [Troubleshooting](troubleshooting) when startup fails.
+<Cards>
+  <Card href="/docs/user-guide/commands" title="Commands">
+    Current group management commands and aliases
+  </Card>
+  <Card href="/docs/user-guide/configuration" title="Configuration">
+    Runtime settings, adapter selection, and path configuration
+  </Card>
+  <Card href="/docs/user-guide/troubleshooting" title="Troubleshooting">
+    Common startup and group management issues
+  </Card>
+</Cards>

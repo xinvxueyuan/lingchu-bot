@@ -1,0 +1,103 @@
+---
+icon: Database
+title: 消息存储
+---
+
+## 消息存储
+
+Lingchu Bot 包含一个可选的消息存储服务，用于记录事件数据、处理结果、Bot 生命周期事件和平台 API 调用摘要。本页说明存储了什么、如何配置，以及如何访问存储的数据。
+
+## 概述
+
+消息存储在 `services/messagestore.py` 中实现。它挂载到 NoneBot 的事件处理管道，记录结构化摘要而非原始消息内容。
+
+<Callout title="可选功能">
+
+消息存储默认启用，但可以通过在 `config.json5` 中设置 `message_store_enabled = false` 完全禁用。
+
+</Callout>
+
+## 存储内容
+
+| 记录类型 | 描述 |
+| --- | --- |
+| 事件接收 | Bot 接收到事件时 |
+| 处理结果 | 事件处理的结局 |
+| Bot 生命周期 | 启动、关闭和连接事件 |
+| API 调用摘要 | 事件处理期间发起的平台 API 调用 |
+
+每条记录包含一个从已启用适配器派生的 `platform` 字段。未知适配器归入 `unknown` 平台。
+
+## 配置
+
+<TypeTable
+  type={{
+    message_store_enabled: {
+      type: "boolean",
+      default: "true",
+      description: "是否启用消息存储运行时钩子",
+    },
+    message_store_retention_days: {
+      type: "number",
+      default: "30",
+      description: "消息记录保留天数；0 禁用基于天数的过期",
+    },
+    message_store_summary_limit: {
+      type: "number",
+      default: "500",
+      description: "文本、数据和结果摘要的最大长度",
+    },
+    message_store_record_api_calls: {
+      type: "boolean",
+      default: "true",
+      description: "是否记录平台 API 调用摘要",
+    },
+    message_store_cleanup_enabled: {
+      type: "boolean",
+      default: "true",
+      description: "是否在关闭时清理过期的消息记录",
+    },
+  }}
+/>
+
+## 数据保留
+
+记录根据 `message_store_retention_days` 保留：
+
+- 设置为正数时，超过指定天数的记录会被清理。
+- 设置为 `0` 时，禁用基于天数的过期；记录将无限期保留。
+- 当 `message_store_cleanup_enabled` 为 `true` 时，清理在 Bot 关闭期间运行。
+
+## 平台识别
+
+存储记录中的 `platform` 字段从适配器注册表派生：
+
+| 场景 | 平台值 |
+| --- | --- |
+| OneBot V11 适配器已启用 | `qq` |
+| Milky 适配器已启用 | `qq` |
+| 未知适配器 | `unknown` |
+
+只有 `LINGCHUAdapter` 选中的适配器决定平台值。其他已注册的适配器被忽略。
+
+## 存储后端
+
+消息存储使用 `nonebot-plugin-orm` 进行数据库访问。`database/orm_crud.py` 中的 ORM 辅助提供异步 CRUD 操作，在 worker thread 中运行以避免阻塞 NoneBot 事件循环。
+
+<Callout title="阻塞路径">
+
+文件存储、JSON5 解析、deepcopy、命令解析和翻译 catalog 加载都会移到 worker thread 执行。不要在异步处理器中直接调用同步存储方法。
+
+</Callout>
+
+## 禁用消息存储
+
+要完全禁用消息存储：
+
+```json5
+{
+  message_store_enabled: false,
+}
+```
+
+禁用后，不会注册任何事件钩子，也不会写入任何记录。现有记录不会被自动删除。

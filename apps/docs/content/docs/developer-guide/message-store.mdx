@@ -1,0 +1,103 @@
+---
+icon: Database
+title: Message Store
+---
+
+## Message Store
+
+Lingchu Bot includes an optional message storage service that records event data, processing results, bot lifecycle events, and platform API call summaries. This page explains what is stored, how to configure it, and how to access stored data.
+
+## Overview
+
+The message store is implemented in `services/messagestore.py`. It hooks into NoneBot's event processing pipeline and records structured summaries rather than raw message content.
+
+<Callout title="Optional feature">
+
+Message storage is enabled by default but can be disabled entirely by setting `message_store_enabled = false` in `config.json5`.
+
+</Callout>
+
+## What is stored
+
+| Record type | Description |
+| --- | --- |
+| Event receipt | When an event is received by the bot |
+| Processing result | The outcome of handling an event |
+| Bot lifecycle | Startup, shutdown, and connection events |
+| API call summary | Platform API calls made during event handling |
+
+Each record includes a `platform` field derived from the enabled adapter. Unknown adapters are grouped under the `unknown` platform.
+
+## Configuration
+
+<TypeTable
+  type={{
+    message_store_enabled: {
+      type: "boolean",
+      default: "true",
+      description: "Whether to enable message-store runtime hooks",
+    },
+    message_store_retention_days: {
+      type: "number",
+      default: "30",
+      description: "Number of days to retain message records; 0 disables day-based expiry",
+    },
+    message_store_summary_limit: {
+      type: "number",
+      default: "500",
+      description: "Maximum length for text, data, and result summaries",
+    },
+    message_store_record_api_calls: {
+      type: "boolean",
+      default: "true",
+      description: "Whether to record platform API call summaries",
+    },
+    message_store_cleanup_enabled: {
+      type: "boolean",
+      default: "true",
+      description: "Whether to clean expired message records during shutdown",
+    },
+  }}
+/>
+
+## Data retention
+
+Records are retained based on `message_store_retention_days`:
+
+- When set to a positive number, records older than the specified days are cleaned up.
+- When set to `0`, day-based expiry is disabled; records are kept indefinitely.
+- Cleanup runs during bot shutdown when `message_store_cleanup_enabled` is `true`.
+
+## Platform identification
+
+The `platform` field in stored records is derived from the adapter registry:
+
+| Scenario | Platform value |
+| --- | --- |
+| OneBot V11 adapter enabled | `qq` |
+| Milky adapter enabled | `qq` |
+| Unknown adapter | `unknown` |
+
+Only the adapter selected by `LINGCHUAdapter` determines the platform value. Other registered adapters are ignored.
+
+## Storage backend
+
+Message store uses `nonebot-plugin-orm` for database access. The ORM helper in `database/orm_crud.py` provides async CRUD operations that run in worker threads to avoid blocking the NoneBot event loop.
+
+<Callout title="Blocking paths">
+
+File storage, JSON5 parsing, deepcopy, command parsing, and translation catalog loading are all moved to worker threads. Do not call synchronous storage methods directly from async handlers.
+
+</Callout>
+
+## Disabling message store
+
+To disable message storage entirely:
+
+```json5
+{
+  message_store_enabled: false,
+}
+```
+
+When disabled, no event hooks are registered and no records are written. Existing records are not automatically deleted.

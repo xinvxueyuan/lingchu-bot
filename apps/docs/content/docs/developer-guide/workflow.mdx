@@ -9,15 +9,63 @@ Keep development changes small, validation explicit, and impact understandable. 
 
 ## Recommended steps
 
-1. Clarify the goal, success criteria, and out-of-scope items.
-2. Run `git status --short` and confirm existing changes.
-3. Read related code and tests, preferring existing structure.
-4. Run GitNexus/codegraph impact analysis before changing functions, classes, or methods.
-5. Implement the smallest useful change and add tests.
-6. Run the relevant checks through `task check`, `task test`, or focused `uv` / `pnpm` commands.
-7. Run GitNexus detect changes before committing.
+<Steps>
+<Step>
+
+### Clarify the goal
+
+Clarify the goal, success criteria, and out-of-scope items before writing any code.
+
+</Step>
+<Step>
+
+### Check existing changes
+
+Run `git status --short` and confirm existing changes. Assume by default that existing changes came from another contributor or an earlier work session.
+
+</Step>
+<Step>
+
+### Read related code
+
+Read related code and tests, preferring existing structure. Use GitNexus or codegraph to understand code structure and relationships.
+
+</Step>
+<Step>
+
+### Analyze impact
+
+Run GitNexus or codegraph impact analysis before changing functions, classes, or methods.
+
+</Step>
+<Step>
+
+### Implement and test
+
+Implement the smallest useful change and add tests.
+
+</Step>
+<Step>
+
+### Run checks
+
+Run the relevant checks through `task check`, `task test`, or focused `uv` / `pnpm` commands.
+
+</Step>
+<Step>
+
+### Verify change scope
+
+Run GitNexus detect changes before committing.
+
+</Step>
+</Steps>
+
+<Callout title="Translatable strings">
 
 When changing translatable strings, synchronize the Babel catalogs as well. See [Internationalization](i18n).
+
+</Callout>
 
 ## Automation entrypoints
 
@@ -36,10 +84,20 @@ For Python-only changes, use focused `uv run ...` checks when appropriate. For d
 
 ## Tooling map
 
-- GitNexus / codegraph: understand code structure, impact, and change scope.
-- Context7: query current documentation for libraries, frameworks, SDKs, CLI tools, or cloud services.
-- Husky / prek: local Git hooks and pre-commit checks.
-- Turbo: cross-workspace lint, type check, and build orchestration for docs and packages.
+<Cards>
+  <Card title="GitNexus / codegraph">
+    Understand code structure, impact, and change scope
+  </Card>
+  <Card title="Context7">
+    Query current documentation for libraries, frameworks, SDKs, CLI tools, or cloud services
+  </Card>
+  <Card title="Husky / prek">
+    Local Git hooks and pre-commit checks
+  </Card>
+  <Card title="Turbo">
+    Cross-workspace lint, type check, and build orchestration for docs and packages
+  </Card>
+</Cards>
 
 ## Protecting the workspace
 
@@ -49,12 +107,14 @@ Do not revert, format, or rewrite files unrelated to the current task. When exis
 
 Common branch prefixes:
 
-- `feature/`
-- `fix/`
-- `hotfix/`
-- `releases/`
-- `docs/`
-- `refactor/`
+| Prefix | Purpose |
+| --- | --- |
+| `feature/` | New features |
+| `fix/` | Bug fixes |
+| `hotfix/` | Urgent production fixes |
+| `releases/` | Release branches |
+| `docs/` | Documentation changes |
+| `refactor/` | Code refactoring |
 
 GitHub Actions also match branches such as `feature/**`, `fix/**`, `hotfix/*`, `releases/**`, `main`, and `dev`. The actual target branch should follow maintainer or PR-page guidance.
 
