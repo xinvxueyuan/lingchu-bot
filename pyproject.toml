@@ -130,6 +130,7 @@ nonebot-plugin-docs = ["nonebot_plugin_docs"]
 [tool.ruff]
 line-length = 88
 target-version = "py313"
+extend-exclude = ["skills", ".agents/skills", ".claude/skills", ".trae/skills"]
 
 [tool.ruff.format]
 line-ending = "lf"
@@ -219,6 +220,33 @@ keep-runtime-typing = true
 pythonVersion = "3.13"
 pythonPlatform = "All"
 typeCheckingMode = "standard"
+exclude = [
+  "skills",
+  ".agents/skills",
+  ".claude/skills",
+  ".trae/skills",
+  "apps",
+  "packages",
+  "docker",
+  ".venv",
+  "node_modules",
+  ".cache",
+  "__pycache__",
+  ".mypy_cache",
+  ".ruff_cache",
+  ".pyright",
+]
+
+[tool.ty.src]
+exclude = [
+  "skills/",
+  ".agents/skills/",
+  ".claude/skills/",
+  ".trae/skills/",
+  "apps/",
+  "packages/",
+  "docker/",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
