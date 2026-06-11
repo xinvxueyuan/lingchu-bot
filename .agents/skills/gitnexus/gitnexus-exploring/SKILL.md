@@ -45,12 +45,6 @@ description: "Use when the user asks how code works, wants to understand archite
 | `gitnexus://repo/{name}/cluster/{name}` | Area members with file paths (~500 tokens)              |
 | `gitnexus://repo/{name}/process/{name}` | Step-by-step execution trace (~200 tokens)              |
 
-## Lingchu Bot Command Modules
-
-- `src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/mute.py`: Milky mute, unmute, and whole-group mute handlers.
-- `src/plugins/nonebot_plugin_lingchu_bot/handle/command/group/`: currently implemented Milky group profile, member management, announcement, kick, and leave handlers split by responsibility. Essence-message handling is a future feature candidate, not a registered command in the current source.
-- `src/plugins/nonebot_plugin_lingchu_bot/start/startup.py`: imports command modules after i18n catalog warmup.
-
 ## Tools
 
 **gitnexus_query** — find execution flows related to a concept:

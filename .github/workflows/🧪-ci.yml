@@ -160,6 +160,10 @@ jobs:
       - name: Auto Fix & Format
         run: task ci:fix
 
+      - name: Restore skills directory
+        # Prevent auto-commit from touching synced skills files
+        run: git checkout -- "skills/" ".agents/skills/" ".claude/skills/" ".trae/skills/" 2>/dev/null || true
+
       - name: Commit Changes
         # pinned from stefanzweifel/git-auto-commit-action@v7.1.0
         uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
