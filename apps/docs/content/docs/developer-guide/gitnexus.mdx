@@ -90,19 +90,20 @@ gitnexus wiki --model <model>        # Wiki with custom LLM model
 gitnexus wiki --base-url <url>       # Wiki with custom LLM API base URL
 ```
 
-> [!NOTE]
-> For AI agents (MCP tools)
->
-> The commands above are for **human use** in the terminal. AI coding agents (Claude Code, Cursor, Codex, etc.) access GitNexus through MCP tools instead of CLI commands:
->
-> | MCP Tool                  | Purpose                                                   |
-> | ------------------------- | --------------------------------------------------------- |
-> | `gitnexus_query`          | Search execution flows by concept                         |
-> | `gitnexus_context`        | 360-degree view of a symbol (callers, callees, processes) |
-> | `gitnexus_impact`         | Blast radius analysis for a symbol                        |
-> | `gitnexus_detect_changes` | Git-diff impact analysis                                  |
-> | `gitnexus_rename`         | Multi-file coordinated rename                             |
-> | `gitnexus_cypher`         | Raw graph queries                                         |
-> | `gitnexus_list_repos`     | List indexed repositories                                 |
->
-> AI agents should refer to `AGENTS.md` (or `CLAUDE.md` for Claude Code) and the skill files in `.agents/skills/gitnexus/` / `.claude/skills/gitnexus/` for detailed MCP usage instructions.
+<Callout title="For AI agents (MCP tools)">
+
+The commands above are for **human use** in the terminal. AI coding agents (Claude Code, Cursor, Codex, etc.) access GitNexus through MCP tools instead of CLI commands:
+
+| MCP Tool                  | Purpose                                                   |
+| ------------------------- | --------------------------------------------------------- |
+| `gitnexus_query`          | Search execution flows by concept                         |
+| `gitnexus_context`        | 360-degree view of a symbol (callers, callees, processes) |
+| `gitnexus_impact`         | Blast radius analysis for a symbol                        |
+| `gitnexus_detect_changes` | Git-diff impact analysis                                  |
+| `gitnexus_rename`         | Multi-file coordinated rename                             |
+| `gitnexus_cypher`         | Raw graph queries                                         |
+| `gitnexus_list_repos`     | List indexed repositories                                 |
+
+AI agents should refer to `AGENTS.md` (or `CLAUDE.md` for Claude Code) and the skill files in `.agents/skills/gitnexus/` / `.claude/skills/gitnexus/` for detailed MCP usage instructions.
+
+</Callout>

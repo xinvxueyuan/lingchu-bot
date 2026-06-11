@@ -90,19 +90,20 @@ gitnexus wiki --model <model>        # 使用自定义 LLM 模型生成 wiki
 gitnexus wiki --base-url <url>       # 使用自定义 LLM API 地址生成 wiki
 ```
 
-> [!NOTE]
-> 面向 AI 代理（MCP 工具）
->
-> 上方命令供**人类**在终端中使用。AI 编码代理（Claude Code、Cursor、Codex 等）通过 MCP 工具而非 CLI 命令访问 GitNexus：
->
-> | MCP 工具 | 用途 |
-> |----------|------|
-> | `gitnexus_query` | 按概念搜索执行流 |
-> | `gitnexus_context` | 符号的 360 度视图（调用者、被调用者、参与的流程） |
-> | `gitnexus_impact` | 符号的爆炸半径分析 |
-> | `gitnexus_detect_changes` | Git 差异影响分析 |
-> | `gitnexus_rename` | 多文件协调重命名 |
-> | `gitnexus_cypher` | 原始图谱查询 |
-> | `gitnexus_list_repos` | 列出已索引的仓库 |
->
-> AI 代理应参考 `AGENTS.md`（Claude Code 为 `CLAUDE.md`）以及 `.agents/skills/gitnexus/` / `.claude/skills/gitnexus/` 中的技能文件获取详细的 MCP 使用说明。
+<Callout title="面向 AI 代理（MCP 工具）">
+
+上方命令供**人类**在终端中使用。AI 编码代理（Claude Code、Cursor、Codex 等）通过 MCP 工具而非 CLI 命令访问 GitNexus：
+
+| MCP 工具 | 用途 |
+| --- | --- |
+| `gitnexus_query` | 按概念搜索执行流 |
+| `gitnexus_context` | 符号的 360 度视图（调用者、被调用者、参与的流程） |
+| `gitnexus_impact` | 符号的爆炸半径分析 |
+| `gitnexus_detect_changes` | Git 差异影响分析 |
+| `gitnexus_rename` | 多文件协调重命名 |
+| `gitnexus_cypher` | 原始图谱查询 |
+| `gitnexus_list_repos` | 列出已索引的仓库 |
+
+AI 代理应参考 `AGENTS.md`（Claude Code 为 `CLAUDE.md`）以及 `.agents/skills/gitnexus/` / `.claude/skills/gitnexus/` 中的技能文件获取详细的 MCP 使用说明。
+
+</Callout>
