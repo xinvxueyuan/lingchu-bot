@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2041 symbols, 3987 relationships, 170 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2044 symbols, 3990 relationships, 170 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -348,6 +348,22 @@ When removing functions/helpers:
 ### Mock Object Patterns for Adapter Models
 
 - OneBot V11 returns `dict` → mock with `return_value={}`
+
+### ESLint Major Version Compatibility
+
+- **`eslint-plugin-react@7.x` is incompatible with ESLint 10.** The plugin calls `context.getFilename()` which was removed in ESLint 10's breaking change to `context.filename`. This causes `TypeError: contextOrFilename.getFilename is not a function` at load time.
+- **Fix options**: (a) Pin ESLint to v9 in packages that use `eslint-plugin-react`; (b) Migrate to `@eslint-react/eslint-plugin` (v5+, supports ESLint 10); (c) Wait for `eslint-plugin-react` to release ESLint 10 support.
+- **Prevention**: When running `pnpm install`, always check `git diff` on `package.json` files before committing — `pnpm install` can silently bump `^` range dependencies to newer major versions that break compatibility.
+
+### CI Workflow Project References
+
+- When a workspace package is disabled or removed, **all CI workflows that reference it must be updated**. For example, React Doctor's `--project docs,web` flag will fail if `web` has no React source files.
+- **Rule**: After any workspace package change (disable, remove, rename), grep all workflow files for references to that package name and update them.
+
+### Markdown Table Alignment (MD060)
+
+- `markdownlint-cli2` v0.22+ enforces MD060 (table column style) which requires pipe alignment. CJK characters make alignment unreliable because character widths vary by renderer.
+- **Fix**: Disabled MD060 globally in `.markdownlint.jsonc` since the project has mixed CJK/Latin content. When adding new tables, use consistent spacing but don't spend time on pixel-perfect alignment.
 
 ## Docs Site Component Catalog
 
