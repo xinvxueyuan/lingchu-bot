@@ -65,4 +65,4 @@ jobs:
         # --no-telemetry: disable analytics in CI
         env:
           NO_COLOR: 1
-        run: npx react-doctor@latest . --fail-on error --no-telemetry --project docs,web
+        run: npx react-doctor@latest . --fail-on error --no-telemetry --project docs

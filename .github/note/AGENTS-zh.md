@@ -200,13 +200,13 @@ task ci                                          # check + test + build
 
 ### Quick Reference: What to Run When
 
-| What changed | Minimum checks before commit |
-|---|---|
-| Python source only | `ruff check` + `ruff format --check` + `pyright` + `ty check` + `pytest` |
-| Docs site only | `pnpm --filter docs lint` + `pnpm --filter docs test` + `tsc --noEmit` |
-| Markdown only | `markdownlint-cli2` |
-| i18n strings | `task i18n` + `pytest` |
-| Mixed / unsure | `task check && task test` |
+| What changed          | Minimum checks before commit                                                      |
+| --------------------- | --------------------------------------------------------------------------------- |
+| Python source only    | `ruff check` + `ruff format --check` + `pyright` + `ty check` + `pytest`         |
+| Docs site only        | `pnpm --filter docs lint` + `pnpm --filter docs test` + `tsc --noEmit`           |
+| Markdown only         | `markdownlint-cli2`                                                               |
+| i18n strings          | `task i18n` + `pytest`                                                            |
+| Mixed / unsure        | `task check && task test`                                                          |
 
 ## Git Hooks
 
@@ -238,8 +238,8 @@ task ci                                          # check + test + build
 
 ### Trae IDE 规则（`.trae/rules/`）
 
-| 文件 | 加载时机 | 用途 |
-|------|----------|------|
+| 文件                           | 加载时机       | 用途                                                     |
+| ------------------------------ | -------------- | -------------------------------------------------------- |
 | `.trae/rules/git-commit-message.md` | 始终应用（Trae） | Gitmoji + Conventional Commits 格式规范。通过正则校验强制执行提交信息格式。 |
 
 ### 技能目录
@@ -248,18 +248,20 @@ task ci                                          # check + test + build
 
 #### `.agents/skills/`（Trae / Codex）
 
-| 技能 | 触发条件 | 用途 |
-|------|----------|------|
-| `available-skills/` | 选择加载哪个技能时 | 所有可用技能的紧凑路由索引。列出项目本地、编码、前端、云、制品和技能创作技能。 |
-| `gitnexus/gitnexus-cli/` | 运行 GitNexus CLI 命令（analyze、status、clean、wiki） | GitNexus 操作的 CLI 任务参考。 |
-| `gitnexus/gitnexus-debugging/` | 调试 bug、追踪错误、"为什么 X 失败？" | 科学调试工作流：假设 → 插桩 → 复现 → 分析 → 修复 → 验证。 |
-| `gitnexus/gitnexus-exploring/` | 理解架构、"X 是怎么工作的？" | 通过知识图谱探索代码：执行流、符号关系。 |
-| `gitnexus/gitnexus-guide/` | 关于 GitNexus 工具/模式/工作流的问题 | 所有 GitNexus MCP 工具、资源和图谱模式的快速参考。 |
-| `gitnexus/gitnexus-impact-analysis/` | "改 X 会破坏什么？"、编辑前安全检查 | 爆炸半径分析：深度 1/2/3 的上下游影响。 |
-| `gitnexus/gitnexus-refactoring/` | 重命名、提取、拆分、移动代码 | 使用知识图谱 + 文本搜索的多文件协调重命名。 |
-| `hf-cli/` | Hugging Face Hub 操作（模型、数据集、空间、存储桶、端点、作业） | `hf` 命令的完整 CLI 参考 — 认证、上传/下载、缓存、仓库、论文、集合、端点、作业。 |
-| `prek/` | 设置或运行 `prek` Git 钩子 | `prek`（Rust 版 `pre-commit` 替代品）的配置、安装和工作流指南。 |
-| `react-doctor/` | 完成 React 功能、修复 bug、`/doctor`、扫描/分诊 React 代码 | React 代码库健康扫描器（安全性、性能、正确性、架构）。输出 0–100 分。包含规则解释和配置参考。 |
+| 技能                           | 触发条件                                       | 用途                                                                                                     |
+| ------------------------------ | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `available-skills/`            | 选择加载哪个技能时                             | 所有可用技能的紧凑路由索引。列出项目本地、编码、前端、云、制品和技能创作技能。                             |
+| `gitnexus/gitnexus-cli/`       | 运行 GitNexus CLI 命令（analyze、status、clean、wiki） | GitNexus 操作的 CLI 任务参考。                                                                           |
+| `gitnexus/gitnexus-debugging/` | 调试 bug、追踪错误、"为什么 X 失败？"         | 科学调试工作流：假设 → 插桩 → 复现 → 分析 → 修复 → 验证。                                               |
+| `gitnexus/gitnexus-exploring/` | 理解架构、"X 是怎么工作的？"                   | 通过知识图谱探索代码：执行流、符号关系。                                                                   |
+| 技能                                  | 触发条件                                       | 用途                                                                                                     |
+| ------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `gitnexus/gitnexus-guide/`            | 关于 GitNexus 工具/模式/工作流的问题           | 所有 GitNexus MCP 工具、资源和图谱模式的快速参考。                                                       |
+| `gitnexus/gitnexus-impact-analysis/`  | "改 X 会破坏什么？"、编辑前安全检查           | 爆炸半径分析：深度 1/2/3 的上下游影响。                                                                   |
+| `gitnexus/gitnexus-refactoring/`      | 重命名、提取、拆分、移动代码                   | 使用知识图谱 + 文本搜索的多文件协调重命名。                                                               |
+| `hf-cli/`                             | Hugging Face Hub 操作（模型、数据集、空间、存储桶、端点、作业） | `hf` 命令的完整 CLI 参考 — 认证、上传/下载、缓存、仓库、论文、集合、端点、作业。                         |
+| `prek/`                               | 设置或运行 `prek` Git 钩子                     | `prek`（Rust 版 `pre-commit` 替代品）的配置、安装和工作流指南。                                           |
+| `react-doctor/`                       | 完成 React 功能、修复 bug、`/doctor`、扫描/分诊 React 代码 | React 代码库健康扫描器（安全性、性能、正确性、架构）。输出 0–100 分。包含规则解释和配置参考。             |
 
 #### `.claude/skills/`（Claude Code）
 
@@ -267,9 +269,9 @@ task ci                                          # check + test + build
 
 ### 跨语言对应文件
 
-| 文件 | 用途 |
-|------|------|
-| `.github/note/AGENTS-zh.md` | `AGENTS.md` 的中文翻译。必须与结构变更保持同步。 |
+| 文件                      | 用途                                                                   |
+| ------------------------- | ---------------------------------------------------------------------- |
+| `.github/note/AGENTS-zh.md` | `AGENTS.md` 的中文翻译。必须与结构变更保持同步。                       |
 
 ### 自动注入的内容
 
@@ -487,10 +489,10 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 
 规则抑制和临时变通方案，在触发条件改变后应予回退。定期审查此节（如更新依赖或重构时）。
 
-| 内容 | 位置 | 抑制原因 | 回退条件 |
-|------|------|---------|---------|
-| `deslop/unused-export: "off"` | `doctor.config.ts` | `mdx.tsx` 中的 `useMDXComponents` 是框架必需的重导出，但当前未被消费（`source.config.ts` 未配置 `providerImportSource`） | 当 `useMDXComponents` 被实际消费后移除此抑制（如添加 `providerImportSource` 到 `source.config.ts` 或在其他地方导入它） |
-| 使用 CLI 而非 `millionco/react-doctor@v2` action | `.github/workflows/react-doctor.yml` | 上游 action 存在 bug：detached HEAD、ANSI 泄漏到 PR 评论（PR #80 待合并） | 上游修复发布后切换回 action（关注 PR #80） |
+| 内容                                                    | 位置                                   | 抑制原因                                                                                                                             | 回退条件                                                                                                     |
+| ------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `deslop/unused-export: "off"`                           | `doctor.config.ts`                     | `mdx.tsx` 中的 `useMDXComponents` 是框架必需的重导出，但当前未被消费（`source.config.ts` 未配置 `providerImportSource`）               | 当 `useMDXComponents` 被实际消费后移除此抑制（如添加 `providerImportSource` 到 `source.config.ts` 或在其他地方导入它） |
+| 使用 CLI 而非 `millionco/react-doctor@v2` action        | `.github/workflows/react-doctor.yml`   | 上游 action 存在 bug：detached HEAD、ANSI 泄漏到 PR 评论（PR #80 待合并）                                                             | 上游修复发布后切换回 action（关注 PR #80）                                                                     |
 
 - **非组件导出破坏 Fast Refresh**：从组件文件（`mermaid.tsx`）导出工具函数（`getMermaidConfig`、`sanitizeMermaidSvg`、`renderMermaidSvg`）会触发 `react-doctor/only-export-components`。应将它们提取到独立的非组件模块（如 `mermaid-utils.ts`）并从那里导入。同时更新测试导入。
 - **`/llms.txt` 是路由处理器而非静态文件**：从组件链接到 Next.js 路由处理器时，应使用 `<Link>`（而非普通 `<a>`）——它们是内部路由，可受益于客户端导航。
