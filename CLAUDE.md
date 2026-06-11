@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2351 symbols, 4709 relationships, 197 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2409 symbols, 4777 relationships, 202 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -44,38 +44,40 @@ This project is indexed by GitNexus as **lingchu-bot** (2351 symbols, 4709 relat
 
 ## Available Agent Skills
 
-Use this as a routing index for the current assistant environment. Load detailed skill instructions only when the task triggers them.
+This repo can use the current Codex skill set when a task matches the skill trigger. Keep this section as a compact routing index; load the corresponding `SKILL.md` only when needed.
 
 ### Documentation Lookup
 
-- **Context7 / find-docs**: Fetch current docs for libraries, frameworks, SDKs, APIs, CLIs, and cloud services. Resolve the library ID first unless the user provides `/org/project`, then query docs with the user's full question.
-- **openai-docs**: Use for OpenAI product/API questions and prefer official OpenAI sources.
+- **Context7 / find-docs**: Use for current documentation for libraries, frameworks, SDKs, APIs, CLIs, and cloud services. Start with `resolve-library-id` unless the user provides an exact `/org/project` ID, then query docs with the full user question. Prefer this over web search for developer docs.
+- **openai-docs**: Use for OpenAI product/API questions; prefer official OpenAI docs.
 
 ### Code Intelligence And Git
 
-- **GitNexus**: Use the project-local GitNexus skills for architecture, debugging, impact analysis, refactoring, PR review, and CLI operations. Honor the GitNexus requirements above before editing symbols or committing.
-- **prek**: Use the project-local `prek` skill when setting up or running hook checks.
-- **GitHub**: Use GitHub skills for repository, issue, pull request, review-comment, CI, and publish workflows.
+- **GitNexus skills**: Use `.claude/skills/gitnexus/*` or `.agents/skills/gitnexus/*` for architecture exploration, debugging, impact analysis, refactoring, PR review, and CLI operations. Follow the GitNexus requirements above before editing symbols or committing.
+- **prek**: Use `.claude/skills/prek/SKILL.md` or `.agents/skills/prek/SKILL.md` when setting up or running hook checks with `prek`.
+- **GitHub skills**: Use for GitHub repository, issue, pull request, review-comment, CI, and publish/PR workflows.
 
 ### Frontend, Browser, And Deployment
 
-- **Browser / Playwright / Chrome**: Use Browser for local in-app browser verification, Playwright for terminal-driven browser automation, and Chrome when the user's existing browser state is required.
-- **Vercel**: Use Vercel skills for Next.js, React, shadcn/ui, AI SDK, deployments, Vercel API/CLI, storage, auth, payments, cron, functions, routing middleware, workflow, and verification.
-- **Cloudflare**: Use Cloudflare skills for Workers, Wrangler, Durable Objects, Agents SDK, MCP servers, sandbox SDK, and platform configuration.
+- **Browser / Playwright / Chrome**: Use Browser for local in-app browser checks, Playwright for terminal-driven browser automation, and Chrome only when existing user Chrome state is required.
+- **Vercel skills**: Use for Next.js, React best practices, shadcn/ui, AI SDK, deployments, Vercel CLI/API, storage, auth, payments, cron, routing middleware, functions, workflow, and verification tasks.
+- **Cloudflare skills**: Use for Workers, Wrangler, Durable Objects, Agents SDK, MCP servers, sandbox SDK, and Cloudflare platform work.
 
 ### Artifacts And Media
 
-- **Documents / Presentations / Spreadsheets / PDF**: Use these for `.docx`, slide decks, spreadsheet files, and PDFs.
-- **imagegen**: Use for raster image generation and image edits.
+- **Documents / Presentations / Spreadsheets / PDF**: Use for `.docx`, slide decks, spreadsheet files, and PDF tasks where rendering or file-format behavior matters.
+- **imagegen**: Use for raster image generation or edits when visuals are requested.
 
 ### Skill Authoring
 
-- **skill-creator**: Use when creating or updating skills.
+- **skill-creator**: Use when creating or updating Codex skills. Required skill folders contain `SKILL.md`; optional resources include `scripts/`, `references/`, `assets/`, and `agents/openai.yaml`.
 - **skill-installer / plugin-creator**: Use when installing skills or scaffolding Codex plugins.
 
-See `.agents/skills/available-skills/SKILL.md` and `.claude/skills/available-skills/SKILL.md` for the project-local copy of this skill index.
+Project-local skill indexes are available at `.agents/skills/available-skills/SKILL.md` and `.claude/skills/available-skills/SKILL.md`.
 
 # Project Context
+
+> English | [中文](.github/note/AGENTS-zh.md)
 
 ## Overview
 
@@ -97,7 +99,7 @@ Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains a Py
 - Next.js 16 + Fumadocs 16 (static export)
 - React 19, Tailwind CSS 4, TypeScript 6
 - Vitest + @testing-library/react (unit tests), ESLint (lint)
-- Features: i18n (zh/en), RSS, Mermaid, Twoslash, EPUB export, LLM-friendly text (`/llms.txt`, `/llms-full.txt`), document relationship graph
+- Features: i18n (en/zh), RSS, Mermaid, Twoslash, EPUB export, LLM-friendly text (`/llms.txt`, `/llms-full.txt`), document relationship graph
 - All server components, route handlers, and lib functions are async
 - Turborepo workspace, pnpm package manager
 
@@ -108,11 +110,11 @@ lingchu-bot/
 ├── src/plugins/nonebot_plugin_lingchu_bot/   # Core NoneBot plugin
 │   ├── core/           # Config, platform info
 │   ├── database/       # JSON5 store, ORM CRUD helpers
-│   ├── handle/         # Command handlers (mute, etc.)
+│   ├── handle/         # Command handlers (mute, group settings/actions, etc.)
 │   ├── i18n/           # Babel/gettext translations
 │   └── utils/          # General command tools
 ├── apps/docs/          # Fumadocs documentation site
-│   ├── content/docs/   # MDX content (zh + en)
+│   ├── content/docs/   # MDX content (en + zh)
 │   ├── src/
 │   │   ├── app/        # Next.js App Router pages & routes
 │   │   ├── components/ # React components (graph-view, mdx, mermaid)
@@ -128,60 +130,163 @@ lingchu-bot/
 
 ## Development Commands
 
-### Python
+> Use granular commands for faster feedback during development. Only run `task check` / `task test` for full verification before commits.
+
+### Python — Lint & Format
 
 ```bash
-uv sync --frozen                    # Install dependencies
-# No committed root bot.py; load src/plugins from an existing NoneBot project
-# or use Docker, whose build generates /tmp/bot.py via nb-cli.
-docker compose up --build           # Run with the container runner
-uv run -m ruff check . --output-format=github  # Lint
-uv run -m ruff format --check .     # Format check
-uv run -m pyright .                 # Type check (Pyright)
-uv run -m ty check --output-format github  # Type check (ty)
-uv run -m pytest                    # Run tests
+uv run -m ruff check . --output-format=github   # Lint only
+uv run -m ruff check --fix .                     # Auto-fix lint issues
+uv run -m ruff format --check .                  # Format check only
+uv run -m ruff format .                          # Apply formatting
 ```
 
-### Documentation Site
+### Python — Type Check
 
 ```bash
-pnpm --filter docs dev              # Dev server
-pnpm --filter docs lint             # ESLint
-pnpm --filter docs test             # Vitest
-pnpm turbo run build --filter=docs  # Production build
+uv run -m pyright .                              # Pyright type check
+uv run -m ty check --output-format github        # ty type check
 ```
 
-### Markdown
+### Python — Test
 
 ```bash
-pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" ".github/**/*.md"
+uv run -m pytest                                 # All tests
+uv run -m pytest tests/handle/commands/group/    # Specific test directory
+uv run -m pytest -k "test_mute"                  # By keyword
+uv run -m pytest --lf                            # Re-run last failures
 ```
 
-### Task Runner (Taskfile)
+### Docs Site — Lint & Type Check
 
 ```bash
-task install                        # Install all dependencies
-task up                             # Update all dependencies
-task check                          # All static checks (lint + format + markdown + type check)
-task test                           # All tests (Python + Docs)
-task format                         # Format all code
-task fix                            # Auto-fix all linting and type issues
-task build                          # Build all workspaces
-task ci                             # Full local CI sequence
-task i18n                           # Extract, update and compile i18n
+pnpm --filter docs lint                          # ESLint for docs site
+pnpm turbo run check-types                       # TypeScript type check (all workspaces)
+pnpm --filter docs exec tsc --noEmit             # TypeScript check (docs only)
 ```
+
+### Docs Site — Test
+
+```bash
+pnpm --filter docs test                          # Vitest for docs site
+```
+
+### Docs Site — Dev & Build
+
+```bash
+pnpm --filter docs dev                           # Dev server
+pnpm turbo run build --filter=docs               # Production build
+```
+
+### Markdown Lint
+
+```bash
+pnpm exec markdownlint-cli2 {{.MD_GLOB}}         # Check (use the MD_GLOB from Taskfile.yml)
+pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}   # Auto-fix
+```
+
+### i18n
+
+```bash
+task i18n                                        # Extract + update + compile translations
+```
+
+### Task Runner — Full Verification
+
+```bash
+task check                                       # All static checks (ruff lint + format + markdown + ESLint + pyright + ty + tsc)
+task test                                        # All tests (pytest + Vitest)
+task ci                                          # check + test + build
+```
+
+### Quick Reference: What to Run When
+
+| What changed | Minimum checks before commit |
+|---|---|
+| Python source only | `ruff check` + `ruff format --check` + `pyright` + `ty check` + `pytest` |
+| Docs site only | `pnpm --filter docs lint` + `pnpm --filter docs test` + `tsc --noEmit` |
+| Markdown only | `markdownlint-cli2` |
+| i18n strings | `task i18n` + `pytest` |
+| Mixed / unsure | `task check && task test` |
 
 ## Git Hooks
 
-- **pre-commit**: Runs `prek` (lint/format checks) + `gitnexus analyze` (auto-refresh code index)
+- **pre-commit**: Conditional checks — Prek auto-fix (always) → Ruff lint/format (on Python changes) → Pyright/ty (on Python changes) → pytest (on Python changes) → Docs ESLint/type-check/Vitest (on docs changes) → Gitnexus analyze (always, non-blocking)
+- **commit-msg**: gitmoji + Conventional Commits format validation + auto-append Signed-off-by (with trailer block detection)
 - **prepare-commit-msg**: Interactive gitmoji commit message via `pnpm exec gitmoji --hook`
 - Set `$env:HUSKY='0'` to skip hooks when needed (e.g., automated commits)
+
+## Agent Preferences
+
+These rules are injected as context for every conversation. Treat them as hard constraints.
+
+- **No commits or pushes without explicit user instruction** — never auto-commit, auto-push, or assume the user wants a commit after finishing a task. Wait for the user to say so.
+- **Write persistent preferences into AGENTS.md** — memory files and session context are ephemeral; AGENTS.md is the single source of truth for project-level rules and user preferences. When the user says "remember this" or expresses a preference, add it here.
+- **Prefer granular checks over full `task check`** — use the Quick Reference table above to run only the checks relevant to what changed. Full `task check && task test` is for pre-commit verification, not for every intermediate step.
+- **Sync Chinese/English documents** — when editing AGENTS.md, always propagate the same structural changes to `.github/note/AGENTS-zh.md` and vice versa.
+- **Sync AGENTS.md and CLAUDE.md** — these two files share the same structure and content (GitNexus block, project context, dev commands, lessons learned, etc.). When editing either file, always propagate the same structural changes to the other. The only allowed difference is the Claude Code Behavioral Guidelines section, which exists only in `CLAUDE.md`.
+
+## AI Context Injection Map
+
+All files and directories that inject context into AI coding agents. Use this map to understand what each injection point does and when it's loaded, avoiding redundant reads.
+
+### Root-Level Files
+
+| File | When Loaded | Purpose |
+|------|-------------|---------|
+| `AGENTS.md` | Every conversation (Trae, Codex) | Single source of truth for project rules, conventions, dev commands, lessons learned. Also contains GitNexus config block. |
+| `CLAUDE.md` | Every conversation (Claude Code) | Same role as `AGENTS.md` but for Claude Code. Contains GitNexus block, project context, dev commands, and behavioral guidelines (simplicity-first, surgical changes, goal-driven execution). Largely duplicates `AGENTS.md` content. |
+
+### Trae IDE Rules (`.trae/rules/`)
+
+| File | When Loaded | Purpose |
+|------|-------------|---------|
+| `.trae/rules/git-commit-message.md` | Always applied (Trae) | Gitmoji + Conventional Commits format specification. Enforces commit message format with regex validation. |
+
+### Skill Directories
+
+Skills are loaded **on demand** — only when the user's task matches the skill trigger. They are NOT injected into every conversation.
+
+#### `.agents/skills/` (Trae / Codex)
+
+| Skill | Trigger | Purpose |
+|-------|---------|---------|
+| `available-skills/` | When choosing which skill to load | Compact routing index of all available skills. Lists project-local, coding, frontend, cloud, artifact, and skill-authoring skills. |
+| `gitnexus/gitnexus-cli/` | Running GitNexus CLI commands (analyze, status, clean, wiki) | CLI task reference for GitNexus operations. |
+| `gitnexus/gitnexus-debugging/` | Debugging bugs, tracing errors, "why does X fail?" | Scientific debugging workflow: hypothesis → instrument → reproduce → analyze → fix → verify. |
+| `gitnexus/gitnexus-exploring/` | Understanding architecture, "how does X work?" | Code exploration via knowledge graph: execution flows, symbol relationships. |
+| `gitnexus/gitnexus-guide/` | Questions about GitNexus tools/schema/workflow | Quick reference for all GitNexus MCP tools, resources, and graph schema. |
+| `gitnexus/gitnexus-impact-analysis/` | "What breaks if I change X?", pre-edit safety check | Blast radius analysis: upstream/downstream impact at depth 1/2/3. |
+| `gitnexus/gitnexus-refactoring/` | Renaming, extracting, splitting, moving code | Multi-file coordinated rename using knowledge graph + text search. |
+| `hf-cli/` | Hugging Face Hub operations (models, datasets, spaces, buckets, endpoints, jobs) | Full CLI reference for `hf` command — auth, upload/download, cache, repos, papers, collections, endpoints, jobs. |
+| `prek/` | Setting up or running Git hooks with `prek` | `prek` (Rust `pre-commit` alternative) configuration, installation, and workflow guide. |
+| `react-doctor/` | Finishing React features, fixing bugs, `/doctor`, scanning/triaging React code | React codebase health scanner (security, performance, correctness, architecture). Outputs 0–100 score. Includes rule explanation and configuration reference. |
+
+#### `.claude/skills/` (Claude Code)
+
+Subset of `.agents/skills/` — contains `available-skills/`, all `gitnexus/*` skills, and `prek/`. Does NOT include `hf-cli/` or `react-doctor/` (those are Trae/Codex-only).
+
+### Cross-Language Counterpart
+
+| File | Purpose |
+|------|---------|
+| `.github/note/AGENTS-zh.md` | Chinese translation of `AGENTS.md`. Must be kept in sync with structural changes. |
+
+### What Gets Injected Automatically
+
+Only these are injected into **every** conversation without explicit loading:
+
+1. **`AGENTS.md`** (or `CLAUDE.md` for Claude Code) — full file content
+2. **`.trae/rules/git-commit-message.md`** — Trae only, always applied
+3. **Skill descriptions** — the `description` field from each `SKILL.md` frontmatter is listed in the tool's `available_skills`, but the full `SKILL.md` content is only loaded when the skill is invoked
+
+Everything else (skill files, reference docs, manifests) is loaded **on demand** only when a matching task triggers the skill.
 
 ## Architecture Decisions
 
 - All server components and route handlers in `apps/docs` are async functions
 - `baseOptions()`, `buildGraph()`, `getRSS()` return Promises
-- i18n uses `hideLocale: 'default-locale'` — default locale (zh) omits prefix in URLs
+- i18n uses `hideLocale: 'default-locale'` — default locale (en) omits prefix in URLs
 - Client components use `useSyncExternalStore` instead of `useState` + `useEffect` for mount detection
 - GitNexus is used for code intelligence, impact analysis, and safe refactoring
 
@@ -198,11 +303,106 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 - **Auto Format**: On push to main/dev, auto-fix and commit
 - **Docs Deploy**: Build and deploy to GitHub Pages
 
-# CLAUDE.md
+## Lessons Learned
 
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+> **Timeliness warning**: Lessons below reflect the state of the codebase and dependencies at the time they were written. Before relying on any lesson, verify it still holds — APIs change, packages add exports, and CI configs evolve. When a lesson becomes outdated, update or remove it rather than propagating stale assumptions.
 
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+### Cross-Cutting Change Checklist
+
+When modifying business logic (especially adapter-layer code), changes MUST propagate to all affected areas **before considering the task done**:
+
+1. **Source code** — `src/plugins/nonebot_plugin_lingchu_bot/`
+2. **Tests** — `tests/` (add/update tests for new behavior, remove tests for deleted behavior)
+3. **i18n** — `src/plugins/nonebot_plugin_lingchu_bot/i18n/` (run `task i18n` if user-facing strings change)
+4. **Docs** — `apps/docs/content/docs/` (update command docs if behavior changes)
+
+After changes, always run the full check suite: `task check && task test`
+
+### Use MCP / Skills Proactively
+
+- **NapCat API MCP** (`mcp_NapCat_-_API_Wen_Dang_*`): Use to look up OneBot V11 API specs (parameters, response fields) before writing adapter calls. Avoid guessing API signatures.
+- **Context7 / find-docs**: Use for up-to-date library docs (NoneBot2, Alconna, Pydantic, etc.) — training data may be outdated.
+- **GitNexus MCP**: Run `gitnexus_impact` / `gitnexus_context` before editing symbols; run `gitnexus_detect_changes` before committing.
+- **WebSearch / WebFetch**: Use when MCP tools don't cover the needed info (e.g., third-party API changelogs).
+- Rule of thumb: **When touching adapter boundaries, external APIs, or unfamiliar libraries, always verify via MCP/skills first** — don't rely on memory or assumptions.
+
+### Session Epilogue: Update AGENTS.md
+
+At the end of every conversation that involves code changes, review what went wrong or what took extra iterations, and append reusable lessons to this `Lessons Learned` section. This prevents repeating the same mistakes.
+
+### Adapter API Differences
+
+Same-named APIs return different types across adapters:
+
+| API | OneBot V11 | Milky |
+|-----|-----------|-------|
+| `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
+| `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
+
+Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+
+### Function Signature Changes
+
+When changing a function signature (sync→async, adding/removing params):
+
+1. Use `Grep` to find ALL callers across the entire codebase
+2. Update every caller — not just the obvious ones (check `mute.py`, `member.py`, etc.)
+3. Update test fixtures (`conftest.py`) and test functions that construct mock objects
+4. Run `ruff check`, `pyright`, `ty check`, and `pytest` to catch missed updates
+
+### Exception Handling in Tests
+
+- Test `side_effect` exceptions must match the actual `except` clause in source code
+- `ActionFailed()` from Milky and OneBot V11 adapters may not accept positional arguments — always check the constructor signature
+- Use `ruff check` to catch BLE001 (blind `except Exception`) — prefer specific adapter exceptions
+
+### Removing Code
+
+When removing functions/helpers:
+
+1. `Grep` for all references (including tests) before deletion
+2. Remove associated tests that test the deleted behavior
+3. Remove unused imports that were only needed by the deleted code
+4. Verify no other module re-exports or depends on the removed symbol
+
+### Mock Object Patterns for Adapter Models
+
+- OneBot V11 returns `dict` → mock with `return_value={}`
+- Milky returns pydantic `Model` objects → mock with `MagicMock(card="", nickname="")` so attribute access works
+- Never use `dict` as mock return value for APIs that return Model objects — attribute access (`obj.card`) will raise `AttributeError`
+
+### Git Hooks Optimization
+
+- Pre-commit hooks run conditionally based on changed file types — Python changes trigger Ruff + Pyright/ty + pytest; docs changes trigger ESLint + tsc + Vitest
+- GitNexus analyze runs on every pre-commit but is non-blocking — stale index warnings should prompt a manual `npx gitnexus analyze`
+
+### Type Narrowing in Tests
+
+- `isinstance(event, GroupMessageEvent)` is the correct way to narrow event types in NoneBot2
+- Don't use `type(event) is GroupMessageEvent` — it breaks with proxy/wrapper objects
+
+### i18n Locale Consistency
+
+- When changing i18n settings in tests, override locale in `conftest.py` instead of modifying individual test assertions
+- This maintains test environment consistency and avoids cascading assertion changes
+
+### Fumadocs i18n File Naming
+
+- Default language files have no suffix (e.g., `gitnexus.mdx`)
+- Non-default language files use `.{locale}.mdx` suffix (e.g., `gitnexus.zh.mdx`)
+- `@fumadocs/language` exports supported language packages; English is built-in default (no need to import separately)
+
+### Pending Rollbacks
+
+| Suppressed Rule | Location | Reason | Remove When |
+|----------------|----------|--------|-------------|
+| `deslop/unused-export` | `apps/docs/doctor.config.ts` | `useMDXComponents` export is required by fumadocs MDX provider for future component customization, but currently unused | `useMDXComponents` is actually utilized in MDX rendering (e.g., custom code blocks, callouts, or admonitions) |
+
+- **`/llms.txt` is a route handler, not a static file**: When linking to Next.js route handlers from components, use `<Link>` (not plain `<a>`) — they're internal routes that benefit from client-side navigation.
+
+# Claude Code Behavioral Guidelines
+
+These guidelines are specific to Claude Code. They bias toward caution over speed. For trivial tasks, use judgment.
 
 ## 1. Think Before Coding
 

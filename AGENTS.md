@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2351 symbols, 4709 relationships, 197 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2409 symbols, 4777 relationships, 202 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -224,6 +224,63 @@ These rules are injected as context for every conversation. Treat them as hard c
 - **Write persistent preferences into AGENTS.md** — memory files and session context are ephemeral; AGENTS.md is the single source of truth for project-level rules and user preferences. When the user says "remember this" or expresses a preference, add it here.
 - **Prefer granular checks over full `task check`** — use the Quick Reference table above to run only the checks relevant to what changed. Full `task check && task test` is for pre-commit verification, not for every intermediate step.
 - **Sync Chinese/English documents** — when editing AGENTS.md, always propagate the same structural changes to `.github/note/AGENTS-zh.md` and vice versa.
+- **Sync AGENTS.md and CLAUDE.md** — these two files share the same structure and content (GitNexus block, project context, dev commands, lessons learned, etc.). When editing either file, always propagate the same structural changes to the other. The only allowed difference is the Claude Code Behavioral Guidelines section, which exists only in `CLAUDE.md`.
+
+## AI Context Injection Map
+
+All files and directories that inject context into AI coding agents. Use this map to understand what each injection point does and when it's loaded, avoiding redundant reads.
+
+### Root-Level Files
+
+| File | When Loaded | Purpose |
+|------|-------------|---------|
+| `AGENTS.md` | Every conversation (Trae, Codex) | Single source of truth for project rules, conventions, dev commands, lessons learned. Also contains GitNexus config block. |
+| `CLAUDE.md` | Every conversation (Claude Code) | Same role as `AGENTS.md` but for Claude Code. Contains GitNexus block, project context, dev commands, and behavioral guidelines (simplicity-first, surgical changes, goal-driven execution). Largely duplicates `AGENTS.md` content. |
+
+### Trae IDE Rules (`.trae/rules/`)
+
+| File | When Loaded | Purpose |
+|------|-------------|---------|
+| `.trae/rules/git-commit-message.md` | Always applied (Trae) | Gitmoji + Conventional Commits format specification. Enforces commit message format with regex validation. |
+
+### Skill Directories
+
+Skills are loaded **on demand** — only when the user's task matches the skill trigger. They are NOT injected into every conversation.
+
+#### `.agents/skills/` (Trae / Codex)
+
+| Skill | Trigger | Purpose |
+|-------|---------|---------|
+| `available-skills/` | When choosing which skill to load | Compact routing index of all available skills. Lists project-local, coding, frontend, cloud, artifact, and skill-authoring skills. |
+| `gitnexus/gitnexus-cli/` | Running GitNexus CLI commands (analyze, status, clean, wiki) | CLI task reference for GitNexus operations. |
+| `gitnexus/gitnexus-debugging/` | Debugging bugs, tracing errors, "why does X fail?" | Scientific debugging workflow: hypothesis → instrument → reproduce → analyze → fix → verify. |
+| `gitnexus/gitnexus-exploring/` | Understanding architecture, "how does X work?" | Code exploration via knowledge graph: execution flows, symbol relationships. |
+| `gitnexus/gitnexus-guide/` | Questions about GitNexus tools/schema/workflow | Quick reference for all GitNexus MCP tools, resources, and graph schema. |
+| `gitnexus/gitnexus-impact-analysis/` | "What breaks if I change X?", pre-edit safety check | Blast radius analysis: upstream/downstream impact at depth 1/2/3. |
+| `gitnexus/gitnexus-refactoring/` | Renaming, extracting, splitting, moving code | Multi-file coordinated rename using knowledge graph + text search. |
+| `hf-cli/` | Hugging Face Hub operations (models, datasets, spaces, buckets, endpoints, jobs) | Full CLI reference for `hf` command — auth, upload/download, cache, repos, papers, collections, endpoints, jobs. |
+| `prek/` | Setting up or running Git hooks with `prek` | `prek` (Rust `pre-commit` alternative) configuration, installation, and workflow guide. |
+| `react-doctor/` | Finishing React features, fixing bugs, `/doctor`, scanning/triaging React code | React codebase health scanner (security, performance, correctness, architecture). Outputs 0–100 score. Includes rule explanation and configuration reference. |
+
+#### `.claude/skills/` (Claude Code)
+
+Subset of `.agents/skills/` — contains `available-skills/`, all `gitnexus/*` skills, and `prek/`. Does NOT include `hf-cli/` or `react-doctor/` (those are Trae/Codex-only).
+
+### Cross-Language Counterpart
+
+| File | Purpose |
+|------|---------|
+| `.github/note/AGENTS-zh.md` | Chinese translation of `AGENTS.md`. Must be kept in sync with structural changes. |
+
+### What Gets Injected Automatically
+
+Only these are injected into **every** conversation without explicit loading:
+
+1. **`AGENTS.md`** (or `CLAUDE.md` for Claude Code) — full file content
+2. **`.trae/rules/git-commit-message.md`** — Trae only, always applied
+3. **Skill descriptions** — the `description` field from each `SKILL.md` frontmatter is listed in the tool's `available_skills`, but the full `SKILL.md` content is only loaded when the skill is invoked
+
+Everything else (skill files, reference docs, manifests) is loaded **on demand** only when a matching task triggers the skill.
 
 ## Architecture Decisions
 

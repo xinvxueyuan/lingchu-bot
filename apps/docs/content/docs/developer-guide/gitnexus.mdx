@@ -5,45 +5,104 @@ title: GitNexus Workflow
 
 ## GitNexus Workflow
 
-This repository uses GitNexus for code understanding and impact analysis. Before changing code symbols, confirm upstream dependencies.
+This repository uses [GitNexus](https://github.com/abhigyanpatwari/GitNexus) for code understanding and impact analysis. GitNexus indexes the codebase into a knowledge graph and exposes it through CLI commands and MCP tools.
 
-## Before changing code
+## Setup
 
-Run upstream impact before changing a function, class, or method:
+```bash
+# Index the repository (run from repo root)
+npx gitnexus analyze
 
-```text
-gitnexus_impact({target: "symbolName", direction: "upstream"})
+# Configure MCP for your editors (one-time)
+npx gitnexus setup
+
+# Check index status
+npx gitnexus status
+
+# List all indexed repositories
+npx gitnexus list
 ```
 
-Record:
-
-- Direct callers.
-- Affected flows.
-- Risk level.
-
-If the risk is `HIGH` or `CRITICAL`, pause and explain the risk before continuing.
+If the index is stale (e.g., after significant code changes), re-run `npx gitnexus analyze` to refresh it.
 
 ## Exploring code
 
-For unfamiliar areas, prefer query/context:
+Use CLI commands to understand architecture and execution flows:
 
-```text
-gitnexus_query({query: "mute command flow"})
-gitnexus_context({name: "milkybot_mute"})
+```bash
+# Generate a repository wiki from the knowledge graph
+npx gitnexus wiki
+
+# Generate wiki with a custom model
+npx gitnexus wiki --model gpt-4o-mini
 ```
 
-This helps understand execution flows before deciding where to change code.
+For quick exploration without installing anything, use the [Web UI](https://gitnexus.vercel.app) or start a local server:
+
+```bash
+# Start local HTTP server for web UI connection
+npx gitnexus serve
+```
+
+## Before changing code
+
+Check upstream impact before modifying a function, class, or method:
+
+1. Run `npx gitnexus status` to confirm the index is fresh.
+2. Use the MCP tools in your AI editor to run impact analysis (see the callout below).
+3. Record: direct callers, affected flows, and risk level.
+4. If the risk is `HIGH` or `CRITICAL`, pause and explain the risk before continuing.
 
 ## Before committing
 
-Run detect changes before committing:
+Verify that your changes only affect expected symbols and execution flows:
 
-```text
-gitnexus_detect_changes()
-```
-
-Confirm that changes are concentrated in expected symbols and execution flows. If the result includes unrelated files or flows, inspect the worktree first.
+1. Run `npx gitnexus analyze` to refresh the index if needed.
+2. Use the MCP `detect_changes` tool in your AI editor to check affected scope.
+3. If the result includes unrelated files or flows, inspect the worktree first.
 
 ## Renaming
 
-Do not rename symbols through global find-and-replace. Use GitNexus rename when a rename is needed, so call relationships and references are handled together.
+Do not rename symbols through global find-and-replace. Use the GitNexus `rename` MCP tool so that call relationships and references are handled together across all files.
+
+## CLI reference
+
+```bash
+gitnexus analyze [path]              # Index a repository (or update stale index)
+gitnexus analyze --force             # Full rebuild: re-parse + graph rebuild + FTS rebuild
+gitnexus analyze --repair-fts        # Rebuild/verify only FTS indexes on existing data
+gitnexus analyze --skip-embeddings   # Skip embedding generation (faster)
+gitnexus analyze --embeddings [n]    # Enable embedding generation (slower, better search)
+gitnexus analyze --skills            # Generate repo-specific skill files
+gitnexus analyze --skip-skills       # Skip installing skill files
+gitnexus analyze --skip-agents-md    # Preserve custom AGENTS.md/CLAUDE.md edits
+gitnexus analyze --skip-git          # Index folders that are not Git repositories
+gitnexus analyze --verbose           # Log skipped files
+gitnexus setup                       # Configure MCP for your editors (one-time)
+gitnexus mcp                         # Start MCP server (stdio)
+gitnexus serve                       # Start local HTTP server for web UI
+gitnexus list                        # List all indexed repositories
+gitnexus status                      # Show index status for current repo
+gitnexus clean                       # Delete index for current repo
+gitnexus clean --all --force         # Delete all indexes
+gitnexus wiki [path]                 # Generate repository wiki from knowledge graph
+gitnexus wiki --model <model>        # Wiki with custom LLM model
+gitnexus wiki --base-url <url>       # Wiki with custom LLM API base URL
+```
+
+> [!NOTE]
+> For AI agents (MCP tools)
+>
+> The commands above are for **human use** in the terminal. AI coding agents (Claude Code, Cursor, Codex, etc.) access GitNexus through MCP tools instead of CLI commands:
+>
+> | MCP Tool                  | Purpose                                                   |
+> | ------------------------- | --------------------------------------------------------- |
+> | `gitnexus_query`          | Search execution flows by concept                         |
+> | `gitnexus_context`        | 360-degree view of a symbol (callers, callees, processes) |
+> | `gitnexus_impact`         | Blast radius analysis for a symbol                        |
+> | `gitnexus_detect_changes` | Git-diff impact analysis                                  |
+> | `gitnexus_rename`         | Multi-file coordinated rename                             |
+> | `gitnexus_cypher`         | Raw graph queries                                         |
+> | `gitnexus_list_repos`     | List indexed repositories                                 |
+>
+> AI agents should refer to `AGENTS.md` (or `CLAUDE.md` for Claude Code) and the skill files in `.agents/skills/gitnexus/` / `.claude/skills/gitnexus/` for detailed MCP usage instructions.
