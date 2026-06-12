@@ -49,7 +49,7 @@ This repo can use the current Codex skill set when a task matches the skill trig
 ### Documentation Lookup
 
 - **Context7 / find-docs**: Use for current documentation for libraries, frameworks, SDKs, APIs, CLIs, and cloud services. Start with `resolve-library-id` unless the user provides an exact `/org/project` ID, then query docs with the full user question. Prefer this over web search for developer docs.
-- **openai-docs**: Use for OpenAI product/API questions; prefer official OpenAI docs.
+- **openai-docs**: Use for OpenAI product/API questions; prefer official OpenAI docs. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 
 ### Code Intelligence And Git
 
@@ -59,19 +59,19 @@ This repo can use the current Codex skill set when a task matches the skill trig
 
 ### Frontend, Browser, And Deployment
 
-- **Browser / Playwright / Chrome**: Use Browser for local in-app browser checks, Playwright for terminal-driven browser automation, and Chrome only when existing user Chrome state is required.
-- **Vercel skills**: Use for Next.js, React best practices, shadcn/ui, AI SDK, deployments, Vercel CLI/API, storage, auth, payments, cron, routing middleware, functions, workflow, and verification tasks.
-- **Cloudflare skills**: Use for Workers, Wrangler, Durable Objects, Agents SDK, MCP servers, sandbox SDK, and Cloudflare platform work.
+- **Browser / Playwright / Chrome**: Use Browser for local in-app browser checks, Playwright for terminal-driven browser automation, and Chrome only when existing user Chrome state is required. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
+- **Vercel skills**: Use for Next.js, React best practices, shadcn/ui, AI SDK, deployments, Vercel CLI/API, storage, auth, payments, cron, routing middleware, functions, workflow, and verification tasks. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
+- **Cloudflare skills**: Use for Workers, Wrangler, Durable Objects, Agents SDK, MCP servers, sandbox SDK, and Cloudflare platform work. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 
 ### Artifacts And Media
 
-- **Documents / Presentations / Spreadsheets / PDF**: Use for `.docx`, slide decks, spreadsheet files, and PDF tasks where rendering or file-format behavior matters.
-- **imagegen**: Use for raster image generation or edits when visuals are requested.
+- **Documents / Presentations / Spreadsheets / PDF**: Use for `.docx`, slide decks, spreadsheet files, and PDF tasks where rendering or file-format behavior matters. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
+- **imagegen**: Use for raster image generation or edits when visuals are requested. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 
 ### Skill Authoring
 
 - **skill-creator**: Use when creating or updating Codex skills. Required skill folders contain `SKILL.md`; optional resources include `scripts/`, `references/`, `assets/`, and `agents/openai.yaml`.
-- **skill-installer / plugin-creator**: Use when installing skills or scaffolding Codex plugins.
+- **skill-installer / plugin-creator**: Use when installing skills or scaffolding Codex plugins. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 
 Project-local skill indexes are available at `.agents/skills/available-skills/SKILL.md` and `.claude/skills/available-skills/SKILL.md`.
 
@@ -88,7 +88,7 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 ### Python Backend
 
 - Python 3.13，由 `uv` 管理
-- NoneBot2 + Milky 适配器
+- NoneBot2 + OneBot V11、Milky 和 QQ 适配器
 - `nonebot-plugin-alconna` 命令解析
 - `nonebot-plugin-orm`（aiosqlite）异步数据库
 - `nonebot-plugin-localstore` 文件存储
@@ -110,8 +110,12 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 │   ├── core/           # Config, platform info
 │   ├── database/       # JSON5 store, ORM CRUD helpers
 │   ├── handle/         # Command handlers (mute, group settings/actions, etc.)
+│   │   └── commands/group/{milky,onebot_v11}/  # Adapter-specific implementations
 │   ├── i18n/           # Babel/gettext translations
-│   └── utils/          # General command tools
+│   ├── platforms/      # Adapter-to-platform registry & resolution
+│   ├── repositories/   # Data access layer
+│   ├── services/       # Business logic services
+│   └── start/          # Startup & initialization
 ├── apps/docs/          # Fumadocs documentation site
 │   ├── content/docs/   # MDX content (zh + en)
 │   ├── src/
@@ -259,13 +263,22 @@ task ci                                          # check + test + build
 | `gitnexus/gitnexus-guide/`            | 关于 GitNexus 工具/模式/工作流的问题           | 所有 GitNexus MCP 工具、资源和图谱模式的快速参考。                                                       |
 | `gitnexus/gitnexus-impact-analysis/`  | "改 X 会破坏什么？"、编辑前安全检查           | 爆炸半径分析：深度 1/2/3 的上下游影响。                                                                   |
 | `gitnexus/gitnexus-refactoring/`      | 重命名、提取、拆分、移动代码                   | 使用知识图谱 + 文本搜索的多文件协调重命名。                                                               |
+| `gitnexus/gitnexus-pr-review/`        | 审查 Pull Request、评估合并风险                | 基于知识图谱的变更分析 PR 审查。                                                                         |
 | `hf-cli/`                             | Hugging Face Hub 操作（模型、数据集、空间、存储桶、端点、作业） | `hf` 命令的完整 CLI 参考 — 认证、上传/下载、缓存、仓库、论文、集合、端点、作业。                         |
 | `prek/`                               | 设置或运行 `prek` Git 钩子                     | `prek`（Rust 版 `pre-commit` 替代品）的配置、安装和工作流指南。                                           |
 | `react-doctor/`                       | 完成 React 功能、修复 bug、`/doctor`、扫描/分诊 React 代码 | React 代码库健康扫描器（安全性、性能、正确性、架构）。输出 0–100 分。包含规则解释和配置参考。             |
 
 #### `.claude/skills/`（Claude Code）
 
-`.agents/skills/` 的子集 — 包含 `available-skills/`、所有 `gitnexus/*` 技能和 `prek/`。不包含 `hf-cli/` 或 `react-doctor/`（仅限 Trae/Codex）。
+`.agents/skills/` 的子集 — 包含 `available-skills/`、所有 `gitnexus/*` 技能（含 `gitnexus-pr-review`）、`prek/`、`hf-cli/` 和 `react-doctor/`。
+
+#### `.trae/skills/`（Trae IDE）
+
+`.agents/skills/` 的镜像 — 包含相同的完整技能集。供 Trae IDE 的技能加载机制使用。
+
+#### `skills/`（共享）
+
+`.agents/skills/` 的镜像 — 包含相同的完整技能集。跨所有代理平台共享。
 
 ### 跨语言对应文件
 
@@ -299,10 +312,12 @@ Use conventional commit + gitmoji: `✨ feat:`, `🐛 fix:`, `📝 docs:`, `⚡ 
 
 GitHub Actions runs on push to `main`/`dev` and on PRs:
 
-- **Static Analysis**: Ruff + Markdown + Turborepo lint
-- **Tests & Type Check**: Pyright + ty + pytest + docs test
-- **Auto Format**: On push to main/dev, auto-fix and commit
-- **Docs Deploy**: Build and deploy to GitHub Pages
+- **🧪 CI**: Static analysis (Ruff + Markdown + Turborepo lint), tests & type check (Pyright + ty + pytest + docs test), auto-format on push to main/dev
+- **👷 CI-builds**: Build verification on Python/package changes
+- **📚 Docs Deploy**: Build and deploy to GitHub Pages on push to main/dev
+- **🩺 React Doctor**: React codebase health check on PRs (uses CLI, not the action — see Lessons Learned)
+- **🧹 Clear Workflow**: Stale workflow cleanup
+- **🏷️ Issues Top**: Issue triage automation
 
 ## Lessons Learned
 
@@ -340,7 +355,7 @@ Same-named APIs return different types across adapters:
 | `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
 | `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
 
-Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+The project uses `platforms/registry.py` to unify all adapters (OneBot V11, Milky, QQ, OneBot V12) under a single "QQ" platform profile. Adapter-specific code lives in `handle/commands/group/{milky,onebot_v11}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
 
 ### Function Signature Changes
 
@@ -450,7 +465,7 @@ Or use single-line `-m` with `\n` (less readable for long bodies).
 
 When pushing to GitHub, check all three CI workflows (not just the one that passed):
 
-1. **pre-commit.ci** — runs `end-of-file-fixer`, `trailing-whitespace`, etc. If it reports "files were modified by this hook", those files lack trailing newlines or have trailing whitespace. Fix locally and push again. Common culprits: `.po`/`.pot` files (Babel output may omit trailing newline), `.turbo/preferences/` JSON files, generated files.
+1. **pre-commit.ci** — remote CI fallback that runs `end-of-file-fixer`, `trailing-whitespace`, etc. When GitHub Actions API has issues, pre-commit.ci ensures basic checks still run. If it reports "files were modified by this hook", those files lack trailing newlines or have trailing whitespace. Fix locally and push again. Common culprits: `.po`/`.pot` files (Babel output may omit trailing newline), `.turbo/preferences/` JSON files, generated files.
 2. **CodeQL / GitHub Pages deploy** — `Requires authentication` errors can be caused by: (a) **GitHub infrastructure incidents** — check [githubstatus.com](https://www.githubstatus.com/) first; (b) **repository permission issues** — if status page is green, then check Settings → Actions → General → Workflow permissions (must be "Read and write") and ensure `id-token: write` is in the workflow's `permissions` block for OIDC-dependent jobs (Pages deploy, CodeQL).
 3. **`.next` cache staleness** — after renaming/moving route directories (e.g., `en/` → `zh/`), the `.next/dev/types/validator.ts` cache may reference old paths and cause TypeScript errors. Delete `apps/docs/.next/` and re-run `task check` before committing.
 
