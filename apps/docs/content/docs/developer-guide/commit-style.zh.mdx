@@ -42,7 +42,7 @@ title: 提交规范
 
 - 摘要使用祈使或陈述式短句，说明这次提交做了什么。
 - 一次提交只表达一个主要目的，避免混合无关代码和文档改动。
-- 不确定 emoji 时可以运行 `task gitmoji` 查看中文速查表，或让 `prepare-commit-msg` hook 启动 `pnpm exec gitmoji --hook`。
+- 不确定 emoji 时可以运行 `task gitmoji` 查看中文速查表，或让 `prepare-commit-msg` hook 直接调用 `node_modules/.bin/gitmoji --hook`（本地 devDep 缺失时回退到 `npx gitmoji` 或全局安装的 `gitmoji`）。
 - 需要说明背景、风险或破坏性变更时，在提交正文补充。
 
 ## 本地检查

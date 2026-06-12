@@ -214,9 +214,10 @@ task ci                                          # check + test + build
 
 ## Git Hooks
 
-- **pre-commit**: 条件触发检查 — Prek auto-fix（始终）→ Ruff lint/format（Python 变更时）→ Pyright/ty（Python 变更时）→ pytest（Python 变更时）→ Docs ESLint/type-check/Vitest（docs 变更时）→ Gitnexus analyze（始终，非阻断）
+- **pre-commit**: 条件触发检查 — Prek auto-fix（始终）→ Ruff lint/format（Python 变更时）→ Pyright/ty（Python 变更时）→ pytest（Python 变更时）→ Docs ESLint/type-check/Vitest（docs 变更时）→ React Doctor（docs 变更时，优先全局/本地安装，回退到 `pnpm dlx` 缓存，最终兜底 `npx -y`）→ Gitnexus analyze（始终，非阻断，优先 `node_modules/.bin/gitnexus` 直接调用，零下载）
 - **commit-msg**: gitmoji + Conventional Commits 格式校验 + 自动追加 Signed-off-by（含 trailer 块检测）
-- **prepare-commit-msg**: Interactive gitmoji commit message via `pnpm exec gitmoji --hook`
+- **prepare-commit-msg**: 通过 `node_modules/.bin/gitmoji --hook` 直接启动交互式 gitmoji（零 pnpm/npx 开销；若本地缺失则回退 npx / 全局 gitmoji）
+- **CLI 解析顺序**（所有 hooks 统一）：本地 `node_modules/.bin/<bin>` → 全局 PATH → 全局 `.cmd` shim → `pnpm dlx` 缓存（对非 devDep 工具的最终兜底：`npx -y`）
 - Set `$env:HUSKY='0'` to skip hooks when needed (e.g., automated commits)
 
 ## Agent Preferences
@@ -404,6 +405,14 @@ When removing functions/helpers:
 - Husky hook 可能运行在 Bash 环境中，这时 Windows 命令与 PowerShell 中的表现不同。不要只判断 `command -v` 能找到命令，还要确认命令能实际启动。
 - Hook 顶部应集中解析工具命令。对于 `pnpm.cmd`、`npx.cmd` 这类 Windows `.cmd` Node shim，应通过 `cmd.exe /c` 调用；在 Bash 中直接执行 `.cmd` 文件可能静默跳过检查，或输出误导性的 `node` 错误。
 - 用暂存区文件决定检查范围时，不要吞掉 `git diff --cached` 失败。如果 hook shell 中没有可用的 `git`，应明确失败，而不是把暂存文件列表当成空。
+
+### Husky Hook 中的 CLI 解析
+
+- `npx <bin>` 和 `pnpm exec <bin>` 总会重新解析包，即使 `node_modules/.bin/<bin>` 已经存在。在热缓存中仍需付出子进程启动、npm 注册表 HEAD 请求、lockfile 检查的开销；冷缓存时更会下载完整 tarball。这两种开销对 `gitnexus analyze`、`gitmoji --hook` 这类轻量检查来说都会成为 hook 时长的主要瓶颈。
+- **Husky hook 中 JS CLI 的解析顺序**：`node_modules/.bin/<bin>`（devDep shim，零下载）→ 全局 `PATH`（`command -v <bin>` 加可运行性检查）→ 全局 `.cmd` shim（仅在没有原生时通过 `cmd.exe /c` 调用）→ `pnpm dlx <bin>` 缓存 → `npx -y <bin>`（最后兜底，仅用于必须按需拉取的非 devDep）。
+- 对 `package.json` 已保证的 devDep（如 `gitmoji-cli`、`gitnexus`），只要 `pnpm install` 已执行，本地 `node_modules/.bin/<bin>` 分支应始终命中，常见路径下完全不需要回退到 `npx`。
+- 在 hook 顶部把解析后的工具引用缓存到变量中，在多个阶段复用；避免在循环或逐文件逻辑里重复调用 `command -v`。
+- 使用 `.cmd` shim（Windows Node shim，如 `pnpm.cmd`、`npx.cmd`）时，必须通过 `cmd.exe /c <shim> ...` 调用 —— 在 Git Bash 中直接运行 `.cmd` 可能静默退出并报误导性的 `node` 错误。
 
 ### Switching i18n Default Locale
 

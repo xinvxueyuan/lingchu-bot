@@ -30,9 +30,15 @@ fi
 
 echo "🔧 正在启动 Gitmoji 交互界面..."
 
-# 1. 优先尝试 pnpm 项目本地的 gitmoji
-if command -v pnpm >/dev/null 2>&1 && pnpm exec gitmoji --version >/dev/null 2>&1; then
-    pnpm exec gitmoji --hook "$COMMIT_MSG_FILE" "$COMMIT_SOURCE"
+# 解析 gitmoji 调用方式：本地 devDep bin > 全局 > npx
+# 输出 native:<path> | cmd:<path>（与 pre-commit 中的 resolve_js 保持一致）
+GITMOJI_BIN="node_modules/.bin/gitmoji"
+if [ -x "$GITMOJI_BIN" ] || [ -f "$GITMOJI_BIN.cmd" ]; then
+    if [[ "$GITMOJI_BIN" == *.cmd ]]; then
+        cmd.exe /c "$GITMOJI_BIN" --hook "$COMMIT_MSG_FILE" "$COMMIT_SOURCE"
+    else
+        "$GITMOJI_BIN" --hook "$COMMIT_MSG_FILE" "$COMMIT_SOURCE"
+    fi
     exit $?
 
 # 2. 备选方案：尝试使用 npx 直接运行（兼容新旧版 npx）
@@ -48,7 +54,7 @@ elif command -v gitmoji >/dev/null 2>&1; then
 
 # 4. 终极提示：未找到任何可用命令
 else
-    echo "❌ 错误: 未检测到 pnpm、npx 或全局 gitmoji 命令。"
+    echo "❌ 错误: 未检测到本地 gitmoji / npx / 全局 gitmoji 命令。"
     echo "💡 请先运行 'npm install -g gitmoji-cli' 或在项目中安装 gitmoji。"
     exit 1
 fi

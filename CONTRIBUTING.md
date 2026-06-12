@@ -116,7 +116,7 @@ Commit messages must conform to gitmoji + Conventional Commits. The first line i
 ✅ test(database): cover JSON5 store exception branch
 ```
 
-Run `task gitmoji` for a quick reference. During interactive commits, `.husky/prepare-commit-msg` will attempt to launch `pnpm exec gitmoji --hook`; in non-interactive environments, you can skip the interactive hook but must still ensure the first line format is correct.
+Run `task gitmoji` for a quick reference. During interactive commits, `.husky/prepare-commit-msg` will attempt to launch `node_modules/.bin/gitmoji --hook` directly (falls back to `npx gitmoji` or a global `gitmoji` install when the local devDep is missing); in non-interactive environments, you can skip the interactive hook but must still ensure the first line format is correct.
 
 ## Pull Request Requirements
 
