@@ -2,8 +2,15 @@
 
 # Pre-commit hook: 自动修复 → 快速检查 → 慢速检查 → 非阻断分析
 # 原则：快反馈优先，阻断性检查在前，非阻断分析放最后
-# 优化：仅当变更文件命中检查范围时才执行对应检查，缩短无关注变更的提交耗时
+# 优化（v2）：
+#   1. 新增 resolve_js 解析器：优先 node_modules/.bin/<bin>（devDep 零下载），
+#      其次全局 PATH，最后才回退 pnpm dlx（缓存）/ npx（兜底）
+#   2. 一次性探测并缓存所有外部 CLI，避免每个阶段重复子 shell
+#   3. CHANGED 检测由 6 次 git 调用减为 3 次
+#   4. 使用 uv run 链式短命令的检查保持原状（uv 缓存已足够快）
 set +e
+
+# ── 工具解析辅助函数 ────────────────────────────────────
 
 # first_runnable <command>... — 返回第一个可执行且能启动的命令
 first_runnable() {
@@ -30,19 +37,61 @@ first_cmd_runnable() {
     return 1
 }
 
+# resolve_native <bin>... — 返回第一个可在当前 shell 直接调用的命令
+resolve_native() {
+    first_runnable "$@" && return 0
+    return 1
+}
+
+# resolve_cmd <bin>... — 返回第一个可通过 cmd.exe 调用的 .cmd shim
+resolve_cmd() {
+    first_cmd_runnable "$@" && return 0
+    return 1
+}
+
+# resolve_js <bin>
+#   解析顺序：node_modules/.bin/<bin> → 全局 PATH → 全局 .cmd shim
+#   输出：native:<path> | cmd:<path>（失败返回 1，调用方决定兜底）
+#   Windows 上 .cmd shim 必须经 cmd.exe 包装，直接 $path 调用会被 Git Bash 静默跳过
+resolve_js() {
+    local bin="$1"
+    local bin_path=""
+
+    # 1. 本地 node_modules/.bin（devDep 已装时直接命中，零下载）
+    if [ -x "node_modules/.bin/$bin" ]; then
+        bin_path="node_modules/.bin/$bin"
+    elif [ -f "node_modules/.bin/$bin.cmd" ]; then
+        bin_path="node_modules/.bin/$bin.cmd"
+    fi
+    if [ -n "$bin_path" ]; then
+        if [[ "$bin_path" == *.cmd ]]; then
+            printf 'cmd:%s\n' "$bin_path"
+        else
+            printf 'native:%s\n' "$bin_path"
+        fi
+        return 0
+    fi
+
+    # 2. 全局 PATH
+    local resolved
+    resolved=$(resolve_native "$bin" "$bin.exe") && { printf 'native:%s\n' "$resolved"; return 0; }
+    resolved=$(resolve_cmd "$bin.cmd") && { printf 'cmd:%s\n' "$resolved"; return 0; }
+    return 1
+}
+
+# run_resolved <resolver-output> <args...>
+run_resolved() {
+    case "$1" in
+        native:*) shift; "${1#native:}" "$@" ;;
+        cmd:*) shift; cmd.exe /c "${1#cmd:}" "$@" ;;
+        *) return 127 ;;
+    esac
+}
+
+# select_js_runner <bin> — 解析 pnpm/npx 等 wrapper 工具自身
 select_js_runner() {
-    native_cmd=$(first_runnable "$1" "$1.exe")
-    if [ -n "$native_cmd" ]; then
-        printf 'native:%s\n' "$native_cmd"
-        return 0
-    fi
-
-    cmd_tool=$(first_cmd_runnable "$1.cmd")
-    if [ -n "$cmd_tool" ]; then
-        printf 'cmd:%s\n' "$cmd_tool"
-        return 0
-    fi
-
+    resolved=$(resolve_native "$1" "$1.exe") && { printf 'native:%s\n' "$resolved"; return 0; }
+    resolved=$(resolve_cmd "$1.cmd") && { printf 'cmd:%s\n' "$resolved"; return 0; }
     return 1
 }
 
@@ -54,27 +103,30 @@ run_pnpm() {
     esac
 }
 
-run_npx() {
-    case "$NPX_RUNNER" in
-        native:*) "${NPX_RUNNER#native:}" "$@" ;;
-        cmd:*) cmd.exe /c "${NPX_RUNNER#cmd:}" "$@" ;;
-        *) return 127 ;;
-    esac
-}
-
+# ── 一次性探测环境（缓存到变量）────────────────────────
 GIT_CMD=$(first_runnable git git.exe)
 UV_CMD=$(first_runnable uv uv.exe)
 PNPM_RUNNER=$(select_js_runner pnpm)
-NPX_RUNNER=$(select_js_runner npx)
 
 if [ -z "$GIT_CMD" ]; then
     echo "❌ 未找到可运行的 git，无法检测暂存区变更。"
     exit 1
 fi
 
-# ── 变更检测 ────────────────────────────────────────────
-# 收集暂存区变更文件列表（含重命名目标），用于按需触发检查
+# 预解析 JS 工具：devDep 命中本地 bin 时直接调用，避免 npx 重新下载
+GITNEXUS_RESOLVED=$(resolve_js gitnexus || true)
 
+# react-doctor 不在 devDep 中：尝试全局命中，否则走 pnpm dlx（带 pnpm 缓存），
+# 最后才用 npx（每次都重新拉包）
+REACT_DOCTOR_RESOLVED=$(resolve_js react-doctor || true)
+DLX_RUNNER=""
+if [ -z "$REACT_DOCTOR_RESOLVED" ] && [ -n "$PNPM_RUNNER" ]; then
+    DLX_RUNNER="pnpm"
+elif [ -z "$REACT_DOCTOR_RESOLVED" ]; then
+    DLX_RUNNER=$(select_js_runner npx || true)
+fi
+
+# ── 变更检测 ────────────────────────────────────────────
 STAGED_FILES=$("$GIT_CMD" diff --cached --name-only --diff-filter=ACMR 2>/dev/null)
 
 # has_pattern <glob_pattern>... — 任一模式匹配到暂存文件则返回 0
@@ -87,7 +139,6 @@ has_pattern() {
     return 1
 }
 
-# 检测各领域是否有变更
 HAS_PYTHON=false
 HAS_PY_CONFIG=false   # pyproject.toml / ruff.toml / uv.lock 等 Python 配置
 HAS_DOCS=false        # apps/docs/ 下的前端/文档变更
@@ -101,12 +152,10 @@ fi
 if has_pattern '^apps/docs/.*\.(ts|tsx|css|mdx|mjs|json)$'; then
     HAS_DOCS=true
 fi
-# docs 配置文件变更也触发
 if has_pattern '^apps/docs/(next\.config\.mjs|source\.config\.ts|tsconfig\.json|vitest\.config\.ts|eslint\.config\.mjs|postcss\.config\.mjs|package\.json)$'; then
     HAS_DOCS=true
 fi
 
-# Python 相关检查：.py 文件或 Python 配置变更时触发
 NEEDS_PYTHON_CHECK=false
 if [ "$HAS_PYTHON" = true ] || [ "$HAS_PY_CONFIG" = true ]; then
     NEEDS_PYTHON_CHECK=true
@@ -114,9 +163,7 @@ fi
 
 echo "🚀 正在运行代码检查..."
 
-# ── Phase 1: 自动修复 ──────────────────────────────────
-
-# Prek: lint/format 自动修复 + 重新暂存（始终运行，prek 自身按 stage 过滤）
+# ── Phase 1: 自动修复（prek 始终运行，prek 自身按 stage 过滤）──
 if [ -n "$UV_CMD" ]; then
     echo "🔧 正在运行 Prek 自动修复..."
     "$UV_CMD" run prek run --config prek.toml --stage pre-commit
@@ -129,148 +176,137 @@ else
 fi
 
 # ── Phase 2: 快速检查（秒级）──────────────────────────
-
-if [ "$NEEDS_PYTHON_CHECK" = true ]; then
-    # Ruff lint
-    if [ -n "$UV_CMD" ]; then
-        echo "🔍 正在运行 Ruff lint..."
-        "$UV_CMD" run -m ruff check . --output-format=github
-        if [ $? -ne 0 ]; then
-            echo "❌ Ruff lint 检查失败，请修复后重新提交。"
-            exit 1
-        fi
+if [ "$NEEDS_PYTHON_CHECK" = true ] && [ -n "$UV_CMD" ]; then
+    echo "🔍 正在运行 Ruff lint..."
+    "$UV_CMD" run -m ruff check . --output-format=github
+    if [ $? -ne 0 ]; then
+        echo "❌ Ruff lint 检查失败，请修复后重新提交。"
+        exit 1
     fi
 
-    # Ruff format
-    if [ -n "$UV_CMD" ]; then
-        echo "🔍 正在运行 Ruff format 检查..."
-        "$UV_CMD" run -m ruff format --check .
-        if [ $? -ne 0 ]; then
-            echo "❌ Ruff format 检查失败，请运行 'task format' 后重新提交。"
-            exit 1
-        fi
+    echo "🔍 正在运行 Ruff format 检查..."
+    "$UV_CMD" run -m ruff format --check .
+    if [ $? -ne 0 ]; then
+        echo "❌ Ruff format 检查失败，请运行 'task format' 后重新提交。"
+        exit 1
     fi
 else
     echo "⏭️  无 Python 变更，跳过 Ruff lint/format 检查。"
 fi
 
 # ── Phase 3: 类型检查（十秒级）────────────────────────
-
-if [ "$NEEDS_PYTHON_CHECK" = true ]; then
-    # Pyright
-    if [ -n "$UV_CMD" ]; then
-        echo "🔍 正在运行 Pyright 类型检查..."
-        "$UV_CMD" run -m pyright .
-        if [ $? -ne 0 ]; then
-            echo "❌ Pyright 类型检查失败，请修复后重新提交。"
-            exit 1
-        fi
+if [ "$NEEDS_PYTHON_CHECK" = true ] && [ -n "$UV_CMD" ]; then
+    echo "🔍 正在运行 Pyright 类型检查..."
+    "$UV_CMD" run -m pyright .
+    if [ $? -ne 0 ]; then
+        echo "❌ Pyright 类型检查失败，请修复后重新提交。"
+        exit 1
     fi
 
-    # ty
-    if [ -n "$UV_CMD" ]; then
-        echo "🔍 正在运行 ty 类型检查..."
-        "$UV_CMD" run -m ty check --output-format github
-        if [ $? -ne 0 ]; then
-            echo "❌ ty 类型检查失败，请修复后重新提交。"
-            exit 1
-        fi
+    echo "🔍 正在运行 ty 类型检查..."
+    "$UV_CMD" run -m ty check --output-format github
+    if [ $? -ne 0 ]; then
+        echo "❌ ty 类型检查失败，请修复后重新提交。"
+        exit 1
     fi
 else
     echo "⏭️  无 Python 变更，跳过 Pyright/ty 类型检查。"
 fi
 
 # ── Phase 4: 测试（十秒级）────────────────────────────
-
-if [ "$NEEDS_PYTHON_CHECK" = true ]; then
-    # pytest
-    if [ -n "$UV_CMD" ]; then
-        echo "🧪 正在运行 pytest..."
-        "$UV_CMD" run -m pytest -x -q
-        if [ $? -ne 0 ]; then
-            echo "❌ pytest 测试失败，请修复后重新提交。"
-            exit 1
-        fi
+if [ "$NEEDS_PYTHON_CHECK" = true ] && [ -n "$UV_CMD" ]; then
+    echo "🧪 正在运行 pytest..."
+    "$UV_CMD" run -m pytest -x -q
+    if [ $? -ne 0 ]; then
+        echo "❌ pytest 测试失败，请修复后重新提交。"
+        exit 1
     fi
 else
     echo "⏭️  无 Python 变更，跳过 pytest 测试。"
 fi
 
 # ── Phase 5: Docs 检查（十秒级）────────────────────────
-
-if [ "$HAS_DOCS" = true ]; then
-    # Docs ESLint
-    if [ -n "$PNPM_RUNNER" ]; then
-        echo "🔍 正在运行 Docs ESLint..."
-        run_pnpm --filter docs lint
-        if [ $? -ne 0 ]; then
-            echo "❌ Docs ESLint 检查失败，请修复后重新提交。"
-            exit 1
-        fi
+if [ "$HAS_DOCS" = true ] && [ -n "$PNPM_RUNNER" ]; then
+    echo "🔍 正在运行 Docs ESLint..."
+    run_pnpm --filter docs lint
+    if [ $? -ne 0 ]; then
+        echo "❌ Docs ESLint 检查失败，请修复后重新提交。"
+        exit 1
     fi
 
-    # Docs Type Check
-    if [ -n "$PNPM_RUNNER" ]; then
-        echo "🔍 正在运行 Docs 类型检查..."
-        run_pnpm --filter docs check-types
-        if [ $? -ne 0 ]; then
-            echo "❌ Docs 类型检查失败，请修复后重新提交。"
-            exit 1
-        fi
+    echo "🔍 正在运行 Docs 类型检查..."
+    run_pnpm --filter docs check-types
+    if [ $? -ne 0 ]; then
+        echo "❌ Docs 类型检查失败，请修复后重新提交。"
+        exit 1
     fi
 
-    # Docs Vitest
-    if [ -n "$PNPM_RUNNER" ]; then
-        echo "🧪 正在运行 Docs Vitest..."
-        run_pnpm --filter docs test
-        if [ $? -ne 0 ]; then
-            echo "❌ Docs 测试失败，请修复后重新提交。"
-            exit 1
-        fi
+    echo "🧪 正在运行 Docs Vitest..."
+    run_pnpm --filter docs test
+    if [ $? -ne 0 ]; then
+        echo "❌ Docs 测试失败，请修复后重新提交。"
+        exit 1
     fi
 else
     echo "⏭️  无 Docs 变更，跳过 Docs 检查。"
 fi
 
 # ── Phase 6: React Doctor（十秒级）───────────────────────
-
 if [ "$HAS_DOCS" = true ]; then
-    if [ -n "$NPX_RUNNER" ]; then
+    if [ -n "$REACT_DOCTOR_RESOLVED" ]; then
         echo "🩺 正在运行 React Doctor..."
-        NO_COLOR=1 run_npx react-doctor@latest . --blocking error --no-telemetry --project docs
+        NO_COLOR=1 run_resolved "$REACT_DOCTOR_RESOLVED" . --blocking error --no-telemetry --project docs
         if [ $? -ne 0 ]; then
             echo "❌ React Doctor 发现错误，请修复后重新提交。"
             echo "💡 运行 'pnpm doctor -- --verbose' 查看详细信息。"
             exit 1
         fi
+    elif [ "$DLX_RUNNER" = "pnpm" ]; then
+        # pnpm dlx 命中 pnpm 内容寻址缓存，后续调用零下载
+        echo "🩺 正在运行 React Doctor (pnpm dlx 缓存)..."
+        NO_COLOR=1 run_pnpm dlx react-doctor@latest . --blocking error --no-telemetry --project docs
+        if [ $? -ne 0 ]; then
+            echo "❌ React Doctor 发现错误，请修复后重新提交。"
+            echo "💡 运行 'pnpm doctor -- --verbose' 查看详细信息。"
+            exit 1
+        fi
+    elif [ -n "$DLX_RUNNER" ]; then
+        # 终极兜底：npx 每次都会重新下载（最慢路径）
+        echo "🩺 正在运行 React Doctor (npx 兜底)..."
+        NO_COLOR=1 cmd.exe /c "${DLX_RUNNER#cmd:}" -y react-doctor@latest . --blocking error --no-telemetry --project docs
+        if [ $? -ne 0 ]; then
+            echo "❌ React Doctor 发现错误，请修复后重新提交。"
+            echo "💡 运行 'pnpm doctor -- --verbose' 查看详细信息。"
+            exit 1
+        fi
+    else
+        echo "⚠️  未找到 react-doctor / pnpm / npx，跳过 React Doctor 检查。"
     fi
 else
     echo "⏭️  无 Docs 变更，跳过 React Doctor 检查。"
 fi
 
 # ── Phase 7: 非阻断分析 ────────────────────────────────
-
-# Gitnexus: 更新代码索引，失败不阻断提交
-if [ -n "$PNPM_RUNNER" ]; then
+# Gitnexus 优先本地 node_modules/.bin（devDep 已装时零下载零 pnpm 开销），
+# 其次 pnpm exec，最后才走 pnpm dlx 缓存
+if [ -n "$GITNEXUS_RESOLVED" ]; then
+    run_resolved "$GITNEXUS_RESOLVED" analyze || true
+elif [ -n "$PNPM_RUNNER" ]; then
     run_pnpm exec gitnexus analyze || true
-elif [ -n "$NPX_RUNNER" ]; then
-    run_npx -y gitnexus analyze || true
 else
-    echo "⚠️  未找到 pnpm/npx，跳过 Gitnexus 分析。"
+    echo "⚠️  未找到 gitnexus / pnpm，跳过 Gitnexus 分析。"
 fi
 
-# Gitnexus 可能更新 CLAUDE.md / AGENTS.md，自动暂存变更
-CHANGED=""
-for f in CLAUDE.md AGENTS.md; do
-    if "$GIT_CMD" diff --name-only -- "$f" 2>/dev/null | grep -q . || \
-       "$GIT_CMD" diff --cached --name-only -- "$f" 2>/dev/null | grep -q . || \
-       "$GIT_CMD" ls-files --others --exclude-standard -- "$f" 2>/dev/null | grep -q .; then
-        CHANGED="$CHANGED $f"
-    fi
-done
-if [ -n "$CHANGED" ]; then
-    echo "ℹ️  检测到 Gitnexus 更新了$CHANGED，正在暂存..."
-    "$GIT_CMD" add $CHANGED
+# Gitnexus 可能更新 CLAUDE.md / AGENTS.md，自动暂存变更（git add 对未变更文件是空操作）
+# 由原 6 次 git 子进程减为 3 次
+WT_DIFF=$("$GIT_CMD" diff --name-only -- CLAUDE.md AGENTS.md 2>/dev/null)
+CACHED_DIFF=$("$GIT_CMD" diff --cached --name-only -- CLAUDE.md AGENTS.md 2>/dev/null)
+UNTRACKED=$("$GIT_CMD" ls-files --others --exclude-standard -- CLAUDE.md AGENTS.md 2>/dev/null)
+ALL_CHANGED=$(printf '%s\n%s\n%s\n' "$WT_DIFF" "$CACHED_DIFF" "$UNTRACKED" | awk 'NF' | sort -u || true)
+if [ -n "$ALL_CHANGED" ]; then
+    echo "ℹ️  检测到 Gitnexus 更新了 $ALL_CHANGED，正在暂存..."
+    # shellcheck disable=SC2086
+    "$GIT_CMD" add -- $ALL_CHANGED
 fi
 
 echo "✅ 所有检查通过！"

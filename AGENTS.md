@@ -190,9 +190,10 @@ task ci                                          # check + test + build
 
 ## Git Hooks
 
-- **pre-commit**: Conditional checks — Prek auto-fix (always) → Ruff lint/format (on Python changes) → Pyright/ty (on Python changes) → pytest (on Python changes) → Docs ESLint/type-check/Vitest (on docs changes) → Gitnexus analyze (always, non-blocking)
+- **pre-commit**: Conditional checks — Prek auto-fix (always) → Ruff lint/format (on Python changes) → Pyright/ty (on Python changes) → pytest (on Python changes) → Docs ESLint/type-check/Vitest (on docs changes) → React Doctor (on docs changes, prefers global/local install, falls back to `pnpm dlx` cache, last resort `npx -y`) → Gitnexus analyze (always, non-blocking, prefers `node_modules/.bin/gitnexus` for zero download)
 - **commit-msg**: gitmoji + Conventional Commits format validation + auto-append Signed-off-by (with trailer block detection)
-- **prepare-commit-msg**: Interactive gitmoji commit message via `pnpm exec gitmoji --hook`
+- **prepare-commit-msg**: Interactive gitmoji commit message via direct `node_modules/.bin/gitmoji --hook` (zero pnpm/npx overhead; falls back to npx / global gitmoji if local missing)
+- **CLI resolution order** (all hooks): local `node_modules/.bin/<bin>` → global PATH → global `.cmd` shim → `pnpm dlx` cache (last resort: `npx -y` for non-devDeps)
 - Set `$env:HUSKY='0'` to skip hooks when needed (e.g., automated commits)
 
 ## Agent Preferences
@@ -388,6 +389,14 @@ When removing functions/helpers:
 - Husky hooks may run under a Bash environment that sees Windows commands differently from PowerShell. Check that a command can actually start, not only that `command -v` finds it.
 - Prefer resolving tool commands once near the top of the hook. For Windows `.cmd` Node shims such as `pnpm.cmd` and `npx.cmd`, invoke them through `cmd.exe /c`; executing the `.cmd` file directly from Bash can silently skip checks or emit misleading `node` errors.
 - Do not suppress `git diff --cached` failures when deciding which checks to run. If `git` is unavailable in the hook shell, fail clearly instead of treating the staged file list as empty.
+
+### Husky Hook CLI Resolution
+
+- `npx <bin>` and `pnpm exec <bin>` always re-resolve a package, even when `node_modules/.bin/<bin>` is already present. On a warm cache this still costs a sub-process spawn, an npm registry HEAD, and a lockfile check; on a cold cache it downloads a full tarball. Either cost dominates the per-hook budget for trivial checks like `gitnexus analyze` or `gitmoji --hook`.
+- **Resolution order for JS CLIs in Husky hooks**: `node_modules/.bin/<bin>` (devDep shim, zero download) → global `PATH` (`command -v <bin>` and runnable check) → global `.cmd` shim (only if no native found, invoke via `cmd.exe /c`) → `pnpm dlx <bin>` cache → `npx -y <bin>` (last resort, for non-devDeps that must be fetched on demand).
+- For devDependencies that are guaranteed by `package.json` (e.g., `gitmoji-cli`, `gitnexus`), the local `node_modules/.bin/<bin>` branch should always succeed once `pnpm install` has run, so the hook never needs to fall back to `npx` in the common path.
+- Cache the resolved tool reference in a variable at the top of the hook and reuse it across phases; avoid re-running `command -v` inside loops or per-file logic.
+- When using `.cmd` shims (Windows Node shims like `pnpm.cmd`, `npx.cmd`), execute them via `cmd.exe /c <shim> ...` — running the `.cmd` directly from Git Bash can silently exit with misleading "node not found" errors.
 
 ## Docs Site Component Catalog
 

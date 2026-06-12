@@ -40,7 +40,7 @@ Breaking changes may add `!` after the type or after the scope:
 
 - Use a short imperative or descriptive summary that explains what changed.
 - Keep each commit focused on one primary purpose and avoid mixing unrelated code and documentation changes.
-- If unsure which emoji to use, run `task gitmoji` for the Chinese quick reference, or let the `prepare-commit-msg` hook start `pnpm exec gitmoji --hook`.
+- If unsure which emoji to use, run `task gitmoji` for the Chinese quick reference, or let the `prepare-commit-msg` hook start `node_modules/.bin/gitmoji --hook` (falls back to `npx gitmoji` or a global `gitmoji` install when the local devDep is missing).
 - Add background, risk, or breaking-change details in the commit body when needed.
 
 ## Local checks
