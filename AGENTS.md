@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3401 symbols, 5905 relationships, 257 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3404 symbols, 5908 relationships, 257 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -49,7 +49,7 @@ This repo can use the current Codex skill set when a task matches the skill trig
 ### Documentation Lookup
 
 - **Context7 / find-docs**: Use for current documentation for libraries, frameworks, SDKs, APIs, CLIs, and cloud services. Start with `resolve-library-id` unless the user provides an exact `/org/project` ID, then query docs with the full user question. Prefer this over web search for developer docs.
-- **openai-docs**: Use for OpenAI product/API questions; prefer official OpenAI docs.
+- **openai-docs**: Use for OpenAI product/API questions; prefer official OpenAI docs. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 
 ### Code Intelligence And Git
 
@@ -59,19 +59,19 @@ This repo can use the current Codex skill set when a task matches the skill trig
 
 ### Frontend, Browser, And Deployment
 
-- **Browser / Playwright / Chrome**: Use Browser for local in-app browser checks, Playwright for terminal-driven browser automation, and Chrome only when existing user Chrome state is required.
-- **Vercel skills**: Use for Next.js, React best practices, shadcn/ui, AI SDK, deployments, Vercel CLI/API, storage, auth, payments, cron, routing middleware, functions, workflow, and verification tasks.
-- **Cloudflare skills**: Use for Workers, Wrangler, Durable Objects, Agents SDK, MCP servers, sandbox SDK, and Cloudflare platform work.
+- **Browser / Playwright / Chrome**: Use Browser for local in-app browser checks, Playwright for terminal-driven browser automation, and Chrome only when existing user Chrome state is required. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
+- **Vercel skills**: Use for Next.js, React best practices, shadcn/ui, AI SDK, deployments, Vercel CLI/API, storage, auth, payments, cron, routing middleware, functions, workflow, and verification tasks. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
+- **Cloudflare skills**: Use for Workers, Wrangler, Durable Objects, Agents SDK, MCP servers, sandbox SDK, and Cloudflare platform work. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 
 ### Artifacts And Media
 
-- **Documents / Presentations / Spreadsheets / PDF**: Use for `.docx`, slide decks, spreadsheet files, and PDF tasks where rendering or file-format behavior matters.
-- **imagegen**: Use for raster image generation or edits when visuals are requested.
+- **Documents / Presentations / Spreadsheets / PDF**: Use for `.docx`, slide decks, spreadsheet files, and PDF tasks where rendering or file-format behavior matters. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
+- **imagegen**: Use for raster image generation or edits when visuals are requested. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 
 ### Skill Authoring
 
 - **skill-creator**: Use when creating or updating Codex skills. Required skill folders contain `SKILL.md`; optional resources include `scripts/`, `references/`, `assets/`, and `agents/openai.yaml`.
-- **skill-installer / plugin-creator**: Use when installing skills or scaffolding Codex plugins.
+- **skill-installer / plugin-creator**: Use when installing skills or scaffolding Codex plugins. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 
 Project-local skill indexes are available at `.agents/skills/available-skills/SKILL.md` and `.claude/skills/available-skills/SKILL.md`.
 
@@ -88,7 +88,7 @@ Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains a Py
 ### Python Backend
 
 - Python 3.13, managed by `uv`
-- NoneBot2 with Milky adapter
+- NoneBot2 with OneBot V11, Milky, and QQ adapters
 - `nonebot-plugin-alconna` for command parsing
 - `nonebot-plugin-orm` (aiosqlite) for async database
 - `nonebot-plugin-localstore` for file storage
@@ -238,13 +238,22 @@ Skills are loaded **on demand** — only when the user's task matches the skill 
 | `gitnexus/gitnexus-guide/` | Questions about GitNexus tools/schema/workflow | Quick reference for all GitNexus MCP tools, resources, and graph schema. |
 | `gitnexus/gitnexus-impact-analysis/` | "What breaks if I change X?", pre-edit safety check | Blast radius analysis: upstream/downstream impact at depth 1/2/3. |
 | `gitnexus/gitnexus-refactoring/` | Renaming, extracting, splitting, moving code | Multi-file coordinated rename using knowledge graph + text search. |
+| `gitnexus/gitnexus-pr-review/` | Reviewing pull requests, assessing merge risk | PR review with knowledge-graph-aware change analysis. |
 | `hf-cli/` | Hugging Face Hub operations (models, datasets, spaces, buckets, endpoints, jobs) | Full CLI reference for `hf` command — auth, upload/download, cache, repos, papers, collections, endpoints, jobs. |
 | `prek/` | Setting up or running Git hooks with `prek` | `prek` (Rust `pre-commit` alternative) configuration, installation, and workflow guide. |
 | `react-doctor/` | Finishing React features, fixing bugs, `/doctor`, scanning/triaging React code | React codebase health scanner (security, performance, correctness, architecture). Outputs 0–100 score. Includes rule explanation and configuration reference. |
 
 #### `.claude/skills/` (Claude Code)
 
-Subset of `.agents/skills/` — contains `available-skills/`, all `gitnexus/*` skills, and `prek/`. Does NOT include `hf-cli/` or `react-doctor/` (those are Trae/Codex-only).
+Subset of `.agents/skills/` — contains `available-skills/`, all `gitnexus/*` skills (including `gitnexus-pr-review`), `prek/`, `hf-cli/`, and `react-doctor/`.
+
+#### `.trae/skills/` (Trae IDE)
+
+Mirror of `.agents/skills/` — contains the same full set of skills. Used by Trae IDE's skill loading mechanism.
+
+#### `skills/` (Shared)
+
+Mirror of `.agents/skills/` — contains the same full set of skills. Shared across all agent platforms.
 
 ### Cross-Language Counterpart
 
@@ -278,10 +287,12 @@ Use conventional commit + gitmoji: `✨ feat:`, `🐛 fix:`, `📝 docs:`, `⚡ 
 
 GitHub Actions runs on push to `main`/`dev` and on PRs:
 
-- **Static Analysis**: Ruff + Markdown + Turborepo lint
-- **Tests & Type Check**: Pyright + ty + pytest + docs test
-- **Auto Format**: On push to main/dev, auto-fix and commit
-- **Docs Deploy**: Build and deploy to GitHub Pages
+- **🧪 CI**: Static analysis (Ruff + Markdown + Turborepo lint), tests & type check (Pyright + ty + pytest + docs test), auto-format on push to main/dev
+- **👷 CI-builds**: Build verification on Python/package changes
+- **📚 Docs Deploy**: Build and deploy to GitHub Pages on push to main/dev
+- **� React Doctor**: React codebase health check on PRs (uses CLI, not the action — see Lessons Learned)
+- **� Clear Workflow**: Stale workflow cleanup
+- **🏷️ Issues Top**: Issue triage automation
 
 ## Lessons Learned
 
@@ -319,7 +330,7 @@ Same-named APIs return different types across adapters:
 | `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
 | `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
 
-Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+The project uses `platforms/registry.py` to unify all adapters (OneBot V11, Milky, QQ, OneBot V12) under a single "QQ" platform profile. Adapter-specific code lives in `handle/commands/group/{milky,onebot_v11}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
 
 ### Function Signature Changes
 
@@ -348,6 +359,8 @@ When removing functions/helpers:
 ### Mock Object Patterns for Adapter Models
 
 - OneBot V11 returns `dict` → mock with `return_value={}`
+- Milky returns pydantic `Model` objects → mock with `MagicMock(card="", nickname="")` so attribute access works
+- Never use `dict` as mock return value for APIs that return Model objects — attribute access (`obj.card`) will raise `AttributeError`
 
 ### ESLint Major Version Compatibility
 
@@ -753,17 +766,19 @@ lingchu-bot/
 ├── .agents/                          # Trae/Codex skill definitions
 │   └── skills/
 │       ├── available-skills/         # Skill routing index
-│       ├── gitnexus/                 # GitNexus skills (exploring, debugging, impact, refactoring, CLI, guide)
+│       ├── gitnexus/                 # GitNexus skills (exploring, debugging, impact, refactoring, CLI, guide, pr-review)
 │       ├── hf-cli/                   # Hugging Face Hub CLI skill
 │       ├── prek/                     # Prek (Rust pre-commit alternative) skill
 │       └── react-doctor/             # React codebase health scanner
 ├── .claude/                          # Claude Code skill definitions (subset of .agents/)
 │   └── skills/
+├── .trae/                            # Trae IDE configuration
+│   ├── rules/                        # Always-applied rules
+│   │   └── git-commit-message.md     # Gitmoji + Conventional Commits spec
+│   └── skills/                       # Trae skill definitions (mirror of .agents/)
 ├── .github/
 │   └── note/AGENTS-zh.md            # Chinese translation of AGENTS.md
 ├── .husky/                           # Git hooks (pre-commit, commit-msg, prepare-commit-msg)
-├── .trae/rules/                      # Trae IDE always-applied rules
-│   └── git-commit-message.md         # Gitmoji + Conventional Commits spec
 ├── src/
 │   └── plugins/nonebot_plugin_lingchu_bot/   # Core Python plugin
 │       ├── __init__.py               # Plugin entry point, matcher registration
@@ -785,9 +800,19 @@ lingchu-bot/
 │       │           ├── lifecycle.py  # Group lifecycle events
 │       │           ├── member.py     # Member management
 │       │           ├── profile.py    # Group profile settings
-│       │           └── milky/        # Milky adapter-specific implementations
+│       │           ├── milky/        # Milky adapter-specific implementations
+│       │           └── onebot_v11/   # OneBot V11 adapter-specific implementations
 │       ├── i18n/                     # Babel/gettext translations (en, zh)
-│       └── utils/                    # General command tools
+│       ├── platforms/                # Adapter-to-platform registry & resolution
+│       │   └── registry.py          # Cross-platform capability & adapter selection
+│       ├── repositories/             # Data access layer
+│       │   └── message_store.py     # Message store repository
+│       ├── services/                 # Business logic services
+│       │   └── messagestore.py      # Message storage service
+│       └── start/                    # Startup & initialization
+│           ├── bootstrap.py         # Bootstrap sequence
+│           ├── initialize.py        # Plugin initialization
+│           └── startup.py           # Startup hooks
 ├── apps/
 │   └── docs/                         # Fumadocs documentation site
 │       ├── content/docs/             # MDX content
@@ -846,6 +871,7 @@ lingchu-bot/
 │   ├── typescript-config/            # Shared TS configs (base, nextjs, react-library)
 │   └── ui/                           # Shared UI components (button, card, code)
 ├── tests/                            # Python test suite
+├── skills/                           # Shared skill definitions (mirror of .agents/)
 ├── Dockerfile                        # Container runner (nb-cli generated)
 ├── pyproject.toml                    # Python project config (uv, ruff, pyright, pytest)
 ├── package.json                      # Monorepo root (pnpm + Turborepo)
@@ -888,18 +914,23 @@ lingchu-bot/
 │                                                                   │
 │  __init__.py ──► core/config.py ──► Pydantic settings            │
 │              ──► core/sub_plugins.py ──► handle/commands/*       │
+│              ──► platforms/registry.py ──► adapter resolution     │
 │              ──► database/orm_crud.py ──► models.py (aiosqlite)  │
 │              ──► database/json5_store.py ──► JSON5 KV store      │
 │              ──► database/message_storage.py ──► message hooks   │
+│              ──► repositories/message_store.py ──► data access   │
+│              ──► services/messagestore.py ──► business logic     │
+│              ──► start/ ──► bootstrap, initialize, startup       │
 │              ──► i18n/ ──► Babel gettext catalogs                │
 │                                                                   │
 │  handle/commands/group/                                           │
-│    ├── common.py ──► utils/ (shared command tools)               │
+│    ├── common.py ──► shared command tools                         │
 │    ├── member.py ──► orm_crud, adapter API                       │
 │    ├── announcement.py ──► adapter API                            │
 │    ├── lifecycle.py ──► adapter API, json5_store                 │
 │    ├── profile.py ──► adapter API, json5_store                   │
-│    └── milky/ ──► Milky-adapter-specific overrides               │
+│    ├── milky/ ──► Milky-adapter-specific overrides               │
+│    └── onebot_v11/ ──► OneBot V11 adapter-specific overrides    │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -954,11 +985,6 @@ When the project structure, components, or conventions change:
 6. **i18n** — Run `task i18n` if Python user-facing strings change
 
 > **Rule**: Any PR that modifies project structure, adds/removes components, or changes conventions MUST update AGENTS.md as part of the PR.
-
-### Mock Object Patterns for Adapter Models (continued)
-
-- Milky returns pydantic `Model` objects → mock with `MagicMock(card="", nickname="")` so attribute access works
-- Never use `dict` as mock return value for APIs that return Model objects — attribute access (`obj.card`) will raise `AttributeError`
 
 ### Git Hooks Optimization
 
@@ -1038,7 +1064,7 @@ Or use single-line `-m` with `\n` (less readable for long bodies).
 
 When pushing to GitHub, check all three CI workflows (not just the one that passed):
 
-1. **pre-commit.ci** — runs `end-of-file-fixer`, `trailing-whitespace`, etc. If it reports "files were modified by this hook", those files lack trailing newlines or have trailing whitespace. Fix locally and push again. Common culprits: `.po`/`.pot` files (Babel output may omit trailing newline), `.turbo/preferences/` JSON files, generated files.
+1. **pre-commit.ci** — remote CI fallback that runs `end-of-file-fixer`, `trailing-whitespace`, etc. When GitHub Actions API has issues, pre-commit.ci ensures basic checks still run. If it reports "files were modified by this hook", those files lack trailing newlines or have trailing whitespace. Fix locally and push again. Common culprits: `.po`/`.pot` files (Babel output may omit trailing newline), `.turbo/preferences/` JSON files, generated files.
 2. **CodeQL / GitHub Pages deploy** — `Requires authentication` errors can be caused by: (a) **GitHub infrastructure incidents** — check [githubstatus.com](https://www.githubstatus.com/) first; (b) **repository permission issues** — if status page is green, then check Settings → Actions → General → Workflow permissions (must be "Read and write") and ensure `id-token: write` is in the workflow's `permissions` block for OIDC-dependent jobs (Pages deploy, CodeQL).
 3. **`.next` cache staleness** — after renaming/moving route directories (e.g., `en/` → `zh/`), the `.next/dev/types/validator.ts` cache may reference old paths and cause TypeScript errors. Delete `apps/docs/.next/` and re-run `task check` before committing.
 
