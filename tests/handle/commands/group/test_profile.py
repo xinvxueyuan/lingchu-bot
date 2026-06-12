@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 
-from src.plugins.nonebot_plugin_lingchu_bot.handle.commands.group.profile import (
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.group.profile import (
     milkybot_set_group_avatar,
     milkybot_set_group_name,
     onebot11_set_group_name,

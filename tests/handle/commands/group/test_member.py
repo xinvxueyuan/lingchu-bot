@@ -8,7 +8,7 @@ import pytest
 from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OB11ActionFailed
 
-from src.plugins.nonebot_plugin_lingchu_bot.handle.commands.group.member import (
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.group.member import (
     kick_group_member_cmd,
     milkybot_kick_group_member,
     milkybot_set_group_member_admin,

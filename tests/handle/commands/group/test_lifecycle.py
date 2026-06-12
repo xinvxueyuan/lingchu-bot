@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.plugins.nonebot_plugin_lingchu_bot.handle.commands.group.lifecycle import (
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.group.lifecycle import (
     milkybot_quit_group,
     onebot11_quit_group,
     quit_group_cmd,
