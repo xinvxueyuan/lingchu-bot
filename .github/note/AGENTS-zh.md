@@ -109,8 +109,8 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 ├── src/plugins/nonebot_plugin_lingchu_bot/   # Core NoneBot plugin
 │   ├── core/           # Config, platform info
 │   ├── database/       # JSON5 store, ORM CRUD helpers
-│   ├── handle/         # Command handlers (mute, group settings/actions, etc.)
-│   │   └── commands/group/{milky,onebot_v11}/  # Adapter-specific implementations
+│   ├── handle/         # Platform/protocol/implementation command handlers
+│   │   └── qq/{group,onebot/v11,milky/v1_2}/    # QQ group handlers
 │   ├── i18n/           # Babel/gettext translations
 │   ├── platforms/      # Adapter-to-platform registry & resolution
 │   ├── repositories/   # Data access layer
@@ -355,7 +355,7 @@ Same-named APIs return different types across adapters:
 | `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
 | `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
 
-The project uses `platforms/registry.py` to unify all adapters (OneBot V11, Milky, QQ, OneBot V12) under a single "QQ" platform profile. Adapter-specific code lives in `handle/commands/group/{milky,onebot_v11}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+The project uses `platforms/registry.py` to unify all adapters (OneBot V11, Milky, QQ, OneBot V12) under a single "QQ" platform profile. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/group/`, OneBot V11 handlers in `handle/qq/onebot/v11/{default,llonebot,napcat}/group/`, and Milky 1.2 handlers in `handle/qq/milky/v1_2/{default,llbot}/group/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
 
 ### Function Signature Changes
 
@@ -387,6 +387,10 @@ When removing functions/helpers:
 - Milky returns pydantic `Model` objects → mock with `MagicMock(card="", nickname="")` so attribute access works
 - Never use `dict` as mock return value for APIs that return Model objects — attribute access (`obj.card`) will raise `AttributeError`
 
+### Python Package Directory Names
+
+- 作为 Python 包导入的目录片段必须是合法 Python 标识符，这样运行时导入和静态工具都能解析。协议版本目录优先使用带字母前缀的形式，例如 `v1_2` 而不是 `1_2`；`importlib` 可能能加载数字开头的文件夹，但 `ty` 无法可靠解析。
+
 ### Git Hooks Optimization
 
 - **Pre-commit 应按变更文件类型条件触发检查**：用 `git diff --cached --name-only --diff-filter=ACMR` 收集暂存文件，通过 `has_pattern()` 检测文件后缀/路径，无 Python 变更时跳过 Ruff/Pyright/ty/pytest，无 Docs 变更时跳过 ESLint/type-check/Vitest，可节省 30-60 秒
@@ -394,6 +398,12 @@ When removing functions/helpers:
 - **空行清理不能破坏消息结构**：`sed '/^$/N;/^\n$/d'` 会删除所有连续空行，破坏 subject-body-trailer 结构；应仅压缩 ≥3 连续空行为 2 个
 - **重复签名检测需忽略尾部空白**：`grep -qF` 可能因行尾空白差异误判，应先 `sed 's/[[:space:]]*$//'` 去尾空白再 `grep -qxF` 精确整行匹配
 - **空消息体不应追加 Signed-off-by**：空提交消息由格式校验拦截即可，追加签名到空文件无意义
+
+### Windows Commands in Bash Hooks
+
+- Husky hook 可能运行在 Bash 环境中，这时 Windows 命令与 PowerShell 中的表现不同。不要只判断 `command -v` 能找到命令，还要确认命令能实际启动。
+- Hook 顶部应集中解析工具命令。对于 `pnpm.cmd`、`npx.cmd` 这类 Windows `.cmd` Node shim，应通过 `cmd.exe /c` 调用；在 Bash 中直接执行 `.cmd` 文件可能静默跳过检查，或输出误导性的 `node` 错误。
+- 用暂存区文件决定检查范围时，不要吞掉 `git diff --cached` 失败。如果 hook shell 中没有可用的 `git`，应明确失败，而不是把暂存文件列表当成空。
 
 ### Switching i18n Default Locale
 

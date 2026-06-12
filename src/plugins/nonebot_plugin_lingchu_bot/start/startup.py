@@ -3,7 +3,7 @@ from nonebot.adapters import Bot
 from nonebot.internal.driver.abstract import Driver
 
 from ..core.runtime_config import ensure_runtime_config_file
-from ..handle.commands.group import import_handle as group_import_handle
+from ..handle.qq.group import import_handle as group_import_handle
 from ..i18n import _async as _
 from ..i18n import warm_translation_cache
 from ..platforms import (

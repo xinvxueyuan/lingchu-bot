@@ -11,7 +11,7 @@ from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 from nonebot_plugin_alconna import UniMessage
 from nonebot_plugin_alconna.uniseg import At
 
-from src.plugins.nonebot_plugin_lingchu_bot.handle.commands.group.mute import (
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.group.mute import (
     member_mute_cmd,
     member_unmute_cmd,
     milkybot_mute,

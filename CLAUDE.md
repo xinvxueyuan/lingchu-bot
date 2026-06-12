@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3404 symbols, 5908 relationships, 257 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3446 symbols, 5955 relationships, 257 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -110,8 +110,8 @@ lingchu-bot/
 ├── src/plugins/nonebot_plugin_lingchu_bot/   # Core NoneBot plugin
 │   ├── core/           # Config, platform info
 │   ├── database/       # JSON5 store, ORM CRUD helpers
-│   ├── handle/         # Command handlers (mute, group settings/actions, etc.)
-│   │   └── commands/group/{milky,onebot_v11}/  # Adapter-specific implementations
+│   ├── handle/         # Platform/protocol/implementation command handlers
+│   │   └── qq/{group,onebot/v11,milky/v1_2}/    # QQ group handlers
 │   ├── i18n/           # Babel/gettext translations
 │   ├── platforms/      # Adapter-to-platform registry & resolution
 │   ├── repositories/   # Data access layer
@@ -354,7 +354,7 @@ Same-named APIs return different types across adapters:
 | `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
 | `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
 
-The project uses `platforms/registry.py` to unify all adapters (OneBot V11, Milky, QQ, OneBot V12) under a single "QQ" platform profile. Adapter-specific code lives in `handle/commands/group/{milky,onebot_v11}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+The project uses `platforms/registry.py` to unify all adapters (OneBot V11, Milky, QQ, OneBot V12) under a single "QQ" platform profile. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/group/`, OneBot V11 handlers in `handle/qq/onebot/v11/{default,llonebot,napcat}/group/`, and Milky 1.2 handlers in `handle/qq/milky/v1_2/{default,llbot}/group/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
 
 ### Function Signature Changes
 
@@ -386,10 +386,20 @@ When removing functions/helpers:
 - Milky returns pydantic `Model` objects → mock with `MagicMock(card="", nickname="")` so attribute access works
 - Never use `dict` as mock return value for APIs that return Model objects — attribute access (`obj.card`) will raise `AttributeError`
 
+### Python Package Directory Names
+
+- Directory segments that are imported as Python packages must be valid Python identifiers for both runtime imports and static tools. For protocol versions, prefer a leading letter such as `v1_2` instead of `1_2`; `importlib` may load numeric-leading folders, but `ty` cannot resolve them reliably.
+
 ### Git Hooks Optimization
 
 - Pre-commit hooks run conditionally based on changed file types — Python changes trigger Ruff + Pyright/ty + pytest; docs changes trigger ESLint + tsc + Vitest
 - GitNexus analyze runs on every pre-commit but is non-blocking — stale index warnings should prompt a manual `npx gitnexus analyze`
+
+### Windows Commands in Bash Hooks
+
+- Husky hooks may run under a Bash environment that sees Windows commands differently from PowerShell. Check that a command can actually start, not only that `command -v` finds it.
+- Prefer resolving tool commands once near the top of the hook. For Windows `.cmd` Node shims such as `pnpm.cmd` and `npx.cmd`, invoke them through `cmd.exe /c`; executing the `.cmd` file directly from Bash can silently skip checks or emit misleading `node` errors.
+- Do not suppress `git diff --cached` failures when deciding which checks to run. If `git` is unavailable in the hook shell, fail clearly instead of treating the staged file list as empty.
 
 ### Type Narrowing in Tests
 

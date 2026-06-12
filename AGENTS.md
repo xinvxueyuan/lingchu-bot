@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3404 symbols, 5908 relationships, 257 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3446 symbols, 5955 relationships, 257 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -330,7 +330,7 @@ Same-named APIs return different types across adapters:
 | `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
 | `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
 
-The project uses `platforms/registry.py` to unify all adapters (OneBot V11, Milky, QQ, OneBot V12) under a single "QQ" platform profile. Adapter-specific code lives in `handle/commands/group/{milky,onebot_v11}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+The project uses `platforms/registry.py` to unify all adapters (OneBot V11, Milky, QQ, OneBot V12) under a single "QQ" platform profile. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/group/`, OneBot V11 handlers in `handle/qq/onebot/v11/{default,llonebot,napcat}/group/`, and Milky 1.2 handlers in `handle/qq/milky/v1_2/{default,llbot}/group/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
 
 ### Function Signature Changes
 
@@ -362,6 +362,10 @@ When removing functions/helpers:
 - Milky returns pydantic `Model` objects → mock with `MagicMock(card="", nickname="")` so attribute access works
 - Never use `dict` as mock return value for APIs that return Model objects — attribute access (`obj.card`) will raise `AttributeError`
 
+### Python Package Directory Names
+
+- Directory segments that are imported as Python packages must be valid Python identifiers for both runtime imports and static tools. For protocol versions, prefer a leading letter such as `v1_2` instead of `1_2`; `importlib` may load numeric-leading folders, but `ty` cannot resolve them reliably.
+
 ### ESLint Major Version Compatibility
 
 - **`eslint-plugin-react@7.x` is incompatible with ESLint 10.** The plugin calls `context.getFilename()` which was removed in ESLint 10's breaking change to `context.filename`. This causes `TypeError: contextOrFilename.getFilename is not a function` at load time.
@@ -378,6 +382,12 @@ When removing functions/helpers:
 - `markdownlint-cli2` v0.22+ enforces MD060 (table column style). The default style `aligned` requires visual pipe alignment, which is unreliable with CJK characters because character display width (2 columns for CJK) differs from character count (1 per CJK char in source).
 - **Fix**: Set MD060 style to `consistent` in `.markdownlint.jsonc` — this only requires that each column's pipes appear at the same character position across all rows, without demanding visual alignment. This works correctly for both pure-ASCII and mixed CJK/Latin tables.
 - **Do not** disable MD060 entirely — `consistent` style still catches real formatting errors (missing pipes, inconsistent column counts) while avoiding false positives from CJK width mismatches.
+
+### Windows Commands in Bash Hooks
+
+- Husky hooks may run under a Bash environment that sees Windows commands differently from PowerShell. Check that a command can actually start, not only that `command -v` finds it.
+- Prefer resolving tool commands once near the top of the hook. For Windows `.cmd` Node shims such as `pnpm.cmd` and `npx.cmd`, invoke them through `cmd.exe /c`; executing the `.cmd` file directly from Bash can silently skip checks or emit misleading `node` errors.
+- Do not suppress `git diff --cached` failures when deciding which checks to run. If `git` is unavailable in the hook shell, fail clearly instead of treating the staged file list as empty.
 
 ## Docs Site Component Catalog
 
@@ -792,16 +802,15 @@ lingchu-bot/
 │       │   ├── models.py             # ORM models (aiosqlite)
 │       │   └── orm_crud.py           # Async CRUD helpers
 │       ├── handle/
-│       │   └── commands/
-│       │       └── group/            # Group management commands
-│       │           ├── __init__.py   # Command registration
-│       │           ├── announcement.py  # Group announcements
-│       │           ├── common.py     # Shared command utilities
-│       │           ├── lifecycle.py  # Group lifecycle events
-│       │           ├── member.py     # Member management
-│       │           ├── profile.py    # Group profile settings
-│       │           ├── milky/        # Milky adapter-specific implementations
-│       │           └── onebot_v11/   # OneBot V11 adapter-specific implementations
+│       │   └── qq/                   # QQ platform handlers
+│       │       ├── group/            # Shared group command definitions
+│       │       ├── onebot/v11/
+│       │       │   ├── default/group/   # OneBot V11 shared handlers
+│       │       │   ├── llonebot/group/  # LLOneBot extensions
+│       │       │   └── napcat/group/    # NapCat extensions
+│       │       └── milky/v1_2/
+│       │           ├── default/group/   # Milky 1.2 shared handlers
+│       │           └── llbot/group/     # LLBot extensions
 │       ├── i18n/                     # Babel/gettext translations (en, zh)
 │       ├── platforms/                # Adapter-to-platform registry & resolution
 │       │   └── registry.py          # Cross-platform capability & adapter selection
@@ -913,7 +922,7 @@ lingchu-bot/
 │              Python Plugin (nonebot_plugin_lingchu_bot)           │
 │                                                                   │
 │  __init__.py ──► core/config.py ──► Pydantic settings            │
-│              ──► core/sub_plugins.py ──► handle/commands/*       │
+│              ──► core/sub_plugins.py ──► platform handlers       │
 │              ──► platforms/registry.py ──► adapter resolution     │
 │              ──► database/orm_crud.py ──► models.py (aiosqlite)  │
 │              ──► database/json5_store.py ──► JSON5 KV store      │
@@ -923,14 +932,12 @@ lingchu-bot/
 │              ──► start/ ──► bootstrap, initialize, startup       │
 │              ──► i18n/ ──► Babel gettext catalogs                │
 │                                                                   │
-│  handle/commands/group/                                           │
-│    ├── common.py ──► shared command tools                         │
-│    ├── member.py ──► orm_crud, adapter API                       │
-│    ├── announcement.py ──► adapter API                            │
-│    ├── lifecycle.py ──► adapter API, json5_store                 │
-│    ├── profile.py ──► adapter API, json5_store                   │
-│    ├── milky/ ──► Milky-adapter-specific overrides               │
-│    └── onebot_v11/ ──► OneBot V11 adapter-specific overrides    │
+│  handle/qq/                                                       │
+│    ├── group/ ──► shared QQ group command definitions             │
+│    ├── onebot/v11/default/group/ ──► OneBot V11 handlers         │
+│    ├── onebot/v11/{llonebot,napcat}/group/ ──► OneBot extensions │
+│    ├── milky/v1_2/default/group/ ──► Milky 1.2 handlers           │
+│    └── milky/v1_2/llbot/group/ ──► LLBot extensions               │
 └──────────────────────────────────────────────────────────────────┘
 ```
 

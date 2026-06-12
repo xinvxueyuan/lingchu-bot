@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.plugins.nonebot_plugin_lingchu_bot.handle.commands.group.announcement import (
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.group.announcement import (
     milkybot_send_group_announcement,
     onebot_v11_send_group_announcement,
     send_group_announcement_cmd,
