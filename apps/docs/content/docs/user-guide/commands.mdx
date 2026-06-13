@@ -7,7 +7,7 @@ title: Commands and Group Management
 
 The currently confirmed user-facing capabilities are concentrated in QQ group management commands. Commands are registered through `nonebot-plugin-alconna`, with command start tokens and command separators enabled by default. The QQ platform uses OneBot V11 by default; set `LINGCHUAdapter = "~milky"` if you need Milky.
 
-Success and failure feedback for group management commands is wired to gettext catalogs. Command trigger words are still primarily the current Chinese commands and aliases. Switching locale does not automatically add English command trigger words.
+Success and failure feedback for group management commands is wired to gettext catalogs. Command trigger words are also selected from the configured locale: Chinese locales enable the existing Chinese triggers, while English locales enable short hyphenated English triggers. The two trigger languages are not enabled at the same time.
 
 ## Member mute
 
@@ -15,6 +15,12 @@ Primary command:
 
 ```text
 禁言 @用户 [duration in seconds] [reason]
+```
+
+English command when `LINGCHU_LOCALE`/`lc_locale`/`locale` selects English:
+
+```text
+mute @user [duration in seconds] [reason]
 ```
 
 Default values:
@@ -27,6 +33,9 @@ Common aliases include:
 - `禁言用户`
 - `禁言群成员`
 - `禁言成员`
+- `ban`
+- `mute-member`
+- `ban-member`
 - `禁`
 - `封禁`
 
@@ -38,11 +47,19 @@ Primary command:
 解禁 @用户 [reason]
 ```
 
+English command when `LINGCHU_LOCALE`/`lc_locale`/`locale` selects English:
+
+```text
+unmute @user [reason]
+```
+
 Common aliases include:
 
 - `解禁用户`
 - `解禁群成员`
 - `解禁成员`
+- `pardon`
+- `unmute-member`
 - `解封`
 - `解除封禁`
 - `解除禁言`
@@ -55,12 +72,20 @@ Primary command:
 全员禁言
 ```
 
+English command when `LINGCHU_LOCALE`/`lc_locale`/`locale` selects English:
+
+```text
+mute-all
+```
+
 Common aliases include:
 
 - `开启全体禁言`
 - `全禁`
 - `全禁言`
 - `全体禁言`
+- `mute-group`
+- `enable-whole-mute`
 - `开启全员禁言`
 - `禁言群`
 
@@ -72,6 +97,12 @@ Primary command:
 全体解禁
 ```
 
+English command when `LINGCHU_LOCALE`/`lc_locale`/`locale` selects English:
+
+```text
+unmute-all
+```
+
 Common aliases include:
 
 - `全员解禁`
@@ -79,6 +110,8 @@ Common aliases include:
 - `解除全体禁言`
 - `解禁全体`
 - `解禁全员`
+- `unmute-group`
+- `disable-whole-mute`
 - `关闭全员禁言`
 - `解禁群`
 
@@ -86,17 +119,21 @@ Common aliases include:
 
 These commands are the QQ group management handlers registered in the current source. Commands act on the current group by default, and `@用户` resolves to the target group member. The plugin enables only one QQ adapter per platform selection; the table does not list future capabilities as currently available commands.
 
-| Capability | Primary command |
-| --- | --- |
-| Set group name | `设置群名称 <new group name>` |
-| Set group avatar | `设置群头像 <image_uri>` |
-| Set member card | `设置群名片 @用户 <card>` |
-| Set member special title | `设置群头衔 @用户 <title>` |
-| Set member admin | `设置群管理员 @用户 [true/false]` |
-| Unset member admin | `取消群管理员 @用户` |
-| Kick group member | `踢出群成员 @用户 [reject add request]` |
-| Send announcement | `发送群公告 <content> [image_uri]` |
-| Leave current group | `退出群` |
+| Capability | Chinese command | English command |
+| --- | --- | --- |
+| Set group name | `设置群名称 <new group name>` | `set-group-name <new group name>` |
+| Set group avatar | `设置群头像 <image_uri>` | `set-group-avatar <image_uri>` |
+| Set member card | `设置群名片 @用户 <card>` | `set-member-card @user <card>` |
+| Set member special title | `设置群头衔 @用户 <title>` | `set-member-title @user <title>` |
+| Set member admin | `设置群管理员 @用户 [true/false]` | `set-member-admin @user [true/false]` |
+| Unset member admin | `取消群管理员 @用户` | `unset-member-admin @user` |
+| Kick group member | `踢出群成员 @用户 [reject add request]` | `kick-member @user [reject add request]` |
+| Send announcement | `发送群公告 <content> [image_uri]` | `send-announcement <content> [image_uri]` |
+| Leave current group | `退出群` | `leave-group` |
+
+Representative English aliases include `rename-group`, `change-group-avatar`, `set-group-card`, `set-special-title`, `set-admin`, `promote-admin`, `unset-admin`, `revoke-admin`, `kick`, `remove-member`, `announce`, `group-announcement`, and `quit-group`.
+
+The table lists both language sets for reference. Runtime command registration uses only the language selected by the configured locale.
 
 The announcement and group avatar commands accept `UniImage` values from `nonebot-plugin-alconna`. The current implementation resolves raw image bytes, local paths, or downloadable URLs into cached files before passing them to adapter APIs. Quote names, announcements, cards, or titles that contain spaces so command separators do not split them.
 
@@ -106,4 +143,4 @@ Essence message management and similar capabilities are candidates for later ite
 
 Group management commands return readable error messages for covered adapter network errors and rejected operations. Unknown exceptions are still raised outward so developers can find uncovered cases.
 
-Feedback text uses `LINGCHU_LOCALE`, `lc_locale`, or `locale` from the current NoneBot configuration. Without configuration, the default is `zh_CN`. The current repository provides `zh_CN` and `en_US` catalogs. See [Internationalization](../developer-guide/i18n).
+Feedback text and command trigger language use `LINGCHU_LOCALE`, `lc_locale`, or `locale` from the current NoneBot configuration. Without configuration, the default follows the i18n helper default locale. The current repository provides `zh_CN` and `en_US` catalogs. See [Internationalization](../developer-guide/i18n).

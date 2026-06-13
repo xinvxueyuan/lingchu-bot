@@ -8,13 +8,19 @@ from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 
 from ....i18n import _async as _
+from .command_triggers import COMMAND_TRIGGERS
+
+_MEMBER_MUTE = COMMAND_TRIGGERS["member_mute"]
+_WHOLE_MUTE = COMMAND_TRIGGERS["whole_mute"]
+_MEMBER_UNMUTE = COMMAND_TRIGGERS["member_unmute"]
+_WHOLE_UNMUTE = COMMAND_TRIGGERS["whole_unmute"]
 
 member_mute_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
-        "禁言",
+        _MEMBER_MUTE.primary,
         Args["user", At]["duration?", int, 60]["reason?", str, None],
     ),
-    aliases={"禁言用户", "禁言群成员", "禁言成员", "禁", "封禁"},
+    aliases=_MEMBER_MUTE.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,
@@ -22,18 +28,9 @@ member_mute_cmd: type[AlconnaMatcher] = on_alconna(
 )
 whole_mute_cmd: type[Matcher] = on_alconna(
     command=Alconna(
-        "全员禁言",
+        _WHOLE_MUTE.primary,
     ),
-    aliases={
-        "开启全体禁言",
-        "全禁",
-        "全禁言",
-        "全体禁言",
-        "全体禁言开启",
-        "全员禁言开启",
-        "开启全员禁言",
-        "禁言群",
-    },
+    aliases=_WHOLE_MUTE.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,
@@ -41,18 +38,10 @@ whole_mute_cmd: type[Matcher] = on_alconna(
 )
 member_unmute_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
-        "解禁",
+        _MEMBER_UNMUTE.primary,
         Args["user", At]["reason?", str, None],
     ),
-    aliases={
-        "解禁用户",
-        "解禁群成员",
-        "解禁成员",
-        "解禁",
-        "解封",
-        "解除封禁",
-        "解除禁言",
-    },
+    aliases=_MEMBER_UNMUTE.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,
@@ -61,21 +50,9 @@ member_unmute_cmd: type[AlconnaMatcher] = on_alconna(
 
 whole_unmute_cmd: type[Matcher] = on_alconna(
     command=Alconna(
-        "全体解禁",
+        _WHOLE_UNMUTE.primary,
     ),
-    aliases={
-        "全员解禁",
-        "关闭全体禁言",
-        "解除全体禁言",
-        "解禁全体",
-        "解禁全员",
-        "全解",
-        "全解禁",
-        "全体解禁",
-        "关闭全员禁言",
-        "解除全员禁言",
-        "解禁群",
-    },
+    aliases=_WHOLE_UNMUTE.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,

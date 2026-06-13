@@ -347,6 +347,10 @@ After changes, always run the full check suite: `task check && task test`
 
 At the end of every conversation that involves code changes, review what went wrong or what took extra iterations, and append reusable lessons to this `Lessons Learned` section. This prevents repeating the same mistakes.
 
+### Command Trigger Localization
+
+群命令触发词按 locale 互斥启用。不要为同一个 matcher 同时注册中文和英文命令触发词。应通过 i18n locale 解析辅助（`LINGCHU_LOCALE`、`lc_locale`、`locale` 经 `get_configured_locale()`）在命令注册时选择一种触发语言，并确保未选中的语言不会进入 `aliases`。
+
 ### Adapter API Differences
 
 Same-named APIs return different types across adapters:

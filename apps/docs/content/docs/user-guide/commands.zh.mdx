@@ -7,7 +7,7 @@ title: 命令与群管理
 
 当前可确认的用户侧能力集中在 QQ 群管理命令。命令由 `nonebot-plugin-alconna` 注册，默认启用命令起始符和命令分隔符。QQ 平台默认使用 OneBot V11；如果需要使用 Milky，请在配置中设置 `LINGCHUAdapter = "~milky"`。
 
-群管理命令的成功和失败反馈已经接入 gettext 翻译目录。命令触发词仍以当前中文命令和别名为主，切换 locale 不会自动新增英文命令触发词。
+群管理命令的成功和失败反馈已经接入 gettext 翻译目录。命令触发词也会按配置的 locale 选择：中文 locale 启用既有中文触发词，英文 locale 启用短横线风格英文触发词。两种语言的触发词不会同时启用。
 
 ## 成员禁言
 
@@ -15,6 +15,12 @@ title: 命令与群管理
 
 ```text
 禁言 @用户 [时长秒数] [原因]
+```
+
+当 `LINGCHU_LOCALE` / `lc_locale` / `locale` 选择英文时的英文命令：
+
+```text
+mute @user [时长秒数] [原因]
 ```
 
 默认值：
@@ -27,6 +33,9 @@ title: 命令与群管理
 - `禁言用户`
 - `禁言群成员`
 - `禁言成员`
+- `ban`
+- `mute-member`
+- `ban-member`
 - `禁`
 - `封禁`
 
@@ -38,11 +47,19 @@ title: 命令与群管理
 解禁 @用户 [原因]
 ```
 
+当 `LINGCHU_LOCALE` / `lc_locale` / `locale` 选择英文时的英文命令：
+
+```text
+unmute @user [原因]
+```
+
 常见别名包括：
 
 - `解禁用户`
 - `解禁群成员`
 - `解禁成员`
+- `pardon`
+- `unmute-member`
 - `解封`
 - `解除封禁`
 - `解除禁言`
@@ -55,12 +72,20 @@ title: 命令与群管理
 全员禁言
 ```
 
+当 `LINGCHU_LOCALE` / `lc_locale` / `locale` 选择英文时的英文命令：
+
+```text
+mute-all
+```
+
 常见别名包括：
 
 - `开启全体禁言`
 - `全禁`
 - `全禁言`
 - `全体禁言`
+- `mute-group`
+- `enable-whole-mute`
 - `开启全员禁言`
 - `禁言群`
 
@@ -72,6 +97,12 @@ title: 命令与群管理
 全体解禁
 ```
 
+当 `LINGCHU_LOCALE` / `lc_locale` / `locale` 选择英文时的英文命令：
+
+```text
+unmute-all
+```
+
 常见别名包括：
 
 - `全员解禁`
@@ -79,6 +110,8 @@ title: 命令与群管理
 - `解除全体禁言`
 - `解禁全体`
 - `解禁全员`
+- `unmute-group`
+- `disable-whole-mute`
 - `关闭全员禁言`
 - `解禁群`
 
@@ -86,17 +119,21 @@ title: 命令与群管理
 
 以下命令是当前源码中已经注册的 QQ 群管理处理器。命令默认作用于当前群，`@用户` 会解析为目标群成员。插件会按平台只启用一个 QQ 适配器；下表不把尚未实现的未来能力列为已可用命令。
 
-| 能力 | 主命令 |
-| --- | --- |
-| 设置群名称 | `设置群名称 <新群名称>` |
-| 设置群头像 | `设置群头像 <image_uri>` |
-| 设置群名片 | `设置群名片 @用户 <名片>` |
-| 设置群成员专属头衔 | `设置群头衔 @用户 <头衔>` |
-| 设置群管理员 | `设置群管理员 @用户 [true/false]` |
-| 取消群管理员 | `取消群管理员 @用户` |
-| 踢出群成员 | `踢出群成员 @用户 [是否拒绝再次申请]` |
-| 发送群公告 | `发送群公告 <内容> [image_uri]` |
-| 退出当前群 | `退出群` |
+| 能力 | 中文命令 | 英文命令 |
+| --- | --- | --- |
+| 设置群名称 | `设置群名称 <新群名称>` | `set-group-name <new group name>` |
+| 设置群头像 | `设置群头像 <image_uri>` | `set-group-avatar <image_uri>` |
+| 设置群名片 | `设置群名片 @用户 <名片>` | `set-member-card @user <card>` |
+| 设置群成员专属头衔 | `设置群头衔 @用户 <头衔>` | `set-member-title @user <title>` |
+| 设置群管理员 | `设置群管理员 @用户 [true/false]` | `set-member-admin @user [true/false]` |
+| 取消群管理员 | `取消群管理员 @用户` | `unset-member-admin @user` |
+| 踢出群成员 | `踢出群成员 @用户 [是否拒绝再次申请]` | `kick-member @user [reject add request]` |
+| 发送群公告 | `发送群公告 <内容> [image_uri]` | `send-announcement <content> [image_uri]` |
+| 退出当前群 | `退出群` | `leave-group` |
+
+代表性英文别名包括 `rename-group`、`change-group-avatar`、`set-group-card`、`set-special-title`、`set-admin`、`promote-admin`、`unset-admin`、`revoke-admin`、`kick`、`remove-member`、`announce`、`group-announcement` 和 `quit-group`。
+
+上表同时列出两套语言用于查阅；运行时只会注册当前 locale 选中的那一套命令触发词。
 
 群公告和群头像命令接收 `nonebot-plugin-alconna` 的 `UniImage` 参数。当前实现会把图片原始字节、本地路径或可下载 URL 解析到缓存文件，再交给适配器 API。包含空格的名称、公告内容、名片或头衔建议使用引号包裹，避免被命令分隔符拆分。
 
@@ -106,4 +143,4 @@ title: 命令与群管理
 
 群管理命令会对已覆盖适配器的网络异常和操作拒绝返回可读错误消息。未知异常仍会向外抛出，方便开发者发现未覆盖的问题。
 
-反馈文本会使用当前 NoneBot 配置中的 `LINGCHU_LOCALE`、`lc_locale` 或 `locale`。未配置时默认使用 `zh_CN`，当前仓库提供 `zh_CN` 和 `en_US` catalog。详见 [国际化](../developer-guide/i18n)。
+反馈文本和命令触发词语言会使用当前 NoneBot 配置中的 `LINGCHU_LOCALE`、`lc_locale` 或 `locale`。未配置时遵循 i18n 辅助函数的默认 locale，当前仓库提供 `zh_CN` 和 `en_US` catalog。详见 [国际化](../developer-guide/i18n)。

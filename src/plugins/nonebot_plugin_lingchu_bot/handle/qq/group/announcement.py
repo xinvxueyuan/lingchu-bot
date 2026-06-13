@@ -12,6 +12,9 @@ from nonebot_plugin_alconna.uniseg import Image as UniImage
 
 from ....core.config import plugin_config
 from ....i18n import _async as _
+from .command_triggers import COMMAND_TRIGGERS
+
+_SEND_ANNOUNCEMENT = COMMAND_TRIGGERS["send_announcement"]
 
 
 async def _resolve_image_path(image: UniImage) -> Path | None:
@@ -49,8 +52,11 @@ async def _resolve_image_path(image: UniImage) -> Path | None:
 
 
 send_group_announcement_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna("发送群公告", Args["content", str]["image?", UniImage, None]),
-    aliases={"发群公告", "群公告"},
+    command=Alconna(
+        _SEND_ANNOUNCEMENT.primary,
+        Args["content", str]["image?", UniImage, None],
+    ),
+    aliases=_SEND_ANNOUNCEMENT.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,
