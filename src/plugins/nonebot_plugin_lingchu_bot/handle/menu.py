@@ -75,6 +75,14 @@ class MenuSection:
 
 
 @dataclass(frozen=True, slots=True)
+class MenuPage:
+    id: str
+    title: LocalizedText
+    children: tuple["MenuPage", ...] = ()
+    command: LocalizedText | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class MenuRuntimeContext:
     platform_id: str
     adapter_id: str
@@ -94,13 +102,67 @@ QQ_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset(
     }
 )
 
-MENU_SECTIONS: Final[tuple[MenuSection, ...]] = (
-    MenuSection("member-management", LocalizedText("成员管理", "Member Management")),
-    MenuSection("speech-management", LocalizedText("发言管理", "Speech Management")),
-    MenuSection("group-profile", LocalizedText("群资料", "Group Profile")),
-    MenuSection("announcement", LocalizedText("群公告", "Announcement")),
-    MenuSection("group-operation", LocalizedText("群操作", "Group Operation")),
+MENU_PAGES: Final[tuple[MenuPage, ...]] = (
+    MenuPage(
+        "member-management",
+        LocalizedText("成员管理", "Member Management"),
+        command=LocalizedText("成员管理", "member-management"),
+    ),
+    MenuPage(
+        "speech-management",
+        LocalizedText("发言管理", "Speech Management"),
+        command=LocalizedText("发言管理", "speech-management"),
+    ),
+    MenuPage(
+        "group-chat-management",
+        LocalizedText("群聊管理", "Group Chat Management"),
+        children=(
+            MenuPage("group-profile", LocalizedText("群资料", "Group Profile")),
+            MenuPage("announcement", LocalizedText("群公告", "Announcement")),
+            MenuPage("group-operation", LocalizedText("群操作", "Group Operation")),
+        ),
+        command=LocalizedText("群聊管理", "group-chat-management"),
+    ),
 )
+MENU_SECTIONS: Final[tuple[MenuSection, ...]] = tuple(
+    MenuSection(page.id, page.title) for page in MENU_PAGES
+)
+MENU_PAGE_COMMANDS: Final[tuple[MenuPage, ...]] = tuple(
+    page for page in MENU_PAGES if page.command is not None
+)
+
+
+def _flatten_pages(pages: Iterable[MenuPage]) -> tuple[MenuPage, ...]:
+    result: list[MenuPage] = []
+    for page in pages:
+        result.append(page)
+        result.extend(_flatten_pages(page.children))
+    return tuple(result)
+
+
+_MENU_PAGE_BY_ID: Final[dict[str, MenuPage]] = {
+    page.id: page for page in _flatten_pages(MENU_PAGES)
+}
+
+
+def _menu_page_command(page: MenuPage) -> str:
+    command = page.command
+    if command is None:
+        return ""
+    locale = normalize_locale(get_configured_locale())
+    return command.en_us if locale.lower().startswith("en") else command.zh_cn
+
+
+menu_page_cmds: Final[dict[str, type[AlconnaMatcher]]] = {
+    page.id: on_alconna(
+        command=Alconna(_menu_page_command(page)),
+        priority=5,
+        block=True,
+        use_cmd_sep=True,
+        use_cmd_start=True,
+    )
+    for page in MENU_PAGE_COMMANDS
+}
 
 _QQ_BOTH: Final[tuple[MenuAvailability, ...]] = (
     MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),
@@ -262,20 +324,58 @@ def render_menu(
     locale: str | None = None,
     context: MenuRuntimeContext | None = None,
 ) -> str:
-    return render_menu_for_context(context or default_menu_context(), locale)
+    return render_menu_index(context or default_menu_context(), locale)
 
 
-def render_menu_for_context(
+def render_menu_index(
     context: MenuRuntimeContext,
     locale: str | None = None,
 ) -> str:
     selected_locale = normalize_locale(locale or get_configured_locale())
     lines = [gettext("灵初功能菜单", selected_locale)]
 
-    for section in MENU_SECTIONS:
-        section_lines = _render_section(section, context, selected_locale)
-        if section_lines:
-            lines.extend(("", *section_lines))
+    for page in MENU_PAGE_COMMANDS:
+        if not _page_has_visible_content(page, context):
+            continue
+        title = _localized(page.title, selected_locale)
+        command = _localized(page.command, selected_locale)
+        lines.append(_render_menu_index_entry(title, command))
+
+    return "\n".join(lines)
+
+
+def _render_menu_index_entry(title: str, command: str) -> str:
+    if title.strip() == command.strip():
+        return f"- {title}"
+    return f"- {title}: {command}"
+
+
+def render_menu_for_context(
+    context: MenuRuntimeContext,
+    locale: str | None = None,
+) -> str:
+    return render_menu_index(context, locale)
+
+
+def render_menu_page(
+    page_id: str,
+    context: MenuRuntimeContext,
+    locale: str | None = None,
+) -> str:
+    selected_locale = normalize_locale(locale or get_configured_locale())
+    page = _MENU_PAGE_BY_ID[page_id]
+    lines = [_localized(page.title, selected_locale)]
+    lines.extend(
+        _render_page_body(page, context, selected_locale, include_self_title=False)
+    )
+
+    if len(lines) == 1:
+        lines.append(
+            _localized(
+                LocalizedText("暂无可用功能", "No available features"),
+                selected_locale,
+            )
+        )
 
     return "\n".join(lines)
 
@@ -321,6 +421,46 @@ def _render_section(
     if len(lines) == 1:
         return []
     return lines
+
+
+def _render_page_body(
+    page: MenuPage,
+    context: MenuRuntimeContext,
+    locale: str,
+    *,
+    include_self_title: bool,
+) -> list[str]:
+    lines: list[str] = []
+    section = _render_section(MenuSection(page.id, page.title), context, locale)
+    if section:
+        if include_self_title:
+            lines.extend(("", *section))
+        else:
+            lines.extend(section[1:])
+
+    for child in page.children:
+        child_lines = _render_page_body(
+            child,
+            context,
+            locale,
+            include_self_title=True,
+        )
+        if child_lines:
+            lines.extend(child_lines)
+
+    return lines
+
+
+def _page_has_visible_content(page: MenuPage, context: MenuRuntimeContext) -> bool:
+    return any(
+        _matched_availability(feature, context) for feature in _page_features(page)
+    )
+
+
+def _page_features(page: MenuPage) -> Iterable[MenuFeature]:
+    yield from _features_for_section(page.id)
+    for child in page.children:
+        yield from _page_features(child)
 
 
 def _features_for_section(section_id: str) -> Iterable[MenuFeature]:
