@@ -109,7 +109,16 @@ def _event_user_id(event: OneBot11Event) -> str | None:
 def _event_native_roles(event: OneBot11Event) -> frozenset[str]:
     sender = getattr(event, "sender", None)
     role = getattr(sender, "role", None)
-    return frozenset({str(role)}) if role is not None else frozenset()
+    return _normalize_native_role(role)
+
+
+def _normalize_native_role(role: Any) -> frozenset[str]:
+    normalized = str(role).casefold() if role is not None else ""
+    if normalized in {"owner", "admin", "administrator"}:
+        return frozenset({"admin" if normalized == "administrator" else normalized})
+    if normalized in {"member", ""}:
+        return frozenset()
+    return frozenset({normalized})
 
 
 async def import_handle() -> Any:
