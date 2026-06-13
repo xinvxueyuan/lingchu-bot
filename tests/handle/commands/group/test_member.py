@@ -103,7 +103,7 @@ async def test_set_group_member_card_uses_at_target(
 
 
 @pytest.mark.asyncio
-async def test_kick_group_member_passes_reject_flag(
+async def test_kick_group_member_calls_milky_api(
     mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_bot.kick_group_member = AsyncMock()
@@ -111,7 +111,6 @@ async def test_kick_group_member_passes_reject_flag(
     with patch.object(kick_group_member_cmd, "finish") as mock_finish:
         await milkybot_kick_group_member(
             user=mock_at,
-            reject_add_request=True,
             bot=mock_bot,
             event=mock_event,
         )
@@ -119,7 +118,7 @@ async def test_kick_group_member_passes_reject_flag(
     mock_bot.kick_group_member.assert_called_once_with(
         group_id=mock_event.data.peer_id,
         user_id=987654321,
-        reject_add_request=True,
+        reject_add_request=False,
     )
     assert "已踢出群成员: 测试用户(987654321)" in finish_text(mock_finish)
 
@@ -167,7 +166,6 @@ async def test_kick_group_member_default_reject_false(
     with patch.object(kick_group_member_cmd, "finish") as mock_finish:
         await milkybot_kick_group_member(
             user=mock_at,
-            reject_add_request=False,
             bot=mock_bot,
             event=mock_event,
         )
@@ -236,7 +234,6 @@ async def test_milky_member_commands_invalid_target_finish_without_api_call(
     with patch.object(kick_group_member_cmd, "finish") as mock_finish:
         await milkybot_kick_group_member(
             user=mock_at,
-            reject_add_request=True,
             bot=mock_bot,
             event=mock_event,
         )
@@ -404,7 +401,7 @@ async def test_onebot11_unset_group_member_admin_calls_v11_api(
 
 
 @pytest.mark.asyncio
-async def test_onebot11_kick_group_member_passes_reject_flag(
+async def test_onebot11_kick_group_member_calls_v11_api(
     mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_onebot11_bot.set_group_kick = AsyncMock()
@@ -412,7 +409,6 @@ async def test_onebot11_kick_group_member_passes_reject_flag(
     with patch.object(kick_group_member_cmd, "finish") as mock_finish:
         await onebot11_kick_group_member(
             user=mock_at,
-            reject_add_request=True,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
         )
@@ -420,7 +416,7 @@ async def test_onebot11_kick_group_member_passes_reject_flag(
     mock_onebot11_bot.set_group_kick.assert_called_once_with(
         group_id=mock_onebot11_event.group_id,
         user_id=987654321,
-        reject_add_request=True,
+        reject_add_request=False,
     )
     assert "已踢出群成员: 测试用户(987654321)" in finish_text(mock_finish)
 

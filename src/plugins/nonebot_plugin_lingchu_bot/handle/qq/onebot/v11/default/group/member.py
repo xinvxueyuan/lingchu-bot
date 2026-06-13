@@ -107,7 +107,6 @@ async def onebot11_unset_group_member_admin(
 @selected_adapter_handle(kick_group_member_cmd, "~onebot.v11")
 async def onebot11_kick_group_member(
     user: At,
-    reject_add_request: bool,  # noqa: FBT001
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
@@ -121,7 +120,7 @@ async def onebot11_kick_group_member(
         lambda: bot.set_group_kick(
             group_id=event.group_id,
             user_id=target_user_id,
-            reject_add_request=reject_add_request,
+            reject_add_request=False,
         ),
         (await _("已踢出群成员: {name_display}")).format(name_display=name_display),
     )
