@@ -12,6 +12,12 @@ from src.plugins.nonebot_plugin_lingchu_bot.database.models import (
     PermissionNode,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.group import common
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.group import (
+    permission as permission_module,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.group.command_triggers import (
+    COMMAND_TRIGGERS,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.repositories import (
     permissions as repository,
 )
@@ -235,6 +241,100 @@ async def test_check_permission_denies_disabled_capability(
 
     assert decision.allowed is False
     assert decision.result == permissions.CAPABILITY_DENY_RESULT
+
+
+@pytest.mark.asyncio
+async def test_visible_command_keys_filters_without_audit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: list[tuple[str, bool]] = []
+
+    async def fake_check_permission(
+        context: permissions.PermissionContext,
+        *,
+        audit: bool = True,
+    ) -> permissions.PermissionDecision:
+        seen.append((context.command_key, audit))
+        return permissions.PermissionDecision(
+            allowed=context.command_key == "kick_member",
+            result=permissions.ALLOW_RESULT,
+            reason="test",
+        )
+
+    monkeypatch.setattr(permissions, "ensure_default_permission_state", AsyncMock())
+    monkeypatch.setattr(permissions, "is_superuser", lambda _user_id: False)
+    monkeypatch.setattr(permissions, "check_permission", fake_check_permission)
+
+    visible = await permissions.visible_command_keys(
+        permissions.PermissionContext(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            command_key="menu",
+            user_id="100",
+        )
+    )
+
+    assert visible == {"kick_member"}
+    assert seen
+    assert all(audit is False for _, audit in seen)
+
+
+@pytest.mark.asyncio
+async def test_visible_command_keys_superuser_sees_all_commands(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(permissions, "ensure_default_permission_state", AsyncMock())
+    monkeypatch.setattr(permissions, "is_superuser", lambda _user_id: True)
+    check_permission = AsyncMock()
+    monkeypatch.setattr(permissions, "check_permission", check_permission)
+
+    visible = await permissions.visible_command_keys(
+        permissions.PermissionContext(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            command_key="menu",
+            user_id="42",
+        )
+    )
+
+    assert visible == set(COMMAND_TRIGGERS)
+    check_permission.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_list_tree_lines_adds_truncation_marker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(permissions, "ensure_default_permission_state", AsyncMock())
+    nodes = [
+        SimpleNamespace(path=f"lingchu/{index}", kind="section", command_key=None)
+        for index in range(3)
+    ]
+    list_permission_nodes = AsyncMock(return_value=nodes)
+    monkeypatch.setattr(
+        permissions.repository,
+        "list_permission_nodes",
+        list_permission_nodes,
+    )
+
+    lines = await permissions.list_tree_lines(limit=2)
+
+    list_permission_nodes.assert_awaited_once_with(limit=3)
+    assert lines == [
+        "lingchu/0 [section]",
+        "lingchu/1 [section]",
+        "... 已截断，使用 权限 tree <数量> 查看更多（当前 2 条）",
+    ]
+
+
+def test_permission_tree_limit_parser() -> None:
+    custom_limit = 200
+
+    assert permission_module._parse_positive_limit("") is None
+    assert permission_module._parse_positive_limit(str(custom_limit)) == custom_limit
+    assert permission_module._parse_positive_limit("0") is None
+    assert permission_module._parse_positive_limit("-1") is None
+    assert permission_module._parse_positive_limit("bad") is None
 
 
 @pytest.mark.asyncio

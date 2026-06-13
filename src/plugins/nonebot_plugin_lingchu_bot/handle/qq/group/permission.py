@@ -84,8 +84,7 @@ async def _handle_permission(  # noqa: PLR0911, PLR0913
         return await permission_cmd.finish(message="权限树已同步")
 
     if normalized in {"tree", "list", "树", "列表"}:
-        lines = await list_tree_lines()
-        return await permission_cmd.finish(message="\n".join(["权限树", *lines]))
+        return await _finish_permission_tree(arg1)
 
     if normalized in {"grant", "授权"}:
         if not arg1 or not arg2:
@@ -141,7 +140,7 @@ async def _handle_permission(  # noqa: PLR0911, PLR0913
         message=(
             "权限命令:\n"
             "- 权限 sync\n"
-            "- 权限 tree\n"
+            "- 权限 tree [数量]\n"
             "- 权限 grant <group_key> <node_path> [resource_type] [resource_id]\n"
             "- 权限 member <group_key> <platform_id> <user_id> "
             "[resource_type] [resource_id]\n"
@@ -156,6 +155,26 @@ def _event_user_id(event: Event) -> str | None:
     except Exception:  # noqa: BLE001
         value = getattr(event, "user_id", None)
         return None if value is None else str(value)
+
+
+async def _finish_permission_tree(limit_text: str) -> Any:
+    limit = _parse_positive_limit(limit_text)
+    if limit is None and limit_text:
+        return await permission_cmd.finish(
+            message="无效的数量参数: 请使用正整数，例如: 权限 tree 200"
+        )
+    lines = await list_tree_lines(limit=limit or 80)
+    return await permission_cmd.finish(message="\n".join(["权限树", *lines]))
+
+
+def _parse_positive_limit(value: str) -> int | None:
+    if not value:
+        return None
+    try:
+        limit = int(value)
+    except ValueError:
+        return None
+    return limit if limit > 0 else None
 
 
 async def import_handle() -> Any:
