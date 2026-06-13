@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from asyncio import Lock
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -25,6 +26,8 @@ SUPERUSER_RESULT = "superuser"
 ALLOW_RESULT = "allowed"
 DENY_RESULT = "denied"
 CAPABILITY_DENY_RESULT = "capability_denied"
+_default_state_ensured = False
+_default_state_lock = Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,6 +96,17 @@ def permission_context_from_event(  # noqa: PLR0913
 
 
 async def ensure_default_permission_state() -> None:
+    global _default_state_ensured  # noqa: PLW0603
+    if _default_state_ensured:
+        return
+    async with _default_state_lock:
+        if _default_state_ensured:
+            return
+        await _sync_default_permission_state()
+        _default_state_ensured = True
+
+
+async def _sync_default_permission_state() -> None:
     root = await repository.upsert_node(
         path=ROOT_PATH,
         parent_id=None,

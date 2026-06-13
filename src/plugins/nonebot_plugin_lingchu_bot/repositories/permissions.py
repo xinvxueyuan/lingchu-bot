@@ -453,7 +453,9 @@ async def find_matching_grant(  # noqa: PLR0913
             )
             .order_by(PermissionGroup.priority.desc())
         )
-        groups = [row[0] for row in (await session.execute(member_stmt)).all()]
+        groups: list[PermissionGroup] = [
+            row[0] for row in (await session.execute(member_stmt)).all()
+        ]
 
         if native_roles:
             native_stmt = (
@@ -477,35 +479,39 @@ async def find_matching_grant(  # noqa: PLR0913
             )
             groups.extend((await session.execute(native_stmt)).scalars())
 
-        for group in groups:
-            grant_stmt = (
-                select(PermissionGrant, PermissionNode)
-                .join(PermissionNode, PermissionGrant.node_id == PermissionNode.id)
-                .where(
-                    PermissionGrant.group_id == group.id,
-                    PermissionGrant.is_enabled.is_(True),
-                    PermissionNode.is_enabled.is_(True),
-                    or_(
-                        PermissionGrant.resource_type == DEFAULT_VALUE,
-                        PermissionGrant.resource_type == resource_type,
-                    ),
-                    or_(
-                        PermissionGrant.resource_id == DEFAULT_VALUE,
-                        PermissionGrant.resource_id == resource_id,
-                    ),
-                    or_(
-                        PermissionGrant.expires_at.is_(None),
-                        PermissionGrant.expires_at > now,
-                    ),
-                )
-                .order_by(PermissionNode.path)
+        group_ids = list(dict.fromkeys(group.id for group in groups))
+        if not group_ids:
+            return None, None, None
+
+        grant_stmt = (
+            select(PermissionGroup, PermissionGrant, PermissionNode)
+            .join(PermissionGrant, PermissionGroup.id == PermissionGrant.group_id)
+            .join(PermissionNode, PermissionGrant.node_id == PermissionNode.id)
+            .where(
+                PermissionGroup.id.in_(group_ids),
+                PermissionGrant.is_enabled.is_(True),
+                PermissionNode.is_enabled.is_(True),
+                or_(
+                    PermissionGrant.resource_type == DEFAULT_VALUE,
+                    PermissionGrant.resource_type == resource_type,
+                ),
+                or_(
+                    PermissionGrant.resource_id == DEFAULT_VALUE,
+                    PermissionGrant.resource_id == resource_id,
+                ),
+                or_(
+                    PermissionGrant.expires_at.is_(None),
+                    PermissionGrant.expires_at > now,
+                ),
             )
-            grants = (await session.execute(grant_stmt)).all()
-            for grant, node in grants:
-                if target_node.path == node.path or target_node.path.startswith(
-                    f"{node.path}/"
-                ):
-                    return group, grant, node
+            .order_by(PermissionGroup.priority.desc(), PermissionNode.path)
+        )
+        grants = (await session.execute(grant_stmt)).all()
+        for group, grant, node in grants:
+            if target_node.path == node.path or target_node.path.startswith(
+                f"{node.path}/"
+            ):
+                return group, grant, node
     return None, None, None
 
 
