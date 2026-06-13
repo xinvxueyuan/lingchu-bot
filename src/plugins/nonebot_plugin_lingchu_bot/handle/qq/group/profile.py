@@ -12,6 +12,7 @@ from nonebot_plugin_alconna.uniseg import Image as UniImage
 
 from ....core.config import plugin_config
 from ....i18n import _async as _
+from ....services.permissions import bind_command_key
 from .command_triggers import COMMAND_TRIGGERS
 
 _SET_GROUP_NAME = COMMAND_TRIGGERS["set_group_name"]
@@ -62,6 +63,7 @@ set_group_name_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
+bind_command_key(set_group_name_cmd, "set_group_name")
 set_group_avatar_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(_SET_GROUP_AVATAR.primary, Args["image", UniImage | None]),
     aliases=_SET_GROUP_AVATAR.aliases,
@@ -70,6 +72,7 @@ set_group_avatar_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
+bind_command_key(set_group_avatar_cmd, "set_group_avatar")
 
 _LAZY_EXPORTS = {
     "milkybot_set_group_name": "..milky.v1_2.default.group.profile",

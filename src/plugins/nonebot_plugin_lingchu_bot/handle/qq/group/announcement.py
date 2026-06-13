@@ -12,6 +12,7 @@ from nonebot_plugin_alconna.uniseg import Image as UniImage
 
 from ....core.config import plugin_config
 from ....i18n import _async as _
+from ....services.permissions import bind_command_key
 from .command_triggers import COMMAND_TRIGGERS
 
 _SEND_ANNOUNCEMENT = COMMAND_TRIGGERS["send_announcement"]
@@ -62,6 +63,7 @@ send_group_announcement_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
+bind_command_key(send_group_announcement_cmd, "send_announcement")
 
 _LAZY_EXPORTS = {
     "milkybot_send_group_announcement": "..milky.v1_2.default.group.announcement",
