@@ -3,6 +3,7 @@ from nonebot.adapters import Bot
 from nonebot.internal.driver.abstract import Driver
 
 from ..core.runtime_config import ensure_runtime_config_file
+from ..handle.menu import import_handle as menu_import_handle
 from ..handle.qq.group import import_handle as group_import_handle
 from ..i18n import _async as _
 from ..i18n import warm_translation_cache
@@ -45,6 +46,7 @@ async def startup() -> None:
         )
     await warm_translation_cache()
     await group_import_handle()
+    await menu_import_handle()
     await initialize_message_store()
 
 

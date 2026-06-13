@@ -35,6 +35,12 @@ def _is_english_locale(locale: str | None = None) -> bool:
 
 
 COMMAND_TRIGGERS = {
+    "menu": CommandTrigger(
+        chinese="菜单",
+        english="menu",
+        chinese_aliases=frozenset({"帮助", "功能", "功能列表", "指令", "命令列表"}),
+        english_aliases=frozenset({"help", "commands"}),
+    ),
     "member_mute": CommandTrigger(
         chinese="禁言",
         english="mute",
