@@ -17,6 +17,12 @@ class ExpectedTrigger(TypedDict):
 
 
 EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
+    "menu": {
+        "primary": "菜单",
+        "english": "menu",
+        "chinese_aliases": {"帮助", "功能", "功能列表", "指令", "命令列表"},
+        "english_aliases": {"help", "commands"},
+    },
     "member_mute": {
         "primary": "禁言",
         "english": "mute",

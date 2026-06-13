@@ -1,0 +1,44 @@
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from src.plugins.nonebot_plugin_lingchu_bot.start import startup as startup_module
+
+
+def _empty_registered_adapters(_names: object) -> set[str]:
+    return set()
+
+
+@pytest.mark.asyncio
+async def test_startup_imports_group_and_menu_handlers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    group_import = AsyncMock()
+    menu_import = AsyncMock()
+
+    monkeypatch.setattr(startup_module, "ensure_runtime_config_file", MagicMock())
+    monkeypatch.setattr(startup_module, "get_adapters", dict)
+    monkeypatch.setattr(
+        startup_module,
+        "validate_enabled_adapters_loaded",
+        MagicMock(),
+    )
+    monkeypatch.setattr(
+        startup_module,
+        "resolve_enabled_adapters",
+        lambda: {"~onebot.v11"},
+    )
+    monkeypatch.setattr(
+        startup_module,
+        "resolve_registered_adapters",
+        _empty_registered_adapters,
+    )
+    monkeypatch.setattr(startup_module, "warm_translation_cache", AsyncMock())
+    monkeypatch.setattr(startup_module, "group_import_handle", group_import)
+    monkeypatch.setattr(startup_module, "menu_import_handle", menu_import)
+    monkeypatch.setattr(startup_module, "initialize_message_store", AsyncMock())
+
+    await startup_module.startup()
+
+    group_import.assert_awaited_once()
+    menu_import.assert_awaited_once()

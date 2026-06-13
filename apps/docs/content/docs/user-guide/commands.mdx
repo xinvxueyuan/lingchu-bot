@@ -9,6 +9,40 @@ The currently confirmed user-facing capabilities are concentrated in QQ group ma
 
 Success and failure feedback for group management commands is wired to gettext catalogs. Command trigger words are also selected from the configured locale: Chinese locales enable the existing Chinese triggers, while English locales enable short hyphenated English triggers. The two trigger languages are not enabled at the same time.
 
+## Menu
+
+Primary command:
+
+```text
+菜单
+```
+
+English command when `LINGCHU_LOCALE`/`lc_locale`/`locale` selects English:
+
+```text
+menu
+```
+
+Common aliases include:
+
+- `帮助`
+- `功能`
+- `功能列表`
+- `指令`
+- `命令列表`
+- `help`
+- `commands`
+
+The menu command lists the currently registered group-management features as plain text. The default menu is grouped into multiple levels:
+
+- Member Management: kick member, set member card, set member special title, set/unset admin.
+- Speech Management: mute/unmute member, enable/disable whole-group mute.
+- Group Profile: set group name and avatar.
+- Announcement: send group announcement.
+- Group Operation: leave current group.
+
+On first startup, Lingchu creates `menu.json5` through `nonebot-plugin-localstore`'s plugin config directory. Existing files are not overwritten, so operators can edit titles, summaries, usages, and sections. Menu items reference the internal command keys from the trigger catalog; unknown keys are skipped when rendering instead of breaking the command.
+
 ## Member mute
 
 Primary command:
