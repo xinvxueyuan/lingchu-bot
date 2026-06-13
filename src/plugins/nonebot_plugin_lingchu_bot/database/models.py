@@ -8,7 +8,15 @@ from nonebot import require
 
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import Model
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -183,7 +191,10 @@ class PermissionGroupMember(Model):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    group_id: Mapped[int] = mapped_column(Integer, index=True)
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("lingchu_permission_groups.id", ondelete="CASCADE"),
+        index=True,
+    )
     platform_id: Mapped[str] = mapped_column(String(64), index=True)
     user_id: Mapped[str] = mapped_column(String(128), index=True)
     resource_type: Mapped[str | None] = mapped_column(String(64), index=True)
@@ -220,8 +231,14 @@ class PermissionGrant(Model):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    group_id: Mapped[int] = mapped_column(Integer, index=True)
-    node_id: Mapped[int] = mapped_column(Integer, index=True)
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("lingchu_permission_groups.id", ondelete="CASCADE"),
+        index=True,
+    )
+    node_id: Mapped[int] = mapped_column(
+        ForeignKey("lingchu_permission_nodes.id", ondelete="CASCADE"),
+        index=True,
+    )
     resource_type: Mapped[str | None] = mapped_column(String(64), index=True)
     resource_id: Mapped[str | None] = mapped_column(String(128), index=True)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, index=True)

@@ -2,6 +2,7 @@ from collections.abc import Awaitable, Callable
 from functools import wraps
 from typing import Any
 
+from nonebot import logger
 from nonebot.adapters import Bot, Event
 from nonebot.internal.matcher.matcher import Matcher
 from nonebot_plugin_alconna import AlconnaMatcher
@@ -45,7 +46,11 @@ def _permission_guard(
         bot = _find_arg(Bot, args, kwargs)
         event = _find_arg(Event, args, kwargs)
         if bot is None or event is None:
-            return await func(*args, **kwargs)
+            logger.error(
+                "Permission guard failed closed for %s: bot or event missing",
+                command_key,
+            )
+            return await command.finish(message="系统错误：无法验证权限")
 
         context = permission_context_from_event(
             bot=bot,
