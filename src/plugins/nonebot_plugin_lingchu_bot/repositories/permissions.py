@@ -117,9 +117,10 @@ async def get_command_node(
         PermissionNode,
         conditions=conditions,
         order_by=["-id"],
-        limit=1,
+        limit=100,
     )
-    return items[0] if items else None
+    command_nodes = _select_command_nodes(items, implementation_name)
+    return command_nodes.get(command_key)
 
 
 async def list_permission_nodes(limit: int = 200) -> list[PermissionNode]:
