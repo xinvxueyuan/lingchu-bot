@@ -33,15 +33,21 @@ Common aliases include:
 - `help`
 - `commands`
 
-The menu command lists the currently registered group-management features as plain text. The default menu is grouped into multiple levels:
+The menu command lists the currently available group-management features as plain text. It is code-driven and filtered by the selected platform, adapter, and concrete implementation, so implementation-specific extension APIs are hidden unless the current runtime is known to support them. The default menu is grouped into multiple levels:
 
 - Member Management: kick member, set member card, set member special title, set/unset admin.
 - Speech Management: mute/unmute member, enable/disable whole-group mute.
-- Group Profile: set group name and avatar.
-- Announcement: send group announcement.
+- Group Profile: set group name, and set group avatar only when the current adapter implementation supports it.
+- Announcement: send group announcement only when the current adapter implementation supports it.
 - Group Operation: leave current group.
 
-On first startup, Lingchu creates `menu.json5` through `nonebot-plugin-localstore`'s plugin config directory. Existing files are not overwritten, so operators can edit titles, summaries, usages, and sections. Menu items reference the internal command keys from the trigger catalog; unknown keys are skipped when rendering instead of breaking the command.
+Current implementation filters include:
+
+- OneBot V11 with unknown implementation hides group announcement and group avatar.
+- `LLOneBot >= 7.12.0` shows group announcement but hides group avatar.
+- `NapCat.Onebot >= 4.18.0` shows group announcement and group avatar.
+- Milky with unknown implementation hides group announcement.
+- Milky `LLBot` shows text-only group announcement; the menu does not advertise image announcement usage.
 
 ## Member mute
 

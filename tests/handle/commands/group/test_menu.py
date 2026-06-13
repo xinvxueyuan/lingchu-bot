@@ -1,131 +1,172 @@
-from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, cast
-from unittest.mock import patch
+from typing import Any
+from unittest.mock import AsyncMock, patch
 
-import json5
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle import menu
 from src.plugins.nonebot_plugin_lingchu_bot.handle.menu import (
-    default_menu_store,
-    ensure_menu_store,
-    load_menu_store,
+    LLBOT_IMPL,
+    LLONEBOT_IMPL,
+    MENU_FEATURES,
+    MILKY_ADAPTER_ID,
+    NAPCAT_IMPL,
+    ONEBOT_V11_ADAPTER_ID,
+    MenuRuntimeContext,
     menu_cmd,
-    render_menu,
+    qq_menu_context,
+    render_menu_for_context,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.group.command_triggers import (
+    COMMAND_TRIGGERS,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.milky.v1_2.default import (
+    menu as milky_menu_module,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.milky.v1_2.default.menu import (
     milkybot_menu,
 )
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.onebot.v11.default import (
+    menu as onebot_menu_module,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.onebot.v11.default.menu import (
     onebot11_menu,
 )
+from src.plugins.nonebot_plugin_lingchu_bot.platforms import PlatformCapability
 from tests.handle.commands.group.conftest import finish_text
 
 
-def test_menu_store_creates_default_json5(tmp_path: Path) -> None:
-    config_file = tmp_path / "menu.json5"
+def test_menu_registry_uses_known_command_keys() -> None:
+    assert {feature.command_key for feature in MENU_FEATURES} <= set(COMMAND_TRIGGERS)
 
-    created = ensure_menu_store(config_file)
 
-    assert created == config_file
-    loaded = cast(
-        "dict[str, Any]", json5.loads(config_file.read_text(encoding="utf-8"))
+def test_extension_features_have_implementation_availability() -> None:
+    extension_features = {
+        feature.command_key: feature
+        for feature in MENU_FEATURES
+        if feature.command_key in {"send_announcement", "set_group_avatar"}
+    }
+
+    assert any(
+        availability.implementation_name is not None
+        for availability in extension_features["send_announcement"].availability
     )
-    assert loaded["version"] == 1
-    assert loaded["sections"][0]["title"]["zh_CN"] == "成员管理"
+    assert any(
+        availability.implementation_name == NAPCAT_IMPL
+        for availability in extension_features["set_group_avatar"].availability
+        if availability.adapter_id == ONEBOT_V11_ADAPTER_ID
+    )
 
 
-def test_menu_store_does_not_overwrite_existing_file(tmp_path: Path) -> None:
-    config_file = tmp_path / "menu.json5"
-    config_file.write_text(
-        json5.dumps(
-            {
-                "version": 1,
-                "sections": [
-                    {
-                        "id": "custom",
-                        "title": {"zh_CN": "自定义", "en_US": "Custom"},
-                        "items": [],
-                    }
-                ],
-            },
-            ensure_ascii=False,
+def test_menu_registry_does_not_bypass_adapter_filtering() -> None:
+    for feature in MENU_FEATURES:
+        assert feature.availability
+        assert all(item.adapter_id for item in feature.availability)
+
+
+def test_onebot_unknown_hides_extension_features() -> None:
+    rendered = render_menu_for_context(
+        qq_menu_context(adapter_id=ONEBOT_V11_ADAPTER_ID),
+        "zh_CN",
+    )
+
+    assert "发送群公告" not in rendered
+    assert "设置群头像" not in rendered
+    assert "设置群名称" in rendered
+    assert "踢出群成员" in rendered
+
+
+def test_onebot_llonebot_supports_announcement_only() -> None:
+    rendered = render_menu_for_context(
+        qq_menu_context(
+            adapter_id=ONEBOT_V11_ADAPTER_ID,
+            implementation_name=LLONEBOT_IMPL,
+            implementation_version="7.12.0",
+            protocol_version="v11",
         ),
-        encoding="utf-8",
+        "zh_CN",
     )
 
-    ensure_menu_store(config_file)
-    loaded = load_menu_store(config_file)
-
-    assert loaded["sections"] == [
-        {
-            "id": "custom",
-            "title": {"zh_CN": "自定义", "en_US": "Custom"},
-            "items": [],
-        }
-    ]
+    assert "发送群公告" in rendered
+    assert "设置群头像" not in rendered
 
 
-def test_render_menu_uses_chinese_triggers(tmp_path: Path) -> None:
-    config_file = tmp_path / "menu.json5"
-    ensure_menu_store(config_file)
-
-    rendered = render_menu("zh_CN", config_file)
-
-    assert "灵初功能菜单" in rendered
-    assert "【成员管理】" in rendered
-    assert "- 踢出群成员: 踢出群成员 @用户 [是否拒绝再次申请]" in rendered
-    assert "kick-member" not in rendered
-
-
-def test_render_menu_uses_english_triggers(tmp_path: Path) -> None:
-    config_file = tmp_path / "menu.json5"
-    ensure_menu_store(config_file)
-
-    rendered = render_menu("en_US", config_file)
-
-    assert "Lingchu Menu" in rendered
-    assert "【Member Management】" in rendered
-    assert "- Kick a group member: kick-member @user [reject add request]" in rendered
-    assert "踢出群成员" not in rendered
-
-
-def test_render_menu_skips_unknown_command_key(tmp_path: Path) -> None:
-    config_file = tmp_path / "menu.json5"
-    store = default_menu_store()
-    store["sections"] = [
-        {
-            "id": "broken",
-            "title": {"zh_CN": "坏配置", "en_US": "Broken"},
-            "items": [
-                {
-                    "command_key": "unknown_command",
-                    "summary": {"zh_CN": "未知", "en_US": "Unknown"},
-                    "usage": {"zh_CN": "", "en_US": ""},
-                },
-                {
-                    "command_key": "member_mute",
-                    "summary": {"zh_CN": "禁言", "en_US": "Mute"},
-                    "usage": {"zh_CN": "@用户", "en_US": "@user"},
-                },
-            ],
-        }
-    ]
-    config_file.write_text(
-        json5.dumps(store, ensure_ascii=False),
-        encoding="utf-8",
+def test_onebot_napcat_supports_announcement_and_avatar() -> None:
+    rendered = render_menu_for_context(
+        qq_menu_context(
+            adapter_id=ONEBOT_V11_ADAPTER_ID,
+            implementation_name=NAPCAT_IMPL,
+            implementation_version="4.18.0",
+            protocol_version="v11",
+        ),
+        "zh_CN",
     )
 
-    rendered = render_menu("zh_CN", config_file)
+    assert "发送群公告" in rendered
+    assert "设置群头像" in rendered
 
-    assert "未知" not in rendered
-    assert "- 禁言: 禁言 @用户" in rendered
+
+def test_onebot_low_versions_hide_extension_features() -> None:
+    llonebot_rendered = render_menu_for_context(
+        qq_menu_context(
+            adapter_id=ONEBOT_V11_ADAPTER_ID,
+            implementation_name=LLONEBOT_IMPL,
+            implementation_version="7.11.9",
+            protocol_version="v11",
+        ),
+        "zh_CN",
+    )
+    napcat_rendered = render_menu_for_context(
+        qq_menu_context(
+            adapter_id=ONEBOT_V11_ADAPTER_ID,
+            implementation_name=NAPCAT_IMPL,
+            implementation_version="4.17.9",
+            protocol_version="v11",
+        ),
+        "zh_CN",
+    )
+
+    assert "发送群公告" not in llonebot_rendered
+    assert "发送群公告" not in napcat_rendered
+    assert "设置群头像" not in napcat_rendered
+
+
+def test_milky_llbot_supports_text_announcement_only() -> None:
+    rendered = render_menu_for_context(
+        qq_menu_context(adapter_id=MILKY_ADAPTER_ID, implementation_name=LLBOT_IMPL),
+        "zh_CN",
+    )
+
+    assert "发送群公告: 发送群公告 <内容>" in rendered
+    assert "发送群公告 <内容> [图片]" not in rendered
+
+
+def test_milky_unknown_hides_announcement() -> None:
+    rendered = render_menu_for_context(
+        qq_menu_context(adapter_id=MILKY_ADAPTER_ID),
+        "zh_CN",
+    )
+
+    assert "发送群公告" not in rendered
+    assert "设置群头像" in rendered
+
+
+def test_fail_closed_when_platform_capability_missing() -> None:
+    context = MenuRuntimeContext(
+        platform_id="qq",
+        adapter_id=ONEBOT_V11_ADAPTER_ID,
+        platform_capabilities=frozenset({PlatformCapability.GROUP_MANAGEMENT}),
+    )
+
+    rendered = render_menu_for_context(context, "zh_CN")
+
+    assert "退出当前群" in rendered
+    assert "禁言群成员" not in rendered
 
 
 @pytest.mark.asyncio
 async def test_menu_loader_imports_only_onebot11_modules(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     loaded_modules: list[str] = []
     called_handlers: list[str] = []
@@ -148,7 +189,6 @@ async def test_menu_loader_imports_only_onebot11_modules(
         },
     )
     monkeypatch.setattr(menu, "import_module", fake_import_module)
-    monkeypatch.setattr(menu, "get_menu_store_file", lambda: tmp_path / "menu.json5")
     menu._loaded_handlers.clear()
 
     await menu.import_handle()
@@ -159,7 +199,7 @@ async def test_menu_loader_imports_only_onebot11_modules(
 
 @pytest.mark.asyncio
 async def test_menu_loader_imports_only_milky_modules(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     loaded_modules: list[str] = []
 
@@ -180,7 +220,6 @@ async def test_menu_loader_imports_only_milky_modules(
         },
     )
     monkeypatch.setattr(menu, "import_module", fake_import_module)
-    monkeypatch.setattr(menu, "get_menu_store_file", lambda: tmp_path / "menu.json5")
     menu._loaded_handlers.clear()
 
     await menu.import_handle()
@@ -189,28 +228,64 @@ async def test_menu_loader_imports_only_milky_modules(
 
 
 @pytest.mark.asyncio
-async def test_onebot11_menu_finishes_rendered_text() -> None:
-    with (
-        patch.object(menu_cmd, "finish") as mock_finish,
-        patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.onebot.v11.default.menu.render_menu",
-            return_value="菜单文本",
-        ),
-    ):
-        await onebot11_menu()
+async def test_onebot11_menu_reads_version_info_and_finishes() -> None:
+    bot = SimpleNamespace(
+        get_version_info=AsyncMock(
+            return_value={
+                "protocol_version": "v11",
+                "app_name": NAPCAT_IMPL,
+                "app_version": "4.18.0",
+            }
+        )
+    )
 
-    assert finish_text(mock_finish) == "菜单文本"
+    with patch.object(menu_cmd, "finish") as mock_finish:
+        await onebot11_menu(bot=bot)
+
+    bot.get_version_info.assert_awaited_once()
+    assert "设置群头像" in finish_text(mock_finish)
+    assert "发送群公告" in finish_text(mock_finish)
 
 
 @pytest.mark.asyncio
-async def test_milky_menu_finishes_rendered_text() -> None:
-    with (
-        patch.object(menu_cmd, "finish") as mock_finish,
-        patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.milky.v1_2.default.menu.render_menu",
-            return_value="菜单文本",
-        ),
-    ):
-        await milkybot_menu()
+async def test_milky_menu_reads_impl_info_and_finishes() -> None:
+    bot = SimpleNamespace(
+        get_impl_info=AsyncMock(
+            return_value=SimpleNamespace(impl_name=LLBOT_IMPL, impl_version="0.0.0")
+        )
+    )
 
-    assert finish_text(mock_finish) == "菜单文本"
+    with patch.object(menu_cmd, "finish") as mock_finish:
+        await milkybot_menu(bot=bot)
+
+    bot.get_impl_info.assert_awaited_once()
+    assert "发送群公告: 发送群公告 <内容>" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_onebot11_menu_fails_closed_when_detection_fails() -> None:
+    bot = SimpleNamespace(get_version_info=AsyncMock(side_effect=RuntimeError("boom")))
+
+    with (
+        patch.object(onebot_menu_module.logger, "debug") as mock_debug,
+        patch.object(menu_cmd, "finish") as mock_finish,
+    ):
+        await onebot11_menu(bot=bot)
+
+    mock_debug.assert_called_once()
+    assert "发送群公告" not in finish_text(mock_finish)
+    assert "设置群头像" not in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_milky_menu_fails_closed_when_detection_fails() -> None:
+    bot = SimpleNamespace(get_impl_info=AsyncMock(side_effect=RuntimeError("boom")))
+
+    with (
+        patch.object(milky_menu_module.logger, "debug") as mock_debug,
+        patch.object(menu_cmd, "finish") as mock_finish,
+    ):
+        await milkybot_menu(bot=bot)
+
+    mock_debug.assert_called_once()
+    assert "发送群公告" not in finish_text(mock_finish)
