@@ -74,9 +74,10 @@ async def milkybot_set_group_member_special_title(
 @selected_adapter_handle(set_group_member_admin_cmd, "~milky")
 async def milkybot_set_group_member_admin(
     user: At,
-    is_set: bool,  # noqa: FBT001
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
+    *,
+    is_set: bool = True,
 ) -> Any:
     try:
         target_user_id, target_name = await target_user_milky(user, bot, event)

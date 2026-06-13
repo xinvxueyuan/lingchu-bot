@@ -229,7 +229,7 @@ MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         "set_member_admin",
         "member-management",
         LocalizedText("设置群管理员", "Promote a member to admin"),
-        LocalizedText("@用户 [true/false]", "@user [true/false]"),
+        LocalizedText("@用户", "@user"),
         PlatformCapability.MEMBER_MODERATION,
         _QQ_BOTH,
     ),

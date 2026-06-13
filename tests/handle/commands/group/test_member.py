@@ -38,7 +38,7 @@ async def test_set_group_member_admin_ignores_unmatched_mention_segment(
 
     with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await milkybot_set_group_member_admin(
-            user=mock_at, is_set=True, bot=mock_bot, event=mock_event
+            user=mock_at, bot=mock_bot, event=mock_event
         )
 
     mock_bot.set_group_member_admin.assert_called_once_with(
@@ -59,7 +59,7 @@ async def test_set_group_member_admin_matches_requested_mention(
 
     with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await milkybot_set_group_member_admin(
-            user=mock_at, is_set=True, bot=mock_bot, event=mock_event
+            user=mock_at, bot=mock_bot, event=mock_event
         )
 
     mock_bot.set_group_member_admin.assert_called_once_with(
@@ -78,7 +78,7 @@ async def test_set_group_member_admin_invalid_target_finishes_with_error(
 
     with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await milkybot_set_group_member_admin(
-            user=mock_at, is_set=True, bot=mock_bot, event=mock_event
+            user=mock_at, bot=mock_bot, event=mock_event
         )
 
     mock_bot.set_group_member_admin.assert_not_called()
@@ -372,7 +372,6 @@ async def test_onebot11_set_group_member_admin_calls_v11_api(
     with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await onebot11_set_group_member_admin(
             user=mock_at,
-            is_set=True,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
         )
