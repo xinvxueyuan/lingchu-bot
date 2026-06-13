@@ -75,6 +75,7 @@ _LAZY_EXPORTS = {
     "milkybot_set_group_name": "..milky.v1_2.default.group.profile",
     "milkybot_set_group_avatar": "..milky.v1_2.default.group.profile",
     "onebot11_set_group_name": "..onebot.v11.default.group.profile",
+    "onebot11_set_group_avatar": "..onebot.v11.default.group.profile",
 }
 
 
