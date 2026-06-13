@@ -377,19 +377,25 @@ MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
 def render_menu(
     locale: str | None = None,
     context: MenuRuntimeContext | None = None,
+    allowed_command_keys: frozenset[str] | None = None,
 ) -> str:
-    return render_menu_index(context or default_menu_context(), locale)
+    return render_menu_index(
+        context or default_menu_context(),
+        locale,
+        allowed_command_keys,
+    )
 
 
 def render_menu_index(
     context: MenuRuntimeContext,
     locale: str | None = None,
+    allowed_command_keys: frozenset[str] | None = None,
 ) -> str:
     selected_locale = normalize_locale(locale or get_configured_locale())
     lines = [gettext("灵初功能菜单", selected_locale)]
 
     for page in MENU_PAGE_COMMANDS:
-        if not _page_has_visible_content(page, context):
+        if not _page_has_visible_content(page, context, allowed_command_keys):
             continue
         title = _localized(page.title, selected_locale)
         command = _localized(page.command, selected_locale)
@@ -407,20 +413,28 @@ def _render_menu_index_entry(title: str, command: str) -> str:
 def render_menu_for_context(
     context: MenuRuntimeContext,
     locale: str | None = None,
+    allowed_command_keys: frozenset[str] | None = None,
 ) -> str:
-    return render_menu_index(context, locale)
+    return render_menu_index(context, locale, allowed_command_keys)
 
 
 def render_menu_page(
     page_id: str,
     context: MenuRuntimeContext,
     locale: str | None = None,
+    allowed_command_keys: frozenset[str] | None = None,
 ) -> str:
     selected_locale = normalize_locale(locale or get_configured_locale())
     page = _MENU_PAGE_BY_ID[page_id]
     lines = [_localized(page.title, selected_locale)]
     lines.extend(
-        _render_page_body(page, context, selected_locale, include_self_title=False)
+        _render_page_body(
+            page,
+            context,
+            selected_locale,
+            allowed_command_keys=allowed_command_keys,
+            include_self_title=False,
+        )
     )
 
     if len(lines) == 1:
@@ -463,12 +477,13 @@ def _render_section(
     section: MenuSection,
     context: MenuRuntimeContext,
     locale: str,
+    allowed_command_keys: frozenset[str] | None = None,
 ) -> list[str]:
     title = _localized(section.title, locale)
     lines = [f"【{title}】"]
 
     for feature in _features_for_section(section.id):
-        rendered = _render_feature(feature, context, locale)
+        rendered = _render_feature(feature, context, locale, allowed_command_keys)
         if rendered:
             lines.append(rendered)
 
@@ -482,10 +497,16 @@ def _render_page_body(
     context: MenuRuntimeContext,
     locale: str,
     *,
+    allowed_command_keys: frozenset[str] | None,
     include_self_title: bool,
 ) -> list[str]:
     lines: list[str] = []
-    section = _render_section(MenuSection(page.id, page.title), context, locale)
+    section = _render_section(
+        MenuSection(page.id, page.title),
+        context,
+        locale,
+        allowed_command_keys,
+    )
     if section:
         if include_self_title:
             lines.extend(("", *section))
@@ -497,6 +518,7 @@ def _render_page_body(
             child,
             context,
             locale,
+            allowed_command_keys=allowed_command_keys,
             include_self_title=True,
         )
         if child_lines:
@@ -505,9 +527,14 @@ def _render_page_body(
     return lines
 
 
-def _page_has_visible_content(page: MenuPage, context: MenuRuntimeContext) -> bool:
+def _page_has_visible_content(
+    page: MenuPage,
+    context: MenuRuntimeContext,
+    allowed_command_keys: frozenset[str] | None = None,
+) -> bool:
     return any(
-        _matched_availability(feature, context) for feature in _page_features(page)
+        _matched_availability(feature, context, allowed_command_keys)
+        for feature in _page_features(page)
     )
 
 
@@ -525,8 +552,9 @@ def _render_feature(
     feature: MenuFeature,
     context: MenuRuntimeContext,
     locale: str,
+    allowed_command_keys: frozenset[str] | None = None,
 ) -> str:
-    availability = _matched_availability(feature, context)
+    availability = _matched_availability(feature, context, allowed_command_keys)
     if availability is None:
         return ""
 
@@ -556,9 +584,15 @@ def _localized(value: Any, locale: str) -> str:
 def _matched_availability(
     feature: MenuFeature,
     context: MenuRuntimeContext,
+    allowed_command_keys: frozenset[str] | None = None,
 ) -> MenuAvailability | None:
     if feature.command_key not in COMMAND_TRIGGERS:
         logger.debug(f"Lingchu 菜单跳过未知命令: {feature.command_key!r}")
+        return None
+    if (
+        allowed_command_keys is not None
+        and feature.command_key not in allowed_command_keys
+    ):
         return None
     if feature.platform_capability not in context.platform_capabilities:
         return None
