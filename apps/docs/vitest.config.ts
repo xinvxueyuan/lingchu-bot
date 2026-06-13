@@ -17,6 +17,10 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/__tests__/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    onConsoleLog(log) {
+      if (log.includes('act(')) return false;
+      return true;
+    },
   },
   resolve: {
     alias: {

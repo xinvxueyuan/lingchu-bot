@@ -252,6 +252,10 @@ exclude = [
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 pythonpath = ["src"]
+filterwarnings = [
+    "ignore:No path_separator found in configuration:DeprecationWarning:alembic.config",
+    "ignore:The version_path_separator configuration parameter is deprecated:DeprecationWarning:alembic.config",
+]
 
 # TODO: add build system configuration
 [build-system]

@@ -82,8 +82,8 @@ resolve_js() {
 # run_resolved <resolver-output> <args...>
 run_resolved() {
     case "$1" in
-        native:*) shift; "${1#native:}" "$@" ;;
-        cmd:*) shift; cmd.exe /c "${1#cmd:}" "$@" ;;
+        native:*) local bin="${1#native:}"; shift; "$bin" "$@" ;;
+        cmd:*) local bin="${1#cmd:}"; shift; cmd.exe /c "$bin" "$@" ;;
         *) return 127 ;;
     esac
 }
