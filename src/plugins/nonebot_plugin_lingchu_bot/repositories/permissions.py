@@ -458,6 +458,10 @@ async def find_matching_grant(  # noqa: PLR0913
         ]
 
         if native_roles:
+            # Native role mappings intentionally define how a platform role label maps
+            # to an internal group for the whole resource type. Concrete scope still
+            # comes from the event's native role on the current resource plus grant
+            # resource_type/resource_id matching below.
             native_stmt = (
                 select(PermissionGroup)
                 .join(

@@ -213,10 +213,19 @@ async def _sync_default_permission_state() -> None:
         )
 
 
-async def check_permission(context: PermissionContext) -> PermissionDecision:
+async def check_permission(
+    context: PermissionContext,
+    *,
+    audit: bool = True,
+) -> PermissionDecision:
     await ensure_default_permission_state()
     if is_superuser(context.user_id):
-        await audit_permission(context, result=SUPERUSER_RESULT, reason="superuser")
+        await _audit_permission_if_enabled(
+            enabled=audit,
+            context=context,
+            result=SUPERUSER_RESULT,
+            reason="superuser",
+        )
         return PermissionDecision(
             allowed=True,
             result=SUPERUSER_RESULT,
@@ -231,7 +240,12 @@ async def check_permission(context: PermissionContext) -> PermissionDecision:
     )
     if target_node is None:
         reason = "permission node not found"
-        await audit_permission(context, result=DENY_RESULT, reason=reason)
+        await _audit_permission_if_enabled(
+            enabled=audit,
+            context=context,
+            result=DENY_RESULT,
+            reason=reason,
+        )
         return PermissionDecision(allowed=False, result=DENY_RESULT, reason=reason)
 
     if not await repository.capability_contract_allows(
@@ -241,8 +255,9 @@ async def check_permission(context: PermissionContext) -> PermissionDecision:
         command_key=context.command_key,
     ):
         reason = "capability contract disabled"
-        await audit_permission(
-            context,
+        await _audit_permission_if_enabled(
+            enabled=audit,
+            context=context,
             result=CAPABILITY_DENY_RESULT,
             reason=reason,
         )
@@ -254,7 +269,12 @@ async def check_permission(context: PermissionContext) -> PermissionDecision:
 
     if context.user_id is None:
         reason = "user id missing"
-        await audit_permission(context, result=DENY_RESULT, reason=reason)
+        await _audit_permission_if_enabled(
+            enabled=audit,
+            context=context,
+            result=DENY_RESULT,
+            reason=reason,
+        )
         return PermissionDecision(allowed=False, result=DENY_RESULT, reason=reason)
 
     group, grant, grant_node = await repository.find_matching_grant(
@@ -267,11 +287,17 @@ async def check_permission(context: PermissionContext) -> PermissionDecision:
     )
     if group is None or grant is None or grant_node is None:
         reason = "no matching grant"
-        await audit_permission(context, result=DENY_RESULT, reason=reason)
+        await _audit_permission_if_enabled(
+            enabled=audit,
+            context=context,
+            result=DENY_RESULT,
+            reason=reason,
+        )
         return PermissionDecision(allowed=False, result=DENY_RESULT, reason=reason)
 
-    await audit_permission(
-        context,
+    await _audit_permission_if_enabled(
+        enabled=audit,
+        context=context,
         result=ALLOW_RESULT,
         reason="matched grant",
         group_id=group.id,
@@ -318,6 +344,16 @@ async def audit_permission(  # noqa: PLR0913
         logger.exception("Failed to write permission audit log: %r", error)
 
 
+async def _audit_permission_if_enabled(
+    *,
+    enabled: bool,
+    context: PermissionContext,
+    **kwargs: Any,
+) -> None:
+    if enabled:
+        await audit_permission(context, **kwargs)
+
+
 async def visible_command_keys(context: PermissionContext) -> frozenset[str]:
     await ensure_default_permission_state()
     if is_superuser(context.user_id):
@@ -340,7 +376,7 @@ async def visible_command_keys(context: PermissionContext) -> frozenset[str]:
             resource_id=context.resource_id,
             native_roles=context.native_roles,
         )
-        decision = await check_permission(feature_context)
+        decision = await check_permission(feature_context, audit=False)
         if decision.allowed:
             allowed.add(feature.command_key)
     return frozenset(allowed)
@@ -391,12 +427,15 @@ async def add_group_member(
 
 async def list_tree_lines(limit: int = 80) -> list[str]:
     await ensure_default_permission_state()
-    nodes = await repository.list_permission_nodes(limit=limit)
-    return [
+    nodes = await repository.list_permission_nodes(limit=limit + 1)
+    lines = [
         f"{node.path} [{node.kind}]"
         + (f" -> {node.command_key}" if node.command_key else "")
-        for node in nodes
+        for node in nodes[:limit]
     ]
+    if len(nodes) > limit:
+        lines.append(f"... 已截断，使用 权限 tree <数量> 查看更多（当前 {limit} 条）")
+    return lines
 
 
 async def _ensure_child_node(  # noqa: PLR0913
