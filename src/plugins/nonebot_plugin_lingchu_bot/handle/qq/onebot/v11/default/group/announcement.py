@@ -22,21 +22,19 @@ async def onebot_v11_send_group_announcement(
 ) -> None:
     image_path = await _resolve_image_path(image) if image is not None else None
     version_info = await bot.get_version_info()
+    # OneBot V11 适配器解包响应，get_version_info() 直接返回 data 字段
+    data = version_info.get("data", version_info)
 
-    if version_info.get("data", {}).get("protocol_version") != "v11":
+    if data.get("protocol_version") != "v11":
         await send_group_announcement_cmd.finish(await _("不支持的 OneBot 协议版本"))
-    if version_info.get("status") != "ok":
-        await send_group_announcement_cmd.finish(await _("OneBot 状态异常"))
-    if version_info.get("retcode", -1) != 0:
-        await send_group_announcement_cmd.finish(await _("OneBot 调用失败"))
 
-    raw_version = version_info.get("data", {}).get("version", "0")
+    raw_version = data.get("app_version", "0")
     try:
         current_version = parse(raw_version)
     except InvalidVersion:
         current_version = parse("0")
 
-    app_name = version_info.get("data", {}).get("app_name")
+    app_name = data.get("app_name")
 
     match app_name:
         case "LLOneBot" if current_version >= parse("7.12.0"):

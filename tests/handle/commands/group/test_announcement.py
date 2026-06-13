@@ -105,13 +105,9 @@ async def test_onebot11_send_group_announcement_calls_extension_api(
 ) -> None:
     mock_onebot11_bot.get_version_info = AsyncMock(
         return_value={
-            "status": "ok",
-            "retcode": 0,
-            "data": {
-                "protocol_version": "v11",
-                "app_name": app_name,
-                "version": version,
-            },
+            "protocol_version": "v11",
+            "app_name": app_name,
+            "app_version": version,
         }
     )
     mock_onebot11_bot.call_api = AsyncMock()
@@ -139,13 +135,9 @@ async def test_onebot11_send_group_announcement_rejects_unsupported_impl(
 ) -> None:
     mock_onebot11_bot.get_version_info = AsyncMock(
         return_value={
-            "status": "ok",
-            "retcode": 0,
-            "data": {
-                "protocol_version": "v11",
-                "app_name": "UnknownBot",
-                "version": "1.0.0",
-            },
+            "protocol_version": "v11",
+            "app_name": "UnknownBot",
+            "app_version": "1.0.0",
         }
     )
     mock_onebot11_bot.call_api = AsyncMock()
