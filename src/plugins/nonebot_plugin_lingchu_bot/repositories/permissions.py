@@ -554,10 +554,10 @@ async def visible_command_keys_for_context(  # noqa: PLR0913
             )
             .order_by(PermissionNode.id.desc())
         )
-        command_nodes: dict[str, PermissionNode] = {}
-        for node in (await session.execute(node_stmt)).scalars():
-            if node.command_key is not None:
-                command_nodes.setdefault(node.command_key, node)
+        command_nodes = _select_command_nodes(
+            (await session.execute(node_stmt)).scalars(),
+            implementation_name,
+        )
         if not command_nodes:
             return frozenset()
 
@@ -718,6 +718,36 @@ def _node_covers(grant_node: PermissionNode, target_node: PermissionNode) -> boo
     return target_node.path == grant_node.path or target_node.path.startswith(
         f"{grant_node.path}/"
     )
+
+
+def _select_command_nodes(
+    nodes: Iterable[PermissionNode],
+    implementation_name: str | None,
+) -> dict[str, PermissionNode]:
+    command_nodes: dict[str, PermissionNode] = {}
+    for node in nodes:
+        if node.command_key is None:
+            continue
+        current = command_nodes.get(node.command_key)
+        if current is None or _implementation_rank(
+            getattr(node, "implementation_name", None),
+            implementation_name,
+        ) > _implementation_rank(
+            getattr(current, "implementation_name", None),
+            implementation_name,
+        ):
+            command_nodes[node.command_key] = node
+    return command_nodes
+
+
+def _implementation_rank(value: str | None, target: str | None) -> int:
+    if target is not None and value == target:
+        return 2
+    if value == DEFAULT_IMPLEMENTATION:
+        return 1
+    if value is None:
+        return 0
+    return -1
 
 
 def _stored_scope(value: str | None) -> str:

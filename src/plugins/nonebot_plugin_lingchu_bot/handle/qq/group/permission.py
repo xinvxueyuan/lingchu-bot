@@ -145,13 +145,17 @@ async def _finish_native_mapping(action: str, native_role_text: str) -> Any:
     native_role = native_role_text.casefold()
     if native_role not in {"owner", "admin"}:
         return await permission_cmd.finish(message="无效的角色: 仅支持 owner 或 admin")
-    await repository.set_native_role_mapping_enabled(
+    updated_count, _ = await repository.set_native_role_mapping_enabled(
         platform_id="qq",
         adapter_id=None,
         resource_type="group",
         native_role=native_role,
         is_enabled=action == "native-on",
     )
+    if updated_count == 0:
+        return await permission_cmd.finish(
+            message=f"原生身份映射未找到，请先执行 权限 sync: {native_role}"
+        )
     state = "启用" if action == "native-on" else "禁用"
     return await permission_cmd.finish(message=f"原生身份映射已{state}: {native_role}")
 

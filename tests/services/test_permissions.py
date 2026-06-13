@@ -375,7 +375,7 @@ async def test_permission_native_mapping_validates_role(
 async def test_permission_native_mapping_normalizes_role(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    set_native_role_mapping_enabled = AsyncMock()
+    set_native_role_mapping_enabled = AsyncMock(return_value=(1, True))
     finish = AsyncMock()
     monkeypatch.setattr(permission_module, "is_superuser", lambda _user_id: True)
     monkeypatch.setattr(
@@ -404,6 +404,36 @@ async def test_permission_native_mapping_normalizes_role(
         is_enabled=False,
     )
     finish.assert_awaited_once_with(message="原生身份映射已禁用: owner")
+
+
+@pytest.mark.asyncio
+async def test_permission_native_mapping_reports_missing_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_native_role_mapping_enabled = AsyncMock(return_value=(0, False))
+    finish = AsyncMock()
+    monkeypatch.setattr(permission_module, "is_superuser", lambda _user_id: True)
+    monkeypatch.setattr(
+        permission_module.repository,
+        "set_native_role_mapping_enabled",
+        set_native_role_mapping_enabled,
+    )
+    monkeypatch.setattr(permission_module.permission_cmd, "finish", finish)
+
+    await permission_module._handle_permission(
+        cast("Any", SimpleNamespace()),
+        cast("Any", SimpleNamespace(get_user_id=lambda: "42")),
+        "native-on",
+        "admin",
+        "",
+        "",
+        "",
+        "",
+    )
+
+    finish.assert_awaited_once_with(
+        message="原生身份映射未找到，请先执行 权限 sync: admin"
+    )
 
 
 @pytest.mark.asyncio
@@ -567,6 +597,81 @@ async def test_visible_command_keys_for_context_uses_bulk_queries(
 
     assert visible == {"kick_member"}
     assert len(statements) == expected_query_count
+
+
+@pytest.mark.asyncio
+async def test_visible_command_keys_prefers_specific_implementation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    default_node = SimpleNamespace(
+        id=11,
+        command_key="kick_member",
+        implementation_name=repository.DEFAULT_IMPLEMENTATION,
+        path="lingchu/platform:qq/adapter:~onebot.v11/implementation:default/command:kick_member",
+    )
+    specific_node = SimpleNamespace(
+        id=10,
+        command_key="kick_member",
+        implementation_name="napcat",
+        path="lingchu/platform:qq/adapter:~onebot.v11/implementation:napcat/command:kick_member",
+    )
+    contract = SimpleNamespace(
+        command_key="kick_member",
+        implementation_name="napcat",
+        is_enabled=True,
+    )
+    group = SimpleNamespace(id=20, priority=100)
+    grant_node = SimpleNamespace(
+        id=30,
+        path="lingchu/platform:qq/adapter:~onebot.v11/implementation:napcat",
+    )
+    responses: list[list[object]] = [
+        [default_node, specific_node],
+        [contract],
+        [(group, SimpleNamespace())],
+        [(group, SimpleNamespace(), grant_node)],
+    ]
+
+    class Result:
+        def __init__(self, rows: list[object]) -> None:
+            self._rows = rows
+
+        def all(self) -> list[object]:
+            return self._rows
+
+        def scalars(self) -> list[object]:
+            return self._rows
+
+    class FakeSession:
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *_exc: object) -> None:
+            return None
+
+        async def execute(self, _statement: object) -> Result:
+            if responses:
+                return Result(responses.pop(0))
+            msg = "visible_command_keys_for_context should use fixed bulk queries"
+            raise AssertionError(msg)
+
+    def get_fake_session() -> FakeSession:
+        return FakeSession()
+
+    monkeypatch.setattr(repository, "get_session", get_fake_session)
+
+    visible = await repository.visible_command_keys_for_context(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        implementation_name="napcat",
+        user_id="100",
+        resource_type="group",
+        resource_id="200",
+        native_roles=frozenset(),
+        command_keys=["kick_member"],
+    )
+
+    assert visible == {"kick_member"}
 
 
 def test_permission_models_have_cascade_foreign_keys() -> None:
