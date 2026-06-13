@@ -351,6 +351,10 @@ At the end of every conversation that involves code changes, review what went wr
 
 群命令触发词按 locale 互斥启用。不要为同一个 matcher 同时注册中文和英文命令触发词。应通过 i18n locale 解析辅助（`LINGCHU_LOCALE`、`lc_locale`、`locale` 经 `get_configured_locale()`）在命令注册时选择一种触发语言，并确保未选中的语言不会进入 `aliases`。
 
+### Layered Menu Commands
+
+将菜单分类升级为独立命令时，注册分类 matcher 前必须审计它是否与现有功能命令别名冲突。顶层 `菜单` / `menu` 应保持为索引入口，并与分类页分别测试，这样功能过滤断言才会落在实际渲染功能行的页面上。
+
 ### Adapter API Differences
 
 Same-named APIs return different types across adapters:

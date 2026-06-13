@@ -14,8 +14,11 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.menu import (
     ONEBOT_V11_ADAPTER_ID,
     MenuRuntimeContext,
     menu_cmd,
+    menu_page_cmds,
     qq_menu_context,
     render_menu_for_context,
+    render_menu_index,
+    render_menu_page,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.group.command_triggers import (
     COMMAND_TRIGGERS,
@@ -25,12 +28,14 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.milky.v1_2.default import 
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.milky.v1_2.default.menu import (
     milkybot_menu,
+    milkybot_menu_pages,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.onebot.v11.default import (
     menu as onebot_menu_module,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.onebot.v11.default.menu import (
     onebot11_menu,
+    onebot11_menu_pages,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.platforms import PlatformCapability
 from tests.handle.commands.group.conftest import finish_text
@@ -64,8 +69,87 @@ def test_menu_registry_does_not_bypass_adapter_filtering() -> None:
         assert all(item.adapter_id for item in feature.availability)
 
 
+def test_menu_index_lists_direct_submenus_only() -> None:
+    rendered = render_menu_index(
+        qq_menu_context(adapter_id=ONEBOT_V11_ADAPTER_ID),
+        "zh_CN",
+    )
+
+    assert "灵初功能菜单" in rendered
+    assert "- 成员管理" in rendered
+    assert "- 发言管理" in rendered
+    assert "- 群聊管理" in rendered
+    assert "- 成员管理: 成员管理" not in rendered
+    assert "踢出群成员" not in rendered
+    assert "禁言群成员" not in rendered
+    assert "设置群名称" not in rendered
+
+
+def test_menu_index_keeps_distinct_english_title_and_trigger() -> None:
+    rendered = render_menu_index(
+        qq_menu_context(adapter_id=ONEBOT_V11_ADAPTER_ID),
+        "en_US",
+    )
+
+    assert "Lingchu Menu" in rendered
+    assert "- Member Management: member-management" in rendered
+    assert "- Speech Management: speech-management" in rendered
+    assert "- Group Chat Management: group-chat-management" in rendered
+
+
+def test_menu_page_commands_do_not_claim_announcement_alias() -> None:
+    assert set(menu_page_cmds) == {
+        "member-management",
+        "speech-management",
+        "group-chat-management",
+    }
+    assert COMMAND_TRIGGERS["send_announcement"].chinese_aliases == {
+        "发群公告",
+        "群公告",
+    }
+
+
+def test_render_menu_for_context_keeps_index_compatibility() -> None:
+    assert render_menu_for_context(
+        qq_menu_context(adapter_id=ONEBOT_V11_ADAPTER_ID),
+        "zh_CN",
+    ) == render_menu_index(
+        qq_menu_context(adapter_id=ONEBOT_V11_ADAPTER_ID),
+        "zh_CN",
+    )
+
+
+def test_member_management_page_lists_member_commands_only() -> None:
+    rendered = render_menu_page(
+        "member-management",
+        qq_menu_context(adapter_id=ONEBOT_V11_ADAPTER_ID),
+        "zh_CN",
+    )
+
+    assert "成员管理" in rendered
+    assert "踢出群成员" in rendered
+    assert "设置群名片" in rendered
+    assert "禁言群成员" not in rendered
+    assert "设置群名称" not in rendered
+
+
+def test_speech_management_page_lists_speech_commands_only() -> None:
+    rendered = render_menu_page(
+        "speech-management",
+        qq_menu_context(adapter_id=ONEBOT_V11_ADAPTER_ID),
+        "zh_CN",
+    )
+
+    assert "发言管理" in rendered
+    assert "禁言群成员" in rendered
+    assert "关闭全体禁言" in rendered
+    assert "踢出群成员" not in rendered
+    assert "退出当前群" not in rendered
+
+
 def test_onebot_unknown_hides_extension_features() -> None:
-    rendered = render_menu_for_context(
+    rendered = render_menu_page(
+        "group-chat-management",
         qq_menu_context(adapter_id=ONEBOT_V11_ADAPTER_ID),
         "zh_CN",
     )
@@ -73,11 +157,13 @@ def test_onebot_unknown_hides_extension_features() -> None:
     assert "发送群公告" not in rendered
     assert "设置群头像" not in rendered
     assert "设置群名称" in rendered
-    assert "踢出群成员" in rendered
+    assert "退出当前群" in rendered
+    assert "踢出群成员" not in rendered
 
 
 def test_onebot_llonebot_supports_announcement_only() -> None:
-    rendered = render_menu_for_context(
+    rendered = render_menu_page(
+        "group-chat-management",
         qq_menu_context(
             adapter_id=ONEBOT_V11_ADAPTER_ID,
             implementation_name=LLONEBOT_IMPL,
@@ -92,7 +178,8 @@ def test_onebot_llonebot_supports_announcement_only() -> None:
 
 
 def test_onebot_napcat_supports_announcement_and_avatar() -> None:
-    rendered = render_menu_for_context(
+    rendered = render_menu_page(
+        "group-chat-management",
         qq_menu_context(
             adapter_id=ONEBOT_V11_ADAPTER_ID,
             implementation_name=NAPCAT_IMPL,
@@ -107,7 +194,8 @@ def test_onebot_napcat_supports_announcement_and_avatar() -> None:
 
 
 def test_onebot_low_versions_hide_extension_features() -> None:
-    llonebot_rendered = render_menu_for_context(
+    llonebot_rendered = render_menu_page(
+        "group-chat-management",
         qq_menu_context(
             adapter_id=ONEBOT_V11_ADAPTER_ID,
             implementation_name=LLONEBOT_IMPL,
@@ -116,7 +204,8 @@ def test_onebot_low_versions_hide_extension_features() -> None:
         ),
         "zh_CN",
     )
-    napcat_rendered = render_menu_for_context(
+    napcat_rendered = render_menu_page(
+        "group-chat-management",
         qq_menu_context(
             adapter_id=ONEBOT_V11_ADAPTER_ID,
             implementation_name=NAPCAT_IMPL,
@@ -132,7 +221,8 @@ def test_onebot_low_versions_hide_extension_features() -> None:
 
 
 def test_milky_llbot_supports_text_announcement_only() -> None:
-    rendered = render_menu_for_context(
+    rendered = render_menu_page(
+        "group-chat-management",
         qq_menu_context(adapter_id=MILKY_ADAPTER_ID, implementation_name=LLBOT_IMPL),
         "zh_CN",
     )
@@ -142,7 +232,8 @@ def test_milky_llbot_supports_text_announcement_only() -> None:
 
 
 def test_milky_unknown_hides_announcement() -> None:
-    rendered = render_menu_for_context(
+    rendered = render_menu_page(
+        "group-chat-management",
         qq_menu_context(adapter_id=MILKY_ADAPTER_ID),
         "zh_CN",
     )
@@ -158,7 +249,7 @@ def test_fail_closed_when_platform_capability_missing() -> None:
         platform_capabilities=frozenset({PlatformCapability.GROUP_MANAGEMENT}),
     )
 
-    rendered = render_menu_for_context(context, "zh_CN")
+    rendered = render_menu_page("group-chat-management", context, "zh_CN")
 
     assert "退出当前群" in rendered
     assert "禁言群成员" not in rendered
@@ -243,6 +334,28 @@ async def test_onebot11_menu_reads_version_info_and_finishes() -> None:
         await onebot11_menu(bot=bot)
 
     bot.get_version_info.assert_awaited_once()
+    assert "群聊管理" in finish_text(mock_finish)
+    assert "设置群头像" not in finish_text(mock_finish)
+    assert "发送群公告" not in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_onebot11_menu_page_reads_version_info_and_finishes() -> None:
+    bot = SimpleNamespace(
+        get_version_info=AsyncMock(
+            return_value={
+                "protocol_version": "v11",
+                "app_name": NAPCAT_IMPL,
+                "app_version": "4.18.0",
+            }
+        )
+    )
+    command = menu_page_cmds["group-chat-management"]
+
+    with patch.object(command, "finish") as mock_finish:
+        await onebot11_menu_pages["group-chat-management"](bot=bot)
+
+    bot.get_version_info.assert_awaited_once()
     assert "设置群头像" in finish_text(mock_finish)
     assert "发送群公告" in finish_text(mock_finish)
 
@@ -257,6 +370,23 @@ async def test_milky_menu_reads_impl_info_and_finishes() -> None:
 
     with patch.object(menu_cmd, "finish") as mock_finish:
         await milkybot_menu(bot=bot)
+
+    bot.get_impl_info.assert_awaited_once()
+    assert "群聊管理" in finish_text(mock_finish)
+    assert "发送群公告" not in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_milky_menu_page_reads_impl_info_and_finishes() -> None:
+    bot = SimpleNamespace(
+        get_impl_info=AsyncMock(
+            return_value=SimpleNamespace(impl_name=LLBOT_IMPL, impl_version="0.0.0")
+        )
+    )
+    command = menu_page_cmds["group-chat-management"]
+
+    with patch.object(command, "finish") as mock_finish:
+        await milkybot_menu_pages["group-chat-management"](bot=bot)
 
     bot.get_impl_info.assert_awaited_once()
     assert "发送群公告: 发送群公告 <内容>" in finish_text(mock_finish)

@@ -33,13 +33,15 @@ Common aliases include:
 - `help`
 - `commands`
 
-The menu command lists the currently available group-management features as plain text. It is code-driven and filtered by the selected platform, adapter, and concrete implementation, so implementation-specific extension APIs are hidden unless the current runtime is known to support them. The default menu is grouped into multiple levels:
+The menu command is an index entry. It lists the available submenu commands instead of expanding every group-management feature into one long message. Submenus are code-driven and filtered by the selected platform, adapter, and concrete implementation, so implementation-specific extension APIs are hidden unless the current runtime is known to support them.
 
-- Member Management: kick member, set member card, set member special title, set/unset admin.
-- Speech Management: mute/unmute member, enable/disable whole-group mute.
-- Group Profile: set group name, and set group avatar only when the current adapter implementation supports it.
-- Announcement: send group announcement only when the current adapter implementation supports it.
-- Group Operation: leave current group.
+Default submenu commands:
+
+- `member-management`: kick member, set member card, set member special title, set/unset admin.
+- `speech-management`: mute/unmute member, enable/disable whole-group mute.
+- `group-chat-management`: set group name, set group avatar when supported, send group announcement when supported, and leave current group.
+
+Chinese locales expose the same submenus as `成员管理`, `发言管理`, and `群聊管理`. The `群公告` alias remains reserved for sending group announcements, so announcement help is shown under `群聊管理`.
 
 Current implementation filters include:
 
