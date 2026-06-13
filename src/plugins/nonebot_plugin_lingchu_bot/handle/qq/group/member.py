@@ -50,7 +50,7 @@ unset_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
 kick_group_member_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _KICK_MEMBER.primary,
-        Args["user", At]["reject_add_request?", bool, False],
+        Args["user", At],
     ),
     aliases=_KICK_MEMBER.aliases,
     priority=5,

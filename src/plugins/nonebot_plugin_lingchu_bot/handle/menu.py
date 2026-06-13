@@ -202,7 +202,7 @@ MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         "kick_member",
         "member-management",
         LocalizedText("踢出群成员", "Kick a group member"),
-        LocalizedText("@用户 [是否拒绝再次申请]", "@user [reject add request]"),
+        LocalizedText("@用户", "@user"),
         PlatformCapability.MEMBER_MODERATION,
         _QQ_BOTH,
     ),
