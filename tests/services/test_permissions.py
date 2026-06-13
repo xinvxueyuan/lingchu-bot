@@ -254,6 +254,38 @@ async def test_check_permission_denies_disabled_capability(
 
 
 @pytest.mark.asyncio
+async def test_get_command_node_prefers_specific_implementation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected_limit = 100
+    default_node = SimpleNamespace(
+        id=11,
+        command_key="kick_member",
+        implementation_name=repository.DEFAULT_IMPLEMENTATION,
+    )
+    specific_node = SimpleNamespace(
+        id=10,
+        command_key="kick_member",
+        implementation_name="napcat",
+    )
+
+    async def list_items(*_args: object, **kwargs: object) -> list[SimpleNamespace]:
+        assert kwargs["limit"] == expected_limit
+        return [default_node, specific_node]
+
+    monkeypatch.setattr(repository, "list_items", list_items)
+
+    node = await repository.get_command_node(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        command_key="kick_member",
+        implementation_name="napcat",
+    )
+
+    assert node is specific_node
+
+
+@pytest.mark.asyncio
 async def test_visible_command_keys_filters_without_audit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
