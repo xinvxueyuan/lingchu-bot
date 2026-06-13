@@ -65,6 +65,7 @@ def mock_bot() -> MagicMock:
 def mock_onebot11_event() -> MagicMock:
     event = MagicMock(spec=OneBot11GroupMessageEvent)
     event.group_id = 123456789
+    event.user_id = 111222333
     event.message = []
     return event
 
@@ -74,6 +75,7 @@ def mock_onebot11_bot() -> MagicMock:
     bot = MagicMock(spec=OneBot11Bot)
     bot.adapter = MagicMock()
     bot.adapter.get_name.return_value = "OneBot V11"
+    bot.self_id = "bot-1"
     bot.get_group_member_info = AsyncMock(return_value={})
     return bot
 

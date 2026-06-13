@@ -64,3 +64,46 @@ class MessageRecord(Model):
         onupdate=utc_now,
         index=True,
     )
+
+
+class BlocklistEntry(Model):
+    """Stored group/global blocklist entry for platform users."""
+
+    __tablename__ = "lingchu_blocklist_entries"
+    __table_args__ = (
+        UniqueConstraint(
+            "platform_id",
+            "adapter_id",
+            "bot_id",
+            "scope",
+            "scope_key",
+            "user_id",
+            name="uq_lingchu_blocklist_entry_identity",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    platform_id: Mapped[str] = mapped_column(String(64), index=True)
+    adapter_id: Mapped[str] = mapped_column(String(64), index=True)
+    bot_id: Mapped[str] = mapped_column(String(128), index=True)
+    scope: Mapped[str] = mapped_column(String(32), index=True)
+    scope_key: Mapped[str] = mapped_column(String(128), index=True)
+    group_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    user_id: Mapped[str] = mapped_column(String(128), index=True)
+    operator_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    reason: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        index=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        index=True,
+    )

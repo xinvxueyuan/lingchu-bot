@@ -128,9 +128,23 @@ def test_member_management_page_lists_member_commands_only() -> None:
 
     assert "成员管理" in rendered
     assert "踢出群成员" in rendered
+    assert "拉黑群成员" in rendered
+    assert "清空本群黑名单" in rendered
     assert "设置群名片" in rendered
     assert "禁言群成员" not in rendered
     assert "设置群名称" not in rendered
+
+
+def test_milky_member_management_page_hides_onebot_blocklist_commands() -> None:
+    rendered = render_menu_page(
+        "member-management",
+        qq_menu_context(adapter_id=MILKY_ADAPTER_ID),
+        "zh_CN",
+    )
+
+    assert "踢出群成员" in rendered
+    assert "拉黑群成员" not in rendered
+    assert "清空本群黑名单" not in rendered
 
 
 def test_speech_management_page_lists_speech_commands_only() -> None:
