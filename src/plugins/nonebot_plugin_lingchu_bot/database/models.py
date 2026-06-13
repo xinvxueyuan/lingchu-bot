@@ -278,7 +278,10 @@ class NativeRoleMapping(Model):
     adapter_id: Mapped[str | None] = mapped_column(String(64), index=True)
     resource_type: Mapped[str] = mapped_column(String(64), index=True)
     native_role: Mapped[str] = mapped_column(String(64), index=True)
-    group_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    group_id: Mapped[int | None] = mapped_column(
+        ForeignKey("lingchu_permission_groups.id", ondelete="CASCADE"),
+        index=True,
+    )
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

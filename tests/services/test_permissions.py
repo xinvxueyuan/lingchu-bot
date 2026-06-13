@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Self, cast
+from typing import Any, Self, cast
 from unittest.mock import AsyncMock
 
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.database.models import (
+    NativeRoleMapping,
     PermissionGrant,
     PermissionGroupMember,
     PermissionNode,
@@ -53,15 +54,17 @@ async def test_default_permission_state_syncs_menu_tree(
     monkeypatch.setattr(permissions.repository, "get_node_by_path", get_node_by_path)
     monkeypatch.setattr(permissions.repository, "upsert_group", upsert_group)
     monkeypatch.setattr(permissions.repository, "upsert_grant", upsert_grant)
+    upsert_capability_contract = AsyncMock()
+    upsert_native_role_mapping = AsyncMock()
     monkeypatch.setattr(
         permissions.repository,
         "upsert_capability_contract",
-        AsyncMock(),
+        upsert_capability_contract,
     )
     monkeypatch.setattr(
         permissions.repository,
         "upsert_native_role_mapping",
-        AsyncMock(),
+        upsert_native_role_mapping,
     )
     monkeypatch.setattr(permissions, "_default_state_ensured", False)
 
@@ -71,6 +74,8 @@ async def test_default_permission_state_syncs_menu_tree(
     assert "lingchu/platform:qq/adapter:~onebot.v11" in nodes
     assert any(path.endswith("/command:kick_member") for path in nodes)
     assert any(grant["resource_type"] == "group" for grant in grants)
+    upsert_capability_contract.assert_awaited()
+    upsert_native_role_mapping.assert_awaited()
 
 
 @pytest.mark.asyncio
@@ -121,6 +126,11 @@ async def test_default_permission_state_is_cached_after_success(
     upsert_capability_contract.assert_awaited()
     upsert_native_role_mapping.assert_awaited()
     assert upsert_paths.count("lingchu") == 1
+
+    await permissions.ensure_default_permission_state(force=True)
+
+    expected_forced_sync_count = 2
+    assert upsert_paths.count("lingchu") == expected_forced_sync_count
 
 
 @pytest.mark.asyncio
@@ -247,23 +257,18 @@ async def test_check_permission_denies_disabled_capability(
 async def test_visible_command_keys_filters_without_audit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    seen: list[tuple[str, bool]] = []
-
-    async def fake_check_permission(
-        context: permissions.PermissionContext,
-        *,
-        audit: bool = True,
-    ) -> permissions.PermissionDecision:
-        seen.append((context.command_key, audit))
-        return permissions.PermissionDecision(
-            allowed=context.command_key == "kick_member",
-            result=permissions.ALLOW_RESULT,
-            reason="test",
-        )
-
     monkeypatch.setattr(permissions, "ensure_default_permission_state", AsyncMock())
     monkeypatch.setattr(permissions, "is_superuser", lambda _user_id: False)
-    monkeypatch.setattr(permissions, "check_permission", fake_check_permission)
+    visible_command_keys_for_context = AsyncMock(
+        return_value=frozenset({"kick_member"})
+    )
+    check_permission = AsyncMock()
+    monkeypatch.setattr(
+        permissions.repository,
+        "visible_command_keys_for_context",
+        visible_command_keys_for_context,
+    )
+    monkeypatch.setattr(permissions, "check_permission", check_permission)
 
     visible = await permissions.visible_command_keys(
         permissions.PermissionContext(
@@ -275,8 +280,8 @@ async def test_visible_command_keys_filters_without_audit(
     )
 
     assert visible == {"kick_member"}
-    assert seen
-    assert all(audit is False for _, audit in seen)
+    visible_command_keys_for_context.assert_awaited_once()
+    check_permission.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -335,6 +340,70 @@ def test_permission_tree_limit_parser() -> None:
     assert permission_module._parse_positive_limit("0") is None
     assert permission_module._parse_positive_limit("-1") is None
     assert permission_module._parse_positive_limit("bad") is None
+
+
+@pytest.mark.asyncio
+async def test_permission_native_mapping_validates_role(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_native_role_mapping_enabled = AsyncMock()
+    finish = AsyncMock()
+    monkeypatch.setattr(permission_module, "is_superuser", lambda _user_id: True)
+    monkeypatch.setattr(
+        permission_module.repository,
+        "set_native_role_mapping_enabled",
+        set_native_role_mapping_enabled,
+    )
+    monkeypatch.setattr(permission_module.permission_cmd, "finish", finish)
+
+    await permission_module._handle_permission(
+        cast("Any", SimpleNamespace()),
+        cast("Any", SimpleNamespace(get_user_id=lambda: "42")),
+        "native-on",
+        "invalid",
+        "",
+        "",
+        "",
+        "",
+    )
+
+    finish.assert_awaited_once_with(message="无效的角色: 仅支持 owner 或 admin")
+    set_native_role_mapping_enabled.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_permission_native_mapping_normalizes_role(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_native_role_mapping_enabled = AsyncMock()
+    finish = AsyncMock()
+    monkeypatch.setattr(permission_module, "is_superuser", lambda _user_id: True)
+    monkeypatch.setattr(
+        permission_module.repository,
+        "set_native_role_mapping_enabled",
+        set_native_role_mapping_enabled,
+    )
+    monkeypatch.setattr(permission_module.permission_cmd, "finish", finish)
+
+    await permission_module._handle_permission(
+        cast("Any", SimpleNamespace()),
+        cast("Any", SimpleNamespace(get_user_id=lambda: "42")),
+        "native-off",
+        "OWNER",
+        "",
+        "",
+        "",
+        "",
+    )
+
+    set_native_role_mapping_enabled.assert_awaited_once_with(
+        platform_id="qq",
+        adapter_id=None,
+        resource_type="group",
+        native_role="owner",
+        is_enabled=False,
+    )
+    finish.assert_awaited_once_with(message="原生身份映射已禁用: owner")
 
 
 @pytest.mark.asyncio
@@ -425,12 +494,88 @@ async def test_find_matching_grant_uses_global_group_priority(  # noqa: C901
     assert len(statements) == grant_query_count
 
 
+@pytest.mark.asyncio
+async def test_visible_command_keys_for_context_uses_bulk_queries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target_node = SimpleNamespace(
+        id=10,
+        command_key="kick_member",
+        path="lingchu/platform:qq/adapter:~onebot.v11/command:kick_member",
+    )
+    missing_contract_node = SimpleNamespace(
+        id=9,
+        command_key="leave_group",
+        path="lingchu/platform:qq/adapter:~onebot.v11/command:leave_group",
+    )
+    contract = SimpleNamespace(
+        command_key="kick_member",
+        implementation_name=repository.DEFAULT_IMPLEMENTATION,
+        is_enabled=True,
+    )
+    group = SimpleNamespace(id=20, priority=100)
+    grant_node = SimpleNamespace(id=30, path="lingchu/platform:qq")
+    statements: list[object] = []
+    expected_query_count = 4
+    responses: list[list[object]] = [
+        [target_node, missing_contract_node],
+        [contract],
+        [(group, SimpleNamespace())],
+        [(group, SimpleNamespace(), grant_node)],
+    ]
+
+    class Result:
+        def __init__(self, rows: list[object]) -> None:
+            self._rows = rows
+
+        def all(self) -> list[object]:
+            return self._rows
+
+        def scalars(self) -> list[object]:
+            return self._rows
+
+    class FakeSession:
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *_exc: object) -> None:
+            return None
+
+        async def execute(self, statement: object) -> Result:
+            statements.append(statement)
+            response_index = len(statements) - 1
+            if response_index < len(responses):
+                return Result(responses[response_index])
+            msg = "visible_command_keys_for_context should use fixed bulk queries"
+            raise AssertionError(msg)
+
+    def get_fake_session() -> FakeSession:
+        return FakeSession()
+
+    monkeypatch.setattr(repository, "get_session", get_fake_session)
+
+    visible = await repository.visible_command_keys_for_context(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        implementation_name=None,
+        user_id="100",
+        resource_type="group",
+        resource_id="200",
+        native_roles=frozenset(),
+        command_keys=["kick_member", "leave_group"],
+    )
+
+    assert visible == {"kick_member"}
+    assert len(statements) == expected_query_count
+
+
 def test_permission_models_have_cascade_foreign_keys() -> None:
     member_group_fk = next(
         iter(PermissionGroupMember.__table__.c.group_id.foreign_keys)
     )
     grant_group_fk = next(iter(PermissionGrant.__table__.c.group_id.foreign_keys))
     grant_node_fk = next(iter(PermissionGrant.__table__.c.node_id.foreign_keys))
+    native_group_fk = next(iter(NativeRoleMapping.__table__.c.group_id.foreign_keys))
 
     assert member_group_fk.target_fullname == "lingchu_permission_groups.id"
     assert member_group_fk.ondelete == "CASCADE"
@@ -438,3 +583,5 @@ def test_permission_models_have_cascade_foreign_keys() -> None:
     assert grant_group_fk.ondelete == "CASCADE"
     assert grant_node_fk.target_fullname == "lingchu_permission_nodes.id"
     assert grant_node_fk.ondelete == "CASCADE"
+    assert native_group_fk.target_fullname == "lingchu_permission_groups.id"
+    assert native_group_fk.ondelete == "CASCADE"

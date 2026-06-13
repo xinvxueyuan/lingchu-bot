@@ -95,12 +95,12 @@ def permission_context_from_event(  # noqa: PLR0913
     )
 
 
-async def ensure_default_permission_state() -> None:
+async def ensure_default_permission_state(*, force: bool = False) -> None:
     global _default_state_ensured  # noqa: PLW0603
-    if _default_state_ensured:
+    if _default_state_ensured and not force:
         return
     async with _default_state_lock:
-        if _default_state_ensured:
+        if _default_state_ensured and not force:
             return
         await _sync_default_permission_state()
         _default_state_ensured = True
@@ -363,23 +363,16 @@ async def visible_command_keys(context: PermissionContext) -> frozenset[str]:
 
     from ..handle import menu
 
-    allowed: set[str] = set()
-    for feature in menu.MENU_FEATURES:
-        feature_context = PermissionContext(
-            platform_id=context.platform_id,
-            adapter_id=context.adapter_id,
-            implementation_name=context.implementation_name,
-            command_key=feature.command_key,
-            user_id=context.user_id,
-            bot_id=context.bot_id,
-            resource_type=context.resource_type,
-            resource_id=context.resource_id,
-            native_roles=context.native_roles,
-        )
-        decision = await check_permission(feature_context, audit=False)
-        if decision.allowed:
-            allowed.add(feature.command_key)
-    return frozenset(allowed)
+    return await repository.visible_command_keys_for_context(
+        platform_id=context.platform_id,
+        adapter_id=context.adapter_id,
+        implementation_name=context.implementation_name,
+        user_id=context.user_id,
+        resource_type=context.resource_type,
+        resource_id=context.resource_id,
+        native_roles=context.native_roles,
+        command_keys=(feature.command_key for feature in menu.MENU_FEATURES),
+    )
 
 
 async def grant_group_to_node(

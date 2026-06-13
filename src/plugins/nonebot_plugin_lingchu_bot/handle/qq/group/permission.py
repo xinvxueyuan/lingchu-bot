@@ -80,7 +80,7 @@ async def _handle_permission(  # noqa: PLR0911, PLR0913
 
     normalized = action.casefold()
     if normalized in {"sync", "同步"}:
-        await ensure_default_permission_state()
+        await ensure_default_permission_state(force=True)
         return await permission_cmd.finish(message="权限树已同步")
 
     if normalized in {"tree", "list", "树", "列表"}:
@@ -122,19 +122,7 @@ async def _handle_permission(  # noqa: PLR0911, PLR0913
         return await permission_cmd.finish(message=message)
 
     if normalized in {"native-on", "native-off"}:
-        if not arg1:
-            return await permission_cmd.finish(
-                message="用法: 权限 native-on|native-off <owner|admin>"
-            )
-        await repository.set_native_role_mapping_enabled(
-            platform_id="qq",
-            adapter_id=None,
-            resource_type="group",
-            native_role=arg1,
-            is_enabled=normalized == "native-on",
-        )
-        state = "启用" if normalized == "native-on" else "禁用"
-        return await permission_cmd.finish(message=f"原生身份映射已{state}: {arg1}")
+        return await _finish_native_mapping(normalized, arg1)
 
     return await permission_cmd.finish(
         message=(
@@ -147,6 +135,25 @@ async def _handle_permission(  # noqa: PLR0911, PLR0913
             "- 权限 native-on|native-off <owner|admin>"
         )
     )
+
+
+async def _finish_native_mapping(action: str, native_role_text: str) -> Any:
+    if not native_role_text:
+        return await permission_cmd.finish(
+            message="用法: 权限 native-on|native-off <owner|admin>"
+        )
+    native_role = native_role_text.casefold()
+    if native_role not in {"owner", "admin"}:
+        return await permission_cmd.finish(message="无效的角色: 仅支持 owner 或 admin")
+    await repository.set_native_role_mapping_enabled(
+        platform_id="qq",
+        adapter_id=None,
+        resource_type="group",
+        native_role=native_role,
+        is_enabled=action == "native-on",
+    )
+    state = "启用" if action == "native-on" else "禁用"
+    return await permission_cmd.finish(message=f"原生身份映射已{state}: {native_role}")
 
 
 def _event_user_id(event: Event) -> str | None:
