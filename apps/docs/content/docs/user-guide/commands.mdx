@@ -37,7 +37,7 @@ The menu command is an index entry. It lists the available submenu commands inst
 
 Default submenu commands:
 
-- `member-management`: kick member, set member card, set member special title, set/unset admin.
+- `member-management`: kick member, block/unblock members on OneBot V11, set member card, set member special title, set/unset admin.
 - `speech-management`: mute/unmute member, enable/disable whole-group mute.
 - `group-chat-management`: set group name, set group avatar when supported, send group announcement when supported, and leave current group.
 
@@ -157,6 +157,40 @@ Common aliases include:
 - `关闭全员禁言`
 - `解禁群`
 
+## OneBot V11 blocklist
+
+Blocklist commands are available on OneBot V11. Blocking stores the user in the group or global blocklist, kicks the user from the current group, and rejects future group join requests while the block is active.
+
+Primary commands:
+
+```text
+拉黑 @用户 [duration in seconds] [reason]
+全局拉黑 @用户 [duration in seconds] [reason]
+删黑 @用户 [reason]
+全局删黑 @用户 [reason]
+清空黑名单 [reason]
+全局清空黑名单 [reason]
+```
+
+English commands when `LINGCHU_LOCALE`/`lc_locale`/`locale` selects English:
+
+```text
+block @user [duration in seconds] [reason]
+global-block @user [duration in seconds] [reason]
+unblock @user [reason]
+global-unblock @user [reason]
+clear-blocklist [reason]
+global-clear-blocklist [reason]
+```
+
+Default values:
+
+- Duration: permanent.
+- Block reason: `违反群规「默认」`.
+- Unblock and clear reason: `管理员操作「默认」`.
+
+`清空黑名单` only clears the current group blocklist. Use `全局清空黑名单` to clear global entries.
+
 ## Group settings and operations
 
 These commands are the QQ group management handlers registered in the current source. Commands act on the current group by default, and `@用户` resolves to the target group member. The plugin enables only one QQ adapter per platform selection; the table does not list future capabilities as currently available commands.
@@ -170,10 +204,16 @@ These commands are the QQ group management handlers registered in the current so
 | Set member admin | `设置群管理员 @用户 [true/false]` | `set-member-admin @user [true/false]` |
 | Unset member admin | `取消群管理员 @用户` | `unset-member-admin @user` |
 | Kick group member | `踢出群成员 @用户 [reject add request]` | `kick-member @user [reject add request]` |
+| Block member | `拉黑 @用户 [duration in seconds] [reason]` | `block @user [duration seconds] [reason]` |
+| Global block member | `全局拉黑 @用户 [duration in seconds] [reason]` | `global-block @user [duration seconds] [reason]` |
+| Unblock member | `删黑 @用户 [reason]` | `unblock @user [reason]` |
+| Global unblock member | `全局删黑 @用户 [reason]` | `global-unblock @user [reason]` |
+| Clear blocklist | `清空黑名单 [reason]` | `clear-blocklist [reason]` |
+| Global clear blocklist | `全局清空黑名单 [reason]` | `global-clear-blocklist [reason]` |
 | Send announcement | `发送群公告 <content> [image_uri]` | `send-announcement <content> [image_uri]` |
 | Leave current group | `退出群` | `leave-group` |
 
-Representative English aliases include `rename-group`, `change-group-avatar`, `set-group-card`, `set-special-title`, `set-admin`, `promote-admin`, `unset-admin`, `revoke-admin`, `kick`, `remove-member`, `announce`, `group-announcement`, and `quit-group`.
+Representative English aliases include `rename-group`, `change-group-avatar`, `set-group-card`, `set-special-title`, `set-admin`, `promote-admin`, `unset-admin`, `revoke-admin`, `kick`, `remove-member`, `block-member`, `global-block-member`, `unblock-member`, `global-unblock-member`, `announce`, `group-announcement`, and `quit-group`.
 
 The table lists both language sets for reference. Runtime command registration uses only the language selected by the configured locale.
 

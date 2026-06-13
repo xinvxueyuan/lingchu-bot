@@ -381,6 +381,10 @@ When changing a function signature (sync→async, adding/removing params):
 - `ActionFailed()` from Milky and OneBot V11 adapters may not accept positional arguments — always check the constructor signature
 - Use `ruff check` to catch BLE001 (blind `except Exception`) — prefer specific adapter exceptions
 
+### Gettext Helper Shadowing
+
+- 许多 handler 会把 gettext helper 导入为 `_`。不要在这些函数里把 `_` 当作一次性局部变量使用（例如 `deleted, _ = ...`），否则会遮蔽 gettext helper，并让后续 `await _("...")` 在运行时失败。可改用 `result = ...; deleted = result[0]`，或在 gettext 密集作用域外使用更明确的未使用变量名。
+
 ### Removing Code
 
 When removing functions/helpers:

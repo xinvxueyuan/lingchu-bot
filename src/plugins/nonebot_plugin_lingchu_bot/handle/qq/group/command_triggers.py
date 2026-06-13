@@ -142,6 +142,42 @@ COMMAND_TRIGGERS = {
         chinese_aliases=frozenset({"踢出", "踢人", "移出群成员"}),
         english_aliases=frozenset({"kick", "remove-member"}),
     ),
+    "block_member": CommandTrigger(
+        chinese="拉黑",
+        english="block",
+        chinese_aliases=frozenset({"拉黑用户"}),
+        english_aliases=frozenset({"block-member"}),
+    ),
+    "global_block_member": CommandTrigger(
+        chinese="全局拉黑",
+        english="global-block",
+        chinese_aliases=frozenset({"全局拉黑用户"}),
+        english_aliases=frozenset({"global-block-member"}),
+    ),
+    "unblock_member": CommandTrigger(
+        chinese="删黑",
+        english="unblock",
+        chinese_aliases=frozenset({"删除黑名单"}),
+        english_aliases=frozenset({"unblock-member"}),
+    ),
+    "global_unblock_member": CommandTrigger(
+        chinese="全局删黑",
+        english="global-unblock",
+        chinese_aliases=frozenset({"全局删除黑名单"}),
+        english_aliases=frozenset({"global-unblock-member"}),
+    ),
+    "clear_blocklist": CommandTrigger(
+        chinese="清空黑名单",
+        english="clear-blocklist",
+        chinese_aliases=frozenset(),
+        english_aliases=frozenset(),
+    ),
+    "global_clear_blocklist": CommandTrigger(
+        chinese="全局清空黑名单",
+        english="global-clear-blocklist",
+        chinese_aliases=frozenset(),
+        english_aliases=frozenset(),
+    ),
     "send_announcement": CommandTrigger(
         chinese="发送群公告",
         english="send-announcement",

@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3695 symbols, 6462 relationships, 286 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3841 symbols, 6760 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -356,6 +356,10 @@ When changing a function signature (sync→async, adding/removing params):
 - Test `side_effect` exceptions must match the actual `except` clause in source code
 - `ActionFailed()` from Milky and OneBot V11 adapters may not accept positional arguments — always check the constructor signature
 - Use `ruff check` to catch BLE001 (blind `except Exception`) — prefer specific adapter exceptions
+
+### Gettext Helper Shadowing
+
+- Many handlers import gettext as `_`. Do not use `_` as a throwaway local variable in those functions (for example `deleted, _ = ...`) because it shadows the gettext helper and causes later `await _("...")` calls to fail at runtime. Use `result = ...; deleted = result[0]` or a descriptive unused name outside gettext-heavy scopes.
 
 ### Removing Code
 

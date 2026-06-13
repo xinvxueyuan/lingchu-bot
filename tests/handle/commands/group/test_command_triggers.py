@@ -118,6 +118,42 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         "chinese_aliases": {"踢出", "踢人", "移出群成员"},
         "english_aliases": {"kick", "remove-member"},
     },
+    "block_member": {
+        "primary": "拉黑",
+        "english": "block",
+        "chinese_aliases": {"拉黑用户"},
+        "english_aliases": {"block-member"},
+    },
+    "global_block_member": {
+        "primary": "全局拉黑",
+        "english": "global-block",
+        "chinese_aliases": {"全局拉黑用户"},
+        "english_aliases": {"global-block-member"},
+    },
+    "unblock_member": {
+        "primary": "删黑",
+        "english": "unblock",
+        "chinese_aliases": {"删除黑名单"},
+        "english_aliases": {"unblock-member"},
+    },
+    "global_unblock_member": {
+        "primary": "全局删黑",
+        "english": "global-unblock",
+        "chinese_aliases": {"全局删除黑名单"},
+        "english_aliases": {"global-unblock-member"},
+    },
+    "clear_blocklist": {
+        "primary": "清空黑名单",
+        "english": "clear-blocklist",
+        "chinese_aliases": set(),
+        "english_aliases": set(),
+    },
+    "global_clear_blocklist": {
+        "primary": "全局清空黑名单",
+        "english": "global-clear-blocklist",
+        "chinese_aliases": set(),
+        "english_aliases": set(),
+    },
     "send_announcement": {
         "primary": "发送群公告",
         "english": "send-announcement",
