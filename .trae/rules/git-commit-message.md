@@ -147,77 +147,15 @@ Reviewed-by: @someone
 | `✨ Feat: 新增` | type 大小写错误 |
 | `✨ feat: 新增了功能。` | 末尾有句号（不推荐） |
 
-## 机械/自动更新与人类意图分离
-
-提交信息的 **subject 必须聚焦人类有意识改动的意图**。当 commit 混入了版本号 bump、Lock 文件、CI 回写、工具格式化等机械变更时，AI 与人工均应**主动弱化或忽略**这些噪音，把首行写回本次提交真正的目的，避免被辅助工具的副作用带偏。
-
-### 常见机械/自动变更（视为噪音）
-
-- 版本号 / changelog 自动更新
-- `package-lock.json`、`uv.lock`、`poetry.lock` 等 Lock 文件
-- 工具格式化（prettier、black、ruff format）的批量重写
-- 自动生成的类型声明 / 文档（`.d.ts`、i18n 索引、API 快照）
-- `.husky/`、`.github/workflows/` 由脚本回写
-- Husky / CI 等钩子在 `prepare-commit-msg` 阶段追加的元数据
-- 索引、缓存统计文件
-
 ### 撰写原则
 
-1. **subject 只写"为什么"**：如果 commit 是"修复登录 bug"，顺带 bump 了一个依赖版本，subject 仍是 `🐛 fix(auth): 修复登录失败`，不写 `+ bump ruff`
-2. **机械变更可在 body 中一笔带过**：例如 `包含 lock 文件自动更新`，**不展开细节**
-3. **纯机械 commit 归 `chore` 类**：版本发布、依赖升级、CI 调整、批量格式化统一用 `🔧 chore` / `🔖 chore(release)`
-4. **禁止"罗列式" subject**：杜绝 `✨ feat: 新增 X + 🐛 fix: 修复 Y` 这类把多个独立动作堆进一行的写法
-5. **混合变更也要有主次**：diff 里既有功能改动又有自动更新，subject 写主功能，机械部分至多在 body 提一句
-6. **不被钩子产物反客为主**：husky 钩子、CI 自动化、模板回写都属于"工具副作用"，不应成为 subject 的主题
+apps/docs 是一个特殊目录，用于存储项目的文档文件。
+src 是项目的代码目录，包含项目的主要代码文件。
 
-### AI 撰写流程
-
-AI 只能读取**已暂存的文件路径与 diff 内容**，无任何命令执行权限。流程如下：
-
-1. **从文件路径识别机械文件**：扫一遍暂存文件路径，识别出 lock 文件、版本号文件、自动生成目录、CI 工作流、husky 自身脚本等可一眼辨认为"工具副作用"的文件
-2. **聚焦人类改动文件**：对剩余文件深入读 diff，定位人类有意识改动的核心意图
-3. **不依赖文件数量按比例判断**：无法运行 `git diff --stat` 或 `wc -l`；凭 diff 内容的语义判断人类意图是否占主导
-4. **意图优先选 type + gitmoji**：根据人类改动的核心意图选 type，机械变更不参与 type 决策；纯机械变更 commit 一律 `chore`
-5. **忽略钩子追加内容**：若输入中包含 husky / `prepare-commit-msg` 等钩子自动追加的元数据（`Co-Authored-By`、`Signed-off-by` 之外的内容），直接忽略，不让其影响 subject 主题
-6. **不假设可执行任何 shell 命令**：所有判断都基于已经拿到手的文件路径列表与 diff 文本
-
-### 反例
-
-| 错误写法 | 问题 |
-|----------|------|
-| `🔧 chore: bump v1.2.3、update deps、format` | subject 罗列机械变更，没有意图 |
-| `✨ feat(api): 新增接口` 实际 diff 只有 lock 更新 | subject 与 diff 严重不符 |
-| `🐛 fix: 修复 + 升级 ruff + 更新文档` | subject 中夹杂多个独立动作 |
-| `🔧 chore(release): 1.2.3` | 缺少动词，subject 不清晰 |
-| `✨ feat: 新增`（diff 里 90% 是 lock） | 工具产物喧宾夺主，丢失真正意图 |
-
-### 正确示例
-
-```
-✨ feat(auth): 新增 OAuth2 登录
-
-实现标准 OAuth2 授权码流程，兼容原有 session 体系。
-
-Refs #123
-```
-
-即使 diff 里有 `package-lock.json` 与版本号 bump，subject 仍只聚焦"为什么"。
-
-```
-🔧 chore(deps): 升级 ruff 至 0.12
-
-包含 lock 文件与 CI 缓存更新。
-```
-
-纯机械变更 commit 也要有清晰的主语与动词，避免空泛罗列。
-
-## AI 代理提交指引
-
-`prepare-commit-msg` 钩子调用交互式 `gitmoji --hook`，AI 无法参与交互。提交时可：
-
-- 手动运行 `git commit` 在终端中通过交互界面选择 gitmoji
-- 或在使用 `RunCommand` 时设置 `$env:HUSKY='0'` 跳过交互钩子，但必须自行确保首行格式正确
-- CI 自动化提交场景（如 `ci:version:commit-tag`）已内置 `$env:HUSKY='0'`
+1. 当同时包含docs与code变更时，抑制docs的权重，只保留针对code变更的标题，docs变更作为内容中的一项展示
+2. 当仅包含code变更时，增强fix/refactor/perf/test/build/ci/chore/revert的权重
+3. 当仅包含docs变更时，增强docs的权重
+4. 当变更十分复杂时，增强body/refactor的权重
 
 ## 完整示例
 

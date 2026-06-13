@@ -1,25 +1,29 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from importlib import import_module
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
 
 from arclet.alconna import Alconna
 from nonebot import logger
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
-from nonebot_plugin_localstore import get_plugin_config_file
+from packaging.version import InvalidVersion, Version, parse
 
-from ..database.json5_store import ensure_json5_dict_file_sync, load_json5_dict_sync
 from ..i18n import _async as _
 from ..i18n import get_configured_locale, gettext, normalize_locale
-from ..platforms import resolve_enabled_adapters
+from ..platforms import PlatformCapability, resolve_enabled_adapters
 from .qq.group.command_triggers import COMMAND_TRIGGERS
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
-MENU_FILENAME: Final = "menu.json5"
 _MENU = COMMAND_TRIGGERS["menu"]
+QQ_PLATFORM_ID: Final = "qq"
+ONEBOT_V11_ADAPTER_ID: Final = "~onebot.v11"
+MILKY_ADAPTER_ID: Final = "~milky"
+LLONEBOT_IMPL: Final = "LLOneBot"
+NAPCAT_IMPL: Final = "NapCat.Onebot"
+LLBOT_IMPL: Final = "LLBot"
 
 menu_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(_MENU.primary),
@@ -37,190 +41,280 @@ _ADAPTER_MODULES: dict[str, tuple[str, ...]] = {
 _loaded_handlers: dict[str, tuple[Callable[[], Any], ...]] = {}
 
 
-def default_menu_store() -> dict[str, Any]:
-    return {
-        "version": 1,
-        "sections": [
-            {
-                "id": "member-management",
-                "title": {"zh_CN": "成员管理", "en_US": "Member Management"},
-                "items": [
-                    _item(
-                        "kick_member",
-                        zh_summary="踢出群成员",
-                        en_summary="Kick a group member",
-                        zh_usage="@用户 [是否拒绝再次申请]",
-                        en_usage="@user [reject add request]",
-                    ),
-                    _item(
-                        "set_member_card",
-                        zh_summary="设置群名片",
-                        en_summary="Set a member card",
-                        zh_usage="@用户 <名片>",
-                        en_usage="@user <card>",
-                    ),
-                    _item(
-                        "set_member_title",
-                        zh_summary="设置群头衔",
-                        en_summary="Set a member special title",
-                        zh_usage="@用户 <头衔>",
-                        en_usage="@user <title>",
-                    ),
-                    _item(
-                        "set_member_admin",
-                        zh_summary="设置群管理员",
-                        en_summary="Promote a member to admin",
-                        zh_usage="@用户 [true/false]",
-                        en_usage="@user [true/false]",
-                    ),
-                    _item(
-                        "unset_member_admin",
-                        zh_summary="取消群管理员",
-                        en_summary="Revoke member admin",
-                        zh_usage="@用户",
-                        en_usage="@user",
-                    ),
-                ],
-            },
-            {
-                "id": "speech-management",
-                "title": {"zh_CN": "发言管理", "en_US": "Speech Management"},
-                "items": [
-                    _item(
-                        "member_mute",
-                        zh_summary="禁言群成员",
-                        en_summary="Mute a member",
-                        zh_usage="@用户 [时长秒数] [原因]",
-                        en_usage="@user [duration seconds] [reason]",
-                    ),
-                    _item(
-                        "member_unmute",
-                        zh_summary="解除成员禁言",
-                        en_summary="Unmute a member",
-                        zh_usage="@用户 [原因]",
-                        en_usage="@user [reason]",
-                    ),
-                    _item(
-                        "whole_mute",
-                        zh_summary="开启全体禁言",
-                        en_summary="Enable whole-group mute",
-                    ),
-                    _item(
-                        "whole_unmute",
-                        zh_summary="关闭全体禁言",
-                        en_summary="Disable whole-group mute",
-                    ),
-                ],
-            },
-            {
-                "id": "group-profile",
-                "title": {"zh_CN": "群资料", "en_US": "Group Profile"},
-                "items": [
-                    _item(
-                        "set_group_name",
-                        zh_summary="设置群名称",
-                        en_summary="Set group name",
-                        zh_usage="<新群名称>",
-                        en_usage="<new group name>",
-                    ),
-                    _item(
-                        "set_group_avatar",
-                        zh_summary="设置群头像",
-                        en_summary="Set group avatar",
-                        zh_usage="<图片>",
-                        en_usage="<image>",
-                    ),
-                ],
-            },
-            {
-                "id": "announcement",
-                "title": {"zh_CN": "群公告", "en_US": "Announcement"},
-                "items": [
-                    _item(
-                        "send_announcement",
-                        zh_summary="发送群公告",
-                        en_summary="Send group announcement",
-                        zh_usage="<内容> [图片]",
-                        en_usage="<content> [image]",
-                    )
-                ],
-            },
-            {
-                "id": "group-operation",
-                "title": {"zh_CN": "群操作", "en_US": "Group Operation"},
-                "items": [
-                    _item(
-                        "leave_group",
-                        zh_summary="退出当前群",
-                        en_summary="Leave current group",
-                    )
-                ],
-            },
-        ],
+@dataclass(frozen=True, slots=True)
+class LocalizedText:
+    zh_cn: str
+    en_us: str
+
+
+@dataclass(frozen=True, slots=True)
+class MenuAvailability:
+    platform_id: str
+    adapter_id: str
+    implementation_name: str | None = None
+    minimum_version: str | None = None
+    protocol_version: str | None = None
+    usage_override: LocalizedText | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MenuFeature:
+    id: str
+    command_key: str
+    section_id: str
+    summary: LocalizedText
+    usage: LocalizedText
+    platform_capability: PlatformCapability
+    availability: tuple[MenuAvailability, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class MenuSection:
+    id: str
+    title: LocalizedText
+
+
+@dataclass(frozen=True, slots=True)
+class MenuRuntimeContext:
+    platform_id: str
+    adapter_id: str
+    implementation_name: str | None = None
+    implementation_version: str | None = None
+    protocol_version: str | None = None
+    platform_capabilities: frozenset[PlatformCapability] = frozenset()
+
+
+QQ_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset(
+    {
+        PlatformCapability.GROUP_MANAGEMENT,
+        PlatformCapability.MEMBER_MODERATION,
+        PlatformCapability.MEMBER_PROFILE,
+        PlatformCapability.GROUP_PROFILE,
+        PlatformCapability.ANNOUNCEMENT,
     }
+)
 
+MENU_SECTIONS: Final[tuple[MenuSection, ...]] = (
+    MenuSection("member-management", LocalizedText("成员管理", "Member Management")),
+    MenuSection("speech-management", LocalizedText("发言管理", "Speech Management")),
+    MenuSection("group-profile", LocalizedText("群资料", "Group Profile")),
+    MenuSection("announcement", LocalizedText("群公告", "Announcement")),
+    MenuSection("group-operation", LocalizedText("群操作", "Group Operation")),
+)
 
-def _item(
-    command_key: str,
-    *,
-    zh_summary: str,
-    en_summary: str,
-    zh_usage: str = "",
-    en_usage: str = "",
-) -> dict[str, Any]:
-    return {
-        "command_key": command_key,
-        "summary": {"zh_CN": zh_summary, "en_US": en_summary},
-        "usage": {"zh_CN": zh_usage, "en_US": en_usage},
-    }
+_QQ_BOTH: Final[tuple[MenuAvailability, ...]] = (
+    MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),
+    MenuAvailability(QQ_PLATFORM_ID, MILKY_ADAPTER_ID),
+)
+_ONEBOT_NAPCAT: Final[tuple[MenuAvailability, ...]] = (
+    MenuAvailability(
+        QQ_PLATFORM_ID,
+        ONEBOT_V11_ADAPTER_ID,
+        implementation_name=NAPCAT_IMPL,
+        minimum_version="4.18.0",
+        protocol_version="v11",
+    ),
+)
+_ONEBOT_ANNOUNCEMENT: Final[tuple[MenuAvailability, ...]] = (
+    MenuAvailability(
+        QQ_PLATFORM_ID,
+        ONEBOT_V11_ADAPTER_ID,
+        implementation_name=LLONEBOT_IMPL,
+        minimum_version="7.12.0",
+        protocol_version="v11",
+    ),
+    *_ONEBOT_NAPCAT,
+)
+_MILKY_LLBOT_ANNOUNCEMENT: Final[tuple[MenuAvailability, ...]] = (
+    MenuAvailability(
+        QQ_PLATFORM_ID,
+        MILKY_ADAPTER_ID,
+        implementation_name=LLBOT_IMPL,
+        usage_override=LocalizedText("<内容>", "<content>"),
+    ),
+)
 
-
-def get_menu_store_file() -> Path:
-    try:
-        return get_plugin_config_file(MENU_FILENAME)
-    except ValueError:
-        return Path(MENU_FILENAME)
-
-
-def ensure_menu_store(config_file: str | Path | None = None) -> Path:
-    path = Path(config_file) if config_file is not None else get_menu_store_file()
-    return ensure_json5_dict_file_sync(path, default_menu_store())
-
-
-def load_menu_store(config_file: str | Path | None = None) -> dict[str, Any]:
-    path = Path(config_file) if config_file is not None else ensure_menu_store()
-    ensure_menu_store(path)
-    return load_json5_dict_sync(path, default=default_menu_store(), merge_default=True)
+MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
+    MenuFeature(
+        "kick-member",
+        "kick_member",
+        "member-management",
+        LocalizedText("踢出群成员", "Kick a group member"),
+        LocalizedText("@用户 [是否拒绝再次申请]", "@user [reject add request]"),
+        PlatformCapability.MEMBER_MODERATION,
+        _QQ_BOTH,
+    ),
+    MenuFeature(
+        "set-member-card",
+        "set_member_card",
+        "member-management",
+        LocalizedText("设置群名片", "Set a member card"),
+        LocalizedText("@用户 <名片>", "@user <card>"),
+        PlatformCapability.MEMBER_PROFILE,
+        _QQ_BOTH,
+    ),
+    MenuFeature(
+        "set-member-title",
+        "set_member_title",
+        "member-management",
+        LocalizedText("设置群头衔", "Set a member special title"),
+        LocalizedText("@用户 <头衔>", "@user <title>"),
+        PlatformCapability.MEMBER_PROFILE,
+        _QQ_BOTH,
+    ),
+    MenuFeature(
+        "set-member-admin",
+        "set_member_admin",
+        "member-management",
+        LocalizedText("设置群管理员", "Promote a member to admin"),
+        LocalizedText("@用户 [true/false]", "@user [true/false]"),
+        PlatformCapability.MEMBER_MODERATION,
+        _QQ_BOTH,
+    ),
+    MenuFeature(
+        "unset-member-admin",
+        "unset_member_admin",
+        "member-management",
+        LocalizedText("取消群管理员", "Revoke member admin"),
+        LocalizedText("@用户", "@user"),
+        PlatformCapability.MEMBER_MODERATION,
+        _QQ_BOTH,
+    ),
+    MenuFeature(
+        "member-mute",
+        "member_mute",
+        "speech-management",
+        LocalizedText("禁言群成员", "Mute a member"),
+        LocalizedText("@用户 [时长秒数] [原因]", "@user [duration seconds] [reason]"),
+        PlatformCapability.MEMBER_MODERATION,
+        _QQ_BOTH,
+    ),
+    MenuFeature(
+        "member-unmute",
+        "member_unmute",
+        "speech-management",
+        LocalizedText("解除成员禁言", "Unmute a member"),
+        LocalizedText("@用户 [原因]", "@user [reason]"),
+        PlatformCapability.MEMBER_MODERATION,
+        _QQ_BOTH,
+    ),
+    MenuFeature(
+        "whole-mute",
+        "whole_mute",
+        "speech-management",
+        LocalizedText("开启全体禁言", "Enable whole-group mute"),
+        LocalizedText("", ""),
+        PlatformCapability.MEMBER_MODERATION,
+        _QQ_BOTH,
+    ),
+    MenuFeature(
+        "whole-unmute",
+        "whole_unmute",
+        "speech-management",
+        LocalizedText("关闭全体禁言", "Disable whole-group mute"),
+        LocalizedText("", ""),
+        PlatformCapability.MEMBER_MODERATION,
+        _QQ_BOTH,
+    ),
+    MenuFeature(
+        "set-group-name",
+        "set_group_name",
+        "group-profile",
+        LocalizedText("设置群名称", "Set group name"),
+        LocalizedText("<新群名称>", "<new group name>"),
+        PlatformCapability.GROUP_PROFILE,
+        _QQ_BOTH,
+    ),
+    MenuFeature(
+        "set-group-avatar",
+        "set_group_avatar",
+        "group-profile",
+        LocalizedText("设置群头像", "Set group avatar"),
+        LocalizedText("<图片>", "<image>"),
+        PlatformCapability.GROUP_PROFILE,
+        (
+            *_ONEBOT_NAPCAT,
+            MenuAvailability(QQ_PLATFORM_ID, MILKY_ADAPTER_ID),
+        ),
+    ),
+    MenuFeature(
+        "send-announcement",
+        "send_announcement",
+        "announcement",
+        LocalizedText("发送群公告", "Send group announcement"),
+        LocalizedText("<内容> [图片]", "<content> [image]"),
+        PlatformCapability.ANNOUNCEMENT,
+        (*_ONEBOT_ANNOUNCEMENT, *_MILKY_LLBOT_ANNOUNCEMENT),
+    ),
+    MenuFeature(
+        "leave-group",
+        "leave_group",
+        "group-operation",
+        LocalizedText("退出当前群", "Leave current group"),
+        LocalizedText("", ""),
+        PlatformCapability.GROUP_MANAGEMENT,
+        _QQ_BOTH,
+    ),
+)
 
 
 def render_menu(
     locale: str | None = None,
-    config_file: str | Path | None = None,
+    context: MenuRuntimeContext | None = None,
+) -> str:
+    return render_menu_for_context(context or default_menu_context(), locale)
+
+
+def render_menu_for_context(
+    context: MenuRuntimeContext,
+    locale: str | None = None,
 ) -> str:
     selected_locale = normalize_locale(locale or get_configured_locale())
-    store = load_menu_store(config_file)
     lines = [gettext("灵初功能菜单", selected_locale)]
 
-    for section in _iter_sections(store.get("sections")):
-        section_lines = _render_section(section, selected_locale)
+    for section in MENU_SECTIONS:
+        section_lines = _render_section(section, context, selected_locale)
         if section_lines:
             lines.extend(("", *section_lines))
 
     return "\n".join(lines)
 
 
-def _iter_sections(raw_sections: Any) -> Iterable[dict[str, Any]]:
-    if not isinstance(raw_sections, list):
-        return ()
-    return (section for section in raw_sections if isinstance(section, dict))
+def default_menu_context() -> MenuRuntimeContext:
+    return MenuRuntimeContext(
+        platform_id=QQ_PLATFORM_ID,
+        adapter_id=ONEBOT_V11_ADAPTER_ID,
+        platform_capabilities=QQ_CAPABILITIES,
+    )
 
 
-def _render_section(section: dict[str, Any], locale: str) -> list[str]:
-    title = _localized(section.get("title"), locale)
+def qq_menu_context(
+    *,
+    adapter_id: str,
+    implementation_name: str | None = None,
+    implementation_version: str | None = None,
+    protocol_version: str | None = None,
+) -> MenuRuntimeContext:
+    return MenuRuntimeContext(
+        platform_id=QQ_PLATFORM_ID,
+        adapter_id=adapter_id,
+        implementation_name=implementation_name,
+        implementation_version=implementation_version,
+        protocol_version=protocol_version,
+        platform_capabilities=QQ_CAPABILITIES,
+    )
+
+
+def _render_section(
+    section: MenuSection,
+    context: MenuRuntimeContext,
+    locale: str,
+) -> list[str]:
+    title = _localized(section.title, locale)
     lines = [f"【{title}】"]
 
-    for item in _iter_items(section.get("items")):
-        rendered = _render_item(item, locale)
+    for feature in _features_for_section(section.id):
+        rendered = _render_feature(feature, context, locale)
         if rendered:
             lines.append(rendered)
 
@@ -229,27 +323,31 @@ def _render_section(section: dict[str, Any], locale: str) -> list[str]:
     return lines
 
 
-def _iter_items(raw_items: Any) -> Iterable[dict[str, Any]]:
-    if not isinstance(raw_items, list):
-        return ()
-    return (item for item in raw_items if isinstance(item, dict))
+def _features_for_section(section_id: str) -> Iterable[MenuFeature]:
+    return (feature for feature in MENU_FEATURES if feature.section_id == section_id)
 
 
-def _render_item(item: dict[str, Any], locale: str) -> str:
-    command_key = item.get("command_key")
-    if not isinstance(command_key, str) or command_key not in COMMAND_TRIGGERS:
-        logger.debug(f"Lingchu 菜单跳过未知命令: {command_key!r}")
+def _render_feature(
+    feature: MenuFeature,
+    context: MenuRuntimeContext,
+    locale: str,
+) -> str:
+    availability = _matched_availability(feature, context)
+    if availability is None:
         return ""
 
+    command_key = feature.command_key
     trigger = COMMAND_TRIGGERS[command_key]
     command = trigger.primary_for(locale)
-    usage = _localized(item.get("usage"), locale)
-    summary = _localized(item.get("summary"), locale)
+    usage = _localized(availability.usage_override or feature.usage, locale)
+    summary = _localized(feature.summary, locale)
     command_text = f"{command} {usage}".strip()
     return f"- {summary}: {command_text}"
 
 
 def _localized(value: Any, locale: str) -> str:
+    if isinstance(value, LocalizedText):
+        return value.en_us if locale.lower().startswith("en") else value.zh_cn
     if isinstance(value, dict):
         if locale.lower().startswith("en"):
             result = value.get("en_US") or value.get("en") or value.get("zh_CN")
@@ -259,6 +357,55 @@ def _localized(value: Any, locale: str) -> str:
     if value is None:
         return ""
     return str(value)
+
+
+def _matched_availability(
+    feature: MenuFeature,
+    context: MenuRuntimeContext,
+) -> MenuAvailability | None:
+    if feature.command_key not in COMMAND_TRIGGERS:
+        logger.debug(f"Lingchu 菜单跳过未知命令: {feature.command_key!r}")
+        return None
+    if feature.platform_capability not in context.platform_capabilities:
+        return None
+    for availability in feature.availability:
+        if _availability_matches(availability, context):
+            return availability
+    return None
+
+
+def _availability_matches(
+    availability: MenuAvailability,
+    context: MenuRuntimeContext,
+) -> bool:
+    if (
+        availability.platform_id != context.platform_id
+        or availability.adapter_id != context.adapter_id
+    ):
+        return False
+    context_values = (
+        (availability.protocol_version, context.protocol_version),
+        (availability.implementation_name, context.implementation_name),
+    )
+    if any(
+        expected is not None and expected != actual
+        for expected, actual in context_values
+    ):
+        return False
+    if availability.minimum_version is None:
+        return True
+    return context.implementation_version is not None and _version_gte(
+        context.implementation_version, availability.minimum_version
+    )
+
+
+def _version_gte(current: str, minimum: str) -> bool:
+    try:
+        current_version: Version = parse(current)
+        minimum_version: Version = parse(minimum)
+    except InvalidVersion:
+        return False
+    return current_version >= minimum_version
 
 
 def _load_adapter_handlers(adapter_id: str) -> tuple[Callable[[], Any], ...]:
@@ -276,7 +423,6 @@ def _load_adapter_handlers(adapter_id: str) -> tuple[Callable[[], Any], ...]:
 
 async def import_handle() -> Any:
     logger.debug(await _("导入menu处理器..."))
-    ensure_menu_store()
     for adapter_id in sorted(resolve_enabled_adapters()):
         handlers = _load_adapter_handlers(adapter_id)
         if not handlers:
