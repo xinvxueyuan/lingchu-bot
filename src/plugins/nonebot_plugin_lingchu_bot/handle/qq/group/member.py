@@ -32,7 +32,7 @@ set_group_member_special_title_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_start=True,
 )
 set_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna(_SET_MEMBER_ADMIN.primary, Args["user", At]["is_set?", bool, True]),
+    command=Alconna(_SET_MEMBER_ADMIN.primary, Args["user", At]),
     aliases=_SET_MEMBER_ADMIN.aliases,
     priority=5,
     block=True,

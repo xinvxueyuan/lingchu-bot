@@ -71,9 +71,10 @@ async def onebot11_set_group_member_special_title(
 @selected_adapter_handle(set_group_member_admin_cmd, "~onebot.v11")
 async def onebot11_set_group_member_admin(
     user: At,
-    is_set: bool,  # noqa: FBT001
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    *,
+    is_set: bool = True,
 ) -> Any:
     target_user_id, target_name = await target_user_onebot11(user, bot, event)
     action_text = await _("设置") if is_set else await _("取消")
