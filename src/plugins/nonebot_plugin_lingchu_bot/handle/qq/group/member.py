@@ -7,42 +7,52 @@ from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 
 from ....i18n import _async as _
+from .command_triggers import COMMAND_TRIGGERS
+
+_SET_MEMBER_CARD = COMMAND_TRIGGERS["set_member_card"]
+_SET_MEMBER_TITLE = COMMAND_TRIGGERS["set_member_title"]
+_SET_MEMBER_ADMIN = COMMAND_TRIGGERS["set_member_admin"]
+_UNSET_MEMBER_ADMIN = COMMAND_TRIGGERS["unset_member_admin"]
+_KICK_MEMBER = COMMAND_TRIGGERS["kick_member"]
 
 set_group_member_card_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna("设置群名片", Args["user", At]["card", str]),
-    aliases={"改群名片", "修改群名片", "设置成员名片"},
+    command=Alconna(_SET_MEMBER_CARD.primary, Args["user", At]["card", str]),
+    aliases=_SET_MEMBER_CARD.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,
 )
 set_group_member_special_title_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna("设置群头衔", Args["user", At]["special_title", str]),
-    aliases={"设置专属头衔", "设置群成员专属头衔", "改群头衔"},
+    command=Alconna(_SET_MEMBER_TITLE.primary, Args["user", At]["special_title", str]),
+    aliases=_SET_MEMBER_TITLE.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,
 )
 set_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna("设置群管理员", Args["user", At]["is_set?", bool, True]),
-    aliases={"设置管理员", "任命群管理员"},
+    command=Alconna(_SET_MEMBER_ADMIN.primary, Args["user", At]["is_set?", bool, True]),
+    aliases=_SET_MEMBER_ADMIN.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,
 )
 unset_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna("取消群管理员", Args["user", At]),
-    aliases={"取消管理员", "撤销群管理员"},
+    command=Alconna(_UNSET_MEMBER_ADMIN.primary, Args["user", At]),
+    aliases=_UNSET_MEMBER_ADMIN.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,
 )
 kick_group_member_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna("踢出群成员", Args["user", At]["reject_add_request?", bool, False]),
-    aliases={"踢出", "踢人", "移出群成员"},
+    command=Alconna(
+        _KICK_MEMBER.primary,
+        Args["user", At]["reject_add_request?", bool, False],
+    ),
+    aliases=_KICK_MEMBER.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,

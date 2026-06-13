@@ -7,10 +7,13 @@ from nonebot.internal.matcher.matcher import Matcher
 from nonebot_plugin_alconna import on_alconna
 
 from ....i18n import _async as _
+from .command_triggers import COMMAND_TRIGGERS
+
+_LEAVE_GROUP = COMMAND_TRIGGERS["leave_group"]
 
 quit_group_cmd: type[Matcher] = on_alconna(
-    command=Alconna("退出群"),
-    aliases={"退群", "退出当前群"},
+    command=Alconna(_LEAVE_GROUP.primary),
+    aliases=_LEAVE_GROUP.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,

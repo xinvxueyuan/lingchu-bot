@@ -12,6 +12,10 @@ from nonebot_plugin_alconna.uniseg import Image as UniImage
 
 from ....core.config import plugin_config
 from ....i18n import _async as _
+from .command_triggers import COMMAND_TRIGGERS
+
+_SET_GROUP_NAME = COMMAND_TRIGGERS["set_group_name"]
+_SET_GROUP_AVATAR = COMMAND_TRIGGERS["set_group_avatar"]
 
 
 async def _resolve_image_path(image: UniImage | None) -> Path | None:
@@ -51,16 +55,16 @@ async def _resolve_image_path(image: UniImage | None) -> Path | None:
 
 
 set_group_name_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna("设置群名称", Args["new_group_name", str]),
-    aliases={"改群名", "修改群名称", "设置群名"},
+    command=Alconna(_SET_GROUP_NAME.primary, Args["new_group_name", str]),
+    aliases=_SET_GROUP_NAME.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,
 )
 set_group_avatar_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna("设置群头像", Args["image", UniImage | None]),
-    aliases={"改群头像", "修改群头像"},
+    command=Alconna(_SET_GROUP_AVATAR.primary, Args["image", UniImage | None]),
+    aliases=_SET_GROUP_AVATAR.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,

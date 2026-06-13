@@ -346,6 +346,10 @@ After changes, always run the full check suite: `task check && task test`
 
 At the end of every conversation that involves code changes, review what went wrong or what took extra iterations, and append reusable lessons to this `Lessons Learned` section. This prevents repeating the same mistakes.
 
+### Command Trigger Localization
+
+Group command trigger words are locale-exclusive. Do not register Chinese and English command triggers at the same time for the same matcher. Use the i18n locale resolution helpers (`LINGCHU_LOCALE`, `lc_locale`, `locale` via `get_configured_locale()`) to choose one trigger language during command registration, and keep the inactive language out of `aliases`.
+
 ### Adapter API Differences
 
 Same-named APIs return different types across adapters:
