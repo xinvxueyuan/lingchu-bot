@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from nonebot_plugin_orm import get_session
 from sqlalchemy import or_, select
@@ -24,6 +24,9 @@ DEFAULT_OWNER_GROUP_KEY = "native-owner"
 DEFAULT_ADMIN_GROUP_KEY = "native-admin"
 DEFAULT_VALUE = "*"
 DEFAULT_IMPLEMENTATION = "default"
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 def utc_now() -> datetime:
@@ -519,6 +522,107 @@ async def find_matching_grant(  # noqa: PLR0913
     return None, None, None
 
 
+async def visible_command_keys_for_context(  # noqa: PLR0913
+    *,
+    platform_id: str,
+    adapter_id: str,
+    implementation_name: str | None,
+    user_id: str | None,
+    resource_type: str | None,
+    resource_id: str | None,
+    native_roles: frozenset[str],
+    command_keys: Iterable[str],
+) -> frozenset[str]:
+    keys = list(dict.fromkeys(command_keys))
+    if not keys or user_id is None:
+        return frozenset()
+
+    now = utc_now()
+    async with get_session() as session:
+        node_stmt = (
+            select(PermissionNode)
+            .where(
+                PermissionNode.platform_id == platform_id,
+                PermissionNode.adapter_id == adapter_id,
+                PermissionNode.command_key.in_(keys),
+                PermissionNode.is_enabled.is_(True),
+                or_(
+                    PermissionNode.implementation_name.is_(None),
+                    PermissionNode.implementation_name == DEFAULT_IMPLEMENTATION,
+                    PermissionNode.implementation_name == implementation_name,
+                ),
+            )
+            .order_by(PermissionNode.id.desc())
+        )
+        command_nodes: dict[str, PermissionNode] = {}
+        for node in (await session.execute(node_stmt)).scalars():
+            if node.command_key is not None:
+                command_nodes.setdefault(node.command_key, node)
+        if not command_nodes:
+            return frozenset()
+
+        contract_stmt = select(CapabilityContract).where(
+            CapabilityContract.platform_id == platform_id,
+            CapabilityContract.adapter_id == adapter_id,
+            CapabilityContract.command_key.in_(command_nodes),
+        )
+        enabled_contract_keys = {
+            contract.command_key
+            for contract in (await session.execute(contract_stmt)).scalars()
+            if contract.is_enabled
+            and contract.implementation_name
+            in {DEFAULT_IMPLEMENTATION, implementation_name}
+        }
+        if not enabled_contract_keys:
+            return frozenset()
+
+        group_ids = await _matching_group_ids(
+            session=session,
+            platform_id=platform_id,
+            adapter_id=adapter_id,
+            user_id=user_id,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            native_roles=native_roles,
+            now=now,
+        )
+        if not group_ids:
+            return frozenset()
+
+        grant_stmt = (
+            select(PermissionGroup, PermissionGrant, PermissionNode)
+            .join(PermissionGrant, PermissionGroup.id == PermissionGrant.group_id)
+            .join(PermissionNode, PermissionGrant.node_id == PermissionNode.id)
+            .where(
+                PermissionGroup.id.in_(group_ids),
+                PermissionGrant.is_enabled.is_(True),
+                PermissionNode.is_enabled.is_(True),
+                or_(
+                    PermissionGrant.resource_type == DEFAULT_VALUE,
+                    PermissionGrant.resource_type == resource_type,
+                ),
+                or_(
+                    PermissionGrant.resource_id == DEFAULT_VALUE,
+                    PermissionGrant.resource_id == resource_id,
+                ),
+                or_(
+                    PermissionGrant.expires_at.is_(None),
+                    PermissionGrant.expires_at > now,
+                ),
+            )
+            .order_by(PermissionGroup.priority.desc(), PermissionNode.path)
+        )
+        grant_nodes = [row[2] for row in (await session.execute(grant_stmt)).all()]
+
+    allowed: set[str] = set()
+    for command_key, target_node in command_nodes.items():
+        if command_key not in enabled_contract_keys:
+            continue
+        if any(_node_covers(grant_node, target_node) for grant_node in grant_nodes):
+            allowed.add(command_key)
+    return frozenset(allowed)
+
+
 async def capability_contract_allows(
     *,
     platform_id: str,
@@ -536,12 +640,83 @@ async def capability_contract_allows(
         limit=100,
     )
     if not contracts:
-        return True
+        return False
     return any(
         contract.is_enabled
         and contract.implementation_name
         in {DEFAULT_IMPLEMENTATION, implementation_name}
         for contract in contracts
+    )
+
+
+async def _matching_group_ids(  # noqa: PLR0913
+    *,
+    session: Any,
+    platform_id: str,
+    adapter_id: str,
+    user_id: str,
+    resource_type: str | None,
+    resource_id: str | None,
+    native_roles: frozenset[str],
+    now: datetime,
+) -> list[int]:
+    member_stmt = (
+        select(PermissionGroup, PermissionGroupMember)
+        .join(
+            PermissionGroupMember,
+            PermissionGroup.id == PermissionGroupMember.group_id,
+        )
+        .where(
+            PermissionGroup.is_enabled.is_(True),
+            PermissionGroupMember.platform_id == platform_id,
+            PermissionGroupMember.user_id == user_id,
+            or_(
+                PermissionGroupMember.resource_type == DEFAULT_VALUE,
+                PermissionGroupMember.resource_type == resource_type,
+            ),
+            or_(
+                PermissionGroupMember.resource_id == DEFAULT_VALUE,
+                PermissionGroupMember.resource_id == resource_id,
+            ),
+            or_(
+                PermissionGroupMember.expires_at.is_(None),
+                PermissionGroupMember.expires_at > now,
+            ),
+        )
+        .order_by(PermissionGroup.priority.desc())
+    )
+    groups: list[PermissionGroup] = [
+        row[0] for row in (await session.execute(member_stmt)).all()
+    ]
+
+    if native_roles:
+        native_stmt = (
+            select(PermissionGroup)
+            .join(
+                NativeRoleMapping,
+                PermissionGroup.id == NativeRoleMapping.group_id,
+            )
+            .where(
+                PermissionGroup.is_enabled.is_(True),
+                NativeRoleMapping.platform_id == platform_id,
+                or_(
+                    NativeRoleMapping.adapter_id == DEFAULT_VALUE,
+                    NativeRoleMapping.adapter_id == adapter_id,
+                ),
+                NativeRoleMapping.resource_type == (resource_type or "global"),
+                NativeRoleMapping.native_role.in_(native_roles),
+                NativeRoleMapping.is_enabled.is_(True),
+            )
+            .order_by(PermissionGroup.priority.desc())
+        )
+        groups.extend((await session.execute(native_stmt)).scalars())
+
+    return list(dict.fromkeys(group.id for group in groups))
+
+
+def _node_covers(grant_node: PermissionNode, target_node: PermissionNode) -> bool:
+    return target_node.path == grant_node.path or target_node.path.startswith(
+        f"{grant_node.path}/"
     )
 
 
