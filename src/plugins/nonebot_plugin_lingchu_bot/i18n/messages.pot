@@ -325,4 +325,3 @@ msgstr ""
 #, python-brace-format
 msgid "Lingchu 忽略未选中的已注册适配器: {adapters}"
 msgstr ""
-
