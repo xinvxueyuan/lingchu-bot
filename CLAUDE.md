@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3841 symbols, 6760 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2469 symbols, 4826 relationships, 206 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -53,8 +53,8 @@ This repo can use the current Codex skill set when a task matches the skill trig
 
 ### Code Intelligence And Git
 
-- **GitNexus skills**: Use `.claude/skills/gitnexus/*` or `.agents/skills/gitnexus/*` for architecture exploration, debugging, impact analysis, refactoring, PR review, and CLI operations. Follow the GitNexus requirements above before editing symbols or committing.
-- **prek**: Use `.claude/skills/prek/SKILL.md` or `.agents/skills/prek/SKILL.md` when setting up or running hook checks with `prek`.
+- **GitNexus skills**: Use `.agents/skills/gitnexus/*` for architecture exploration, debugging, impact analysis, refactoring, PR review, and CLI operations. Follow the GitNexus requirements above before editing symbols or committing.
+- **prek**: Use `.agents/skills/prek/SKILL.md` when setting up or running hook checks with `prek`.
 - **GitHub skills**: Use for GitHub repository, issue, pull request, review-comment, CI, and publish/PR workflows.
 
 ### Frontend, Browser, And Deployment
@@ -73,7 +73,7 @@ This repo can use the current Codex skill set when a task matches the skill trig
 - **skill-creator**: Use when creating or updating Codex skills. Required skill folders contain `SKILL.md`; optional resources include `scripts/`, `references/`, `assets/`, and `agents/openai.yaml`.
 - **skill-installer / plugin-creator**: Use when installing skills or scaffolding Codex plugins. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 
-Project-local skill indexes are available at `.agents/skills/available-skills/SKILL.md` and `.claude/skills/available-skills/SKILL.md`.
+Project-local skill index is available at `.agents/skills/available-skills/SKILL.md`.
 
 # Project Context
 
@@ -257,6 +257,7 @@ Skills are loaded **on demand** — only when the user's task matches the skill 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
 | `available-skills/` | When choosing which skill to load | Compact routing index of all available skills. Lists project-local, coding, frontend, cloud, artifact, and skill-authoring skills. |
+| `context7-mcp/` | Looking up library/framework docs, API references, code examples | Context7 MCP integration for up-to-date documentation retrieval. |
 | `gitnexus/gitnexus-cli/` | Running GitNexus CLI commands (analyze, status, clean, wiki) | CLI task reference for GitNexus operations. |
 | `gitnexus/gitnexus-debugging/` | Debugging bugs, tracing errors, "why does X fail?" | Scientific debugging workflow: hypothesis → instrument → reproduce → analyze → fix → verify. |
 | `gitnexus/gitnexus-exploring/` | Understanding architecture, "how does X work?" | Code exploration via knowledge graph: execution flows, symbol relationships. |
@@ -264,21 +265,7 @@ Skills are loaded **on demand** — only when the user's task matches the skill 
 | `gitnexus/gitnexus-impact-analysis/` | "What breaks if I change X?", pre-edit safety check | Blast radius analysis: upstream/downstream impact at depth 1/2/3. |
 | `gitnexus/gitnexus-refactoring/` | Renaming, extracting, splitting, moving code | Multi-file coordinated rename using knowledge graph + text search. |
 | `gitnexus/gitnexus-pr-review/` | Reviewing pull requests, assessing merge risk | PR review with knowledge-graph-aware change analysis. |
-| `hf-cli/` | Hugging Face Hub operations (models, datasets, spaces, buckets, endpoints, jobs) | Full CLI reference for `hf` command — auth, upload/download, cache, repos, papers, collections, endpoints, jobs. |
 | `prek/` | Setting up or running Git hooks with `prek` | `prek` (Rust `pre-commit` alternative) configuration, installation, and workflow guide. |
-| `react-doctor/` | Finishing React features, fixing bugs, `/doctor`, scanning/triaging React code | React codebase health scanner (security, performance, correctness, architecture). Outputs 0–100 score. Includes rule explanation and configuration reference. |
-
-#### `.claude/skills/` (Claude Code)
-
-Subset of `.agents/skills/` — contains `available-skills/`, all `gitnexus/*` skills (including `gitnexus-pr-review`), `prek/`, `hf-cli/`, and `react-doctor/`.
-
-#### `.trae/skills/` (Trae IDE)
-
-Mirror of `.agents/skills/` — contains the same full set of skills. Used by Trae IDE's skill loading mechanism.
-
-#### `skills/` (Shared)
-
-Mirror of `.agents/skills/` — contains the same full set of skills. Shared across all agent platforms.
 
 ### Cross-Language Counterpart
 
