@@ -8,6 +8,7 @@ from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 
 from ....i18n import _async as _
+from ....services.permissions import bind_command_key
 from .command_triggers import COMMAND_TRIGGERS
 
 _MEMBER_MUTE = COMMAND_TRIGGERS["member_mute"]
@@ -26,6 +27,7 @@ member_mute_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
+bind_command_key(member_mute_cmd, "member_mute")
 whole_mute_cmd: type[Matcher] = on_alconna(
     command=Alconna(
         _WHOLE_MUTE.primary,
@@ -36,6 +38,7 @@ whole_mute_cmd: type[Matcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
+bind_command_key(whole_mute_cmd, "whole_mute")
 member_unmute_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _MEMBER_UNMUTE.primary,
@@ -47,6 +50,7 @@ member_unmute_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
+bind_command_key(member_unmute_cmd, "member_unmute")
 
 whole_unmute_cmd: type[Matcher] = on_alconna(
     command=Alconna(
@@ -58,6 +62,7 @@ whole_unmute_cmd: type[Matcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
+bind_command_key(whole_unmute_cmd, "whole_unmute")
 
 _LAZY_EXPORTS = {
     "milkybot_mute": "..milky.v1_2.default.group.mute",
