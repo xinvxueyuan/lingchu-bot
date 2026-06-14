@@ -16,7 +16,7 @@ description: "Use when the user asks how code works, wants to understand archite
 ## Workflow
 
 ```text
-1. READ gitnexus://repos                          → Discover indexed repos
+1. list_repos({})                                → Discover indexed repos
 2. READ gitnexus://repo/{name}/context             → Codebase overview, check staleness
 3. query({query: "<what you want to understand>"})  → Find related execution flows
 4. context({name: "<symbol>"})            → Deep dive on specific symbol
