@@ -7,6 +7,7 @@ from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 
 from ....i18n import _async as _
+from ....services.permissions import bind_command_key
 from .command_triggers import COMMAND_TRIGGERS
 
 _SET_MEMBER_CARD = COMMAND_TRIGGERS["set_member_card"]
@@ -23,6 +24,7 @@ set_group_member_card_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
+bind_command_key(set_group_member_card_cmd, "set_member_card")
 set_group_member_special_title_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(_SET_MEMBER_TITLE.primary, Args["user", At]["special_title", str]),
     aliases=_SET_MEMBER_TITLE.aliases,
@@ -31,6 +33,7 @@ set_group_member_special_title_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
+bind_command_key(set_group_member_special_title_cmd, "set_member_title")
 set_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(_SET_MEMBER_ADMIN.primary, Args["user", At]),
     aliases=_SET_MEMBER_ADMIN.aliases,
@@ -39,6 +42,7 @@ set_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
+bind_command_key(set_group_member_admin_cmd, "set_member_admin")
 unset_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(_UNSET_MEMBER_ADMIN.primary, Args["user", At]),
     aliases=_UNSET_MEMBER_ADMIN.aliases,
@@ -47,6 +51,7 @@ unset_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
+bind_command_key(unset_group_member_admin_cmd, "unset_member_admin")
 kick_group_member_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _KICK_MEMBER.primary,
@@ -58,6 +63,7 @@ kick_group_member_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
+bind_command_key(kick_group_member_cmd, "kick_member")
 
 _LAZY_EXPORTS = {
     "milkybot_set_group_member_card": "..milky.v1_2.default.group.member",
