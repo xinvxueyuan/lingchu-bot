@@ -33,12 +33,12 @@ This project is indexed by GitNexus as **lingchu-bot** (2303 symbols, 4646 relat
 
 | Task | Read this skill file |
 | ---- | -------------------- |
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Understand architecture / "How does X work?" | `.agents/skills/gitnexus/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.agents/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.agents/skills/gitnexus/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.agents/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.agents/skills/gitnexus/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.agents/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
 
@@ -53,8 +53,8 @@ This repo can use the current Codex skill set when a task matches the skill trig
 
 ### Code Intelligence And Git
 
-- **GitNexus skills**: Use `.claude/skills/gitnexus/*` or `.agents/skills/gitnexus/*` for architecture exploration, debugging, impact analysis, refactoring, PR review, and CLI operations. Follow the GitNexus requirements above before editing symbols or committing.
-- **prek**: Use `.claude/skills/prek/SKILL.md` or `.agents/skills/prek/SKILL.md` when setting up or running hook checks with `prek`.
+- **GitNexus skills**: Use `.agents/skills/gitnexus/*` for architecture exploration, debugging, impact analysis, refactoring, PR review, and CLI operations. Follow the GitNexus requirements above before editing symbols or committing.
+- **prek**: Use `.agents/skills/prek/SKILL.md` when setting up or running hook checks with `prek`.
 - **GitHub skills**: Use for GitHub repository, issue, pull request, review-comment, CI, and publish/PR workflows.
 
 ### Frontend, Browser, And Deployment
@@ -73,7 +73,7 @@ This repo can use the current Codex skill set when a task matches the skill trig
 - **skill-creator**: Use when creating or updating Codex skills. Required skill folders contain `SKILL.md`; optional resources include `scripts/`, `references/`, `assets/`, and `agents/openai.yaml`.
 - **skill-installer / plugin-creator**: Use when installing skills or scaffolding Codex plugins. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 
-Project-local skill indexes are available at `.agents/skills/available-skills/SKILL.md` and `.claude/skills/available-skills/SKILL.md`.
+Project-local skill index is available at `.agents/skills/available-skills/SKILL.md`.
 
 ## Project Context
 
@@ -256,30 +256,15 @@ task ci                                          # check + test + build
 | 技能                           | 触发条件                                       | 用途                                                                                                     |
 | ------------------------------ | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `available-skills/`            | 选择加载哪个技能时                             | 所有可用技能的紧凑路由索引。列出项目本地、编码、前端、云、制品和技能创作技能。                             |
+| `context7-mcp/`                | 查找库/框架文档、API 参考、代码示例            | Context7 MCP 集成，用于获取最新文档。                                                                     |
 | `gitnexus/gitnexus-cli/`       | 运行 GitNexus CLI 命令（analyze、status、clean、wiki） | GitNexus 操作的 CLI 任务参考。                                                                           |
 | `gitnexus/gitnexus-debugging/` | 调试 bug、追踪错误、"为什么 X 失败？"         | 科学调试工作流：假设 → 插桩 → 复现 → 分析 → 修复 → 验证。                                               |
 | `gitnexus/gitnexus-exploring/` | 理解架构、"X 是怎么工作的？"                   | 通过知识图谱探索代码：执行流、符号关系。                                                                   |
-| 技能                                  | 触发条件                                       | 用途                                                                                                     |
-| ------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `gitnexus/gitnexus-guide/`            | 关于 GitNexus 工具/模式/工作流的问题           | 所有 GitNexus MCP 工具、资源和图谱模式的快速参考。                                                       |
 | `gitnexus/gitnexus-impact-analysis/`  | "改 X 会破坏什么？"、编辑前安全检查           | 爆炸半径分析：深度 1/2/3 的上下游影响。                                                                   |
 | `gitnexus/gitnexus-refactoring/`      | 重命名、提取、拆分、移动代码                   | 使用知识图谱 + 文本搜索的多文件协调重命名。                                                               |
 | `gitnexus/gitnexus-pr-review/`        | 审查 Pull Request、评估合并风险                | 基于知识图谱的变更分析 PR 审查。                                                                         |
-| `hf-cli/`                             | Hugging Face Hub 操作（模型、数据集、空间、存储桶、端点、作业） | `hf` 命令的完整 CLI 参考 — 认证、上传/下载、缓存、仓库、论文、集合、端点、作业。                         |
 | `prek/`                               | 设置或运行 `prek` Git 钩子                     | `prek`（Rust 版 `pre-commit` 替代品）的配置、安装和工作流指南。                                           |
-| `react-doctor/`                       | 完成 React 功能、修复 bug、`/doctor`、扫描/分诊 React 代码 | React 代码库健康扫描器（安全性、性能、正确性、架构）。输出 0–100 分。包含规则解释和配置参考。             |
-
-#### `.claude/skills/`（Claude Code）
-
-`.agents/skills/` 的子集 — 包含 `available-skills/`、所有 `gitnexus/*` 技能（含 `gitnexus-pr-review`）、`prek/`、`hf-cli/` 和 `react-doctor/`。
-
-#### `.trae/skills/`（Trae IDE）
-
-`.agents/skills/` 的镜像 — 包含相同的完整技能集。供 Trae IDE 的技能加载机制使用。
-
-#### `skills/`（共享）
-
-`.agents/skills/` 的镜像 — 包含相同的完整技能集。跨所有代理平台共享。
 
 ### 跨语言对应文件
 
@@ -511,7 +496,7 @@ Before manually running checks or fixing issues, check if a skill already handle
 - **Library docs** → use **Context7 / find-docs** instead of web search
 - **GitHub workflows** → use **GitHub** skills for PR/issue/CI operations
 
-Rule of thumb: **when a CI check fails or you need to do something repetitive, first check `.agents/skills/` and `.claude/skills/` for an existing skill that automates it.**
+Rule of thumb: **when a CI check fails or you need to do something repetitive, first check `.agents/skills/` for an existing skill that automates it.**
 
 ### React Doctor 集成
 
