@@ -17,6 +17,7 @@ from ..services.messagestore import (
     record_bot_lifecycle,
     shutdown_message_store,
 )
+from ..services.permissions import ensure_default_permission_state
 
 
 async def startup() -> None:
@@ -45,6 +46,7 @@ async def startup() -> None:
             )
         )
     await warm_translation_cache()
+    await ensure_default_permission_state()
     await group_import_handle()
     await menu_import_handle()
     await initialize_message_store()

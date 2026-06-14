@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -254,6 +254,26 @@ def test_milky_unknown_hides_announcement() -> None:
 
     assert "发送群公告" not in rendered
     assert "设置群头像" in rendered
+
+
+def test_onebot_menu_native_roles_are_normalized() -> None:
+    event = SimpleNamespace(sender=SimpleNamespace(role="administrator"))
+
+    assert onebot_menu_module._event_native_roles(cast("Any", event)) == frozenset(
+        {"admin"}
+    )
+    assert onebot_menu_module._normalize_native_role("member") == frozenset()
+    assert onebot_menu_module._normalize_native_role(None) == frozenset()
+
+
+def test_milky_menu_native_roles_are_normalized() -> None:
+    event = SimpleNamespace(data=SimpleNamespace(sender_role="administrator"))
+
+    assert milky_menu_module._event_native_roles(cast("Any", event)) == frozenset(
+        {"admin"}
+    )
+    assert milky_menu_module._normalize_native_role("member") == frozenset()
+    assert milky_menu_module._normalize_native_role(None) == frozenset()
 
 
 def test_fail_closed_when_platform_capability_missing() -> None:
