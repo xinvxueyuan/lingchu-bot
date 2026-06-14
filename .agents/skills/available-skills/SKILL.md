@@ -20,6 +20,10 @@ When the user asks about a library, framework, SDK, API, CLI tool, or cloud serv
 - `gitnexus/gitnexus-guide`: answer questions about GitNexus tools, schema, and workflow.
 - `gitnexus/gitnexus-cli`: run GitNexus CLI tasks such as analyze, status, clean, wiki, and repo listing.
 - `prek`: set up or run `prek` hook checks.
+- `delivery-loop`: debug, TDD, and code review with disciplined feedback loops.
+- `frontend-quality`: React/frontend diagnostics, visual polish, and health checks for the docs site.
+- `issue-planning`: PRDs, issue breakdown, triage, and refactor plans.
+- `design-prototyping`: interface design, design grilling, and throwaway prototypes.
 
 ## Coding And Repository Skills
 

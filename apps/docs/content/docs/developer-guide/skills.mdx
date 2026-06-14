@@ -1,0 +1,146 @@
+---
+icon: Sparkles
+title: Agent Skills
+---
+
+## Agent Skills
+
+The project ships a set of **skills** — structured prompts loaded on demand by AI coding agents (Trae, Codex, Claude Code). Skills turn common workflows into repeatable, disciplined processes. They live in `.agents/skills/` and are indexed by `.agents/skills/available-skills/SKILL.md`.
+
+Skills are **not** injected into every conversation. They are loaded only when the user's task matches the skill trigger. This keeps context lean while making specialized workflows available when needed.
+
+## Skill categories
+
+<Cards>
+  <Card title="Development Workflow">
+    Debugging, TDD, code review, issue planning, and design prototyping
+  </Card>
+  <Card title="Code Intelligence">
+    Architecture exploration, impact analysis, safe refactoring, and PR review
+  </Card>
+  <Card title="Frontend Quality">
+    React diagnostics, visual polish, accessibility, and health checks
+  </Card>
+  <Card title="Documentation Lookup">
+    Up-to-date library and framework documentation via Context7
+  </Card>
+</Cards>
+
+## Project-local skills
+
+These skills are stored in `.agents/skills/` and tailored to this project's conventions and tooling.
+
+### delivery-loop
+
+Disciplined implementation loops for debugging, test-driven development, and code review validation.
+
+| Route | When to use |
+| --- | --- |
+| `debug-investigation` | Bugs, crashes, flaky behavior, performance problems |
+| `tdd` | Test-first development, red-green-refactor cycles |
+| `change-review` | Code review of diffs, branches, or PRs |
+
+**Key principle**: Build a reliable feedback loop before changing code. Reproduce the problem, localize the cause, make the smallest fix, and prove the regression is covered.
+
+<Callout title="TDD anti-pattern">
+
+Do not write all tests first and then all implementation (horizontal slicing). Instead, use **vertical slices**: write one failing test, implement to pass, then repeat. This produces tests that verify actual behavior, not imagined behavior.
+
+</Callout>
+
+### frontend-quality
+
+React/frontend UI quality for the docs site (`apps/docs`), including responsive behavior, visual consistency, accessibility, and architecture health.
+
+| Route | When to use |
+| --- | --- |
+| `react-doctor` | React diagnostics, lint, accessibility, bundle, architecture scan |
+| `frontend-polish` | Visual polish, responsive states, layout consistency |
+
+```bash
+# Run React Doctor on changed files
+npx react-doctor@latest --verbose --diff
+
+# Run a full scan
+npx react-doctor@latest --verbose
+```
+
+The project has a `react-doctor.yml` CI workflow that runs on PRs. Local scores should not regress before committing.
+
+### issue-planning
+
+Turn conversation, bugs, and plans into trackable work on GitHub Issues.
+
+| Route | When to use |
+| --- | --- |
+| `to-prd` | Write a PRD from conversation context |
+| `to-issues` | Break a plan into vertical-slice issues |
+| `triage` | Move issues through triage states |
+| `request-refactor-plan` | Create a detailed refactor plan with tiny commits |
+
+**Key principle**: Issues should be independently grabbable vertical slices, not horizontal layers. Each slice delivers a narrow but complete path through all integration layers.
+
+### design-prototyping
+
+Explore and harden product, API, UI, or architecture designs before committing to implementation.
+
+| Route | When to use |
+| --- | --- |
+| `design-an-interface` | Generate multiple radically different interface designs, then compare |
+| `design-grill` | Interrogate a plan through focused questions until the next move is clear |
+| `prototype` | Build a throwaway prototype to answer a specific design question |
+
+**Key principle**: Your first design is unlikely to be the best. Generate 3+ radically different approaches, compare them, then synthesize. Prototypes are throwaway — the answer is the only thing worth keeping.
+
+### Code intelligence skills (GitNexus)
+
+GitNexus provides code intelligence through a knowledge graph. See [GitNexus Workflow](gitnexus) for the full guide.
+
+| Skill | Purpose |
+| --- | --- |
+| `gitnexus-exploring` | Understand architecture and execution flows |
+| `gitnexus-impact-analysis` | Assess blast radius before changing symbols |
+| `gitnexus-debugging` | Trace errors and unexpected behavior |
+| `gitnexus-refactoring` | Rename, extract, split, or move code safely |
+| `gitnexus-pr-review` | Review pull requests with graph-aware analysis |
+| `gitnexus-cli` | Run GitNexus CLI commands |
+| `gitnexus-guide` | Reference for tools, resources, and schema |
+
+### Other skills
+
+| Skill | Purpose |
+| --- | --- |
+| `prek` | Set up or run Git hook checks with `prek` |
+| `context7-mcp` | Look up current library/framework documentation |
+
+## Platform skills (routing-only)
+
+These skills are loaded from the Codex platform at runtime. They have no local `SKILL.md` file.
+
+| Skill | Purpose |
+| --- | --- |
+| GitHub | Repository, issue, PR, review-comment, CI, and publish workflows |
+| Browser / Playwright / Chrome | In-app browser checks, terminal automation, Chrome state |
+| Vercel | Next.js, React, shadcn/ui, AI SDK, deployments, storage |
+| Cloudflare | Workers, Wrangler, Durable Objects, Agents SDK |
+| Documents / Presentations / Spreadsheets / PDF | Office document creation and editing |
+| imagegen | Raster image generation or edits |
+| skill-creator / skill-installer / plugin-creator | Skill and plugin authoring |
+
+## How skills are loaded
+
+1. The `description` field from each `SKILL.md` frontmatter is listed in the agent's available skills.
+2. When the user's task matches a skill trigger, the agent loads the full `SKILL.md`.
+3. The `SKILL.md` routes to specific reference files in `references/` for detailed workflows.
+4. Reference files contain the actual step-by-step instructions.
+
+Only `AGENTS.md` (or `CLAUDE.md` for Claude Code) and `.trae/rules/git-commit-message.md` are injected into every conversation. Everything else loads on demand.
+
+## Adding a new skill
+
+Use the `skill-creator` skill to create or update skills. A skill folder must contain:
+
+- `SKILL.md` — frontmatter with `name` and `description`, plus routing instructions
+- `references/` — optional detailed guides loaded on demand
+
+After creating a skill, update the routing index in `.agents/skills/available-skills/SKILL.md` and the skill tables in `AGENTS.md` / `CLAUDE.md` / `.github/note/AGENTS-zh.md`.

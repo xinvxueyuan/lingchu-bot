@@ -1,0 +1,146 @@
+---
+icon: Sparkles
+title: 代理技能
+---
+
+## 代理技能
+
+项目内置一组**技能（Skills）**——由 AI 编码代理（Trae、Codex、Claude Code）按需加载的结构化提示。技能将常见工作流转化为可重复、有纪律的流程。它们存放在 `.agents/skills/`，由 `.agents/skills/available-skills/SKILL.md` 做路由索引。
+
+技能**不会**注入每次对话。仅在用户任务匹配技能触发条件时才加载，保持上下文精简的同时让专业工作流随时可用。
+
+## 技能分类
+
+<Cards>
+  <Card title="开发工作流">
+    调试、TDD、代码审查、议题规划和设计原型
+  </Card>
+  <Card title="代码智能">
+    架构探索、影响面分析、安全重构和 PR 审查
+  </Card>
+  <Card title="前端质量">
+    React 诊断、视觉打磨、可访问性和健康检查
+  </Card>
+  <Card title="文档查询">
+    通过 Context7 获取最新的库和框架文档
+  </Card>
+</Cards>
+
+## 项目本地技能
+
+这些技能存放在 `.agents/skills/`，针对本项目的约定和工具链定制。
+
+### delivery-loop
+
+用于调试、测试驱动开发和代码审查验证的纪律化实现循环。
+
+| 路由 | 使用场景 |
+| --- | --- |
+| `debug-investigation` | Bug、崩溃、不稳定行为、性能问题 |
+| `tdd` | 测试先行开发、红-绿-重构循环 |
+| `change-review` | 差异、分支或 PR 的代码审查 |
+
+**核心原则**：修改代码前先建立可靠的反馈循环。复现问题、定位原因、做最小修复、证明回归已被覆盖。
+
+<Callout title="TDD 反模式">
+
+不要先写完所有测试再实现（水平切片）。应使用**垂直切片**：写一个失败测试、实现通过、然后重复。这样产生的测试验证的是实际行为，而非想象中的行为。
+
+</Callout>
+
+### frontend-quality
+
+文档站（`apps/docs`）的 React/前端 UI 质量，包括响应式行为、视觉一致性、可访问性和架构健康度。
+
+| 路由 | 使用场景 |
+| --- | --- |
+| `react-doctor` | React 诊断、lint、可访问性、打包、架构扫描 |
+| `frontend-polish` | 视觉打磨、响应式状态、布局一致性 |
+
+```bash
+# 对变更文件运行 React Doctor
+npx react-doctor@latest --verbose --diff
+
+# 运行完整扫描
+npx react-doctor@latest --verbose
+```
+
+项目有 `react-doctor.yml` CI 工作流，在 PR 上运行。提交前本地评分不应回退。
+
+### issue-planning
+
+将对话、Bug 和计划转化为 GitHub Issues 上可追踪的工作。
+
+| 路由 | 使用场景 |
+| --- | --- |
+| `to-prd` | 从对话上下文编写 PRD |
+| `to-issues` | 将计划拆分为垂直切片议题 |
+| `triage` | 将议题推进分类状态 |
+| `request-refactor-plan` | 创建包含小步提交的详细重构计划 |
+
+**核心原则**：议题应是可独立领取的垂直切片，而非水平分层。每个切片交付一条窄但完整的端到端路径。
+
+### design-prototyping
+
+在提交实现之前，探索和打磨产品、API、UI 或架构设计。
+
+| 路由 | 使用场景 |
+| --- | --- |
+| `design-an-interface` | 生成多种截然不同的接口设计，然后比较 |
+| `design-grill` | 通过聚焦提问审视计划，直到下一步清晰 |
+| `prototype` | 构建一次性原型来回答特定设计问题 |
+
+**核心原则**：第一个设计往往不是最好的。生成 3 种以上截然不同的方案，比较后综合。原型是一次性的——答案才是唯一值得保留的东西。
+
+### 代码智能技能（GitNexus）
+
+GitNexus 通过知识图谱提供代码智能。完整指南见 [GitNexus 工作流](gitnexus)。
+
+| 技能 | 用途 |
+| --- | --- |
+| `gitnexus-exploring` | 理解架构和执行流 |
+| `gitnexus-impact-analysis` | 修改前评估爆炸半径 |
+| `gitnexus-debugging` | 追踪错误和异常行为 |
+| `gitnexus-refactoring` | 安全地重命名、提取、拆分或移动代码 |
+| `gitnexus-pr-review` | 基于图谱感知的 PR 审查 |
+| `gitnexus-cli` | 运行 GitNexus CLI 命令 |
+| `gitnexus-guide` | 工具、资源和图谱模式参考 |
+
+### 其他技能
+
+| 技能 | 用途 |
+| --- | --- |
+| `prek` | 使用 `prek` 设置或运行 Git 钩子检查 |
+| `context7-mcp` | 查询最新的库/框架文档 |
+
+## 平台技能（仅路由）
+
+这些技能在运行时从 Codex 平台加载，没有本地 `SKILL.md` 文件。
+
+| 技能 | 用途 |
+| --- | --- |
+| GitHub | 仓库、议题、PR、审查评论、CI 和发布工作流 |
+| Browser / Playwright / Chrome | 应用内浏览器检查、终端自动化、Chrome 状态 |
+| Vercel | Next.js、React、shadcn/ui、AI SDK、部署、存储 |
+| Cloudflare | Workers、Wrangler、Durable Objects、Agents SDK |
+| Documents / Presentations / Spreadsheets / PDF | Office 文档创建和编辑 |
+| imagegen | 栅格图像生成或编辑 |
+| skill-creator / skill-installer / plugin-creator | 技能和插件创作 |
+
+## 技能加载机制
+
+1. 每个 `SKILL.md` frontmatter 中的 `description` 字段列在代理的可用技能中。
+2. 当用户任务匹配技能触发条件时，代理加载完整的 `SKILL.md`。
+3. `SKILL.md` 路由到 `references/` 中的具体参考文件，获取详细工作流。
+4. 参考文件包含实际的分步指令。
+
+只有 `AGENTS.md`（Claude Code 为 `CLAUDE.md`）和 `.trae/rules/git-commit-message.md` 会注入每次对话。其余内容按需加载。
+
+## 添加新技能
+
+使用 `skill-creator` 技能创建或更新技能。技能文件夹必须包含：
+
+- `SKILL.md` — 含 `name` 和 `description` 的 frontmatter，加上路由指令
+- `references/` — 可选的按需加载详细指南
+
+创建技能后，更新 `.agents/skills/available-skills/SKILL.md` 中的路由索引，以及 `AGENTS.md` / `CLAUDE.md` / `.github/note/AGENTS-zh.md` 中的技能表。
