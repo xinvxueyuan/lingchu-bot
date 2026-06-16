@@ -23,12 +23,6 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         "chinese_aliases": {"帮助", "功能", "功能列表", "指令", "命令列表"},
         "english_aliases": {"help", "commands"},
     },
-    "permission": {
-        "primary": "权限",
-        "english": "permission",
-        "chinese_aliases": {"权限管理", "授权"},
-        "english_aliases": {"perm", "permissions"},
-    },
     "member_mute": {
         "primary": "禁言",
         "english": "mute",

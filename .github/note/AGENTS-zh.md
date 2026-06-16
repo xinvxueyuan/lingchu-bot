@@ -119,7 +119,7 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 │   ├── handle/         # Platform/protocol/implementation command handlers
 │   │   └── qq/{group,onebot/v11,milky/v1_2}/    # QQ group handlers
 │   ├── i18n/           # Babel/gettext translations
-│   ├── platforms/      # Adapter-to-platform registry & resolution
+│   ├── platforms/      # 适配器注册表、权限预设与解析
 │   ├── repositories/   # Data access layer
 │   ├── services/       # Business logic services
 │   └── start/          # Startup & initialization
@@ -233,7 +233,9 @@ task ci                                          # check + test + build
 
 - **未经用户明确指示不得提交或推送** — 绝不自动提交、自动推送，或假设用户在完成任务后需要提交。等待用户明确要求。
 - **持久偏好写入 AGENTS.md** — memory 文件和会话上下文都是临时的；AGENTS.md 是项目级规则和用户偏好的唯一真实来源。当用户说"记住这个"或表达偏好时，写到这里。
+- **Pre 策划开发阶段** — 本项目仍处于 Pre 策划 / 早期开发阶段；当严重破坏性变更能简化架构或推进目标产品方向时，可以接受这类变更。
 - **优先使用颗粒度检查而非完整 `task check`** — 使用上方的 Quick Reference 表，只运行与变更相关的检查。完整 `task check && task test` 用于提交前验证，而非每一步中间操作。
+- **使用不加载配置文件的 PowerShell** — 在自动化中显式调用 PowerShell 时，使用 `pwsh.exe -NoProfile`，避免用户配置脚本拖慢命令或污染输出。
 - **同步中英文文档** — 编辑 AGENTS.md 时，始终将相同的结构变更同步到 `.github/note/AGENTS-zh.md`，反之亦然。
 - **同步 AGENTS.md 和 CLAUDE.md** — 这两个文件共享相同的结构和内容（GitNexus 块、项目上下文、开发命令、经验教训等）。编辑任一文件时，始终将相同的结构变更同步到另一个。唯一允许的差异是 Claude Code 行为准则段落，仅存在于 `CLAUDE.md` 中。
 
@@ -409,6 +411,10 @@ When removing functions/helpers:
 - Husky hook 可能运行在 Bash 环境中，这时 Windows 命令与 PowerShell 中的表现不同。不要只判断 `command -v` 能找到命令，还要确认命令能实际启动。
 - Hook 顶部应集中解析工具命令。对于 `pnpm.cmd`、`npx.cmd` 这类 Windows `.cmd` Node shim，应通过 `cmd.exe /c` 调用；在 Bash 中直接执行 `.cmd` 文件可能静默跳过检查，或输出误导性的 `node` 错误。
 - 用暂存区文件决定检查范围时，不要吞掉 `git diff --cached` 失败。如果 hook shell 中没有可用的 `git`，应明确失败，而不是把暂存文件列表当成空。
+
+### PowerShell Markdownlint Glob
+
+- 通过 `pwsh.exe -NoProfile -Command` 运行 `markdownlint-cli2` 时，glob 参数必须按目标 shell 实际接收的形式传入；错误的嵌套或转义引号会把 glob 变成异常路径，让 Node 扫描远超预期的内容。将 markdownlint 超时视为 lint 失败前，优先使用 Taskfile 命令或已验证的直接命令形式。
 
 ### Husky Hook 中的 CLI 解析
 

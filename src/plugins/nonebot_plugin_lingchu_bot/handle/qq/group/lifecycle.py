@@ -7,7 +7,6 @@ from nonebot.internal.matcher.matcher import Matcher
 from nonebot_plugin_alconna import on_alconna
 
 from ....i18n import _async as _
-from ....services.permissions import bind_command_key
 from .command_triggers import COMMAND_TRIGGERS
 
 _LEAVE_GROUP = COMMAND_TRIGGERS["leave_group"]
@@ -20,7 +19,6 @@ quit_group_cmd: type[Matcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
-bind_command_key(quit_group_cmd, "leave_group")
 
 _LAZY_EXPORTS = {
     "milkybot_quit_group": "..milky.v1_2.default.group.lifecycle",

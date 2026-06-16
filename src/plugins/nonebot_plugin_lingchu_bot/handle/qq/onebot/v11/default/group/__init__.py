@@ -1,6 +1,5 @@
 from typing import Any
 
-from .....group import permission as permission
 from . import announcement as announcement
 from . import block as block
 from . import lifecycle as lifecycle

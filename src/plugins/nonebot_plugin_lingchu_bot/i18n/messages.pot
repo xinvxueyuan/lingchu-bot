@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-13 19:04+0800\n"
+"POT-Creation-Date: 2026-06-16 18:04+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,20 +35,20 @@ msgid ""
 "请检查 NoneBot2 配置文件。"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:389
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:396
 msgid "灵初功能菜单"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:619
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:660
 msgid "导入menu处理器..."
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:624
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:665
 #, python-brace-format
 msgid "Lingchu 未为适配器 {adapter_id} 声明 menu 处理器"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:630
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:671
 #, python-brace-format
 msgid "Lingchu 为适配器 {adapter_id} 导入 menu 处理器"
 msgstr ""
@@ -83,7 +83,7 @@ msgstr ""
 msgid "导入member处理器..."
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/group/mute.py:84
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/group/mute.py:83
 msgid "导入mute处理器..."
 msgstr ""
 

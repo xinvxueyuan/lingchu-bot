@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import nonebot
 import pytest
@@ -57,10 +57,11 @@ def pytest_configure(config: pytest.Config) -> None:
         return
 
     _ = config
-    init_config: dict[str, str] = {
+    init_config: dict[str, Any] = {
         "LOCALSTORE_USE_CWD": "True",
         "DRIVER": "~fastapi+~httpx+~websockets",
         "LINGCHUAdapter": "~onebot.v11",
+        "LINGCHU_SUPERUSERS": {"user1": {"qq": "42"}},
         "lingchu_locale": "zh_CN",
     }
     nonebot.init(**init_config)
