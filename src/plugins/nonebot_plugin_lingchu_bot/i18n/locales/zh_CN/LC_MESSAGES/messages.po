@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nonebot-plugin-lingchu-bot 0.0.0.dev8\n"
 "Report-Msgid-Bugs-To: xinvxueyuan@yeah.net\n"
-"POT-Creation-Date: 2026-06-13 19:04+0800\n"
+"POT-Creation-Date: 2026-06-16 18:04+0800\n"
 "PO-Revision-Date: 2026-05-20 00:00+0800\n"
 "Last-Translator: xinvxueyuan <xinvxueyuan@yeah.net>\n"
 "Language: zh_CN\n"
@@ -44,20 +44,20 @@ msgstr ""
 "期望布尔值，但收到 {value_type}: {value!r}\n"
 "请检查 NoneBot2 配置文件。"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:389
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:396
 msgid "灵初功能菜单"
 msgstr "灵初功能菜单"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:619
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:660
 msgid "导入menu处理器..."
 msgstr "导入menu处理器..."
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:624
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:665
 #, python-brace-format
 msgid "Lingchu 未为适配器 {adapter_id} 声明 menu 处理器"
 msgstr "Lingchu 未为适配器 {adapter_id} 声明 menu 处理器"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:630
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:671
 #, python-brace-format
 msgid "Lingchu 为适配器 {adapter_id} 导入 menu 处理器"
 msgstr "Lingchu 为适配器 {adapter_id} 导入 menu 处理器"
@@ -93,7 +93,7 @@ msgstr "导入lifecycle处理器..."
 msgid "导入member处理器..."
 msgstr "导入member处理器..."
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/group/mute.py:84
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/group/mute.py:83
 msgid "导入mute处理器..."
 msgstr "导入mute处理器..."
 
@@ -431,18 +431,3 @@ msgstr "Lingchu 启用适配器: {adapters}"
 #, python-brace-format
 msgid "Lingchu 忽略未选中的已注册适配器: {adapters}"
 msgstr "Lingchu 忽略未选中的已注册适配器: {adapters}"
-
-#~ msgid "已设置群名片: {target_name}({target_user_id}) -> {card}"
-#~ msgstr "已设置群名片: {target_name}({target_user_id}) -> {card}"
-
-#~ msgid "{action}群管理员: {target_name}({target_user_id})"
-#~ msgstr "{action}群管理员: {target_name}({target_user_id})"
-
-#~ msgid "已踢出群成员: {target_name}({target_user_id})"
-#~ msgstr "已踢出群成员: {target_name}({target_user_id})"
-
-#~ msgid "OneBot 状态异常"
-#~ msgstr "OneBot 状态异常"
-
-#~ msgid "OneBot 调用失败"
-#~ msgstr "OneBot 调用失败"

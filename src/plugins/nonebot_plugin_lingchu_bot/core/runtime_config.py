@@ -9,7 +9,13 @@ from typing import TYPE_CHECKING, Any, Final
 from nonebot import get_driver
 from nonebot.compat import type_validate_python
 from nonebot_plugin_localstore import get_plugin_config_file
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+)
 
 if TYPE_CHECKING:
     from nonebot.config import Config as NoneBotConfig

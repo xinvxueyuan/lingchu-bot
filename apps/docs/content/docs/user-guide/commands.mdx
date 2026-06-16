@@ -35,6 +35,8 @@ Common aliases include:
 
 The menu command is an index entry. It lists the available submenu commands instead of expanding every group-management feature into one long message. Submenus are code-driven and filtered by the selected platform, adapter, and concrete implementation, so implementation-specific extension APIs are hidden unless the current runtime is known to support them.
 
+When a submenu is rendered for a real user, platform-supported commands stay visible even if the user lacks execution permission. Those entries are marked as read-only. Commands unsupported by the selected platform or implementation are still hidden.
+
 Default submenu commands:
 
 - `member-management`: kick member, block/unblock members on OneBot V11, set member card, set member special title, set/unset admin.
@@ -190,6 +192,8 @@ Default values:
 - Unblock and clear reason: `管理员操作「默认」`.
 
 `清空黑名单` only clears the current group blocklist. Use `全局清空黑名单` to clear global entries.
+
+By default, QQ `owner` and `admin` role groups can use current-group blocklist commands. Global blocklist commands require elevated privileges.
 
 ## Group settings and operations
 

@@ -8,7 +8,6 @@ from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 
 from ....i18n import _async as _
-from ....services.permissions import bind_command_key
 from .command_triggers import COMMAND_TRIGGERS
 
 _BLOCK_MEMBER = COMMAND_TRIGGERS["block_member"]
@@ -29,7 +28,6 @@ block_member_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
-bind_command_key(block_member_cmd, "block_member")
 global_block_member_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _GLOBAL_BLOCK_MEMBER.primary,
@@ -41,7 +39,6 @@ global_block_member_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
-bind_command_key(global_block_member_cmd, "global_block_member")
 unblock_member_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _UNBLOCK_MEMBER.primary,
@@ -53,7 +50,6 @@ unblock_member_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
-bind_command_key(unblock_member_cmd, "unblock_member")
 global_unblock_member_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _GLOBAL_UNBLOCK_MEMBER.primary,
@@ -65,7 +61,6 @@ global_unblock_member_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
-bind_command_key(global_unblock_member_cmd, "global_unblock_member")
 clear_blocklist_cmd: type[Matcher] = on_alconna(
     command=Alconna(_CLEAR_BLOCKLIST.primary, Args["reason?", str, None]),
     aliases=_CLEAR_BLOCKLIST.aliases,
@@ -74,7 +69,6 @@ clear_blocklist_cmd: type[Matcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
-bind_command_key(clear_blocklist_cmd, "clear_blocklist")
 global_clear_blocklist_cmd: type[Matcher] = on_alconna(
     command=Alconna(_GLOBAL_CLEAR_BLOCKLIST.primary, Args["reason?", str, None]),
     aliases=_GLOBAL_CLEAR_BLOCKLIST.aliases,
@@ -83,7 +77,6 @@ global_clear_blocklist_cmd: type[Matcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
-bind_command_key(global_clear_blocklist_cmd, "global_clear_blocklist")
 
 _LAZY_EXPORTS = {
     "onebot11_block_member": "..onebot.v11.default.group.block",

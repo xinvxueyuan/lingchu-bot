@@ -41,12 +41,6 @@ COMMAND_TRIGGERS = {
         chinese_aliases=frozenset({"帮助", "功能", "功能列表", "指令", "命令列表"}),
         english_aliases=frozenset({"help", "commands"}),
     ),
-    "permission": CommandTrigger(
-        chinese="权限",
-        english="permission",
-        chinese_aliases=frozenset({"权限管理", "授权"}),
-        english_aliases=frozenset({"perm", "permissions"}),
-    ),
     "member_mute": CommandTrigger(
         chinese="禁言",
         english="mute",

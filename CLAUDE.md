@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2804 symbols, 5404 relationships, 236 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2507 symbols, 4883 relationships, 209 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -120,7 +120,7 @@ lingchu-bot/
 │   ├── handle/         # Platform/protocol/implementation command handlers
 │   │   └── qq/{group,onebot/v11,milky/v1_2}/    # QQ group handlers
 │   ├── i18n/           # Babel/gettext translations
-│   ├── platforms/      # Adapter-to-platform registry & resolution
+│   ├── platforms/      # Adapter registry, permission presets & resolution
 │   ├── repositories/   # Data access layer
 │   ├── services/       # Business logic services
 │   └── start/          # Startup & initialization
@@ -234,7 +234,9 @@ These rules are injected as context for every conversation. Treat them as hard c
 
 - **No commits or pushes without explicit user instruction** — never auto-commit, auto-push, or assume the user wants a commit after finishing a task. Wait for the user to say so.
 - **Write persistent preferences into AGENTS.md** — memory files and session context are ephemeral; AGENTS.md is the single source of truth for project-level rules and user preferences. When the user says "remember this" or expresses a preference, add it here.
+- **Pre-planning development stage** — this project is still in a pre-planning / early development stage, so severe breaking changes are acceptable when they simplify the architecture or unblock the intended product direction.
 - **Prefer granular checks over full `task check`** — use the Quick Reference table above to run only the checks relevant to what changed. Full `task check && task test` is for pre-commit verification, not for every intermediate step.
+- **Use PowerShell without profiles** — when explicitly invoking PowerShell from automation, use `pwsh.exe -NoProfile` so user profile scripts do not slow down or pollute command output.
 - **Sync Chinese/English documents** — when editing AGENTS.md, always propagate the same structural changes to `.github/note/AGENTS-zh.md` and vice versa.
 - **Sync AGENTS.md and CLAUDE.md** — these two files share the same structure and content (GitNexus block, project context, dev commands, lessons learned, etc.). When editing either file, always propagate the same structural changes to the other. The only allowed difference is the Claude Code Behavioral Guidelines section, which exists only in `CLAUDE.md`.
 
@@ -411,6 +413,10 @@ When removing functions/helpers:
 - Husky hooks may run under a Bash environment that sees Windows commands differently from PowerShell. Check that a command can actually start, not only that `command -v` finds it.
 - Prefer resolving tool commands once near the top of the hook. For Windows `.cmd` Node shims such as `pnpm.cmd` and `npx.cmd`, invoke them through `cmd.exe /c`; executing the `.cmd` file directly from Bash can silently skip checks or emit misleading `node` errors.
 - Do not suppress `git diff --cached` failures when deciding which checks to run. If `git` is unavailable in the hook shell, fail clearly instead of treating the staged file list as empty.
+
+### PowerShell Markdownlint Globs
+
+- When running `markdownlint-cli2` through `pwsh.exe -NoProfile -Command`, pass glob arguments exactly as the shell should see them; incorrectly nested or escaped quotes can turn globs into malformed paths and make Node scan far more than intended. Prefer the Taskfile command or a known-good direct command form before treating a markdownlint timeout as a lint failure.
 
 ### Husky Hook CLI Resolution
 

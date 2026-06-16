@@ -99,6 +99,7 @@ QQ_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset(
         PlatformCapability.MEMBER_PROFILE,
         PlatformCapability.GROUP_PROFILE,
         PlatformCapability.ANNOUNCEMENT,
+        PlatformCapability.API_AUDIT,
     }
 )
 
@@ -532,9 +533,9 @@ def _page_has_visible_content(
     context: MenuRuntimeContext,
     allowed_command_keys: frozenset[str] | None = None,
 ) -> bool:
+    _ = allowed_command_keys
     return any(
-        _matched_availability(feature, context, allowed_command_keys)
-        for feature in _page_features(page)
+        _matched_availability(feature, context) for feature in _page_features(page)
     )
 
 
@@ -563,8 +564,18 @@ def _render_feature(
     command = trigger.primary_for(locale)
     usage = _localized(availability.usage_override or feature.usage, locale)
     summary = _localized(feature.summary, locale)
+    readonly = (
+        allowed_command_keys is not None
+        and feature.command_key not in allowed_command_keys
+    )
+    if readonly:
+        summary = f"{summary} ({_readonly_label(locale)})"
     command_text = f"{command} {usage}".strip()
     return f"- {summary}: {command_text}"
+
+
+def _readonly_label(locale: str) -> str:
+    return "read-only" if locale.lower().startswith("en") else "只读"
 
 
 def _localized(value: Any, locale: str) -> str:
@@ -589,11 +600,7 @@ def _matched_availability(
     if feature.command_key not in COMMAND_TRIGGERS:
         logger.debug(f"Lingchu 菜单跳过未知命令: {feature.command_key!r}")
         return None
-    if (
-        allowed_command_keys is not None
-        and feature.command_key not in allowed_command_keys
-    ):
-        return None
+    _ = allowed_command_keys
     if feature.platform_capability not in context.platform_capabilities:
         return None
     for availability in feature.availability:
