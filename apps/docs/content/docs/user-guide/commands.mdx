@@ -5,6 +5,8 @@ title: Commands and Group Management
 
 ## Commands and Group Management
 
+![Lingchu Bot commands and group management](/images/docs/commands-management.png)
+
 The currently confirmed user-facing capabilities are concentrated in QQ group management commands. Commands are registered through `nonebot-plugin-alconna`, with command start tokens and command separators enabled by default. The QQ platform uses OneBot V11 by default; set `LINGCHUAdapter = "~milky"` if you need Milky.
 
 Success and failure feedback for group management commands is wired to gettext catalogs. Command trigger words are also selected from the configured locale: Chinese locales enable the existing Chinese triggers, while English locales enable short hyphenated English triggers. The two trigger languages are not enabled at the same time.
@@ -35,7 +37,7 @@ Common aliases include:
 
 The menu command is an index entry. It lists the available submenu commands instead of expanding every group-management feature into one long message. Submenus are code-driven and filtered by the selected platform, adapter, and concrete implementation, so implementation-specific extension APIs are hidden unless the current runtime is known to support them.
 
-When a submenu is rendered for a real user, platform-supported commands stay visible even if the user lacks execution permission. Those entries are marked as read-only. Commands unsupported by the selected platform or implementation are still hidden.
+Commands unsupported by the selected platform or implementation are hidden.
 
 Default submenu commands:
 
