@@ -18,7 +18,7 @@ _WHOLE_UNMUTE = COMMAND_TRIGGERS["whole_unmute"]
 member_mute_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _MEMBER_MUTE.primary,
-        Args["user", At]["duration?", int, 60]["reason?", str, None],
+        Args["user", At | int]["duration?", int, 60]["reason?", str, None],
     ),
     aliases=_MEMBER_MUTE.aliases,
     priority=5,
@@ -39,7 +39,7 @@ whole_mute_cmd: type[Matcher] = on_alconna(
 member_unmute_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _MEMBER_UNMUTE.primary,
-        Args["user", At]["reason?", str, None],
+        Args["user", At | int]["reason?", str, None],
     ),
     aliases=_MEMBER_UNMUTE.aliases,
     priority=5,

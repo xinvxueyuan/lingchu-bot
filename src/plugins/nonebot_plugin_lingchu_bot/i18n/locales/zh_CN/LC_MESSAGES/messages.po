@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nonebot-plugin-lingchu-bot 0.0.0.dev8\n"
 "Report-Msgid-Bugs-To: xinvxueyuan@yeah.net\n"
-"POT-Creation-Date: 2026-06-16 18:04+0800\n"
+"POT-Creation-Date: 2026-06-17 23:57+0800\n"
 "PO-Revision-Date: 2026-05-20 00:00+0800\n"
 "Last-Translator: xinvxueyuan <xinvxueyuan@yeah.net>\n"
 "Language: zh_CN\n"
@@ -80,16 +80,20 @@ msgstr "Lingchu 为适配器 {adapter_id} 导入 group 处理器"
 msgid "导入announcement处理器..."
 msgstr "导入announcement处理器..."
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/group/block.py:103
-#, fuzzy
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/group/block.py:111
 msgid "导入block处理器..."
+msgstr "导入block处理器..."
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/group/kick.py:42
+#, fuzzy
+msgid "导入kick处理器..."
 msgstr "导入group处理器..."
 
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/group/lifecycle.py:39
 msgid "导入lifecycle处理器..."
 msgstr "导入lifecycle处理器..."
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/group/member.py:86
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/group/member.py:98
 msgid "导入member处理器..."
 msgstr "导入member处理器..."
 
@@ -102,251 +106,91 @@ msgid "导入profile处理器..."
 msgstr "导入profile处理器..."
 
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/group/test.py:32
-#, fuzzy
 msgid "导入test处理器..."
-msgstr "导入mute处理器..."
+msgstr "导入test处理器..."
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/announcement.py:26
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/announcement.py:25
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/announcement.py:29
+msgid "群公告内容不能为空"
+msgstr "群公告内容不能为空"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/announcement.py:36
+msgid "获取实现信息失败"
+msgstr "获取实现信息失败"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/announcement.py:44
 msgid "协议端功能异常，等待上游修复"
 msgstr "协议端功能异常，等待上游修复"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/announcement.py:30
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/announcement.py:48
 msgid "不支持的 Milky 实现"
 msgstr "不支持的 Milky 实现"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/announcement.py:35
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/announcement.py:50
-msgid "发送群公告"
-msgstr "发送群公告"
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/announcement.py:61
+msgid "发送群公告失败，网络异常"
+msgstr "发送群公告失败，网络异常"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/announcement.py:42
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/announcement.py:57
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/announcement.py:65
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/announcement.py:76
+msgid "发送群公告失败，操作被拒绝"
+msgstr "发送群公告失败，操作被拒绝"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/announcement.py:69
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/announcement.py:80
 msgid "群公告已发送"
 msgstr "群公告已发送"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/common.py:66
-#, python-brace-format
-msgid "{operation}失败，网络异常: {error!r}"
-msgstr "{operation}失败，网络异常: {error!r}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/common.py:73
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/common.py:54
-#, python-brace-format
-msgid "{operation}失败，操作被拒绝: {error!r}"
-msgstr "{operation}失败，操作被拒绝: {error!r}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/lifecycle.py:18
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/lifecycle.py:21
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/lifecycle.py:23
-msgid "退出当前群"
-msgstr "退出当前群"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:35
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:34
-msgid "设置群名片"
-msgstr "设置群名片"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:39
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:38
-#, python-brace-format
-msgid "已设置群名片: {name_display} -> {card}"
-msgstr ""
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:61
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:57
-msgid "设置群成员专属头衔"
-msgstr "设置群成员专属头衔"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:67
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:64
-#, fuzzy, python-brace-format
-msgid "已设置群头衔: {name_display} -> {special_title}"
-msgstr "已设置群头衔: {target_name}({target_user_id}) -> {special_title}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:86
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:80
-msgid "设置"
-msgstr "设置"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:86
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:80
-msgid "取消"
-msgstr "取消"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:92
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:86
-msgid "设置群管理员"
-msgstr "设置群管理员"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:96
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:90
-#, python-brace-format
-msgid "{action}群管理员: {name_display}"
-msgstr ""
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:129
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:120
-msgid "踢出群成员"
-msgstr "踢出群成员"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:135
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:126
-#, python-brace-format
-msgid "已踢出群成员: {name_display}"
-msgstr ""
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:36
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:49
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:81
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:50
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:29
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:79
 msgid "违反群规「默认」"
 msgstr "违反群规「默认」"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:46
-#, python-brace-format
-msgid "禁言失败，网络异常: {error!r}"
-msgstr "禁言失败，网络异常: {error!r}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:51
-#, python-brace-format
-msgid "禁言失败，操作被拒绝: {error}"
-msgstr "禁言失败，操作被拒绝: {error}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:56
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:39
-#, fuzzy, python-brace-format
-msgid ""
-"已禁言: \n"
-"名称: {name_display}\n"
-"时长: {duration} 秒\n"
-"原因: {reason}\n"
-"标识: {target_user_id}"
-msgstr ""
-"已禁言: \n"
-"名称: @{target_name}\n"
-"时长: {duration} 秒\n"
-"原因: {reason}\n"
-"标识: {target_user_id}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:81
-#, python-brace-format
-msgid "全体禁言失败，网络异常: {error!r}"
-msgstr "全体禁言失败，网络异常: {error!r}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:87
-#, python-brace-format
-msgid "全体禁言失败，操作被拒绝: {error!r}"
-msgstr "全体禁言失败，操作被拒绝: {error!r}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:92
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:63
-msgid "全体禁言成功"
-msgstr "全体禁言成功"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:107
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:53
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:152
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:54
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:75
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:144
 msgid "管理员操作「默认」"
 msgstr "管理员操作「默认」"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:117
-#, python-brace-format
-msgid "解禁失败，网络异常: {error!r}"
-msgstr "解禁失败，网络异常: {error!r}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:122
-#, python-brace-format
-msgid "解禁失败，操作被拒绝: {error!r}"
-msgstr "解禁失败，操作被拒绝: {error!r}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:128
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:85
-#, fuzzy, python-brace-format
-msgid ""
-"已解禁: \n"
-"名称: {name_display}\n"
-"原因: {reason}\n"
-"标识: {target_user_id}"
-msgstr ""
-"已解禁: \n"
-"名称: {target_name}\n"
-"原因: {reason}\n"
-"标识: {target_user_id}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:150
-#, python-brace-format
-msgid "全体解禁失败，网络异常: {error!r}"
-msgstr "全体解禁失败，网络异常: {error!r}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:156
-#, python-brace-format
-msgid "全体解禁失败，操作被拒绝: {error!r}"
-msgstr "全体解禁失败，操作被拒绝: {error!r}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:161
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:104
-msgid "全体解禁成功"
-msgstr "全体解禁成功"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:25
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:29
-msgid "设置群名称"
-msgstr "设置群名称"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:29
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:31
-#, python-brace-format
-msgid "群名称已设置为: {new_group_name}"
-msgstr "群名称已设置为: {new_group_name}"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:43
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:45
-msgid "请上传一张图片"
-msgstr ""
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:46
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:71
-msgid "设置群头像"
-msgstr "设置群头像"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:48
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:73
-msgid "群头像已更新"
-msgstr "群头像已更新"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/announcement.py:29
-msgid "不支持的 OneBot 协议版本"
-msgstr "不支持的 OneBot 协议版本"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/announcement.py:45
-msgid "不支持的 OneBot 版本"
-msgstr "不支持的 OneBot 版本"
-
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:83
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:84
 #, python-brace-format
 msgid "{operation}失败，数据库异常: {error!r}"
 msgstr "{operation}失败，数据库异常: {error!r}"
 
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:125
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:127
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:126
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:128
 msgid "拉黑"
 msgstr "拉黑"
 
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:129
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:214
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:291
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:130
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:215
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:292
 msgid "全局"
 msgstr "全局"
 
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:129
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:214
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:291
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:130
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:215
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:292
 msgid "本群"
 msgstr "本群"
 
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:130
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:131
 msgid "永久"
 msgstr "永久"
 
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:134
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:135
 #, python-brace-format
 msgid ""
@@ -364,10 +208,12 @@ msgstr ""
 "原因: {reason}\n"
 "标识: {target_user_id}"
 
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:212
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:213
 msgid "删黑"
 msgstr "删黑"
 
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:218
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:219
 #, python-brace-format
 msgid ""
@@ -385,10 +231,12 @@ msgstr ""
 "标识: {target_user_id}\n"
 "删除记录: {deleted}"
 
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:289
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:290
 msgid "清空黑名单"
 msgstr "清空黑名单"
 
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/block.py:293
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/block.py:294
 #, python-brace-format
 msgid ""
@@ -402,25 +250,339 @@ msgstr ""
 "原因: {reason}\n"
 "删除记录: {deleted}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:33
-msgid "禁言"
-msgstr "禁言"
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/common.py:98
+#, python-brace-format
+msgid "{operation}失败，网络异常: {error!r}"
+msgstr "{operation}失败，网络异常: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:61
-msgid "全体禁言"
-msgstr "全体禁言"
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/common.py:105
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/common.py:86
+#, python-brace-format
+msgid "{operation}失败，操作被拒绝: {error!r}"
+msgstr "{operation}失败，操作被拒绝: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:79
-msgid "解禁"
-msgstr "解禁"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:102
-msgid "全体解禁"
-msgstr "全体解禁"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:65
-msgid "当前 OneBot 实现不支持设置群头像"
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/kick.py:40
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:221
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/kick.py:40
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:193
+msgid "不能踢出自己"
 msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/kick.py:48
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:225
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/kick.py:48
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:197
+msgid "不能踢出机器人"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/kick.py:61
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/kick.py:61
+msgid "查询黑名单失败，数据库异常"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/kick.py:65
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/kick.py:65
+#, python-brace-format
+msgid "用户 {name} 不在黑名单中，无法执行踢出操作"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/kick.py:77
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:239
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/kick.py:77
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:208
+msgid "踢出群成员失败，操作被拒绝"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/kick.py:82
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/kick.py:82
+#, python-brace-format
+msgid "已踢出群成员 {name}{reason}"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/lifecycle.py:22
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/lifecycle.py:39
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/lifecycle.py:28
+msgid "退出当前群"
+msgstr "退出当前群"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/lifecycle.py:33
+msgid "退出群失败，网络异常"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/lifecycle.py:36
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/lifecycle.py:25
+msgid "退出群失败，操作被拒绝"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:47
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:49
+#, python-brace-format
+msgid "群名片长度不能超过 {max} 个字符"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:60
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:58
+msgid "不能修改机器人的群名片"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:70
+msgid "设置群名片失败，网络异常"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:75
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:68
+msgid "设置群名片失败，操作被拒绝"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:82
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:75
+#, python-brace-format
+msgid "已设置群名片: {name_display} -> {card}"
+msgstr "已设置群名片: {name_display} -> {card}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:101
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:94
+#, python-brace-format
+msgid "群头衔长度不能超过 {max} 个字符"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:115
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:104
+msgid "不能修改机器人的群头衔"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:128
+msgid "设置群头衔失败，网络异常"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:133
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:118
+msgid "设置群头衔失败，操作被拒绝"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:140
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:125
+#, python-brace-format
+msgid "已设置群头衔: {name_display} -> {special_title}"
+msgstr "已设置群头衔: {name_display} -> {special_title}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:165
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:146
+msgid "不能修改机器人的管理员权限"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:176
+msgid "设置管理员失败，网络异常"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:181
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:157
+msgid "设置管理员失败，操作被拒绝"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:185
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:161
+msgid "设置"
+msgstr "设置"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:185
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:161
+msgid "取消"
+msgstr "取消"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:189
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:165
+#, python-brace-format
+msgid "{action}群管理员: {name_display}"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:236
+msgid "踢出群成员失败，网络异常"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/member.py:245
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/member.py:214
+#, python-brace-format
+msgid "已踢出群成员: {name_display}"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:44
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:45
+#, python-brace-format
+msgid "禁言时长不能小于 {min} 秒"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:48
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:49
+#, python-brace-format
+msgid "禁言时长不能超过 {max} 秒（30天）"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:62
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:63
+msgid "不能禁言自己"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:66
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:67
+msgid "不能禁言机器人"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:75
+#, fuzzy
+msgid "禁言失败，网络异常"
+msgstr "禁言失败，网络异常: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:78
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:76
+#, fuzzy
+msgid "禁言失败，操作被拒绝"
+msgstr "禁言失败，操作被拒绝: {error}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:85
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:82
+#, fuzzy, python-brace-format
+msgid ""
+"已禁言: \n"
+"名称: {name_display}\n"
+"时长: {duration} 秒\n"
+"原因: {reason}\n"
+"标识: {target_user_id}"
+msgstr ""
+"已禁言: \n"
+"名称: @{target_name}\n"
+"时长: {duration} 秒\n"
+"原因: {reason}\n"
+"标识: {target_user_id}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:109
+#, fuzzy
+msgid "全体禁言失败，网络异常"
+msgstr "全体禁言失败，网络异常: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:112
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:107
+#, fuzzy
+msgid "全体禁言失败，操作被拒绝"
+msgstr "全体禁言失败，操作被拒绝: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:114
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:109
+msgid "全体禁言成功"
+msgstr "全体禁言成功"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:133
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:128
+msgid "不能解禁自己"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:137
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:132
+msgid "不能解禁机器人"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:146
+#, fuzzy
+msgid "解禁失败，网络异常"
+msgstr "解禁失败，网络异常: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:149
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:141
+#, fuzzy
+msgid "解禁失败，操作被拒绝"
+msgstr "解禁失败，操作被拒绝: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:156
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:147
+#, fuzzy, python-brace-format
+msgid ""
+"已解禁: \n"
+"名称: {name_display}\n"
+"原因: {reason}\n"
+"标识: {target_user_id}"
+msgstr ""
+"已解禁: \n"
+"名称: {target_name}\n"
+"原因: {reason}\n"
+"标识: {target_user_id}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:175
+#, fuzzy
+msgid "全体解禁失败，网络异常"
+msgstr "全体解禁失败，网络异常: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:178
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:167
+#, fuzzy
+msgid "全体解禁失败，操作被拒绝"
+msgstr "全体解禁失败，操作被拒绝: {error!r}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/mute.py:180
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/mute.py:169
+msgid "全体解禁成功"
+msgstr "全体解禁成功"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:32
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:36
+msgid "群名称不能为空"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:36
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:40
+#, python-brace-format
+msgid "群名称长度不能超过 {max} 个字符"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:48
+msgid "设置群名称失败，网络异常"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:51
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:50
+msgid "设置群名称失败，操作被拒绝"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:54
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:53
+#, python-brace-format
+msgid "群名称已设置为: {new_group_name}"
+msgstr "群名称已设置为: {new_group_name}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:69
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:68
+msgid "请上传一张图片"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:76
+msgid "设置群头像失败，网络异常"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:79
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:101
+msgid "设置群头像失败，操作被拒绝"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/profile.py:82
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:104
+msgid "群头像已更新"
+msgstr "群头像已更新"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/milky/v1_2/default/group/test.py:24
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/test.py:26
+msgid "消息内容为空，无法回显"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/announcement.py:43
+msgid "不支持的 OneBot 协议版本"
+msgstr "不支持的 OneBot 协议版本"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/announcement.py:63
+msgid "不支持的 OneBot 版本"
+msgstr "不支持的 OneBot 版本"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/onebot/v11/default/group/profile.py:94
+msgid "当前 OneBot 实现不支持设置群头像"
+msgstr "当前 OneBot 实现不支持设置群头像"
 
 #: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:37
 #, python-brace-format
@@ -431,3 +593,36 @@ msgstr "Lingchu 启用适配器: {adapters}"
 #, python-brace-format
 msgid "Lingchu 忽略未选中的已注册适配器: {adapters}"
 msgstr "Lingchu 忽略未选中的已注册适配器: {adapters}"
+
+#~ msgid "发送群公告"
+#~ msgstr "发送群公告"
+
+#~ msgid "设置群名片"
+#~ msgstr "设置群名片"
+
+#~ msgid "设置群成员专属头衔"
+#~ msgstr "设置群成员专属头衔"
+
+#~ msgid "设置群管理员"
+#~ msgstr "设置群管理员"
+
+#~ msgid "踢出群成员"
+#~ msgstr "踢出群成员"
+
+#~ msgid "设置群名称"
+#~ msgstr "设置群名称"
+
+#~ msgid "设置群头像"
+#~ msgstr "设置群头像"
+
+#~ msgid "禁言"
+#~ msgstr "禁言"
+
+#~ msgid "全体禁言"
+#~ msgstr "全体禁言"
+
+#~ msgid "解禁"
+#~ msgstr "解禁"
+
+#~ msgid "全体解禁"
+#~ msgstr "全体解禁"

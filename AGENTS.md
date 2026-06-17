@@ -1142,5 +1142,9 @@ Rule suppressions and temporary workarounds that should be reverted once the tri
 | `deslop/unused-export: "off"` | `doctor.config.ts` | `useMDXComponents` in `mdx.tsx` is a framework-required re-export but currently unused (no `providerImportSource` in `source.config.ts`) | Remove this suppression once `useMDXComponents` is actually consumed (e.g., after adding `providerImportSource` to `source.config.ts` or importing it elsewhere) |
 | CLI instead of `millionco/react-doctor@v2` action | `.github/workflows/react-doctor.yml` | Upstream action has bugs: detached HEAD, ANSI leak in PR comments (PR #80 pending) | Switch back to the action once upstream releases a fix (monitor PR #80) |
 
+### Blocklist Kick Behavior: reject_add_request=False
+
+When kicking blocked users from groups, the `reject_add_request` parameter is set to `False` (not `True`). This allows previously blocked users to request re-joining the group after being unblocked or after their block expires. If the business requirement changes to permanently prevent re-joining, update `_kick_blocked_user()` in `handle/qq/onebot/v11/default/group/block.py` and corresponding test assertions.
+
 - **Non-component exports break Fast Refresh**: Utility functions (`getMermaidConfig`, `sanitizeMermaidSvg`, `renderMermaidSvg`) exported from a component file (`mermaid.tsx`) trigger `react-doctor/only-export-components`. Extract them to a separate non-component module (e.g., `mermaid-utils.ts`) and import from there. Update test imports accordingly.
 - **`/llms.txt` is a route handler, not a static file**: When linking to Next.js route handlers from components, use `<Link>` (not plain `<a>`) — they're internal routes that benefit from client-side navigation.

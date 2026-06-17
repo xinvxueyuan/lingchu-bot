@@ -29,7 +29,12 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.group.mute import (
 
 def finish_message(mock_finish: MagicMock) -> object:
     """返回 matcher.finish 收到的 message 参数。"""
-    return mock_finish.call_args.kwargs["message"]
+    if mock_finish.call_args:
+        if "message" in mock_finish.call_args.kwargs:
+            return mock_finish.call_args.kwargs["message"]
+        if mock_finish.call_args.args:
+            return mock_finish.call_args.args[0]
+    return ""
 
 
 def finish_text(mock_finish: MagicMock) -> str:
@@ -43,6 +48,7 @@ def mock_bot() -> MagicMock:
     bot = MagicMock(spec=MilkyBot)
     bot.adapter = MagicMock()
     bot.adapter.get_name.return_value = "Milky"
+    bot.self_id = "bot-1"
     bot.set_group_member_mute = AsyncMock()
     bot.set_group_whole_mute = AsyncMock()
     bot.get_group_member_info = AsyncMock(return_value=MagicMock(card="", nickname=""))
@@ -55,7 +61,8 @@ def mock_event() -> MagicMock:
     event = MagicMock(spec=MilkyGroupMessageEvent)
     event.data = MagicMock()
     event.data.peer_id = 123456789
-    event.data.sender_id = 111111
+    event.data.sender = MagicMock()
+    event.data.sender.user_id = 111111
     event.data.segments = []
     return event
 
@@ -218,8 +225,8 @@ class TestMute:
     async def test_mute_allows_targeting_sender(
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_at: MagicMock
     ) -> None:
-        """测试目标用户是发送者本人时仍调用禁言 API。"""
-        mock_event.data.sender_id = 987654321
+        """测试目标用户是发送者本人时返回不能禁言自己。"""
+        mock_event.data.sender.user_id = 987654321
 
         with patch.object(member_mute_cmd, "finish") as mock_finish:
             await milkybot_mute(
@@ -230,15 +237,11 @@ class TestMute:
                 event=mock_event,
             )
 
-        mock_bot.set_group_member_mute.assert_called_once_with(
-            group_id=mock_event.data.peer_id,
-            user_id=987654321,
-            duration=60,
-        )
-        assert "已禁言:" in finish_text(mock_finish)
+        mock_bot.set_group_member_mute.assert_not_called()
+        assert "不能禁言自己" in finish_text(mock_finish)
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("duration", [0, -1, 864000000])
+    @pytest.mark.parametrize("duration", [1, 30, 2592000])
     async def test_mute_passes_duration_through(
         self,
         mock_bot: MagicMock,
@@ -638,7 +641,8 @@ class TestIntegrationScenarios:
             event = MagicMock(spec=MilkyGroupMessageEvent)
             event.data = MagicMock()
             event.data.peer_id = group_id
-            event.data.sender_id = 111111
+            event.data.sender = MagicMock()
+            event.data.sender.user_id = 111111
             event.data.segments = []
 
             with patch.object(member_mute_cmd, "finish"):

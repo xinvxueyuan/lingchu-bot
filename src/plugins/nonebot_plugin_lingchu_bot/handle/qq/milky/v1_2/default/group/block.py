@@ -1,14 +1,13 @@
 from typing import Any
 
 from nonebot import logger, on_message, on_request
-from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
-from nonebot.adapters.onebot.v11.event import (
-    GroupMessageEvent as OneBot11GroupMessageEvent,
+from nonebot.adapters.milky import Bot as MilkyBot
+from nonebot.adapters.milky.event import (
+    GroupJoinRequestEvent as MilkyGroupJoinRequestEvent,
 )
-from nonebot.adapters.onebot.v11.event import (
-    GroupRequestEvent as OneBot11GroupRequestEvent,
-)
-from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
+from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
+from nonebot.adapters.milky.exception import ActionFailed as MilkyActionFailed
+from nonebot.adapters.milky.exception import NetworkError as MilkyNetworkError
 from nonebot_plugin_alconna.uniseg import At
 
 from .......database.orm_crud import DatabaseError
@@ -31,18 +30,18 @@ from .....group.block import (
 )
 from .....group.common import selected_adapter_handle
 from .common import (
-    finish_action_error_onebot11,
-    resolve_user_onebot11,
+    finish_action_error_milky,
+    resolve_user_milky,
 )
 
 QQ_PLATFORM_ID = "qq"
-ONEBOT_V11_ADAPTER_ID = "~onebot.v11"
+MILKY_ADAPTER_ID = "~milky"
 
 blocklisted_message = on_message(priority=1, block=False)
 blocklisted_group_request = on_request(priority=1, block=False)
 
 
-def _bot_id(bot: OneBot11Bot) -> str:
+def _bot_id(bot: MilkyBot) -> str:
     return str(getattr(bot, "self_id", ""))
 
 
@@ -60,17 +59,17 @@ async def _store_block(  # noqa: PLR0913
     user_id: int,
     duration: int | None,
     reason: str | None,
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
+    bot: MilkyBot,
+    event: MilkyGroupMessageEvent,
 ) -> None:
     await upsert_block(
         platform_id=QQ_PLATFORM_ID,
-        adapter_id=ONEBOT_V11_ADAPTER_ID,
+        adapter_id=MILKY_ADAPTER_ID,
         bot_id=_bot_id(bot),
         scope=scope,
-        group_id=event.group_id,
+        group_id=event.data.peer_id,
         user_id=user_id,
-        operator_id=event.user_id,
+        operator_id=event.data.sender.user_id,
         reason=reason,
         expires_at=expires_at_from_duration(duration),
     )
@@ -89,11 +88,11 @@ async def _finish_database_error(
 
 
 async def _kick_blocked_user(
-    bot: OneBot11Bot,
+    bot: MilkyBot,
     group_id: int,
     user_id: int,
 ) -> None:
-    await bot.set_group_kick(
+    await bot.kick_group_member(
         group_id=group_id,
         user_id=user_id,
         reject_add_request=False,
@@ -107,10 +106,10 @@ async def _block_member(  # noqa: PLR0913
     user: At | int,
     duration: int | None,
     reason: str | None,
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
+    bot: MilkyBot,
+    event: MilkyGroupMessageEvent,
 ) -> Any:
-    target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
+    target_user_id, target_name = await resolve_user_milky(user, bot, event)
     reason_text = await _default_block_reason(reason)
     try:
         await _store_block(
@@ -121,11 +120,11 @@ async def _block_member(  # noqa: PLR0913
             bot=bot,
             event=event,
         )
-        await _kick_blocked_user(bot, event.group_id, target_user_id)
+        await _kick_blocked_user(bot, event.data.peer_id, target_user_id)
     except DatabaseError as error:
         return await _finish_database_error(command, await _("拉黑"), error)
-    except OneBot11ActionFailed as error:
-        return await finish_action_error_onebot11(command, await _("拉黑"), error)
+    except (MilkyActionFailed, MilkyNetworkError) as error:
+        return await finish_action_error_milky(command, await _("拉黑"), error)
 
     scope_text = await _("全局") if scope == "global" else await _("本群")
     duration_text = await _("永久") if duration is None else f"{duration} 秒"
@@ -150,12 +149,12 @@ async def _block_member(  # noqa: PLR0913
     return await command.finish(message=message)
 
 
-@selected_adapter_handle(block_member_cmd, "~onebot.v11")
-async def onebot11_block_member(
+@selected_adapter_handle(block_member_cmd, "~milky")
+async def milkybot_block_member(
     user: At | int,
     duration: int | None,
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
+    bot: MilkyBot,
+    event: MilkyGroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
     return await _block_member(
@@ -169,12 +168,12 @@ async def onebot11_block_member(
     )
 
 
-@selected_adapter_handle(global_block_member_cmd, "~onebot.v11")
-async def onebot11_global_block_member(
+@selected_adapter_handle(global_block_member_cmd, "~milky")
+async def milkybot_global_block_member(
     user: At | int,
     duration: int | None,
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
+    bot: MilkyBot,
+    event: MilkyGroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
     return await _block_member(
@@ -194,18 +193,18 @@ async def _unblock_member(  # noqa: PLR0913
     scope: BlockScope,
     user: At | int,
     reason: str | None,
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
+    bot: MilkyBot,
+    event: MilkyGroupMessageEvent,
 ) -> Any:
-    target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
+    target_user_id, target_name = await resolve_user_milky(user, bot, event)
     reason_text = await _default_admin_reason(reason)
     try:
         result = await remove_block(
             platform_id=QQ_PLATFORM_ID,
-            adapter_id=ONEBOT_V11_ADAPTER_ID,
+            adapter_id=MILKY_ADAPTER_ID,
             bot_id=_bot_id(bot),
             scope=scope,
-            group_id=event.group_id,
+            group_id=event.data.peer_id,
             user_id=target_user_id,
         )
         deleted = result[0]
@@ -234,11 +233,11 @@ async def _unblock_member(  # noqa: PLR0913
     return await command.finish(message=message)
 
 
-@selected_adapter_handle(unblock_member_cmd, "~onebot.v11")
-async def onebot11_unblock_member(
-    user: At,
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
+@selected_adapter_handle(unblock_member_cmd, "~milky")
+async def milkybot_unblock_member(
+    user: At | int,
+    bot: MilkyBot,
+    event: MilkyGroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
     return await _unblock_member(
@@ -251,11 +250,11 @@ async def onebot11_unblock_member(
     )
 
 
-@selected_adapter_handle(global_unblock_member_cmd, "~onebot.v11")
-async def onebot11_global_unblock_member(
-    user: At,
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
+@selected_adapter_handle(global_unblock_member_cmd, "~milky")
+async def milkybot_global_unblock_member(
+    user: At | int,
+    bot: MilkyBot,
+    event: MilkyGroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
     return await _unblock_member(
@@ -273,17 +272,17 @@ async def _clear_blocklist(
     command: Any,
     scope: BlockScope,
     reason: str | None,
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
+    bot: MilkyBot,
+    event: MilkyGroupMessageEvent,
 ) -> Any:
     reason_text = await _default_admin_reason(reason)
     try:
         result = await clear_blocklist(
             platform_id=QQ_PLATFORM_ID,
-            adapter_id=ONEBOT_V11_ADAPTER_ID,
+            adapter_id=MILKY_ADAPTER_ID,
             bot_id=_bot_id(bot),
             scope=scope,
-            group_id=event.group_id,
+            group_id=event.data.peer_id,
         )
         deleted = result[0]
     except DatabaseError as error:
@@ -297,10 +296,10 @@ async def _clear_blocklist(
     return await command.finish(message=message)
 
 
-@selected_adapter_handle(clear_blocklist_cmd, "~onebot.v11")
-async def onebot11_clear_blocklist(
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
+@selected_adapter_handle(clear_blocklist_cmd, "~milky")
+async def milkybot_clear_blocklist(
+    bot: MilkyBot,
+    event: MilkyGroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
     return await _clear_blocklist(
@@ -312,10 +311,10 @@ async def onebot11_clear_blocklist(
     )
 
 
-@selected_adapter_handle(global_clear_blocklist_cmd, "~onebot.v11")
-async def onebot11_global_clear_blocklist(
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
+@selected_adapter_handle(global_clear_blocklist_cmd, "~milky")
+async def milkybot_global_clear_blocklist(
+    bot: MilkyBot,
+    event: MilkyGroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
     return await _clear_blocklist(
@@ -328,52 +327,51 @@ async def onebot11_global_clear_blocklist(
 
 
 @blocklisted_message.handle()
-async def onebot11_kick_blocklisted_message(
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
+async def milkybot_kick_blocklisted_message(
+    bot: MilkyBot,
+    event: MilkyGroupMessageEvent,
 ) -> None:
     try:
         entry = await find_active_block(
             platform_id=QQ_PLATFORM_ID,
-            adapter_id=ONEBOT_V11_ADAPTER_ID,
+            adapter_id=MILKY_ADAPTER_ID,
             bot_id=_bot_id(bot),
-            group_id=event.group_id,
-            user_id=event.user_id,
+            group_id=event.data.peer_id,
+            user_id=event.data.sender.user_id,
         )
         if entry is None:
             return
-        await _kick_blocked_user(bot, event.group_id, event.user_id)
+        await _kick_blocked_user(bot, event.data.peer_id, event.data.sender.user_id)
     except DatabaseError as error:
         logger.error(f"检查黑名单失败，数据库异常: {error!r}")
-    except OneBot11ActionFailed as error:
+    except (MilkyActionFailed, MilkyNetworkError) as error:
         logger.error(f"黑名单成员踢出失败，操作被拒绝: {error!r}")
 
 
 @blocklisted_group_request.handle()
-async def onebot11_reject_blocklisted_group_request(
-    bot: OneBot11Bot,
-    event: OneBot11GroupRequestEvent,
+async def milkybot_reject_blocklisted_group_request(
+    bot: MilkyBot,
+    event: MilkyGroupJoinRequestEvent,
 ) -> None:
-    if event.sub_type != "add":
-        return
     try:
         entry = await find_active_block(
             platform_id=QQ_PLATFORM_ID,
-            adapter_id=ONEBOT_V11_ADAPTER_ID,
+            adapter_id=MILKY_ADAPTER_ID,
             bot_id=_bot_id(bot),
-            group_id=event.group_id,
-            user_id=event.user_id,
+            group_id=event.data.group_id,
+            user_id=event.data.initiator_id,
         )
         if entry is None:
             return
         reason = entry.reason or await _default_block_reason(None)
-        await bot.set_group_add_request(
-            flag=event.flag,
-            sub_type=event.sub_type,
-            approve=False,
+        await bot.reject_group_request(
+            notification_seq=event.data.notification_seq,
+            notification_type="join_request",
+            group_id=event.data.group_id,
+            is_filtered=event.data.is_filtered,
             reason=reason,
         )
     except DatabaseError as error:
         logger.error(f"检查加群请求黑名单失败，数据库异常: {error!r}")
-    except OneBot11ActionFailed as error:
+    except (MilkyActionFailed, MilkyNetworkError) as error:
         logger.error(f"拒绝黑名单成员加群失败，操作被拒绝: {error!r}")

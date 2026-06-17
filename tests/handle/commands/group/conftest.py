@@ -36,11 +36,14 @@ def mock_event() -> MagicMock:
 
     返回值为一个 MagicMock，其 spec 设置为 MilkyGroupMessageEvent，包含 .data 属性：
     - data.peer_id: 123456789
+    - data.sender.user_id: 111222333
     - data.segments: 空列表
     """
     event = MagicMock(spec=MilkyGroupMessageEvent)
     event.data = MagicMock()
     event.data.peer_id = 123456789
+    event.data.sender = MagicMock()
+    event.data.sender.user_id = 111222333
     event.data.segments = []
     return event
 
@@ -57,6 +60,7 @@ def mock_bot() -> MagicMock:
     bot = MagicMock(spec=MilkyBot)
     bot.adapter = MagicMock()
     bot.adapter.get_name.return_value = "Milky"
+    bot.self_id = "bot-1"
     bot.get_group_member_info = AsyncMock(return_value=MagicMock(card="", nickname=""))
     return bot
 

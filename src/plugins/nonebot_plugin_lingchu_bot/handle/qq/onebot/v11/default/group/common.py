@@ -44,6 +44,38 @@ async def target_user_onebot11(
     return target_user_id, ""
 
 
+async def resolve_user_onebot11(
+    user: At | int, bot: Onebot11Bot, event: Onebot11GroupMessageEvent
+) -> tuple[int, str]:
+    """解析用户目标，支持 At 对象或直接的 user_id。
+
+    由于 QQ 平台限制，@ 功能无法定位到目标用户，因此支持直接传入 user_id。
+
+    Args:
+        user: At 对象或 user_id (int)
+        bot: OneBot V11 Bot 实例
+        event: 群消息事件
+
+    Returns:
+        tuple[int, str]: (user_id, display_name)
+    """
+    if isinstance(user, int):
+        # 直接传入 user_id，尝试获取昵称
+        try:
+            member_info = await bot.get_group_member_info(
+                group_id=event.group_id, user_id=user
+            )
+            name = member_info.get("card") or member_info.get("nickname") or ""
+            return user, str(name)
+        except Onebot11ActionFailed:
+            logger.debug(
+                f"获取群成员信息失败: group_id={event.group_id}, user_id={user}"
+            )
+        return user, ""
+
+    return await target_user_onebot11(user, bot, event)
+
+
 async def finish_action_error_onebot11(
     command: GroupCommand,
     operation: str,

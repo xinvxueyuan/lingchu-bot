@@ -20,7 +20,7 @@ _GLOBAL_CLEAR_BLOCKLIST = COMMAND_TRIGGERS["global_clear_blocklist"]
 block_member_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _BLOCK_MEMBER.primary,
-        Args["user", At]["duration?", int, None]["reason?", str, None],
+        Args["user", At | int]["duration?", int, None]["reason?", str, None],
     ),
     aliases=_BLOCK_MEMBER.aliases,
     priority=5,
@@ -31,7 +31,7 @@ block_member_cmd: type[AlconnaMatcher] = on_alconna(
 global_block_member_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _GLOBAL_BLOCK_MEMBER.primary,
-        Args["user", At]["duration?", int, None]["reason?", str, None],
+        Args["user", At | int]["duration?", int, None]["reason?", str, None],
     ),
     aliases=_GLOBAL_BLOCK_MEMBER.aliases,
     priority=5,
@@ -42,7 +42,7 @@ global_block_member_cmd: type[AlconnaMatcher] = on_alconna(
 unblock_member_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _UNBLOCK_MEMBER.primary,
-        Args["user", At]["reason?", str, None],
+        Args["user", At | int]["reason?", str, None],
     ),
     aliases=_UNBLOCK_MEMBER.aliases,
     priority=5,
@@ -53,7 +53,7 @@ unblock_member_cmd: type[AlconnaMatcher] = on_alconna(
 global_unblock_member_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _GLOBAL_UNBLOCK_MEMBER.primary,
-        Args["user", At]["reason?", str, None],
+        Args["user", At | int]["reason?", str, None],
     ),
     aliases=_GLOBAL_UNBLOCK_MEMBER.aliases,
     priority=5,
@@ -87,6 +87,14 @@ _LAZY_EXPORTS = {
     "onebot11_global_clear_blocklist": "..onebot.v11.default.group.block",
     "onebot11_kick_blocklisted_message": "..onebot.v11.default.group.block",
     "onebot11_reject_blocklisted_group_request": "..onebot.v11.default.group.block",
+    "milkybot_block_member": "..milky.v1_2.default.group.block",
+    "milkybot_global_block_member": "..milky.v1_2.default.group.block",
+    "milkybot_unblock_member": "..milky.v1_2.default.group.block",
+    "milkybot_global_unblock_member": "..milky.v1_2.default.group.block",
+    "milkybot_clear_blocklist": "..milky.v1_2.default.group.block",
+    "milkybot_global_clear_blocklist": "..milky.v1_2.default.group.block",
+    "milkybot_kick_blocklisted_message": "..milky.v1_2.default.group.block",
+    "milkybot_reject_blocklisted_group_request": "..milky.v1_2.default.group.block",
 }
 
 
