@@ -209,7 +209,7 @@ global-clear-blocklist [reason]
 | 设置群成员专属头衔 | `设置群头衔 @用户 <头衔>` | `set-member-title @user <title>` |
 | 设置群管理员 | `设置群管理员 @用户 [true/false]` | `set-member-admin @user [true/false]` |
 | 取消群管理员 | `取消群管理员 @用户` | `unset-member-admin @user` |
-| 踢出群成员 | `踢出群成员 @用户 [是否拒绝再次申请]` | `kick-member @user [reject add request]` |
+| 踢出黑名单成员 | `踢出群成员 <用户ID或@提及> [原因]` | `kick-member <user_id_or_mention> [reason]` |
 | 拉黑群成员 | `拉黑 @用户 [时长秒数] [原因]` | `block @user [duration seconds] [reason]` |
 | 全局拉黑群成员 | `全局拉黑 @用户 [时长秒数] [原因]` | `global-block @user [duration seconds] [reason]` |
 | 删除本群黑名单 | `删黑 @用户 [原因]` | `unblock @user [reason]` |

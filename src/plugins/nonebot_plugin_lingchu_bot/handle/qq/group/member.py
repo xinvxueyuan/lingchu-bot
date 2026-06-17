@@ -16,7 +16,10 @@ _UNSET_MEMBER_ADMIN = COMMAND_TRIGGERS["unset_member_admin"]
 _KICK_MEMBER = COMMAND_TRIGGERS["kick_member"]
 
 set_group_member_card_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna(_SET_MEMBER_CARD.primary, Args["user", At]["card", str]),
+    command=Alconna(
+        _SET_MEMBER_CARD.primary,
+        Args["user", At | int]["card", str],
+    ),
     aliases=_SET_MEMBER_CARD.aliases,
     priority=5,
     block=True,
@@ -24,7 +27,10 @@ set_group_member_card_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_start=True,
 )
 set_group_member_special_title_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna(_SET_MEMBER_TITLE.primary, Args["user", At]["special_title", str]),
+    command=Alconna(
+        _SET_MEMBER_TITLE.primary,
+        Args["user", At | int]["special_title", str],
+    ),
     aliases=_SET_MEMBER_TITLE.aliases,
     priority=5,
     block=True,
@@ -32,7 +38,10 @@ set_group_member_special_title_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_start=True,
 )
 set_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna(_SET_MEMBER_ADMIN.primary, Args["user", At]),
+    command=Alconna(
+        _SET_MEMBER_ADMIN.primary,
+        Args["user", At | int],
+    ),
     aliases=_SET_MEMBER_ADMIN.aliases,
     priority=5,
     block=True,
@@ -40,7 +49,10 @@ set_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_start=True,
 )
 unset_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna(_UNSET_MEMBER_ADMIN.primary, Args["user", At]),
+    command=Alconna(
+        _UNSET_MEMBER_ADMIN.primary,
+        Args["user", At | int],
+    ),
     aliases=_UNSET_MEMBER_ADMIN.aliases,
     priority=5,
     block=True,
@@ -50,7 +62,7 @@ unset_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
 kick_group_member_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _KICK_MEMBER.primary,
-        Args["user", At],
+        Args["user", At | int],
     ),
     aliases=_KICK_MEMBER.aliases,
     priority=5,

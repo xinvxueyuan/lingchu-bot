@@ -32,7 +32,7 @@ from .....group.block import (
 from .....group.common import selected_adapter_handle
 from .common import (
     finish_action_error_onebot11,
-    target_user_onebot11,
+    resolve_user_onebot11,
 )
 
 QQ_PLATFORM_ID = "qq"
@@ -96,7 +96,7 @@ async def _kick_blocked_user(
     await bot.set_group_kick(
         group_id=group_id,
         user_id=user_id,
-        reject_add_request=True,
+        reject_add_request=False,
     )
 
 
@@ -104,13 +104,13 @@ async def _block_member(  # noqa: PLR0913
     *,
     command: Any,
     scope: BlockScope,
-    user: At,
+    user: At | int,
     duration: int | None,
     reason: str | None,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
-    target_user_id, target_name = await target_user_onebot11(user, bot, event)
+    target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
     reason_text = await _default_block_reason(reason)
     try:
         await _store_block(
@@ -152,7 +152,7 @@ async def _block_member(  # noqa: PLR0913
 
 @selected_adapter_handle(block_member_cmd, "~onebot.v11")
 async def onebot11_block_member(
-    user: At,
+    user: At | int,
     duration: int | None,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
@@ -171,7 +171,7 @@ async def onebot11_block_member(
 
 @selected_adapter_handle(global_block_member_cmd, "~onebot.v11")
 async def onebot11_global_block_member(
-    user: At,
+    user: At | int,
     duration: int | None,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
@@ -192,12 +192,12 @@ async def _unblock_member(  # noqa: PLR0913
     *,
     command: Any,
     scope: BlockScope,
-    user: At,
+    user: At | int,
     reason: str | None,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
-    target_user_id, target_name = await target_user_onebot11(user, bot, event)
+    target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
     reason_text = await _default_admin_reason(reason)
     try:
         result = await remove_block(

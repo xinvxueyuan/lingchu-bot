@@ -1,6 +1,8 @@
 from typing import Any
 
 from . import announcement as announcement
+from . import block as block
+from . import kick as kick
 from . import lifecycle as lifecycle
 from . import member as member
 from . import mute as mute

@@ -1,9 +1,11 @@
 from typing import Any
 
+from nonebot import logger
 from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
 from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent as OneBot11GroupMessageEvent,
 )
+from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import Image as UniImage
 from packaging.version import InvalidVersion, parse
 
@@ -15,7 +17,9 @@ from .....group.profile import (
     set_group_name_cmd,
 )
 from ...napcat.group.profile import set_group_portrait_napcat
-from .common import run_group_action_onebot11
+
+# 群名称长度限制
+_GROUP_NAME_MAX_LENGTH = 50
 
 
 @selected_adapter_handle(set_group_name_cmd, "~onebot.v11")
@@ -24,13 +28,31 @@ async def onebot11_set_group_name(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
-    return await run_group_action_onebot11(
-        set_group_name_cmd,
-        await _("设置群名称"),
-        lambda: bot.set_group_name(group_id=event.group_id, group_name=new_group_name),
-        (await _("群名称已设置为: {new_group_name}")).format(
-            new_group_name=new_group_name
-        ),
+    # 1. 输入数据清洗：去除首尾空白字符
+    new_group_name = new_group_name.strip()
+
+    # 2. 参数合法性检查
+    if not new_group_name:
+        return await set_group_name_cmd.finish(await _("群名称不能为空"))
+
+    if len(new_group_name) > _GROUP_NAME_MAX_LENGTH:
+        return await set_group_name_cmd.finish(
+            (await _("群名称长度不能超过 {max} 个字符")).format(
+                max=_GROUP_NAME_MAX_LENGTH
+            )
+        )
+
+    # 3. 执行设置群名称操作
+    try:
+        await bot.set_group_name(group_id=event.group_id, group_name=new_group_name)
+    except OneBot11ActionFailed as e:
+        logger.error(f"设置群名称失败，操作被拒绝: {e!r}")
+        return await set_group_name_cmd.finish(await _("设置群名称失败，操作被拒绝"))
+
+    # 4. 格式化反馈消息
+    message = await _("群名称已设置为: {new_group_name}")
+    return await set_group_name_cmd.finish(
+        message.format(new_group_name=new_group_name)
     )
 
 
@@ -40,35 +62,43 @@ async def onebot11_set_group_avatar(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
+    # 1. 解析图片路径
     image_path = await _resolve_image_path(image)
     if image_path is None:
-        await set_group_avatar_cmd.finish(await _("请上传一张图片"))
+        return await set_group_avatar_cmd.finish(await _("请上传一张图片"))
 
-    version_info = await bot.get_version_info()
-    # OneBot V11 适配器解包响应，get_version_info() 直接返回 data 字段
-    data = version_info.get("data", version_info)
-    app_name = data.get("app_name")
-    raw_version = data.get("app_version", "0")
+    # 2. 获取版本信息
     try:
-        current_version = parse(raw_version)
-    except InvalidVersion:
-        current_version = parse("0")
+        version_info = await bot.get_version_info()
+        # OneBot V11 适配器解包响应，get_version_info() 直接返回 data 字段
+        data = version_info.get("data", version_info)
+        app_name = data.get("app_name")
+        raw_version = data.get("app_version", "0")
+        try:
+            current_version = parse(raw_version)
+        except InvalidVersion:
+            current_version = parse("0")
 
-    async def _set_portrait() -> None:
-        await set_group_portrait_napcat(image_path=image_path, bot=bot, event=event)
+        # 3. 选择对应的实现
+        match app_name:
+            case "NapCat.Onebot" if current_version >= parse("4.18.0"):
 
-    match app_name:
-        case "NapCat.Onebot" if current_version >= parse("4.18.0"):
-            action = _set_portrait
-        case _:
-            await set_group_avatar_cmd.finish(
-                await _("当前 OneBot 实现不支持设置群头像")
-            )
-            return None
+                async def _set_portrait() -> None:
+                    await set_group_portrait_napcat(
+                        image_path=image_path, bot=bot, event=event
+                    )
 
-    return await run_group_action_onebot11(
-        set_group_avatar_cmd,
-        await _("设置群头像"),
-        action,
-        await _("群头像已更新"),
-    )
+                action = _set_portrait
+            case _:
+                return await set_group_avatar_cmd.finish(
+                    await _("当前 OneBot 实现不支持设置群头像")
+                )
+
+        # 4. 执行设置头像操作
+        await action()
+    except OneBot11ActionFailed as e:
+        logger.error(f"设置群头像失败，操作被拒绝: {e!r}")
+        return await set_group_avatar_cmd.finish(await _("设置群头像失败，操作被拒绝"))
+
+    # 5. 反馈结果
+    return await set_group_avatar_cmd.finish(await _("群头像已更新"))

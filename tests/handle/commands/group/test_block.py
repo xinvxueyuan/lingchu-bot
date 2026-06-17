@@ -21,6 +21,10 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.onebot.v11.default.group i
 )
 from tests.handle.commands.group.conftest import finish_text
 
+# 测试用 user_id 常量（避免 PLR2004 魔数值警告）
+_TEST_USER_ID_BLOCK = 111222333
+_TEST_USER_ID_UNBLOCK = 444555666
+
 
 @pytest.mark.asyncio
 async def test_onebot11_block_member_stores_record_and_kicks(
@@ -49,7 +53,7 @@ async def test_onebot11_block_member_stores_record_and_kicks(
     mock_onebot11_bot.set_group_kick.assert_awaited_once_with(
         group_id=mock_onebot11_event.group_id,
         user_id=987654321,
-        reject_add_request=True,
+        reject_add_request=False,
     )
     assert "已拉黑并踢出" in finish_text(mock_finish)
 
@@ -80,7 +84,7 @@ async def test_onebot11_global_block_member_uses_global_scope_and_kicks(
     mock_onebot11_bot.set_group_kick.assert_awaited_once_with(
         group_id=mock_onebot11_event.group_id,
         user_id=987654321,
-        reject_add_request=True,
+        reject_add_request=False,
     )
 
 
@@ -198,7 +202,7 @@ async def test_blocklisted_group_message_triggers_kick(
     mock_onebot11_bot.set_group_kick.assert_awaited_once_with(
         group_id=mock_onebot11_event.group_id,
         user_id=mock_onebot11_event.user_id,
-        reject_add_request=True,
+        reject_add_request=False,
     )
 
 
@@ -276,3 +280,66 @@ def test_block_command_triggers_are_minimal() -> None:
     assert COMMAND_TRIGGERS["block_member"].english_aliases == {"block-member"}
     assert COMMAND_TRIGGERS["global_block_member"].chinese_aliases == {"全局拉黑用户"}
     assert COMMAND_TRIGGERS["clear_blocklist"].english_aliases == set()
+
+
+@pytest.mark.asyncio
+async def test_onebot11_block_member_with_direct_user_id(
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+) -> None:
+    """测试直接传入 user_id (int) 进行拉黑操作"""
+    mock_onebot11_bot.set_group_kick = AsyncMock()
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        return_value={"card": "测试用户", "nickname": "TestUser"}
+    )
+
+    with (
+        patch.object(block_module, "upsert_block", AsyncMock()) as upsert_mock,
+        patch.object(block_member_cmd, "finish") as mock_finish,
+    ):
+        await block_module.onebot11_block_member(
+            user=_TEST_USER_ID_BLOCK,  # 直接传入 user_id (int)
+            duration=None,
+            reason=None,
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+        )
+
+    upsert_mock.assert_awaited_once()
+    assert upsert_mock.call_args.kwargs["user_id"] == _TEST_USER_ID_BLOCK
+    mock_onebot11_bot.set_group_kick.assert_awaited_once_with(
+        group_id=mock_onebot11_event.group_id,
+        user_id=_TEST_USER_ID_BLOCK,
+        reject_add_request=False,
+    )
+    assert "已拉黑并踢出" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_onebot11_unblock_member_with_direct_user_id(
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+) -> None:
+    """测试直接传入 user_id (int) 进行删黑操作"""
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        return_value={"card": "", "nickname": "TestUser"}
+    )
+
+    with (
+        patch.object(
+            block_module,
+            "remove_block",
+            AsyncMock(return_value=(1, True)),
+        ) as remove_mock,
+        patch.object(unblock_member_cmd, "finish") as mock_finish,
+    ):
+        await block_module.onebot11_unblock_member(
+            user=_TEST_USER_ID_UNBLOCK,  # 直接传入 user_id (int)
+            reason=None,
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+        )
+
+    assert remove_mock.call_args.kwargs["scope"] == "group"
+    assert remove_mock.call_args.kwargs["user_id"] == _TEST_USER_ID_UNBLOCK
+    assert "删除记录: 1" in finish_text(mock_finish)

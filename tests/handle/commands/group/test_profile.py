@@ -53,7 +53,7 @@ async def test_set_group_avatar_without_image(
 
     with patch.object(set_group_avatar_cmd, "finish") as mock_finish:
         await milkybot_set_group_avatar(
-            image=create_mock_image(), bot=mock_bot, event=mock_event
+            image=create_mock_image(raw=b"fake"), bot=mock_bot, event=mock_event
         )
 
     mock_bot.set_group_avatar.assert_called_once()
@@ -99,7 +99,7 @@ async def test_set_group_avatar_network_error_returns_readable_message(
 
     with patch.object(set_group_avatar_cmd, "finish") as mock_finish:
         await milkybot_set_group_avatar(
-            image=create_mock_image(), bot=mock_bot, event=mock_event
+            image=create_mock_image(raw=b"fake"), bot=mock_bot, event=mock_event
         )
 
     assert "设置群头像失败，网络异常" in finish_text(mock_finish)
@@ -113,7 +113,7 @@ async def test_set_group_avatar_action_failed_returns_readable_message(
 
     with patch.object(set_group_avatar_cmd, "finish") as mock_finish:
         await milkybot_set_group_avatar(
-            image=create_mock_image(), bot=mock_bot, event=mock_event
+            image=create_mock_image(raw=b"fake"), bot=mock_bot, event=mock_event
         )
 
     assert "设置群头像失败，操作被拒绝" in finish_text(mock_finish)
