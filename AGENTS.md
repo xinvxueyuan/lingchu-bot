@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2915 symbols, 5653 relationships, 243 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2921 symbols, 5659 relationships, 243 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -1263,7 +1263,7 @@ Rule suppressions and temporary workarounds that should be reverted once the tri
 | What | Where | Why suppressed | Rollback condition |
 |------|-------|---------------|-------------------|
 | `deslop/unused-export: "off"` | `doctor.config.ts` | `useMDXComponents` in `mdx.tsx` is a framework-required re-export but currently unused (no `providerImportSource` in `source.config.ts`) | Remove this suppression once `useMDXComponents` is actually consumed (e.g., after adding `providerImportSource` to `source.config.ts` or importing it elsewhere) |
-| CLI instead of `millionco/react-doctor@v2` action | `.github/workflows/react-doctor.yml` | Upstream action has bugs: detached HEAD, ANSI leak in PR comments (PR #80 pending) | Switch back to the action once upstream releases a fix (monitor PR #80) |
+| CLI instead of `millionco/react-doctor@v2` action | `.github/workflows/🩺-react-doctor.yml` | Upstream action has bugs: detached HEAD, ANSI leak in PR comments (PR #80 pending) | Switch back to the action once upstream releases a fix (monitor PR #80) |
 
 ### Blocklist Kick Behavior: reject_add_request=False
 
@@ -1367,3 +1367,22 @@ When adding CI checks or unit tests for the docs site (`apps/docs/`), several pi
 4. **Extract shared functions for testability**: When a function (e.g., `switchLocale` in `provider.tsx`) is defined inside a React component file, unit tests either can't import it or must duplicate the logic (which drifts from the real implementation). Extract such functions to a dedicated module (e.g., `src/lib/locale.ts`) and import from both the component and the test. This ensures tests verify the real export, not a stale copy.
 
 5. **Mock `collections/server` in vitest to prevent MDX loading**: Tests that import from `src/lib/source.ts` transitively load MDX collection files via the `collections/server` alias, which vitest cannot parse as JavaScript (error: "Failed to parse source for import analysis"). Add `vi.mock('collections/server', () => ({ docs: { toFumadocsSource: () => ({}) } }))` at the top of the test file to stub the collection and prevent MDX file loading.
+
+### GitHub Actions SHA Pinning Best Practices
+
+- **Prefer commit SHA over annotated tag object SHA**: When pinning GitHub Actions to a version tag, the `git/refs/tags/{tag}` API returns the annotated tag object SHA, not the commit SHA. Use `git/tags/{sha}` to dereference annotated tags to their commit SHA. Pinning to the commit SHA is the documented best practice — it ensures the pin points to the actual code that was reviewed, not an intermediate Git object that could be re-created.
+- **Don't trust comments over actual SHAs**: When auditing action pin versions, comments like `# pinned from actions/checkout@v6.0.3` may be stale. Always resolve the actual SHA via the GitHub API to verify it matches the claimed release tag.
+- **Dependabot auto-maintains action pins**: Configure `package-ecosystem: "github-actions"` in `dependabot.yml` to automatically open PRs when actions release new versions. Use `groups` with `update-types: ["minor", "patch"]` to batch low-risk updates.
+
+### Workflow Filename and Name Conventions
+
+- **Use emoji-prefix + kebab-case for all workflow filenames**: All workflow files in `.github/workflows/` follow the pattern `<emoji>-<kebab-case-name>.yml` (e.g., `🧪-ci.yml`, `🩺-react-doctor.yml`). This makes workflows visually identifiable in file listings and the GitHub Actions UI.
+- **Workflow `name:` field uses English**: The `name:` field appears in the GitHub Actions UI and should be in English for universal readability. Format: `<emoji> <English Name>` (e.g., `name: 📚 Docs Deploy`).
+- **Keep filename emoji and `name:` emoji consistent**: The emoji in the filename should match the emoji in the `name:` field.
+- **Search for filename references before renaming**: When renaming a workflow file, grep the entire repo for the old filename (including `.yml` extension) to find all references. Check AGENTS.md, CLAUDE.md, AGENTS-zh.md, MDX docs, skill files, and the workflow file itself (self-references in `paths:` triggers).
+
+### .github Config Style Unification
+
+- **English comments in all .github config files**: All YAML config files in `.github/` use English comments for consistency. This includes `dependabot.yml`, `labeler.yml`, `auto_assign.yml`, etc.
+- **Remove broken `yaml-language-server: $schema=` lines**: If a config file has a `# yaml-language-server: $schema=` comment with an empty or invalid URL, remove the line. Only add the schema comment if a valid JSON schema URL exists.
+- **Dependabot monorepo configuration**: Use `directories` (plural, supports glob patterns) instead of `directory` (singular) for npm ecosystems in pnpm/Turborepo monorepos. Use `groups` with `patterns` and `update-types` to merge minor/patch updates into a single PR across all workspace directories.

@@ -105,7 +105,7 @@ task i18n
 
 - `🧪 CI`：Static Analysis 运行 `task ci:static`；Tests & Type Check 运行 Pyright、ty 和 pytest；Docs Check 运行 Turbo lint/type check 和 docs test。
 - `👷 CI-builds`：运行 `task ci:build`；在 `main`、`dev`、`releases/**` 的 push 上还会 bump dev version、写回 `core_version`、构建、归档产物、生成 provenance 并提交 tag。
-- `📚 文档部署`：docs 相关路径 push 到 `main` 或 `dev` 时，运行 pnpm/turbo lint、docs test 和 docs build，然后部署 GitHub Pages。
+- `📚 Docs Deploy`：docs 相关路径 push 到 `main` 或 `dev` 时，运行 pnpm/turbo lint、docs test 和 docs build，然后部署 GitHub Pages。
 - Auto Fix & Format：`main` 和 `dev` push 上，在 CI 通过后运行 `task ci:fix` 并可能自动提交格式修复。
 
 ## CI 失败处理

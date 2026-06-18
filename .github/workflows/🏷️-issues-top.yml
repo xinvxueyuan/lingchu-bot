@@ -16,7 +16,7 @@ jobs:
             - id: check
               name: Check open issues
               # pinned from actions/github-script@v9.0.0
-              uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71
+              uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
               with:
                   script: |
                       const owner = context.repo.owner;
@@ -38,7 +38,7 @@ jobs:
         steps:
             - name: Run top issues action
               # pinned from rickstaa/top-issues-action@v1.3.101
-              uses: rickstaa/top-issues-action@0a79beccd974036d3dcedf7f021ec3e14b7a3e16
+              uses: rickstaa/top-issues-action@7e8dda5d5ae3087670f9094b9724a9a091fc3ba1
               env:
                   github_token: ${{ secrets.GITHUB_TOKEN }}
               with:
