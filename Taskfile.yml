@@ -109,7 +109,7 @@ tasks:
       - pnpm turbo run lint check-types
       - pnpm --filter docs lint:links
       - pnpm --filter docs test
-      - pnpm --filter docs build
+      - pnpm turbo run build
 
   ci:version:bump:
     desc: "[CI] Bump development version and emit GitHub Actions outputs"
