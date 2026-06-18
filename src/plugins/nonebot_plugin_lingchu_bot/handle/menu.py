@@ -12,7 +12,7 @@ from packaging.version import InvalidVersion, Version, parse
 from ..i18n import _async as _
 from ..i18n import get_configured_locale, gettext, normalize_locale
 from ..platforms import PlatformCapability, resolve_enabled_adapters
-from .qq.group.command_triggers import COMMAND_TRIGGERS
+from .qq.commands.triggers import COMMAND_TRIGGERS
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -35,8 +35,8 @@ menu_cmd: type[AlconnaMatcher] = on_alconna(
 )
 
 _ADAPTER_MODULES: dict[str, tuple[str, ...]] = {
-    "~onebot.v11": (".qq.onebot.v11.default.menu",),
-    "~milky": (".qq.milky.v1_2.default.menu",),
+    "~onebot.v11": (".qq.adapters.onebot11.default.menu",),
+    "~milky": (".qq.adapters.milky.default.menu",),
 }
 _loaded_handlers: dict[str, tuple[Callable[[], Any], ...]] = {}
 

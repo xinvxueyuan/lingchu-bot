@@ -1,0 +1,1 @@
+"""Milky protocol adapter."""
