@@ -1,0 +1,142 @@
+---
+icon: Terminal
+title: QQ Commands
+---
+
+## QQ Commands
+
+Commands are registered through `nonebot-plugin-alconna` with command start tokens and separators enabled by default. Command trigger words are locale-exclusive: Chinese locales enable Chinese triggers, English locales enable short hyphenated English triggers. The two trigger languages are not enabled at the same time.
+
+## Menu
+
+Primary command:
+
+```text
+菜单
+```
+
+English command when `LINGCHU_LOCALE` / `lc_locale` / `locale` selects English:
+
+```text
+menu
+```
+
+The menu command is an index entry. It lists the available submenu commands instead of expanding every feature into one long message. Submenus are code-driven and filtered by the selected platform, protocol, and implementation.
+
+Default submenu commands:
+
+- `member-management` / `成员管理`: kick, block/unblock, set member card, set member title, set/unset admin.
+- `speech-management` / `发言管理`: mute/unmute member, enable/disable whole-group mute.
+- `group-chat-management` / `群聊管理`: set group name, set group avatar (when supported), send group announcement (when supported), leave current group.
+- `remote-management` / `远程管理`: cross-group mute/unmute, whole-group mute/unmute, kick, block/unblock, send announcement.
+
+<Callout type="info" title="Remote management">
+
+`远程管理` / `remote-management` is a top-level menu entry that lists all remote (cross-group) commands. Remote commands accept a group ID (int) or group name (str). When a non-int string is provided, the bot falls back to fuzzy matching group names via the OneBot V11 `get_group_list` API.
+
+</Callout>
+
+## Member mute
+
+```text
+禁言 @用户 [时长秒数] [原因]
+mute @user [duration seconds] [reason]
+```
+
+- Duration default: `60` seconds.
+- Reason default: `违反群规「默认」`.
+
+## Member unmute
+
+```text
+解禁 @用户 [原因]
+unmute @user [reason]
+```
+
+## Whole-group mute
+
+```text
+全员禁言
+mute-all
+```
+
+## Whole-group unmute
+
+```text
+全体解禁
+unmute-all
+```
+
+## OneBot V11 blocklist
+
+Blocklist commands are available on OneBot V11 only. Blocking stores the user in the group or global blocklist, kicks the user from the current group, and rejects future group join requests while the block is active.
+
+```text
+拉黑 @用户 [时长秒数] [原因]
+全局拉黑 @用户 [时长秒数] [原因]
+删黑 @用户 [原因]
+全局删黑 @用户 [原因]
+清空黑名单 [原因]
+全局清空黑名单 [reason]
+```
+
+English: `block`, `global-block`, `unblock`, `global-unblock`, `clear-blocklist`, `global-clear-blocklist`.
+
+- Duration default: permanent.
+- Block reason default: `违反群规「默认」`.
+- Unblock/clear reason default: `管理员操作「默认」`.
+
+`清空黑名单` only clears the current group blocklist. Use `全局清空黑名单` to clear global entries.
+
+## Group settings and operations
+
+| Capability | Chinese command | English command |
+| --- | --- | --- |
+| Set group name | `设置群名称 <新群名称>` | `set-group-name <new group name>` |
+| Set group avatar | `设置群头像 <图片>` | `set-group-avatar <image>` |
+| Set member card | `设置群名片 @用户 <名片>` | `set-member-card @user <card>` |
+| Set member special title | `设置群头衔 @用户 <头衔>` | `set-member-title @user <title>` |
+| Set member admin | `设置群管理员 @用户 [true/false]` | `set-member-admin @user [true/false]` |
+| Unset member admin | `取消群管理员 @用户` | `unset-member-admin @user` |
+| Kick blocklisted member | `踢出群成员 <用户ID或@提及> [原因]` | `kick-member <user_id_or_mention> [reason]` |
+| Send announcement | `发送群公告 <内容> [图片]` | `send-announcement <content> [image]` |
+| Leave current group | `退出群` | `leave-group` |
+
+The announcement and group avatar commands accept `UniImage` values from `nonebot-plugin-alconna`. Quote names, announcements, cards, or titles that contain spaces so command separators do not split them.
+
+## Remote management (OneBot V11 only)
+
+Remote commands operate on a **target group** other than the current one. The `<群号或群名称>` argument accepts:
+
+- An integer group ID (e.g., `123456789`).
+- A numeric string that can be parsed as an integer.
+- A non-numeric string that triggers fuzzy matching against the bot's joined groups via `get_group_list`. Exact name match takes priority; otherwise, substring containment is used. Multiple matches cause the bot to ask for a more precise name or group ID.
+
+| Capability | Chinese command | English command |
+| --- | --- | --- |
+| Remote mute | `远程禁言 <群号或群名称> @用户 [时长秒数] [原因]` | `remote-mute <group_id_or_group_name> @user [duration seconds] [reason]` |
+| Remote unmute | `远程解禁 <群号或群名称> @用户 [原因]` | `remote-unmute <group_id_or_group_name> @user [reason]` |
+| Remote whole mute | `远程全体禁言 <群号或群名称>` | `remote-mute-all <group_id_or_group_name>` |
+| Remote whole unmute | `远程全体解禁 <群号或群名称>` | `remote-unmute-all <group_id_or_group_name>` |
+| Remote kick | `远程踢出 <群号或群名称> @用户 [原因]` | `remote-kick <group_id_or_group_name> @user [reason]` |
+| Remote block | `远程拉黑 <群号或群名称> @用户 [时长秒数] [原因]` | `remote-block <group_id_or_group_name> @user [duration seconds] [reason]` |
+| Remote unblock | `远程删黑 <群号或群名称> @用户 [原因]` | `remote-unblock <group_id_or_group_name> @user [reason]` |
+| Remote announcement | `远程公告 <群号或群名称> <内容> [图片]` | `remote-announcement <group_id_or_group_name> <content> [image]` |
+
+<Callout type="warn" title="Remote announcement availability">
+
+Remote announcement requires `LLOneBot >= 7.12.0` or `NapCat.Onebot >= 4.18.0`. Other OneBot V11 implementations cannot send group notices. The remote announcement menu entry is hidden when the implementation is unsupported.
+
+</Callout>
+
+<Callout type="info" title="Remote kick requires blocklist">
+
+`远程踢出` only works on users already in the blocklist for the target group. Use `远程拉黑` first if the user is not yet blocked.
+
+</Callout>
+
+## Error feedback
+
+Group management commands return readable error messages for covered adapter network errors and rejected operations. Unknown exceptions are still raised outward so developers can find uncovered cases.
+
+Feedback text and command trigger language use `LINGCHU_LOCALE`, `lc_locale`, or `locale` from the current NoneBot configuration. See [Internationalization](../../developer-guide/i18n).

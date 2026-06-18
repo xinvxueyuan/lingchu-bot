@@ -1,0 +1,87 @@
+---
+icon: MessageCircle
+title: QQ 平台概览
+---
+
+## QQ 平台概览
+
+QQ 是当前唯一实现的平台 profile。插件启动时通过 `LINGCHUAdapter` 选择一个 QQ 适配器（默认：`~onebot.v11`）。
+
+## 协议优先级
+
+| 优先级 | 协议 | 适配器 ID | NoneBot 包 |
+| --- | --- | --- | --- |
+| 1（默认） | OneBot V11 | `~onebot.v11` | `nonebot-adapter-onebot` |
+| 2 | Milky | `~milky` | `nonebot-adapter-milky` |
+| 3 | QQ 官方 | `~qq` | `nonebot-adapter-qq` |
+| 4 | OneBot V12 | `~onebot.v12` | `nonebot-adapter-onebot` |
+
+同一时间只有一个 QQ 适配器被视为已启用。NoneBot 加载的其他适配器被视为未启用，不参与平台识别、消息存储或 API 调用记录。
+
+## 切换协议
+
+在 `.env` 中设置 `LINGCHUAdapter`：
+
+<Tabs items={['OneBot V11', 'Milky']}>
+  <Tab value="OneBot V11">
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+  </Tab>
+  <Tab value="Milky">
+
+```dotenv
+LINGCHUAdapter=~milky
+```
+
+  </Tab>
+</Tabs>
+
+## 实现矩阵
+
+每个协议都有 `default` 处理器集合和可选的实现专属扩展：
+
+| 协议 | 实现 | 扩展亮点 |
+| --- | --- | --- |
+| OneBot V11 | `default` | 核心群管理命令 |
+| OneBot V11 | [NapCat](./onebot-v11/napcat) | 群公告 + 群头像 |
+| OneBot V11 | [LLOneBot](./onebot-v11/llonebot) | 群公告（文本 + 图片） |
+| Milky | `default` | 核心群管理命令 |
+| Milky | [LLBot](./milky/llbot) | 纯文本群公告 |
+
+<Callout type="warn" title="API 接口差异">
+
+同名 API 在不同适配器下返回不同类型。OneBot V11 返回 `dict`；Milky 返回 pydantic `Model` 对象。详见[适配器指南](../../developer-guide/adapter-guide)。
+
+</Callout>
+
+## 源码布局
+
+```
+handle/qq/
+├── commands/              # 共享 QQ 命令定义（Alconna 匹配器）
+│   ├── triggers.py        # 命令触发词（中/英）
+│   ├── mute.py
+│   ├── member.py
+│   ├── block.py
+│   ├── announcement.py
+│   ├── remote.py          # 远程管理命令
+│   └── ...
+└── adapters/
+    ├── onebot11/
+    │   ├── default/       # OneBot V11 默认处理器
+    │   ├── napcat/        # NapCat 扩展
+    │   └── llonebot/      # LLOneBot 扩展
+    └── milky/
+        ├── default/       # Milky 默认处理器
+        └── llbot/         # LLBot 扩展
+```
+
+## 下一步
+
+- [QQ 命令](./commands) — 完整命令参考（含远程管理）
+- [OneBot V11 协议](./onebot-v11/overview) — 协议概览和实现专属文档
+- [Milky 协议](./milky/overview) — 协议概览和实现专属文档

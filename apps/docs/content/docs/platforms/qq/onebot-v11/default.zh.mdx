@@ -1,0 +1,74 @@
+---
+icon: Settings
+title: 默认实现
+---
+
+## 默认实现
+
+`default` 包含只依赖 OneBot V11 标准 API 接口的处理器。这些处理器可以在任何 OneBot V11 实现（NapCat、LLOneBot、Lagrange 等）上运行，无需实现专属扩展。
+
+## 可用命令
+
+[QQ 命令](../commands) 中列出的所有命令在默认实现中都可用，除了：
+
+- `发送群公告` / `send-announcement` — 受实现版本门控（见 [NapCat](./napcat) 和 [LLOneBot](./llonebot)）
+- `设置群头像` / `set-group-avatar` — 受实现版本门控（见 [NapCat](./napcat)）
+- `远程公告` / `remote-announcement` — 受实现版本门控
+
+## 处理器模块
+
+| 模块 | 命令 |
+| --- | --- |
+| `mute.py` | `禁言`、`解禁`、`全员禁言`、`全体解禁` |
+| `member.py` | `踢出群成员`、`设置群名片`、`设置群头衔`、`设置群管理员`、`取消群管理员` |
+| `block.py` | `拉黑`、`全局拉黑`、`删黑`、`全局删黑`、`清空黑名单`、`全局清空黑名单` |
+| `profile.py` | `设置群名称`、`设置群头像`（仅 NapCat） |
+| `announcement.py` | `发送群公告`（版本门控） |
+| `lifecycle.py` | 机器人生命周期钩子（无用户命令） |
+| `remote.py` | 8 个远程管理命令（见下文） |
+| `menu.py` | 菜单页处理器 |
+
+## 远程管理
+
+`remote.py` 模块实现了 OneBot V11 独有的 8 个跨群命令：
+
+1. `远程禁言` / `remote-mute`
+2. `远程解禁` / `remote-unmute`
+3. `远程全体禁言` / `remote-mute-all`
+4. `远程全体解禁` / `remote-unmute-all`
+5. `远程踢出` / `remote-kick`（需要黑名单记录）
+6. `远程拉黑` / `remote-block`
+7. `远程删黑` / `remote-unblock`
+8. `远程公告` / `remote-announcement`（版本门控）
+
+### 群号解析
+
+所有远程命令接受 `<群号|群名称>`，可以是：
+
+- `int` 群号 — 直接使用。
+- 可解析为 `int` 的 `str` — 转换后使用。
+- 不可解析为 `int` 的 `str` — 通过 `get_group_list()` 模糊匹配：
+  1. 精确 `group_name` 匹配（首个命中）。
+  2. 包含关系匹配（`group_id in group_name`）。
+  3. 单个匹配 → 解析成功。
+  4. 多个匹配 → 机器人要求提供更精确的名称或群号。
+  5. 无匹配 → 机器人报告未找到匹配群聊。
+
+### 上下文校验
+
+执行远程操作前，机器人会检查：
+
+1. 机器人是目标群的成员（`get_group_list`）。
+2. 机器人在目标群具有管理员/群主角色（对大多数命令）。
+3. 目标用户是目标群的成员（对用户定向命令）。
+4. 目标不是机器人自己或命令发送者。
+
+## 共享辅助
+
+`common.py` 提供：
+
+- `resolve_user_onebot11(user, bot, event)` — 把 `At | int` 解析为 `(user_id, name)` 元组。输入无效时抛出 `ValueError`。
+
+## 源码参考
+
+参见仓库中的 [handle/qq/adapters/onebot11/default/](https://github.com/xinvxueyuan/lingchu-bot/tree/dev/src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default)。

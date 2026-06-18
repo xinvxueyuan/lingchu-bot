@@ -1,0 +1,10 @@
+{
+  "title": "平台",
+  "description": "按平台、协议和实现方式分离的平台专属文档",
+  "icon": "Layers",
+  "root": true,
+  "pages": [
+    "index",
+    "qq"
+  ]
+}

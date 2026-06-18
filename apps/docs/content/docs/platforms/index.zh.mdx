@@ -1,0 +1,36 @@
+---
+icon: Layers
+title: 平台
+---
+
+## 平台
+
+Lingchu Bot 按三层组织平台支持：**平台**、**协议**和**实现**。这种分离让每一层的行为、能力和配置关注点保持独立，而不是混在同一个页面里。
+
+## 层级模型
+
+| 层级 | 用途 | 示例 |
+| --- | --- | --- |
+| 平台 | 机器人连接的聊天网络 | QQ |
+| 协议 | 适配器实现的通信/API 标准 | OneBot V11、Milky |
+| 实现 | 说该协议的具体服务端 | NapCat、LLOneBot、LLBot、default |
+
+平台 profile（位于 `platforms/registry.py`）声明已知协议及其优先级。每个协议映射到一个 NoneBot 适配器包。在协议内部，一个或多个实现可以用实现专属 API 扩展默认处理器集合。
+
+## 可用平台
+
+| 平台 | 协议 | 状态 |
+| --- | --- | --- |
+| [QQ](/docs/platforms/qq/overview) | OneBot V11、Milky | 已实现 |
+
+<Callout type="info" title="添加新平台">
+
+Telegram、Discord 等平台 profile 属于后续工作。贡献流程参见[适配器指南](/docs/developer-guide/adapter-guide)。
+
+</Callout>
+
+## 命令的作用域
+
+命令处理器位于 `handle/<平台>/adapters/<协议>/<实现>/`。菜单系统在运行时按当前平台、协议和实现过滤可见命令，因此实现专属扩展 API（例如 LLOneBot 的群公告）只有在运行环境确认支持时才会显示。
+
+协议和实现专属的命令参考请见 [QQ 平台](/docs/platforms/qq/overview)。

@@ -1,15 +1,19 @@
 ---
 icon: Terminal
-title: 命令与群管理
+title: 命令概览
 ---
 
-## 命令与群管理
+## 命令概览
 
-![Lingchu Bot 命令与群管理](/images/docs/commands-management.png)
+![Lingchu Bot 命令与群管理](/images/docs/commands-management.webp)
 
-当前可确认的用户侧能力集中在 QQ 群管理命令。命令由 `nonebot-plugin-alconna` 注册，默认启用命令起始符和命令分隔符。QQ 平台默认使用 OneBot V11；如果需要使用 Milky，请在配置中设置 `LINGCHUAdapter = "~milky"`。
+Lingchu Bot 的用户侧能力集中在 QQ 群管理命令。命令由 `nonebot-plugin-alconna` 注册，默认启用命令起始符和命令分隔符。
 
-群管理命令的成功和失败反馈已经接入 gettext 翻译目录。命令触发词也会按配置的 locale 选择：中文 locale 启用既有中文触发词，英文 locale 启用短横线风格英文触发词。两种语言的触发词不会同时启用。
+## Locale 与触发词
+
+命令触发词按 locale 互斥选择。中文 locale 启用既有中文触发词，英文 locale 启用短横线风格英文触发词。两种语言的触发词不会同时启用。
+
+反馈文本和命令触发词语言会使用当前 NoneBot 配置中的 `LINGCHU_LOCALE`、`lc_locale` 或 `locale`。详见[国际化](../developer-guide/i18n)。
 
 ## 菜单
 
@@ -25,210 +29,36 @@ title: 命令与群管理
 menu
 ```
 
-常见别名包括：
-
-- `帮助`
-- `功能`
-- `功能列表`
-- `指令`
-- `命令列表`
-- `help`
-- `commands`
-
-菜单命令是索引入口。它只列出可进入的子菜单命令，不再把所有群管理功能堆在一条长消息里。子菜单完全由代码中的能力 registry 驱动，并按当前平台、适配器和具体实现过滤；依赖实现扩展 API 的功能只有在运行环境确认支持时才会显示。
-
-不被当前平台或实现支持的命令会被隐藏。
+菜单命令是索引入口。它只列出可进入的子菜单命令，不再把所有功能堆在一条长消息里。子菜单完全由代码驱动，并按当前平台、协议和实现过滤。
 
 默认子菜单命令：
 
-- `成员管理`：踢出群成员、OneBot V11 拉黑/删黑、设置群名片、设置群头衔、设置/取消管理员。
-- `发言管理`：禁言/解禁群成员、开启/关闭全体禁言。
-- `群聊管理`：设置群名称；当前适配器实现支持时显示设置群头像、发送群公告；也包含退出当前群。
+- `成员管理` / `member-management`
+- `发言管理` / `speech-management`
+- `群聊管理` / `group-chat-management`
+- `远程管理` / `remote-management`
 
-英文 locale 下对应的子菜单命令是 `member-management`、`speech-management`、`group-chat-management`。`群公告` 仍保留为发送群公告的别名，因此公告相关帮助收录在 `群聊管理` 子页。
+## 平台专属命令参考
 
-当前实现过滤规则包括：
+命令的可用性和行为因平台、协议和实现而异。完整命令参考请参见平台专属页面：
+
+- [QQ 命令](../platforms/qq/commands) — 完整 QQ 命令参考（含远程管理）
+- [QQ 平台概览](../platforms/qq/overview) — 协议与实现矩阵
+- [OneBot V11 协议](../platforms/qq/onebot-v11/overview) — 协议概览和实现专属文档
+- [Milky 协议](../platforms/qq/milky/overview) — 协议概览和实现专属文档
+
+## 实现过滤
+
+不被当前平台、协议或实现支持的命令会从菜单中隐藏。当前实现过滤规则包括：
 
 - OneBot V11 未知实现会隐藏群公告和群头像。
 - `LLOneBot >= 7.12.0` 显示群公告，但隐藏群头像。
 - `NapCat.Onebot >= 4.18.0` 显示群公告和群头像。
 - Milky 未知实现会隐藏群公告。
 - Milky `LLBot` 显示纯文本群公告；菜单不会宣称图片公告用法。
-
-## 成员禁言
-
-主命令：
-
-```text
-禁言 @用户 [时长秒数] [原因]
-```
-
-当 `LINGCHU_LOCALE` / `lc_locale` / `locale` 选择英文时的英文命令：
-
-```text
-mute @user [时长秒数] [原因]
-```
-
-默认值：
-
-- 时长：`60` 秒。
-- 原因：`违反群规「默认」`。
-
-常见别名包括：
-
-- `禁言用户`
-- `禁言群成员`
-- `禁言成员`
-- `ban`
-- `mute-member`
-- `ban-member`
-- `禁`
-- `封禁`
-
-## 成员解禁
-
-主命令：
-
-```text
-解禁 @用户 [原因]
-```
-
-当 `LINGCHU_LOCALE` / `lc_locale` / `locale` 选择英文时的英文命令：
-
-```text
-unmute @user [原因]
-```
-
-常见别名包括：
-
-- `解禁用户`
-- `解禁群成员`
-- `解禁成员`
-- `pardon`
-- `unmute-member`
-- `解封`
-- `解除封禁`
-- `解除禁言`
-
-## 全体禁言
-
-主命令：
-
-```text
-全员禁言
-```
-
-当 `LINGCHU_LOCALE` / `lc_locale` / `locale` 选择英文时的英文命令：
-
-```text
-mute-all
-```
-
-常见别名包括：
-
-- `开启全体禁言`
-- `全禁`
-- `全禁言`
-- `全体禁言`
-- `mute-group`
-- `enable-whole-mute`
-- `开启全员禁言`
-- `禁言群`
-
-## 全体解禁
-
-主命令：
-
-```text
-全体解禁
-```
-
-当 `LINGCHU_LOCALE` / `lc_locale` / `locale` 选择英文时的英文命令：
-
-```text
-unmute-all
-```
-
-常见别名包括：
-
-- `全员解禁`
-- `关闭全体禁言`
-- `解除全体禁言`
-- `解禁全体`
-- `解禁全员`
-- `unmute-group`
-- `disable-whole-mute`
-- `关闭全员禁言`
-- `解禁群`
-
-## OneBot V11 黑名单
-
-黑名单命令仅在 OneBot V11 可用。拉黑会把用户写入本群或全局黑名单，随后从当前群踢出该用户，并在黑名单生效期间拒绝该用户的后续加群请求。
-
-主命令：
-
-```text
-拉黑 @用户 [时长秒数] [原因]
-全局拉黑 @用户 [时长秒数] [原因]
-删黑 @用户 [原因]
-全局删黑 @用户 [原因]
-清空黑名单 [原因]
-全局清空黑名单 [原因]
-```
-
-当 `LINGCHU_LOCALE` / `lc_locale` / `locale` 选择英文时的英文命令：
-
-```text
-block @user [duration in seconds] [reason]
-global-block @user [duration in seconds] [reason]
-unblock @user [reason]
-global-unblock @user [reason]
-clear-blocklist [reason]
-global-clear-blocklist [reason]
-```
-
-默认值：
-
-- 时长：永久。
-- 拉黑原因：`违反群规「默认」`。
-- 删黑和清空原因：`管理员操作「默认」`。
-
-`清空黑名单` 只清空当前群黑名单；如需清空全局黑名单，请使用 `全局清空黑名单`。
-
-默认情况下，QQ `owner` 和 `admin` 身份组可以使用本群黑名单命令。全局黑名单命令需要更高权限。
-
-## 群设置与操作
-
-以下命令是当前源码中已经注册的 QQ 群管理处理器。命令默认作用于当前群，`@用户` 会解析为目标群成员。插件会按平台只启用一个 QQ 适配器；下表不把尚未实现的未来能力列为已可用命令。
-
-| 能力 | 中文命令 | 英文命令 |
-| --- | --- | --- |
-| 设置群名称 | `设置群名称 <新群名称>` | `set-group-name <new group name>` |
-| 设置群头像 | `设置群头像 <image_uri>` | `set-group-avatar <image_uri>` |
-| 设置群名片 | `设置群名片 @用户 <名片>` | `set-member-card @user <card>` |
-| 设置群成员专属头衔 | `设置群头衔 @用户 <头衔>` | `set-member-title @user <title>` |
-| 设置群管理员 | `设置群管理员 @用户 [true/false]` | `set-member-admin @user [true/false]` |
-| 取消群管理员 | `取消群管理员 @用户` | `unset-member-admin @user` |
-| 踢出黑名单成员 | `踢出群成员 <用户ID或@提及> [原因]` | `kick-member <user_id_or_mention> [reason]` |
-| 拉黑群成员 | `拉黑 @用户 [时长秒数] [原因]` | `block @user [duration seconds] [reason]` |
-| 全局拉黑群成员 | `全局拉黑 @用户 [时长秒数] [原因]` | `global-block @user [duration seconds] [reason]` |
-| 删除本群黑名单 | `删黑 @用户 [原因]` | `unblock @user [reason]` |
-| 删除全局黑名单 | `全局删黑 @用户 [原因]` | `global-unblock @user [reason]` |
-| 清空本群黑名单 | `清空黑名单 [原因]` | `clear-blocklist [reason]` |
-| 清空全局黑名单 | `全局清空黑名单 [原因]` | `global-clear-blocklist [reason]` |
-| 发送群公告 | `发送群公告 <内容> [image_uri]` | `send-announcement <content> [image_uri]` |
-| 退出当前群 | `退出群` | `leave-group` |
-
-代表性英文别名包括 `rename-group`、`change-group-avatar`、`set-group-card`、`set-special-title`、`set-admin`、`promote-admin`、`unset-admin`、`revoke-admin`、`kick`、`remove-member`、`block-member`、`global-block-member`、`unblock-member`、`global-unblock-member`、`announce`、`group-announcement` 和 `quit-group`。
-
-上表同时列出两套语言用于查阅；运行时只会注册当前 locale 选中的那一套命令触发词。
-
-群公告和群头像命令接收 `nonebot-plugin-alconna` 的 `UniImage` 参数。当前实现会把图片原始字节、本地路径或可下载 URL 解析到缓存文件，再交给适配器 API。包含空格的名称、公告内容、名片或头衔建议使用引号包裹，避免被命令分隔符拆分。
-
-群精华消息等能力属于后续迭代候选项，当前没有注册为用户可触发命令。
+- 远程管理命令仅 OneBot V11 可用。
+- 远程公告要求 `LLOneBot >= 7.12.0` 或 `NapCat.Onebot >= 4.18.0`。
 
 ## 错误反馈
 
 群管理命令会对已覆盖适配器的网络异常和操作拒绝返回可读错误消息。未知异常仍会向外抛出，方便开发者发现未覆盖的问题。
-
-反馈文本和命令触发词语言会使用当前 NoneBot 配置中的 `LINGCHU_LOCALE`、`lc_locale` 或 `locale`。未配置时遵循 i18n 辅助函数的默认 locale，当前仓库提供 `zh_CN` 和 `en_US` catalog。详见 [国际化](../developer-guide/i18n)。

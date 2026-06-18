@@ -19,28 +19,33 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
   <Folder name="src/plugins/nonebot_plugin_lingchu_bot" defaultOpen>
     <Folder name="core">
       <File name="config.py" />
+      <File name="runtime_config.py" />
+      <File name="sub_plugins.py" />
     </Folder>
     <Folder name="database">
       <File name="json5_store.py" />
+      <File name="message_storage.py" />
+      <File name="models.py" />
       <File name="orm_crud.py" />
     </Folder>
     <Folder name="handle">
+      <Folder name="menu.py" />
       <Folder name="qq">
-        <Folder name="group">
+        <Folder name="commands">
+          <File name="triggers.py" />
           <File name="mute.py" />
           <File name="member.py" />
-          <File name="profile.py" />
+          <File name="block.py" />
           <File name="announcement.py" />
+          <File name="remote.py" />
         </Folder>
-        <Folder name="onebot">
-          <Folder name="v11">
+        <Folder name="adapters">
+          <Folder name="onebot11">
             <Folder name="default" />
             <Folder name="llonebot" />
             <Folder name="napcat" />
           </Folder>
-        </Folder>
-        <Folder name="milky">
-          <Folder name="v1_2">
+          <Folder name="milky">
             <Folder name="default" />
             <Folder name="llbot" />
           </Folder>
@@ -56,12 +61,21 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
       </Folder>
     </Folder>
     <Folder name="platforms">
+      <File name="config.py" />
       <File name="registry.py" />
+    </Folder>
+    <Folder name="repositories">
+      <File name="blocklist.py" />
+      <File name="message_store.py" />
     </Folder>
     <Folder name="services">
       <File name="messagestore.py" />
     </Folder>
-    <Folder name="utils" />
+    <Folder name="start">
+      <File name="bootstrap.py" />
+      <File name="initialize.py" />
+      <File name="startup.py" />
+    </Folder>
   </Folder>
   <Folder name="apps/docs">
     <Folder name="content" />
@@ -77,12 +91,22 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
 | Module | Responsibility |
 | --- | --- |
 | `core/config.py` | Core configuration, localstore paths, and platform information |
+| `core/runtime_config.py` | Runtime configuration helpers |
+| `core/sub_plugins.py` | Sub-plugin loader |
 | `database/json5_store.py` | JSON5 file storage helper |
 | `database/orm_crud.py` | Async CRUD helper based on `nonebot-plugin-orm` |
-| `handle/qq/` | QQ group command definitions and platform/protocol/implementation handlers |
+| `database/message_storage.py` | Message event persistence |
+| `handle/menu.py` | Menu system (pages, sections, features, availability) |
+| `handle/qq/commands/` | Shared QQ command definitions (Alconna matchers, triggers) |
+| `handle/qq/adapters/onebot11/` | OneBot V11 handlers (default, napcat, llonebot) |
+| `handle/qq/adapters/milky/` | Milky handlers (default, llbot) |
 | `i18n/__init__.py` | gettext/Babel translation helpers, locale reading, and async catalog warmup |
 | `platforms/registry.py` | Platform capabilities, adapter mapping, priority selection, and conflict validation |
+| `platforms/config.py` | Platform default permission role presets |
+| `repositories/blocklist.py` | Blocklist data access |
+| `repositories/message_store.py` | Message store repository |
 | `services/messagestore.py` | Message event, processing result, bot lifecycle, and platform API call summary recording |
+| `start/` | Bootstrap, initialize, and startup hooks |
 
 ## Adapter status
 
@@ -92,7 +116,7 @@ Explicitly configuring multiple known adapters for the same platform raises `Pla
 
 <Callout title="Learn more">
 
-For detailed adapter configuration and API differences, see [Adapter Guide](adapter-guide).
+For detailed adapter configuration and API differences, see [Adapter Guide](adapter-guide). For platform-, protocol-, and implementation-specific command references, see [Platforms](../platforms).
 
 </Callout>
 

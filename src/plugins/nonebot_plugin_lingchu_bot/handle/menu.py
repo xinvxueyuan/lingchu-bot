@@ -124,6 +124,11 @@ MENU_PAGES: Final[tuple[MenuPage, ...]] = (
         ),
         command=LocalizedText("群聊管理", "group-chat-management"),
     ),
+    MenuPage(
+        "remote-management",
+        LocalizedText("远程管理", "Remote Management"),
+        command=LocalizedText("远程管理", "remote-management"),
+    ),
 )
 MENU_SECTIONS: Final[tuple[MenuSection, ...]] = tuple(
     MenuSection(page.id, page.title) for page in MENU_PAGES
@@ -371,6 +376,96 @@ MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         LocalizedText("", ""),
         PlatformCapability.GROUP_MANAGEMENT,
         _QQ_BOTH,
+    ),
+    MenuFeature(
+        "remote-mute",
+        "remote_mute",
+        "remote-management",
+        LocalizedText("远程禁言", "Remote mute"),
+        LocalizedText(
+            "<群号|群名称> @用户 [时长秒数] [原因]",
+            "<group_id|group_name> @user [duration seconds] [reason]",
+        ),
+        PlatformCapability.MEMBER_MODERATION,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
+        "remote-unmute",
+        "remote_unmute",
+        "remote-management",
+        LocalizedText("远程解禁", "Remote unmute"),
+        LocalizedText(
+            "<群号|群名称> @用户 [原因]",
+            "<group_id|group_name> @user [reason]",
+        ),
+        PlatformCapability.MEMBER_MODERATION,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
+        "remote-whole-mute",
+        "remote_whole_mute",
+        "remote-management",
+        LocalizedText("远程全体禁言", "Remote whole mute"),
+        LocalizedText("<群号|群名称>", "<group_id|group_name>"),
+        PlatformCapability.MEMBER_MODERATION,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
+        "remote-whole-unmute",
+        "remote_whole_unmute",
+        "remote-management",
+        LocalizedText("远程全体解禁", "Remote whole unmute"),
+        LocalizedText("<群号|群名称>", "<group_id|group_name>"),
+        PlatformCapability.MEMBER_MODERATION,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
+        "remote-kick",
+        "remote_kick",
+        "remote-management",
+        LocalizedText("远程踢出", "Remote kick"),
+        LocalizedText(
+            "<群号|群名称> @用户 [原因]",
+            "<group_id|group_name> @user [reason]",
+        ),
+        PlatformCapability.MEMBER_MODERATION,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
+        "remote-block",
+        "remote_block",
+        "remote-management",
+        LocalizedText("远程拉黑", "Remote block"),
+        LocalizedText(
+            "<群号|群名称> @用户 [时长秒数] [原因]",
+            "<group_id|group_name> @user [duration seconds] [reason]",
+        ),
+        PlatformCapability.MEMBER_MODERATION,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
+        "remote-unblock",
+        "remote_unblock",
+        "remote-management",
+        LocalizedText("远程删黑", "Remote unblock"),
+        LocalizedText(
+            "<群号|群名称> @用户 [原因]",
+            "<group_id|group_name> @user [reason]",
+        ),
+        PlatformCapability.MEMBER_MODERATION,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
+        "remote-announcement",
+        "remote_announcement",
+        "remote-management",
+        LocalizedText("远程公告", "Remote announcement"),
+        LocalizedText(
+            "<群号|群名称> <内容> [图片]",
+            "<group_id|group_name> <content> [image]",
+        ),
+        PlatformCapability.ANNOUNCEMENT,
+        (*_ONEBOT_ANNOUNCEMENT,),
     ),
 )
 

@@ -79,10 +79,12 @@ def test_menu_index_lists_direct_submenus_only() -> None:
     assert "- 成员管理" in rendered
     assert "- 发言管理" in rendered
     assert "- 群聊管理" in rendered
+    assert "- 远程管理" in rendered
     assert "- 成员管理: 成员管理" not in rendered
     assert "踢出群成员" not in rendered
     assert "禁言群成员" not in rendered
     assert "设置群名称" not in rendered
+    assert "远程禁言" not in rendered
 
 
 def test_menu_index_keeps_distinct_english_title_and_trigger() -> None:
@@ -95,6 +97,7 @@ def test_menu_index_keeps_distinct_english_title_and_trigger() -> None:
     assert "- Member Management: member-management" in rendered
     assert "- Speech Management: speech-management" in rendered
     assert "- Group Chat Management: group-chat-management" in rendered
+    assert "- Remote Management: remote-management" in rendered
 
 
 def test_menu_page_commands_do_not_claim_announcement_alias() -> None:
@@ -102,6 +105,7 @@ def test_menu_page_commands_do_not_claim_announcement_alias() -> None:
         "member-management",
         "speech-management",
         "group-chat-management",
+        "remote-management",
     }
     assert COMMAND_TRIGGERS["send_announcement"].chinese_aliases == {
         "发群公告",
@@ -280,6 +284,63 @@ def test_fail_closed_when_platform_capability_missing() -> None:
 
     assert "退出当前群" in rendered
     assert "禁言群成员" not in rendered
+
+
+def test_remote_management_page_lists_remote_commands() -> None:
+    rendered = render_menu_page(
+        "remote-management",
+        qq_menu_context(adapter_id=ONEBOT_V11_ADAPTER_ID),
+        "zh_CN",
+    )
+
+    assert "远程管理" in rendered
+    assert "远程禁言" in rendered
+    assert "远程解禁" in rendered
+    assert "远程全体禁言" in rendered
+    assert "远程全体解禁" in rendered
+    assert "远程踢出" in rendered
+    assert "远程拉黑" in rendered
+    assert "远程删黑" in rendered
+    assert "踢出群成员" not in rendered
+    assert "禁言群成员" not in rendered
+
+
+def test_remote_management_page_hides_announcement_for_unsupported_impl() -> None:
+    rendered = render_menu_page(
+        "remote-management",
+        qq_menu_context(adapter_id=ONEBOT_V11_ADAPTER_ID),
+        "zh_CN",
+    )
+
+    assert "远程禁言" in rendered
+    assert "远程公告" not in rendered
+
+
+def test_remote_management_page_shows_announcement_for_napcat() -> None:
+    rendered = render_menu_page(
+        "remote-management",
+        qq_menu_context(
+            adapter_id=ONEBOT_V11_ADAPTER_ID,
+            implementation_name=NAPCAT_IMPL,
+            implementation_version="4.18.0",
+            protocol_version="v11",
+        ),
+        "zh_CN",
+    )
+
+    assert "远程公告" in rendered
+    assert "远程禁言" in rendered
+
+
+def test_remote_management_page_hides_for_milky_adapter() -> None:
+    rendered = render_menu_page(
+        "remote-management",
+        qq_menu_context(adapter_id=MILKY_ADAPTER_ID),
+        "zh_CN",
+    )
+
+    assert "远程禁言" not in rendered
+    assert "远程公告" not in rendered
 
 
 @pytest.mark.asyncio

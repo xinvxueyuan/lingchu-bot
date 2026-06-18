@@ -214,7 +214,7 @@ task ci                                          # check + test + build
 | What changed          | Minimum checks before commit                                                      |
 | --------------------- | --------------------------------------------------------------------------------- |
 | Python source only    | `ruff check` + `ruff format --check` + `pyright` + `ty check` + `pytest`         |
-| Docs site only        | `pnpm --filter docs lint` + `pnpm --filter docs test` + `tsc --noEmit`           |
+| Docs site only        | `pnpm --filter docs lint` + `pnpm --filter docs test` + `pnpm turbo run check-types --filter=docs` + `pnpm --filter docs lint:links` |
 | Markdown only         | `markdownlint-cli2`                                                               |
 | i18n strings          | `task i18n` + `pytest`                                                            |
 | Mixed / unsure        | `task check && task test`                                                          |
@@ -325,7 +325,14 @@ When modifying business logic (especially adapter-layer code), changes MUST prop
 1. **Source code** — `src/plugins/nonebot_plugin_lingchu_bot/`
 2. **Tests** — `tests/` (add/update tests for new behavior, remove tests for deleted behavior)
 3. **i18n** — `src/plugins/nonebot_plugin_lingchu_bot/i18n/` (run `task i18n` if user-facing strings change)
-4. **Docs** — `apps/docs/content/docs/` (update command docs if behavior changes)
+4. **Docs** — `apps/docs/content/docs/`:
+   - `platforms/qq/commands.mdx` (and `.zh.mdx`) — Full command reference
+   - `platforms/qq/<protocol>/<implementation>.mdx` — Implementation-specific docs
+   - `user-guide/commands.mdx` — High-level overview (only if menu structure changes)
+   - `developer-guide/introduction.mdx` — Project structure (only if source layout changes)
+5. **Menu** — `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py` (update `MENU_FEATURES` when adding/removing/modifying command handlers: command key, usage text, summary, availability)
+6. **Triggers** — `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` (add command triggers for new commands)
+7. **AGENTS.md** — Update Project Directory Tree and Lessons Learned if structure or conventions change
 
 After changes, always run the full check suite: `task check && task test`
 
@@ -552,3 +559,19 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 
 - **非组件导出破坏 Fast Refresh**：从组件文件（`mermaid.tsx`）导出工具函数（`getMermaidConfig`、`sanitizeMermaidSvg`、`renderMermaidSvg`）会触发 `react-doctor/only-export-components`。应将它们提取到独立的非组件模块（如 `mermaid-utils.ts`）并从那里导入。同时更新测试导入。
 - **`/llms.txt` 是路由处理器而非静态文件**：从组件链接到 Next.js 路由处理器时，应使用 `<Link>`（而非普通 `<a>`）——它们是内部路由，可受益于客户端导航。
+
+### Docs CI 和单元测试覆盖
+
+为文档站点（`apps/docs/`）添加 CI 检查或单元测试时，出现过以下陷阱：
+
+1. **MDX 表格中的 `|` 破坏内联代码跨度**：在 markdown 表格单元格内，`<群号|群名称>` 会被解析为三个表格列（`<群号`、`群名称>`），从而将 `<...>` 暴露为 JSX 并导致 "Unexpected end of file in name" 构建错误。应将 `|` 替换为 `或` / `_or_`（与现有风格一致，如 `<用户ID或@提及>`）。此规则同时适用于 `.mdx` 和 `.zh.mdx` 文件。
+
+2. **`fumadocs-mdx` node loader 无法处理图片资源**：`lint:links` 脚本使用 `fumadocs-mdx/node` 的 `register()` 加载 MDX 文件以进行链接验证。当 MDX 文件导入 `.png`/`.jpg`/`.svg` 时，loader 的 `load` 钩子会调用 `nextLoad`，到达 Node 默认加载器并抛出 `ERR_UNKNOWN_FILE_EXTENSION`。解决方法是通过 `node:module` 的 `module.registerHooks()`（Node.js 23+）注册一个 `load` 钩子，对图片文件扩展名返回 `export default undefined;`。在 `scripts/lint.mts` 顶部、导入 `fumadocs-mdx/node` 之前添加此钩子。
+
+3. **`next-validate-link` 从根索引页的 URL 解析**：根索引页（如 `platforms/index.mdx`）的 URL 没有尾部斜杠（`/docs/platforms`），因此相对链接如 `./qq` 会解析为 `/docs/qq` 而非 `/docs/platforms/qq`。从根索引页链接时应使用绝对 URL（如 `/docs/platforms/qq/overview`）。目录链接（如 `./onebot-v11`）必须包含具体页面后缀（`./onebot-v11/overview`）——纯目录链接无法通过验证。
+
+4. **提取共享函数以提高可测试性**：当函数（如 `provider.tsx` 中的 `switchLocale`）定义在 React 组件文件内时，单元测试要么无法导入它，要么必须复制逻辑（从而偏离真实实现）。应将此类函数提取到独立模块（如 `src/lib/locale.ts`），组件和测试都从该模块导入。这确保测试验证的是真实导出，而非过时副本。
+
+5. **在 vitest 中 mock `collections/server` 以防止 MDX 加载**：从 `src/lib/source.ts` 导入的测试会通过 `collections/server` 别名传递加载 MDX 集合文件，vitest 无法将其解析为 JavaScript（错误："Failed to parse source for import analysis"）。在测试文件顶部添加 `vi.mock('collections/server', () => ({ docs: { toFumadocsSource: () => ({}) } }))` 来 stub 集合并阻止 MDX 文件加载。
+
+6. **`ci:docs` Taskfile 任务**：本地 docs CI 模拟任务（`task ci:docs`）运行完整的 docs 流水线：`pnpm turbo run lint check-types` → `pnpm --filter docs lint:links` → `pnpm --filter docs test` → `pnpm --filter docs build`。构建步骤使用 `pnpm --filter docs build`（而非 `pnpm turbo run build`），因为在 Windows 上通过 `task` 运行 `turbo` 包装的 `next build` 会留下子进程，导致任务无法退出。Linux 上的 CI 工作流不受影响，仍使用 `pnpm turbo run build`。

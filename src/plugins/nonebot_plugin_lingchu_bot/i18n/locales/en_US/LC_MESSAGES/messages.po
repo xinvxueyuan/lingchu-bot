@@ -596,6 +596,160 @@ msgstr "Lingchu enabled adapters: {adapters}"
 msgid "Lingchu 忽略未选中的已注册适配器: {adapters}"
 msgstr "Lingchu ignored unselected registered adapters: {adapters}"
 
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/remote.py:20
+msgid "导入remote处理器..."
+msgstr "Importing remote handler..."
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:83
+msgid "获取群列表失败"
+msgstr "Failed to get group list"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:104
+#, python-brace-format
+msgid "匹配到多个群聊，请提供更精确的名称或群号: {names}"
+msgstr "Multiple groups matched, please provide a more precise name or group ID: {names}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:111
+#, python-brace-format
+msgid "未找到名称包含「{name}」的群聊"
+msgstr "No group found with name containing \"{name}\""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:653
+msgid "群公告内容不能为空"
+msgstr "Group announcement content cannot be empty"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:678
+msgid "不支持的 OneBot 协议版本"
+msgstr "Unsupported OneBot protocol version"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:696
+msgid "不支持的 OneBot 版本"
+msgstr "Unsupported OneBot version"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:701
+msgid "远程公告失败，操作被拒绝"
+msgstr "Remote announcement failed, operation rejected"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:721
+#, python-brace-format
+msgid "远程公告已发送: 目标群 {group_id}"
+msgstr "Remote announcement sent: Target group {group_id}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:85
+msgid "机器人不在目标群聊中"
+msgstr "Bot is not in the target group"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:90
+msgid "机器人在目标群聊中没有管理员权限"
+msgstr "Bot does not have admin permissions in the target group"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:105
+msgid "目标用户不在目标群聊中"
+msgstr "Target user is not in the target group"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:125
+msgid "远程禁言失败，操作被拒绝"
+msgstr "Remote mute failed, operation rejected"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:132
+#, python-brace-format
+msgid ""
+"已远程禁言: \n"
+"目标群: {group_id}\n"
+"名称: {name_display}\n"
+"时长: {duration} 秒\n"
+"原因: {reason}\n"
+"标识: {target_user_id}"
+msgstr ""
+"Remotely muted: \n"
+"Target group: {group_id}\n"
+"Name: {name_display}\n"
+"Duration: {duration} seconds\n"
+"Reason: {reason}\n"
+"ID: {target_user_id}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:175
+msgid "远程解禁失败，操作被拒绝"
+msgstr "Remote unmute failed, operation rejected"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:182
+#, python-brace-format
+msgid "已远程解禁: \n目标群: {group_id}\n名称: {name_display}\n原因: {reason}\n标识: {target_user_id}"
+msgstr "Remotely unmuted: \nTarget group: {group_id}\nName: {name_display}\nReason: {reason}\nID: {target_user_id}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:215
+msgid "远程全体禁言失败，操作被拒绝"
+msgstr "Remote whole-group mute failed, operation rejected"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:218
+#, python-brace-format
+msgid "已远程开启全体禁言: 目标群 {group_id}"
+msgstr "Remote whole-group mute enabled: Target group {group_id}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:248
+msgid "远程全体解禁失败，操作被拒绝"
+msgstr "Remote whole-group unmute failed, operation rejected"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:251
+#, python-brace-format
+msgid "已远程关闭全体禁言: 目标群 {group_id}"
+msgstr "Remote whole-group mute disabled: Target group {group_id}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:290
+msgid "远程踢出群成员失败，操作被拒绝"
+msgstr "Remote kick failed, operation rejected"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:294
+#, python-brace-format
+msgid "已远程踢出群成员 {name}{reason}，目标群: {group_id}"
+msgstr "Remotely kicked group member {name}{reason}, target group: {group_id}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:335
+msgid "远程拉黑失败，数据库异常"
+msgstr "Remote block failed, database error"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:338
+msgid "远程拉黑失败，操作被拒绝"
+msgstr "Remote block failed, operation rejected"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:345
+#, python-brace-format
+msgid ""
+"已远程拉黑并踢出: \n"
+"目标群: {group_id}\n"
+"名称: {name_display}\n"
+"时长: {duration}\n"
+"原因: {reason}\n"
+"标识: {target_user_id}"
+msgstr ""
+"Remotely blocked and kicked: \n"
+"Target group: {group_id}\n"
+"Name: {name_display}\n"
+"Duration: {duration}\n"
+"Reason: {reason}\n"
+"ID: {target_user_id}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:385
+msgid "远程删黑失败，数据库异常"
+msgstr "Remote unblock failed, database error"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:392
+#, python-brace-format
+msgid ""
+"已远程删黑: \n"
+"目标群: {group_id}\n"
+"名称: {name_display}\n"
+"原因: {reason}\n"
+"标识: {target_user_id}\n"
+"删除记录: {deleted}"
+msgstr ""
+"Remotely unblocked: \n"
+"Target group: {group_id}\n"
+"Name: {name_display}\n"
+"Reason: {reason}\n"
+"ID: {target_user_id}\n"
+"Deleted records: {deleted}"
+
 #~ msgid "发送群公告"
 #~ msgstr "Send group announcement"
 

@@ -1,0 +1,11 @@
+{
+  "title": "Milky",
+  "description": "Milky protocol documentation separated by implementation",
+  "icon": "Plug",
+  "root": true,
+  "pages": [
+    "overview",
+    "default",
+    "llbot"
+  ]
+}

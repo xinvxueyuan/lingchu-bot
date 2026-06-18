@@ -1,0 +1,12 @@
+{
+  "title": "OneBot V11",
+  "description": "OneBot V11 protocol documentation separated by implementation",
+  "icon": "Plug",
+  "root": true,
+  "pages": [
+    "overview",
+    "default",
+    "napcat",
+    "llonebot"
+  ]
+}

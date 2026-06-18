@@ -48,8 +48,14 @@ jobs:
       - name: 安装 Node 依赖
         run: pnpm install --frozen-lockfile
 
-      - name: Lint & Test
-        run: pnpm turbo run lint && pnpm --filter docs test
+      - name: Lint & Type Check
+        run: pnpm turbo run lint check-types
+
+      - name: Link Validation
+        run: pnpm --filter docs lint:links
+
+      - name: Test
+        run: pnpm --filter docs test
 
       - name: Build
         run: pnpm turbo run build --filter=docs
