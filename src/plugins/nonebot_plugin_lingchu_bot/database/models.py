@@ -24,16 +24,13 @@ def utc_now() -> datetime:
 
 
 class MessageRecord(Model):
-    """Stored message-processing record.
-
-    The first version stores queryable metadata plus a short text summary only.
-    It intentionally does not persist raw adapter event payloads.
-    """
+    """Real incoming message event stored in the global ORM database."""
 
     __tablename__ = "lingchu_message_records"
     __table_args__ = (
         UniqueConstraint(
             "platform",
+            "adapter",
             "bot_id",
             "conversation_id",
             "message_id",
@@ -51,14 +48,14 @@ class MessageRecord(Model):
     event_type: Mapped[str] = mapped_column(String(128), index=True)
     message_type: Mapped[str | None] = mapped_column(String(64), index=True)
     text_summary: Mapped[str | None] = mapped_column(Text)
+    raw_message: Mapped[str | None] = mapped_column(Text)
+    raw_event: Mapped[str | None] = mapped_column(Text)
     process_status: Mapped[str] = mapped_column(
         String(32),
         default="received",
         index=True,
     )
     exception_summary: Mapped[str | None] = mapped_column(Text)
-    api_name: Mapped[str | None] = mapped_column(String(128), index=True)
-    api_result_summary: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utc_now,
@@ -68,6 +65,27 @@ class MessageRecord(Model):
         DateTime(timezone=True),
         default=utc_now,
         onupdate=utc_now,
+        index=True,
+    )
+
+
+class AuditRecord(Model):
+    """Audit event for API calls and bot lifecycle events."""
+
+    __tablename__ = "lingchu_audit_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    platform: Mapped[str] = mapped_column(String(64), index=True)
+    adapter: Mapped[str] = mapped_column(String(64), index=True)
+    bot_id: Mapped[str] = mapped_column(String(128), index=True)
+    audit_type: Mapped[str] = mapped_column(String(64), index=True)
+    event_type: Mapped[str] = mapped_column(String(128), index=True)
+    data_summary: Mapped[str | None] = mapped_column(Text)
+    result_summary: Mapped[str | None] = mapped_column(Text)
+    exception_summary: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
         index=True,
     )
 
