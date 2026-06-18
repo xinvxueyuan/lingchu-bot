@@ -51,4 +51,4 @@ npx react-doctor@latest --verbose --diff
 - The docs site (`apps/docs`) uses Next.js 16 + Fumadocs 16 + React 19 + Tailwind CSS 4
 - All server components and route handlers are async functions
 - Client components use `useSyncExternalStore` instead of `useState` + `useEffect` for mount detection
-- The project has a `react-doctor.yml` CI workflow that runs on PRs
+- The project has a `🩺-react-doctor.yml` CI workflow that runs on PRs

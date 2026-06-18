@@ -105,7 +105,7 @@ If you only change documentation that describes i18n, gettext catalogs do not ne
 
 - `🧪 CI`: Static Analysis runs `task ci:static`; Tests & Type Check runs Pyright, ty, and pytest; Docs Check runs Turbo lint/type check and docs test.
 - `👷 CI-builds`: runs `task ci:build`; on pushes to `main`, `dev`, or `releases/**`, it also bumps the dev version, writes `core_version`, builds, archives artifacts, generates provenance, and commits/tags the version.
-- `📚 文档部署`: when docs-related paths are pushed to `main` or `dev`, it runs pnpm/Turbo lint, docs test, docs build, and deploys GitHub Pages.
+- `📚 Docs Deploy`: when docs-related paths are pushed to `main` or `dev`, it runs pnpm/Turbo lint, docs test, docs build, and deploys GitHub Pages.
 - Auto Fix & Format: on `main` and `dev` pushes, after CI passes, it runs `task ci:fix` and may automatically commit formatting fixes.
 
 ## Handling CI failures

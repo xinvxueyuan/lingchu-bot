@@ -1,26 +1,39 @@
 version: 2
 updates:
+  # Python (uv) — root pyproject.toml + uv.lock
   - package-ecosystem: "pip"
     target-branch: develop
     directory: "/"
     schedule:
-      interval: "daily" # Check frequency: daily, weekly, or monthly
-    open-pull-requests-limit: 5 # Max simultaneous PRs
-    # Optional configurations below — enable as needed
-    # ignore:
-    #   - dependency-name: "example-package"
-    #     versions:
-    #       - "1.0.0"
-    #   - dependency-name: "another-package"
-    #     versions:
-    #       - "2.0.0"
-    # commit-message:
-    #   prefix: "deps"
-    #   include: "scope" # Options: scope, dependency-name, version
-    # versioning-strategy: increase-if-necessary # Options: auto, increase-if-necessary, widen, increase-if-necessary-and-widen
-    # reviewers:
-    #   - "github-username"
-    # assignees:
-    #   - "github-username"
-    # labels:
-    #   - "dependencies"
+      interval: "daily"
+    open-pull-requests-limit: 5
+
+  # pnpm monorepo — root + apps/* + packages/*
+  - package-ecosystem: "npm"
+    target-branch: develop
+    directories:
+      - "/"
+      - "/apps/*"
+      - "/packages/*"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    groups:
+      # Merge the same dependency across multiple workspace directories into a
+      # single PR to reduce CI and review burden.
+      monorepo-deps:
+        group-by: dependency-name
+
+  # GitHub Actions — .github/workflows/*.yml
+  - package-ecosystem: "github-actions"
+    target-branch: develop
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+    groups:
+      # Group minor and patch updates into a single PR; major versions get
+      # separate PRs for easier review.
+      actions:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]

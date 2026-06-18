@@ -593,7 +593,7 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 | 内容                                                    | 位置                                   | 抑制原因                                                                                                                             | 回退条件                                                                                                     |
 | ------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
 | `deslop/unused-export: "off"`                           | `doctor.config.ts`                     | `mdx.tsx` 中的 `useMDXComponents` 是框架必需的重导出，但当前未被消费（`source.config.ts` 未配置 `providerImportSource`）               | 当 `useMDXComponents` 被实际消费后移除此抑制（如添加 `providerImportSource` 到 `source.config.ts` 或在其他地方导入它） |
-| 使用 CLI 而非 `millionco/react-doctor@v2` action        | `.github/workflows/react-doctor.yml`   | 上游 action 存在 bug：detached HEAD、ANSI 泄漏到 PR 评论（PR #80 待合并）                                                             | 上游修复发布后切换回 action（关注 PR #80）                                                                     |
+| 使用 CLI 而非 `millionco/react-doctor@v2` action        | `.github/workflows/🩺-react-doctor.yml`   | 上游 action 存在 bug：detached HEAD、ANSI 泄漏到 PR 评论（PR #80 待合并）                                                             | 上游修复发布后切换回 action（关注 PR #80）                                                                     |
 
 - **非组件导出破坏 Fast Refresh**：从组件文件（`mermaid.tsx`）导出工具函数（`getMermaidConfig`、`sanitizeMermaidSvg`、`renderMermaidSvg`）会触发 `react-doctor/only-export-components`。应将它们提取到独立的非组件模块（如 `mermaid-utils.ts`）并从那里导入。同时更新测试导入。
 - **`/llms.txt` 是路由处理器而非静态文件**：从组件链接到 Next.js 路由处理器时，应使用 `<Link>`（而非普通 `<a>`）——它们是内部路由，可受益于客户端导航。
@@ -626,4 +626,23 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 - **注册表数据播种**：当添加与 Python 数据结构对应的数据库注册表（如 `registry.py`）时，应实现 `seed_registry_tables()` 函数在启动时执行 upsert。使用 `conflict_fields` 实现幂等 upsert，确保重复运行不会产生重复记录。
 - **协议维度追踪**：为现有表添加 `protocol_id` 列时，应设为可空（`Mapped[str | None]`），因为在记录时协议实现并不总能确定（例如在 event_preprocessor 阶段，处理器尚未运行）。
 - **可空列的唯一约束**：SQLite 在唯一约束中将 NULL 视为不同值，因此 `(platform_id, adapter_id, protocol_id, ...)` 允许同一消息标识存在多条 `protocol_id=NULL` 的记录。这对消息记录可接受，但应记录在文档中。
-- **新部署的迁移脚本重写**：当用户接受“仅新部署”策略时，直接重写初始迁移脚本，而非创建修改 schema 的新迁移。这能保持新部署的迁移历史整洁。
+- **新部署的迁移脚本重写**：当用户接受"仅新部署"策略时，直接重写初始迁移脚本，而非创建修改 schema 的新迁移。这能保持新部署的迁移历史整洁。
+
+### GitHub Actions SHA 固定最佳实践
+
+- **优先使用 commit SHA 而非 annotated tag 对象 SHA**：固定 GitHub Actions 到版本标签时，`git/refs/tags/{tag}` API 返回的是 annotated tag 对象 SHA，而非 commit SHA。使用 `git/tags/{sha}` 将 annotated tag 解引用为 commit SHA。固定到 commit SHA 是文档推荐的最佳实践——确保 pin 指向实际被审查的代码，而非可能被重新创建的中间 Git 对象。
+- **不要相信注释而要验证实际 SHA**：审查 action pin 版本时，`# pinned from actions/checkout@v6.0.3` 等注释可能已过时。始终通过 GitHub API 解析实际 SHA，验证其与声称的 release tag 匹配。
+- **Dependabot 自动维护 action pin**：在 `dependabot.yml` 中配置 `package-ecosystem: "github-actions"`，当 action 发布新版本时自动开 PR。使用 `groups` + `update-types: ["minor", "patch"]` 批量处理低风险更新。
+
+### 工作流文件名与名称约定
+
+- **所有工作流文件名使用 emoji 前缀 + kebab-case**：`.github/workflows/` 下所有工作流文件遵循 `<emoji>-<kebab-case-name>.yml` 模式（如 `🧪-ci.yml`、`🩺-react-doctor.yml`）。这使工作流在文件列表和 GitHub Actions UI 中视觉可辨。
+- **工作流 `name:` 字段使用英文**：`name:` 字段出现在 GitHub Actions UI 中，应使用英文以便通用可读。格式：`<emoji> <English Name>`（如 `name: 📚 Docs Deploy`）。
+- **文件名 emoji 与 `name:` emoji 保持一致**：文件名中的 emoji 应与 `name:` 字段中的 emoji 匹配。
+- **重命名前搜索文件名引用**：重命名工作流文件时，grep 整个仓库查找旧文件名（含 `.yml` 扩展名）以找到所有引用。检查 AGENTS.md、CLAUDE.md、AGENTS-zh.md、MDX 文档、skill 文件，以及工作流文件本身（`paths:` 触发器中的自引用）。
+
+### .github 配置风格统一
+
+- **所有 .github 配置文件使用英文注释**：`.github/` 下所有 YAML 配置文件统一使用英文注释。包括 `dependabot.yml`、`labeler.yml`、`auto_assign.yml` 等。
+- **移除损坏的 `yaml-language-server: $schema=` 行**：如果配置文件有 `# yaml-language-server: $schema=` 注释但 URL 为空或无效，移除该行。仅在存在有效 JSON schema URL 时才添加 schema 注释。
+- **Dependabot monorepo 配置**：pnpm/Turborepo monorepo 的 npm 生态使用 `directories`（复数，支持 glob 模式）而非 `directory`（单数）。使用 `groups` + `patterns` + `update-types` 将次版本/补丁更新合并为单个 PR，跨所有工作区目录。
