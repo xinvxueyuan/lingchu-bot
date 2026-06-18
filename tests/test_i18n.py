@@ -1,3 +1,5 @@
+import pytest
+
 from src.plugins.nonebot_plugin_lingchu_bot.i18n import (
     _,
     gettext,
@@ -5,20 +7,38 @@ from src.plugins.nonebot_plugin_lingchu_bot.i18n import (
 )
 
 
-def test_gettext_uses_default_chinese_catalog() -> None:
-    assert _("全体禁言成功") == "全体禁言成功"
+@pytest.mark.i18n
+def test_gettext_uses_configured_catalog(configured_locale: str) -> None:
+    expected = {
+        "zh_CN": "全体禁言成功",
+        "en_US": "Whole-group mute enabled",
+    }
+    assert _("全体禁言成功") == expected[configured_locale]
 
 
-def test_gettext_can_use_english_catalog() -> None:
-    assert gettext("全体禁言成功", locale="en-US") == "Whole-group mute enabled"
-    assert gettext("灵初功能菜单", locale="en-US") == "Lingchu Menu"
-    assert gettext("管理员操作「默认」", locale="en-US") == (
-        "Administrator action (default)"
-    )
+@pytest.mark.i18n
+def test_gettext_translates_message(locale: str) -> None:
+    expected = {
+        "全体禁言成功": {
+            "zh_CN": "全体禁言成功",
+            "en_US": "Whole-group mute enabled",
+        },
+        "灵初功能菜单": {
+            "zh_CN": "灵初功能菜单",
+            "en_US": "Lingchu Menu",
+        },
+        "管理员操作「默认」": {
+            "zh_CN": "管理员操作「默认」",
+            "en_US": "Administrator action (default)",
+        },
+    }
+    for message, translations in expected.items():
+        assert gettext(message, locale=locale) == translations[locale]
 
 
-def test_gettext_falls_back_for_unknown_message() -> None:
-    assert gettext("未翻译文本", locale="en_US") == "未翻译文本"
+@pytest.mark.i18n
+def test_gettext_falls_back_for_unknown_message(locale: str) -> None:
+    assert gettext("未翻译文本", locale=locale) == "未翻译文本"
 
 
 def test_normalize_locale() -> None:
