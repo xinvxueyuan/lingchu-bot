@@ -421,6 +421,15 @@ When removing functions/helpers:
 - Cache the resolved tool reference in a variable at the top of the hook and reuse it across phases; avoid re-running `command -v` inside loops or per-file logic.
 - When using `.cmd` shims (Windows Node shims like `pnpm.cmd`, `npx.cmd`), execute them via `cmd.exe /c <shim> ...` — running the `.cmd` directly from Git Bash can silently exit with misleading "node not found" errors.
 
+### Database Storage Reorganization
+
+- **Unified ORM consolidation**: When migrating from custom SQLAlchemy engines to `nonebot_plugin_orm`, remove ALL custom engine management code (`Base`, `_ENGINES`, `session_for()`, `storage_target()`, `close_engines()`) — do not leave remnants. All data access must go through `orm_crud.py` + `get_session()`.
+- **Test rewrite pattern**: Tests that directly manipulated database files (e.g., checking `.db` file existence, using `session_for()` to modify records) MUST be rewritten to mock `orm_crud` functions at the repository module level using `patch.object(repository, "create"/"upsert"/"get_one"/"update"/"list_items"/"delete", ...)`. Follow the pattern in `tests/database/test_blocklist.py`.
+- **Alembic migration generation**: `nb orm revision` may generate an empty migration (`pass` in both `upgrade()` and `downgrade()`) if the database file already contains tables from previous `create_all` calls. In this case, manually write the migration script with `op.create_table()` / `op.create_index()` operations based on the model definitions, or delete the existing database file first (if not locked by another process).
+- **File-to-package conversion**: When converting a single `.py` file (e.g., `json5_store.py`) to a package (`json5_store/`), the `__init__.py` MUST explicitly re-export all public API symbols via `from .submodule import Symbol` and list them in `__all__`. Merely importing the submodule is insufficient — test imports like `from ..database.json5_store import RobustAsyncJSON5DB` will fail without explicit re-exports.
+- **Migration script lint**: Alembic-generated migration scripts use `collections.abc.Sequence` only for type annotations. With `from __future__ import annotations` in place, move the `Sequence` import into a `TYPE_CHECKING` block to satisfy ruff's `TC003` rule.
+- **Documentation sync**: When deleting or renaming source files, update ALL documentation references (AGENTS.md file tree, architecture diagrams, `apps/docs/` MDX files) — not just code. Use `Grep` to find stale references after structural changes.
+
 ## Docs Site Component Catalog
 
 Complete inventory of all functional components in `apps/docs/`. Each entry covers purpose, inputs/outputs, tech details, and usage examples.
@@ -829,9 +838,8 @@ lingchu-bot/
 │       │   ├── runtime_config.py     # Runtime configuration helpers
 │       │   └── sub_plugins.py        # Sub-plugin loader
 │       ├── database/
-│       │   ├── json5_store.py        # JSON5-based key-value store
-│       │   ├── message_storage.py    # Message persistence service
-│       │   ├── models.py             # ORM models (aiosqlite)
+│       │   ├── json5_store/          # JSON5-based key-value store (package)
+│       │   ├── models.py             # ORM models (nonebot_plugin_orm)
 │       │   └── orm_crud.py           # Async CRUD helpers
 │       ├── handle/
 │       │   ├── menu.py               # Menu system (pages, sections, features, availability)
@@ -860,6 +868,7 @@ lingchu-bot/
 │       │               ├── default/  # Default implementation handlers
 │       │               └── llbot/    # LLBot extensions (announcement)
 │       ├── i18n/                     # Babel/gettext translations (en, zh)
+│       ├── migrations/                # Alembic database migration scripts
 │       ├── platforms/                # Adapter registry, permission presets & resolution
 │       │   ├── config.py            # Platform default permission role presets
 │       │   └── registry.py          # Cross-platform capability & adapter selection
@@ -995,9 +1004,8 @@ lingchu-bot/
 │              ──► core/runtime_config.py ──► runtime helpers       │
 │              ──► core/sub_plugins.py ──► sub-plugin loader        │
 │              ──► platforms/registry.py ──► adapter resolution     │
-│              ──► database/orm_crud.py ──► models.py (aiosqlite)  │
-│              ──► database/json5_store.py ──► JSON5 KV store      │
-│              ──► database/message_storage.py ──► message hooks   │
+│              ──► database/orm_crud.py ──► models.py (nonebot_plugin_orm)  │
+│              ──► database/json5_store/ ──► JSON5 KV store      │
 │              ──► repositories/blocklist.py ──► blocklist data    │
 │              ──► repositories/message_store.py ──► data access   │
 │              ──► services/messagestore.py ──► business logic     │

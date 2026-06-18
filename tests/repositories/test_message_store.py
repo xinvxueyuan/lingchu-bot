@@ -1,224 +1,304 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest_asyncio
+import pytest
 
-from src.plugins.nonebot_plugin_lingchu_bot.database import message_storage
+from src.plugins.nonebot_plugin_lingchu_bot.database.models import (
+    AuditRecord,
+    MessageRecord,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.repositories import message_store
 
-if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
-    from pathlib import Path
-
-    import pytest
+LIST_ITEMS_LIMIT = 10
+DELETE_CALL_COUNT = 2
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def isolated_message_store(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> AsyncIterator[None]:
-    monkeypatch.setattr(message_storage, "get_plugin_data_dir", lambda: tmp_path)
-    await message_storage.close_engines()
-    yield
-    await message_storage.close_engines()
+def _message_record(*, record_id: int = 1) -> MagicMock:
+    item = MagicMock(spec=MessageRecord)
+    item.id = record_id
+    return item
 
 
-async def test_record_event_received_creates_adapter_and_compat_databases(
-    tmp_path: Path,
-) -> None:
-    result = await message_store.record_event_received(
-        platform="qq",
-        adapter="~onebot.v11",
-        bot_id="bot-1",
-        conversation_id="group-1",
-        user_id="user-1",
-        message_id=None,
-        event_type="message.group",
-        message_type="group",
-        text_summary="hello",
-        raw_message='[{"type":"text","data":{"text":"hello"}}]',
-        raw_event='{"post_type":"message","raw_key":1}',
-    )
-
-    assert result.id == 1
-    assert result.raw_event == '{"post_type":"message","raw_key":1}'
-    assert (tmp_path / "message_store" / "qq" / "onebot_v11.db").exists()
-    assert (tmp_path / "message_store" / "qq" / "compat.db").exists()
-
-    recent = await message_store.list_recent_messages(platform="qq", limit=10)
-
-    assert len(recent) == 1
-    assert recent[0].adapter == "~onebot.v11"
-    assert recent[0].raw_message == '[{"type":"text","data":{"text":"hello"}}]'
+def _audit_record() -> MagicMock:
+    return MagicMock(spec=AuditRecord)
 
 
-async def test_record_event_received_updates_duplicate_within_same_adapter() -> None:
-    first = await message_store.record_event_received(
-        platform="qq",
-        adapter="~onebot.v11",
-        bot_id="bot-1",
-        conversation_id="group-1",
-        user_id="user-1",
-        message_id="msg-1",
-        event_type="message.group",
-        message_type="group",
-        text_summary="hello",
-        raw_message='"hello"',
-        raw_event='{"message_id":"msg-1"}',
-    )
-    second = await message_store.record_event_received(
-        platform="qq",
-        adapter="~onebot.v11",
-        bot_id="bot-1",
-        conversation_id="group-1",
-        user_id="user-2",
-        message_id="msg-1",
-        event_type="message.group",
-        message_type="group",
-        text_summary="updated",
-        raw_message='"updated"',
-        raw_event='{"message_id":"msg-1","extra":true}',
-    )
+@pytest.mark.asyncio
+async def test_record_event_received_with_none_message_id_calls_create() -> None:
+    record_mock = _message_record()
+    create_mock = AsyncMock(return_value=record_mock)
 
-    assert second.id == first.id
-    assert second.text_summary == "updated"
+    with patch.object(message_store, "create", create_mock):
+        result = await message_store.record_event_received(
+            platform="qq",
+            adapter="~onebot.v11",
+            bot_id="bot-1",
+            conversation_id="group-1",
+            user_id="user-1",
+            message_id=None,
+            event_type="message.group",
+            message_type="group",
+            text_summary="hello",
+            raw_message='[{"type":"text","data":{"text":"hello"}}]',
+            raw_event='{"post_type":"message","raw_key":1}',
+        )
 
-    recent = await message_store.list_recent_messages(platform="qq", limit=10)
-
-    assert len(recent) == 1
-    assert recent[0].text_summary == "updated"
-    assert recent[0].user_id == "user-2"
-
-
-async def test_same_message_id_does_not_collide_across_adapters() -> None:
-    onebot = await message_store.record_event_received(
-        platform="qq",
-        adapter="~onebot.v11",
-        bot_id="bot-1",
-        conversation_id="group-1",
-        user_id="user-1",
-        message_id="msg-1",
-        event_type="message.group",
-        message_type="group",
-        text_summary="onebot",
-        raw_message='"onebot"',
-        raw_event='{"adapter":"onebot"}',
-    )
-    milky = await message_store.record_event_received(
-        platform="qq",
-        adapter="~milky",
-        bot_id="bot-1",
-        conversation_id="group-1",
-        user_id="user-1",
-        message_id="msg-1",
-        event_type="message.group",
-        message_type="group",
-        text_summary="milky",
-        raw_message='"milky"',
-        raw_event='{"adapter":"milky"}',
-    )
-
-    assert onebot.id == 1
-    assert milky.id == 1
-
-    recent = await message_store.list_recent_messages(platform="qq", limit=10)
-
-    assert {record.adapter for record in recent} == {"~onebot.v11", "~milky"}
-    assert {record.text_summary for record in recent} == {"onebot", "milky"}
+    assert result is record_mock
+    create_mock.assert_awaited_once()
+    assert create_mock.call_args.args[0] is MessageRecord
+    kwargs = create_mock.call_args.kwargs
+    assert kwargs["platform"] == "qq"
+    assert kwargs["adapter"] == "~onebot.v11"
+    assert kwargs["bot_id"] == "bot-1"
+    assert kwargs["conversation_id"] == "group-1"
+    assert kwargs["user_id"] == "user-1"
+    assert kwargs["message_id"] is None
+    assert kwargs["event_type"] == "message.group"
+    assert kwargs["message_type"] == "group"
+    assert kwargs["text_summary"] == "hello"
+    assert kwargs["raw_message"] == '[{"type":"text","data":{"text":"hello"}}]'
+    assert kwargs["raw_event"] == '{"post_type":"message","raw_key":1}'
+    assert kwargs["process_status"] == "received"
+    assert kwargs["exception_summary"] is None
+    assert "created_at" in kwargs
+    assert "updated_at" in kwargs
 
 
-async def test_record_matcher_result_updates_adapter_and_compat_records() -> None:
-    await message_store.record_event_received(
-        platform="qq",
-        adapter="~onebot.v11",
-        bot_id="bot-1",
-        conversation_id="group-1",
-        user_id="user-1",
-        message_id="msg-1",
-        event_type="message.group",
-        message_type="group",
-        text_summary="hello",
-        raw_message='"hello"',
-        raw_event='{"message_id":"msg-1"}',
-    )
+@pytest.mark.asyncio
+async def test_record_event_received_with_message_id_calls_upsert() -> None:
+    record_mock = _message_record()
+    upsert_mock = AsyncMock(return_value=record_mock)
 
-    updated = await message_store.record_matcher_result(
-        platform="qq",
-        adapter="~onebot.v11",
-        bot_id="bot-1",
-        conversation_id="group-1",
-        message_id="msg-1",
-        process_status="handled",
-    )
+    with patch.object(message_store, "upsert", upsert_mock):
+        result = await message_store.record_event_received(
+            platform="qq",
+            adapter="~onebot.v11",
+            bot_id="bot-1",
+            conversation_id="group-1",
+            user_id="user-1",
+            message_id="msg-1",
+            event_type="message.group",
+            message_type="group",
+            text_summary="hello",
+            raw_message='"hello"',
+            raw_event='{"message_id":"msg-1"}',
+        )
 
-    assert updated is True
-    adapter_rows = await message_store.list_recent_messages(
-        platform="qq",
-        adapter="~onebot.v11",
-        limit=10,
-    )
-    compat_rows = await message_store.list_recent_messages(platform="qq", limit=10)
-    assert adapter_rows[0].process_status == "handled"
-    assert compat_rows[0].process_status == "handled"
-
-
-async def test_record_api_call_writes_audit_not_message_rows() -> None:
-    audit = await message_store.record_api_call(
-        platform="qq",
-        adapter="~onebot.v11",
-        bot_id="bot-1",
-        api_name="send_message",
-        data_summary='{"message":"hello"}',
-        result_summary='{"message_id":"out-1"}',
-        exception_summary=None,
-    )
-
-    assert audit.audit_type == "api_call"
-    assert audit.event_type == "send_message"
-    assert await message_store.list_recent_messages(platform="qq", limit=10) == []
+    assert result is record_mock
+    upsert_mock.assert_awaited_once()
+    assert upsert_mock.call_args.args[0] is MessageRecord
+    insert_values = upsert_mock.call_args.args[1]
+    assert insert_values["platform"] == "qq"
+    assert insert_values["adapter"] == "~onebot.v11"
+    assert insert_values["bot_id"] == "bot-1"
+    assert insert_values["conversation_id"] == "group-1"
+    assert insert_values["user_id"] == "user-1"
+    assert insert_values["message_id"] == "msg-1"
+    assert insert_values["event_type"] == "message.group"
+    assert insert_values["message_type"] == "group"
+    assert insert_values["text_summary"] == "hello"
+    assert insert_values["raw_message"] == '"hello"'
+    assert insert_values["raw_event"] == '{"message_id":"msg-1"}'
+    assert insert_values["process_status"] == "received"
+    assert insert_values["exception_summary"] is None
+    assert "created_at" in insert_values
+    assert "updated_at" in insert_values
+    assert upsert_mock.call_args.kwargs["conflict_fields"] == [
+        "platform",
+        "adapter",
+        "bot_id",
+        "conversation_id",
+        "message_id",
+    ]
 
 
-async def test_cleanup_expired_messages_deletes_message_compat_and_audit_rows() -> None:
-    message = await message_store.record_event_received(
-        platform="qq",
-        adapter="~onebot.v11",
-        bot_id="bot-1",
-        conversation_id="group-1",
-        user_id="user-1",
-        message_id="msg-1",
-        event_type="message.group",
-        message_type="group",
-        text_summary="old",
-        raw_message='"old"',
-        raw_event='{"message_id":"msg-1"}',
-    )
-    await message_store.record_api_call(
-        platform="qq",
-        adapter="~onebot.v11",
-        bot_id="bot-1",
-        api_name="send_message",
-        data_summary=None,
-        result_summary=None,
-        exception_summary=None,
-    )
-    target = message_storage.storage_target("qq", "~onebot.v11")
-    old = datetime.now(UTC) - timedelta(days=10)
-    async with message_storage.session_for(target.adapter_db) as session:
-        adapter_record = await session.get(message_storage.MessageRecord, message.id)
-        audit_record = await session.get(message_storage.AuditRecord, 1)
-        assert adapter_record is not None
-        assert audit_record is not None
-        adapter_record.created_at = old
-        audit_record.created_at = old
-    async with message_storage.session_for(target.compat_db) as session:
-        compat_record = await session.get(message_storage.PlatformMessageRecord, 1)
-        assert compat_record is not None
-        compat_record.created_at = old
+@pytest.mark.asyncio
+async def test_record_matcher_result_updates_record_when_found() -> None:
+    record_mock = _message_record(record_id=42)
+    get_one_mock = AsyncMock(return_value=record_mock)
+    update_mock = AsyncMock()
 
-    result = await message_store.cleanup_expired_messages(retention_days=7)
+    with (
+        patch.object(message_store, "get_one", get_one_mock),
+        patch.object(message_store, "update", update_mock),
+    ):
+        result = await message_store.record_matcher_result(
+            platform="qq",
+            adapter="~onebot.v11",
+            bot_id="bot-1",
+            conversation_id="group-1",
+            message_id="msg-1",
+            process_status="handled",
+            exception_summary="boom",
+        )
+
+    assert result is True
+    get_one_mock.assert_awaited_once()
+    assert get_one_mock.call_args.args[0] is MessageRecord
+    assert get_one_mock.call_args.args[1] == {
+        "platform": "qq",
+        "adapter": "~onebot.v11",
+        "bot_id": "bot-1",
+        "conversation_id": "group-1",
+        "message_id": "msg-1",
+    }
+    update_mock.assert_awaited_once()
+    assert update_mock.call_args.args[0] is MessageRecord
+    assert update_mock.call_args.args[1] == {"id": 42}
+    update_values = update_mock.call_args.args[2]
+    assert update_values["process_status"] == "handled"
+    assert update_values["exception_summary"] == "boom"
+    assert "updated_at" in update_values
+
+
+@pytest.mark.asyncio
+async def test_record_matcher_result_returns_false_when_message_id_none() -> None:
+    get_one_mock = AsyncMock()
+    update_mock = AsyncMock()
+
+    with (
+        patch.object(message_store, "get_one", get_one_mock),
+        patch.object(message_store, "update", update_mock),
+    ):
+        result = await message_store.record_matcher_result(
+            platform="qq",
+            adapter="~onebot.v11",
+            bot_id="bot-1",
+            conversation_id="group-1",
+            message_id=None,
+            process_status="handled",
+        )
+
+    assert result is False
+    get_one_mock.assert_not_awaited()
+    update_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_record_matcher_result_returns_false_when_not_found() -> None:
+    get_one_mock = AsyncMock(return_value=None)
+    update_mock = AsyncMock()
+
+    with (
+        patch.object(message_store, "get_one", get_one_mock),
+        patch.object(message_store, "update", update_mock),
+    ):
+        result = await message_store.record_matcher_result(
+            platform="qq",
+            adapter="~onebot.v11",
+            bot_id="bot-1",
+            conversation_id="group-1",
+            message_id="msg-1",
+            process_status="handled",
+        )
+
+    assert result is False
+    get_one_mock.assert_awaited_once()
+    update_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_record_api_call_calls_create_with_audit_record() -> None:
+    audit_mock = _audit_record()
+    create_mock = AsyncMock(return_value=audit_mock)
+
+    with patch.object(message_store, "create", create_mock):
+        result = await message_store.record_api_call(
+            platform="qq",
+            adapter="~onebot.v11",
+            bot_id="bot-1",
+            api_name="send_message",
+            data_summary='{"message":"hello"}',
+            result_summary='{"message_id":"out-1"}',
+            exception_summary=None,
+        )
+
+    assert result is audit_mock
+    create_mock.assert_awaited_once()
+    assert create_mock.call_args.args[0] is AuditRecord
+    kwargs = create_mock.call_args.kwargs
+    assert kwargs["platform"] == "qq"
+    assert kwargs["adapter"] == "~onebot.v11"
+    assert kwargs["bot_id"] == "bot-1"
+    assert kwargs["audit_type"] == "api_call"
+    assert kwargs["event_type"] == "send_message"
+    assert kwargs["data_summary"] == '{"message":"hello"}'
+    assert kwargs["result_summary"] == '{"message_id":"out-1"}'
+    assert kwargs["exception_summary"] is None
+    assert "created_at" in kwargs
+
+
+@pytest.mark.asyncio
+async def test_list_recent_messages_calls_list_items_with_filters() -> None:
+    records = [_message_record(record_id=1), _message_record(record_id=2)]
+    list_items_mock = AsyncMock(return_value=records)
+
+    with patch.object(message_store, "list_items", list_items_mock):
+        result = await message_store.list_recent_messages(
+            platform="qq",
+            adapter="~onebot.v11",
+            conversation_id="group-1",
+            user_id="user-1",
+            limit=10,
+        )
+
+    assert result == records
+    list_items_mock.assert_awaited_once()
+    assert list_items_mock.call_args.args[0] is MessageRecord
+    assert list_items_mock.call_args.args[1] == {
+        "platform": "qq",
+        "adapter": "~onebot.v11",
+        "conversation_id": "group-1",
+        "user_id": "user-1",
+    }
+    assert list_items_mock.call_args.kwargs["order_by"] == ["-created_at"]
+    assert list_items_mock.call_args.kwargs["limit"] == LIST_ITEMS_LIMIT
+
+
+@pytest.mark.asyncio
+async def test_list_recent_messages_uses_platform_only_by_default() -> None:
+    list_items_mock = AsyncMock(return_value=[])
+
+    with patch.object(message_store, "list_items", list_items_mock):
+        await message_store.list_recent_messages(platform="qq")
+
+    assert list_items_mock.call_args.args[1] == {"platform": "qq"}
+
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_messages_calls_delete_twice_and_returns_tuple() -> None:
+    delete_mock = AsyncMock(side_effect=[(2, True), (1, True)])
+
+    with patch.object(message_store, "delete", delete_mock):
+        result = await message_store.cleanup_expired_messages(retention_days=7)
 
     assert result == (3, True)
-    assert await message_store.list_recent_messages(platform="qq", limit=10) == []
+    assert delete_mock.await_count == DELETE_CALL_COUNT
+    assert delete_mock.call_args_list[0].args[0] is MessageRecord
+    assert delete_mock.call_args_list[0].args[1] == {}
+    assert delete_mock.call_args_list[1].args[0] is AuditRecord
+    assert delete_mock.call_args_list[1].args[1] == {}
+    assert len(delete_mock.call_args_list[0].kwargs["conditions"]) == 1
+    assert len(delete_mock.call_args_list[1].kwargs["conditions"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_messages_with_zero_retention_returns_empty() -> None:
+    delete_mock = AsyncMock()
+
+    with patch.object(message_store, "delete", delete_mock):
+        result = await message_store.cleanup_expired_messages(retention_days=0)
+
+    assert result == (0, True)
+    delete_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_messages_propagates_known_flag() -> None:
+    delete_mock = AsyncMock(side_effect=[(1, True), (0, False)])
+
+    with patch.object(message_store, "delete", delete_mock):
+        result = await message_store.cleanup_expired_messages(retention_days=7)
+
+    assert result == (1, False)

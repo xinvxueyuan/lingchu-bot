@@ -115,10 +115,11 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 ```text
 ├── src/plugins/nonebot_plugin_lingchu_bot/   # Core NoneBot plugin
 │   ├── core/           # Config, platform info
-│   ├── database/       # JSON5 store, ORM CRUD helpers
+│   ├── database/       # JSON5 store package, ORM models & CRUD helpers
 │   ├── handle/         # Platform/protocol/implementation command handlers
 │   │   └── qq/{group,onebot/v11,milky/v1_2}/    # QQ group handlers
 │   ├── i18n/           # Babel/gettext translations
+│   ├── migrations/     # Alembic database migration scripts
 │   ├── platforms/      # 适配器注册表、权限预设与解析
 │   ├── repositories/   # Data access layer
 │   ├── services/       # Business logic services
@@ -573,3 +574,12 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 4. **提取共享函数以提高可测试性**：当函数（如 `provider.tsx` 中的 `switchLocale`）定义在 React 组件文件内时，单元测试要么无法导入它，要么必须复制逻辑（从而偏离真实实现）。应将此类函数提取到独立模块（如 `src/lib/locale.ts`），组件和测试都从该模块导入。这确保测试验证的是真实导出，而非过时副本。
 
 5. **在 vitest 中 mock `collections/server` 以防止 MDX 加载**：从 `src/lib/source.ts` 导入的测试会通过 `collections/server` 别名传递加载 MDX 集合文件，vitest 无法将其解析为 JavaScript（错误："Failed to parse source for import analysis"）。在测试文件顶部添加 `vi.mock('collections/server', () => ({ docs: { toFumadocsSource: () => ({}) } }))` 来 stub 集合并阻止 MDX 文件加载。
+
+### 数据库存储重组
+
+- **统一 ORM 合并**：从自定义 SQLAlchemy 引擎迁移到 `nonebot_plugin_orm` 时，必须移除所有自定义引擎管理代码（`Base`、`_ENGINES`、`session_for()`、`storage_target()`、`close_engines()`）——不要遗留残余。所有数据访问必须通过 `orm_crud.py` + `get_session()` 进行。
+- **测试重写模式**：直接操作数据库文件的测试（如检查 `.db` 文件是否存在、使用 `session_for()` 修改记录）必须重写为在仓储模块级别 mock `orm_crud` 函数，使用 `patch.object(repository, "create"/"upsert"/"get_one"/"update"/"list_items"/"delete", ...)`。参照 `tests/database/test_blocklist.py` 的模式。
+- **Alembic 迁移脚本生成**：如果数据库文件已包含之前 `create_all` 创建的表，`nb orm revision` 可能生成空迁移（`upgrade()` 和 `downgrade()` 中均为 `pass`）。此时需根据模型定义手动编写迁移脚本，包含 `op.create_table()` / `op.create_index()` 操作，或先删除现有数据库文件（若未被其他进程锁定）。
+- **单文件转包**：将单个 `.py` 文件（如 `json5_store.py`）转为包（`json5_store/`）时，`__init__.py` 必须通过 `from .submodule import Symbol` 显式重新导出所有公共 API 符号，并在 `__all__` 中列出。仅导入子模块是不够的——`from ..database.json5_store import RobustAsyncJSON5DB` 等测试导入在没有显式重导出时会失败。
+- **迁移脚本 lint**：Alembic 生成的迁移脚本中 `collections.abc.Sequence` 仅用于类型注解。在已有 `from __future__ import annotations` 的情况下，将 `Sequence` 导入移至 `TYPE_CHECKING` 块以满足 ruff 的 `TC003` 规则。
+- **文档同步**：删除或重命名源文件时，必须更新所有文档引用（AGENTS.md 文件树、架构图、`apps/docs/` MDX 文件）——不仅是代码。使用 `Grep` 在结构变更后查找过期引用。
