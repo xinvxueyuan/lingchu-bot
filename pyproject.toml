@@ -71,6 +71,7 @@ git = [
 ]
 lint = ["ruff>=0.15.10", "pyright>=1.1.407", "ty>=0.0.32"]
 test = [
+    "nb-cli>=1.4.0",
     "nonebug>=0.4.3",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.3.0",
