@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2507 symbols, 4883 relationships, 209 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2578 symbols, 5084 relationships, 216 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -340,7 +340,7 @@ Same-named APIs return different types across adapters:
 | `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
 | `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
 
-The project uses `platforms/registry.py` to unify all adapters (OneBot V11, Milky, QQ, OneBot V12) under a single "QQ" platform profile. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/group/`, OneBot V11 handlers in `handle/qq/onebot/v11/{default,llonebot,napcat}/group/`, and Milky 1.2 handlers in `handle/qq/milky/v1_2/{default,llbot}/group/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+The project uses `platforms/registry.py` to unify all adapters (OneBot V11, Milky, QQ, OneBot V12) under a single "QQ" platform profile. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,llonebot,napcat}/`, and Milky handlers in `handle/qq/adapters/milky/{default,llbot}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
 
 ### Function Signature Changes
 
@@ -960,11 +960,11 @@ lingchu-bot/
 │              ──► i18n/ ──► Babel gettext catalogs                │
 │                                                                   │
 │  handle/qq/                                                       │
-│    ├── group/ ──► shared QQ group command definitions             │
-│    ├── onebot/v11/default/group/ ──► OneBot V11 handlers         │
-│    ├── onebot/v11/{llonebot,napcat}/group/ ──► OneBot extensions │
-│    ├── milky/v1_2/default/group/ ──► Milky 1.2 handlers           │
-│    └── milky/v1_2/llbot/group/ ──► LLBot extensions               │
+│    ├── commands/ ──► shared QQ group command definitions          │
+│    ├── adapters/onebot11/default/ ──► OneBot V11 handlers        │
+│    ├── adapters/onebot11/{llonebot,napcat}/ ──► OneBot extensions│
+│    ├── adapters/milky/default/ ──► Milky 1.2 handlers            │
+│    └── adapters/milky/llbot/ ──► LLBot extensions                │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1057,6 +1057,18 @@ When a file has translated counterparts (e.g., `AGENTS.md` ↔ `.github/note/AGE
 5. **Documentation mirrors** — if a command or config snippet appears in `AGENTS.md`, `CONTRIBUTING.md`, `CLAUDE.md`, and `apps/docs/content/docs/`, update all of them
 
 Rule of thumb: **after editing any file, search for its name or key phrases across the entire repo to find all copies and references that need updating.**
+
+### Adapter Directory Structure Refactoring
+
+When reorganizing adapter directories from `handle/qq/onebot/v11/default/group/` to `handle/qq/adapters/onebot11/default/`, several import path issues emerged:
+
+1. **Relative import depth changes**: Moving files from `handle/qq/onebot/v11/default/group/` (6 levels deep) to `handle/qq/adapters/onebot11/default/` (5 levels deep) requires adjusting relative import dots. For example, `from ...i18n` becomes `from ....i18n` when accessing plugin root modules.
+
+2. **Package `__init__.py` exports**: When tests import symbols like `onebot11_menu` or `milkybot_menu_pages` from adapter packages, the package `__init__.py` must explicitly re-export these symbols. Simply importing the module (e.g., `from . import menu`) is insufficient; you must also add `from .menu import onebot11_menu as onebot11_menu` to make the symbol accessible at the package level.
+
+3. **Import sorting with Ruff**: After fixing import paths, run `ruff check` to verify import block sorting. Ruff's `I001` rule enforces alphabetical ordering within import blocks, and multi-line imports must maintain consistent formatting.
+
+4. **Test import paths**: Test files using absolute imports (e.g., `from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import onebot11_menu`) require the target symbols to be explicitly exported in the package's `__init__.py`.
 
 ### Pre-Commit Verification Checklist
 
