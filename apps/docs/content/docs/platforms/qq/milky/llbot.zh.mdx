@@ -1,0 +1,51 @@
+---
+icon: Bot
+title: LLBot 实现
+---
+
+## LLBot 实现
+
+LLBot 是 Milky 协议的实现。Lingchu Bot 的 `llbot/` 扩展包在默认 Milky 处理器之上添加 LLBot 专属能力。
+
+## 能力
+
+| 能力 | 状态 |
+| --- | --- |
+| 群公告（`发送群公告`） | 仅文本（不支持图片） |
+| 群头像 | 不支持 |
+| 远程管理 | 不可用（仅 OneBot V11） |
+
+机器人通过运行时适配器检测识别 LLBot。当 LLBot 是当前实现时，菜单会以纯文本用法覆盖（`<内容>` / `<content>`）显示公告命令。
+
+## 扩展模块
+
+| 模块 | 新增 |
+| --- | --- |
+| `announcement.py` | 纯文本群公告处理器 |
+
+## 群公告
+
+LLBot 支持纯文本群公告：
+
+```text
+发送群公告 <内容>
+send-announcement <content>
+```
+
+<Callout type="warn" title="不支持图片">
+
+与 OneBot V11 上的 [NapCat](../onebot-v11/napcat) 和 [LLOneBot](../onebot-v11/llonebot) 不同，LLBot 的公告 API 不接受图片参数。菜单只展示纯文本用法，避免误导用户。
+
+</Callout>
+
+## 配置
+
+除标准 Milky 配置外，LLBot 不需要额外的 Lingchu Bot 配置。确保 LLBot 正在运行并连接到 NoneBot。
+
+```dotenv
+LINGCHUAdapter=~milky
+```
+
+## 源码参考
+
+参见仓库中的 [handle/qq/adapters/milky/llbot/](https://github.com/xinvxueyuan/lingchu-bot/tree/dev/src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/milky/llbot)。

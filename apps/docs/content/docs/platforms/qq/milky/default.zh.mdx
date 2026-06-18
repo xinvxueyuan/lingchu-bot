@@ -1,0 +1,40 @@
+---
+icon: Settings
+title: Milky 默认实现
+---
+
+## Milky 默认实现
+
+`default` 包含只依赖标准 Milky API 接口的处理器。这些处理器可以在任何 Milky 实现上运行，无需实现专属扩展。
+
+## 可用命令
+
+[QQ 命令](../commands) 中列出的所有命令在 Milky 默认实现中都可用，除了：
+
+- `发送群公告` / `send-announcement` — 受实现门控（见 [LLBot](./llbot)）
+- `设置群头像` / `set-group-avatar` — Milky 尚不支持
+- 远程管理命令 — 仅 OneBot V11 可用
+
+## 处理器模块
+
+| 模块 | 命令 |
+| --- | --- |
+| `mute.py` | `禁言`、`解禁`、`全员禁言`、`全体解禁` |
+| `member.py` | `踢出群成员`、`设置群名片`、`设置群头衔`、`设置群管理员`、`取消群管理员` |
+| `block.py` | `拉黑`、`全局拉黑`、`删黑`、`全局删黑`、`清空黑名单`、`全局清空黑名单` |
+| `profile.py` | `设置群名称` |
+| `announcement.py` | `发送群公告`（仅 LLBot） |
+| `lifecycle.py` | 机器人生命周期钩子（无用户命令） |
+| `menu.py` | 菜单页处理器 |
+
+## 与 OneBot V11 的 API 差异
+
+| 操作 | OneBot V11 | Milky |
+| --- | --- | --- |
+| 获取成员信息 | `bot.get_group_member_info()` 返回 `dict` | 返回 `Member` 模型（用 `.card`、`.nickname`） |
+| 禁言成员 | `bot.set_group_ban(group_id, user_id, duration)` | `bot.set_group_member_mute(group_id, user_id, duration)` |
+| Mock 模式 | `return_value={}` | `MagicMock(card="", nickname="")` |
+
+## 源码参考
+
+参见仓库中的 [handle/qq/adapters/milky/default/](https://github.com/xinvxueyuan/lingchu-bot/tree/dev/src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/milky/default)。

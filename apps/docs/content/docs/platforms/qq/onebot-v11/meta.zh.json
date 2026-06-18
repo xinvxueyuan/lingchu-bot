@@ -1,0 +1,12 @@
+{
+  "title": "OneBot V11",
+  "description": "按实现方式分离的 OneBot V11 协议文档",
+  "icon": "Plug",
+  "root": true,
+  "pages": [
+    "overview",
+    "default",
+    "napcat",
+    "llonebot"
+  ]
+}

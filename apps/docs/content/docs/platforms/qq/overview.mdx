@@ -1,0 +1,87 @@
+---
+icon: MessageCircle
+title: QQ Platform Overview
+---
+
+## QQ Platform Overview
+
+QQ is the only currently implemented platform profile. The plugin selects one QQ adapter at startup via `LINGCHUAdapter` (default: `~onebot.v11`).
+
+## Protocol priority
+
+| Priority | Protocol | Adapter ID | NoneBot package |
+| --- | --- | --- | --- |
+| 1 (default) | OneBot V11 | `~onebot.v11` | `nonebot-adapter-onebot` |
+| 2 | Milky | `~milky` | `nonebot-adapter-milky` |
+| 3 | QQ Official | `~qq` | `nonebot-adapter-qq` |
+| 4 | OneBot V12 | `~onebot.v12` | `nonebot-adapter-onebot` |
+
+Only one QQ adapter is considered enabled at a time. Other adapters that NoneBot loads are treated as disabled and excluded from platform resolution, message storage, and API call recording.
+
+## Switching protocols
+
+Set `LINGCHUAdapter` in `.env`:
+
+<Tabs items={['OneBot V11', 'Milky']}>
+  <Tab value="OneBot V11">
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+  </Tab>
+  <Tab value="Milky">
+
+```dotenv
+LINGCHUAdapter=~milky
+```
+
+  </Tab>
+</Tabs>
+
+## Implementation matrix
+
+Each protocol has a `default` handler set and optional implementation-specific extensions:
+
+| Protocol | Implementation | Extension highlights |
+| --- | --- | --- |
+| OneBot V11 | `default` | Core group management commands |
+| OneBot V11 | [NapCat](./onebot-v11/napcat) | Group announcement + group avatar |
+| OneBot V11 | [LLOneBot](./onebot-v11/llonebot) | Group announcement (text + image) |
+| Milky | `default` | Core group management commands |
+| Milky | [LLBot](./milky/llbot) | Text-only group announcement |
+
+<Callout type="warn" title="API surface differences">
+
+Same-named APIs return different types across adapters. OneBot V11 returns `dict`; Milky returns pydantic `Model` objects. See [Adapter Guide](../../developer-guide/adapter-guide) for details.
+
+</Callout>
+
+## Source layout
+
+```
+handle/qq/
+├── commands/              # Shared QQ command definitions (Alconna matchers)
+│   ├── triggers.py        # Command trigger words (zh/en)
+│   ├── mute.py
+│   ├── member.py
+│   ├── block.py
+│   ├── announcement.py
+│   ├── remote.py          # Remote management commands
+│   └── ...
+└── adapters/
+    ├── onebot11/
+    │   ├── default/       # OneBot V11 default handlers
+    │   ├── napcat/        # NapCat extensions
+    │   └── llonebot/      # LLOneBot extensions
+    └── milky/
+        ├── default/       # Milky default handlers
+        └── llbot/         # LLBot extensions
+```
+
+## Next steps
+
+- [QQ Commands](./commands) — Full command reference including remote management
+- [OneBot V11 Protocol](./onebot-v11/overview) — Protocol overview and implementation-specific docs
+- [Milky Protocol](./milky/overview) — Protocol overview and implementation-specific docs

@@ -166,6 +166,54 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         "chinese_aliases": {"退群", "退出当前群"},
         "english_aliases": {"quit-group"},
     },
+    "remote_mute": {
+        "primary": "远程禁言",
+        "english": "remote-mute",
+        "chinese_aliases": {"跨群禁言", "远程禁言用户", "远程禁言成员"},
+        "english_aliases": {"remote-ban", "cross-group-mute"},
+    },
+    "remote_unmute": {
+        "primary": "远程解禁",
+        "english": "remote-unmute",
+        "chinese_aliases": {"跨群解禁", "远程解禁用户", "远程解禁成员"},
+        "english_aliases": {"remote-pardon", "cross-group-unmute"},
+    },
+    "remote_whole_mute": {
+        "primary": "远程全体禁言",
+        "english": "remote-mute-all",
+        "chinese_aliases": {"跨群全体禁言", "远程全员禁言", "远程开启全体禁言"},
+        "english_aliases": {"remote-mute-group", "cross-group-mute-all"},
+    },
+    "remote_whole_unmute": {
+        "primary": "远程全体解禁",
+        "english": "remote-unmute-all",
+        "chinese_aliases": {"跨群全体解禁", "远程全员解禁", "远程关闭全体禁言"},
+        "english_aliases": {"remote-unmute-group", "cross-group-unmute-all"},
+    },
+    "remote_kick": {
+        "primary": "远程踢出",
+        "english": "remote-kick",
+        "chinese_aliases": {"跨群踢出", "远程踢人", "远程移出群成员"},
+        "english_aliases": {"remote-kick-member", "cross-group-kick"},
+    },
+    "remote_block": {
+        "primary": "远程拉黑",
+        "english": "remote-block",
+        "chinese_aliases": {"跨群拉黑", "远程拉黑用户"},
+        "english_aliases": {"remote-block-member", "cross-group-block"},
+    },
+    "remote_unblock": {
+        "primary": "远程删黑",
+        "english": "remote-unblock",
+        "chinese_aliases": {"跨群删黑", "远程删除黑名单"},
+        "english_aliases": {"remote-unblock-member", "cross-group-unblock"},
+    },
+    "remote_announcement": {
+        "primary": "远程公告",
+        "english": "remote-announcement",
+        "chinese_aliases": {"跨群公告", "远程群公告", "远程发公告"},
+        "english_aliases": {"remote-notice", "cross-group-announcement"},
+    },
 }
 
 

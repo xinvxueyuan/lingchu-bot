@@ -1,0 +1,74 @@
+---
+icon: Settings
+title: Default Implementation
+---
+
+## Default Implementation
+
+The `default` package contains OneBot V11 handlers that rely only on the standard OneBot V11 API surface. These handlers run on any OneBot V11 implementation (NapCat, LLOneBot, Lagrange, etc.) without implementation-specific extensions.
+
+## Available commands
+
+All commands listed in [QQ Commands](../commands) are available in the default implementation, except:
+
+- `发送群公告` / `send-announcement` — gated by implementation version (see [NapCat](./napcat) and [LLOneBot](./llonebot))
+- `设置群头像` / `set-group-avatar` — gated by implementation version (see [NapCat](./napcat))
+- `远程公告` / `remote-announcement` — gated by implementation version
+
+## Handler modules
+
+| Module | Commands |
+| --- | --- |
+| `mute.py` | `禁言`, `解禁`, `全员禁言`, `全体解禁` |
+| `member.py` | `踢出群成员`, `设置群名片`, `设置群头衔`, `设置群管理员`, `取消群管理员` |
+| `block.py` | `拉黑`, `全局拉黑`, `删黑`, `全局删黑`, `清空黑名单`, `全局清空黑名单` |
+| `profile.py` | `设置群名称`, `设置群头像` (NapCat only) |
+| `announcement.py` | `发送群公告` (version-gated) |
+| `lifecycle.py` | Bot lifecycle hooks (no user-facing command) |
+| `remote.py` | 8 remote management commands (see below) |
+| `menu.py` | Menu page handler |
+
+## Remote management
+
+The `remote.py` module implements 8 cross-group commands unique to OneBot V11:
+
+1. `远程禁言` / `remote-mute`
+2. `远程解禁` / `remote-unmute`
+3. `远程全体禁言` / `remote-mute-all`
+4. `远程全体解禁` / `remote-unmute-all`
+5. `远程踢出` / `remote-kick` (requires blocklist entry)
+6. `远程拉黑` / `remote-block`
+7. `远程删黑` / `remote-unblock`
+8. `远程公告` / `remote-announcement` (version-gated)
+
+### Group ID resolution
+
+All remote commands accept `<群号|群名称>` which can be:
+
+- An `int` group ID — used directly.
+- A `str` that parses as `int` — converted and used.
+- A `str` that does not parse as `int` — fuzzy matched against `get_group_list()`:
+  1. Exact `group_name` match (first wins).
+  2. Substring containment (`group_id in group_name`).
+  3. Single match → resolved.
+  4. Multiple matches → bot asks for a more precise name or group ID.
+  5. No match → bot reports no matching group.
+
+### Context validation
+
+Before executing a remote action, the bot checks:
+
+1. The bot is a member of the target group (`get_group_list`).
+2. The bot has admin/owner role in the target group (for most commands).
+3. The target user is a member of the target group (for user-targeted commands).
+4. The target is not the bot itself or the command sender.
+
+## Shared helpers
+
+`common.py` provides:
+
+- `resolve_user_onebot11(user, bot, event)` — Resolves `At | int` to `(user_id, name)` tuple. Raises `ValueError` on invalid input.
+
+## Source reference
+
+See [handle/qq/adapters/onebot11/default/](https://github.com/xinvxueyuan/lingchu-bot/tree/dev/src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default) in the repository.

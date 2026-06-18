@@ -1,0 +1,64 @@
+---
+icon: Bot
+title: LLOneBot 实现
+---
+
+## LLOneBot 实现
+
+[LLOneBot](https://github.com/LLOneBot/LLOneBot) 是基于 LLOneBot/LiteLoaderQQNT 的 OneBot V11 实现。Lingchu Bot 的 `llonebot/` 扩展包在默认 OneBot V11 处理器之上添加 LLOneBot 专属能力。
+
+## 最低版本
+
+| 能力 | 最低版本 |
+| --- | --- |
+| 群公告（`发送群公告`） | `LLOneBot >= 7.12.0` |
+| 远程公告（`远程公告`） | `LLOneBot >= 7.12.0` |
+
+机器人通过 `get_version_info()` 检测 LLOneBot，其中 `app_name == "LLOneBot"`。低于最低版本的命令会从菜单中隐藏。
+
+<Callout type="warn" title="不支持群头像">
+
+LLOneBot 不支持 `set_group_portrait` API 设置群头像。在 LLOneBot 下运行时，`设置群头像` / `set-group-avatar` 命令会被隐藏。如需群头像支持，请使用 [NapCat](./napcat)。
+
+</Callout>
+
+## 扩展模块
+
+| 模块 | 新增 |
+| --- | --- |
+| `announcement.py` | 使用 `_send_group_notice` API 的群公告处理器 |
+
+## 群公告
+
+LLOneBot 通过 `_send_group_notice` API 支持文本和图片公告：
+
+```text
+发送群公告 <内容> [图片]
+send-announcement <content> [image]
+```
+
+图片参数接受 `nonebot-plugin-alconna` 的 `UniImage`。实现会把原始字节、本地路径或可下载 URL 解析到缓存文件，再交给 API。
+
+## 远程公告
+
+远程公告命令（`远程公告`）使用与本地公告命令相同的 `_send_group_notice` API，但作用于不同的群：
+
+```text
+远程公告 <群号|群名称> <内容> [图片]
+remote-announcement <group_id|group_name> <content> [image]
+```
+
+群号解析和上下文校验逻辑见[默认实现](./default)。
+
+## 配置
+
+除标准 OneBot V11 配置外，LLOneBot 不需要额外的 Lingchu Bot 配置。确保 LLOneBot 正在运行并通过 WebSocket 或 HTTP 反向代理连接到 NoneBot。
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+## 源码参考
+
+参见仓库中的 [handle/qq/adapters/onebot11/llonebot/](https://github.com/xinvxueyuan/lingchu-bot/tree/dev/src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/llonebot)。

@@ -1,0 +1,78 @@
+---
+icon: Plug
+title: OneBot V11 Protocol
+---
+
+## OneBot V11 Protocol
+
+OneBot V11 is the default protocol for the QQ platform. It is a community standard describing a HTTP/WebSocket API surface for QQ bot implementations. Lingchu Bot's OneBot V11 adapter lives in `handle/qq/adapters/onebot11/`.
+
+## Configuration
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+Set `LINGCHUAdapter = "~onebot.v11"` explicitly only when overriding the default.
+
+## Implementation variants
+
+OneBot V11 handlers are split into a `default` package and implementation-specific extension packages. The `default` package contains handlers that rely only on the OneBot V11 standard API. Extensions add capabilities that depend on implementation-specific APIs (for example, `_send_group_notice` for group announcements).
+
+| Implementation | Extension | Min version | Adds |
+| --- | --- | --- | --- |
+| [default](./default) | — | — | Core group management |
+| [NapCat](./napcat) | `napcat/` | `4.18.0` | Group announcement, group avatar |
+| [LLOneBot](./llonebot) | `llonebot/` | `7.12.0` | Group announcement (text + image) |
+
+## Runtime detection
+
+The bot calls `get_version_info()` at runtime to detect the active implementation (`app_name`) and its version. The menu system uses this to show or hide implementation-specific commands:
+
+- Unknown implementation: hides group announcement and group avatar.
+- `LLOneBot < 7.12.0`: hides group announcement.
+- `NapCat.Onebot < 4.18.0`: hides group announcement and group avatar.
+
+## API notes
+
+OneBot V11 APIs return `dict` for most calls. Access fields with `.get("field")` instead of attribute access. For example:
+
+```python
+member = await bot.get_group_member_info(group_id=gid, user_id=uid)
+card = member.get("card")  # not member.card
+```
+
+The `get_group_list()` API returns a list of dicts with `group_id` and `group_name` fields. Remote management commands use this to resolve group names to group IDs when a non-integer group identifier is provided.
+
+## Source layout
+
+```
+handle/qq/adapters/onebot11/
+├── default/
+│   ├── __init__.py
+│   ├── announcement.py     # Version-gated announcement handler
+│   ├── block.py            # Blocklist commands
+│   ├── common.py           # Shared helpers (resolve_user_onebot11, etc.)
+│   ├── kick.py             # Kick command
+│   ├── lifecycle.py        # Bot lifecycle hooks
+│   ├── member.py           # Member management commands
+│   ├── menu.py             # Menu page handler
+│   ├── mute.py             # Mute/unmute commands
+│   ├── profile.py          # Group profile commands
+│   ├── remote.py           # Remote management commands (8 commands)
+│   └── test.py             # Test command
+├── llonebot/
+│   ├── __init__.py
+│   └── announcement.py     # LLOneBot-specific announcement extension
+└── napcat/
+    ├── __init__.py
+    ├── announcement.py     # NapCat-specific announcement extension
+    └── profile.py          # NapCat-specific group avatar extension
+```
+
+## Next steps
+
+- [Default implementation](./default) — Core OneBot V11 commands
+- [NapCat implementation](./napcat) — NapCat-specific extensions
+- [LLOneBot implementation](./llonebot) — LLOneBot-specific extensions

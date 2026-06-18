@@ -1,0 +1,78 @@
+---
+icon: Plug
+title: OneBot V11 协议
+---
+
+## OneBot V11 协议
+
+OneBot V11 是 QQ 平台的默认协议。它是一个社区标准，描述 QQ 机器人实现的 HTTP/WebSocket API 接口。Lingchu Bot 的 OneBot V11 适配器位于 `handle/qq/adapters/onebot11/`。
+
+## 配置
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+仅在覆盖默认值时才需要显式设置 `LINGCHUAdapter = "~onebot.v11"`。
+
+## 实现变体
+
+OneBot V11 处理器拆分为 `default` 包和实现专属扩展包。`default` 包只依赖 OneBot V11 标准 API。扩展包添加依赖实现专属 API 的能力（例如群公告的 `_send_group_notice`）。
+
+| 实现 | 扩展 | 最低版本 | 新增能力 |
+| --- | --- | --- | --- |
+| [default](./default) | — | — | 核心群管理 |
+| [NapCat](./napcat) | `napcat/` | `4.18.0` | 群公告、群头像 |
+| [LLOneBot](./llonebot) | `llonebot/` | `7.12.0` | 群公告（文本 + 图片） |
+
+## 运行时检测
+
+机器人在运行时调用 `get_version_info()` 检测当前实现（`app_name`）及其版本。菜单系统据此显示或隐藏实现专属命令：
+
+- 未知实现：隐藏群公告和群头像。
+- `LLOneBot < 7.12.0`：隐藏群公告。
+- `NapCat.Onebot < 4.18.0`：隐藏群公告和群头像。
+
+## API 说明
+
+OneBot V11 的大部分 API 返回 `dict`。使用 `.get("field")` 访问字段，而不是属性访问。例如：
+
+```python
+member = await bot.get_group_member_info(group_id=gid, user_id=uid)
+card = member.get("card")  # 不是 member.card
+```
+
+`get_group_list()` API 返回包含 `group_id` 和 `group_name` 字段的 dict 列表。远程管理命令在传入非整数群标识符时，用它把群名称解析为群号。
+
+## 源码布局
+
+```
+handle/qq/adapters/onebot11/
+├── default/
+│   ├── __init__.py
+│   ├── announcement.py     # 版本门控的公告处理器
+│   ├── block.py            # 黑名单命令
+│   ├── common.py           # 共享辅助（resolve_user_onebot11 等）
+│   ├── kick.py             # 踢出命令
+│   ├── lifecycle.py        # 机器人生命周期钩子
+│   ├── member.py           # 成员管理命令
+│   ├── menu.py             # 菜单页处理器
+│   ├── mute.py             # 禁言/解禁命令
+│   ├── profile.py          # 群资料命令
+│   ├── remote.py           # 远程管理命令（8 个命令）
+│   └── test.py             # 测试命令
+├── llonebot/
+│   ├── __init__.py
+│   └── announcement.py     # LLOneBot 专属公告扩展
+└── napcat/
+    ├── __init__.py
+    ├── announcement.py     # NapCat 专属公告扩展
+    └── profile.py          # NapCat 专属群头像扩展
+```
+
+## 下一步
+
+- [默认实现](./default) — OneBot V11 核心命令
+- [NapCat 实现](./napcat) — NapCat 专属扩展
+- [LLOneBot 实现](./llonebot) — LLOneBot 专属扩展

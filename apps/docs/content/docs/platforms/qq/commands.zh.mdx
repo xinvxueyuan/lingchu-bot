@@ -1,0 +1,142 @@
+---
+icon: Terminal
+title: QQ 命令
+---
+
+## QQ 命令
+
+命令由 `nonebot-plugin-alconna` 注册，默认启用命令起始符和命令分隔符。命令触发词按 locale 互斥选择：中文 locale 启用中文触发词，英文 locale 启用短横线风格英文触发词。两种语言的触发词不会同时启用。
+
+## 菜单
+
+主命令：
+
+```text
+菜单
+```
+
+当 `LINGCHU_LOCALE` / `lc_locale` / `locale` 选择英文时的英文命令：
+
+```text
+menu
+```
+
+菜单命令是索引入口。它只列出可进入的子菜单命令，不再把所有功能堆在一条长消息里。子菜单完全由代码驱动，并按当前平台、协议和实现过滤。
+
+默认子菜单命令：
+
+- `成员管理` / `member-management`：踢出、拉黑/删黑、设置群名片、设置群头衔、设置/取消管理员。
+- `发言管理` / `speech-management`：禁言/解禁群成员、开启/关闭全体禁言。
+- `群聊管理` / `group-chat-management`：设置群名称、设置群头像（实现支持时）、发送群公告（实现支持时）、退出当前群。
+- `远程管理` / `remote-management`：跨群禁言/解禁、全体禁言/解禁、踢出、拉黑/删黑、发送公告。
+
+<Callout type="info" title="远程管理">
+
+`远程管理` / `remote-management` 是顶层菜单入口，列出所有远程（跨群）命令。远程命令接受群号（int）或群名称（str）。当传入非 int 字符串时，机器人会通过 OneBot V11 `get_group_list` API 模糊匹配群名称。
+
+</Callout>
+
+## 成员禁言
+
+```text
+禁言 @用户 [时长秒数] [原因]
+mute @user [duration seconds] [reason]
+```
+
+- 时长默认：`60` 秒。
+- 原因默认：`违反群规「默认」`。
+
+## 成员解禁
+
+```text
+解禁 @用户 [原因]
+unmute @user [reason]
+```
+
+## 全体禁言
+
+```text
+全员禁言
+mute-all
+```
+
+## 全体解禁
+
+```text
+全体解禁
+unmute-all
+```
+
+## OneBot V11 黑名单
+
+黑名单命令仅在 OneBot V11 可用。拉黑会把用户写入本群或全局黑名单，随后从当前群踢出该用户，并在黑名单生效期间拒绝该用户的后续加群请求。
+
+```text
+拉黑 @用户 [时长秒数] [原因]
+全局拉黑 @用户 [时长秒数] [原因]
+删黑 @用户 [原因]
+全局删黑 @用户 [原因]
+清空黑名单 [原因]
+全局清空黑名单 [原因]
+```
+
+英文：`block`、`global-block`、`unblock`、`global-unblock`、`clear-blocklist`、`global-clear-blocklist`。
+
+- 时长默认：永久。
+- 拉黑原因默认：`违反群规「默认」`。
+- 删黑/清空原因默认：`管理员操作「默认」`。
+
+`清空黑名单` 只清空当前群黑名单；如需清空全局黑名单，请使用 `全局清空黑名单`。
+
+## 群设置与操作
+
+| 能力 | 中文命令 | 英文命令 |
+| --- | --- | --- |
+| 设置群名称 | `设置群名称 <新群名称>` | `set-group-name <new group name>` |
+| 设置群头像 | `设置群头像 <图片>` | `set-group-avatar <image>` |
+| 设置群名片 | `设置群名片 @用户 <名片>` | `set-member-card @user <card>` |
+| 设置群成员专属头衔 | `设置群头衔 @用户 <头衔>` | `set-member-title @user <title>` |
+| 设置群管理员 | `设置群管理员 @用户 [true/false]` | `set-member-admin @user [true/false]` |
+| 取消群管理员 | `取消群管理员 @用户` | `unset-member-admin @user` |
+| 踢出黑名单成员 | `踢出群成员 <用户ID或@提及> [原因]` | `kick-member <user_id_or_mention> [reason]` |
+| 发送群公告 | `发送群公告 <内容> [图片]` | `send-announcement <content> [image]` |
+| 退出当前群 | `退出群` | `leave-group` |
+
+群公告和群头像命令接收 `nonebot-plugin-alconna` 的 `UniImage` 参数。包含空格的名称、公告内容、名片或头衔建议使用引号包裹，避免被命令分隔符拆分。
+
+## 远程管理（仅 OneBot V11）
+
+远程命令作用于**当前群之外的目标群**。`<群号或群名称>` 参数接受：
+
+- 整数群号（如 `123456789`）。
+- 可解析为整数的纯数字字符串。
+- 非数字字符串，触发通过 `get_group_list` 对机器人已加入群聊的模糊匹配。精确名称匹配优先；否则使用包含关系匹配。匹配到多个群时，机器人会要求提供更精确的名称或群号。
+
+| 能力 | 中文命令 | 英文命令 |
+| --- | --- | --- |
+| 远程禁言 | `远程禁言 <群号或群名称> @用户 [时长秒数] [原因]` | `remote-mute <group_id_or_group_name> @user [duration seconds] [reason]` |
+| 远程解禁 | `远程解禁 <群号或群名称> @用户 [原因]` | `remote-unmute <group_id_or_group_name> @user [reason]` |
+| 远程全体禁言 | `远程全体禁言 <群号或群名称>` | `remote-mute-all <group_id_or_group_name>` |
+| 远程全体解禁 | `远程全体解禁 <群号或群名称>` | `remote-unmute-all <group_id_or_group_name>` |
+| 远程踢出 | `远程踢出 <群号或群名称> @用户 [原因]` | `remote-kick <group_id_or_group_name> @user [reason]` |
+| 远程拉黑 | `远程拉黑 <群号或群名称> @用户 [时长秒数] [原因]` | `remote-block <group_id_or_group_name> @user [duration seconds] [reason]` |
+| 远程删黑 | `远程删黑 <群号或群名称> @用户 [原因]` | `remote-unblock <group_id_or_group_name> @user [reason]` |
+| 远程公告 | `远程公告 <群号或群名称> <内容> [图片]` | `remote-announcement <group_id_or_group_name> <content> [image]` |
+
+<Callout type="warn" title="远程公告可用性">
+
+远程公告要求 `LLOneBot >= 7.12.0` 或 `NapCat.Onebot >= 4.18.0`。其他 OneBot V11 实现无法发送群公告。实现不支持时，远程公告菜单项会被隐藏。
+
+</Callout>
+
+<Callout type="info" title="远程踢出需要黑名单">
+
+`远程踢出` 只对已在目标群黑名单中的用户生效。如果用户尚未被拉黑，请先使用 `远程拉黑`。
+
+</Callout>
+
+## 错误反馈
+
+群管理命令会对已覆盖适配器的网络异常和操作拒绝返回可读错误消息。未知异常仍会向外抛出，方便开发者发现未覆盖的问题。
+
+反馈文本和命令触发词语言会使用当前 NoneBot 配置中的 `LINGCHU_LOCALE`、`lc_locale` 或 `locale`。详见[国际化](../../developer-guide/i18n)。

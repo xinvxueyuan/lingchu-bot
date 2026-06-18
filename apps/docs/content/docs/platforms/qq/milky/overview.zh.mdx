@@ -1,0 +1,68 @@
+---
+icon: Plug
+title: Milky 协议
+---
+
+## Milky 协议
+
+Milky 是较新的 QQ 适配器协议。Lingchu Bot 的 Milky 适配器位于 `handle/qq/adapters/milky/`。设置 `LINGCHUAdapter = "~milky"` 可从默认的 OneBot V11 切换。
+
+## 配置
+
+```dotenv
+LINGCHUAdapter=~milky
+```
+
+## 实现变体
+
+| 实现 | 扩展 | 新增 |
+| --- | --- | --- |
+| [default](./default) | — | 核心群管理 |
+| [LLBot](./llbot) | `llbot/` | 纯文本群公告 |
+
+<Callout type="warn" title="无远程管理">
+
+远程管理命令（`远程禁言`、`远程公告` 等）仅 OneBot V11 可用。Milky 协议不暴露相同的跨群 API 接口，因此这些命令在 Milky 下不可用。
+
+</Callout>
+
+## API 说明
+
+Milky API 返回 pydantic `Model` 对象，而非 `dict`。使用属性访问，而非 `.get()`：
+
+```python
+member = await bot.get_group_member_info(group_id=gid, user_id=uid)
+card = member.card  # 不是 member.get("card")
+```
+
+部分 API 名称与 OneBot V11 不同：
+
+| 能力 | OneBot V11 | Milky |
+| --- | --- | --- |
+| 禁言成员 | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
+
+## 源码布局
+
+```
+handle/qq/adapters/milky/
+├── default/
+│   ├── __init__.py
+│   ├── announcement.py     # 版本门控的公告处理器
+│   ├── block.py            # 黑名单命令
+│   ├── common.py           # 共享辅助
+│   ├── kick.py             # 踢出命令
+│   ├── lifecycle.py        # 机器人生命周期钩子
+│   ├── member.py           # 成员管理命令
+│   ├── menu.py             # 菜单页处理器
+│   ├── mute.py             # 禁言/解禁命令
+│   ├── profile.py          # 群资料命令
+│   └── test.py             # 测试命令
+└── llbot/
+    ├── __init__.py
+    └── announcement.py     # LLBot 专属公告扩展
+```
+
+## 下一步
+
+- [默认实现](./default) — Milky 核心命令
+- [LLBot 实现](./llbot) — LLBot 专属扩展

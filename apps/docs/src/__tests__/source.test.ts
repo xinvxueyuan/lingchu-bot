@@ -1,58 +1,108 @@
-import { describe, it, expect } from 'vitest';
-import { docsImageRoute, docsContentRoute } from '@/lib/shared';
+import { describe, it, expect, vi } from 'vitest';
 
-function buildSegments(slugs: string[], locale: string): string[] {
-  return locale === 'zh' ? ['zh', ...slugs, 'image.png'] : [...slugs, 'image.png'];
-}
+// Mock the collections/server module to avoid loading MDX files during tests
+vi.mock('collections/server', () => ({
+  docs: {
+    toFumadocsSource: () => ({}),
+  },
+}));
 
-function buildContentSegments(slugs: string[], locale: string): string[] {
-  return locale === 'zh' ? ['zh', ...slugs, 'content.md'] : [...slugs, 'content.md'];
+import { getPageImage, getPageMarkdownUrl, getLLMText, source } from '@/lib/source';
+
+type Page = (typeof source)['$inferPage'];
+
+function mockPage(overrides: {
+  locale?: string;
+  slugs?: string[];
+  url?: string;
+  title?: string;
+  text?: string;
+}): Page {
+  const {
+    locale = 'en',
+    slugs = [],
+    url = '/docs/test',
+    title = 'Test Page',
+    text = 'Test content',
+  } = overrides;
+  return {
+    locale,
+    slugs,
+    url,
+    data: {
+      title,
+      getText: async () => text,
+    },
+  } as unknown as Page;
 }
 
 describe('source utilities', () => {
-  describe('getPageImage URL generation', () => {
+  describe('getPageImage', () => {
     it('should generate correct en image URL structure', () => {
-      const slugs = ['getting-started'];
-      const segments = buildSegments(slugs, 'en');
-      const url = `${docsImageRoute}/${segments.join('/')}`;
+      const page = mockPage({ locale: 'en', slugs: ['getting-started'] });
+      const result = getPageImage(page);
 
-      expect(url).toBe('/og/docs/getting-started/image.png');
-      expect(segments).toEqual(['getting-started', 'image.png']);
+      expect(result.url).toBe('/og/docs/getting-started/image.png');
+      expect(result.segments).toEqual(['getting-started', 'image.png']);
     });
 
     it('should generate correct zh image URL structure', () => {
-      const slugs = ['getting-started'];
-      const segments = buildSegments(slugs, 'zh');
-      const url = `${docsImageRoute}/${segments.join('/')}`;
+      const page = mockPage({ locale: 'zh', slugs: ['getting-started'] });
+      const result = getPageImage(page);
 
-      expect(url).toBe('/og/docs/zh/getting-started/image.png');
-      expect(segments).toEqual(['zh', 'getting-started', 'image.png']);
+      expect(result.url).toBe('/og/docs/zh/getting-started/image.png');
+      expect(result.segments).toEqual(['zh', 'getting-started', 'image.png']);
     });
 
     it('should handle nested slugs', () => {
-      const slugs = ['developer-guide', 'commit-style'];
-      const segments = buildSegments(slugs, 'en');
-      const url = `${docsImageRoute}/${segments.join('/')}`;
+      const page = mockPage({ locale: 'en', slugs: ['developer-guide', 'commit-style'] });
+      const result = getPageImage(page);
 
-      expect(url).toBe('/og/docs/developer-guide/commit-style/image.png');
+      expect(result.url).toBe('/og/docs/developer-guide/commit-style/image.png');
     });
   });
 
-  describe('getPageMarkdownUrl URL generation', () => {
+  describe('getPageMarkdownUrl', () => {
     it('should generate correct en markdown URL structure', () => {
-      const slugs = ['getting-started'];
-      const segments = buildContentSegments(slugs, 'en');
-      const url = `${docsContentRoute}/${segments.join('/')}`;
+      const page = mockPage({ locale: 'en', slugs: ['getting-started'] });
+      const result = getPageMarkdownUrl(page);
 
-      expect(url).toBe('/llms.mdx/docs/getting-started/content.md');
+      expect(result.url).toBe('/llms.mdx/docs/getting-started/content.md');
     });
 
     it('should generate correct zh markdown URL structure', () => {
-      const slugs = ['getting-started'];
-      const segments = buildContentSegments(slugs, 'zh');
-      const url = `${docsContentRoute}/${segments.join('/')}`;
+      const page = mockPage({ locale: 'zh', slugs: ['getting-started'] });
+      const result = getPageMarkdownUrl(page);
 
-      expect(url).toBe('/llms.mdx/docs/zh/getting-started/content.md');
+      expect(result.url).toBe('/llms.mdx/docs/zh/getting-started/content.md');
+    });
+  });
+
+  describe('getLLMText', () => {
+    it('should generate LLM text with title, url and processed content', async () => {
+      const page = mockPage({
+        locale: 'en',
+        slugs: ['getting-started'],
+        url: '/docs/getting-started',
+        title: 'Getting Started',
+        text: 'Welcome to the guide.',
+      });
+
+      const result = await getLLMText(page);
+
+      expect(result).toBe('# Getting Started (/docs/getting-started)\n\nWelcome to the guide.');
+    });
+
+    it('should handle empty content', async () => {
+      const page = mockPage({
+        url: '/docs/empty',
+        title: 'Empty Page',
+        text: '',
+      });
+
+      const result = await getLLMText(page);
+
+      expect(result).toBe('# Empty Page (/docs/empty)\n\n');
     });
   });
 });

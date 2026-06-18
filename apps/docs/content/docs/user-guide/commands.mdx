@@ -1,15 +1,19 @@
 ---
 icon: Terminal
-title: Commands and Group Management
+title: Commands Overview
 ---
 
-## Commands and Group Management
+## Commands Overview
 
-![Lingchu Bot commands and group management](/images/docs/commands-management.png)
+![Lingchu Bot commands and group management](/images/docs/commands-management.webp)
 
-The currently confirmed user-facing capabilities are concentrated in QQ group management commands. Commands are registered through `nonebot-plugin-alconna`, with command start tokens and command separators enabled by default. The QQ platform uses OneBot V11 by default; set `LINGCHUAdapter = "~milky"` if you need Milky.
+Lingchu Bot's user-facing capabilities are concentrated in QQ group management commands. Commands are registered through `nonebot-plugin-alconna`, with command start tokens and separators enabled by default.
 
-Success and failure feedback for group management commands is wired to gettext catalogs. Command trigger words are also selected from the configured locale: Chinese locales enable the existing Chinese triggers, while English locales enable short hyphenated English triggers. The two trigger languages are not enabled at the same time.
+## Locale and triggers
+
+Command trigger words are locale-exclusive. Chinese locales enable the existing Chinese triggers, while English locales enable short hyphenated English triggers. The two trigger languages are not enabled at the same time.
+
+Feedback text and command trigger language use `LINGCHU_LOCALE`, `lc_locale`, or `locale` from the current NoneBot configuration. See [Internationalization](../developer-guide/i18n).
 
 ## Menu
 
@@ -19,216 +23,42 @@ Primary command:
 菜单
 ```
 
-English command when `LINGCHU_LOCALE`/`lc_locale`/`locale` selects English:
+English command when `LINGCHU_LOCALE` / `lc_locale` / `locale` selects English:
 
 ```text
 menu
 ```
 
-Common aliases include:
-
-- `帮助`
-- `功能`
-- `功能列表`
-- `指令`
-- `命令列表`
-- `help`
-- `commands`
-
-The menu command is an index entry. It lists the available submenu commands instead of expanding every group-management feature into one long message. Submenus are code-driven and filtered by the selected platform, adapter, and concrete implementation, so implementation-specific extension APIs are hidden unless the current runtime is known to support them.
-
-Commands unsupported by the selected platform or implementation are hidden.
+The menu command is an index entry. It lists the available submenu commands instead of expanding every feature into one long message. Submenus are code-driven and filtered by the selected platform, protocol, and implementation.
 
 Default submenu commands:
 
-- `member-management`: kick member, block/unblock members on OneBot V11, set member card, set member special title, set/unset admin.
-- `speech-management`: mute/unmute member, enable/disable whole-group mute.
-- `group-chat-management`: set group name, set group avatar when supported, send group announcement when supported, and leave current group.
+- `成员管理` / `member-management`
+- `发言管理` / `speech-management`
+- `群聊管理` / `group-chat-management`
+- `远程管理` / `remote-management`
 
-Chinese locales expose the same submenus as `成员管理`, `发言管理`, and `群聊管理`. The `群公告` alias remains reserved for sending group announcements, so announcement help is shown under `群聊管理`.
+## Platform-specific command references
 
-Current implementation filters include:
+Command availability and behavior vary by platform, protocol, and implementation. For full command references, see the platform-specific pages:
+
+- [QQ Commands](../platforms/qq/commands) — Full QQ command reference including remote management
+- [QQ Platform Overview](../platforms/qq/overview) — Protocol and implementation matrix
+- [OneBot V11 Protocol](../platforms/qq/onebot-v11/overview) — Protocol overview and implementation-specific docs
+- [Milky Protocol](../platforms/qq/milky/overview) — Protocol overview and implementation-specific docs
+
+## Implementation filtering
+
+Commands unsupported by the selected platform, protocol, or implementation are hidden from the menu. Current implementation filters include:
 
 - OneBot V11 with unknown implementation hides group announcement and group avatar.
 - `LLOneBot >= 7.12.0` shows group announcement but hides group avatar.
 - `NapCat.Onebot >= 4.18.0` shows group announcement and group avatar.
 - Milky with unknown implementation hides group announcement.
 - Milky `LLBot` shows text-only group announcement; the menu does not advertise image announcement usage.
-
-## Member mute
-
-Primary command:
-
-```text
-禁言 @用户 [duration in seconds] [reason]
-```
-
-English command when `LINGCHU_LOCALE`/`lc_locale`/`locale` selects English:
-
-```text
-mute @user [duration in seconds] [reason]
-```
-
-Default values:
-
-- Duration: `60` seconds.
-- Reason: `违反群规「默认」`.
-
-Common aliases include:
-
-- `禁言用户`
-- `禁言群成员`
-- `禁言成员`
-- `ban`
-- `mute-member`
-- `ban-member`
-- `禁`
-- `封禁`
-
-## Member unmute
-
-Primary command:
-
-```text
-解禁 @用户 [reason]
-```
-
-English command when `LINGCHU_LOCALE`/`lc_locale`/`locale` selects English:
-
-```text
-unmute @user [reason]
-```
-
-Common aliases include:
-
-- `解禁用户`
-- `解禁群成员`
-- `解禁成员`
-- `pardon`
-- `unmute-member`
-- `解封`
-- `解除封禁`
-- `解除禁言`
-
-## Whole-group mute
-
-Primary command:
-
-```text
-全员禁言
-```
-
-English command when `LINGCHU_LOCALE`/`lc_locale`/`locale` selects English:
-
-```text
-mute-all
-```
-
-Common aliases include:
-
-- `开启全体禁言`
-- `全禁`
-- `全禁言`
-- `全体禁言`
-- `mute-group`
-- `enable-whole-mute`
-- `开启全员禁言`
-- `禁言群`
-
-## Whole-group unmute
-
-Primary command:
-
-```text
-全体解禁
-```
-
-English command when `LINGCHU_LOCALE`/`lc_locale`/`locale` selects English:
-
-```text
-unmute-all
-```
-
-Common aliases include:
-
-- `全员解禁`
-- `关闭全体禁言`
-- `解除全体禁言`
-- `解禁全体`
-- `解禁全员`
-- `unmute-group`
-- `disable-whole-mute`
-- `关闭全员禁言`
-- `解禁群`
-
-## OneBot V11 blocklist
-
-Blocklist commands are available on OneBot V11. Blocking stores the user in the group or global blocklist, kicks the user from the current group, and rejects future group join requests while the block is active.
-
-Primary commands:
-
-```text
-拉黑 @用户 [duration in seconds] [reason]
-全局拉黑 @用户 [duration in seconds] [reason]
-删黑 @用户 [reason]
-全局删黑 @用户 [reason]
-清空黑名单 [reason]
-全局清空黑名单 [reason]
-```
-
-English commands when `LINGCHU_LOCALE`/`lc_locale`/`locale` selects English:
-
-```text
-block @user [duration in seconds] [reason]
-global-block @user [duration in seconds] [reason]
-unblock @user [reason]
-global-unblock @user [reason]
-clear-blocklist [reason]
-global-clear-blocklist [reason]
-```
-
-Default values:
-
-- Duration: permanent.
-- Block reason: `违反群规「默认」`.
-- Unblock and clear reason: `管理员操作「默认」`.
-
-`清空黑名单` only clears the current group blocklist. Use `全局清空黑名单` to clear global entries.
-
-By default, QQ `owner` and `admin` role groups can use current-group blocklist commands. Global blocklist commands require elevated privileges.
-
-## Group settings and operations
-
-These commands are the QQ group management handlers registered in the current source. Commands act on the current group by default, and `@用户` resolves to the target group member. The plugin enables only one QQ adapter per platform selection; the table does not list future capabilities as currently available commands.
-
-| Capability | Chinese command | English command |
-| --- | --- | --- |
-| Set group name | `设置群名称 <new group name>` | `set-group-name <new group name>` |
-| Set group avatar | `设置群头像 <image_uri>` | `set-group-avatar <image_uri>` |
-| Set member card | `设置群名片 @用户 <card>` | `set-member-card @user <card>` |
-| Set member special title | `设置群头衔 @用户 <title>` | `set-member-title @user <title>` |
-| Set member admin | `设置群管理员 @用户 [true/false]` | `set-member-admin @user [true/false]` |
-| Unset member admin | `取消群管理员 @用户` | `unset-member-admin @user` |
-| Kick blocklisted member | `踢出群成员 <用户ID或@提及> [reason]` | `kick-member <user_id_or_mention> [reason]` |
-| Block member | `拉黑 @用户 [duration in seconds] [reason]` | `block @user [duration seconds] [reason]` |
-| Global block member | `全局拉黑 @用户 [duration in seconds] [reason]` | `global-block @user [duration seconds] [reason]` |
-| Unblock member | `删黑 @用户 [reason]` | `unblock @user [reason]` |
-| Global unblock member | `全局删黑 @用户 [reason]` | `global-unblock @user [reason]` |
-| Clear blocklist | `清空黑名单 [reason]` | `clear-blocklist [reason]` |
-| Global clear blocklist | `全局清空黑名单 [reason]` | `global-clear-blocklist [reason]` |
-| Send announcement | `发送群公告 <content> [image_uri]` | `send-announcement <content> [image_uri]` |
-| Leave current group | `退出群` | `leave-group` |
-
-Representative English aliases include `rename-group`, `change-group-avatar`, `set-group-card`, `set-special-title`, `set-admin`, `promote-admin`, `unset-admin`, `revoke-admin`, `kick`, `remove-member`, `block-member`, `global-block-member`, `unblock-member`, `global-unblock-member`, `announce`, `group-announcement`, and `quit-group`.
-
-The table lists both language sets for reference. Runtime command registration uses only the language selected by the configured locale.
-
-The announcement and group avatar commands accept `UniImage` values from `nonebot-plugin-alconna`. The current implementation resolves raw image bytes, local paths, or downloadable URLs into cached files before passing them to adapter APIs. Quote names, announcements, cards, or titles that contain spaces so command separators do not split them.
-
-Essence message management and similar capabilities are candidates for later iterations. They are not registered user-triggered commands in the current source.
+- Remote management commands are OneBot V11 only.
+- Remote announcement requires `LLOneBot >= 7.12.0` or `NapCat.Onebot >= 4.18.0`.
 
 ## Error feedback
 
 Group management commands return readable error messages for covered adapter network errors and rejected operations. Unknown exceptions are still raised outward so developers can find uncovered cases.
-
-Feedback text and command trigger language use `LINGCHU_LOCALE`, `lc_locale`, or `locale` from the current NoneBot configuration. Without configuration, the default follows the i18n helper default locale. The current repository provides `zh_CN` and `en_US` catalogs. See [Internationalization](../developer-guide/i18n).

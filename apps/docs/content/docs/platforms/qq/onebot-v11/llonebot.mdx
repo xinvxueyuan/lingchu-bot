@@ -1,0 +1,64 @@
+---
+icon: Bot
+title: LLOneBot Implementation
+---
+
+## LLOneBot Implementation
+
+[LLOneBot](https://github.com/LLOneBot/LLOneBot) is a OneBot V11 implementation based on LLOneBot/LiteLoaderQQNT. Lingchu Bot's `llonebot/` extension package adds LLOneBot-specific capabilities on top of the default OneBot V11 handlers.
+
+## Minimum version
+
+| Capability | Minimum version |
+| --- | --- |
+| Group announcement (`发送群公告`) | `LLOneBot >= 7.12.0` |
+| Remote announcement (`远程公告`) | `LLOneBot >= 7.12.0` |
+
+The bot detects LLOneBot via `get_version_info()` where `app_name == "LLOneBot"`. Commands below the minimum version are hidden from the menu.
+
+<Callout type="warn" title="No group avatar support">
+
+LLOneBot does not support the `set_group_portrait` API for setting group avatars. The `设置群头像` / `set-group-avatar` command is hidden when running under LLOneBot. Use [NapCat](./napcat) if you need group avatar support.
+
+</Callout>
+
+## Extension modules
+
+| Module | Adds |
+| --- | --- |
+| `announcement.py` | Group announcement handler using `_send_group_notice` API |
+
+## Group announcement
+
+LLOneBot supports both text and image announcements via the `_send_group_notice` API:
+
+```text
+发送群公告 <内容> [图片]
+send-announcement <content> [image]
+```
+
+The image argument accepts `UniImage` from `nonebot-plugin-alconna`. The implementation resolves raw bytes, local paths, or downloadable URLs into cached files before passing them to the API.
+
+## Remote announcement
+
+The remote announcement command (`远程公告`) uses the same `_send_group_notice` API as the local announcement command, but targets a different group:
+
+```text
+远程公告 <群号|群名称> <内容> [图片]
+remote-announcement <group_id|group_name> <content> [image]
+```
+
+See [Default Implementation](./default) for group ID resolution and context validation logic.
+
+## Configuration
+
+LLOneBot does not require additional Lingchu Bot configuration beyond the standard OneBot V11 setup. Ensure LLOneBot is running and connected to NoneBot via WebSocket or HTTP reverse proxy.
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+## Source reference
+
+See [handle/qq/adapters/onebot11/llonebot/](https://github.com/xinvxueyuan/lingchu-bot/tree/dev/src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/llonebot) in the repository.

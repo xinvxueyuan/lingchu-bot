@@ -1,0 +1,12 @@
+{
+  "title": "QQ Platform",
+  "description": "QQ platform documentation separated by protocol and implementation",
+  "icon": "MessageCircle",
+  "root": true,
+  "pages": [
+    "overview",
+    "commands",
+    "onebot-v11",
+    "milky"
+  ]
+}

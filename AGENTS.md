@@ -112,7 +112,7 @@ Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains a Py
 
 ## Project Structure
 
-> See the [Project Directory Tree](#project-directory-tree) section below for the complete annotated tree with file-level descriptions.
+> See the [Project Directory Tree](#project-directory-tree) section below for the complete annotated tree with file-level descriptions. The docs site has a dedicated [Platforms](apps/docs/content/docs/platforms) section that separates documentation by platform → protocol → implementation.
 
 ## Development Commands
 
@@ -190,7 +190,7 @@ task ci                                          # check + test + build
 | What changed | Minimum checks before commit |
 |---|---|
 | Python source only | `ruff check` + `ruff format --check` + `pyright` + `ty check` + `pytest` |
-| Docs site only | `pnpm --filter docs lint` + `pnpm --filter docs test` + `tsc --noEmit` |
+| Docs site only | `pnpm --filter docs lint` + `pnpm --filter docs test` + `pnpm turbo run check-types --filter=docs` + `pnpm --filter docs lint:links` |
 | Markdown only | `markdownlint-cli2` |
 | i18n strings | `task i18n` + `pytest` |
 | Mixed / unsure | `task check && task test` |
@@ -306,8 +306,14 @@ When modifying business logic (especially adapter-layer code), changes MUST prop
 1. **Source code** — `src/plugins/nonebot_plugin_lingchu_bot/`
 2. **Tests** — `tests/` (add/update tests for new behavior, remove tests for deleted behavior)
 3. **i18n** — `src/plugins/nonebot_plugin_lingchu_bot/i18n/` (run `task i18n` if user-facing strings change)
-4. **Docs** — `apps/docs/content/docs/` (update command docs if behavior changes)
+4. **Docs** — `apps/docs/content/docs/`:
+   - `platforms/qq/commands.mdx` (and `.zh.mdx`) — Full command reference
+   - `platforms/qq/<protocol>/<implementation>.mdx` — Implementation-specific docs
+   - `user-guide/commands.mdx` — High-level overview (only if menu structure changes)
+   - `developer-guide/introduction.mdx` — Project structure (only if source layout changes)
 5. **Menu** — `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py` (update `MENU_FEATURES` when adding/removing/modifying command handlers: command key, usage text, summary, availability)
+6. **Triggers** — `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` (add command triggers for new commands)
+7. **AGENTS.md** — Update Project Directory Tree and Lessons Learned if structure or conventions change
 
 After changes, always run the full check suite: `task check && task test`
 
@@ -828,20 +834,37 @@ lingchu-bot/
 │       │   ├── models.py             # ORM models (aiosqlite)
 │       │   └── orm_crud.py           # Async CRUD helpers
 │       ├── handle/
+│       │   ├── menu.py               # Menu system (pages, sections, features, availability)
 │       │   └── qq/                   # QQ platform handlers
-│       │       ├── group/            # Shared group command definitions
-│       │       ├── onebot/v11/
-│       │       │   ├── default/group/   # OneBot V11 shared handlers
-│       │       │   ├── llonebot/group/  # LLOneBot extensions
-│       │       │   └── napcat/group/    # NapCat extensions
-│       │       └── milky/v1_2/
-│       │           ├── default/group/   # Milky 1.2 shared handlers
-│       │           └── llbot/group/     # LLBot extensions
+│       │       ├── commands/         # Shared QQ command definitions (Alconna matchers, triggers)
+│       │       │   ├── triggers.py   # Command trigger words (zh/en)
+│       │       │   ├── mute.py       # Mute/unmute commands
+│       │       │   ├── member.py     # Member management commands
+│       │       │   ├── block.py      # Blocklist commands
+│       │       │   ├── announcement.py # Announcement command
+│       │       │   ├── remote.py     # Remote management commands (8 cross-group commands)
+│       │       │   ├── profile.py    # Group profile commands
+│       │       │   ├── lifecycle.py  # Bot lifecycle command
+│       │       │   ├── kick.py       # Kick command
+│       │       │   ├── common.py     # Shared command helpers (selected_adapter_handle)
+│       │       │   └── test.py       # Test command
+│       │       └── adapters/
+│       │           ├── onebot11/     # OneBot V11 protocol handlers
+│       │           │   ├── default/  # Default implementation handlers
+│       │           │   │   ├── remote.py # Remote management handlers (8 commands)
+│       │           │   │   ├── announcement.py # Version-gated announcement handler
+│       │           │   │   └── ...   # mute, member, block, kick, profile, menu, lifecycle, test
+│       │           │   ├── llonebot/ # LLOneBot extensions (announcement)
+│       │           │   └── napcat/   # NapCat extensions (announcement, profile)
+│       │           └── milky/        # Milky protocol handlers
+│       │               ├── default/  # Default implementation handlers
+│       │               └── llbot/    # LLBot extensions (announcement)
 │       ├── i18n/                     # Babel/gettext translations (en, zh)
 │       ├── platforms/                # Adapter registry, permission presets & resolution
 │       │   ├── config.py            # Platform default permission role presets
 │       │   └── registry.py          # Cross-platform capability & adapter selection
 │       ├── repositories/             # Data access layer
+│       │   ├── blocklist.py         # Blocklist repository
 │       │   └── message_store.py     # Message store repository
 │       ├── services/                 # Business logic services
 │       │   └── messagestore.py      # Message storage service
@@ -860,9 +883,23 @@ lingchu-bot/
 │       │   ├── user-guide/           # User-facing documentation
 │       │   │   ├── overview.mdx      # Bot overview & capabilities
 │       │   │   ├── quick-start.mdx   # Installation & first run
-│       │   │   ├── commands.mdx      # Command reference
+│       │   │   ├── commands.mdx      # Commands overview (links to platform-specific pages)
 │       │   │   ├── configuration.mdx # Configuration options
 │       │   │   └── troubleshooting.mdx # Common issues & solutions
+│       │   ├── platforms/            # Platform-specific documentation (NEW)
+│       │   │   ├── index.mdx         # Platforms overview (layer model)
+│       │   │   └── qq/               # QQ platform docs
+│       │   │       ├── overview.mdx  # QQ platform overview (protocol priority, implementation matrix)
+│       │   │       ├── commands.mdx  # Full QQ command reference (incl. remote management)
+│       │   │       ├── onebot-v11/   # OneBot V11 protocol docs
+│       │   │       │   ├── overview.mdx  # Protocol overview
+│       │   │       │   ├── default.mdx   # Default implementation
+│       │   │       │   ├── napcat.mdx    # NapCat implementation
+│       │   │       │   └── llonebot.mdx  # LLOneBot implementation
+│       │   │       └── milky/        # Milky protocol docs
+│       │   │           ├── overview.mdx  # Protocol overview
+│       │   │           ├── default.mdx   # Default implementation
+│       │   │           └── llbot.mdx     # LLBot implementation
 │       │   └── developer-guide/      # Developer documentation
 │       │       ├── introduction.mdx  # Project structure & architecture
 │       │       ├── adapter-guide.mdx # Adapter selection & configuration
@@ -894,6 +931,7 @@ lingchu-bot/
 │       │   │   ├── build-graph.ts    # Graph data builder
 │       │   │   ├── rss.ts            # RSS feed generator
 │       │   │   ├── i18n.ts           # i18n configuration
+│       │   │   ├── locale.ts         # Locale switch helper (extracted from provider.tsx)
 │       │   │   ├── shared.ts         # Shared constants
 │       │   │   ├── layout.shared.tsx # Layout configuration
 │       │   │   └── cn.ts             # Class name utility
@@ -907,6 +945,11 @@ lingchu-bot/
 │   ├── typescript-config/            # Shared TS configs (base, nextjs, react-library)
 │   └── ui/                           # Shared UI components (button, card, code)
 ├── tests/                            # Python test suite
+│   └── handle/commands/              # Command handler tests
+│       ├── test_remote.py            # Remote management command tests
+│       ├── test_menu.py              # Menu system tests
+│       ├── test_command_triggers.py  # Command trigger catalog tests
+│       └── ...                       # mute, member, block, kick, announcement, etc.
 ├── skills/                           # Shared skill definitions (mirror of .agents/)
 ├── Dockerfile                        # Container runner (nb-cli generated)
 ├── pyproject.toml                    # Python project config (uv, ruff, pyright, pytest)
@@ -949,22 +992,30 @@ lingchu-bot/
 │              Python Plugin (nonebot_plugin_lingchu_bot)           │
 │                                                                   │
 │  __init__.py ──► core/config.py ──► Pydantic settings            │
-│              ──► core/sub_plugins.py ──► platform handlers       │
+│              ──► core/runtime_config.py ──► runtime helpers       │
+│              ──► core/sub_plugins.py ──► sub-plugin loader        │
 │              ──► platforms/registry.py ──► adapter resolution     │
 │              ──► database/orm_crud.py ──► models.py (aiosqlite)  │
 │              ──► database/json5_store.py ──► JSON5 KV store      │
 │              ──► database/message_storage.py ──► message hooks   │
+│              ──► repositories/blocklist.py ──► blocklist data    │
 │              ──► repositories/message_store.py ──► data access   │
 │              ──► services/messagestore.py ──► business logic     │
 │              ──► start/ ──► bootstrap, initialize, startup       │
 │              ──► i18n/ ──► Babel gettext catalogs                │
 │                                                                   │
+│  handle/menu.py ──► Menu system (pages, features, availability)  │
+│                                                                   │
 │  handle/qq/                                                       │
-│    ├── commands/ ──► shared QQ group command definitions          │
-│    ├── adapters/onebot11/default/ ──► OneBot V11 handlers        │
-│    ├── adapters/onebot11/{llonebot,napcat}/ ──► OneBot extensions│
-│    ├── adapters/milky/default/ ──► Milky 1.2 handlers            │
-│    └── adapters/milky/llbot/ ──► LLBot extensions                │
+│    ├── commands/ ──► shared QQ command definitions                │
+│    │   ├── triggers.py ──► command trigger words (zh/en)         │
+│    │   ├── remote.py ──► remote management command matchers      │
+│    │   └── ... ──► mute, member, block, announcement, etc.       │
+│    └── adapters/                                                  │
+│        ├── onebot11/default/ ──► OneBot V11 handlers             │
+│        │   └── remote.py ──► 8 remote management handlers        │
+│        ├── onebot11/{llonebot,napcat}/ ──► OneBot extensions     │
+│        └── milky/{default,llbot}/ ──► Milky handlers             │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -987,6 +1038,8 @@ lingchu-bot/
 | Test docs | `pnpm --filter docs test` |
 | Lint docs | `pnpm --filter docs lint` |
 | Type check docs | `pnpm turbo run check-types --filter=docs` |
+| Link validation | `pnpm --filter docs lint:links` |
+| Docs CI (local) | `task ci:docs` |
 | Test Python | `uv run -m pytest` |
 | Lint Python | `uv run -m ruff check .` |
 | Full check (all) | `task check && task test` |
@@ -1156,7 +1209,105 @@ Rule suppressions and temporary workarounds that should be reverted once the tri
 
 ### Blocklist Kick Behavior: reject_add_request=False
 
-When kicking blocked users from groups, the `reject_add_request` parameter is set to `False` (not `True`). This allows previously blocked users to request re-joining the group after being unblocked or after their block expires. If the business requirement changes to permanently prevent re-joining, update `_kick_blocked_user()` in `handle/qq/onebot/v11/default/group/block.py` and corresponding test assertions.
+When kicking blocked users from groups, the `reject_add_request` parameter is set to `False` (not `True`). This allows previously blocked users to request re-joining the group after being unblocked or after their block expires. If the business requirement changes to permanently prevent re-joining, update `_kick_blocked_user()` in `handle/qq/adapters/onebot11/default/block.py` and corresponding test assertions.
 
 - **Non-component exports break Fast Refresh**: Utility functions (`getMermaidConfig`, `sanitizeMermaidSvg`, `renderMermaidSvg`) exported from a component file (`mermaid.tsx`) trigger `react-doctor/only-export-components`. Extract them to a separate non-component module (e.g., `mermaid-utils.ts`) and import from there. Update test imports accordingly.
 - **`/llms.txt` is a route handler, not a static file**: When linking to Next.js route handlers from components, use `<Link>` (not plain `<a>`) — they're internal routes that benefit from client-side navigation.
+
+### Use CLI Auto-Fix Tools Before Manual Edits
+
+When lint or type-check tools report mechanical issues (import sorting, unused imports, formatting, simple style violations), **always prefer CLI auto-fix flags over manual one-by-one edits**. This saves significant time and avoids human error.
+
+| Tool | Auto-fix command | What it fixes |
+|------|------------------|---------------|
+| Ruff | `uv run -m ruff check --fix .` | Import sorting (I001), unused imports (F401), unused variables, simple style violations |
+| Ruff format | `uv run -m ruff format .` | Code formatting (line length, whitespace, quotes) |
+| Markdownlint | `pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}` | Markdown formatting (MD060, MD009, etc.) |
+| ESLint | `pnpm --filter docs lint --fix` | JS/TS lint issues (unused vars, formatting) |
+| Prek | `prek run --all-files` | Runs all pre-commit auto-fixers in sequence |
+
+<Callout type="warn" title="What auto-fix CANNOT do">
+
+Auto-fix tools handle **mechanical** issues only. They cannot fix:
+- Logic errors (TRY300 — move return to else block requires understanding control flow)
+- Complexity issues (PLR0911, PLR0913, C901 — require extracting helper functions)
+- Type mismatches (Pyright/ty — require understanding the intended type)
+- Boolean positional args (FBT001/FBT002 — require deciding keyword-only vs positional)
+
+For these, manually refactor after running auto-fix. Use `# noqa: <rule>` comments for cases where the rule is intentionally violated (e.g., `PLR0913` for handlers with many required params, following the `block.py` pattern).
+
+</Callout>
+
+**Workflow:**
+1. Run `uv run -m ruff check --fix .` first — fixes imports and simple style issues
+2. Run `uv run -m ruff format .` — applies formatting
+3. Run `uv run -m pyright .` and `uv run -m ty check` — identify remaining type/logic issues
+4. Manually fix only what auto-fix cannot handle (complexity, logic, type mismatches)
+5. Re-run `task check` to verify all issues are resolved
+
+**Rule of thumb**: If you find yourself manually fixing more than 2-3 instances of the same rule, stop and check if there's an auto-fix flag for it. Never manually fix I001 (import sorting) or F401 (unused imports) — always use `ruff check --fix`.
+
+### Remote Management Commands (OneBot V11 only)
+
+The 8 remote management commands (`远程禁言`, `远程解禁`, `远程全体禁言`, `远程全体解禁`, `远程踢出`, `远程拉黑`, `远程删黑`, `远程公告`) are OneBot V11 only. They are defined in `handle/qq/commands/remote.py` (Alconna matchers) and implemented in `handle/qq/adapters/onebot11/default/remote.py` (handlers).
+
+Key behaviors:
+- **Group ID resolution**: `<群号|群名称>` accepts `int` (direct), numeric `str` (parsed to int), or non-numeric `str` (fuzzy matched via `get_group_list`). Exact name match takes priority; substring containment is fallback. Multiple matches trigger `cmd_matcher.finish` asking for a more precise identifier.
+- **Context validation**: Before executing, the bot checks it is in the target group, has admin role (for most commands), the target user is in the group, and the target is not the bot or sender.
+- **Remote kick requires blocklist**: `远程踢出` only works on users already in the blocklist. Use `远程拉黑` first.
+- **Remote announcement version gating**: Requires `LLOneBot >= 7.12.0` or `NapCat.Onebot >= 4.18.0`. The menu hides this command for unsupported implementations.
+
+### Menu System Architecture
+
+The menu system in `handle/menu.py` uses a layered `MenuPage` → `MenuSection` → `MenuFeature` → `MenuAvailability` model. When adding new commands:
+
+1. Add the command trigger to `COMMAND_TRIGGERS` in `handle/qq/commands/triggers.py` (both zh and en).
+2. Add a `MenuFeature` entry to `MENU_FEATURES` in `handle/menu.py` with the correct `command_key`, `section_id`, `summary`, `usage`, `platform_capability`, and `availability` tuple.
+3. If creating a new menu page (top-level category like `remote-management`), add a `MenuPage` entry to `MENU_PAGES` and ensure it has a `command` field for the submenu trigger.
+4. Update `EXPECTED_TRIGGERS` in `tests/handle/commands/test_command_triggers.py` to include the new trigger.
+5. Update menu tests in `tests/handle/commands/test_menu.py` to cover the new feature's visibility under different adapter/implementation contexts.
+6. Update `apps/docs/content/docs/platforms/qq/commands.mdx` (and `.zh.mdx`) with the new command reference.
+
+### Docs Site Structure: Platform → Protocol → Implementation
+
+The docs site (`apps/docs/content/docs/`) separates platform-specific documentation into a dedicated `platforms/` section:
+
+```
+platforms/
+├── index.mdx              # Layer model overview (platform → protocol → implementation)
+└── qq/                    # QQ platform
+    ├── overview.mdx       # Protocol priority, implementation matrix
+    ├── commands.mdx       # Full QQ command reference (incl. remote management)
+    ├── onebot-v11/        # OneBot V11 protocol
+    │   ├── overview.mdx   # Protocol overview, runtime detection
+    │   ├── default.mdx    # Default implementation (core commands + remote management)
+    │   ├── napcat.mdx     # NapCat extensions (announcement + avatar)
+    │   └── llonebot.mdx   # LLOneBot extensions (announcement)
+    └── milky/             # Milky protocol
+        ├── overview.mdx   # Protocol overview, API differences from OneBot V11
+        ├── default.mdx    # Default implementation
+        └── llbot.mdx      # LLBot extensions (text-only announcement)
+```
+
+The `user-guide/commands.mdx` is now a high-level overview that links to the platform-specific pages instead of duplicating command details. When adding new commands or changing availability:
+
+1. Update `platforms/qq/commands.mdx` (and `.zh.mdx`) with the full command reference
+2. Update the relevant implementation page (e.g., `platforms/qq/onebot-v11/napcat.mdx`) if the command is implementation-specific
+3. Update `user-guide/commands.mdx` only if the high-level menu structure or filtering rules change
+4. Update `developer-guide/introduction.mdx` if the project source structure changes
+
+### Docs CI and Unit Test Coverage
+
+When adding CI checks or unit tests for the docs site (`apps/docs/`), several pitfalls emerged:
+
+1. **MDX table `|` breaks inline code spans**: Inside markdown table cells, `<群号|群名称>` is parsed as three table columns (`<群号`, `群名称>`), which exposes the `<...>` as JSX and causes "Unexpected end of file in name" build errors. Replace `|` with `或` / `_or_` (matching existing style, e.g., `<用户ID或@提及>`). This applies to both `.mdx` and `.zh.mdx` files.
+
+2. **`fumadocs-mdx` node loader cannot handle image assets**: The `lint:links` script uses `register()` from `fumadocs-mdx/node` to load MDX files for link validation. When an MDX file imports a `.png`/`.jpg`/`.svg`, the loader's `load` hook calls `nextLoad`, reaching Node's default loader which throws `ERR_UNKNOWN_FILE_EXTENSION`. Fix by registering a `load` hook via `module.registerHooks()` (Node.js 23+) from `node:module` that returns `export default undefined;` for image file extensions. Add this at the top of `scripts/lint.mts` before importing `fumadocs-mdx/node`.
+
+3. **`next-validate-link` URL resolution from root index pages**: Root index pages (e.g., `platforms/index.mdx`) have a URL without a trailing slash (`/docs/platforms`), so relative links like `./qq` resolve to `/docs/qq` instead of `/docs/platforms/qq`. Use absolute URLs (`/docs/platforms/qq/overview`) for links from root index pages. Directory links (e.g., `./onebot-v11`) must include a specific page suffix (`./onebot-v11/overview`) — bare directory links fail validation.
+
+4. **Extract shared functions for testability**: When a function (e.g., `switchLocale` in `provider.tsx`) is defined inside a React component file, unit tests either can't import it or must duplicate the logic (which drifts from the real implementation). Extract such functions to a dedicated module (e.g., `src/lib/locale.ts`) and import from both the component and the test. This ensures tests verify the real export, not a stale copy.
+
+5. **Mock `collections/server` in vitest to prevent MDX loading**: Tests that import from `src/lib/source.ts` transitively load MDX collection files via the `collections/server` alias, which vitest cannot parse as JavaScript (error: "Failed to parse source for import analysis"). Add `vi.mock('collections/server', () => ({ docs: { toFumadocsSource: () => ({}) } }))` at the top of the test file to stub the collection and prevent MDX file loading.
+
+6. **`ci:docs` Taskfile task**: The local docs CI simulation task (`task ci:docs`) runs the full docs pipeline: `pnpm turbo run lint check-types` → `pnpm --filter docs lint:links` → `pnpm --filter docs test` → `pnpm --filter docs build`. The build step uses `pnpm --filter docs build` (not `pnpm turbo run build`) because `turbo` wrapping `next build` through `task` on Windows leaves child processes alive, preventing the task from exiting. CI workflows on Linux are unaffected and still use `pnpm turbo run build`.

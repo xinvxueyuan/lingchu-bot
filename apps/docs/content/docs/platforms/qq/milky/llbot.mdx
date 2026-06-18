@@ -1,0 +1,51 @@
+---
+icon: Bot
+title: LLBot Implementation
+---
+
+## LLBot Implementation
+
+LLBot is a Milky protocol implementation. Lingchu Bot's `llbot/` extension package adds LLBot-specific capabilities on top of the default Milky handlers.
+
+## Capabilities
+
+| Capability | Status |
+| --- | --- |
+| Group announcement (`发送群公告`) | Text-only (no image support) |
+| Group avatar | Not supported |
+| Remote management | Not available (OneBot V11 only) |
+
+The bot detects LLBot via runtime adapter inspection. The menu shows the announcement command with a text-only usage override (`<内容>` / `<content>`) when LLBot is the active implementation.
+
+## Extension modules
+
+| Module | Adds |
+| --- | --- |
+| `announcement.py` | Text-only group announcement handler |
+
+## Group announcement
+
+LLBot supports text-only group announcements:
+
+```text
+发送群公告 <内容>
+send-announcement <content>
+```
+
+<Callout type="warn" title="No image support">
+
+Unlike [NapCat](../onebot-v11/napcat) and [LLOneBot](../onebot-v11/llonebot) on OneBot V11, LLBot's announcement API does not accept image parameters. The menu advertises text-only usage to avoid confusing users.
+
+</Callout>
+
+## Configuration
+
+LLBot does not require additional Lingchu Bot configuration beyond the standard Milky setup. Ensure LLBot is running and connected to NoneBot.
+
+```dotenv
+LINGCHUAdapter=~milky
+```
+
+## Source reference
+
+See [handle/qq/adapters/milky/llbot/](https://github.com/xinvxueyuan/lingchu-bot/tree/dev/src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/milky/llbot) in the repository.

@@ -1,0 +1,12 @@
+{
+  "title": "QQ 平台",
+  "description": "按协议和实现方式分离的 QQ 平台文档",
+  "icon": "MessageCircle",
+  "root": true,
+  "pages": [
+    "overview",
+    "commands",
+    "onebot-v11",
+    "milky"
+  ]
+}

@@ -1,0 +1,69 @@
+---
+icon: Cat
+title: NapCat Implementation
+---
+
+## NapCat Implementation
+
+[NapCat](https://github.com/NapNeko/NapCatQQ) is a OneBot V11 implementation based on NTQQ. Lingchu Bot's `napcat/` extension package adds NapCat-specific capabilities on top of the default OneBot V11 handlers.
+
+## Minimum version
+
+| Capability | Minimum version |
+| --- | --- |
+| Group announcement (`发送群公告`) | `NapCat.Onebot >= 4.18.0` |
+| Group avatar (`设置群头像`) | `NapCat.Onebot >= 4.18.0` |
+| Remote announcement (`远程公告`) | `NapCat.Onebot >= 4.18.0` |
+
+The bot detects NapCat via `get_version_info()` where `app_name == "NapCat.Onebot"`. Commands below the minimum version are hidden from the menu.
+
+## Extension modules
+
+| Module | Adds |
+| --- | --- |
+| `announcement.py` | Group announcement handler using `_send_group_notice` API |
+| `profile.py` | Group avatar handler using `set_group_portrait` API |
+
+## Group announcement
+
+NapCat supports both text and image announcements via the `_send_group_notice` API:
+
+```text
+发送群公告 <内容> [图片]
+send-announcement <content> [image]
+```
+
+The image argument accepts `UniImage` from `nonebot-plugin-alconna`. The implementation resolves raw bytes, local paths, or downloadable URLs into cached files before passing them to the API.
+
+## Group avatar
+
+NapCat supports setting group avatars via the standard `set_group_portrait` API:
+
+```text
+设置群头像 <图片>
+set-group-avatar <image>
+```
+
+## Remote announcement
+
+The remote announcement command (`远程公告`) uses the same `_send_group_notice` API as the local announcement command, but targets a different group:
+
+```text
+远程公告 <群号|群名称> <内容> [图片]
+remote-announcement <group_id|group_name> <content> [image]
+```
+
+See [Default Implementation](./default) for group ID resolution and context validation logic.
+
+## Configuration
+
+NapCat does not require additional Lingchu Bot configuration beyond the standard OneBot V11 setup. Ensure NapCat is running and connected to NoneBot via WebSocket or HTTP reverse proxy.
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+## Source reference
+
+See [handle/qq/adapters/onebot11/napcat/](https://github.com/xinvxueyuan/lingchu-bot/tree/dev/src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/napcat) in the repository.
