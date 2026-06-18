@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2578 symbols, 5084 relationships, 216 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2890 symbols, 5593 relationships, 241 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -1309,5 +1309,3 @@ When adding CI checks or unit tests for the docs site (`apps/docs/`), several pi
 4. **Extract shared functions for testability**: When a function (e.g., `switchLocale` in `provider.tsx`) is defined inside a React component file, unit tests either can't import it or must duplicate the logic (which drifts from the real implementation). Extract such functions to a dedicated module (e.g., `src/lib/locale.ts`) and import from both the component and the test. This ensures tests verify the real export, not a stale copy.
 
 5. **Mock `collections/server` in vitest to prevent MDX loading**: Tests that import from `src/lib/source.ts` transitively load MDX collection files via the `collections/server` alias, which vitest cannot parse as JavaScript (error: "Failed to parse source for import analysis"). Add `vi.mock('collections/server', () => ({ docs: { toFumadocsSource: () => ({}) } }))` at the top of the test file to stub the collection and prevent MDX file loading.
-
-6. **`ci:docs` Taskfile task**: The local docs CI simulation task (`task ci:docs`) runs the full docs pipeline: `pnpm turbo run lint check-types` → `pnpm --filter docs lint:links` → `pnpm --filter docs test` → `pnpm --filter docs build`. The build step uses `pnpm --filter docs build` (not `pnpm turbo run build`) because `turbo` wrapping `next build` through `task` on Windows leaves child processes alive, preventing the task from exiting. CI workflows on Linux are unaffected and still use `pnpm turbo run build`.

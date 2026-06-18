@@ -573,5 +573,3 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 4. **提取共享函数以提高可测试性**：当函数（如 `provider.tsx` 中的 `switchLocale`）定义在 React 组件文件内时，单元测试要么无法导入它，要么必须复制逻辑（从而偏离真实实现）。应将此类函数提取到独立模块（如 `src/lib/locale.ts`），组件和测试都从该模块导入。这确保测试验证的是真实导出，而非过时副本。
 
 5. **在 vitest 中 mock `collections/server` 以防止 MDX 加载**：从 `src/lib/source.ts` 导入的测试会通过 `collections/server` 别名传递加载 MDX 集合文件，vitest 无法将其解析为 JavaScript（错误："Failed to parse source for import analysis"）。在测试文件顶部添加 `vi.mock('collections/server', () => ({ docs: { toFumadocsSource: () => ({}) } }))` 来 stub 集合并阻止 MDX 文件加载。
-
-6. **`ci:docs` Taskfile 任务**：本地 docs CI 模拟任务（`task ci:docs`）运行完整的 docs 流水线：`pnpm turbo run lint check-types` → `pnpm --filter docs lint:links` → `pnpm --filter docs test` → `pnpm --filter docs build`。构建步骤使用 `pnpm --filter docs build`（而非 `pnpm turbo run build`），因为在 Windows 上通过 `task` 运行 `turbo` 包装的 `next build` 会留下子进程，导致任务无法退出。Linux 上的 CI 工作流不受影响，仍使用 `pnpm turbo run build`。
