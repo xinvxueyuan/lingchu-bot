@@ -171,6 +171,34 @@ uv run -m pytest -k "test_mute"                  # 按关键字筛选
 uv run -m pytest --lf                            # 重跑上次失败的测试
 ```
 
+### Python — 多语言测试
+
+`tests/conftest.py` 提供两个参数化 fixture 和一个标记，用于在单个 pytest 会话中测试 `zh_CN` 和 `en_US` 两种 locale：
+
+| Fixture | 是否修改全局状态 | 适用场景 |
+|---------|------------------|----------|
+| `locale` | 否 — 仅返回 locale 字符串 | 测试显式传入 `locale=` 参数调用 gettext 辅助函数（如 `gettext(msg, locale=locale)`） |
+| `configured_locale` | 是 — 调用 `_read_configured_locale.cache_clear()` 并 monkeypatch 使其返回参数化 locale | 测试依赖 `get_configured_locale()` 或 `_()` 简写（无显式 locale 参数） |
+
+- **`i18n` 标记**：在 `pytest_configure()` 中通过 `config.addinivalue_line("markers", ...)` 注册。用 `@pytest.mark.i18n` 标记多语言测试，可通过 `-m i18n` 筛选。
+
+**示例：**
+
+```python
+@pytest.mark.i18n
+def test_gettext_explicit(locale):
+    """使用 `locale` fixture — 不修改全局状态。"""
+    assert gettext("禁言", locale=locale)  # 显式传入 locale
+
+
+@pytest.mark.i18n
+def test_configured_locale(configured_locale):
+    """使用 `configured_locale` fixture — patch 缓存的 locale。"""
+    assert _("禁言")  # 经 get_configured_locale() 读取
+```
+
+> **为什么需要两个 fixture？** `_read_configured_locale()` 被 `@lru_cache(maxsize=1)` 装饰，首次调用后结果会在整个会话中缓存。`configured_locale` fixture 清除该缓存并 monkeypatch 该函数，使每个参数化 locale 生效。详见"绕过 lru_cache 进行多语言测试"经验。
+
 ### Docs Site — Lint & Type Check
 
 ```bash
@@ -440,6 +468,12 @@ When removing functions/helpers:
 - **Fumadocs 语言包**：`@fumadocs/language` 导出其支持的语言包（如 `zh-cn`、`zh-tw`）；英语（`en-us`）默认内置，无需单独导入。切换默认语言为英语时，`layout.shared.tsx` 只需 `preset('zh', zhCN())` 加载中文语言包，无需导入英语包。在假设某个 locale 是否可用之前，务必检查 `@fumadocs/language` 当前的导出列表。
 - **测试环境覆盖 locale 而非改断言**：将 Python `DEFAULT_LOCALE` 从 `zh_CN` 改为 `en_US` 后，所有断言中文翻译的测试会失败。正确做法是在 `tests/conftest.py` 的 `nonebot.init()` 中加 `"lingchu_locale": "zh_CN"` 覆盖回中文，避免逐个修改数百条测试断言，同时验证了 locale 配置覆盖机制。
 - **Fumadocs i18n 文件命名约定**：默认语言的 MDX 文件不加后缀（`page.mdx`），非默认语言加 locale 后缀（`page.zh.mdx`）；`meta.json` 同理。切换默认语言时需批量重命名内容文件。
+
+### 绕过 lru_cache 进行多语言测试
+
+- **问题**：i18n 模块的 `_read_configured_locale()` 被 `@lru_cache(maxsize=1)` 装饰。首次从 NoneBot 配置读取 locale 后，结果会在整个会话中缓存。这导致无法在单个 pytest 会话中对同一测试同时验证 `zh_CN` 和 `en_US` —— 第二个 locale 永远不会生效，因为会返回缓存值。
+- **解决方案**：`tests/conftest.py` 中的 `configured_locale` fixture 调用 `_read_configured_locale.cache_clear()` 丢弃缓存值，再通过 `monkeypatch.setattr(...)` 替换该函数使其返回参数化 locale。这样参数化测试可以按参数切换 locale，不受会话级缓存干扰。
+- **何时用哪个 fixture**：测试显式向 `gettext()`/`ngettext()` 传入 `locale=` 时用 `locale`（不修改全局状态）。仅当测试依赖 `get_configured_locale()` 或 `_()` 时才用 `configured_locale`，否则缓存函数会返回错误的 locale。
 
 ### CI and Lint Coverage for New Paths
 

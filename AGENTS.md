@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2908 symbols, 5643 relationships, 242 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2915 symbols, 5653 relationships, 243 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -142,6 +142,34 @@ uv run -m pytest tests/handle/commands/group/    # Specific test directory
 uv run -m pytest -k "test_mute"                  # By keyword
 uv run -m pytest --lf                            # Re-run last failures
 ```
+
+### Python — Multi-Locale Testing
+
+`tests/conftest.py` provides two parametrized fixtures and a marker for testing both `zh_CN` and `en_US` locales in a single pytest session:
+
+| Fixture | Modifies global state? | Use when |
+|---------|------------------------|----------|
+| `locale` | No — returns the locale string only | Test calls gettext helpers with an explicit `locale=` argument (e.g., `gettext(msg, locale=locale)`) |
+| `configured_locale` | Yes — calls `_read_configured_locale.cache_clear()` and monkeypatches it to return the parametrized locale | Test relies on `get_configured_locale()` or the `_()` shorthand (no explicit locale argument) |
+
+- **`i18n` marker**: Registered in `pytest_configure()` via `config.addinivalue_line("markers", ...)`. Mark multi-locale tests with `@pytest.mark.i18n` so they can be selected/filtered with `-m i18n`.
+
+**Example:**
+
+```python
+@pytest.mark.i18n
+def test_gettext_explicit(locale):
+    """Uses the `locale` fixture — no global state change."""
+    assert gettext("禁言", locale=locale)  # pass locale explicitly
+
+
+@pytest.mark.i18n
+def test_configured_locale(configured_locale):
+    """Uses the `configured_locale` fixture — patches the cached locale."""
+    assert _("禁言")  # reads via get_configured_locale()
+```
+
+> **Why two fixtures?** `_read_configured_locale()` is decorated with `@lru_cache(maxsize=1)`, so its first return value is cached for the entire session. The `configured_locale` fixture clears that cache and monkeypatches the function so each parametrized locale takes effect. See the "Bypassing lru_cache for Multi-Locale Tests" lesson.
 
 ### Docs Site — Lint & Type Check
 
@@ -1110,6 +1138,12 @@ When the project structure, components, or conventions change:
 - **Fumadocs language packs**: `@fumadocs/language` exports locale packs for languages it supports (e.g., `zh-cn`, `zh-tw`); English (`en-us`) is built-in by default and does not need a separate import. When switching the default language to English, `layout.shared.tsx` only needs `preset('zh', zhCN())` for Chinese — no English pack import is required. Always check `@fumadocs/language` exports for the current list before assuming a locale is or isn't available.
 - **Override locale in test environment rather than changing assertions**: After changing Python `DEFAULT_LOCALE` from `zh_CN` to `en_US`, all tests asserting Chinese translations will fail. The correct approach is to add `"lingchu_locale": "zh_CN"` in `tests/conftest.py`'s `nonebot.init()` to override back to Chinese, avoiding modifying hundreds of test assertions individually, while also validating the locale configuration override mechanism.
 - **Fumadocs i18n file naming convention**: Default language MDX files have no suffix (`page.mdx`), non-default language files have a locale suffix (`page.zh.mdx`); same for `meta.json`. When switching the default language, content files must be renamed in bulk.
+
+### Bypassing lru_cache for Multi-Locale Tests
+
+- **Problem**: The i18n module's `_read_configured_locale()` is decorated with `@lru_cache(maxsize=1)`. Once it reads the locale from NoneBot config on first call, the result is cached for the whole session. This prevents running the same test against both `zh_CN` and `en_US` in one pytest session — the second locale never takes effect because the cached value is returned.
+- **Solution**: The `configured_locale` fixture in `tests/conftest.py` calls `_read_configured_locale.cache_clear()` to drop the cached value, then `monkeypatch.setattr(...)` replaces the function so it returns the parametrized locale. This lets parametrized tests switch locale per parameter without session-wide caching interference.
+- **When to use which fixture**: Use `locale` (no global mutation) for tests that pass `locale=` explicitly to `gettext()`/`ngettext()`. Use `configured_locale` only for tests that depend on `get_configured_locale()` or `_()`, where the cached function would otherwise return the wrong locale.
 
 ### CI and Lint Coverage for New Paths
 
