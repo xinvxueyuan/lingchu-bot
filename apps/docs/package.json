@@ -18,7 +18,7 @@
   "dependencies": {
     "@fumadocs/language": "^0.0.1",
     "d3-force": "^3.0.0",
-    "dompurify": "^3.4.10",
+    "dompurify": "^3.4.11",
     "feed": "^5.2.1",
     "flexsearch": "^0.8.212",
     "fumadocs-core": "16.9.3",
@@ -27,7 +27,7 @@
     "fumadocs-twoslash": "^3.2.0",
     "fumadocs-typescript": "^5.2.6",
     "fumadocs-ui": "16.9.3",
-    "lucide-react": "^1.18.0",
+    "lucide-react": "^1.20.0",
     "mermaid": "^11.15.0",
     "next": "16.2.9",
     "next-themes": "^0.4.6",
