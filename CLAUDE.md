@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2890 symbols, 5593 relationships, 241 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2908 symbols, 5643 relationships, 242 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -116,13 +116,16 @@ Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains a Py
 lingchu-bot/
 ├── src/plugins/nonebot_plugin_lingchu_bot/   # Core NoneBot plugin
 │   ├── core/           # Config, platform info
-│   ├── database/       # JSON5 store package, ORM models & CRUD helpers
+│   ├── database/       # JSON5 store package, ORM models (records/audit/blocklist + registry) & CRUD helpers
 │   ├── handle/         # Platform/protocol/implementation command handlers
 │   │   └── qq/{group,onebot/v11,milky/v1_2}/    # QQ group handlers
 │   ├── i18n/           # Babel/gettext translations
 │   ├── migrations/     # Alembic database migration scripts
 │   ├── platforms/      # Adapter registry, permission presets & resolution
 │   ├── repositories/   # Data access layer
+│   │   ├── blocklist.py     # Blocklist repository
+│   │   ├── message_store.py # Message store repository
+│   │   └── registry.py      # Platform/adapter/protocol registry seeding
 │   ├── services/       # Business logic services
 │   └── start/          # Startup & initialization
 ├── apps/docs/          # Fumadocs documentation site
@@ -571,6 +574,13 @@ When adding CI checks or unit tests for the docs site (`apps/docs/`), several pi
 - **File-to-package conversion**: When converting a single `.py` file (e.g., `json5_store.py`) to a package (`json5_store/`), the `__init__.py` MUST explicitly re-export all public API symbols via `from .submodule import Symbol` and list them in `__all__`. Merely importing the submodule is insufficient — test imports like `from ..database.json5_store import RobustAsyncJSON5DB` will fail without explicit re-exports.
 - **Migration script lint**: Alembic-generated migration scripts use `collections.abc.Sequence` only for type annotations. With `from __future__ import annotations` in place, move the `Sequence` import into a `TYPE_CHECKING` block to satisfy ruff's `TC003` rule.
 - **Documentation sync**: When deleting or renaming source files, update ALL documentation references (AGENTS.md file tree, architecture diagrams, `apps/docs/` MDX files) — not just code. Use `Grep` to find stale references after structural changes.
+
+### Platform/Adapter/Protocol Table Reorganization
+
+- **Registry table seeding**: When adding database registry tables that mirror Python data structures (like `registry.py`), implement a `seed_registry_tables()` function that upserts metadata on startup. Use `conflict_fields` for idempotent upserts so re-running doesn't create duplicates.
+- **Protocol dimension tracking**: When adding a `protocol_id` column to existing tables, make it nullable (`Mapped[str | None]`) since the protocol implementation may not always be determinable at the point of recording (e.g., at event_preprocessor time, the handler hasn't run yet).
+- **Unique constraint with nullable columns**: SQLite treats NULL values as distinct in unique constraints, so `(platform_id, adapter_id, protocol_id, ...)` allows multiple records with `protocol_id=NULL` for the same message identity. This is acceptable for message records but should be documented.
+- **Migration script rewrite for new deployments**: When the user accepts "new deployment only" strategy, rewrite the initial migration script directly rather than creating a new migration that alters the schema. This keeps the migration history clean for fresh deployments.
 
 # Claude Code Behavioral Guidelines
 

@@ -129,7 +129,7 @@ Lingchu Bot does not control which adapters NoneBot actually imports or register
 
 ## Development and Verification
 
-CI checks Ruff, Markdown, Pyright, ty, pytest, and documentation site lint/test. Before committing, it is recommended to run at least the checks relevant to your changes.
+CI checks Ruff, Markdown, Pyright, ty, pytest (on SQLite, PostgreSQL, and MySQL), and documentation site lint/test. Before committing, it is recommended to run at least the checks relevant to your changes.
 
 This repository also contains a Turborepo workspace for developing the Next.js documentation site and frontend packages. The documentation site source is in [apps/docs](apps/docs/), built with [Fumadocs](https://fumadocs.dev/), supporting bilingual Chinese/English, RSS feeds, Mermaid diagrams, Twoslash code hover, EPUB export, LLM-friendly text (`/llms.txt`, `/llms-full.txt`), and documentation relationship graphs.
 
@@ -151,6 +151,10 @@ Python tests:
 
 ```bash
 uv run -m pytest
+
+# Multi-database testing (optional, requires database server):
+# SQLALCHEMY_DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/postgres" uv run -m pytest
+# SQLALCHEMY_DATABASE_URL="mysql+aiomysql://mysql:mysql@localhost:3306/mymysql" uv run -m pytest
 ```
 
 Documentation site lint and test:

@@ -79,11 +79,39 @@ jobs:
           task ci:static
 
   tests:
-    name: 🧪 Tests & Type Check
+    name: 🧪 Tests & Type Check (${{ matrix.db == 'sqlite+aiosqlite:///db.sqlite3' && 'SQLite' || (startsWith(matrix.db, 'postgresql') && 'PostgreSQL' || 'MySQL') }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        db:
+          - sqlite+aiosqlite:///db.sqlite3
+          - postgresql+psycopg://postgres:postgres@localhost:5432/postgres
+          - mysql+aiomysql://mysql:mysql@localhost:3306/mymysql
+      fail-fast: false
+    env:
+      SQLALCHEMY_DATABASE_URL: ${{ matrix.db }}
+    services:
+      postgresql:
+        image: ${{ startsWith(matrix.db, 'postgresql') && 'postgres' || '' }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+      mysql:
+        image: ${{ startsWith(matrix.db, 'mysql') && 'mysql' || '' }}
+        env:
+          MYSQL_ROOT_PASSWORD: mysql
+          MYSQL_USER: mysql
+          MYSQL_PASSWORD: mysql
+          MYSQL_DATABASE: mymysql
+        ports:
+          - 3306:3306
     steps:
-      # pinned from actions/checkout@v6.0.2
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Checkout
+        # pinned from actions/checkout@v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup uv
         # pinned from astral-sh/setup-uv@v8.1.0
@@ -94,6 +122,9 @@ jobs:
 
       - name: Install Python dependencies
         run: uv sync --frozen
+
+      - name: Run migrations
+        run: uv run nb orm upgrade
 
       - name: Type Check (Pyright)
         run: uv run -m pyright .

@@ -30,6 +30,49 @@ uv run -m pytest
 
 如果只改了某个模块，可以先跑相关测试文件，再按需要扩大范围。
 
+## 数据库测试
+
+项目通过 `SQLALCHEMY_DATABASE_URL` 环境变量支持多数据库后端测试，遵循 [NoneBot 数据库测试最佳实践](https://nonebot.dev/docs/best-practice/database/developer/test)。
+
+### 本地多数据库测试
+
+默认使用 SQLite 进行测试。要在 PostgreSQL 或 MySQL 上本地测试：
+
+1. 安装数据库驱动（已在 `test` 依赖组中）：
+
+```bash
+uv sync --all-groups
+```
+
+2. 启动数据库服务器（通过 Docker 或本地安装）。
+
+3. 设置 `SQLALCHEMY_DATABASE_URL` 环境变量并运行测试：
+
+```bash
+# PostgreSQL
+export SQLALCHEMY_DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/postgres"
+uv run -m pytest
+
+# MySQL
+export SQLALCHEMY_DATABASE_URL="mysql+aiomysql://mysql:mysql@localhost:3306/mymysql"
+uv run -m pytest
+```
+
+4. 测试前运行迁移：
+
+```bash
+uv run nb orm upgrade
+```
+
+### CI 多数据库矩阵
+
+CI 在三种数据库后端上运行测试：
+- SQLite（默认，无需额外服务）
+- PostgreSQL（通过 service container）
+- MySQL（通过 service container）
+
+`fail-fast: false` 策略确保即使一个数据库失败，所有数据库仍会被测试。
+
 ## Docs / frontend 聚焦检查
 
 文档站使用 pnpm、Vitest、ESLint、Fumadocs 和 Turbo：

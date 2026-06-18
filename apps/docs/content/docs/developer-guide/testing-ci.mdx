@@ -30,6 +30,49 @@ uv run -m pytest
 
 If only one module changed, run the related test file first, then broaden the scope as needed.
 
+## Database testing
+
+The project supports multi-database testing via the `SQLALCHEMY_DATABASE_URL` environment variable, following [NoneBot database testing best practices](https://nonebot.dev/docs/best-practice/database/developer/test).
+
+### Local multi-database testing
+
+By default, tests use SQLite. To test against PostgreSQL or MySQL locally:
+
+1. Install the database drivers (already in the `test` dependency group):
+
+```bash
+uv sync --all-groups
+```
+
+2. Start a database server (via Docker or local install).
+
+3. Set the `SQLALCHEMY_DATABASE_URL` environment variable and run tests:
+
+```bash
+# PostgreSQL
+export SQLALCHEMY_DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/postgres"
+uv run -m pytest
+
+# MySQL
+export SQLALCHEMY_DATABASE_URL="mysql+aiomysql://mysql:mysql@localhost:3306/mymysql"
+uv run -m pytest
+```
+
+4. Run migrations before testing:
+
+```bash
+uv run nb orm upgrade
+```
+
+### CI multi-database matrix
+
+CI tests run on three database backends:
+- SQLite (default, no service required)
+- PostgreSQL (via service container)
+- MySQL (via service container)
+
+The `fail-fast: false` strategy ensures all databases are tested even if one fails.
+
 ## Docs / frontend focused checks
 
 The docs site uses pnpm, Vitest, ESLint, Fumadocs, and Turbo:

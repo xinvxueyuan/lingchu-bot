@@ -64,6 +64,12 @@ def pytest_configure(config: pytest.Config) -> None:
         "LINGCHU_SUPERUSERS": {"user1": {"qq": "42"}},
         "lingchu_locale": "zh_CN",
     }
+    # Support multi-database testing via SQLALCHEMY_DATABASE_URL env var.
+    # When set, tests use the specified database backend (PostgreSQL/MySQL)
+    # instead of the default SQLite.
+    sqlalchemy_url = os.environ.get("SQLALCHEMY_DATABASE_URL")
+    if sqlalchemy_url:
+        init_config["SQLALCHEMY_DATABASE_URL"] = sqlalchemy_url
     nonebot.init(**init_config)
 
     driver: Driver = nonebot.get_driver()

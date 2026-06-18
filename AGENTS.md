@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2890 symbols, 5593 relationships, 241 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (2908 symbols, 5643 relationships, 242 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -430,6 +430,20 @@ When removing functions/helpers:
 - **Migration script lint**: Alembic-generated migration scripts use `collections.abc.Sequence` only for type annotations. With `from __future__ import annotations` in place, move the `Sequence` import into a `TYPE_CHECKING` block to satisfy ruff's `TC003` rule.
 - **Documentation sync**: When deleting or renaming source files, update ALL documentation references (AGENTS.md file tree, architecture diagrams, `apps/docs/` MDX files) — not just code. Use `Grep` to find stale references after structural changes.
 
+### Platform/Adapter/Protocol Table Reorganization
+
+- **Registry table seeding**: When adding database registry tables that mirror Python data structures (like `registry.py`), implement a `seed_registry_tables()` function that upserts metadata on startup. Use `conflict_fields` for idempotent upserts so re-running doesn't create duplicates.
+- **Protocol dimension tracking**: When adding a `protocol_id` column to existing tables, make it nullable (`Mapped[str | None]`) since the protocol implementation may not always be determinable at the point of recording (e.g., at event_preprocessor time, the handler hasn't run yet).
+- **Unique constraint with nullable columns**: SQLite treats NULL values as distinct in unique constraints, so `(platform_id, adapter_id, protocol_id, ...)` allows multiple records with `protocol_id=NULL` for the same message identity. This is acceptable for message records but should be documented.
+- **Migration script rewrite for new deployments**: When the user accepts "new deployment only" strategy, rewrite the initial migration script directly rather than creating a new migration that alters the schema. This keeps the migration history clean for fresh deployments.
+
+### Multi-Database Testing
+
+- **SQLALCHEMY_DATABASE_URL environment variable**: `nonebot_plugin_orm` reads this env var to configure the database backend. In tests, `conftest.py` passes it through to `nonebot.init()` so the same test suite can run on SQLite, PostgreSQL, or MySQL.
+- **CI matrix strategy**: Use GitHub Actions matrix with `fail-fast: false` to test all database backends independently. PostgreSQL and MySQL use `services` containers with conditional images (`startsWith(matrix.db, 'postgresql') && 'postgres' || ''`) to avoid starting unnecessary services for SQLite.
+- **Migration before tests**: Always run `uv run nb orm upgrade` before running tests on non-SQLite databases, since `ALEMBIC_STARTUP_CHECK=false` only auto-syncs on startup (not during test collection).
+- **Test dependency isolation**: Database drivers (`psycopg[binary]`, `aiomysql`) are in the `test` dependency group, not the main dependencies. This keeps production installs lightweight while enabling multi-database testing in dev/CI.
+
 ## Docs Site Component Catalog
 
 Complete inventory of all functional components in `apps/docs/`. Each entry covers purpose, inputs/outputs, tech details, and usage examples.
@@ -839,7 +853,7 @@ lingchu-bot/
 │       │   └── sub_plugins.py        # Sub-plugin loader
 │       ├── database/
 │       │   ├── json5_store/          # JSON5-based key-value store (package)
-│       │   ├── models.py             # ORM models (nonebot_plugin_orm)
+│       │   ├── models.py             # ORM models: records/audit/blocklist + platform/adapter/protocol registry (nonebot_plugin_orm)
 │       │   └── orm_crud.py           # Async CRUD helpers
 │       ├── handle/
 │       │   ├── menu.py               # Menu system (pages, sections, features, availability)
@@ -874,7 +888,8 @@ lingchu-bot/
 │       │   └── registry.py          # Cross-platform capability & adapter selection
 │       ├── repositories/             # Data access layer
 │       │   ├── blocklist.py         # Blocklist repository
-│       │   └── message_store.py     # Message store repository
+│       │   ├── message_store.py     # Message store repository
+│       │   └── registry.py          # Platform/adapter/protocol registry seeding
 │       ├── services/                 # Business logic services
 │       │   └── messagestore.py      # Message storage service
 │       └── start/                    # Startup & initialization
@@ -1003,12 +1018,13 @@ lingchu-bot/
 │  __init__.py ──► core/config.py ──► Pydantic settings            │
 │              ──► core/runtime_config.py ──► runtime helpers       │
 │              ──► core/sub_plugins.py ──► sub-plugin loader        │
-│              ──► platforms/registry.py ──► adapter resolution     │
-│              ──► database/orm_crud.py ──► models.py (nonebot_plugin_orm)  │
+│              ──► platforms/registry.py ──► adapter resolution + protocol impls │
+│              ──► database/orm_crud.py ──► models.py (records/audit/blocklist + registry tables) │
 │              ──► database/json5_store/ ──► JSON5 KV store      │
 │              ──► repositories/blocklist.py ──► blocklist data    │
 │              ──► repositories/message_store.py ──► data access   │
-│              ──► services/messagestore.py ──► business logic     │
+│              ──► repositories/registry.py ──► seed registry tables │
+│              ──► services/messagestore.py ──► business logic (platform_id/adapter_id/protocol_id) │
 │              ──► start/ ──► bootstrap, initialize, startup       │
 │              ──► i18n/ ──► Babel gettext catalogs                │
 │                                                                   │

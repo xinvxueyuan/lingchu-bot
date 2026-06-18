@@ -57,8 +57,9 @@ def test_normalize_message_event_truncates_text(
     normalized = messagestore.normalize_message_event(make_bot(), event)
 
     assert normalized is not None
-    assert normalized.identity.platform == "qq"
-    assert normalized.identity.adapter == "~onebot.v11"
+    assert normalized.identity.platform_id == "qq"
+    assert normalized.identity.adapter_id == "~onebot.v11"
+    assert normalized.identity.protocol_id is None
     assert normalized.identity.bot_id == "bot-1"
     assert normalized.identity.conversation_id == "group-1"
     assert normalized.identity.message_id == "msg-1"
@@ -139,8 +140,8 @@ async def test_message_store_preprocessor_records_configured_milky(
     record_event.assert_awaited_once()
     record_event_args = record_event.await_args
     assert record_event_args is not None
-    assert record_event_args.kwargs["platform"] == "qq"
-    assert record_event_args.kwargs["adapter"] == "~milky"
+    assert record_event_args.kwargs["platform_id"] == "qq"
+    assert record_event_args.kwargs["adapter_id"] == "~milky"
 
 
 async def test_message_store_preprocessor_skips_unknown_adapter(
@@ -197,8 +198,9 @@ async def test_run_postprocessor_updates_status(
     record_result = AsyncMock()
     monkeypatch.setattr(messagestore.repository, "record_matcher_result", record_result)
     identity = messagestore.MessageIdentity(
-        platform="qq",
-        adapter="~milky",
+        platform_id="qq",
+        adapter_id="~milky",
+        protocol_id=None,
         bot_id="bot-1",
         conversation_id="group-1",
         message_id="msg-1",
@@ -215,7 +217,7 @@ async def test_run_postprocessor_updates_status(
     record_result.assert_awaited_once()
     record_result_args = record_result.await_args
     assert record_result_args is not None
-    assert record_result_args.kwargs["adapter"] == "~milky"
+    assert record_result_args.kwargs["adapter_id"] == "~milky"
     assert record_result_args.kwargs["process_status"] == "handled"
 
 
@@ -239,7 +241,7 @@ async def test_on_called_api_records_result(
     record_api_args = record_api.await_args
     assert record_api_args is not None
     assert record_api_args.kwargs["api_name"] == "send_message"
-    assert record_api_args.kwargs["adapter"] == "~onebot.v11"
+    assert record_api_args.kwargs["adapter_id"] == "~onebot.v11"
 
 
 async def test_lifecycle_and_api_recording_skip_disabled_known_adapter(
