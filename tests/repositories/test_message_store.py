@@ -17,6 +17,7 @@ DELETE_CALL_COUNT = 2
 def _message_record(*, record_id: int = 1) -> MagicMock:
     item = MagicMock(spec=MessageRecord)
     item.id = record_id
+    item.protocol_id = None
     return item
 
 
@@ -31,8 +32,9 @@ async def test_record_event_received_with_none_message_id_calls_create() -> None
 
     with patch.object(message_store, "create", create_mock):
         result = await message_store.record_event_received(
-            platform="qq",
-            adapter="~onebot.v11",
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id=None,
             bot_id="bot-1",
             conversation_id="group-1",
             user_id="user-1",
@@ -48,8 +50,9 @@ async def test_record_event_received_with_none_message_id_calls_create() -> None
     create_mock.assert_awaited_once()
     assert create_mock.call_args.args[0] is MessageRecord
     kwargs = create_mock.call_args.kwargs
-    assert kwargs["platform"] == "qq"
-    assert kwargs["adapter"] == "~onebot.v11"
+    assert kwargs["platform_id"] == "qq"
+    assert kwargs["adapter_id"] == "~onebot.v11"
+    assert kwargs["protocol_id"] is None
     assert kwargs["bot_id"] == "bot-1"
     assert kwargs["conversation_id"] == "group-1"
     assert kwargs["user_id"] == "user-1"
@@ -72,8 +75,9 @@ async def test_record_event_received_with_message_id_calls_upsert() -> None:
 
     with patch.object(message_store, "upsert", upsert_mock):
         result = await message_store.record_event_received(
-            platform="qq",
-            adapter="~onebot.v11",
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id=None,
             bot_id="bot-1",
             conversation_id="group-1",
             user_id="user-1",
@@ -89,8 +93,9 @@ async def test_record_event_received_with_message_id_calls_upsert() -> None:
     upsert_mock.assert_awaited_once()
     assert upsert_mock.call_args.args[0] is MessageRecord
     insert_values = upsert_mock.call_args.args[1]
-    assert insert_values["platform"] == "qq"
-    assert insert_values["adapter"] == "~onebot.v11"
+    assert insert_values["platform_id"] == "qq"
+    assert insert_values["adapter_id"] == "~onebot.v11"
+    assert insert_values["protocol_id"] is None
     assert insert_values["bot_id"] == "bot-1"
     assert insert_values["conversation_id"] == "group-1"
     assert insert_values["user_id"] == "user-1"
@@ -105,12 +110,64 @@ async def test_record_event_received_with_message_id_calls_upsert() -> None:
     assert "created_at" in insert_values
     assert "updated_at" in insert_values
     assert upsert_mock.call_args.kwargs["conflict_fields"] == [
-        "platform",
-        "adapter",
+        "platform_id",
+        "adapter_id",
+        "protocol_id",
         "bot_id",
         "conversation_id",
         "message_id",
     ]
+
+
+@pytest.mark.asyncio
+async def test_record_event_received_passes_protocol_id_through_to_create() -> None:
+    record_mock = _message_record()
+    create_mock = AsyncMock(return_value=record_mock)
+
+    with patch.object(message_store, "create", create_mock):
+        await message_store.record_event_received(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id="napcat",
+            bot_id="bot-1",
+            conversation_id="group-1",
+            user_id="user-1",
+            message_id=None,
+            event_type="message.group",
+            message_type="group",
+            text_summary="hello",
+            raw_message='"hello"',
+            raw_event='{"message_id":"msg-1"}',
+        )
+
+    create_mock.assert_awaited_once()
+    assert create_mock.call_args.kwargs["protocol_id"] == "napcat"
+
+
+@pytest.mark.asyncio
+async def test_record_event_received_passes_protocol_id_through_to_upsert() -> None:
+    record_mock = _message_record()
+    upsert_mock = AsyncMock(return_value=record_mock)
+
+    with patch.object(message_store, "upsert", upsert_mock):
+        await message_store.record_event_received(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id="napcat",
+            bot_id="bot-1",
+            conversation_id="group-1",
+            user_id="user-1",
+            message_id="msg-1",
+            event_type="message.group",
+            message_type="group",
+            text_summary="hello",
+            raw_message='"hello"',
+            raw_event='{"message_id":"msg-1"}',
+        )
+
+    upsert_mock.assert_awaited_once()
+    insert_values = upsert_mock.call_args.args[1]
+    assert insert_values["protocol_id"] == "napcat"
 
 
 @pytest.mark.asyncio
@@ -124,8 +181,9 @@ async def test_record_matcher_result_updates_record_when_found() -> None:
         patch.object(message_store, "update", update_mock),
     ):
         result = await message_store.record_matcher_result(
-            platform="qq",
-            adapter="~onebot.v11",
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id=None,
             bot_id="bot-1",
             conversation_id="group-1",
             message_id="msg-1",
@@ -137,8 +195,8 @@ async def test_record_matcher_result_updates_record_when_found() -> None:
     get_one_mock.assert_awaited_once()
     assert get_one_mock.call_args.args[0] is MessageRecord
     assert get_one_mock.call_args.args[1] == {
-        "platform": "qq",
-        "adapter": "~onebot.v11",
+        "platform_id": "qq",
+        "adapter_id": "~onebot.v11",
         "bot_id": "bot-1",
         "conversation_id": "group-1",
         "message_id": "msg-1",
@@ -153,6 +211,31 @@ async def test_record_matcher_result_updates_record_when_found() -> None:
 
 
 @pytest.mark.asyncio
+async def test_record_matcher_result_filters_by_protocol_id() -> None:
+    record_mock = _message_record(record_id=42)
+    get_one_mock = AsyncMock(return_value=record_mock)
+    update_mock = AsyncMock()
+
+    with (
+        patch.object(message_store, "get_one", get_one_mock),
+        patch.object(message_store, "update", update_mock),
+    ):
+        result = await message_store.record_matcher_result(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id="napcat",
+            bot_id="bot-1",
+            conversation_id="group-1",
+            message_id="msg-1",
+            process_status="handled",
+        )
+
+    assert result is True
+    filters = get_one_mock.call_args.args[1]
+    assert filters["protocol_id"] == "napcat"
+
+
+@pytest.mark.asyncio
 async def test_record_matcher_result_returns_false_when_message_id_none() -> None:
     get_one_mock = AsyncMock()
     update_mock = AsyncMock()
@@ -162,8 +245,9 @@ async def test_record_matcher_result_returns_false_when_message_id_none() -> Non
         patch.object(message_store, "update", update_mock),
     ):
         result = await message_store.record_matcher_result(
-            platform="qq",
-            adapter="~onebot.v11",
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id=None,
             bot_id="bot-1",
             conversation_id="group-1",
             message_id=None,
@@ -185,8 +269,9 @@ async def test_record_matcher_result_returns_false_when_not_found() -> None:
         patch.object(message_store, "update", update_mock),
     ):
         result = await message_store.record_matcher_result(
-            platform="qq",
-            adapter="~onebot.v11",
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id=None,
             bot_id="bot-1",
             conversation_id="group-1",
             message_id="msg-1",
@@ -205,8 +290,9 @@ async def test_record_api_call_calls_create_with_audit_record() -> None:
 
     with patch.object(message_store, "create", create_mock):
         result = await message_store.record_api_call(
-            platform="qq",
-            adapter="~onebot.v11",
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id=None,
             bot_id="bot-1",
             api_name="send_message",
             data_summary='{"message":"hello"}',
@@ -218,8 +304,9 @@ async def test_record_api_call_calls_create_with_audit_record() -> None:
     create_mock.assert_awaited_once()
     assert create_mock.call_args.args[0] is AuditRecord
     kwargs = create_mock.call_args.kwargs
-    assert kwargs["platform"] == "qq"
-    assert kwargs["adapter"] == "~onebot.v11"
+    assert kwargs["platform_id"] == "qq"
+    assert kwargs["adapter_id"] == "~onebot.v11"
+    assert kwargs["protocol_id"] is None
     assert kwargs["bot_id"] == "bot-1"
     assert kwargs["audit_type"] == "api_call"
     assert kwargs["event_type"] == "send_message"
@@ -230,14 +317,35 @@ async def test_record_api_call_calls_create_with_audit_record() -> None:
 
 
 @pytest.mark.asyncio
+async def test_record_api_call_passes_protocol_id_through_to_create() -> None:
+    audit_mock = _audit_record()
+    create_mock = AsyncMock(return_value=audit_mock)
+
+    with patch.object(message_store, "create", create_mock):
+        await message_store.record_api_call(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id="napcat",
+            bot_id="bot-1",
+            api_name="send_message",
+            data_summary='{"message":"hello"}',
+            result_summary='{"message_id":"out-1"}',
+            exception_summary=None,
+        )
+
+    create_mock.assert_awaited_once()
+    assert create_mock.call_args.kwargs["protocol_id"] == "napcat"
+
+
+@pytest.mark.asyncio
 async def test_list_recent_messages_calls_list_items_with_filters() -> None:
     records = [_message_record(record_id=1), _message_record(record_id=2)]
     list_items_mock = AsyncMock(return_value=records)
 
     with patch.object(message_store, "list_items", list_items_mock):
         result = await message_store.list_recent_messages(
-            platform="qq",
-            adapter="~onebot.v11",
+            platform_id="qq",
+            adapter_id="~onebot.v11",
             conversation_id="group-1",
             user_id="user-1",
             limit=10,
@@ -247,8 +355,8 @@ async def test_list_recent_messages_calls_list_items_with_filters() -> None:
     list_items_mock.assert_awaited_once()
     assert list_items_mock.call_args.args[0] is MessageRecord
     assert list_items_mock.call_args.args[1] == {
-        "platform": "qq",
-        "adapter": "~onebot.v11",
+        "platform_id": "qq",
+        "adapter_id": "~onebot.v11",
         "conversation_id": "group-1",
         "user_id": "user-1",
     }
@@ -261,9 +369,24 @@ async def test_list_recent_messages_uses_platform_only_by_default() -> None:
     list_items_mock = AsyncMock(return_value=[])
 
     with patch.object(message_store, "list_items", list_items_mock):
-        await message_store.list_recent_messages(platform="qq")
+        await message_store.list_recent_messages(platform_id="qq")
 
-    assert list_items_mock.call_args.args[1] == {"platform": "qq"}
+    assert list_items_mock.call_args.args[1] == {"platform_id": "qq"}
+
+
+@pytest.mark.asyncio
+async def test_list_recent_messages_includes_protocol_id_filter_when_provided() -> None:
+    list_items_mock = AsyncMock(return_value=[])
+
+    with patch.object(message_store, "list_items", list_items_mock):
+        await message_store.list_recent_messages(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id="napcat",
+        )
+
+    filters = list_items_mock.call_args.args[1]
+    assert filters["protocol_id"] == "napcat"
 
 
 @pytest.mark.asyncio

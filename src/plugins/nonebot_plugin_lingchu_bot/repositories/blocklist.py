@@ -36,6 +36,7 @@ async def upsert_block(  # noqa: PLR0913
     *,
     platform_id: str,
     adapter_id: str,
+    protocol_id: str | None = None,
     bot_id: str,
     scope: BlockScope,
     group_id: str | int | None,
@@ -49,6 +50,7 @@ async def upsert_block(  # noqa: PLR0913
     values = {
         "platform_id": platform_id,
         "adapter_id": adapter_id,
+        "protocol_id": protocol_id,
         "bot_id": bot_id,
         "scope": scope,
         "scope_key": scope_key,
@@ -66,12 +68,14 @@ async def upsert_block(  # noqa: PLR0913
         conflict_fields=[
             "platform_id",
             "adapter_id",
+            "protocol_id",
             "bot_id",
             "scope",
             "scope_key",
             "user_id",
         ],
         update_values={
+            "protocol_id": protocol_id,
             "operator_id": values["operator_id"],
             "reason": reason,
             "expires_at": expires_at,
@@ -84,48 +88,51 @@ async def remove_block(  # noqa: PLR0913
     *,
     platform_id: str,
     adapter_id: str,
+    protocol_id: str | None = None,
     bot_id: str,
     scope: BlockScope,
     group_id: str | int | None,
     user_id: str | int,
 ) -> tuple[int, bool]:
-    return await delete(
-        BlocklistEntry,
-        {
-            "platform_id": platform_id,
-            "adapter_id": adapter_id,
-            "bot_id": bot_id,
-            "scope": scope,
-            "scope_key": scope_key_for(scope, group_id),
-            "user_id": str(user_id),
-        },
-    )
+    filters = {
+        "platform_id": platform_id,
+        "adapter_id": adapter_id,
+        "bot_id": bot_id,
+        "scope": scope,
+        "scope_key": scope_key_for(scope, group_id),
+        "user_id": str(user_id),
+    }
+    if protocol_id is not None:
+        filters["protocol_id"] = protocol_id
+    return await delete(BlocklistEntry, filters)
 
 
-async def clear_blocklist(
+async def clear_blocklist(  # noqa: PLR0913
     *,
     platform_id: str,
     adapter_id: str,
+    protocol_id: str | None = None,
     bot_id: str,
     scope: BlockScope,
     group_id: str | int | None,
 ) -> tuple[int, bool]:
-    return await delete(
-        BlocklistEntry,
-        {
-            "platform_id": platform_id,
-            "adapter_id": adapter_id,
-            "bot_id": bot_id,
-            "scope": scope,
-            "scope_key": scope_key_for(scope, group_id),
-        },
-    )
+    filters = {
+        "platform_id": platform_id,
+        "adapter_id": adapter_id,
+        "bot_id": bot_id,
+        "scope": scope,
+        "scope_key": scope_key_for(scope, group_id),
+    }
+    if protocol_id is not None:
+        filters["protocol_id"] = protocol_id
+    return await delete(BlocklistEntry, filters)
 
 
-async def find_active_block(
+async def find_active_block(  # noqa: PLR0913
     *,
     platform_id: str,
     adapter_id: str,
+    protocol_id: str | None = None,
     bot_id: str,
     group_id: str | int,
     user_id: str | int,
@@ -133,6 +140,7 @@ async def find_active_block(
     global_entry = await _find_active_block_for_scope(
         platform_id=platform_id,
         adapter_id=adapter_id,
+        protocol_id=protocol_id,
         bot_id=bot_id,
         scope="global",
         group_id=None,
@@ -143,6 +151,7 @@ async def find_active_block(
     return await _find_active_block_for_scope(
         platform_id=platform_id,
         adapter_id=adapter_id,
+        protocol_id=protocol_id,
         bot_id=bot_id,
         scope="group",
         group_id=group_id,
@@ -154,6 +163,7 @@ async def _find_active_block_for_scope(  # noqa: PLR0913
     *,
     platform_id: str,
     adapter_id: str,
+    protocol_id: str | None = None,
     bot_id: str,
     scope: BlockScope,
     group_id: str | int | None,
@@ -167,6 +177,8 @@ async def _find_active_block_for_scope(  # noqa: PLR0913
         "scope_key": scope_key_for(scope, group_id),
         "user_id": str(user_id),
     }
+    if protocol_id is not None:
+        filters["protocol_id"] = protocol_id
     entry = await get_one(BlocklistEntry, filters)
     if entry is None:
         return None

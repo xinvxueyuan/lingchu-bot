@@ -12,6 +12,7 @@ from ..platforms import (
     resolve_registered_adapters,
     validate_enabled_adapters_loaded,
 )
+from ..repositories.registry import seed_registry_tables
 from ..services.messagestore import (
     initialize_message_store,
     record_bot_lifecycle,
@@ -46,6 +47,7 @@ async def startup() -> None:
         )
     await warm_translation_cache()
     await group_import_handle()
+    await seed_registry_tables()
     await menu_import_handle()
     await initialize_message_store()
 

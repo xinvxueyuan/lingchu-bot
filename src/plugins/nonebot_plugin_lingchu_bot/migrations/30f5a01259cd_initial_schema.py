@@ -29,8 +29,9 @@ def upgrade(name: str = "") -> None:
     op.create_table(
         "lingchu_message_records",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("platform", sa.String(length=64), nullable=False),
-        sa.Column("adapter", sa.String(length=64), nullable=False),
+        sa.Column("platform_id", sa.String(length=64), nullable=False),
+        sa.Column("adapter_id", sa.String(length=64), nullable=False),
+        sa.Column("protocol_id", sa.String(length=64), nullable=True),
         sa.Column("bot_id", sa.String(length=128), nullable=False),
         sa.Column("conversation_id", sa.String(length=128), nullable=True),
         sa.Column("user_id", sa.String(length=128), nullable=True),
@@ -46,8 +47,9 @@ def upgrade(name: str = "") -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_lingchu_message_records")),
         sa.UniqueConstraint(
-            "platform",
-            "adapter",
+            "platform_id",
+            "adapter_id",
+            "protocol_id",
             "bot_id",
             "conversation_id",
             "message_id",
@@ -56,15 +58,21 @@ def upgrade(name: str = "") -> None:
         info={"bind_key": "nonebot_plugin_lingchu_bot"},
     )
     op.create_index(
-        op.f("ix_lingchu_message_records_platform"),
+        op.f("ix_lingchu_message_records_platform_id"),
         "lingchu_message_records",
-        ["platform"],
+        ["platform_id"],
         unique=False,
     )
     op.create_index(
-        op.f("ix_lingchu_message_records_adapter"),
+        op.f("ix_lingchu_message_records_adapter_id"),
         "lingchu_message_records",
-        ["adapter"],
+        ["adapter_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_lingchu_message_records_protocol_id"),
+        "lingchu_message_records",
+        ["protocol_id"],
         unique=False,
     )
     op.create_index(
@@ -125,8 +133,9 @@ def upgrade(name: str = "") -> None:
     op.create_table(
         "lingchu_audit_records",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("platform", sa.String(length=64), nullable=False),
-        sa.Column("adapter", sa.String(length=64), nullable=False),
+        sa.Column("platform_id", sa.String(length=64), nullable=False),
+        sa.Column("adapter_id", sa.String(length=64), nullable=False),
+        sa.Column("protocol_id", sa.String(length=64), nullable=True),
         sa.Column("bot_id", sa.String(length=128), nullable=False),
         sa.Column("audit_type", sa.String(length=64), nullable=False),
         sa.Column("event_type", sa.String(length=128), nullable=False),
@@ -138,15 +147,21 @@ def upgrade(name: str = "") -> None:
         info={"bind_key": "nonebot_plugin_lingchu_bot"},
     )
     op.create_index(
-        op.f("ix_lingchu_audit_records_platform"),
+        op.f("ix_lingchu_audit_records_platform_id"),
         "lingchu_audit_records",
-        ["platform"],
+        ["platform_id"],
         unique=False,
     )
     op.create_index(
-        op.f("ix_lingchu_audit_records_adapter"),
+        op.f("ix_lingchu_audit_records_adapter_id"),
         "lingchu_audit_records",
-        ["adapter"],
+        ["adapter_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_lingchu_audit_records_protocol_id"),
+        "lingchu_audit_records",
+        ["protocol_id"],
         unique=False,
     )
     op.create_index(
@@ -179,6 +194,7 @@ def upgrade(name: str = "") -> None:
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("platform_id", sa.String(length=64), nullable=False),
         sa.Column("adapter_id", sa.String(length=64), nullable=False),
+        sa.Column("protocol_id", sa.String(length=64), nullable=True),
         sa.Column("bot_id", sa.String(length=128), nullable=False),
         sa.Column("scope", sa.String(length=32), nullable=False),
         sa.Column("scope_key", sa.String(length=128), nullable=False),
@@ -193,6 +209,7 @@ def upgrade(name: str = "") -> None:
         sa.UniqueConstraint(
             "platform_id",
             "adapter_id",
+            "protocol_id",
             "bot_id",
             "scope",
             "scope_key",
@@ -211,6 +228,12 @@ def upgrade(name: str = "") -> None:
         op.f("ix_lingchu_blocklist_entries_adapter_id"),
         "lingchu_blocklist_entries",
         ["adapter_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_lingchu_blocklist_entries_protocol_id"),
+        "lingchu_blocklist_entries",
+        ["protocol_id"],
         unique=False,
     )
     op.create_index(
@@ -267,6 +290,124 @@ def upgrade(name: str = "") -> None:
         ["updated_at"],
         unique=False,
     )
+
+    op.create_table(
+        "lingchu_platforms",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("platform_id", sa.String(length=64), nullable=False),
+        sa.Column("display_name", sa.String(length=64), nullable=False),
+        sa.Column("capabilities", sa.Text(), nullable=False),
+        sa.Column("implemented", sa.Boolean(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_lingchu_platforms")),
+        sa.UniqueConstraint(
+            "platform_id",
+            name=op.f("uq_lingchu_platforms_platform_id"),
+        ),
+        info={"bind_key": "nonebot_plugin_lingchu_bot"},
+    )
+    op.create_index(
+        op.f("ix_lingchu_platforms_platform_id"),
+        "lingchu_platforms",
+        ["platform_id"],
+        unique=True,
+    )
+    op.create_index(
+        op.f("ix_lingchu_platforms_created_at"),
+        "lingchu_platforms",
+        ["created_at"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_lingchu_platforms_updated_at"),
+        "lingchu_platforms",
+        ["updated_at"],
+        unique=False,
+    )
+
+    op.create_table(
+        "lingchu_adapters",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("adapter_id", sa.String(length=64), nullable=False),
+        sa.Column("platform_id", sa.String(length=64), nullable=False),
+        sa.Column("display_name", sa.String(length=64), nullable=False),
+        sa.Column("nonebot_adapter_id", sa.String(length=64), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_lingchu_adapters")),
+        sa.UniqueConstraint(
+            "adapter_id",
+            name=op.f("uq_lingchu_adapters_adapter_id"),
+        ),
+        info={"bind_key": "nonebot_plugin_lingchu_bot"},
+    )
+    op.create_index(
+        op.f("ix_lingchu_adapters_adapter_id"),
+        "lingchu_adapters",
+        ["adapter_id"],
+        unique=True,
+    )
+    op.create_index(
+        op.f("ix_lingchu_adapters_platform_id"),
+        "lingchu_adapters",
+        ["platform_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_lingchu_adapters_created_at"),
+        "lingchu_adapters",
+        ["created_at"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_lingchu_adapters_updated_at"),
+        "lingchu_adapters",
+        ["updated_at"],
+        unique=False,
+    )
+
+    op.create_table(
+        "lingchu_protocol_implementations",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("protocol_id", sa.String(length=64), nullable=False),
+        sa.Column("adapter_id", sa.String(length=64), nullable=False),
+        sa.Column("display_name", sa.String(length=64), nullable=False),
+        sa.Column("module_path", sa.String(length=256), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_lingchu_protocol_implementations")),
+        sa.UniqueConstraint(
+            "adapter_id",
+            "protocol_id",
+            name="uq_lingchu_protocol_implementation_identity",
+        ),
+        info={"bind_key": "nonebot_plugin_lingchu_bot"},
+    )
+    op.create_index(
+        op.f("ix_lingchu_protocol_implementations_protocol_id"),
+        "lingchu_protocol_implementations",
+        ["protocol_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_lingchu_protocol_implementations_adapter_id"),
+        "lingchu_protocol_implementations",
+        ["adapter_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_lingchu_protocol_implementations_created_at"),
+        "lingchu_protocol_implementations",
+        ["created_at"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_lingchu_protocol_implementations_updated_at"),
+        "lingchu_protocol_implementations",
+        ["updated_at"],
+        unique=False,
+    )
     # ### end Alembic commands ###
 
 
@@ -274,6 +415,56 @@ def downgrade(name: str = "") -> None:
     if name:
         return
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index(
+        op.f("ix_lingchu_protocol_implementations_updated_at"),
+        table_name="lingchu_protocol_implementations",
+    )
+    op.drop_index(
+        op.f("ix_lingchu_protocol_implementations_created_at"),
+        table_name="lingchu_protocol_implementations",
+    )
+    op.drop_index(
+        op.f("ix_lingchu_protocol_implementations_adapter_id"),
+        table_name="lingchu_protocol_implementations",
+    )
+    op.drop_index(
+        op.f("ix_lingchu_protocol_implementations_protocol_id"),
+        table_name="lingchu_protocol_implementations",
+    )
+    op.drop_table("lingchu_protocol_implementations")
+
+    op.drop_index(
+        op.f("ix_lingchu_adapters_updated_at"),
+        table_name="lingchu_adapters",
+    )
+    op.drop_index(
+        op.f("ix_lingchu_adapters_created_at"),
+        table_name="lingchu_adapters",
+    )
+    op.drop_index(
+        op.f("ix_lingchu_adapters_platform_id"),
+        table_name="lingchu_adapters",
+    )
+    op.drop_index(
+        op.f("ix_lingchu_adapters_adapter_id"),
+        table_name="lingchu_adapters",
+    )
+    op.drop_table("lingchu_adapters")
+
+    op.drop_index(
+        op.f("ix_lingchu_platforms_updated_at"),
+        table_name="lingchu_platforms",
+    )
+    op.drop_index(
+        op.f("ix_lingchu_platforms_created_at"),
+        table_name="lingchu_platforms",
+    )
+    op.drop_index(
+        op.f("ix_lingchu_platforms_platform_id"),
+        table_name="lingchu_platforms",
+    )
+    op.drop_table("lingchu_platforms")
+
     op.drop_index(
         op.f("ix_lingchu_blocklist_entries_updated_at"),
         table_name="lingchu_blocklist_entries",
@@ -307,6 +498,10 @@ def downgrade(name: str = "") -> None:
         table_name="lingchu_blocklist_entries",
     )
     op.drop_index(
+        op.f("ix_lingchu_blocklist_entries_protocol_id"),
+        table_name="lingchu_blocklist_entries",
+    )
+    op.drop_index(
         op.f("ix_lingchu_blocklist_entries_bot_id"),
         table_name="lingchu_blocklist_entries",
     )
@@ -337,11 +532,15 @@ def downgrade(name: str = "") -> None:
         table_name="lingchu_audit_records",
     )
     op.drop_index(
-        op.f("ix_lingchu_audit_records_adapter"),
+        op.f("ix_lingchu_audit_records_protocol_id"),
         table_name="lingchu_audit_records",
     )
     op.drop_index(
-        op.f("ix_lingchu_audit_records_platform"),
+        op.f("ix_lingchu_audit_records_adapter_id"),
+        table_name="lingchu_audit_records",
+    )
+    op.drop_index(
+        op.f("ix_lingchu_audit_records_platform_id"),
         table_name="lingchu_audit_records",
     )
     op.drop_table("lingchu_audit_records")
@@ -379,15 +578,19 @@ def downgrade(name: str = "") -> None:
         table_name="lingchu_message_records",
     )
     op.drop_index(
+        op.f("ix_lingchu_message_records_protocol_id"),
+        table_name="lingchu_message_records",
+    )
+    op.drop_index(
         op.f("ix_lingchu_message_records_bot_id"),
         table_name="lingchu_message_records",
     )
     op.drop_index(
-        op.f("ix_lingchu_message_records_adapter"),
+        op.f("ix_lingchu_message_records_adapter_id"),
         table_name="lingchu_message_records",
     )
     op.drop_index(
-        op.f("ix_lingchu_message_records_platform"),
+        op.f("ix_lingchu_message_records_platform_id"),
         table_name="lingchu_message_records",
     )
     op.drop_table("lingchu_message_records")

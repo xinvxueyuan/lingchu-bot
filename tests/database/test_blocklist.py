@@ -57,12 +57,59 @@ async def test_upsert_block_uses_scope_identity_and_update_values() -> None:
     assert upsert_mock.call_args.kwargs["conflict_fields"] == [
         "platform_id",
         "adapter_id",
+        "protocol_id",
         "bot_id",
         "scope",
         "scope_key",
         "user_id",
     ]
     assert upsert_mock.call_args.kwargs["update_values"]["reason"] == "bad"
+
+
+@pytest.mark.asyncio
+async def test_upsert_block_passes_protocol_id_through_to_upsert() -> None:
+    upsert_mock = AsyncMock(return_value=_entry())
+
+    with patch.object(blocklist, "upsert", upsert_mock):
+        await blocklist.upsert_block(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id="napcat",
+            bot_id="bot-1",
+            scope="group",
+            group_id=123,
+            user_id=456,
+            operator_id=789,
+            reason="bad",
+            expires_at=None,
+        )
+
+    _, insert_values = upsert_mock.call_args.args[:2]
+    assert insert_values["protocol_id"] == "napcat"
+    assert "protocol_id" in upsert_mock.call_args.kwargs["conflict_fields"]
+    assert upsert_mock.call_args.kwargs["update_values"]["protocol_id"] == "napcat"
+
+
+@pytest.mark.asyncio
+async def test_upsert_block_defaults_protocol_id_to_none() -> None:
+    upsert_mock = AsyncMock(return_value=_entry())
+
+    with patch.object(blocklist, "upsert", upsert_mock):
+        await blocklist.upsert_block(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            bot_id="bot-1",
+            scope="group",
+            group_id=123,
+            user_id=456,
+            operator_id=789,
+            reason="bad",
+            expires_at=None,
+        )
+
+    _, insert_values = upsert_mock.call_args.args[:2]
+    assert insert_values["protocol_id"] is None
+    assert upsert_mock.call_args.kwargs["update_values"]["protocol_id"] is None
 
 
 @pytest.mark.asyncio
@@ -94,6 +141,25 @@ async def test_remove_and_clear_use_expected_scope_filters() -> None:
     assert second_filters["scope"] == "group"
     assert second_filters["scope_key"] == "123"
     assert "user_id" not in second_filters
+
+
+@pytest.mark.asyncio
+async def test_remove_block_includes_protocol_id_filter_when_provided() -> None:
+    delete_mock = AsyncMock(return_value=(1, True))
+
+    with patch.object(blocklist, "delete", delete_mock):
+        await blocklist.remove_block(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id="napcat",
+            bot_id="bot-1",
+            scope="group",
+            group_id=123,
+            user_id=456,
+        )
+
+    filters = delete_mock.call_args.args[1]
+    assert filters["protocol_id"] == "napcat"
 
 
 @pytest.mark.asyncio

@@ -115,13 +115,16 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 ```text
 ├── src/plugins/nonebot_plugin_lingchu_bot/   # Core NoneBot plugin
 │   ├── core/           # Config, platform info
-│   ├── database/       # JSON5 store package, ORM models & CRUD helpers
+│   ├── database/       # JSON5 store package, ORM models (records/audit/blocklist + registry) & CRUD helpers
 │   ├── handle/         # Platform/protocol/implementation command handlers
 │   │   └── qq/{group,onebot/v11,milky/v1_2}/    # QQ group handlers
 │   ├── i18n/           # Babel/gettext translations
 │   ├── migrations/     # Alembic database migration scripts
 │   ├── platforms/      # 适配器注册表、权限预设与解析
 │   ├── repositories/   # Data access layer
+│   │   ├── blocklist.py     # Blocklist repository
+│   │   ├── message_store.py # Message store repository
+│   │   └── registry.py      # Platform/adapter/protocol registry seeding
 │   ├── services/       # Business logic services
 │   └── start/          # Startup & initialization
 ├── apps/docs/          # Fumadocs documentation site
@@ -583,3 +586,10 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 - **单文件转包**：将单个 `.py` 文件（如 `json5_store.py`）转为包（`json5_store/`）时，`__init__.py` 必须通过 `from .submodule import Symbol` 显式重新导出所有公共 API 符号，并在 `__all__` 中列出。仅导入子模块是不够的——`from ..database.json5_store import RobustAsyncJSON5DB` 等测试导入在没有显式重导出时会失败。
 - **迁移脚本 lint**：Alembic 生成的迁移脚本中 `collections.abc.Sequence` 仅用于类型注解。在已有 `from __future__ import annotations` 的情况下，将 `Sequence` 导入移至 `TYPE_CHECKING` 块以满足 ruff 的 `TC003` 规则。
 - **文档同步**：删除或重命名源文件时，必须更新所有文档引用（AGENTS.md 文件树、架构图、`apps/docs/` MDX 文件）——不仅是代码。使用 `Grep` 在结构变更后查找过期引用。
+
+### 平台/适配器/协议表重组
+
+- **注册表数据播种**：当添加与 Python 数据结构对应的数据库注册表（如 `registry.py`）时，应实现 `seed_registry_tables()` 函数在启动时执行 upsert。使用 `conflict_fields` 实现幂等 upsert，确保重复运行不会产生重复记录。
+- **协议维度追踪**：为现有表添加 `protocol_id` 列时，应设为可空（`Mapped[str | None]`），因为在记录时协议实现并不总能确定（例如在 event_preprocessor 阶段，处理器尚未运行）。
+- **可空列的唯一约束**：SQLite 在唯一约束中将 NULL 视为不同值，因此 `(platform_id, adapter_id, protocol_id, ...)` 允许同一消息标识存在多条 `protocol_id=NULL` 的记录。这对消息记录可接受，但应记录在文档中。
+- **新部署的迁移脚本重写**：当用户接受“仅新部署”策略时，直接重写初始迁移脚本，而非创建修改 schema 的新迁移。这能保持新部署的迁移历史整洁。

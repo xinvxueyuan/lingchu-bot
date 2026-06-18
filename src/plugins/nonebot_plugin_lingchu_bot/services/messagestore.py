@@ -32,8 +32,9 @@ RAW_PAYLOAD_MAX_DEPTH = 8
 class MessageIdentity:
     """Stable identity for a received message event."""
 
-    platform: str
-    adapter: str
+    platform_id: str
+    adapter_id: str
+    protocol_id: str | None
     bot_id: str
     conversation_id: str | None
     message_id: str | None
@@ -250,11 +251,12 @@ def normalize_message_event(bot: Bot, event: Event) -> NormalizedMessageEvent | 
     adapter_identity = _adapter_identity(adapter)
     if adapter_identity is None:
         return None
-    platform, adapter_id = adapter_identity
+    platform_id, adapter_id = adapter_identity
     bot_id = _stringify(getattr(bot, "self_id", None), limit=128) or "unknown"
     identity = MessageIdentity(
-        platform=platform,
-        adapter=adapter_id,
+        platform_id=platform_id,
+        adapter_id=adapter_id,
+        protocol_id=None,
         bot_id=bot_id,
         conversation_id=_conversation_id(event),
         message_id=_message_id(event),
@@ -314,11 +316,12 @@ async def record_bot_lifecycle(bot: Bot, event_type: str) -> bool:
     adapter_identity = _adapter_identity(adapter)
     if adapter_identity is None:
         return False
-    platform, adapter_id = adapter_identity
+    platform_id, adapter_id = adapter_identity
     try:
         await repository.record_api_call(
-            platform=platform,
-            adapter=adapter_id,
+            platform_id=platform_id,
+            adapter_id=adapter_id,
+            protocol_id=None,
             bot_id=_stringify(getattr(bot, "self_id", None), limit=128) or "unknown",
             api_name=event_type,
             data_summary=None,
@@ -347,8 +350,9 @@ async def message_store_preprocessor(
     state[STATE_KEY] = normalized.identity
     try:
         await repository.record_event_received(
-            platform=normalized.identity.platform,
-            adapter=normalized.identity.adapter,
+            platform_id=normalized.identity.platform_id,
+            adapter_id=normalized.identity.adapter_id,
+            protocol_id=normalized.identity.protocol_id,
             bot_id=normalized.identity.bot_id,
             conversation_id=normalized.identity.conversation_id,
             user_id=normalized.user_id,
@@ -390,8 +394,9 @@ async def message_store_run_postprocessor(
         status = f"{status}:blocked"
     try:
         await repository.record_matcher_result(
-            platform=identity.platform,
-            adapter=identity.adapter,
+            platform_id=identity.platform_id,
+            adapter_id=identity.adapter_id,
+            protocol_id=identity.protocol_id,
             bot_id=identity.bot_id,
             conversation_id=identity.conversation_id,
             message_id=identity.message_id,
@@ -430,11 +435,12 @@ async def message_store_on_called_api(
     adapter_identity = _adapter_identity(adapter)
     if adapter_identity is None:
         return
-    platform, adapter_id = adapter_identity
+    platform_id, adapter_id = adapter_identity
     try:
         await repository.record_api_call(
-            platform=platform,
-            adapter=adapter_id,
+            platform_id=platform_id,
+            adapter_id=adapter_id,
+            protocol_id=None,
             bot_id=_stringify(getattr(bot, "self_id", None), limit=128) or "unknown",
             api_name=api,
             data_summary=_stringify(data),

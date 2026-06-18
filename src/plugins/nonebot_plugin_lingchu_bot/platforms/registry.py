@@ -6,6 +6,7 @@ of concrete NoneBot adapters. Adapter modules stay at the edge of the system.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Final, cast
@@ -39,6 +40,16 @@ class PlatformProfile:
     adapter_name_map: tuple[tuple[str, str], ...]
     capabilities: frozenset[PlatformCapability]
     implemented: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class ProtocolImplementationInfo:
+    """Metadata for a protocol implementation under a specific adapter."""
+
+    protocol_id: str
+    adapter_id: str
+    display_name: str
+    module_path: str
 
 
 class PlatformAdapterConflictError(RuntimeError):
@@ -170,6 +181,46 @@ PLATFORM_PROFILES: Final[tuple[PlatformProfile, ...]] = (
             ("qq", "~qq"),
         ),
         capabilities=QQ_CAPABILITIES,
+    ),
+)
+
+_PROTOCOL_DISPLAY_NAMES: Final[dict[str, str]] = {
+    "default": "Default",
+    "llonebot": "LLOneBot",
+    "napcat": "NapCat",
+    "llbot": "LLBot",
+}
+
+_PROTOCOL_IMPLEMENTATIONS: Final[tuple[ProtocolImplementationInfo, ...]] = (
+    ProtocolImplementationInfo(
+        protocol_id="default",
+        adapter_id="~onebot.v11",
+        display_name=_PROTOCOL_DISPLAY_NAMES["default"],
+        module_path="handle.qq.adapters.onebot11.default",
+    ),
+    ProtocolImplementationInfo(
+        protocol_id="llonebot",
+        adapter_id="~onebot.v11",
+        display_name=_PROTOCOL_DISPLAY_NAMES["llonebot"],
+        module_path="handle.qq.adapters.onebot11.llonebot",
+    ),
+    ProtocolImplementationInfo(
+        protocol_id="napcat",
+        adapter_id="~onebot.v11",
+        display_name=_PROTOCOL_DISPLAY_NAMES["napcat"],
+        module_path="handle.qq.adapters.onebot11.napcat",
+    ),
+    ProtocolImplementationInfo(
+        protocol_id="default",
+        adapter_id="~milky",
+        display_name=_PROTOCOL_DISPLAY_NAMES["default"],
+        module_path="handle.qq.adapters.milky.default",
+    ),
+    ProtocolImplementationInfo(
+        protocol_id="llbot",
+        adapter_id="~milky",
+        display_name=_PROTOCOL_DISPLAY_NAMES["llbot"],
+        module_path="handle.qq.adapters.milky.llbot",
     ),
 )
 
@@ -386,3 +437,71 @@ def get_supported_adapter_names() -> tuple[str, ...]:
         for adapter_name in profile.adapter_names
     }
     return tuple(sorted(names))
+
+
+def get_protocol_implementations(
+    adapter_id: str | None = None,
+) -> tuple[ProtocolImplementationInfo, ...]:
+    """Return registered protocol implementations, optionally filtered by adapter."""
+    if adapter_id is None:
+        return _PROTOCOL_IMPLEMENTATIONS
+    return tuple(
+        impl for impl in _PROTOCOL_IMPLEMENTATIONS if impl.adapter_id == adapter_id
+    )
+
+
+def export_registry_for_seeding() -> dict[str, Any]:
+    """Export structured registry metadata for database seeding.
+
+    Returns a dict with keys:
+    - "platforms": list of dicts with platform_id, display_name,
+      capabilities, implemented
+    - "adapters": list of dicts with adapter_id, platform_id,
+      display_name, nonebot_adapter_id
+    - "protocol_implementations": list of dicts with protocol_id,
+      adapter_id, display_name, module_path
+    """
+    platforms = [
+        {
+            "platform_id": profile.platform_id,
+            "display_name": profile.display_name,
+            "capabilities": json.dumps(
+                [cap.value for cap in sorted(profile.capabilities)]
+            ),
+            "implemented": profile.implemented,
+        }
+        for profile in PLATFORM_PROFILES
+    ]
+    adapters: list[dict[str, Any]] = []
+    for profile in PLATFORM_PROFILES:
+        for display_name, nonebot_id in profile.adapter_name_map:
+            adapters.append(
+                {
+                    "adapter_id": nonebot_id,
+                    "platform_id": profile.platform_id,
+                    "display_name": display_name,
+                    "nonebot_adapter_id": nonebot_id,
+                }
+            )
+    # Deduplicate by adapter_id (adapter_name_map has multiple
+    # display names per adapter)
+    seen: set[str] = set()
+    unique_adapters: list[dict[str, Any]] = []
+    for adapter in adapters:
+        if adapter["adapter_id"] not in seen:
+            seen.add(adapter["adapter_id"])
+            unique_adapters.append(adapter)
+    protocol_implementations = [
+        {
+            "protocol_id": impl.protocol_id,
+            "adapter_id": impl.adapter_id,
+            "display_name": impl.display_name,
+            "module_path": impl.module_path,
+        }
+        for impl in _PROTOCOL_IMPLEMENTATIONS
+    ]
+    return {
+        "platforms": platforms,
+        "adapters": unique_adapters,
+        "protocol_implementations": protocol_implementations,
+    }
