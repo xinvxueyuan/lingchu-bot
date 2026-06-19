@@ -5,7 +5,9 @@ from nonebot.adapters.milky import Bot as MilkyBot
 from nonebot.adapters.milky.event import Event as MilkyEvent
 from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 
+from ......permissions import allowed_command_keys
 from .....menu import (
+    MENU_FEATURES,
     MILKY_ADAPTER_ID,
     menu_cmd,
     menu_page_cmds,
@@ -24,7 +26,10 @@ async def milkybot_menu(
     _event: MilkyEvent | None = None,
 ) -> Any:
     context = await _milky_menu_context(bot)
-    return await menu_cmd.finish(message=render_menu_index(context))
+    allowed = await _allowed_menu_keys(bot, _event)
+    return await menu_cmd.finish(
+        message=render_menu_index(context, allowed_command_keys=allowed)
+    )
 
 
 def _register_milky_menu_page(page_id: str) -> None:
@@ -36,7 +41,10 @@ def _register_milky_menu_page(page_id: str) -> None:
         _event: MilkyEvent | None = None,
     ) -> Any:
         context = await _milky_menu_context(bot)
-        return await command.finish(message=render_menu_page(page_id, context))
+        allowed = await _allowed_menu_keys(bot, _event)
+        return await command.finish(
+            message=render_menu_page(page_id, context, allowed_command_keys=allowed)
+        )
 
     milkybot_menu_pages[page_id] = milkybot_menu_page
 
@@ -67,6 +75,16 @@ def _string_or_none(value: Any) -> str | None:
     if value is None:
         return None
     return str(value)
+
+
+async def _allowed_menu_keys(
+    bot: MilkyBot,
+    event: MilkyEvent | None,
+) -> frozenset[str] | None:
+    if event is None:
+        return None
+    command_keys = frozenset(feature.command_key for feature in MENU_FEATURES)
+    return await allowed_command_keys(bot, event, command_keys)
 
 
 async def import_handle() -> Any:

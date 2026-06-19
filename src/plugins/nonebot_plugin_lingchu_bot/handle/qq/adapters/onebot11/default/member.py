@@ -33,7 +33,7 @@ def _bot_self_id_safe(bot: OneBot11Bot) -> int | None:
         return None
 
 
-@selected_adapter_handle(set_group_member_card_cmd, "~onebot.v11")
+@selected_adapter_handle(set_group_member_card_cmd, "~onebot.v11", "set_member_card")
 async def onebot11_set_group_member_card(
     user: At | int,
     card: str,
@@ -78,7 +78,11 @@ async def onebot11_set_group_member_card(
     )
 
 
-@selected_adapter_handle(set_group_member_special_title_cmd, "~onebot.v11")
+@selected_adapter_handle(
+    set_group_member_special_title_cmd,
+    "~onebot.v11",
+    "set_member_title",
+)
 async def onebot11_set_group_member_special_title(
     user: At | int,
     special_title: str,
@@ -128,7 +132,7 @@ async def onebot11_set_group_member_special_title(
     )
 
 
-@selected_adapter_handle(set_group_member_admin_cmd, "~onebot.v11")
+@selected_adapter_handle(set_group_member_admin_cmd, "~onebot.v11", "set_member_admin")
 async def onebot11_set_group_member_admin(
     user: At | int,
     bot: OneBot11Bot,
@@ -168,7 +172,11 @@ async def onebot11_set_group_member_admin(
     )
 
 
-@selected_adapter_handle(unset_group_member_admin_cmd, "~onebot.v11")
+@selected_adapter_handle(
+    unset_group_member_admin_cmd,
+    "~onebot.v11",
+    "unset_member_admin",
+)
 async def onebot11_unset_group_member_admin(
     user: At | int,
     bot: OneBot11Bot,
@@ -179,7 +187,7 @@ async def onebot11_unset_group_member_admin(
     )
 
 
-@selected_adapter_handle(kick_group_member_cmd, "~onebot.v11")
+@selected_adapter_handle(kick_group_member_cmd, "~onebot.v11", "kick_member")
 async def onebot11_kick_group_member(
     user: At | int,
     bot: OneBot11Bot,

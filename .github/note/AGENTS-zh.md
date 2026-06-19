@@ -120,11 +120,15 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 │   │   └── qq/{group,onebot/v11,milky/v1_2}/    # QQ group handlers
 │   ├── i18n/           # Babel/gettext translations
 │   ├── migrations/     # Alembic database migration scripts
-│   ├── platforms/      # 适配器注册表、权限预设与解析
+│   ├── platforms/      # 适配器注册表和平台自有权限定义
+│   │   └── qq/permissions.py # QQ 默认身份组与运行时身份解析
+│   ├── permissions/    # UID 身份、平台账号、命令授权与 SUPERUSERS API
 │   ├── repositories/   # Data access layer
 │   │   ├── blocklist.py     # Blocklist repository
 │   │   ├── message_store.py # Message store repository
-│   │   └── registry.py      # Platform/adapter/protocol registry seeding
+│   │   ├── permissions.py   # Permission-system ORM repository
+│   │   ├── registry.py      # Platform/adapter/protocol registry seeding
+│   │   └── user_mapping.py  # UID/platform account binding compatibility entrypoint
 │   ├── services/       # Business logic services
 │   └── start/          # Startup & initialization
 ├── apps/docs/          # Fumadocs documentation site
@@ -387,6 +391,10 @@ At the end of every conversation that involves code changes, review what went wr
 ### Layered Menu Commands
 
 将菜单分类升级为独立命令时，注册分类 matcher 前必须审计它是否与现有功能命令别名冲突。顶层 `菜单` / `menu` 应保持为索引入口，并与分类页分别测试，这样功能过滤断言才会落在实际渲染功能行的页面上。
+
+### Permission System Boundaries
+
+平台默认身份组定义在 `platforms/qq/permissions.py` 等平台模块中；核心 `permissions/` 包只消费 seed 和运行时解析器，不应硬编码平台角色树。命令权限检查、菜单过滤和 handler 装饰器都使用 `MENU_FEATURES.command_key` 作为共享命令标识。菜单应 fail closed，隐藏当前身份不可执行的命令。SUPERUSERS 可以通过公开异步 API CRUD 自定义平台身份组和成员关系，但 builtin 平台组由平台模块 seed，不应被管理接口覆盖。
 
 ### Adapter API Differences
 

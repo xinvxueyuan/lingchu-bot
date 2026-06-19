@@ -121,11 +121,15 @@ lingchu-bot/
 │   │   └── qq/{group,onebot/v11,milky/v1_2}/    # QQ group handlers
 │   ├── i18n/           # Babel/gettext translations
 │   ├── migrations/     # Alembic database migration scripts
-│   ├── platforms/      # Adapter registry, permission presets & resolution
+│   ├── platforms/      # Adapter registry and platform-owned permission definitions
+│   │   └── qq/permissions.py # QQ default identity groups and runtime identity resolution
+│   ├── permissions/    # UID identity, platform account, command grant & SUPERUSERS APIs
 │   ├── repositories/   # Data access layer
 │   │   ├── blocklist.py     # Blocklist repository
 │   │   ├── message_store.py # Message store repository
-│   │   └── registry.py      # Platform/adapter/protocol registry seeding
+│   │   ├── permissions.py   # Permission-system ORM repository
+│   │   ├── registry.py      # Platform/adapter/protocol registry seeding
+│   │   └── user_mapping.py  # UID/platform account binding compatibility entrypoint
 │   ├── services/       # Business logic services
 │   └── start/          # Startup & initialization
 ├── apps/docs/          # Fumadocs documentation site
@@ -392,6 +396,10 @@ Group command trigger words are locale-exclusive. Do not register Chinese and En
 ### Layered Menu Commands
 
 When turning menu categories into standalone commands, audit conflicts with existing feature command aliases before registering the category matcher. Keep the top-level `菜单` / `menu` response as an index and test it separately from category pages, so feature filtering assertions target the page that actually renders the feature rows.
+
+### Permission System Boundaries
+
+Platform default identity groups live in platform modules such as `platforms/qq/permissions.py`; the core `permissions/` package consumes seeds and runtime resolvers but must not hard-code platform role trees. Command permission checks, menu filtering, and handler decorators all use `MENU_FEATURES.command_key` as the shared command identifier. Menus should fail closed and hide commands the current identity cannot execute. SUPERUSERS may CRUD custom platform identity groups and memberships through public async APIs, but builtin platform groups are seeded by platform modules and must not be overwritten by admin CRUD.
 
 ### Adapter API Differences
 

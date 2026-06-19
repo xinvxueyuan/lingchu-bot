@@ -1,11 +1,14 @@
 """Lightweight runtime configuration backed by JSON5 and NoneBot settings."""
 
+# ruff: noqa: TRY003
+
 from __future__ import annotations
 
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
 
+import json5
 from nonebot import get_driver
 from nonebot.compat import type_validate_python
 from nonebot_plugin_localstore import get_plugin_config_file
@@ -15,6 +18,7 @@ from pydantic import (
     ConfigDict,
     Field,
     ValidationError,
+    field_validator,
 )
 
 if TYPE_CHECKING:
@@ -51,6 +55,13 @@ class RuntimeConfig(BaseModel):
     message_store_summary_limit: int = Field(default=500, ge=0)
     message_store_record_api_calls: bool = True
     message_store_cleanup_enabled: bool = True
+    lingchu_superusers: dict[str, dict[str, str | int]] | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "lingchu_superusers",
+            "LINGCHU_SUPERUSERS",
+        ),
+    )
     lingchu_adapter: str | list[str] | None = Field(
         default=None,
         validation_alias=AliasChoices(
@@ -61,6 +72,42 @@ class RuntimeConfig(BaseModel):
     )
 
     model_config = ConfigDict(extra="ignore")
+
+    @field_validator("lingchu_superusers", mode="before")
+    @classmethod
+    def _validate_lingchu_superusers(  # noqa: C901
+        cls,
+        value: Any,
+    ) -> dict[str, dict[str, str | int]] | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            try:
+                value = json5.loads(value)
+            except ValueError as exc:
+                raise ValueError("LINGCHU_SUPERUSERS must be valid JSON5") from exc
+        if not isinstance(value, dict):
+            raise ValueError("LINGCHU_SUPERUSERS must be a mapping")  # noqa: TRY004
+        result: dict[str, dict[str, str | int]] = {}
+        for uid, accounts in value.items():
+            uid_text = str(uid).strip()
+            if not uid_text:
+                raise ValueError("LINGCHU_SUPERUSERS UID cannot be empty")
+            if not isinstance(accounts, dict):
+                raise ValueError(  # noqa: TRY004
+                    "LINGCHU_SUPERUSERS account value must be a mapping"
+                )
+            result[uid_text] = {}
+            for platform_id, account_id in accounts.items():
+                platform_text = str(platform_id).strip()
+                if not platform_text:
+                    raise ValueError("LINGCHU_SUPERUSERS platform cannot be empty")
+                if not isinstance(account_id, (str, int)):
+                    raise ValueError(  # noqa: TRY004
+                        "LINGCHU_SUPERUSERS account id must be str or int"
+                    )
+                result[uid_text][platform_text] = account_id
+        return result
 
 
 def runtime_config_defaults() -> dict[str, Any]:

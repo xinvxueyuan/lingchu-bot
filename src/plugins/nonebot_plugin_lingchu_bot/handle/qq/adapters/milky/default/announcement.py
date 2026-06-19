@@ -10,7 +10,7 @@ from ....commands.common import selected_adapter_handle
 from ..llbot.announcement import send_group_announcement_llbot
 
 
-@selected_adapter_handle(send_group_announcement_cmd, "~milky")
+@selected_adapter_handle(send_group_announcement_cmd, "~milky", "send_announcement")
 async def milkybot_send_group_announcement(
     content: str,
     image: UniImage | None,

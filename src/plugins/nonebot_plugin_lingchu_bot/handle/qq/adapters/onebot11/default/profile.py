@@ -22,7 +22,7 @@ from ..napcat.profile import set_group_portrait_napcat
 _GROUP_NAME_MAX_LENGTH = 50
 
 
-@selected_adapter_handle(set_group_name_cmd, "~onebot.v11")
+@selected_adapter_handle(set_group_name_cmd, "~onebot.v11", "set_group_name")
 async def onebot11_set_group_name(
     new_group_name: str,
     bot: OneBot11Bot,
@@ -56,7 +56,7 @@ async def onebot11_set_group_name(
     )
 
 
-@selected_adapter_handle(set_group_avatar_cmd, "~onebot.v11")
+@selected_adapter_handle(set_group_avatar_cmd, "~onebot.v11", "set_group_avatar")
 async def onebot11_set_group_avatar(
     image: UniImage | None,
     bot: OneBot11Bot,

@@ -31,7 +31,7 @@ def _bot_self_id_safe(bot: MilkyBot) -> int | None:
         return None
 
 
-@selected_adapter_handle(set_group_member_card_cmd, "~milky")
+@selected_adapter_handle(set_group_member_card_cmd, "~milky", "set_member_card")
 async def milkybot_set_group_member_card(
     user: At | int,
     card: str,
@@ -85,7 +85,11 @@ async def milkybot_set_group_member_card(
     )
 
 
-@selected_adapter_handle(set_group_member_special_title_cmd, "~milky")
+@selected_adapter_handle(
+    set_group_member_special_title_cmd,
+    "~milky",
+    "set_member_title",
+)
 async def milkybot_set_group_member_special_title(
     user: At | int,
     special_title: str,
@@ -143,7 +147,7 @@ async def milkybot_set_group_member_special_title(
     )
 
 
-@selected_adapter_handle(set_group_member_admin_cmd, "~milky")
+@selected_adapter_handle(set_group_member_admin_cmd, "~milky", "set_member_admin")
 async def milkybot_set_group_member_admin(
     user: At | int,
     bot: MilkyBot,
@@ -192,7 +196,7 @@ async def milkybot_set_group_member_admin(
     )
 
 
-@selected_adapter_handle(unset_group_member_admin_cmd, "~milky")
+@selected_adapter_handle(unset_group_member_admin_cmd, "~milky", "unset_member_admin")
 async def milkybot_unset_group_member_admin(
     user: At | int,
     bot: MilkyBot,
@@ -203,7 +207,7 @@ async def milkybot_unset_group_member_admin(
     )
 
 
-@selected_adapter_handle(kick_group_member_cmd, "~milky")
+@selected_adapter_handle(kick_group_member_cmd, "~milky", "kick_member")
 async def milkybot_kick_group_member(
     user: At | int,
     bot: MilkyBot,

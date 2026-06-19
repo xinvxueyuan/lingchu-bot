@@ -7,6 +7,7 @@ from ..handle.menu import import_handle as menu_import_handle
 from ..handle.qq.adapters import import_handle as group_import_handle
 from ..i18n import _async as _
 from ..i18n import warm_translation_cache
+from ..permissions import validate_and_seed_permission_system
 from ..platforms import (
     resolve_enabled_adapters,
     resolve_registered_adapters,
@@ -46,8 +47,9 @@ async def startup() -> None:
             )
         )
     await warm_translation_cache()
-    await group_import_handle()
     await seed_registry_tables()
+    await validate_and_seed_permission_system()
+    await group_import_handle()
     await menu_import_handle()
     await initialize_message_store()
 

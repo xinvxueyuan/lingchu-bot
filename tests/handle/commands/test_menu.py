@@ -139,7 +139,7 @@ def test_member_management_page_lists_member_commands_only() -> None:
     assert "设置群名称" not in rendered
 
 
-def test_member_management_page_marks_denied_commands_readonly() -> None:
+def test_member_management_page_hides_denied_commands() -> None:
     rendered = render_menu_page(
         "member-management",
         qq_menu_context(adapter_id=ONEBOT_V11_ADAPTER_ID),
@@ -147,7 +147,7 @@ def test_member_management_page_marks_denied_commands_readonly() -> None:
         allowed_command_keys=frozenset({"set_member_card"}),
     )
 
-    assert "踢出群成员 (只读)" in rendered
+    assert "踢出群成员" not in rendered
     assert "设置群名片 (只读)" not in rendered
     assert "设置群名片" in rendered
 

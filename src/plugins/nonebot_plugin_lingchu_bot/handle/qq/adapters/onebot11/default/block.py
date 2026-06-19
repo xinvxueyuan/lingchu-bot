@@ -150,7 +150,7 @@ async def _block_member(  # noqa: PLR0913
     return await command.finish(message=message)
 
 
-@selected_adapter_handle(block_member_cmd, "~onebot.v11")
+@selected_adapter_handle(block_member_cmd, "~onebot.v11", "block_member")
 async def onebot11_block_member(
     user: At | int,
     duration: int | None,
@@ -169,7 +169,11 @@ async def onebot11_block_member(
     )
 
 
-@selected_adapter_handle(global_block_member_cmd, "~onebot.v11")
+@selected_adapter_handle(
+    global_block_member_cmd,
+    "~onebot.v11",
+    "global_block_member",
+)
 async def onebot11_global_block_member(
     user: At | int,
     duration: int | None,
@@ -234,7 +238,7 @@ async def _unblock_member(  # noqa: PLR0913
     return await command.finish(message=message)
 
 
-@selected_adapter_handle(unblock_member_cmd, "~onebot.v11")
+@selected_adapter_handle(unblock_member_cmd, "~onebot.v11", "unblock_member")
 async def onebot11_unblock_member(
     user: At,
     bot: OneBot11Bot,
@@ -251,7 +255,11 @@ async def onebot11_unblock_member(
     )
 
 
-@selected_adapter_handle(global_unblock_member_cmd, "~onebot.v11")
+@selected_adapter_handle(
+    global_unblock_member_cmd,
+    "~onebot.v11",
+    "global_unblock_member",
+)
 async def onebot11_global_unblock_member(
     user: At,
     bot: OneBot11Bot,
@@ -297,7 +305,7 @@ async def _clear_blocklist(
     return await command.finish(message=message)
 
 
-@selected_adapter_handle(clear_blocklist_cmd, "~onebot.v11")
+@selected_adapter_handle(clear_blocklist_cmd, "~onebot.v11", "clear_blocklist")
 async def onebot11_clear_blocklist(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
@@ -312,7 +320,11 @@ async def onebot11_clear_blocklist(
     )
 
 
-@selected_adapter_handle(global_clear_blocklist_cmd, "~onebot.v11")
+@selected_adapter_handle(
+    global_clear_blocklist_cmd,
+    "~onebot.v11",
+    "global_clear_blocklist",
+)
 async def onebot11_global_clear_blocklist(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,

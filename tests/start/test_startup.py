@@ -36,6 +36,11 @@ async def test_startup_imports_group_and_menu_handlers(
     monkeypatch.setattr(startup_module, "warm_translation_cache", AsyncMock())
     monkeypatch.setattr(startup_module, "group_import_handle", group_import)
     monkeypatch.setattr(startup_module, "menu_import_handle", menu_import)
+    monkeypatch.setattr(
+        startup_module,
+        "validate_and_seed_permission_system",
+        AsyncMock(),
+    )
     monkeypatch.setattr(startup_module, "initialize_message_store", AsyncMock())
 
     await startup_module.startup()

@@ -98,6 +98,7 @@ The default `config.json5` content is equivalent to:
   message_store_record_api_calls: true,
   message_store_cleanup_enabled: true,
   lingchu_adapter: null,
+  lingchu_superusers: null,
 }
 ```
 
@@ -106,6 +107,19 @@ It can still be overridden in NoneBot global configuration, for example:
 ```toml
 LINGCHUAdapter = "~onebot.v11"
 ```
+
+`LINGCHU_SUPERUSERS` defines Lingchu's UID-based superuser accounts and is parsed
+as JSON5:
+
+```dotenv
+LINGCHU_SUPERUSERS='{"userA":{"qq":123,"telegram":"tg-id","discord":"discord-id"}}'
+```
+
+When `LINGCHU_SUPERUSERS` is absent, Lingchu imports NoneBot's native
+`SUPERUSERS` as QQ accounts and assigns generated UIDs in order from `user1` to
+`user999`. Startup fails if neither source is present, if the value is not a
+mapping of UID to platform account IDs, or if the same platform account is bound
+to more than one UID.
 
 ### Adapter Selection
 
