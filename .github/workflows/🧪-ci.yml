@@ -121,7 +121,7 @@ jobs:
           enable-cache: true
 
       - name: Install Python dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --extra deprecated-adapters
 
       - name: Run migrations
         run: uv run nb orm upgrade

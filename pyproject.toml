@@ -238,6 +238,8 @@ exclude = [
   ".mypy_cache",
   ".ruff_cache",
   ".pyright",
+  # Deprecated adapters — optional dependencies not installed in CI
+  "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/milky",
 ]
 
 [tool.ty.src]

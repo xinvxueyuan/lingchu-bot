@@ -316,7 +316,7 @@ Use conventional commit + gitmoji: `✨ feat:`, `🐛 fix:`, `📝 docs:`, `⚡ 
 
 GitHub Actions runs on push to `main`/`dev` and on PRs:
 
-- **🧪 CI**: Static analysis (Ruff + Markdown + Turborepo lint), tests & type check (Pyright + ty + pytest + docs test), auto-format on push to main/dev
+- **🧪 CI**: Static analysis (Ruff + Markdown + Turborepo lint), tests & type check (Pyright + ty + pytest + docs test), auto-format on push to main/dev. Test jobs install `--extra deprecated-adapters` so test files importing optional dependencies (Milky adapter) can resolve.
 - **👷 CI-builds**: Build verification on Python/package changes
 - **📚 Docs Deploy**: Build and deploy to GitHub Pages on push to main/dev
 - **� React Doctor**: React codebase health check on PRs (uses CLI, not the action — see Lessons Learned)
@@ -444,6 +444,12 @@ When removing functions/helpers:
 ### PowerShell Markdownlint Globs
 
 - When running `markdownlint-cli2` through `pwsh.exe -NoProfile -Command`, pass glob arguments exactly as the shell should see them; incorrectly nested or escaped quotes can turn globs into malformed paths and make Node scan far more than intended. Prefer the Taskfile command or a known-good direct command form before treating a markdownlint timeout as a lint failure.
+
+### Markdownlint Per-Directory Overrides
+
+- `markdownlint-cli2` supports hierarchical configuration: a `.markdownlint.jsonc` file in a subdirectory overrides the root config for files in that directory.
+- **Important**: The subdirectory `.markdownlint.jsonc` REPLACES the root rule config, it does not merge. Always include all root settings (e.g., `MD013: false`, `MD033: false`, `MD041: false`, `MD060` config) in the subdirectory config, plus any additional rule suppressions.
+- `.github/.markdownlint.jsonc` disables MD022 (blanks-around-headings) and MD032 (blanks-around-lists) for `.github` docs, as CJK content in AGENTS-zh.md frequently triggers these rules without actual formatting issues.
 
 ### Husky Hook CLI Resolution
 
@@ -874,6 +880,7 @@ lingchu-bot/
 │   │   └── git-commit-message.md     # Gitmoji + Conventional Commits spec
 │   └── skills/                       # Trae skill definitions (mirror of .agents/)
 ├── .github/
+│   ├── .markdownlint.jsonc            # Per-directory override: disables MD022/MD032 for .github docs
 │   └── note/AGENTS-zh.md            # Chinese translation of AGENTS.md
 ├── .husky/                           # Git hooks (pre-commit, commit-msg, prepare-commit-msg)
 ├── src/
@@ -1281,6 +1288,13 @@ Rule of thumb: **if you haven't seen the syntax used in the project's existing c
 - Deprecated adapters (`~milky`, `~qq`, `~onebot.v12`) now trigger `PlatformAdapterDeprecatedError` with clear guidance, instead of being treated as "unknown".
 - Platform permission modules are discovered through `PlatformProfile.permission_module` field in the registry, eliminating hardcoded module paths in `permissions/platforms.py`.
 - Key lesson: when deprecating features, provide clear exit-time feedback rather than silent removal; when permission gates rely on passive event data, add active API verification as a fallback.
+
+### CI Type-Checking for Optional Dependencies & i18n Maintenance
+- When moving dependencies to `[project.optional-dependencies]` (e.g., `deprecated-adapters`), the CI test jobs must install them with `uv sync --frozen --extra deprecated-adapters` — otherwise test files importing those packages fail with `ImportError`.
+- Pyright/ty exclude lists in `pyproject.toml` must include deprecated adapter source directories (e.g., `src/.../handle/qq/adapters/milky`) — otherwise type-checking fails on `reportMissingImports` for packages not installed in the static-analysis environment.
+- **`pybabel update` behavior**: Automatically marks removed strings as obsolete (`#~` prefix) and adds `fuzzy` flags to entries with similar msgids. After running `pybabel update`, manually review fuzzy entries, remove the `fuzzy` flag, and correct translations.
+- **Stale msgid handling**: When function signatures change (e.g., removing a `reason` parameter from a format string), the old msgid becomes stale. `pybabel update` detects the similarity and creates a fuzzy entry, but the msgstr must be manually updated to match the new msgid.
+- **Key lesson**: When deprecating code that has i18n strings, run `task i18n` after code changes to extract/update translations. Check for fuzzy entries and obsolete entries. When excluding directories from type-checking, add them to both `[tool.pyright]` and `[tool.ty.src]` exclude lists.
 
 ### Pending Rollbacks
 
