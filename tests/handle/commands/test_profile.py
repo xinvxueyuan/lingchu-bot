@@ -2,6 +2,7 @@
 测试群资料设置命令 - Milky 群 API 映射覆盖
 """
 
+import base64
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -140,7 +141,7 @@ async def test_onebot11_set_group_name_calls_v11_api(
 
 @pytest.mark.asyncio
 async def test_onebot11_set_group_avatar_calls_napcat_api(
-    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, tmp_path: Path
 ) -> None:
     mock_onebot11_bot.get_version_info = AsyncMock(
         return_value={
@@ -150,7 +151,8 @@ async def test_onebot11_set_group_avatar_calls_napcat_api(
         }
     )
     mock_onebot11_bot.call_api = AsyncMock()
-    image_path = Path("/tmp/test.png")
+    image_path = tmp_path / "test.png"
+    image_path.write_bytes(b"fake-image-bytes")
     resolve_path = (
         "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11"
         ".default.profile._resolve_image_path"
@@ -169,7 +171,7 @@ async def test_onebot11_set_group_avatar_calls_napcat_api(
     mock_onebot11_bot.call_api.assert_called_once_with(
         "set_group_portrait",
         group_id=mock_onebot11_event.group_id,
-        file=str(image_path),
+        file="base64://" + base64.b64encode(b"fake-image-bytes").decode(),
     )
     assert finish_text(mock_finish) == "群头像已更新"
 

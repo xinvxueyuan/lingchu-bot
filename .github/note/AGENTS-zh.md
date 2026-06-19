@@ -648,6 +648,13 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 - **过期 msgid 处理**：当函数签名变更（如从格式字符串中移除 `reason` 参数）时，旧 msgid 变为过期。`pybabel update` 会检测相似性并创建 fuzzy 条目，但 msgstr 必须手动更新以匹配新 msgid。
 - **关键经验**：停维含 i18n 字符串的代码时，代码变更后须运行 `task i18n` 提取/更新翻译。检查 fuzzy 条目和废弃条目。从类型检查中排除目录时，须同时添加到 `[tool.pyright]` 和 `[tool.ty.src]` 排除列表。
 
+### OneBot V11 图片类 API 文件字段格式
+- NapCat / OneBot V11 图片类 API（如 `set_group_portrait`）的 `file` 字段要求 `http(s)://`、`base64://` 或 `file://` 格式，直接传入裸本地路径（如 `C:\...` 或 `/tmp/...`）会被拒绝（`retcode=1200`, `file字段可能格式不正确`）。
+- **修复**：将本地文件读取为 bytes，base64 编码后以 `base64://<encoded>` 格式传入。选择 `base64://` 而非 `file://` 的原因：bot 与 NapCat 可能运行在不同容器/文件系统中，`base64://` 在所有部署场景下都能工作。
+- **异步文件 I/O**：在 async 函数中读取文件应使用 `await asyncio.to_thread(path.read_bytes)` 避免 `ASYNC240` 违规；直接调用 `path.read_bytes()` 会被 ruff 标记。
+- **测试模式**：测试涉及文件读取的函数时，使用 `tmp_path` fixture 创建真实临时文件（`tmp_path / "test.png"` + `write_bytes(b"...")`），而非指向不存在的路径（如 `Path("/tmp/test.png")`）。
+- **关键经验**：调用 OneBot V11 图片/文件类 API 时，务必将 `file` 字段转换为协议要求的格式；测试断言应验证格式前缀（`base64://`）而非裸路径字符串。
+
 ### 待回退变更
 
 规则抑制和临时变通方案，在触发条件改变后应予回退。定期审查此节（如更新依赖或重构时）。

@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3246 symbols, 6309 relationships, 271 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3249 symbols, 6314 relationships, 272 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -656,6 +656,13 @@ Rule of thumb: **if you haven't seen the syntax used in the project's existing c
 - **`pybabel update` behavior**: Automatically marks removed strings as obsolete (`#~` prefix) and adds `fuzzy` flags to entries with similar msgids. After running `pybabel update`, manually review fuzzy entries, remove the `fuzzy` flag, and correct translations.
 - **Stale msgid handling**: When function signatures change (e.g., removing a `reason` parameter from a format string), the old msgid becomes stale. `pybabel update` detects the similarity and creates a fuzzy entry, but the msgstr must be manually updated to match the new msgid.
 - **Key lesson**: When deprecating code that has i18n strings, run `task i18n` after code changes to extract/update translations. Check for fuzzy entries and obsolete entries. When excluding directories from type-checking, add them to both `[tool.pyright]` and `[tool.ty.src]` exclude lists.
+
+### OneBot V11 Image API File Field Format
+- NapCat / OneBot V11 图片类 API（如 `set_group_portrait`）的 `file` 字段要求 `http(s)://`、`base64://` 或 `file://` 格式，直接传入裸本地路径（如 `C:\...` 或 `/tmp/...`）会被拒绝（`retcode=1200`, `file字段可能格式不正确`）。
+- **Fix**: 将本地文件读取为 bytes，base64 编码后以 `base64://<encoded>` 格式传入。选择 `base64://` 而非 `file://` 的原因：bot 与 NapCat 可能运行在不同容器/文件系统中，`base64://` 在所有部署场景下都能工作。
+- **Async file I/O**: 在 async 函数中读取文件应使用 `await asyncio.to_thread(path.read_bytes)` 避免 `ASYNC240` 违规；直接调用 `path.read_bytes()` 会被 ruff 标记。
+- **Test pattern**: 测试涉及文件读取的函数时，使用 `tmp_path` fixture 创建真实临时文件（`tmp_path / "test.png"` + `write_bytes(b"...")`），而非指向不存在的路径（如 `Path("/tmp/test.png")`）。
+- **Key lesson**: 调用 OneBot V11 图片/文件类 API 时，务必将 `file` 字段转换为协议要求的格式；测试断言应验证格式前缀（`base64://`）而非裸路径字符串。
 
 ### Pending Rollbacks
 
