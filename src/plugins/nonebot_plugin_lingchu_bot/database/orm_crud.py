@@ -37,6 +37,7 @@ from sqlalchemy import (
 from sqlalchemy import (
     update as sqlalchemy_update,
 )
+from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -816,6 +817,21 @@ def _upsert_conflict_kwargs(
     return {"index_elements": [columns[key] for key in conflict_keys]}
 
 
+def _mysql_upsert_set_values(
+    stmt: Any,
+    update_keys: Sequence[str],
+    explicit_update_values: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """生成 MySQL on_duplicate_key_update 的 SET 字段。
+
+    MySQL 使用 ``stmt.inserted.<col>`` 引用 INSERT 的值，
+    等价于 PostgreSQL/SQLite 的 ``stmt.excluded.<col>``。
+    """
+    if explicit_update_values is not None:
+        return explicit_update_values
+    return {key: getattr(stmt.inserted, key) for key in update_keys}
+
+
 async def upsert[T: Model](
     model: type[T],
     insert_values: dict[str, Any],
@@ -824,7 +840,7 @@ async def upsert[T: Model](
     constraint: str | None = None,
     update_values: dict[str, Any] | None = None,
 ) -> T:
-    """执行 PostgreSQL/SQLite 方言级原子 upsert。
+    """执行方言级原子 upsert（SQLite/PostgreSQL/MySQL）。
 
     Args:
         model: ORM 模型类 / ORM model class.
@@ -860,6 +876,19 @@ async def upsert[T: Model](
 
     async with get_session() as s:
         dialect_name = _get_session_dialect_name(s)
+
+        if dialect_name == "mysql":
+            return await _mysql_upsert(
+                s,
+                model,
+                insert_values,
+                columns,
+                conflict_keys,
+                update_keys,
+                explicit_update_values,
+                constraint,
+            )
+
         insert_stmt = _dialect_insert_statement(model, dialect_name, constraint)
         stmt = insert_stmt.values(**insert_values)
         set_values = _upsert_set_values(stmt, update_keys, explicit_update_values)
@@ -876,6 +905,59 @@ async def upsert[T: Model](
             await s.rollback()
             raise DatabaseError("Upsert failed") from e
         return obj
+
+
+async def _mysql_upsert[T: Model](  # noqa: PLR0913
+    s: AsyncSession,
+    model: type[T],
+    insert_values: dict[str, Any],
+    columns: dict[str, Any],
+    conflict_keys: list[str],
+    update_keys: list[str],
+    explicit_update_values: dict[str, Any] | None,
+    constraint: str | None,
+) -> T:
+    """MySQL 方言的 upsert 实现。
+
+    使用 ``INSERT ... ON DUPLICATE KEY UPDATE`` 语义。MySQL 不支持
+    ``RETURNING``，因此执行后通过 ``conflict_fields`` 做一次 follow-up
+    ``SELECT`` 取回最新行。
+    """
+    if constraint is not None:
+        raise ValueError(
+            "MySQL upsert does not support constraint; use conflict_fields"
+        )
+    if not conflict_keys:
+        raise ValueError("MySQL upsert requires conflict_fields for follow-up SELECT")
+
+    insert_stmt = mysql_insert(model).values(**insert_values)
+    set_values = _mysql_upsert_set_values(
+        insert_stmt, update_keys, explicit_update_values
+    )
+    stmt = insert_stmt.on_duplicate_key_update(**set_values)
+
+    try:
+        await s.execute(stmt)
+        await s.commit()
+    except SQLAlchemyError as e:
+        await s.rollback()
+        raise DatabaseError("Upsert failed") from e
+
+    # MySQL 不支持 RETURNING，通过 conflict_keys 做一次 SELECT 取回最新行。
+    where_clauses = [
+        columns[key].is_(insert_values[key])
+        if insert_values[key] is None
+        else columns[key] == insert_values[key]
+        for key in conflict_keys
+    ]
+    try:
+        result = await s.execute(select(model).where(*where_clauses))
+        obj = result.scalar_one_or_none()
+    except SQLAlchemyError as e:
+        raise DatabaseError("Upsert failed to fetch row") from e
+    if obj is None:
+        raise DatabaseError("Upsert succeeded but row not found")
+    return obj
 
 
 async def list_items[T: Model](  # noqa: PLR0913
