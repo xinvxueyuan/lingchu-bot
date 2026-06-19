@@ -346,7 +346,7 @@ Use conventional commit + gitmoji: `✨ feat:`, `🐛 fix:`, `📝 docs:`, `⚡ 
 
 GitHub Actions runs on push to `main`/`dev` and on PRs:
 
-- **🧪 CI**: Static analysis (Ruff + Markdown + Turborepo lint), tests & type check (Pyright + ty + pytest + docs test), auto-format on push to main/dev
+- **🧪 CI**: Static analysis (Ruff + Markdown + Turborepo lint), tests & type check (Pyright + ty + pytest + docs test), auto-format on push to main/dev. Test jobs install `--extra deprecated-adapters` so test files importing optional dependencies (Milky adapter) can resolve.
 - **👷 CI-builds**: Build verification on Python/package changes
 - **📚 Docs Deploy**: Build and deploy to GitHub Pages on push to main/dev
 - **🩺 React Doctor**: React codebase health check on PRs (uses CLI, not the action — see Lessons Learned)
@@ -465,6 +465,12 @@ When removing functions/helpers:
 ### PowerShell Markdownlint Glob
 
 - 通过 `pwsh.exe -NoProfile -Command` 运行 `markdownlint-cli2` 时，glob 参数必须按目标 shell 实际接收的形式传入；错误的嵌套或转义引号会把 glob 变成异常路径，让 Node 扫描远超预期的内容。将 markdownlint 超时视为 lint 失败前，优先使用 Taskfile 命令或已验证的直接命令形式。
+
+### Markdownlint 按目录覆盖
+
+- `markdownlint-cli2` 支持分层配置：子目录中的 `.markdownlint.jsonc` 文件覆盖该目录下文件的根配置。
+- **重要**：子目录的 `.markdownlint.jsonc` 会**替换**（而非合并）根配置的规则。必须在子目录配置中包含所有根设置（如 `MD013: false`、`MD033: false`、`MD041: false`、`MD060` 配置），再加上额外的规则抑制。
+- `.github/.markdownlint.jsonc` 为 `.github` 文档禁用了 MD022（标题周围空行）和 MD032（列表周围空行），因为 AGENTS-zh.md 中的 CJK 内容频繁触发这些规则但并无实际格式问题。
 
 ### Husky Hook 中的 CLI 解析
 
@@ -607,10 +613,18 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 - **关键经验**：停维适配器时，应将其移出启动流程但保留源码并添加停维标记；提供独立的加载工具用于按需访问。收口重复 handler 逻辑时，应将共享辅助函数提取到单一 `common.py` 模块，而非在各 handler 文件中保留副本。
 
 ### 权限 API 集成与停维强制提示
+
 - 权限系统现在通过 OneBot V11 `get_group_member_info` API 主动验证用户角色，确保门禁生效。
 - 停维适配器（`~milky`、`~qq`、`~onebot.v12`）现在触发 `PlatformAdapterDeprecatedError` 并提供清晰指引，而非被当作"未知"处理。
 - 平台权限模块通过注册表中的 `PlatformProfile.permission_module` 字段动态发现，消除了 `permissions/platforms.py` 中的硬编码模块路径。
 - 关键经验：停维功能时应提供清晰的退出时反馈而非静默移除；权限门禁依赖被动事件数据时，应添加主动 API 验证作为回退。
+
+### CI 可选依赖类型检查与 i18n 维护
+- 将依赖移至 `[project.optional-dependencies]`（如 `deprecated-adapters`）后，CI 测试任务必须使用 `uv sync --frozen --extra deprecated-adapters` 安装——否则导入这些包的测试文件会因 `ImportError` 失败。
+- `pyproject.toml` 中的 Pyright/ty 排除列表必须包含停维适配器源码目录（如 `src/.../handle/qq/adapters/milky`）——否则类型检查会因静态分析环境中未安装的包而报 `reportMissingImports` 错误。
+- **`pybabel update` 行为**：自动将已删除的字符串标记为废弃（`#~` 前缀），并为相似 msgid 的条目添加 `fuzzy` 标记。运行 `pybabel update` 后，需手动检查 fuzzy 条目，移除 `fuzzy` 标记并修正翻译。
+- **过期 msgid 处理**：当函数签名变更（如从格式字符串中移除 `reason` 参数）时，旧 msgid 变为过期。`pybabel update` 会检测相似性并创建 fuzzy 条目，但 msgstr 必须手动更新以匹配新 msgid。
+- **关键经验**：停维含 i18n 字符串的代码时，代码变更后须运行 `task i18n` 提取/更新翻译。检查 fuzzy 条目和废弃条目。从类型检查中排除目录时，须同时添加到 `[tool.pyright]` 和 `[tool.ty.src]` 排除列表。
 
 ### 待回退变更
 
@@ -618,6 +632,7 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 
 | 内容                                                    | 位置                                   | 抑制原因                                                                                                                             | 回退条件                                                                                                     |
 | ------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Pyright/ty 排除 `src/.../adapters/milky` | `pyproject.toml` `[tool.pyright]` 和 `[tool.ty.src]` | Milky 适配器移至可选依赖；静态分析环境未安装，导致 `reportMissingImports` | 当 Milky 适配器完全删除或静态分析环境安装 `--extra deprecated-adapters` 时移除排除 |
 | `deslop/unused-export: "off"`                           | `doctor.config.ts`                     | `mdx.tsx` 中的 `useMDXComponents` 是框架必需的重导出，但当前未被消费（`source.config.ts` 未配置 `providerImportSource`）               | 当 `useMDXComponents` 被实际消费后移除此抑制（如添加 `providerImportSource` 到 `source.config.ts` 或在其他地方导入它） |
 | 使用 CLI 而非 `millionco/react-doctor@v2` action        | `.github/workflows/🩺-react-doctor.yml`   | 上游 action 存在 bug：detached HEAD、ANSI 泄漏到 PR 评论（PR #80 待合并）                                                             | 上游修复发布后切换回 action（关注 PR #80）                                                                     |
 

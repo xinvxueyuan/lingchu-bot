@@ -351,7 +351,7 @@ Use conventional commit + gitmoji: `✨ feat:`, `🐛 fix:`, `📝 docs:`, `⚡ 
 
 GitHub Actions runs on push to `main`/`dev` and on PRs:
 
-- **🧪 CI**: Static analysis (Ruff + Markdown + Turborepo lint), tests & type check (Pyright + ty + pytest + docs test), auto-format on push to main/dev
+- **🧪 CI**: Static analysis (Ruff + Markdown + Turborepo lint), tests & type check (Pyright + ty + pytest + docs test), auto-format on push to main/dev. Test jobs install `--extra deprecated-adapters` so test files importing optional dependencies (Milky adapter) can resolve.
 - **👷 CI-builds**: Build verification on Python/package changes
 - **📚 Docs Deploy**: Build and deploy to GitHub Pages on push to main/dev
 - **🩺 React Doctor**: React codebase health check on PRs (uses CLI, not the action — see Lessons Learned)
@@ -526,6 +526,7 @@ Rule of thumb: **if you haven't seen the syntax used in the project's existing c
 
 | Suppressed Rule | Location | Reason | Remove When |
 |----------------|----------|--------|-------------|
+| Pyright/ty exclude of `src/.../adapters/milky` | `pyproject.toml` `[tool.pyright]` and `[tool.ty.src]` | Milky adapter moved to optional deps; not installed in static-analysis env, causing `reportMissingImports` | Remove exclude when Milky adapter is fully deleted or when static-analysis env installs `--extra deprecated-adapters` |
 | `deslop/unused-export` | `apps/docs/doctor.config.ts` | `useMDXComponents` export is required by fumadocs MDX provider for future component customization, but currently unused | `useMDXComponents` is actually utilized in MDX rendering (e.g., custom code blocks, callouts, or admonitions) |
 
 - **`/llms.txt` is a route handler, not a static file**: When linking to Next.js route handlers from components, use `<Link>` (not plain `<a>`) — they're internal routes that benefit from client-side navigation.
