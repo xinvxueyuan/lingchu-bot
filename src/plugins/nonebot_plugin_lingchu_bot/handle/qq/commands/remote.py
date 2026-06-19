@@ -4,12 +4,10 @@ from importlib import import_module
 from typing import Any
 
 from arclet.alconna import Alconna, Args
-from nonebot import logger
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 from nonebot_plugin_alconna.uniseg import Image as UniImage
 
-from ....i18n import _async as _
 from .triggers import COMMAND_TRIGGERS
 
 _REMOTE_MUTE = COMMAND_TRIGGERS["remote_mute"]
@@ -148,7 +146,3 @@ def __getattr__(name: str) -> Any:
     value = getattr(module, name)
     globals()[name] = value
     return value
-
-
-async def import_handle() -> Any:
-    logger.debug(await _("导入remote处理器..."))

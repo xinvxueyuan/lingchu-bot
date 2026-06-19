@@ -744,7 +744,6 @@ def _load_adapter_handlers(adapter_id: str) -> tuple[Callable[[], Any], ...]:
 
 
 async def import_handle() -> Any:
-    logger.debug(await _("导入menu处理器..."))
     for adapter_id in sorted(resolve_enabled_adapters()):
         handlers = _load_adapter_handlers(adapter_id)
         if not handlers:
