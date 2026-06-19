@@ -154,6 +154,13 @@ class Config(BaseModel):
         return get_runtime_config().message_store_cleanup_enabled
 
     @property
+    def lingchu_superusers(self) -> dict[str, dict[str, str | int]] | None:
+        """Return structured Lingchu SUPERUSERS platform account bindings."""
+        from .runtime_config import get_runtime_config
+
+        return get_runtime_config().lingchu_superusers
+
+    @property
     def lingchu_adapter(self) -> str | list[str] | None:
         """Return configured adapter selection from lightweight config."""
         from .runtime_config import get_runtime_config

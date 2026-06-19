@@ -14,7 +14,11 @@ from ..llonebot.announcement import send_group_notice_llonebot
 from ..napcat.announcement import send_group_notice_napcat
 
 
-@selected_adapter_handle(send_group_announcement_cmd, "~onebot.v11")
+@selected_adapter_handle(
+    send_group_announcement_cmd,
+    "~onebot.v11",
+    "send_announcement",
+)
 async def onebot_v11_send_group_announcement(
     content: str,
     image: UniImage | None,

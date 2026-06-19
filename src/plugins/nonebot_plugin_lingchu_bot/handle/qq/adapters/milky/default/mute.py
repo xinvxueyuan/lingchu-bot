@@ -30,7 +30,7 @@ def _bot_self_id_safe(bot: MilkyBot) -> int | None:
         return None
 
 
-@selected_adapter_handle(member_mute_cmd, "~milky")
+@selected_adapter_handle(member_mute_cmd, "~milky", "member_mute")
 async def milkybot_mute(  # noqa: PLR0911
     user: At | int,
     duration: int,
@@ -97,7 +97,7 @@ async def milkybot_mute(  # noqa: PLR0911
     return await member_mute_cmd.finish(message=UniMessage(message=msg))
 
 
-@selected_adapter_handle(whole_mute_cmd, "~milky")
+@selected_adapter_handle(whole_mute_cmd, "~milky", "whole_mute")
 async def milkybot_whole_mute(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
@@ -114,7 +114,7 @@ async def milkybot_whole_mute(
     return await whole_mute_cmd.finish(await _("全体禁言成功"))
 
 
-@selected_adapter_handle(member_unmute_cmd, "~milky")
+@selected_adapter_handle(member_unmute_cmd, "~milky", "member_unmute")
 async def milkybot_unmute(
     user: At | int,
     bot: MilkyBot,
@@ -163,7 +163,7 @@ async def milkybot_unmute(
     return await member_unmute_cmd.finish(message=UniMessage(message=msg))
 
 
-@selected_adapter_handle(whole_unmute_cmd, "~milky")
+@selected_adapter_handle(whole_unmute_cmd, "~milky", "whole_unmute")
 async def milkybot_whole_unmute(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,

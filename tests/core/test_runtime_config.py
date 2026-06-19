@@ -62,6 +62,34 @@ def test_runtime_config_reads_json5_defaults(
     assert config.lingchu_adapter == "~milky"
 
 
+def test_runtime_config_reads_lingchu_superusers_json5(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(runtime_module, "_nonebot_runtime_overrides", dict)
+    config_file = tmp_path / "config.json5"
+    config_file.write_text(
+        '{lingchu_superusers: {userA: {qq: 42, telegram: "tg-user"}}}',
+        encoding="utf-8",
+    )
+
+    config = get_runtime_config(config_file)
+
+    assert config.lingchu_superusers == {"userA": {"qq": 42, "telegram": "tg-user"}}
+
+
+def test_runtime_config_rejects_invalid_lingchu_superusers_env(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_file = tmp_path / "config.json5"
+    config_file.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("LINGCHU_SUPERUSERS", "not-json")
+
+    with pytest.raises(RuntimeConfigError):
+        get_runtime_config(config_file)
+
+
 def test_runtime_config_nonebot_env_overrides_json5(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

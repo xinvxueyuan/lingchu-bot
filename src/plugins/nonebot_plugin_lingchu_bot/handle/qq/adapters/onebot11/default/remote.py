@@ -253,7 +253,7 @@ async def _check_self_target(
     return True
 
 
-@selected_adapter_handle(remote_mute_cmd, "~onebot.v11")
+@selected_adapter_handle(remote_mute_cmd, "~onebot.v11", "remote_mute")
 async def onebot11_remote_mute(  # noqa: PLR0911, PLR0913
     group_id: int | str,
     user: At | int,
@@ -330,7 +330,7 @@ async def onebot11_remote_mute(  # noqa: PLR0911, PLR0913
     )
 
 
-@selected_adapter_handle(remote_unmute_cmd, "~onebot.v11")
+@selected_adapter_handle(remote_unmute_cmd, "~onebot.v11", "remote_unmute")
 async def onebot11_remote_unmute(
     group_id: int | str,
     user: At | int,
@@ -392,7 +392,11 @@ async def onebot11_remote_unmute(
     )
 
 
-@selected_adapter_handle(remote_whole_mute_cmd, "~onebot.v11")
+@selected_adapter_handle(
+    remote_whole_mute_cmd,
+    "~onebot.v11",
+    "remote_whole_mute",
+)
 async def onebot11_remote_whole_mute(
     group_id: int | str,
     bot: OneBot11Bot,
@@ -423,7 +427,11 @@ async def onebot11_remote_whole_mute(
     )
 
 
-@selected_adapter_handle(remote_whole_unmute_cmd, "~onebot.v11")
+@selected_adapter_handle(
+    remote_whole_unmute_cmd,
+    "~onebot.v11",
+    "remote_whole_unmute",
+)
 async def onebot11_remote_whole_unmute(
     group_id: int | str,
     bot: OneBot11Bot,
@@ -454,7 +462,7 @@ async def onebot11_remote_whole_unmute(
     )
 
 
-@selected_adapter_handle(remote_kick_cmd, "~onebot.v11")
+@selected_adapter_handle(remote_kick_cmd, "~onebot.v11", "remote_kick")
 async def onebot11_remote_kick(  # noqa: PLR0911
     group_id: int | str,
     user: At | int,
@@ -525,7 +533,7 @@ async def onebot11_remote_kick(  # noqa: PLR0911
     )
 
 
-@selected_adapter_handle(remote_block_cmd, "~onebot.v11")
+@selected_adapter_handle(remote_block_cmd, "~onebot.v11", "remote_block")
 async def onebot11_remote_block(  # noqa: PLR0913
     group_id: int | str,
     user: At | int,
@@ -596,7 +604,7 @@ async def onebot11_remote_block(  # noqa: PLR0913
     return await remote_block_cmd.finish(message=message)
 
 
-@selected_adapter_handle(remote_unblock_cmd, "~onebot.v11")
+@selected_adapter_handle(remote_unblock_cmd, "~onebot.v11", "remote_unblock")
 async def onebot11_remote_unblock(
     group_id: int | str,
     user: At | int,
@@ -700,7 +708,11 @@ async def _validate_announcement_version(
     return None
 
 
-@selected_adapter_handle(remote_announcement_cmd, "~onebot.v11")
+@selected_adapter_handle(
+    remote_announcement_cmd,
+    "~onebot.v11",
+    "remote_announcement",
+)
 async def onebot11_remote_announcement(
     group_id: int | str,
     content: str,

@@ -31,7 +31,7 @@ def _bot_self_id_safe(bot: OneBot11Bot) -> int | None:
         return None
 
 
-@selected_adapter_handle(member_mute_cmd, "~onebot.v11")
+@selected_adapter_handle(member_mute_cmd, "~onebot.v11", "member_mute")
 async def onebot11_mute(  # noqa: PLR0911
     user: At | int,
     duration: int,
@@ -95,7 +95,7 @@ async def onebot11_mute(  # noqa: PLR0911
     )
 
 
-@selected_adapter_handle(whole_mute_cmd, "~onebot.v11")
+@selected_adapter_handle(whole_mute_cmd, "~onebot.v11", "whole_mute")
 async def onebot11_whole_mute(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
@@ -109,7 +109,7 @@ async def onebot11_whole_mute(
     return await whole_mute_cmd.finish(await _("全体禁言成功"))
 
 
-@selected_adapter_handle(member_unmute_cmd, "~onebot.v11")
+@selected_adapter_handle(member_unmute_cmd, "~onebot.v11", "member_unmute")
 async def onebot11_unmute(
     user: At | int,
     bot: OneBot11Bot,
@@ -155,7 +155,7 @@ async def onebot11_unmute(
     )
 
 
-@selected_adapter_handle(whole_unmute_cmd, "~onebot.v11")
+@selected_adapter_handle(whole_unmute_cmd, "~onebot.v11", "whole_unmute")
 async def onebot11_whole_unmute(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,

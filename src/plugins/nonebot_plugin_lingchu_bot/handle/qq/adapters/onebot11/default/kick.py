@@ -83,7 +83,7 @@ async def _kick_member(
     return await command.finish(message.format(name=display_name, reason=reason_text))
 
 
-@selected_adapter_handle(kick_member_cmd, "~onebot.v11")
+@selected_adapter_handle(kick_member_cmd, "~onebot.v11", "kick_member")
 async def onebot11_kick_member(
     user: At | int,
     bot: OneBot11Bot,

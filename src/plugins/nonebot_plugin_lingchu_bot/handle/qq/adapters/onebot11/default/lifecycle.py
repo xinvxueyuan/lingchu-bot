@@ -12,7 +12,7 @@ from ....commands.common import selected_adapter_handle
 from ....commands.lifecycle import quit_group_cmd
 
 
-@selected_adapter_handle(quit_group_cmd, "~onebot.v11")
+@selected_adapter_handle(quit_group_cmd, "~onebot.v11", "leave_group")
 async def onebot11_quit_group(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,

@@ -62,10 +62,20 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
     <Folder name="platforms">
       <File name="config.py" />
       <File name="registry.py" />
+      <Folder name="qq">
+        <File name="permissions.py" />
+      </Folder>
+    </Folder>
+    <Folder name="permissions">
+      <File name="admin.py" />
+      <File name="bootstrap.py" />
+      <File name="service.py" />
     </Folder>
     <Folder name="repositories">
       <File name="blocklist.py" />
       <File name="message_store.py" />
+      <File name="permissions.py" />
+      <File name="user_mapping.py" />
     </Folder>
     <Folder name="services">
       <File name="messagestore.py" />
@@ -100,9 +110,12 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
 | `handle/qq/adapters/milky/` | Milky handlers (default, llbot) |
 | `i18n/__init__.py` | gettext/Babel translation helpers, locale reading, and async catalog warmup |
 | `platforms/registry.py` | Platform capabilities, adapter mapping, priority selection, and conflict validation |
-| `platforms/config.py` | Platform default permission role presets |
+| `platforms/qq/permissions.py` | QQ default identity groups and runtime platform identity resolution |
+| `permissions/` | UID identity, platform account, group membership, command grant, and SUPERUSERS APIs |
 | `repositories/blocklist.py` | Blocklist data access |
 | `repositories/message_store.py` | Message store repository |
+| `repositories/permissions.py` | Permission-system ORM repository |
+| `repositories/user_mapping.py` | Compatibility entrypoint for UID and platform account binding |
 | `services/messagestore.py` | Message event, processing result, bot lifecycle, and platform API call summary recording |
 | `start/` | Bootstrap, initialize, and startup hooks |
 

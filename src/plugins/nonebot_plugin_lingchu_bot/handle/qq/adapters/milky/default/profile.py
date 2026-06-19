@@ -18,7 +18,7 @@ from ....commands.profile import (
 _GROUP_NAME_MAX_LENGTH = 50
 
 
-@selected_adapter_handle(set_group_name_cmd, "~milky")
+@selected_adapter_handle(set_group_name_cmd, "~milky", "set_group_name")
 async def milkybot_set_group_name(
     new_group_name: str,
     bot: MilkyBot,
@@ -57,7 +57,7 @@ async def milkybot_set_group_name(
     )
 
 
-@selected_adapter_handle(set_group_avatar_cmd, "~milky")
+@selected_adapter_handle(set_group_avatar_cmd, "~milky", "set_group_avatar")
 async def milkybot_set_group_avatar(
     image: UniImage | None,
     bot: MilkyBot,

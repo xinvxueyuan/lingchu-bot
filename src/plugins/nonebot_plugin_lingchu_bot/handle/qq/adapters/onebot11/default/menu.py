@@ -5,7 +5,9 @@ from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
 from nonebot.adapters.onebot.v11.event import Event as OneBot11Event
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 
+from ......permissions import allowed_command_keys
 from .....menu import (
+    MENU_FEATURES,
     ONEBOT_V11_ADAPTER_ID,
     menu_cmd,
     menu_page_cmds,
@@ -24,7 +26,10 @@ async def onebot11_menu(
     _event: OneBot11Event | None = None,
 ) -> Any:
     context = await _onebot11_menu_context(bot)
-    return await menu_cmd.finish(message=render_menu_index(context))
+    allowed = await _allowed_menu_keys(bot, _event)
+    return await menu_cmd.finish(
+        message=render_menu_index(context, allowed_command_keys=allowed)
+    )
 
 
 def _register_onebot11_menu_page(page_id: str) -> None:
@@ -36,7 +41,10 @@ def _register_onebot11_menu_page(page_id: str) -> None:
         _event: OneBot11Event | None = None,
     ) -> Any:
         context = await _onebot11_menu_context(bot)
-        return await command.finish(message=render_menu_page(page_id, context))
+        allowed = await _allowed_menu_keys(bot, _event)
+        return await command.finish(
+            message=render_menu_page(page_id, context, allowed_command_keys=allowed)
+        )
 
     onebot11_menu_pages[page_id] = onebot11_menu_page
 
@@ -66,6 +74,16 @@ def _string_or_none(value: Any) -> str | None:
     if value is None:
         return None
     return str(value)
+
+
+async def _allowed_menu_keys(
+    bot: OneBot11Bot,
+    event: OneBot11Event | None,
+) -> frozenset[str] | None:
+    if event is None:
+        return None
+    command_keys = frozenset(feature.command_key for feature in MENU_FEATURES)
+    return await allowed_command_keys(bot, event, command_keys)
 
 
 async def import_handle() -> Any:

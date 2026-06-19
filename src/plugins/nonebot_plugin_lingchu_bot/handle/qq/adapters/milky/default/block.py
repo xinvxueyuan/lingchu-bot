@@ -149,7 +149,7 @@ async def _block_member(  # noqa: PLR0913
     return await command.finish(message=message)
 
 
-@selected_adapter_handle(block_member_cmd, "~milky")
+@selected_adapter_handle(block_member_cmd, "~milky", "block_member")
 async def milkybot_block_member(
     user: At | int,
     duration: int | None,
@@ -168,7 +168,7 @@ async def milkybot_block_member(
     )
 
 
-@selected_adapter_handle(global_block_member_cmd, "~milky")
+@selected_adapter_handle(global_block_member_cmd, "~milky", "global_block_member")
 async def milkybot_global_block_member(
     user: At | int,
     duration: int | None,
@@ -233,7 +233,7 @@ async def _unblock_member(  # noqa: PLR0913
     return await command.finish(message=message)
 
 
-@selected_adapter_handle(unblock_member_cmd, "~milky")
+@selected_adapter_handle(unblock_member_cmd, "~milky", "unblock_member")
 async def milkybot_unblock_member(
     user: At | int,
     bot: MilkyBot,
@@ -250,7 +250,7 @@ async def milkybot_unblock_member(
     )
 
 
-@selected_adapter_handle(global_unblock_member_cmd, "~milky")
+@selected_adapter_handle(global_unblock_member_cmd, "~milky", "global_unblock_member")
 async def milkybot_global_unblock_member(
     user: At | int,
     bot: MilkyBot,
@@ -296,7 +296,7 @@ async def _clear_blocklist(
     return await command.finish(message=message)
 
 
-@selected_adapter_handle(clear_blocklist_cmd, "~milky")
+@selected_adapter_handle(clear_blocklist_cmd, "~milky", "clear_blocklist")
 async def milkybot_clear_blocklist(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
@@ -311,7 +311,11 @@ async def milkybot_clear_blocklist(
     )
 
 
-@selected_adapter_handle(global_clear_blocklist_cmd, "~milky")
+@selected_adapter_handle(
+    global_clear_blocklist_cmd,
+    "~milky",
+    "global_clear_blocklist",
+)
 async def milkybot_global_clear_blocklist(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,

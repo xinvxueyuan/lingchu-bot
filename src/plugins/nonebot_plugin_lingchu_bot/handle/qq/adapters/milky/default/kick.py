@@ -83,7 +83,7 @@ async def _kick_member(
     return await command.finish(message.format(name=display_name, reason=reason_text))
 
 
-@selected_adapter_handle(kick_member_cmd, "~milky")
+@selected_adapter_handle(kick_member_cmd, "~milky", "kick_member")
 async def milkybot_kick_member(
     user: At | int,
     bot: MilkyBot,

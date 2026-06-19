@@ -10,7 +10,7 @@ from ....commands.common import selected_adapter_handle
 from ....commands.lifecycle import quit_group_cmd
 
 
-@selected_adapter_handle(quit_group_cmd, "~milky")
+@selected_adapter_handle(quit_group_cmd, "~milky", "leave_group")
 async def milkybot_quit_group(
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
