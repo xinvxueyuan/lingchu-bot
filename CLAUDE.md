@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3223 symbols, 6266 relationships, 269 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3240 symbols, 6287 relationships, 271 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -118,7 +118,12 @@ lingchu-bot/
 │   ├── core/           # Config, platform info
 │   ├── database/       # JSON5 store package, ORM models (records/audit/blocklist + registry) & CRUD helpers
 │   ├── handle/         # Platform/protocol/implementation command handlers
-│   │   └── qq/{group,onebot/v11,milky/v1_2}/    # QQ group handlers
+│   │   └── qq/         # QQ platform handlers
+│   │       ├── commands/           # Shared command definitions (Alconna matchers, triggers)
+│   │       └── adapters/           # Protocol-specific handlers
+│   │           ├── onebot11/{default,llonebot,napcat}/  # OneBot V11 handlers
+│   │           └── milky/{default,llbot}/               # (Deprecated) Milky handlers
+│   ├── menu.py         # Menu system (pages, features, availability)
 │   ├── i18n/           # Babel/gettext translations
 │   ├── migrations/     # Alembic database migration scripts
 │   ├── platforms/      # Adapter registry and platform-owned permission definitions
@@ -453,10 +458,30 @@ When removing functions/helpers:
 
 - Directory segments that are imported as Python packages must be valid Python identifiers for both runtime imports and static tools. For protocol versions, prefer a leading letter such as `v1_2` instead of `1_2`; `importlib` may load numeric-leading folders, but `ty` cannot resolve them reliably.
 
+### ESLint Major Version Compatibility
+
+- **`eslint-plugin-react@7.x` is incompatible with ESLint 10.** The plugin calls `context.getFilename()` which was removed in ESLint 10's breaking change to `context.filename`. This causes `TypeError: contextOrFilename.getFilename is not a function` at load time.
+- **Fix options**: (a) Pin ESLint to v9 in packages that use `eslint-plugin-react`; (b) Migrate to `@eslint-react/eslint-plugin` (v5+, supports ESLint 10); (c) Wait for `eslint-plugin-react` to release ESLint 10 support.
+- **Prevention**: When running `pnpm install`, always check `git diff` on `package.json` files before committing — `pnpm install` can silently bump `^` range dependencies to newer major versions that break compatibility.
+
+### CI Workflow Project References
+
+- When a workspace package is disabled or removed, **all CI workflows that reference it must be updated**. For example, React Doctor's `--project docs,web` flag will fail if `web` has no React source files.
+- **Rule**: After any workspace package change (disable, remove, rename), grep all workflow files for references to that package name and update them.
+
+### Markdown Table Alignment (MD060)
+
+- `markdownlint-cli2` v0.22+ enforces MD060 (table column style). The default style `aligned` requires visual pipe alignment, which is unreliable with CJK characters because character display width (2 columns for CJK) differs from character count (1 per CJK char in source).
+- **Fix**: Set MD060 style to `consistent` in `.markdownlint.jsonc` — this only requires that each column's pipes appear at the same character position across all rows, without demanding visual alignment. This works correctly for both pure-ASCII and mixed CJK/Latin tables.
+- **Do not** disable MD060 entirely — `consistent` style still catches real formatting errors (missing pipes, inconsistent column counts) while avoiding false positives from CJK width mismatches.
+
 ### Git Hooks Optimization
 
-- Pre-commit hooks run conditionally based on changed file types — Python changes trigger Ruff + Pyright/ty + pytest; docs changes trigger ESLint + tsc + Vitest
-- GitNexus analyze runs on every pre-commit but is non-blocking — stale index warnings should prompt a manual `npx gitnexus analyze`
+- **Pre-commit should conditionally trigger checks by file type**: Use `git diff --cached --name-only --diff-filter=ACMR` to collect staged files, detect file extensions/paths via `has_pattern()`, skip Ruff/Pyright/ty/pytest when no Python changes, skip ESLint/type-check/Vitest when no docs changes — saves 30-60 seconds
+- **Signed-off-by appending needs trailer block detection**: When existing trailers (e.g., `Closes #`, `BREAKING CHANGE:`, `Reviewed-by:`) are present, append to the same block (no blank line separation); only use blank line separation when no trailers exist
+- **Blank line cleanup must not break message structure**: `sed '/^$/N;/^\n$/d'` removes all consecutive blank lines, breaking subject-body-trailer structure; only compress ≥3 consecutive blank lines to 2
+- **Duplicate signature detection must ignore trailing whitespace**: `grep -qF` may misjudge due to trailing whitespace differences; strip trailing whitespace with `sed 's/[[:space:]]*$//'` first, then use `grep -qxF` for exact full-line matching
+- **Empty message body should not append Signed-off-by**: Empty commit messages are caught by format validation; appending a signature to an empty file is meaningless
 
 ### Windows Commands in Bash Hooks
 
@@ -467,6 +492,12 @@ When removing functions/helpers:
 ### PowerShell Markdownlint Globs
 
 - When running `markdownlint-cli2` through `pwsh.exe -NoProfile -Command`, pass glob arguments exactly as the shell should see them; incorrectly nested or escaped quotes can turn globs into malformed paths and make Node scan far more than intended. Prefer the Taskfile command or a known-good direct command form before treating a markdownlint timeout as a lint failure.
+
+### Markdownlint Per-Directory Overrides
+
+- `markdownlint-cli2` supports hierarchical configuration: a `.markdownlint.jsonc` file in a subdirectory overrides the root config for files in that directory.
+- **Important**: The subdirectory `.markdownlint.jsonc` REPLACES the root rule config, it does not merge. Always include all root settings (e.g., `MD013: false`, `MD033: false`, `MD041: false`, `MD060` config) in the subdirectory config, plus any additional rule suppressions.
+- `.github/.markdownlint.jsonc` disables MD022 (blanks-around-headings) and MD032 (blanks-around-lists) for `.github` docs, as CJK content in AGENTS-zh.md frequently triggers these rules without actual formatting issues.
 
 ### Husky Hook CLI Resolution
 
@@ -481,16 +512,113 @@ When removing functions/helpers:
 - `isinstance(event, GroupMessageEvent)` is the correct way to narrow event types in NoneBot2
 - Don't use `type(event) is GroupMessageEvent` — it breaks with proxy/wrapper objects
 
-### i18n Locale Consistency
+### Switching i18n Default Locale
 
-- When changing i18n settings in tests, override locale in `conftest.py` instead of modifying individual test assertions
-- This maintains test environment consistency and avoids cascading assertion changes
+- **Fumadocs language packs**: `@fumadocs/language` exports locale packs for languages it supports (e.g., `zh-cn`, `zh-tw`); English (`en-us`) is built-in by default and does not need a separate import. When switching the default language to English, `layout.shared.tsx` only needs `preset('zh', zhCN())` for Chinese — no English pack import is required. Always check `@fumadocs/language` exports for the current list before assuming a locale is or isn't available.
+- **Override locale in test environment rather than changing assertions**: After changing Python `DEFAULT_LOCALE` from `zh_CN` to `en_US`, all tests asserting Chinese translations will fail. The correct approach is to add `"lingchu_locale": "zh_CN"` in `tests/conftest.py`'s `nonebot.init()` to override back to Chinese, avoiding modifying hundreds of test assertions individually, while also validating the locale configuration override mechanism.
+- **Fumadocs i18n file naming convention**: Default language MDX files have no suffix (`page.mdx`), non-default language files have a locale suffix (`page.zh.mdx`); same for `meta.json`. When switching the default language, content files must be renamed in bulk.
 
-### Fumadocs i18n File Naming
+### CI and Lint Coverage for New Paths
 
-- Default language files have no suffix (e.g., `gitnexus.mdx`)
-- Non-default language files use `.{locale}.mdx` suffix (e.g., `gitnexus.zh.mdx`)
-- `@fumadocs/language` exports supported language packages; English is built-in default (no need to import separately)
+When adding, moving, or renaming files or directories, verify that CI and lint configurations still cover them. Check and update:
+
+1. **Markdown lint** — `markdownlint-cli2` glob patterns in `Taskfile.yml` and `package.json` scripts
+2. **ESLint / TypeScript** — `tsconfig.json` includes, `eslint.config` overrides, Vitest coverage paths
+3. **Ruff / Pyright / ty** — `pyproject.toml` source paths and exclusion patterns
+4. **GitHub Actions** — trigger paths in `on.push.paths` / `on.pull_request.paths`
+5. **GitNexus** — re-analyze if new source directories are introduced
+
+Example: adding `.github/note/` required updating the `markdownlint-cli2` glob to include `.github/**/*.md` (already covered), but if the directory had been `.github/notes/` or a new top-level `legal/` dir, the lint command would have silently skipped it.
+
+### Multi-Language File Synchronization
+
+When a file has translated counterparts (e.g., `AGENTS.md` ↔ `.github/note/AGENTS-zh.md`, `CONTRIBUTING.md` ↔ `.github/note/CONTRIBUTING-zh.md`), changes to one version MUST be propagated to all other language versions. This includes:
+
+1. **Content changes** — any substantive edit (new section, updated command, corrected fact) must be reflected in every language version
+2. **Structural changes** — adding/removing headings, reordering sections, or changing links must be mirrored
+3. **Cross-references** — when a file references another file that was renamed or moved, update the link in all language versions
+4. **Lint/CI configs** — when adding new files or directories, update glob patterns and check lists in all relevant configs (see "CI and Lint Coverage for New Paths" above)
+5. **Documentation mirrors** — if a command or config snippet appears in `AGENTS.md`, `CONTRIBUTING.md`, `CLAUDE.md`, and `apps/docs/content/docs/`, update all of them
+
+Rule of thumb: **after editing any file, search for its name or key phrases across the entire repo to find all copies and references that need updating.**
+
+### Adapter Directory Structure Refactoring
+
+When reorganizing adapter directories from `handle/qq/onebot/v11/default/group/` to `handle/qq/adapters/onebot11/default/`, several import path issues emerged:
+
+1. **Relative import depth changes**: Moving files from `handle/qq/onebot/v11/default/group/` (6 levels deep) to `handle/qq/adapters/onebot11/default/` (5 levels deep) requires adjusting relative import dots. For example, `from ...i18n` becomes `from ....i18n` when accessing plugin root modules.
+
+2. **Package `__init__.py` exports**: When tests import symbols like `onebot11_menu` or `milkybot_menu_pages` from adapter packages, the package `__init__.py` must explicitly re-export these symbols. Simply importing the module (e.g., `from . import menu`) is insufficient; you must also add `from .menu import onebot11_menu as onebot11_menu` to make the symbol accessible at the package level.
+
+3. **Import sorting with Ruff**: After fixing import paths, run `ruff check` to verify import block sorting. Ruff's `I001` rule enforces alphabetical ordering within import blocks, and multi-line imports must maintain consistent formatting.
+
+4. **Test import paths**: Test files using absolute imports (e.g., `from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import onebot11_menu`) require the target symbols to be explicitly exported in the package's `__init__.py`.
+
+### Pre-Commit Verification Checklist
+
+Before every commit, run the full verification pipeline. Do NOT skip even if you think changes are "only docs" — docs changes can break builds, type checks, and tests too.
+
+**Mandatory sequence:**
+
+1. `task check` — runs all static checks (Ruff lint/format, Markdown lint, ESLint, type check)
+2. `task test` — runs Python pytest + docs Vitest
+3. `task i18n` — if any user-facing strings changed, re-extract and compile translations
+4. `gitnexus_detect_changes()` — verify change scope matches intent
+5. Only then commit
+
+**Common mistakes to avoid:**
+
+- Skipping checks "because it's just a doc change" — docs changes can break builds, type generation, and i18n routing
+- Forgetting `task i18n` after modifying translatable strings — stale `.po`/`.mo` files cause runtime locale errors
+- Committing without running `gitnexus_detect_changes()` — you may miss unintended side effects
+
+### PowerShell Commit Syntax
+
+PowerShell does not support bash heredoc (`<<'EOF'`). For multi-line commit messages in PowerShell, use a temp file:
+
+```powershell
+$msg = @"
+📝 docs(i18n): 切换默认语言为英文
+
+- body line 1
+- body line 2
+"@
+$msg | Out-File -Encoding utf8 -FilePath $env:TEMP\commit-msg.txt
+$env:HUSKY='0'; git commit -F $env:TEMP\commit-msg.txt
+Remove-Item $env:TEMP\commit-msg.txt
+```
+
+Or use single-line `-m` with `\n` (less readable for long bodies).
+
+### CI Failure Patterns
+
+When pushing to GitHub, check all three CI workflows (not just the one that passed):
+
+1. **pre-commit.ci** — remote CI fallback that runs `end-of-file-fixer`, `trailing-whitespace`, etc. When GitHub Actions API has issues, pre-commit.ci ensures basic checks still run. If it reports "files were modified by this hook", those files lack trailing newlines or have trailing whitespace. Fix locally and push again. Common culprits: `.po`/`.pot` files (Babel output may omit trailing newline), `.turbo/preferences/` JSON files, generated files.
+2. **CodeQL / GitHub Pages deploy** — `Requires authentication` errors can be caused by: (a) **GitHub infrastructure incidents** — check [githubstatus.com](https://www.githubstatus.com/) first; (b) **repository permission issues** — if status page is green, then check Settings → Actions → General → Workflow permissions (must be "Read and write") and ensure `id-token: write` is in the workflow's `permissions` block for OIDC-dependent jobs (Pages deploy, CodeQL).
+3. **`.next` cache staleness** — after renaming/moving route directories (e.g., `en/` → `zh/`), the `.next/dev/types/validator.ts` cache may reference old paths and cause TypeScript errors. Delete `apps/docs/.next/` and re-run `task check` before committing.
+
+Rule of thumb: **after every push, wait for all CI workflows to complete and investigate failures before moving on.**
+
+### Use Existing Skills Before Manual Work
+
+Before manually running checks or fixing issues, check if a skill already handles it:
+
+- **pre-commit.ci failures** → use the **prek** skill (`.agents/skills/prek/SKILL.md`) to reproduce and fix pre-commit hook failures locally, instead of manually running each hook
+- **Code intelligence** → use **GitNexus** skills instead of manual grep/find
+- **Library docs** → use **Context7 / find-docs** instead of web search
+- **GitHub workflows** → use **GitHub** skills for PR/issue/CI operations
+
+Rule of thumb: **when a CI check fails or you need to do something repetitive, first check `.agents/skills/` for an existing skill that automates it.**
+
+### React Doctor Integration
+
+- **CLI auto-generated files need manual customization**: `npx react-doctor@latest install` creates a GitHub Actions workflow and npm script, but they won't match project conventions. After running the CLI, always customize: emoji workflow name, pinned action SHAs, path filters for trigger, `project` scoping for monorepos, and `blocking` level.
+- **Avoid `millionco/react-doctor@v2` action until upstream fixes land**: The action has known bugs — detached HEAD causing diff fallback, ANSI escape codes leaking into PR comments (upstream PR #80 pending). Use CLI directly (`npx react-doctor@latest`) with `NO_COLOR=1` env var instead. Re-evaluate once upstream releases a fix.
+- **`--fail-on error` not `warning` in CI**: React Doctor's `blocking: warning` causes CI to fail on any warning (exit code 1). Use `--fail-on error` to only block on errors; warnings should be informational. In pre-commit hooks, same principle — block on errors only.
+- **`doctor.config.ts` should document rule overrides**: When setting rules to `warn`/`off`, add a comment explaining why (e.g., fumadocs-generated exports that are framework-required but flagged as unused). This prevents future contributors from blindly re-enabling them.
+- **SVG elements must use `createElementNS`**: Even in test code, `document.createElement('svg')` is incorrect — use `document.createElementNS('http://www.w3.org/2000/svg', 'svg')`. Linters (Edge Tools, hint) flag this, and it affects SVG rendering behavior.
+- **`useMDXComponents` vs `getMDXComponents`**: Fumadocs MDX convention exports `useMDXComponents` for the MDX provider pattern (`providerImportSource` in `source.config.ts`). Even if the project currently passes `getMDXComponents()` explicitly via `components` prop, `useMDXComponents` should be kept as it's the standard fumadocs entry point for automatic MDX component resolution. Suppress `deslop/unused-export` in `doctor.config.ts` for framework-required re-exports.
 
 ### Bypassing lru_cache for Multi-Locale Tests
 
@@ -522,12 +650,25 @@ Rule of thumb: **if you haven't seen the syntax used in the project's existing c
 - Platform permission modules are discovered through `PlatformProfile.permission_module` field in the registry, eliminating hardcoded module paths in `permissions/platforms.py`.
 - Key lesson: when deprecating features, provide clear exit-time feedback rather than silent removal; when permission gates rely on passive event data, add active API verification as a fallback.
 
+### CI Type-Checking for Optional Dependencies & i18n Maintenance
+- When moving dependencies to `[project.optional-dependencies]` (e.g., `deprecated-adapters`), the CI test jobs must install them with `uv sync --frozen --extra deprecated-adapters` — otherwise test files importing those packages fail with `ImportError`.
+- Pyright/ty exclude lists in `pyproject.toml` must include deprecated adapter source directories (e.g., `src/.../handle/qq/adapters/milky`) — otherwise type-checking fails on `reportMissingImports` for packages not installed in the static-analysis environment.
+- **`pybabel update` behavior**: Automatically marks removed strings as obsolete (`#~` prefix) and adds `fuzzy` flags to entries with similar msgids. After running `pybabel update`, manually review fuzzy entries, remove the `fuzzy` flag, and correct translations.
+- **Stale msgid handling**: When function signatures change (e.g., removing a `reason` parameter from a format string), the old msgid becomes stale. `pybabel update` detects the similarity and creates a fuzzy entry, but the msgstr must be manually updated to match the new msgid.
+- **Key lesson**: When deprecating code that has i18n strings, run `task i18n` after code changes to extract/update translations. Check for fuzzy entries and obsolete entries. When excluding directories from type-checking, add them to both `[tool.pyright]` and `[tool.ty.src]` exclude lists.
+
 ### Pending Rollbacks
 
-| Suppressed Rule | Location | Reason | Remove When |
-|----------------|----------|--------|-------------|
-| Pyright/ty exclude of `src/.../adapters/milky` | `pyproject.toml` `[tool.pyright]` and `[tool.ty.src]` | Milky adapter moved to optional deps; not installed in static-analysis env, causing `reportMissingImports` | Remove exclude when Milky adapter is fully deleted or when static-analysis env installs `--extra deprecated-adapters` |
-| `deslop/unused-export` | `apps/docs/doctor.config.ts` | `useMDXComponents` export is required by fumadocs MDX provider for future component customization, but currently unused | `useMDXComponents` is actually utilized in MDX rendering (e.g., custom code blocks, callouts, or admonitions) |
+Rule suppressions and temporary workarounds that should be reverted once the triggering condition changes. Review this section periodically (e.g., when updating dependencies or refactoring).
+
+| What | Where | Why suppressed | Rollback condition |
+|------|-------|---------------|-------------------|
+| `deslop/unused-export: "off"` | `doctor.config.ts` | `useMDXComponents` in `mdx.tsx` is a framework-required re-export but currently unused (no `providerImportSource` in `source.config.ts`) | Remove this suppression once `useMDXComponents` is actually consumed (e.g., after adding `providerImportSource` to `source.config.ts` or importing it elsewhere) |
+| CLI instead of `millionco/react-doctor@v2` action | `.github/workflows/🩺-react-doctor.yml` | Upstream action has bugs: detached HEAD, ANSI leak in PR comments (PR #80 pending) | Switch back to the action once upstream releases a fix (monitor PR #80) |
+
+### Blocklist Kick Behavior: reject_add_request=False
+
+When kicking blocked users from groups, the `reject_add_request` parameter is set to `False` (not `True`). This allows previously blocked users to request re-joining the group after being unblocked or after their block expires. If the business requirement changes to permanently prevent re-joining, update `_kick_blocked_user()` in `handle/qq/adapters/onebot11/default/block.py` and corresponding test assertions.
 
 - **`/llms.txt` is a route handler, not a static file**: When linking to Next.js route handlers from components, use `<Link>` (not plain `<a>`) — they're internal routes that benefit from client-side navigation.
 
@@ -642,6 +783,13 @@ When adding CI checks or unit tests for the docs site (`apps/docs/`), several pi
 - **Protocol dimension tracking**: When adding a `protocol_id` column to existing tables, make it nullable (`Mapped[str | None]`) since the protocol implementation may not always be determinable at the point of recording (e.g., at event_preprocessor time, the handler hasn't run yet).
 - **Unique constraint with nullable columns**: SQLite treats NULL values as distinct in unique constraints, so `(platform_id, adapter_id, protocol_id, ...)` allows multiple records with `protocol_id=NULL` for the same message identity. This is acceptable for message records but should be documented.
 - **Migration script rewrite for new deployments**: When the user accepts "new deployment only" strategy, rewrite the initial migration script directly rather than creating a new migration that alters the schema. This keeps the migration history clean for fresh deployments.
+
+### Multi-Database Testing
+
+- **SQLALCHEMY_DATABASE_URL environment variable**: `nonebot_plugin_orm` reads this env var to configure the database backend. In tests, `conftest.py` passes it through to `nonebot.init()` so the same test suite can run on SQLite, PostgreSQL, or MySQL.
+- **CI matrix strategy**: Use GitHub Actions matrix with `fail-fast: false` to test all database backends independently. PostgreSQL and MySQL use `services` containers with conditional images (`startsWith(matrix.db, 'postgresql') && 'postgres' || ''`) to avoid starting unnecessary services for SQLite.
+- **Migration before tests**: Always run `uv run nb orm upgrade` before running tests on non-SQLite databases, since `ALEMBIC_STARTUP_CHECK=false` only auto-syncs on startup (not during test collection).
+- **Test dependency isolation**: Database drivers (`psycopg[binary]`, `aiomysql`) are in the `test` dependency group, not the main dependencies. This keeps production installs lightweight while enabling multi-database testing in dev/CI.
 
 ### GitHub Actions SHA Pinning Best Practices
 

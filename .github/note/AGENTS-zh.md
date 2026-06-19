@@ -1,29 +1,29 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2303 symbols, 4646 relationships, 193 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3223 symbols, 6266 relationships, 269 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
-> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+> Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
 ## Always Do
 
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
+- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
+- **MUST run `detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows. For regression review, compare against the default branch: `detect_changes({scope: "compare", base_ref: "main"})`.
 - **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+- When exploring unfamiliar code, use `query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
+- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `context({name: "symbolName"})`.
 
 ## Never Do
 
-- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
+- NEVER edit a function, class, or method without first running `impact` on it.
 - NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
-- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
+- NEVER rename symbols with find-and-replace — use `rename` which understands the call graph.
+- NEVER commit changes without running `detect_changes()` to check affected scope.
 
 ## Resources
 
 | Resource | Use for |
-| -------- | ----- |
+|----------|---------|
 | `gitnexus://repo/lingchu-bot/context` | Codebase overview, check index freshness |
 | `gitnexus://repo/lingchu-bot/clusters` | All functional areas |
 | `gitnexus://repo/lingchu-bot/processes` | All execution flows |
@@ -32,7 +32,7 @@ This project is indexed by GitNexus as **lingchu-bot** (2303 symbols, 4646 relat
 ## CLI
 
 | Task | Read this skill file |
-| ---- | -------------------- |
+|------|---------------------|
 | Understand architecture / "How does X work?" | `.agents/skills/gitnexus/gitnexus-exploring/SKILL.md` |
 | Blast radius / "What breaks if I change X?" | `.agents/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
 | Trace bugs / "Why is X failing?" | `.agents/skills/gitnexus/gitnexus-debugging/SKILL.md` |
@@ -116,8 +116,13 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 ├── src/plugins/nonebot_plugin_lingchu_bot/   # Core NoneBot plugin
 │   ├── core/           # Config, platform info
 │   ├── database/       # JSON5 store package, ORM models (records/audit/blocklist + registry) & CRUD helpers
-│   ├── handle/         # Platform/protocol/implementation command handlers
-│   │   └── qq/{group,onebot/v11,milky/v1_2}/    # QQ group handlers
+│   ├── handle/         # 平台/协议/实现命令处理器
+│   │   └── qq/         # QQ 平台处理器
+│   │       ├── commands/           # 共享命令定义（Alconna matchers、触发词）
+│   │       └── adapters/           # 协议特定处理器
+│   │           ├── onebot11/{default,llonebot,napcat}/  # OneBot V11 处理器
+│   │           └── milky/{default,llbot}/               # （已停维）Milky 处理器
+│   ├── menu.py         # 菜单系统（页面、功能、可用性）
 │   ├── i18n/           # Babel/gettext translations
 │   ├── migrations/     # Alembic database migration scripts
 │   ├── platforms/      # 适配器注册表和平台自有权限定义
@@ -448,6 +453,23 @@ When removing functions/helpers:
 
 - 作为 Python 包导入的目录片段必须是合法 Python 标识符，这样运行时导入和静态工具都能解析。协议版本目录优先使用带字母前缀的形式，例如 `v1_2` 而不是 `1_2`；`importlib` 可能能加载数字开头的文件夹，但 `ty` 无法可靠解析。
 
+### ESLint 主版本兼容性
+
+- **`eslint-plugin-react@7.x` 与 ESLint 10 不兼容。** 该插件调用 `context.getFilename()`，而 ESLint 10 的破坏性变更将其移除，改为 `context.filename`。这会在加载时引发 `TypeError: contextOrFilename.getFilename is not a function`。
+- **修复方案**：(a) 在使用 `eslint-plugin-react` 的包中将 ESLint 固定到 v9；(b) 迁移到 `@eslint-react/eslint-plugin`（v5+，支持 ESLint 10）；(c) 等待 `eslint-plugin-react` 发布对 ESLint 10 的支持。
+- **预防**：运行 `pnpm install` 后，提交前务必检查 `package.json` 文件的 `git diff` —— `pnpm install` 可能会静默地将 `^` 范围依赖升级到更新的主版本，从而破坏兼容性。
+
+### CI 工作流项目引用
+
+- 当工作区包被禁用或移除时，**所有引用它的 CI 工作流都必须更新**。例如，React Doctor 的 `--project docs,web` 标志在 `web` 没有 React 源码时会失败。
+- **规则**：任何工作区包变更（禁用、移除、重命名）后，grep 所有工作流文件查找对该包名的引用并更新。
+
+### Markdown 表格对齐（MD060）
+
+- `markdownlint-cli2` v0.22+ 强制执行 MD060（表格列样式）。默认样式 `aligned` 要求视觉上的管道符对齐，但对 CJK 字符并不可靠，因为字符显示宽度（CJK 为 2 列）与字符数（源码中每个 CJK 字符为 1）不一致。
+- **修复**：在 `.markdownlint.jsonc` 中将 MD060 样式设为 `consistent` —— 这只要求每列的管道符在所有行的相同字符位置出现，不要求视觉对齐。这对纯 ASCII 和 CJK/拉丁混合表格都能正确工作。
+- **不要**完全禁用 MD060 —— `consistent` 样式仍能捕获真正的格式错误（缺失管道符、列数不一致），同时避免 CJK 宽度不匹配导致的误报。
+
 ### Git Hooks Optimization
 
 - **Pre-commit 应按变更文件类型条件触发检查**：用 `git diff --cached --name-only --diff-filter=ACMR` 收集暂存文件，通过 `has_pattern()` 检测文件后缀/路径，无 Python 变更时跳过 Ruff/Pyright/ty/pytest，无 Docs 变更时跳过 ESLint/type-check/Vitest，可节省 30-60 秒
@@ -639,6 +661,92 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 - **非组件导出破坏 Fast Refresh**：从组件文件（`mermaid.tsx`）导出工具函数（`getMermaidConfig`、`sanitizeMermaidSvg`、`renderMermaidSvg`）会触发 `react-doctor/only-export-components`。应将它们提取到独立的非组件模块（如 `mermaid-utils.ts`）并从那里导入。同时更新测试导入。
 - **`/llms.txt` 是路由处理器而非静态文件**：从组件链接到 Next.js 路由处理器时，应使用 `<Link>`（而非普通 `<a>`）——它们是内部路由，可受益于客户端导航。
 
+### 黑名单踢出行为：reject_add_request=False
+
+从群中踢出黑名单用户时，`reject_add_request` 参数设为 `False`（而非 `True`）。这允许被拉黑的用户在解除拉黑或拉黑过期后重新申请加入群。如果业务需求变更为永久禁止重新加入，需更新 `handle/qq/adapters/onebot11/default/block.py` 中的 `_kick_blocked_user()` 及相应测试断言。
+
+### 优先使用 CLI 自动修复工具
+
+当 lint 或类型检查工具报告机械性问题（导入排序、未使用导入、格式化、简单样式违规）时，**始终优先使用 CLI 自动修复标志，而非逐条手动编辑**。这能节省大量时间并避免人为错误。
+
+| 工具 | 自动修复命令 | 修复内容 |
+|------|--------------|----------|
+| Ruff | `uv run -m ruff check --fix .` | 导入排序（I001）、未使用导入（F401）、未使用变量、简单样式违规 |
+| Ruff format | `uv run -m ruff format .` | 代码格式化（行长度、空白、引号） |
+| Markdownlint | `pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}` | Markdown 格式化（MD060、MD009 等） |
+| ESLint | `pnpm --filter docs lint --fix` | JS/TS lint 问题（未使用变量、格式化） |
+| Prek | `prek run --all-files` | 依次运行所有 pre-commit 自动修复器 |
+
+<Callout type="warn" title="自动修复无法处理的内容">
+
+自动修复工具仅处理**机械性**问题。它们无法修复：
+- 逻辑错误（TRY300 —— 将 return 移到 else 块需要理解控制流）
+- 复杂度问题（PLR0911、PLR0913、C901 —— 需要提取辅助函数）
+- 类型不匹配（Pyright/ty —— 需要理解预期类型）
+- 布尔位置参数（FBT001/FBT002 —— 需要决定关键字专用 vs 位置参数）
+
+对于这些，运行自动修复后手动重构。对于故意违反规则的情况，使用 `# noqa: <rule>` 注释（例如，对于有许多必需参数的 handler，遵循 `block.py` 模式使用 `PLR0913`）。
+
+</Callout>
+
+**工作流：**
+1. 先运行 `uv run -m ruff check --fix .` —— 修复导入和简单样式问题
+2. 运行 `uv run -m ruff format .` —— 应用格式化
+3. 运行 `uv run -m pyright .` 和 `uv run -m ty check` —— 识别剩余的类型/逻辑问题
+4. 仅手动修复自动修复无法处理的内容（复杂度、逻辑、类型不匹配）
+5. 重新运行 `task check` 验证所有问题已解决
+
+**经验法则**：如果发现自己手动修复同一规则超过 2-3 处，停下来检查是否有对应的自动修复标志。绝不要手动修复 I001（导入排序）或 F401（未使用导入）—— 始终使用 `ruff check --fix`。
+
+### 远程管理命令（仅 OneBot V11）
+
+8 个远程管理命令（`远程禁言`、`远程解禁`、`远程全体禁言`、`远程全体解禁`、`远程踢出`、`远程拉黑`、`远程删黑`、`远程公告`）仅支持 OneBot V11。它们定义在 `handle/qq/commands/remote.py`（Alconna matchers）中，实现于 `handle/qq/adapters/onebot11/default/remote.py`（handlers）。
+
+关键行为：
+- **群号解析**：`<群号|群名称>` 接受 `int`（直接）、数字 `str`（解析为 int）或非数字 `str`（通过 `get_group_list` 模糊匹配）。精确名称匹配优先；子串包含为回退。多个匹配时触发 `cmd_matcher.finish` 要求更精确的标识符。
+- **上下文校验**：执行前，机器人检查自己在目标群中、具有管理员角色（对大多数命令）、目标用户在群中，且目标不是机器人或发送者。
+- **远程踢出需要黑名单**：`远程踢出` 仅对已在黑名单中的用户生效。需先使用 `远程拉黑`。
+- **远程公告版本门控**：需要 `LLOneBot >= 7.12.0` 或 `NapCat.Onebot >= 4.18.0`。菜单对不支持的实现隐藏此命令。
+
+### 菜单系统架构
+
+`handle/menu.py` 中的菜单系统使用分层模型 `MenuPage` → `MenuSection` → `MenuFeature` → `MenuAvailability`。添加新命令时：
+
+1. 将命令触发词添加到 `handle/qq/commands/triggers.py` 的 `COMMAND_TRIGGERS` 中（zh 和 en 都要）。
+2. 在 `handle/menu.py` 的 `MENU_FEATURES` 中添加 `MenuFeature` 条目，包含正确的 `command_key`、`section_id`、`summary`、`usage`、`platform_capability` 和 `availability` 元组。
+3. 如果创建新菜单页（如 `remote-management` 这样的顶层分类），在 `MENU_PAGES` 中添加 `MenuPage` 条目，并确保它有用于子菜单触发词的 `command` 字段。
+4. 更新 `tests/handle/commands/test_command_triggers.py` 中的 `EXPECTED_TRIGGERS` 以包含新触发词。
+5. 更新 `tests/handle/commands/test_menu.py` 中的菜单测试，覆盖新功能在不同适配器/实现上下文下的可见性。
+6. 更新 `apps/docs/content/docs/platforms/qq/commands.mdx`（及 `.zh.mdx`）中的新命令参考。
+
+### 文档站点结构：平台 → 协议 → 实现
+
+文档站点（`apps/docs/content/docs/`）将平台特定文档分离到专门的 `platforms/` 节：
+
+```text
+platforms/
+├── index.mdx              # 层模型概览（平台 → 协议 → 实现）
+└── qq/                    # QQ 平台
+    ├── overview.mdx       # 协议优先级、实现矩阵
+    ├── commands.mdx       # 完整 QQ 命令参考（含远程管理）
+    ├── onebot-v11/        # OneBot V11 协议
+    │   ├── overview.mdx   # 协议概览、运行时检测
+    │   ├── default.mdx    # 默认实现（核心命令 + 远程管理）
+    │   ├── napcat.mdx     # NapCat 扩展（公告 + 头像）
+    │   └── llonebot.mdx   # LLOneBot 扩展（公告）
+    └── milky/             # Milky 协议
+        ├── overview.mdx   # 协议概览、与 OneBot V11 的 API 差异
+        ├── default.mdx    # 默认实现
+        └── llbot.mdx      # LLBot 扩展（纯文本公告）
+```
+
+`user-guide/commands.mdx` 现在是高层概览，链接到平台特定页面而非重复命令详情。添加新命令或更改可用性时：
+
+1. 更新 `platforms/qq/commands.mdx`（及 `.zh.mdx`）的完整命令参考
+2. 如果命令是实现特定的，更新相关实现页面（如 `platforms/qq/onebot-v11/napcat.mdx`）
+3. 仅在高层菜单结构或过滤规则变更时更新 `user-guide/commands.mdx`
+4. 如果项目源码结构变更，更新 `developer-guide/introduction.mdx`
+
 ### Docs CI 和单元测试覆盖
 
 为文档站点（`apps/docs/`）添加 CI 检查或单元测试时，出现过以下陷阱：
@@ -668,6 +776,13 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 - **协议维度追踪**：为现有表添加 `protocol_id` 列时，应设为可空（`Mapped[str | None]`），因为在记录时协议实现并不总能确定（例如在 event_preprocessor 阶段，处理器尚未运行）。
 - **可空列的唯一约束**：SQLite 在唯一约束中将 NULL 视为不同值，因此 `(platform_id, adapter_id, protocol_id, ...)` 允许同一消息标识存在多条 `protocol_id=NULL` 的记录。这对消息记录可接受，但应记录在文档中。
 - **新部署的迁移脚本重写**：当用户接受"仅新部署"策略时，直接重写初始迁移脚本，而非创建修改 schema 的新迁移。这能保持新部署的迁移历史整洁。
+
+### 多数据库测试
+
+- **SQLALCHEMY_DATABASE_URL 环境变量**：`nonebot_plugin_orm` 读取此环境变量来配置数据库后端。在测试中，`conftest.py` 将其传递给 `nonebot.init()`，使同一测试套件可在 SQLite、PostgreSQL 或 MySQL 上运行。
+- **CI 矩阵策略**：使用 GitHub Actions 矩阵并设置 `fail-fast: false`，独立测试所有数据库后端。PostgreSQL 和 MySQL 使用 `services` 容器，通过条件镜像（`startsWith(matrix.db, 'postgresql') && 'postgres' || ''`）避免为 SQLite 启动不必要的服务。
+- **测试前迁移**：在非 SQLite 数据库上运行测试前，务必执行 `uv run nb orm upgrade`，因为 `ALEMBIC_STARTUP_CHECK=false` 仅在启动时自动同步（不会在测试收集期间同步）。
+- **测试依赖隔离**：数据库驱动（`psycopg[binary]`、`aiomysql`）位于 `test` 依赖组中，而非主依赖。这使生产安装保持轻量，同时在开发/CI 中支持多数据库测试。
 
 ### GitHub Actions SHA 固定最佳实践
 
