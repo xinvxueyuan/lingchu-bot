@@ -68,6 +68,13 @@ Before executing a remote action, the bot checks:
 `common.py` provides:
 
 - `resolve_user_onebot11(user, bot, event)` — Resolves `At | int` to `(user_id, name)` tuple. Raises `ValueError` on invalid input.
+- `check_target_privilege(bot, event, target_user_id, cmd_matcher)` — Checks whether the target user is an admin/owner; rejects the operation unless the operator is the group owner or a superuser. Returns `True` when the check passes.
+- `check_bot_privilege(bot, group_id, cmd_matcher)` — Checks whether the bot has admin/owner role in the given group. Returns `True` when the check passes.
+- `record_command_audit(bot, event, *, action, target_user_id=None, reason=None, duration=None, group_id=None)` — Writes a command-level audit log entry via the message store repository.
+
+## Permission API Integration
+
+The permission system integrates with the OneBot V11 `get_group_member_info` API to actively verify user roles. When `event.sender.role` is missing, the system calls `bot.call_api('get_group_member_info', group_id=..., user_id=...)` to fetch the user's actual role. If the API call fails, the system falls back to the `member` role as a fail-safe measure.
 
 ## Source reference
 

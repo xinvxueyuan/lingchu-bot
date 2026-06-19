@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 _MENU = COMMAND_TRIGGERS["menu"]
 QQ_PLATFORM_ID: Final = "qq"
 ONEBOT_V11_ADAPTER_ID: Final = "~onebot.v11"
-MILKY_ADAPTER_ID: Final = "~milky"
 LLONEBOT_IMPL: Final = "LLOneBot"
 NAPCAT_IMPL: Final = "NapCat.Onebot"
 LLBOT_IMPL: Final = "LLBot"
@@ -36,7 +35,6 @@ menu_cmd: type[AlconnaMatcher] = on_alconna(
 
 _ADAPTER_MODULES: dict[str, tuple[str, ...]] = {
     "~onebot.v11": (".qq.adapters.onebot11.default.menu",),
-    "~milky": (".qq.adapters.milky.default.menu",),
 }
 _loaded_handlers: dict[str, tuple[Callable[[], Any], ...]] = {}
 
@@ -172,7 +170,7 @@ menu_page_cmds: Final[dict[str, type[AlconnaMatcher]]] = {
 
 _QQ_BOTH: Final[tuple[MenuAvailability, ...]] = (
     MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),
-    MenuAvailability(QQ_PLATFORM_ID, MILKY_ADAPTER_ID),
+    MenuAvailability(QQ_PLATFORM_ID, "~milky"),
 )
 _ONEBOT_NAPCAT: Final[tuple[MenuAvailability, ...]] = (
     MenuAvailability(
@@ -196,7 +194,7 @@ _ONEBOT_ANNOUNCEMENT: Final[tuple[MenuAvailability, ...]] = (
 _MILKY_LLBOT_ANNOUNCEMENT: Final[tuple[MenuAvailability, ...]] = (
     MenuAvailability(
         QQ_PLATFORM_ID,
-        MILKY_ADAPTER_ID,
+        "~milky",
         implementation_name=LLBOT_IMPL,
         usage_override=LocalizedText("<内容>", "<content>"),
     ),
@@ -356,7 +354,7 @@ MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         PlatformCapability.GROUP_PROFILE,
         (
             *_ONEBOT_NAPCAT,
-            MenuAvailability(QQ_PLATFORM_ID, MILKY_ADAPTER_ID),
+            MenuAvailability(QQ_PLATFORM_ID, "~milky"),
         ),
     ),
     MenuFeature(

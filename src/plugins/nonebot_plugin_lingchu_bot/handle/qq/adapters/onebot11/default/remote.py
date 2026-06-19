@@ -15,11 +15,8 @@ from packaging.version import InvalidVersion, parse
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......repositories.blocklist import (
-    BlockScope,
-    expires_at_from_duration,
     find_active_block,
     remove_block,
-    upsert_block,
 )
 from ....commands.announcement import _resolve_image_path
 from ....commands.common import selected_adapter_handle
@@ -33,28 +30,23 @@ from ....commands.remote import (
     remote_whole_mute_cmd,
     remote_whole_unmute_cmd,
 )
-from .common import resolve_user_onebot11
+from .common import (
+    MUTE_DURATION_MAX,
+    MUTE_DURATION_MIN,
+    ONEBOT_V11_ADAPTER_ID,
+    QQ_PLATFORM_ID,
+    bot_id,
+    check_bot_privilege,
+    check_self_target,
+    default_admin_reason,
+    default_block_reason,
+    record_command_audit,
+    resolve_user_onebot11,
+    store_block_record,
+)
 
-# 禁言时长范围限制（秒）
-_MUTE_DURATION_MIN = 1
-_MUTE_DURATION_MAX = 30 * 24 * 60 * 60  # 30 天
-
-QQ_PLATFORM_ID = "qq"
-ONEBOT_V11_ADAPTER_ID = "~onebot.v11"
 LLONEBOT_IMPL: Final = "LLOneBot"
 NAPCAT_IMPL: Final = "NapCat.Onebot"
-
-
-def _bot_self_id_safe(bot: OneBot11Bot) -> int | None:
-    """安全获取机器人 self_id，无法转换时返回 None"""
-    try:
-        return int(bot.self_id)
-    except (ValueError, TypeError):
-        return None
-
-
-def _bot_id(bot: OneBot11Bot) -> str:
-    return str(getattr(bot, "self_id", ""))
 
 
 async def _resolve_group_id(  # noqa: PLR0911
@@ -119,20 +111,6 @@ async def _check_bot_in_group(bot: OneBot11Bot, group_id: int) -> bool:
         return False
 
 
-async def _check_bot_is_admin(bot: OneBot11Bot, group_id: int) -> bool:
-    """检查机器人是否在目标群聊中具有管理员权限"""
-    try:
-        group_list = await bot.get_group_list()
-    except (OneBot11ActionFailed, KeyError, TypeError):
-        return False
-    else:
-        for g in group_list:
-            if g["group_id"] == group_id:
-                role = g.get("self_role")
-                return role in {"admin", "owner"}
-        return False
-
-
 async def _check_user_in_group(bot: OneBot11Bot, group_id: int, user_id: int) -> bool:
     """检查目标用户是否在目标群聊中"""
     try:
@@ -141,40 +119,6 @@ async def _check_user_in_group(bot: OneBot11Bot, group_id: int, user_id: int) ->
         return False
     else:
         return True
-
-
-async def _default_block_reason(reason: str | None) -> str:
-    """获取默认拉黑原因"""
-    return await _("违反群规「默认」") if reason is None else reason
-
-
-async def _default_admin_reason(reason: str | None) -> str:
-    """获取默认管理操作原因"""
-    return await _("管理员操作「默认」") if reason is None else reason
-
-
-async def _store_remote_block(  # noqa: PLR0913
-    *,
-    scope: BlockScope,
-    group_id: int,
-    user_id: int,
-    duration: int | None,
-    reason: str | None,
-    bot: OneBot11Bot,
-    operator_id: int,
-) -> None:
-    """存储远程黑名单记录"""
-    await upsert_block(
-        platform_id=QQ_PLATFORM_ID,
-        adapter_id=ONEBOT_V11_ADAPTER_ID,
-        bot_id=_bot_id(bot),
-        scope=scope,
-        group_id=group_id,
-        user_id=user_id,
-        operator_id=operator_id,
-        reason=reason,
-        expires_at=expires_at_from_duration(duration),
-    )
 
 
 async def _kick_remote_user(
@@ -202,8 +146,9 @@ async def _validate_remote_context(
         await cmd_matcher.finish(await _("机器人不在目标群聊中"))
         return False
 
-    if check_admin and not await _check_bot_is_admin(bot, group_id_int):
-        await cmd_matcher.finish(await _("机器人在目标群聊中没有管理员权限"))
+    if check_admin and not await check_bot_privilege(  # noqa: SIM103
+        bot, group_id_int, cmd_matcher
+    ):
         return False
 
     return True
@@ -231,28 +176,6 @@ async def _resolve_and_validate_user(
     return target_user_id, target_name
 
 
-async def _check_self_target(
-    target_user_id: int,
-    bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,
-    cmd_matcher: Any,
-    action_name: str,
-) -> bool:
-    """检查是否尝试操作自己或机器人"""
-    if target_user_id == event.user_id:
-        msg = await _("不能{action}自己")
-        await cmd_matcher.finish(msg.format(action=action_name))
-        return False
-
-    bot_self_id = _bot_self_id_safe(bot)
-    if bot_self_id is not None and target_user_id == bot_self_id:
-        msg = await _("不能{action}机器人")
-        await cmd_matcher.finish(msg.format(action=action_name))
-        return False
-
-    return True
-
-
 @selected_adapter_handle(remote_mute_cmd, "~onebot.v11", "remote_mute")
 async def onebot11_remote_mute(  # noqa: PLR0911, PLR0913
     group_id: int | str,
@@ -270,15 +193,13 @@ async def onebot11_remote_mute(  # noqa: PLR0911, PLR0913
     group_id_int = resolved_group_id
 
     # 2. 参数合法性检查
-    if duration < _MUTE_DURATION_MIN:
+    if duration < MUTE_DURATION_MIN:
         return await remote_mute_cmd.finish(
-            (await _("禁言时长不能小于 {min} 秒")).format(min=_MUTE_DURATION_MIN)
+            (await _("禁言时长不能小于 {min} 秒")).format(min=MUTE_DURATION_MIN)
         )
-    if duration > _MUTE_DURATION_MAX:
+    if duration > MUTE_DURATION_MAX:
         return await remote_mute_cmd.finish(
-            (await _("禁言时长不能超过 {max} 秒（30天）")).format(
-                max=_MUTE_DURATION_MAX
-            )
+            (await _("禁言时长不能超过 {max} 秒（30天）")).format(max=MUTE_DURATION_MAX)
         )
 
     # 3. 验证上下文
@@ -294,9 +215,7 @@ async def onebot11_remote_mute(  # noqa: PLR0911, PLR0913
     target_user_id, target_name = user_result
 
     # 5. 边界条件检查
-    if not await _check_self_target(
-        target_user_id, bot, event, remote_mute_cmd, "禁言"
-    ):
+    if not await check_self_target(target_user_id, bot, event, remote_mute_cmd, "禁言"):
         return None
 
     # 6. 执行禁言操作
@@ -308,7 +227,18 @@ async def onebot11_remote_mute(  # noqa: PLR0911, PLR0913
         logger.error(f"远程禁言失败，操作被拒绝: {e!r}")
         return await remote_mute_cmd.finish(await _("远程禁言失败，操作被拒绝"))
 
-    # 7. 格式化反馈消息
+    # 7. 记录审计
+    await record_command_audit(
+        bot,
+        event,
+        action="remote_mute",
+        target_user_id=target_user_id,
+        duration=duration,
+        reason=reason,
+        group_id=group_id_int,
+    )
+
+    # 8. 格式化反馈消息
     reason_text = await _("违反群规「默认」") if reason is None else reason
     name_display = f"@{target_name}" if target_name else str(target_user_id)
     message = await _(
@@ -358,7 +288,7 @@ async def onebot11_remote_unmute(
     target_user_id, target_name = user_result
 
     # 4. 边界条件检查
-    if not await _check_self_target(
+    if not await check_self_target(
         target_user_id, bot, event, remote_unmute_cmd, "解禁"
     ):
         return None
@@ -372,7 +302,16 @@ async def onebot11_remote_unmute(
         logger.error(f"远程解禁失败，操作被拒绝: {e!r}")
         return await remote_unmute_cmd.finish(await _("远程解禁失败，操作被拒绝"))
 
-    # 6. 格式化反馈消息
+    # 6. 记录审计
+    await record_command_audit(
+        bot,
+        event,
+        action="remote_unmute",
+        target_user_id=target_user_id,
+        group_id=group_id_int,
+    )
+
+    # 7. 格式化反馈消息
     reason_text = await _("管理员操作「默认」") if reason is None else reason
     name_display = f"@{target_name}" if target_name else str(target_user_id)
     message = await _(
@@ -400,7 +339,7 @@ async def onebot11_remote_unmute(
 async def onebot11_remote_whole_mute(
     group_id: int | str,
     bot: OneBot11Bot,
-    _event: OneBot11GroupMessageEvent,
+    event: OneBot11GroupMessageEvent,
 ) -> Any:
     """远程全体禁言处理器"""
     # 1. 解析群聊标识符
@@ -422,6 +361,11 @@ async def onebot11_remote_whole_mute(
             await _("远程全体禁言失败，操作被拒绝")
         )
 
+    # 4. 记录审计
+    await record_command_audit(
+        bot, event, action="remote_whole_mute", group_id=group_id_int
+    )
+
     return await remote_whole_mute_cmd.finish(
         (await _("已远程开启全体禁言: 目标群 {group_id}")).format(group_id=group_id_int)
     )
@@ -435,7 +379,7 @@ async def onebot11_remote_whole_mute(
 async def onebot11_remote_whole_unmute(
     group_id: int | str,
     bot: OneBot11Bot,
-    _event: OneBot11GroupMessageEvent,
+    event: OneBot11GroupMessageEvent,
 ) -> Any:
     """远程全体解禁处理器"""
     # 1. 解析群聊标识符
@@ -456,6 +400,11 @@ async def onebot11_remote_whole_unmute(
         return await remote_whole_unmute_cmd.finish(
             await _("远程全体解禁失败，操作被拒绝")
         )
+
+    # 4. 记录审计
+    await record_command_audit(
+        bot, event, action="remote_whole_unmute", group_id=group_id_int
+    )
 
     return await remote_whole_unmute_cmd.finish(
         (await _("已远程关闭全体禁言: 目标群 {group_id}")).format(group_id=group_id_int)
@@ -490,9 +439,7 @@ async def onebot11_remote_kick(  # noqa: PLR0911
     target_user_id, target_name = user_result
 
     # 4. 边界条件检查
-    if not await _check_self_target(
-        target_user_id, bot, event, remote_kick_cmd, "踢出"
-    ):
+    if not await check_self_target(target_user_id, bot, event, remote_kick_cmd, "踢出"):
         return None
 
     # 5. 检查目标用户是否在黑名单中
@@ -500,7 +447,7 @@ async def onebot11_remote_kick(  # noqa: PLR0911
         entry = await find_active_block(
             platform_id=QQ_PLATFORM_ID,
             adapter_id=ONEBOT_V11_ADAPTER_ID,
-            bot_id=_bot_id(bot),
+            bot_id=bot_id(bot),
             group_id=group_id_int,
             user_id=target_user_id,
         )
@@ -524,7 +471,17 @@ async def onebot11_remote_kick(  # noqa: PLR0911
         logger.error(f"远程踢出群成员失败: {e!r}")
         return await remote_kick_cmd.finish(await _("远程踢出群成员失败，操作被拒绝"))
 
-    # 7. 反馈结果
+    # 7. 记录审计
+    await record_command_audit(
+        bot,
+        event,
+        action="remote_kick",
+        target_user_id=target_user_id,
+        reason=reason,
+        group_id=group_id_int,
+    )
+
+    # 8. 反馈结果
     display_name = target_name or str(target_user_id)
     reason_text = f"，原因: {reason}" if reason else ""
     message = await _("已远程踢出群成员 {name}{reason}，目标群: {group_id}")
@@ -562,9 +519,9 @@ async def onebot11_remote_block(  # noqa: PLR0913
     target_user_id, target_name = user_result
 
     # 4. 存储黑名单记录并踢出用户
-    reason_text = await _default_block_reason(reason)
+    reason_text = await default_block_reason(reason)
     try:
-        await _store_remote_block(
+        await store_block_record(
             scope="group",
             group_id=group_id_int,
             user_id=target_user_id,
@@ -581,7 +538,18 @@ async def onebot11_remote_block(  # noqa: PLR0913
         logger.error(f"远程拉黑失败，操作被拒绝: {error!r}")
         return await remote_block_cmd.finish(await _("远程拉黑失败，操作被拒绝"))
 
-    # 5. 格式化反馈消息
+    # 5. 记录审计
+    await record_command_audit(
+        bot,
+        event,
+        action="remote_block",
+        target_user_id=target_user_id,
+        duration=duration,
+        reason=reason,
+        group_id=group_id_int,
+    )
+
+    # 6. 格式化反馈消息
     duration_text = await _("永久") if duration is None else f"{duration} 秒"
     name_display = f"@{target_name}" if target_name else str(target_user_id)
     message = (
@@ -631,12 +599,12 @@ async def onebot11_remote_unblock(
         return await remote_unblock_cmd.finish(str(e))
 
     # 4. 删除黑名单记录
-    reason_text = await _default_admin_reason(reason)
+    reason_text = await default_admin_reason(reason)
     try:
         result = await remove_block(
             platform_id=QQ_PLATFORM_ID,
             adapter_id=ONEBOT_V11_ADAPTER_ID,
-            bot_id=_bot_id(bot),
+            bot_id=bot_id(bot),
             scope="group",
             group_id=group_id_int,
             user_id=target_user_id,
@@ -646,7 +614,16 @@ async def onebot11_remote_unblock(
         logger.error(f"远程删黑失败，数据库异常: {error!r}")
         return await remote_unblock_cmd.finish(await _("远程删黑失败，数据库异常"))
 
-    # 5. 格式化反馈消息
+    # 5. 记录审计
+    await record_command_audit(
+        bot,
+        event,
+        action="remote_unblock",
+        target_user_id=target_user_id,
+        group_id=group_id_int,
+    )
+
+    # 6. 格式化反馈消息
     name_display = f"@{target_name}" if target_name else str(target_user_id)
     message = (
         await _(
@@ -717,7 +694,7 @@ async def onebot11_remote_announcement(
     group_id: int | str,
     content: str,
     bot: OneBot11Bot,
-    _event: OneBot11GroupMessageEvent,
+    event: OneBot11GroupMessageEvent,
     image: UniImage | None = None,
 ) -> Any:
     """远程公告处理器"""
@@ -760,7 +737,12 @@ async def onebot11_remote_announcement(
         logger.error(f"远程公告失败，操作被拒绝: {e!r}")
         return await remote_announcement_cmd.finish(await _("远程公告失败，操作被拒绝"))
 
-    # 8. 反馈结果
+    # 8. 记录审计
+    await record_command_audit(
+        bot, event, action="remote_announcement", group_id=group_id_int
+    )
+
+    # 9. 反馈结果
     return await remote_announcement_cmd.finish(
         (await _("远程公告已发送: 目标群 {group_id}")).format(group_id=group_id_int)
     )

@@ -963,9 +963,7 @@ dependencies = [
     { name = "babel" },
     { name = "jinja2" },
     { name = "json5" },
-    { name = "nonebot-adapter-milky" },
     { name = "nonebot-adapter-onebot" },
-    { name = "nonebot-adapter-qq" },
     { name = "nonebot-plugin-alconna" },
     { name = "nonebot-plugin-apscheduler" },
     { name = "nonebot-plugin-docs" },
@@ -978,6 +976,12 @@ dependencies = [
     { name = "psutil" },
     { name = "rtoml" },
     { name = "typer" },
+]
+
+[package.optional-dependencies]
+deprecated-adapters = [
+    { name = "nonebot-adapter-milky" },
+    { name = "nonebot-adapter-qq" },
 ]
 
 [package.dev-dependencies]
@@ -1051,9 +1055,9 @@ requires-dist = [
     { name = "babel", specifier = ">=2.18.0" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "json5", specifier = ">=0.14.0" },
-    { name = "nonebot-adapter-milky", specifier = ">=1.2.0" },
+    { name = "nonebot-adapter-milky", marker = "extra == 'deprecated-adapters'", specifier = ">=1.2.0" },
     { name = "nonebot-adapter-onebot", specifier = ">=2.4.6" },
-    { name = "nonebot-adapter-qq", specifier = ">=1.7.1" },
+    { name = "nonebot-adapter-qq", marker = "extra == 'deprecated-adapters'", specifier = ">=1.7.1" },
     { name = "nonebot-plugin-alconna", specifier = ">=0.62.0" },
     { name = "nonebot-plugin-apscheduler", specifier = ">=0.5.0" },
     { name = "nonebot-plugin-docs", specifier = ">=2.5.0" },
@@ -1069,6 +1073,7 @@ requires-dist = [
     { name = "rtoml", specifier = ">=0.13.0" },
     { name = "typer", specifier = ">=0.25.1" },
 ]
+provides-extras = ["deprecated-adapters"]
 
 [package.metadata.requires-dev]
 dev = [

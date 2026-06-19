@@ -12,8 +12,6 @@ type RuntimeGroupResolver = Callable[
     Awaitable[frozenset[str]],
 ]
 
-_PLATFORM_PERMISSION_MODULES = ("..platforms.qq.permissions",)
-
 
 def iter_default_identity_groups() -> tuple[PlatformIdentityGroupSeed, ...]:
     seeds: list[PlatformIdentityGroupSeed] = []
@@ -28,7 +26,11 @@ async def resolve_runtime_identity_groups(
     context: PermissionContext,
 ) -> frozenset[str]:
     for module in _iter_permission_modules():
-        if getattr(module, "QQ_PLATFORM_ID", None) != context.platform_id:
+        platform_id = getattr(module, "PLATFORM_ID", None)
+        if platform_id is None:
+            # Fall back to QQ_PLATFORM_ID for backward compatibility
+            platform_id = getattr(module, "QQ_PLATFORM_ID", None)
+        if platform_id != context.platform_id:
             continue
         resolver = getattr(module, "resolve_runtime_identity_groups", None)
         if resolver is None:
@@ -40,7 +42,11 @@ async def resolve_runtime_identity_groups(
 def _iter_permission_modules() -> tuple[Any, ...]:
     from importlib import import_module
 
-    return tuple(
-        import_module(module_name, package=__package__)
-        for module_name in _PLATFORM_PERMISSION_MODULES
-    )
+    from ..platforms.registry import iter_platform_profiles
+
+    modules: list[Any] = []
+    for profile in iter_platform_profiles():
+        if profile.permission_module is None:
+            continue
+        modules.append(import_module(profile.permission_module, package=__package__))
+    return tuple(modules)

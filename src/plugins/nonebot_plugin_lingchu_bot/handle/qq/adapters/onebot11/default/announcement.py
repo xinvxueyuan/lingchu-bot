@@ -12,6 +12,7 @@ from ....commands.announcement import _resolve_image_path, send_group_announceme
 from ....commands.common import selected_adapter_handle
 from ..llonebot.announcement import send_group_notice_llonebot
 from ..napcat.announcement import send_group_notice_napcat
+from .common import check_bot_privilege
 
 
 @selected_adapter_handle(
@@ -36,7 +37,11 @@ async def onebot_v11_send_group_announcement(
     # 3. 解析图片路径
     image_path = await _resolve_image_path(image) if image is not None else None
 
-    # 4. 获取版本信息
+    # 4. 机器人权限预检
+    if not await check_bot_privilege(bot, event.group_id, send_group_announcement_cmd):
+        return
+
+    # 5. 获取版本信息
     try:
         version_info = await bot.get_version_info()
         # OneBot V11 适配器解包响应，get_version_info() 直接返回 data 字段

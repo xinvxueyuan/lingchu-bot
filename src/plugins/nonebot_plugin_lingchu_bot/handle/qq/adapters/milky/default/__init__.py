@@ -1,3 +1,9 @@
+"""Milky 默认协议实现 - 已停止维护。
+
+此模块已从启动流程中移除，不再自动加载。
+如需按需加载，请使用 tools/adapter_loader.py 工具。
+"""
+
 from typing import Any
 
 from . import announcement as announcement

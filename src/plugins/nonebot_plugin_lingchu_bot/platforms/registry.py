@@ -39,6 +39,7 @@ class PlatformProfile:
     nonebot_adapters: tuple[str, ...]
     adapter_name_map: tuple[tuple[str, str], ...]
     capabilities: frozenset[PlatformCapability]
+    permission_module: str | None = None
     implemented: bool = True
 
 
@@ -143,6 +144,20 @@ class PlatformAdapterUnknownError(RuntimeError):
         )
 
 
+class PlatformAdapterDeprecatedError(RuntimeError):
+    """Lingchu adapter configuration contains deprecated adapter ids."""
+
+    def __init__(self, adapters: frozenset[str]) -> None:
+        self.adapters = adapters
+        adapter_list = ", ".join(sorted(adapters))
+        super().__init__(
+            f"LINGCHUAdapter 声明了已停维的适配器：{adapter_list}。"
+            f"\n这些适配器已从启动流程中移除，不再自动加载。"
+            f"\n建议使用 ~onebot.v11 适配器。"
+            f"\n如需按需加载停维适配器，请使用 tools/adapter_loader.py 工具。"
+        )
+
+
 UNKNOWN_PLATFORM_ID: Final[str] = "unknown"
 
 QQ_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset(
@@ -163,24 +178,17 @@ PLATFORM_PROFILES: Final[tuple[PlatformProfile, ...]] = (
         display_name="QQ",
         adapter_names=frozenset(
             {
-                "milky",
                 "onebot v11",
-                "onebot v12",
                 "onebot11",
-                "onebot12",
-                "qq",
             }
         ),
-        nonebot_adapters=("~onebot.v11", "~milky", "~qq", "~onebot.v12"),
+        nonebot_adapters=("~onebot.v11",),
         adapter_name_map=(
             ("onebot v11", "~onebot.v11"),
             ("onebot11", "~onebot.v11"),
-            ("onebot v12", "~onebot.v12"),
-            ("onebot12", "~onebot.v12"),
-            ("milky", "~milky"),
-            ("qq", "~qq"),
         ),
         capabilities=QQ_CAPABILITIES,
+        permission_module="..platforms.qq.permissions",
     ),
 )
 
@@ -188,7 +196,6 @@ _PROTOCOL_DISPLAY_NAMES: Final[dict[str, str]] = {
     "default": "Default",
     "llonebot": "LLOneBot",
     "napcat": "NapCat",
-    "llbot": "LLBot",
 }
 
 _PROTOCOL_IMPLEMENTATIONS: Final[tuple[ProtocolImplementationInfo, ...]] = (
@@ -209,18 +216,6 @@ _PROTOCOL_IMPLEMENTATIONS: Final[tuple[ProtocolImplementationInfo, ...]] = (
         adapter_id="~onebot.v11",
         display_name=_PROTOCOL_DISPLAY_NAMES["napcat"],
         module_path="handle.qq.adapters.onebot11.napcat",
-    ),
-    ProtocolImplementationInfo(
-        protocol_id="default",
-        adapter_id="~milky",
-        display_name=_PROTOCOL_DISPLAY_NAMES["default"],
-        module_path="handle.qq.adapters.milky.default",
-    ),
-    ProtocolImplementationInfo(
-        protocol_id="llbot",
-        adapter_id="~milky",
-        display_name=_PROTOCOL_DISPLAY_NAMES["llbot"],
-        module_path="handle.qq.adapters.milky.llbot",
     ),
 )
 
@@ -243,6 +238,10 @@ _ADAPTER_ID_INDEX: Final[dict[str, str]] = {
     for profile in PLATFORM_PROFILES
     for adapter_name, adapter_id in profile.adapter_name_map
 }
+
+_DEPRECATED_ADAPTER_IDS: Final[frozenset[str]] = frozenset(
+    {"~milky", "~qq", "~onebot.v12"}
+)
 
 
 def iter_platform_profiles(
@@ -348,6 +347,12 @@ def resolve_enabled_adapters(
         else cast("AdapterConfig", configured)
     )
     configured_adapters = parse_configured_adapters(raw_config)
+    # Check for deprecated adapters before unknown check
+    deprecated_configured = frozenset(
+        adapter for adapter in configured_adapters if adapter in _DEPRECATED_ADAPTER_IDS
+    )
+    if deprecated_configured:
+        raise PlatformAdapterDeprecatedError(deprecated_configured)
     unknown_adapters = _unknown_configured_adapters(configured_adapters)
     if unknown_adapters:
         raise PlatformAdapterUnknownError(unknown_adapters)

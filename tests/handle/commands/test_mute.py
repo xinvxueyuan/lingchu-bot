@@ -432,7 +432,6 @@ class TestUnmute:
         assert isinstance(result_message, UniMessage)
         assert "已解禁:" in str(result_message)
         assert "名称: @测试用户" in str(result_message)
-        assert "原因: 管理员操作「默认」" in str(result_message)
         assert "标识: 987654321" in str(result_message)
 
     @pytest.mark.asyncio
@@ -717,6 +716,15 @@ class TestUniMessage:
 class TestOneBot11Mute:
     """OneBot11 禁言 API 映射测试。"""
 
+    @pytest.fixture(autouse=True)
+    def _mock_record_audit(self):
+        """避免审计记录触发数据库调用。"""
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.mute.record_command_audit",
+            AsyncMock(),
+        ):
+            yield
+
     @pytest.mark.asyncio
     async def test_onebot11_mute_calls_set_group_ban(
         self,
@@ -725,6 +733,11 @@ class TestOneBot11Mute:
         mock_at: MagicMock,
     ) -> None:
         mock_onebot11_bot.set_group_ban = AsyncMock()
+        # check_target_privilege: 目标为普通成员（通过）
+        # check_bot_privilege: 机器人为管理员（通过）
+        mock_onebot11_bot.get_group_member_info = AsyncMock(
+            side_effect=[{"role": "member"}, {"role": "admin"}]
+        )
 
         with patch.object(member_mute_cmd, "finish") as mock_finish:
             await onebot11_mute(
@@ -769,6 +782,10 @@ class TestOneBot11Mute:
         self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
     ) -> None:
         mock_onebot11_bot.set_group_whole_ban = AsyncMock()
+        # check_bot_privilege: 机器人为管理员（通过）
+        mock_onebot11_bot.get_group_member_info = AsyncMock(
+            return_value={"role": "admin"}
+        )
 
         with patch.object(whole_mute_cmd, "finish") as mock_finish:
             await onebot11_whole_mute(bot=mock_onebot11_bot, event=mock_onebot11_event)

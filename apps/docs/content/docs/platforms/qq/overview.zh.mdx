@@ -9,36 +9,29 @@ QQ 是当前唯一实现的平台 profile。插件启动时通过 `LINGCHUAdapte
 
 ## 协议优先级
 
-| 优先级 | 协议 | 适配器 ID | NoneBot 包 |
-| --- | --- | --- | --- |
-| 1（默认） | OneBot V11 | `~onebot.v11` | `nonebot-adapter-onebot` |
-| 2 | Milky | `~milky` | `nonebot-adapter-milky` |
-| 3 | QQ 官方 | `~qq` | `nonebot-adapter-qq` |
-| 4 | OneBot V12 | `~onebot.v12` | `nonebot-adapter-onebot` |
+| 优先级 | 协议 | 适配器 ID | NoneBot 包 | 状态 |
+| --- | --- | --- | --- | --- |
+| 1（默认） | OneBot V11 | `~onebot.v11` | `nonebot-adapter-onebot` | 启用 |
+| 2 | Milky | `~milky` | `nonebot-adapter-milky` | 已停维 |
+| 3 | QQ 官方 | `~qq` | `nonebot-adapter-qq` | 已停维 |
+| 4 | OneBot V12 | `~onebot.v12` | `nonebot-adapter-onebot` | 已停维 |
 
-同一时间只有一个 QQ 适配器被视为已启用。NoneBot 加载的其他适配器被视为未启用，不参与平台识别、消息存储或 API 调用记录。
+同一时间只有一个 QQ 适配器被视为已启用。NoneBot 加载的其他适配器被视为未启用，不参与平台识别、消息存储或 API 调用记录。Milky、QQ 官方和 OneBot V12 已停维并从启动流程中移除，源代码保留供 `tools/adapter_loader.py` 按需加载。
 
 ## 切换协议
 
-在 `.env` 中设置 `LINGCHUAdapter`：
-
-<Tabs items={['OneBot V11', 'Milky']}>
-  <Tab value="OneBot V11">
+在 `.env` 中设置 `LINGCHUAdapter`。启动流程中仅 OneBot V11 可用：
 
 ```dotenv
 DRIVER=~fastapi+~httpx+~websockets
 ONEBOT_ACCESS_TOKEN=your-token
 ```
 
-  </Tab>
-  <Tab value="Milky">
+<Callout type="warn" title="已停维适配器">
 
-```dotenv
-LINGCHUAdapter=~milky
-```
+Milky（`~milky`）、QQ 官方（`~qq`）和 OneBot V12（`~onebot.v12`）已停维并从启动流程中移除。将 `LINGCHUAdapter` 设为停维适配器 ID 不再受支持。源代码保留供 `tools/adapter_loader.py` 按需加载。
 
-  </Tab>
-</Tabs>
+</Callout>
 
 ## 实现矩阵
 
@@ -49,8 +42,8 @@ LINGCHUAdapter=~milky
 | OneBot V11 | `default` | 核心群管理命令 |
 | OneBot V11 | [NapCat](./onebot-v11/napcat) | 群公告 + 群头像 |
 | OneBot V11 | [LLOneBot](./onebot-v11/llonebot) | 群公告（文本 + 图片） |
-| Milky | `default` | 核心群管理命令 |
-| Milky | [LLBot](./milky/llbot) | 纯文本群公告 |
+| Milky（已停维） | `default` | 核心群管理命令 |
+| Milky（已停维） | [LLBot](./milky/llbot) | 纯文本群公告 |
 
 <Callout type="warn" title="API 接口差异">
 

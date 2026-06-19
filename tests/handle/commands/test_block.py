@@ -24,6 +24,14 @@ from tests.handle.commands.conftest import finish_text
 # 测试用 user_id 常量（避免 PLR2004 魔数值警告）
 _TEST_USER_ID_BLOCK = 111222333
 _TEST_USER_ID_UNBLOCK = 444555666
+_TEST_BLOCK_DURATION = 60
+
+
+@pytest.fixture(autouse=True)
+def _mock_record_audit():
+    """避免审计记录触发数据库调用。"""
+    with patch.object(block_module, "record_command_audit", AsyncMock()):
+        yield
 
 
 @pytest.mark.asyncio
@@ -33,9 +41,14 @@ async def test_onebot11_block_member_stores_record_and_kicks(
     mock_at: MagicMock,
 ) -> None:
     mock_onebot11_bot.set_group_kick = AsyncMock()
+    # check_target_privilege: 目标为普通成员（通过）
+    # check_bot_privilege: 机器人为管理员（通过）
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        side_effect=[{"role": "member"}, {"role": "admin"}]
+    )
 
     with (
-        patch.object(block_module, "upsert_block", AsyncMock()) as upsert_mock,
+        patch.object(block_module, "store_block_record", AsyncMock()) as upsert_mock,
         patch.object(block_member_cmd, "finish") as mock_finish,
     ):
         await block_module.onebot11_block_member(
@@ -49,7 +62,7 @@ async def test_onebot11_block_member_stores_record_and_kicks(
     upsert_mock.assert_awaited_once()
     assert upsert_mock.call_args.kwargs["scope"] == "group"
     assert upsert_mock.call_args.kwargs["reason"] == "违反群规「默认」"
-    assert upsert_mock.call_args.kwargs["expires_at"] is None
+    assert upsert_mock.call_args.kwargs["duration"] is None
     mock_onebot11_bot.set_group_kick.assert_awaited_once_with(
         group_id=mock_onebot11_event.group_id,
         user_id=987654321,
@@ -65,14 +78,19 @@ async def test_onebot11_global_block_member_uses_global_scope_and_kicks(
     mock_at: MagicMock,
 ) -> None:
     mock_onebot11_bot.set_group_kick = AsyncMock()
+    # check_target_privilege: 目标为普通成员（通过）
+    # check_bot_privilege: 机器人为管理员（通过）
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        side_effect=[{"role": "member"}, {"role": "admin"}]
+    )
 
     with (
-        patch.object(block_module, "upsert_block", AsyncMock()) as upsert_mock,
+        patch.object(block_module, "store_block_record", AsyncMock()) as upsert_mock,
         patch.object(global_block_member_cmd, "finish"),
     ):
         await block_module.onebot11_global_block_member(
             user=mock_at,
-            duration=60,
+            duration=_TEST_BLOCK_DURATION,
             reason="spam",
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
@@ -80,7 +98,7 @@ async def test_onebot11_global_block_member_uses_global_scope_and_kicks(
 
     assert upsert_mock.call_args.kwargs["scope"] == "global"
     assert upsert_mock.call_args.kwargs["reason"] == "spam"
-    assert upsert_mock.call_args.kwargs["expires_at"] is not None
+    assert upsert_mock.call_args.kwargs["duration"] == _TEST_BLOCK_DURATION
     mock_onebot11_bot.set_group_kick.assert_awaited_once_with(
         group_id=mock_onebot11_event.group_id,
         user_id=987654321,
@@ -289,12 +307,19 @@ async def test_onebot11_block_member_with_direct_user_id(
 ) -> None:
     """测试直接传入 user_id (int) 进行拉黑操作"""
     mock_onebot11_bot.set_group_kick = AsyncMock()
+    # resolve_user: 获取用户名片
+    # check_target_privilege: 目标为普通成员（通过）
+    # check_bot_privilege: 机器人为管理员（通过）
     mock_onebot11_bot.get_group_member_info = AsyncMock(
-        return_value={"card": "测试用户", "nickname": "TestUser"}
+        side_effect=[
+            {"card": "测试用户", "nickname": "TestUser"},
+            {"role": "member"},
+            {"role": "admin"},
+        ]
     )
 
     with (
-        patch.object(block_module, "upsert_block", AsyncMock()) as upsert_mock,
+        patch.object(block_module, "store_block_record", AsyncMock()) as upsert_mock,
         patch.object(block_member_cmd, "finish") as mock_finish,
     ):
         await block_module.onebot11_block_member(

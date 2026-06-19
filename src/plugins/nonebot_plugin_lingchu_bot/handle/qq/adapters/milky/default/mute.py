@@ -119,7 +119,6 @@ async def milkybot_unmute(
     user: At | int,
     bot: MilkyBot,
     event: MilkyGroupMessageEvent,
-    reason: str | None = None,
 ) -> Any:
     # 1. 解析用户
     try:
@@ -149,15 +148,9 @@ async def milkybot_unmute(
         return await member_unmute_cmd.finish(await _("解禁失败，操作被拒绝"))
 
     # 4. 格式化反馈消息
-    reason_text = await _("管理员操作「默认」") if reason is None else reason
     name_display = f"@{target_name}" if target_name else str(target_user_id)
-    msg = (
-        await _(
-            "已解禁: \n名称: {name_display}\n原因: {reason}\n标识: {target_user_id}"
-        )
-    ).format(
+    msg = (await _("已解禁: \n名称: {name_display}\n标识: {target_user_id}")).format(
         name_display=name_display,
-        reason=reason_text,
         target_user_id=target_user_id,
     )
     return await member_unmute_cmd.finish(message=UniMessage(message=msg))

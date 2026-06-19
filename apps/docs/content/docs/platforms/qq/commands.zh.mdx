@@ -49,9 +49,15 @@ mute @user [duration seconds] [reason]
 ## 成员解禁
 
 ```text
-解禁 @用户 [原因]
-unmute @user [reason]
+解禁 @用户
+unmute @user
 ```
+
+<Callout type="info" title="权限预检与审计">
+
+解禁命令在执行前会进行权限预检：`check_target_privilege()` 校验目标用户不是管理员/群主（操作者为群主或超级用户时除外），`check_bot_privilege()` 校验机器人在群内具有管理员/群主角色。执行完成后，`record_command_audit()` 会写入命令级审计日志。
+
+</Callout>
 
 ## 全体禁言
 

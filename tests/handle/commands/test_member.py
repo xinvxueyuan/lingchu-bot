@@ -8,6 +8,9 @@ import pytest
 from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OB11ActionFailed
 
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
+    member as onebot11_member_module,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.member import (
     kick_group_member_cmd,
     milkybot_kick_group_member,
@@ -25,6 +28,13 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.member import (
     set_group_member_special_title_cmd,
 )
 from tests.handle.commands.conftest import finish_text
+
+
+@pytest.fixture(autouse=True)
+def _mock_record_audit():
+    """避免审计记录触发数据库调用。"""
+    with patch.object(onebot11_member_module, "record_command_audit", AsyncMock()):
+        yield
 
 
 @pytest.mark.asyncio
@@ -325,6 +335,11 @@ async def test_onebot11_set_group_member_card_calls_v11_api(
     mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_onebot11_bot.set_group_card = AsyncMock()
+    # check_target_privilege: 目标为普通成员（通过）
+    # check_bot_privilege: 机器人为管理员（通过）
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        side_effect=[{"role": "member"}, {"role": "admin"}]
+    )
 
     with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
         await onebot11_set_group_member_card(
@@ -345,6 +360,11 @@ async def test_onebot11_set_group_member_special_title_calls_v11_api(
     mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_onebot11_bot.set_group_special_title = AsyncMock()
+    # check_target_privilege: 目标为普通成员（通过）
+    # check_bot_privilege: 机器人为管理员（通过）
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        side_effect=[{"role": "member"}, {"role": "admin"}]
+    )
 
     with patch.object(set_group_member_special_title_cmd, "finish") as mock_finish:
         await onebot11_set_group_member_special_title(
@@ -368,6 +388,8 @@ async def test_onebot11_set_group_member_admin_calls_v11_api(
     mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_onebot11_bot.set_group_admin = AsyncMock()
+    # check_bot_privilege: 机器人为管理员（通过）
+    mock_onebot11_bot.get_group_member_info = AsyncMock(return_value={"role": "admin"})
 
     with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await onebot11_set_group_member_admin(
@@ -387,6 +409,8 @@ async def test_onebot11_unset_group_member_admin_calls_v11_api(
     mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_onebot11_bot.set_group_admin = AsyncMock()
+    # check_bot_privilege: 机器人为管理员（通过）
+    mock_onebot11_bot.get_group_member_info = AsyncMock(return_value={"role": "admin"})
 
     with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await onebot11_unset_group_member_admin(
@@ -404,6 +428,8 @@ async def test_onebot11_kick_group_member_calls_v11_api(
     mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_onebot11_bot.set_group_kick = AsyncMock()
+    # check_bot_privilege: 机器人为管理员（通过）
+    mock_onebot11_bot.get_group_member_info = AsyncMock(return_value={"role": "admin"})
 
     with patch.object(kick_group_member_cmd, "finish") as mock_finish:
         await onebot11_kick_group_member(
@@ -486,8 +512,15 @@ async def test_target_user_onebot11_falls_back_to_api_nickname(
     mock_onebot11_bot.set_group_card = AsyncMock()
     mock_at.display = None
     mock_onebot11_event.message = []
+    # resolve_user: 获取用户名片
+    # check_target_privilege: 目标为普通成员（通过）
+    # check_bot_privilege: 机器人为管理员（通过）
     mock_onebot11_bot.get_group_member_info = AsyncMock(
-        return_value={"card": "", "nickname": "API昵称"}
+        side_effect=[
+            {"card": "", "nickname": "API昵称"},
+            {"role": "member"},
+            {"role": "admin"},
+        ]
     )
 
     with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
@@ -509,7 +542,9 @@ async def test_target_user_onebot11_api_failure_falls_back_to_id(
     mock_onebot11_bot.set_group_card = AsyncMock()
     mock_at.display = None
     mock_onebot11_event.message = []
-    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=OB11ActionFailed())
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        side_effect=[OB11ActionFailed(), OB11ActionFailed(), {"role": "admin"}]
+    )
 
     with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
         await onebot11_set_group_member_card(
