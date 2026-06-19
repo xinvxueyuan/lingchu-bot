@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nonebot-plugin-lingchu-bot 0.0.0.dev8\n"
 "Report-Msgid-Bugs-To: xinvxueyuan@yeah.net\n"
-"POT-Creation-Date: 2026-06-20 03:01+0800\n"
+"POT-Creation-Date: 2026-06-20 03:57+0800\n"
 "PO-Revision-Date: 2026-05-20 00:00+0800\n"
 "Last-Translator: xinvxueyuan <xinvxueyuan@yeah.net>\n"
 "Language: zh_CN\n"
@@ -48,30 +48,22 @@ msgstr ""
 msgid "灵初功能菜单"
 msgstr "灵初功能菜单"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:747
-msgid "导入menu处理器..."
-msgstr "导入menu处理器..."
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:752
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:751
 #, python-brace-format
 msgid "Lingchu 未为适配器 {adapter_id} 声明 menu 处理器"
 msgstr "Lingchu 未为适配器 {adapter_id} 声明 menu 处理器"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:758
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:757
 #, python-brace-format
 msgid "Lingchu 为适配器 {adapter_id} 导入 menu 处理器"
 msgstr "Lingchu 为适配器 {adapter_id} 导入 menu 处理器"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/__init__.py:37
-msgid "导入group处理器..."
-msgstr "导入group处理器..."
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/__init__.py:42
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/__init__.py:41
 #, python-brace-format
 msgid "Lingchu 未为适配器 {adapter_id} 声明 group 处理器"
 msgstr "Lingchu 未为适配器 {adapter_id} 声明 group 处理器"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/__init__.py:48
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/__init__.py:47
 #, python-brace-format
 msgid "Lingchu 为适配器 {adapter_id} 导入 group 处理器"
 msgstr "Lingchu 为适配器 {adapter_id} 导入 group 处理器"
@@ -534,11 +526,6 @@ msgstr ""
 msgid "群头像已更新"
 msgstr "群头像已更新"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/milky/default/test.py:24
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/test.py:26
-msgid "消息内容为空，无法回显"
-msgstr ""
-
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:52
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:668
 msgid "不支持的 OneBot 协议版本"
@@ -725,42 +712,9 @@ msgstr "远程公告失败，操作被拒绝"
 msgid "远程公告已发送: 目标群 {group_id}"
 msgstr "远程公告已发送: 目标群 {group_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/announcement.py:82
-msgid "导入announcement处理器..."
-msgstr "导入announcement处理器..."
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/block.py:111
-msgid "导入block处理器..."
-msgstr "导入block处理器..."
-
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/common.py:48
 msgid "权限不足"
 msgstr ""
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/kick.py:42
-#, fuzzy
-msgid "导入kick处理器..."
-msgstr "导入group处理器..."
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/lifecycle.py:39
-msgid "导入lifecycle处理器..."
-msgstr "导入lifecycle处理器..."
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/member.py:98
-msgid "导入member处理器..."
-msgstr "导入member处理器..."
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/profile.py:92
-msgid "导入profile处理器..."
-msgstr "导入profile处理器..."
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/remote.py:154
-msgid "导入remote处理器..."
-msgstr "导入remote处理器..."
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/test.py:32
-msgid "导入test处理器..."
-msgstr "导入test处理器..."
 
 #: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:39
 #, python-brace-format
@@ -807,3 +761,36 @@ msgstr "Lingchu 忽略未选中的已注册适配器: {adapters}"
 
 #~ msgid "导入mute处理器..."
 #~ msgstr "导入mute处理器..."
+
+#~ msgid "导入menu处理器..."
+#~ msgstr "导入menu处理器..."
+
+#~ msgid "导入group处理器..."
+#~ msgstr "导入group处理器..."
+
+#~ msgid "导入announcement处理器..."
+#~ msgstr "导入announcement处理器..."
+
+#~ msgid "导入block处理器..."
+#~ msgstr "导入block处理器..."
+
+#~ msgid "导入kick处理器..."
+#~ msgstr "导入group处理器..."
+
+#~ msgid "导入lifecycle处理器..."
+#~ msgstr "导入lifecycle处理器..."
+
+#~ msgid "导入member处理器..."
+#~ msgstr "导入member处理器..."
+
+#~ msgid "导入profile处理器..."
+#~ msgstr "导入profile处理器..."
+
+#~ msgid "导入remote处理器..."
+#~ msgstr "导入remote处理器..."
+
+#~ msgid "导入test处理器..."
+#~ msgstr "导入test处理器..."
+
+#~ msgid "消息内容为空，无法回显"
+#~ msgstr ""

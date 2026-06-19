@@ -2,11 +2,9 @@ from importlib import import_module
 from typing import Any
 
 from arclet.alconna import Alconna, Args
-from nonebot import logger
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 
-from ....i18n import _async as _
 from .triggers import COMMAND_TRIGGERS
 
 _KICK_MEMBER = COMMAND_TRIGGERS["kick_member"]
@@ -36,9 +34,3 @@ def __getattr__(name: str) -> Any:
     value = getattr(module, name)
     globals()[name] = value
     return value
-
-
-async def import_handle() -> Any:
-    logger.debug(await _("导入kick处理器..."))
-    for name in _LAZY_EXPORTS:
-        __getattr__(name)

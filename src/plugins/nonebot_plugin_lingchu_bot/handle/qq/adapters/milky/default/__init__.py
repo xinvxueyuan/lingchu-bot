@@ -14,7 +14,6 @@ from . import member as member
 from . import menu as menu
 from . import mute as mute
 from . import profile as profile
-from . import test as test
 from .menu import milkybot_menu as milkybot_menu
 from .menu import milkybot_menu_pages as milkybot_menu_pages
 

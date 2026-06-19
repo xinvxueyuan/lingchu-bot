@@ -2,11 +2,9 @@ from importlib import import_module
 from typing import Any
 
 from arclet.alconna import Alconna
-from nonebot import logger
 from nonebot.internal.matcher.matcher import Matcher
 from nonebot_plugin_alconna import on_alconna
 
-from ....i18n import _async as _
 from .triggers import COMMAND_TRIGGERS
 
 _LEAVE_GROUP = COMMAND_TRIGGERS["leave_group"]
@@ -33,7 +31,3 @@ def __getattr__(name: str) -> Any:
     value = getattr(module, name)
     globals()[name] = value
     return value
-
-
-async def import_handle() -> Any:
-    logger.debug(await _("导入lifecycle处理器..."))
