@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3223 symbols, 6266 relationships, 269 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3240 symbols, 6287 relationships, 271 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -417,6 +417,11 @@ When removing functions/helpers:
 ### Python Package Directory Names
 
 - Directory segments that are imported as Python packages must be valid Python identifiers for both runtime imports and static tools. For protocol versions, prefer a leading letter such as `v1_2` instead of `1_2`; `importlib` may load numeric-leading folders, but `ty` cannot resolve them reliably.
+
+### Type Narrowing in Tests
+
+- `isinstance(event, GroupMessageEvent)` is the correct way to narrow event types in NoneBot2
+- Don't use `type(event) is GroupMessageEvent` — it breaks with proxy/wrapper objects
 
 ### ESLint Major Version Compatibility
 
@@ -869,10 +874,13 @@ lingchu-bot/
 ├── .agents/                          # Trae/Codex skill definitions
 │   └── skills/
 │       ├── available-skills/         # Skill routing index
+│       ├── context7-mcp/             # Context7 MCP integration for library docs
+│       ├── delivery-loop/            # Disciplined debugging/TDD/code review loops
+│       ├── design-prototyping/       # Interface design exploration and prototypes
+│       ├── frontend-quality/         # React diagnostics and frontend polish
 │       ├── gitnexus/                 # GitNexus skills (exploring, debugging, impact, refactoring, CLI, guide, pr-review)
-│       ├── hf-cli/                   # Hugging Face Hub CLI skill
-│       ├── prek/                     # Prek (Rust pre-commit alternative) skill
-│       └── react-doctor/             # React codebase health scanner
+│       ├── issue-planning/           # PRDs, issue breakdown, triage, refactor plans
+│       └── prek/                     # Prek (Rust pre-commit alternative) skill
 ├── .claude/                          # Claude Code skill definitions (subset of .agents/)
 │   └── skills/
 ├── .trae/                            # Trae IDE configuration
@@ -940,7 +948,7 @@ lingchu-bot/
 │           ├── initialize.py        # Plugin initialization
 │           └── startup.py           # Startup hooks
 ├── apps/
-│   └── docs/                         # Fumadocs documentation site
+│   ├── docs/                         # Fumadocs documentation site
 │       ├── content/docs/             # MDX content
 │       │   ├── index.mdx             # Docs landing page (en)
 │       │   ├── index.zh.mdx          # Docs landing page (zh)
@@ -1007,10 +1015,12 @@ lingchu-bot/
 │       ├── next.config.mjs           # Next.js config
 │       ├── vitest.config.ts          # Test config
 │       └── eslint.config.mjs         # Lint config
+│   └── web/                          # Web workspace (placeholder, currently empty)
 ├── packages/
 │   ├── eslint-config/                # Shared ESLint configs (base, next, react-internal)
 │   ├── typescript-config/            # Shared TS configs (base, nextjs, react-library)
 │   └── ui/                           # Shared UI components (button, card, code)
+├── docker/                          # Docker runtime support scripts (gunicorn, start.sh)
 ├── tools/                           # Standalone utility tools
 │   ├── __init__.py
 │   └── adapter_loader.py           # Deprecated adapter on-demand loader (Milky, QQ, OneBot V12)
@@ -1020,11 +1030,19 @@ lingchu-bot/
 │       ├── test_menu.py              # Menu system tests
 │       ├── test_command_triggers.py  # Command trigger catalog tests
 │       └── ...                       # mute, member, block, kick, announcement, etc.
-├── skills/                           # Shared skill definitions (mirror of .agents/)
 ├── Dockerfile                        # Container runner (nb-cli generated)
+├── docker-compose.yml                # Docker Compose config
 ├── pyproject.toml                    # Python project config (uv, ruff, pyright, pytest)
 ├── package.json                      # Monorepo root (pnpm + Turborepo)
 ├── Taskfile.yml                      # Task runner for CI/local commands
+├── prek.toml                         # Prek (Rust pre-commit) config
+├── .pre-commit-config.yaml           # Pre-commit config (legacy)
+├── CHANGELOG.md                      # Changelog
+├── README-zh.md                      # Chinese README
+├── Repository-Policy.md              # Repository policy (English)
+├── SECURITY.md                       # Security policy
+├── CODE_OF_CONDUCT.md                # Code of conduct
+├── CONTRIBUTING.md                   # Contributing guide
 └── AGENTS.md                         # This file — project context for AI agents
 ```
 
