@@ -8,7 +8,6 @@ from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 from ......permissions import allowed_command_keys
 from .....menu import (
     MENU_FEATURES,
-    MILKY_ADAPTER_ID,
     menu_cmd,
     menu_page_cmds,
     qq_menu_context,
@@ -17,6 +16,7 @@ from .....menu import (
 )
 from ....commands.common import selected_adapter_handle
 
+MILKY_ADAPTER_ID = "~milky"
 milkybot_menu_pages: dict[str, Any] = {}
 
 

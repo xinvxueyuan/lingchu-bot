@@ -3,6 +3,7 @@
 from .registry import (
     UNKNOWN_PLATFORM_ID,
     PlatformAdapterConflictError,
+    PlatformAdapterDeprecatedError,
     PlatformAdapterNotLoadedError,
     PlatformAdapterUnknownError,
     PlatformCapability,
@@ -27,6 +28,7 @@ from .registry import (
 __all__ = [
     "UNKNOWN_PLATFORM_ID",
     "PlatformAdapterConflictError",
+    "PlatformAdapterDeprecatedError",
     "PlatformAdapterNotLoadedError",
     "PlatformAdapterUnknownError",
     "PlatformCapability",

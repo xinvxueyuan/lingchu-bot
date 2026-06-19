@@ -42,13 +42,20 @@ onebot11_remote_whole_mute = remote_module.onebot11_remote_whole_mute
 onebot11_remote_whole_unmute = remote_module.onebot11_remote_whole_unmute
 
 
+@pytest.fixture(autouse=True)
+def _mock_record_audit():
+    """避免审计记录触发数据库调用。"""
+    with patch.object(remote_module, "record_command_audit", AsyncMock()):
+        yield
+
+
 @pytest.fixture
 def mock_bot() -> MagicMock:
     """创建模拟的 Bot 对象。"""
     bot = MagicMock(spec=OneBot11Bot)
     bot.self_id = "123456789"
     bot.get_group_list = AsyncMock()
-    bot.get_group_member_info = AsyncMock()
+    bot.get_group_member_info = AsyncMock(return_value={"role": "admin"})
     bot.set_group_ban = AsyncMock()
     bot.set_group_whole_ban = AsyncMock()
     bot.set_group_kick = AsyncMock()
@@ -173,7 +180,10 @@ class TestRemoteMute:
     ) -> None:
         """测试成功的远程禁言。"""
         mock_bot.get_group_list.return_value = mock_group_list
-        mock_bot.get_group_member_info.return_value = {"user_id": _TARGET_USER_ID}
+        mock_bot.get_group_member_info.return_value = {
+            "role": "admin",
+            "user_id": _TARGET_USER_ID,
+        }
         mock_bot.set_group_ban.return_value = {}
 
         with (
@@ -277,7 +287,10 @@ class TestRemoteUnmute:
     ) -> None:
         """测试成功的远程解禁。"""
         mock_bot.get_group_list.return_value = mock_group_list
-        mock_bot.get_group_member_info.return_value = {"user_id": _TARGET_USER_ID}
+        mock_bot.get_group_member_info.return_value = {
+            "role": "admin",
+            "user_id": _TARGET_USER_ID,
+        }
         mock_bot.set_group_ban.return_value = {}
 
         with (
@@ -318,7 +331,7 @@ class TestRemoteWholeMute:
             await onebot11_remote_whole_mute(
                 group_id=_GROUP_ID_1,
                 bot=mock_bot,
-                _event=mock_event,
+                event=mock_event,
             )
             mock_bot.set_group_whole_ban.assert_called_once_with(
                 group_id=_GROUP_ID_1, enable=True
@@ -343,7 +356,7 @@ class TestRemoteWholeUnmute:
             await onebot11_remote_whole_unmute(
                 group_id=_GROUP_ID_1,
                 bot=mock_bot,
-                _event=mock_event,
+                event=mock_event,
             )
             mock_bot.set_group_whole_ban.assert_called_once_with(
                 group_id=_GROUP_ID_1, enable=False
@@ -362,7 +375,10 @@ class TestRemoteKick:
     ) -> None:
         """测试成功的远程踢出。"""
         mock_bot.get_group_list.return_value = mock_group_list
-        mock_bot.get_group_member_info.return_value = {"user_id": _TARGET_USER_ID}
+        mock_bot.get_group_member_info.return_value = {
+            "role": "admin",
+            "user_id": _TARGET_USER_ID,
+        }
         mock_bot.set_group_kick.return_value = {}
 
         with (
@@ -400,7 +416,10 @@ class TestRemoteBlock:
     ) -> None:
         """测试成功的远程拉黑。"""
         mock_bot.get_group_list.return_value = mock_group_list
-        mock_bot.get_group_member_info.return_value = {"user_id": _TARGET_USER_ID}
+        mock_bot.get_group_member_info.return_value = {
+            "role": "admin",
+            "user_id": _TARGET_USER_ID,
+        }
         mock_bot.set_group_kick.return_value = {}
 
         with (
@@ -410,7 +429,7 @@ class TestRemoteBlock:
                 return_value=(_TARGET_USER_ID, "测试用户"),
             ),
             patch(
-                f"{remote_module.__name__}.upsert_block",
+                f"{remote_module.__name__}.store_block_record",
                 new_callable=AsyncMock,
             ),
             patch.object(remote_block_cmd, "finish", new_callable=AsyncMock),
@@ -438,7 +457,10 @@ class TestRemoteUnblock:
     ) -> None:
         """测试成功的远程删黑。"""
         mock_bot.get_group_list.return_value = mock_group_list
-        mock_bot.get_group_member_info.return_value = {"user_id": _TARGET_USER_ID}
+        mock_bot.get_group_member_info.return_value = {
+            "role": "admin",
+            "user_id": _TARGET_USER_ID,
+        }
 
         with (
             patch(
@@ -488,7 +510,7 @@ class TestRemoteAnnouncement:
                 group_id=_GROUP_ID_1,
                 content="测试公告内容",
                 bot=mock_bot,
-                _event=mock_event,
+                event=mock_event,
                 image=None,
             )
             mock_bot.call_api.assert_called_once()
@@ -511,7 +533,7 @@ class TestRemoteAnnouncement:
                     group_id=_GROUP_ID_1,
                     content="   ",
                     bot=mock_bot,
-                    _event=mock_event,
+                    event=mock_event,
                     image=None,
                 )
             mock_finish.assert_called_once()
@@ -539,7 +561,7 @@ class TestRemoteAnnouncement:
                 group_id="测试群1",
                 content="测试公告内容",
                 bot=mock_bot,
-                _event=mock_event,
+                event=mock_event,
                 image=None,
             )
             mock_bot.call_api.assert_called_once()

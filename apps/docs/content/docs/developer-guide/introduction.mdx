@@ -90,6 +90,9 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
     <Folder name="content" />
     <Folder name="src" />
   </Folder>
+  <Folder name="tools">
+    <File name="adapter_loader.py" />
+  </Folder>
   <File name="pyproject.toml" />
   <File name="Taskfile.yml" />
   <File name="Dockerfile" />
@@ -121,9 +124,11 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
 
 ## Adapter status
 
-The plugin declares adapters by platform capability instead of treating every imported concrete adapter as enabled. The currently implemented profile is QQ, with known adapter priority `~onebot.v11`, `~milky`, `~qq`, then `~onebot.v12`. When unset, the default is OneBot V11; `LINGCHUAdapter` can switch the selection explicitly, for example `LINGCHUAdapter = "~milky"`.
+The plugin declares adapters by platform capability instead of treating every imported concrete adapter as enabled. The currently implemented profile is QQ, with only `~onebot.v11` active in the startup flow. Milky (`~milky`), QQ Official (`~qq`), and OneBot V12 (`~onebot.v12`) have been deprecated and removed from the startup flow; their source code is preserved for on-demand loading via `tools/adapter_loader.py`. When unset, the default is OneBot V11.
 
-Explicitly configuring multiple known adapters for the same platform raises `PlatformAdapterConflictError`. Lingchu Bot does not control which adapters NoneBot actually imports or registers; it only checks that the selected adapter has been loaded and registered by NoneBot. When unset, Lingchu selects `~onebot.v11` by default and raises `PlatformAdapterNotLoadedError` if OneBot V11 is not loaded; selecting Milky explicitly requires Milky to be loaded as well. Other same-platform adapters may still be imported or registered, but Lingchu treats them as disabled and excludes them from platform resolution, message storage, and API call recording. Explicitly declaring an adapter that Lingchu has not implemented or cannot recognize in `LINGCHUAdapter` fails startup. Extra unknown adapters seen at runtime are not considered enabled by `is_adapter_enabled()`; message storage groups them under the stable `unknown` platform. Other platform profiles and non-group-management capabilities depend on later implementation and tests.
+Explicitly configuring multiple known adapters for the same platform raises `PlatformAdapterConflictError`. Lingchu Bot does not control which adapters NoneBot actually imports or registers; it only checks that the selected adapter has been loaded and registered by NoneBot. When unset, Lingchu selects `~onebot.v11` by default and raises `PlatformAdapterNotLoadedError` if OneBot V11 is not loaded. Other same-platform adapters may still be imported or registered, but Lingchu treats them as disabled and excludes them from platform resolution, message storage, and API call recording. Explicitly declaring an adapter that Lingchu has not implemented or cannot recognize in `LINGCHUAdapter` fails startup. Extra unknown adapters seen at runtime are not considered enabled by `is_adapter_enabled()`; message storage groups them under the stable `unknown` platform. Other platform profiles and non-group-management capabilities depend on later implementation and tests.
+
+Platform permission modules are now discovered through the `PlatformProfile.permission_module` field in the adapter registry, eliminating hardcoded module paths. This unifies platform identifier management in a single location.
 
 <Callout title="Learn more">
 

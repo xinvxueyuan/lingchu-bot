@@ -95,7 +95,7 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 ### Python Backend
 
 - Python 3.13，由 `uv` 管理
-- NoneBot2 + OneBot V11、Milky 和 QQ 适配器
+- NoneBot2 + OneBot V11 适配器（Milky、QQ、OneBot V12 已停维，可通过 `tools/adapter_loader.py` 按需加载）
 - `nonebot-plugin-alconna` 命令解析
 - `nonebot-plugin-orm`（aiosqlite）异步数据库
 - `nonebot-plugin-localstore` 文件存储
@@ -140,6 +140,9 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 │   │   └── __tests__/  # Vitest unit tests
 │   └── source.config.ts # Fumadocs MDX config
 ├── packages/           # Shared frontend packages
+├── tools/                           # Standalone utility tools
+│   ├── __init__.py
+│   └── adapter_loader.py           # Deprecated adapter on-demand loader (Milky, QQ, OneBot V12)
 ├── Dockerfile          # Container runner generation via nb-cli
 ├── pyproject.toml      # Python project config
 ├── package.json        # Monorepo root (pnpm + Turborepo)
@@ -405,7 +408,7 @@ Same-named APIs return different types across adapters:
 | `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
 | `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
 
-The project uses `platforms/registry.py` to unify all adapters (OneBot V11, Milky, QQ, OneBot V12) under a single "QQ" platform profile. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,llonebot,napcat}/`, and Milky handlers in `handle/qq/adapters/milky/{default,llbot}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+The project uses `platforms/registry.py` to unify adapters under a single "QQ" platform profile. Only OneBot V11 is now active; Milky, QQ, and OneBot V12 are deprecated and removed from the startup flow, but their source files are preserved with `DEPRECATED = True` markers and can be loaded on demand via `tools/adapter_loader.py`. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,llonebot,napcat}/`, and (deprecated) Milky handlers in `handle/qq/adapters/milky/{default,llbot}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
 
 ### Function Signature Changes
 
@@ -593,6 +596,21 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 - 在 MDX 中使用任何框架特有的组件或语法前，检查：(1) 通过 Context7 / find-docs 查阅框架官方文档，(2) 项目内容文件中的已有用法，(3) MDX 组件提供者配置（如 `source.config.ts`、`mdx.tsx`）。
 
 经验法则：**如果在项目现有内容文件中没见过该语法，先查官方文档再写。**
+
+### OneBot V11 处理器收口与适配器停维
+
+- **5+ 个 OneBot V11 handler 文件中的代码重复**通过将共享辅助函数和常量收口到 `onebot11/default/common.py` 解决（`bot_self_id_safe()`、`bot_id()`、`default_block_reason()`、`default_admin_reason()`、`check_self_target()`、`store_block_record()`、`check_target_privilege()`、`check_bot_privilege()`、`record_command_audit()`；常量 `QQ_PLATFORM_ID`、`ONEBOT_V11_ADAPTER_ID`、`MUTE_DURATION_MIN`、`MUTE_DURATION_MAX`）。
+- **缺少审计记录**通过新增 `record_command_audit()` 解决 —— 每个管理命令在执行成功后都会记录操作者、目标、动作和原因。
+- **缺少权限预检**通过新增 `check_target_privilege()`（防止对管理员/群主操作）和 `check_bot_privilege()`（防止调用机器人无权限的 API）解决。
+- **适配器停维**（Milky、QQ、OneBot V12）通过从 `platforms/registry.py` 和启动钩子流程（`handle/qq/adapters/__init__.py`、`handle/menu.py`）中移除来解决，同时保留源码文件并添加 `DEPRECATED = True` 标记和停维说明 docstring。
+- **复用需求**通过独立的 `tools/adapter_loader.py` 模块解决，提供 `load_deprecated_adapter()`、`load_and_init_deprecated_adapter()` 和 `list_deprecated_adapters()` 用于按需加载，不参与正常启动流程。
+- **关键经验**：停维适配器时，应将其移出启动流程但保留源码并添加停维标记；提供独立的加载工具用于按需访问。收口重复 handler 逻辑时，应将共享辅助函数提取到单一 `common.py` 模块，而非在各 handler 文件中保留副本。
+
+### 权限 API 集成与停维强制提示
+- 权限系统现在通过 OneBot V11 `get_group_member_info` API 主动验证用户角色，确保门禁生效。
+- 停维适配器（`~milky`、`~qq`、`~onebot.v12`）现在触发 `PlatformAdapterDeprecatedError` 并提供清晰指引，而非被当作"未知"处理。
+- 平台权限模块通过注册表中的 `PlatformProfile.permission_module` 字段动态发现，消除了 `permissions/platforms.py` 中的硬编码模块路径。
+- 关键经验：停维功能时应提供清晰的退出时反馈而非静默移除；权限门禁依赖被动事件数据时，应添加主动 API 验证作为回退。
 
 ### 待回退变更
 

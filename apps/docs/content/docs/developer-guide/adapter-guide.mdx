@@ -21,12 +21,12 @@ When the plugin starts, it reads `LINGCHUAdapter` from NoneBot's global configur
 
 The QQ platform is the only currently implemented profile. Its known adapter priority is:
 
-| Priority | Adapter | NoneBot package |
-| --- | --- | --- |
-| 1 (default) | `~onebot.v11` | `nonebot-adapter-onebot` |
-| 2 | `~milky` | `nonebot-adapter-milky` |
-| 3 | `~qq` | `nonebot-adapter-qq` |
-| 4 | `~onebot.v12` | `nonebot-adapter-onebot` |
+| Priority | Adapter | NoneBot package | Status |
+| --- | --- | --- | --- |
+| 1 (default) | `~onebot.v11` | `nonebot-adapter-onebot` | Active |
+| 2 | `~milky` | `nonebot-adapter-milky` | Deprecated |
+| 3 | `~qq` | `nonebot-adapter-qq` | Deprecated |
+| 4 | `~onebot.v12` | `nonebot-adapter-onebot` | Deprecated |
 
 <Tabs items={['OneBot V11', 'Milky', 'QQ Official', 'OneBot V12']}>
   <Tab value="OneBot V11">
@@ -43,6 +43,12 @@ ONEBOT_ACCESS_TOKEN=your-token
   </Tab>
   <Tab value="Milky">
 
+<Callout type="warn" title="Deprecated">
+
+The Milky adapter has been deprecated and removed from the startup flow. Source code is preserved for on-demand loading via `tools/adapter_loader.py`.
+
+</Callout>
+
 A newer QQ adapter. Set `LINGCHUAdapter = "~milky"` and install the Milky adapter.
 
 Configuration in `.env`:
@@ -53,6 +59,12 @@ LINGCHUAdapter=~milky
 
   </Tab>
   <Tab value="QQ Official">
+
+<Callout type="warn" title="Deprecated">
+
+The QQ Official adapter has been deprecated and removed from the startup flow. Source code is preserved for on-demand loading via `tools/adapter_loader.py`.
+
+</Callout>
 
 The official QQ bot adapter. Set `LINGCHUAdapter = "~qq"` and install the QQ adapter.
 
@@ -65,10 +77,34 @@ The QQ official adapter has a different API surface from OneBot V11. Some group 
   </Tab>
   <Tab value="OneBot V12">
 
+<Callout type="warn" title="Deprecated">
+
+The OneBot V12 adapter has been deprecated and removed from the startup flow. Source code is preserved for on-demand loading via `tools/adapter_loader.py`.
+
+</Callout>
+
 The OneBot V12 standard adapter. Set `LINGCHUAdapter = "~onebot.v12"` and ensure the OneBot V12 implementation is running.
 
   </Tab>
 </Tabs>
+
+## On-demand loading of deprecated adapters
+
+Deprecated adapters (Milky, QQ Official, OneBot V12) have been removed from the startup flow, but their source code is preserved under `handle/qq/adapters/`. The standalone `tools/adapter_loader.py` module provides on-demand loading for these adapters without re-entering them into the startup registry.
+
+```python
+from tools.adapter_loader import load_deprecated_adapter, list_deprecated_adapters
+
+# List all deprecated adapter IDs
+print(list_deprecated_adapters())  # ('~milky',)
+
+# Load a deprecated adapter's handler modules on demand
+handlers = load_deprecated_adapter("~milky")
+for handler in handlers:
+    await handler()
+```
+
+`list_deprecated_adapters()` returns the IDs of adapters whose handler modules are available for on-demand loading. `load_deprecated_adapter()` imports the handler modules and returns their `import_handle` callables. Note that only adapters with preserved handler modules (currently `~milky`) can be loaded this way.
 
 ## Error handling
 
@@ -78,12 +114,19 @@ The adapter registry raises specific exceptions when configuration is invalid:
 | --- | --- |
 | `PlatformAdapterConflictError` | Multiple known adapters explicitly configured for the same platform |
 | `PlatformAdapterNotLoadedError` | The selected adapter was not loaded or registered by NoneBot |
+| `PlatformAdapterDeprecatedError` | A deprecated adapter (`~milky`, `~qq`, `~onebot.v12`) is specified in `LINGCHUAdapter` |
 
 <Callout type="warn" title="Startup failure">
 
 Explicitly declaring an adapter that Lingchu has not implemented or cannot recognize in `LINGCHUAdapter` fails startup. Extra unknown adapters registered at runtime are ignored.
 
 </Callout>
+
+When a deprecated adapter is specified in `LINGCHUAdapter`, the bot exits with `PlatformAdapterDeprecatedError` providing a clear deprecation message and suggesting `~onebot.v11`. Deprecated adapters are distinguished from unknown adapters so that operators can tell whether the configured ID was once supported.
+
+## Permission API integration
+
+The permission system now actively verifies user roles via the OneBot V11 `get_group_member_info` API when event data is incomplete, ensuring access control is enforced. When `event.sender.role` is missing, the system calls `bot.call_api('get_group_member_info', group_id=..., user_id=...)` to fetch the user's actual role; if the API call fails, the system falls back to the `member` role as a fail-safe measure.
 
 ## Unknown adapters
 

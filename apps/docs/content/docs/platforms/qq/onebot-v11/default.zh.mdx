@@ -68,6 +68,13 @@ title: 默认实现
 `common.py` 提供：
 
 - `resolve_user_onebot11(user, bot, event)` — 把 `At | int` 解析为 `(user_id, name)` 元组。输入无效时抛出 `ValueError`。
+- `check_target_privilege(bot, event, target_user_id, cmd_matcher)` — 检查目标用户是否为管理员/群主；操作者不是群主或超级用户时拒绝操作。检查通过返回 `True`。
+- `check_bot_privilege(bot, group_id, cmd_matcher)` — 检查机器人在指定群内是否具有管理员/群主角色。检查通过返回 `True`。
+- `record_command_audit(bot, event, *, action, target_user_id=None, reason=None, duration=None, group_id=None)` — 通过消息存储仓库写入命令级审计日志。
+
+## 权限 API 集成
+
+权限系统集成了 OneBot V11 `get_group_member_info` API 以主动验证用户角色。当 `event.sender.role` 缺失时，系统调用 `bot.call_api('get_group_member_info', group_id=..., user_id=...)` 获取用户实际角色。如果 API 调用失败，系统会降级为 `member` 角色作为安全措施。
 
 ## 源码参考
 

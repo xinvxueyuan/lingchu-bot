@@ -49,9 +49,15 @@ mute @user [duration seconds] [reason]
 ## Member unmute
 
 ```text
-解禁 @用户 [原因]
-unmute @user [reason]
+解禁 @用户
+unmute @user
 ```
+
+<Callout type="info" title="Permission pre-checks and audit">
+
+The unmute command runs permission pre-checks before executing: `check_target_privilege()` verifies the target user is not an admin/owner (unless the operator is the group owner or a superuser), and `check_bot_privilege()` verifies the bot has admin/owner role in the group. After execution, `record_command_audit()` writes a command-level audit log entry.
+
+</Callout>
 
 ## Whole-group mute
 

@@ -19,6 +19,13 @@ _TEST_KICK_USER_ID = 555666777
 _TEST_BOT_SELF_ID = "999999"
 
 
+@pytest.fixture(autouse=True)
+def _mock_record_audit():
+    """避免审计记录触发数据库调用。"""
+    with patch.object(kick_module, "record_command_audit", AsyncMock()):
+        yield
+
+
 @pytest.mark.asyncio
 async def test_onebot11_kick_member_with_at(
     mock_onebot11_bot: MagicMock,
@@ -27,6 +34,11 @@ async def test_onebot11_kick_member_with_at(
 ) -> None:
     """测试使用 At 对象踢出群成员（用户在黑名单中）"""
     mock_onebot11_bot.set_group_kick = AsyncMock()
+    # check_target_privilege: 目标为普通成员（通过）
+    # check_bot_privilege: 机器人为管理员（通过）
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        side_effect=[{"role": "member"}, {"role": "admin"}]
+    )
 
     with (
         patch.object(
@@ -58,8 +70,15 @@ async def test_onebot11_kick_member_with_direct_user_id(
 ) -> None:
     """测试直接传入 user_id (int) 踢出群成员（用户在黑名单中）"""
     mock_onebot11_bot.set_group_kick = AsyncMock()
+    # resolve_user: 获取用户名片
+    # check_target_privilege: 目标为普通成员（通过）
+    # check_bot_privilege: 机器人为管理员（通过）
     mock_onebot11_bot.get_group_member_info = AsyncMock(
-        return_value={"card": "测试用户", "nickname": "TestUser"}
+        side_effect=[
+            {"card": "测试用户", "nickname": "TestUser"},
+            {"role": "member"},
+            {"role": "admin"},
+        ]
     )
 
     with (
@@ -193,6 +212,11 @@ async def test_onebot11_kick_member_action_failed(
     from nonebot.adapters.onebot.v11.exception import ActionFailed
 
     mock_onebot11_bot.set_group_kick = AsyncMock(side_effect=ActionFailed())
+    # check_target_privilege: 目标为普通成员（通过）
+    # check_bot_privilege: 机器人为管理员（通过）
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        side_effect=[{"role": "member"}, {"role": "admin"}]
+    )
 
     with (
         patch.object(

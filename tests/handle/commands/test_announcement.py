@@ -111,6 +111,7 @@ async def test_onebot11_send_group_announcement_calls_extension_api(
         }
     )
     mock_onebot11_bot.call_api = AsyncMock()
+    mock_onebot11_bot.get_group_member_info = AsyncMock(return_value={"role": "admin"})
 
     with patch.object(send_group_announcement_cmd, "finish") as mock_finish:
         await onebot_v11_send_group_announcement(
@@ -141,6 +142,7 @@ async def test_onebot11_send_group_announcement_rejects_unsupported_impl(
         }
     )
     mock_onebot11_bot.call_api = AsyncMock()
+    mock_onebot11_bot.get_group_member_info = AsyncMock(return_value={"role": "admin"})
 
     with patch.object(send_group_announcement_cmd, "finish") as mock_finish:
         await onebot_v11_send_group_announcement(

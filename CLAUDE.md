@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (2921 symbols, 5659 relationships, 243 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3241 symbols, 6306 relationships, 271 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -95,7 +95,7 @@ Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains a Py
 ### Python Backend
 
 - Python 3.13, managed by `uv`
-- NoneBot2 with OneBot V11, Milky, and QQ adapters
+- NoneBot2 with OneBot V11 adapter (Milky, QQ, OneBot V12 deprecated; available via `tools/adapter_loader.py`)
 - `nonebot-plugin-alconna` for command parsing
 - `nonebot-plugin-orm` (aiosqlite) for async database
 - `nonebot-plugin-localstore` for file storage
@@ -141,6 +141,9 @@ lingchu-bot/
 │   │   └── __tests__/  # Vitest unit tests
 │   └── source.config.ts # Fumadocs MDX config
 ├── packages/           # Shared frontend packages
+├── tools/                           # Standalone utility tools
+│   ├── __init__.py
+│   └── adapter_loader.py           # Deprecated adapter on-demand loader (Milky, QQ, OneBot V12)
 ├── Dockerfile          # Container runner generation via nb-cli
 ├── pyproject.toml      # Python project config
 ├── package.json        # Monorepo root (pnpm + Turborepo)
@@ -410,7 +413,7 @@ Same-named APIs return different types across adapters:
 | `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
 | `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
 
-The project uses `platforms/registry.py` to unify all adapters (OneBot V11, Milky, QQ, OneBot V12) under a single "QQ" platform profile. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,llonebot,napcat}/`, and Milky handlers in `handle/qq/adapters/milky/{default,llbot}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+The project uses `platforms/registry.py` to unify adapters under a single "QQ" platform profile. Only OneBot V11 is now active; Milky, QQ, and OneBot V12 are deprecated and removed from the startup flow, but their source files are preserved with `DEPRECATED = True` markers and can be loaded on demand via `tools/adapter_loader.py`. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,llonebot,napcat}/`, and (deprecated) Milky handlers in `handle/qq/adapters/milky/{default,llbot}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
 
 ### Function Signature Changes
 
@@ -503,6 +506,21 @@ When writing MDX content for Fumadocs (or any framework), **never assume syntax*
 - Before using any framework-specific component or syntax in MDX, check: (1) the framework's official docs via Context7 / find-docs, (2) existing usage in the project's content files, (3) the MDX component provider setup (e.g., `source.config.ts`, `mdx.tsx`).
 
 Rule of thumb: **if you haven't seen the syntax used in the project's existing content files, verify it against official docs before writing it.**
+
+### OneBot V11 Handler Consolidation & Adapter Deprecation
+
+- **Code duplication across 5+ OneBot V11 handler files** was solved by centralizing shared helpers and constants in `onebot11/default/common.py` (`bot_self_id_safe()`, `bot_id()`, `default_block_reason()`, `default_admin_reason()`, `check_self_target()`, `store_block_record()`, `check_target_privilege()`, `check_bot_privilege()`, `record_command_audit()`; constants `QQ_PLATFORM_ID`, `ONEBOT_V11_ADAPTER_ID`, `MUTE_DURATION_MIN`, `MUTE_DURATION_MAX`).
+- **Missing audit trail** was solved by adding `record_command_audit()` — every management command now records operator, target, action, and reason after successful execution.
+- **Missing privilege checks** were solved by adding `check_target_privilege()` (prevents operating on admins/owners) and `check_bot_privilege()` (prevents calling APIs the bot lacks permission for).
+- **Adapter deprecation** (Milky, QQ, OneBot V12) was solved by removing them from `platforms/registry.py` and the startup hook flow (`handle/qq/adapters/__init__.py`, `handle/menu.py`), while preserving source files with `DEPRECATED = True` markers and deprecation docstrings.
+- **Reuse need** was solved by the standalone `tools/adapter_loader.py` module, which provides `load_deprecated_adapter()`, `load_and_init_deprecated_adapter()`, and `list_deprecated_adapters()` for on-demand loading without participating in the normal startup flow.
+- **Key lesson**: When deprecating adapters, move them out of the startup flow but keep source code with deprecation markers; provide a standalone loader tool for on-demand access. When consolidating duplicated handler logic, extract shared helpers into a single `common.py` module rather than leaving copies in each handler file.
+
+### Permission API Integration & Deprecation Enforcement
+- Permission system now actively verifies user roles via OneBot V11 `get_group_member_info` API when event data is incomplete, ensuring access control is enforced.
+- Deprecated adapters (`~milky`, `~qq`, `~onebot.v12`) now trigger `PlatformAdapterDeprecatedError` with clear guidance, instead of being treated as "unknown".
+- Platform permission modules are discovered through `PlatformProfile.permission_module` field in the registry, eliminating hardcoded module paths in `permissions/platforms.py`.
+- Key lesson: when deprecating features, provide clear exit-time feedback rather than silent removal; when permission gates rely on passive event data, add active API verification as a fallback.
 
 ### Pending Rollbacks
 

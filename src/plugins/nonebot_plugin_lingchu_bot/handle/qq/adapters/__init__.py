@@ -15,10 +15,6 @@ _ADAPTER_MODULES: dict[str, tuple[str, ...]] = {
         ".onebot11.llonebot",
         ".onebot11.napcat",
     ),
-    "~milky": (
-        ".milky.default",
-        ".milky.llbot",
-    ),
 }
 _loaded_handlers: dict[str, tuple[Callable[[], Any], ...]] = {}
 

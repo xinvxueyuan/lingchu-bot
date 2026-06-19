@@ -17,20 +17,18 @@ from ....commands.member import (
     set_group_member_special_title_cmd,
     unset_group_member_admin_cmd,
 )
-from .common import resolve_user_onebot11
+from .common import (
+    bot_self_id_safe,
+    check_bot_privilege,
+    check_target_privilege,
+    record_command_audit,
+    resolve_user_onebot11,
+)
 
 # 群名片长度限制
 _CARD_MAX_LENGTH = 60
 # 群头衔长度限制
 _TITLE_MAX_LENGTH = 60
-
-
-def _bot_self_id_safe(bot: OneBot11Bot) -> int | None:
-    """安全获取机器人 self_id，无法转换时返回 None"""
-    try:
-        return int(bot.self_id)
-    except (ValueError, TypeError):
-        return None
 
 
 @selected_adapter_handle(set_group_member_card_cmd, "~onebot.v11", "set_member_card")
@@ -53,11 +51,20 @@ async def onebot11_set_group_member_card(
     target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
 
     # 4. 边界条件检查
-    bot_self_id = _bot_self_id_safe(bot)
+    bot_self_id = bot_self_id_safe(bot)
     if bot_self_id is not None and target_user_id == bot_self_id:
         return await set_group_member_card_cmd.finish(await _("不能修改机器人的群名片"))
 
-    # 5. 执行设置群名片操作
+    if not await check_target_privilege(
+        bot, event, target_user_id, set_group_member_card_cmd
+    ):
+        return None
+
+    # 5. 机器人权限预检
+    if not await check_bot_privilege(bot, event.group_id, set_group_member_card_cmd):
+        return None
+
+    # 6. 执行设置群名片操作
     try:
         await bot.set_group_card(
             group_id=event.group_id, user_id=target_user_id, card=card
@@ -68,7 +75,12 @@ async def onebot11_set_group_member_card(
             await _("设置群名片失败，操作被拒绝")
         )
 
-    # 6. 格式化反馈消息
+    # 7. 记录审计
+    await record_command_audit(
+        bot, event, action="set_member_card", target_user_id=target_user_id
+    )
+
+    # 8. 格式化反馈消息
     name_display = (
         f"{target_name}({target_user_id})" if target_name else str(target_user_id)
     )
@@ -102,13 +114,24 @@ async def onebot11_set_group_member_special_title(
     target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
 
     # 4. 边界条件检查
-    bot_self_id = _bot_self_id_safe(bot)
+    bot_self_id = bot_self_id_safe(bot)
     if bot_self_id is not None and target_user_id == bot_self_id:
         return await set_group_member_special_title_cmd.finish(
             await _("不能修改机器人的群头衔")
         )
 
-    # 5. 执行设置群头衔操作
+    if not await check_target_privilege(
+        bot, event, target_user_id, set_group_member_special_title_cmd
+    ):
+        return None
+
+    # 5. 机器人权限预检
+    if not await check_bot_privilege(
+        bot, event.group_id, set_group_member_special_title_cmd
+    ):
+        return None
+
+    # 6. 执行设置群头衔操作
     try:
         await bot.set_group_special_title(
             group_id=event.group_id,
@@ -122,7 +145,12 @@ async def onebot11_set_group_member_special_title(
             await _("设置群头衔失败，操作被拒绝")
         )
 
-    # 6. 格式化反馈消息
+    # 7. 记录审计
+    await record_command_audit(
+        bot, event, action="set_member_title", target_user_id=target_user_id
+    )
+
+    # 8. 格式化反馈消息
     name_display = (
         f"{target_name}({target_user_id})" if target_name else str(target_user_id)
     )
@@ -144,13 +172,17 @@ async def onebot11_set_group_member_admin(
     target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
 
     # 2. 边界条件检查
-    bot_self_id = _bot_self_id_safe(bot)
+    bot_self_id = bot_self_id_safe(bot)
     if bot_self_id is not None and target_user_id == bot_self_id:
         return await set_group_member_admin_cmd.finish(
             await _("不能修改机器人的管理员权限")
         )
 
-    # 3. 执行设置管理员操作
+    # 3. 机器人权限预检
+    if not await check_bot_privilege(bot, event.group_id, set_group_member_admin_cmd):
+        return None
+
+    # 4. 执行设置管理员操作
     try:
         await bot.set_group_admin(
             group_id=event.group_id, user_id=target_user_id, enable=is_set
@@ -161,7 +193,12 @@ async def onebot11_set_group_member_admin(
             await _("设置管理员失败，操作被拒绝")
         )
 
-    # 4. 格式化反馈消息
+    # 5. 记录审计
+    await record_command_audit(
+        bot, event, action="set_member_admin", target_user_id=target_user_id
+    )
+
+    # 6. 格式化反馈消息
     action_text = await _("设置") if is_set else await _("取消")
     name_display = (
         f"{target_name}({target_user_id})" if target_name else str(target_user_id)
@@ -200,11 +237,15 @@ async def onebot11_kick_group_member(
     if target_user_id == event.user_id:
         return await kick_group_member_cmd.finish(await _("不能踢出自己"))
 
-    bot_self_id = _bot_self_id_safe(bot)
+    bot_self_id = bot_self_id_safe(bot)
     if bot_self_id is not None and target_user_id == bot_self_id:
         return await kick_group_member_cmd.finish(await _("不能踢出机器人"))
 
-    # 3. 执行踢出操作
+    # 3. 机器人权限预检
+    if not await check_bot_privilege(bot, event.group_id, kick_group_member_cmd):
+        return None
+
+    # 4. 执行踢出操作
     try:
         await bot.set_group_kick(
             group_id=event.group_id,
@@ -215,7 +256,12 @@ async def onebot11_kick_group_member(
         logger.error(f"踢出群成员失败，操作被拒绝: {e!r}")
         return await kick_group_member_cmd.finish(await _("踢出群成员失败，操作被拒绝"))
 
-    # 4. 格式化反馈消息
+    # 5. 记录审计
+    await record_command_audit(
+        bot, event, action="kick_member", target_user_id=target_user_id
+    )
+
+    # 6. 格式化反馈消息
     name_display = (
         f"{target_name}({target_user_id})" if target_name else str(target_user_id)
     )

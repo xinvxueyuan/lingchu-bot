@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.plugins.nonebot_plugin_lingchu_bot.platforms import get_platform_profile
 from src.plugins.nonebot_plugin_lingchu_bot.services import messagestore
 
 
@@ -116,32 +115,6 @@ async def test_message_store_preprocessor_skips_disabled_known_adapter(
 
     record_event.assert_not_awaited()
     assert messagestore.STATE_KEY not in state
-
-
-async def test_message_store_preprocessor_records_configured_milky(
-    monkeypatch: pytest.MonkeyPatch,
-    enabled_config: SimpleNamespace,
-) -> None:
-    monkeypatch.setattr(messagestore, "runtime_config", enabled_config)
-    monkeypatch.setattr(
-        messagestore,
-        "get_platform_profile",
-        lambda adapter_name: get_platform_profile(adapter_name, "~milky"),
-    )
-    record_event = AsyncMock()
-    monkeypatch.setattr(messagestore.repository, "record_event_received", record_event)
-
-    await messagestore.message_store_preprocessor(
-        make_bot("Milky"),
-        make_event(),
-        {},
-    )
-
-    record_event.assert_awaited_once()
-    record_event_args = record_event.await_args
-    assert record_event_args is not None
-    assert record_event_args.kwargs["platform_id"] == "qq"
-    assert record_event_args.kwargs["adapter_id"] == "~milky"
 
 
 async def test_message_store_preprocessor_skips_unknown_adapter(

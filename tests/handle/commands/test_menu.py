@@ -9,7 +9,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.menu import (
     LLBOT_IMPL,
     LLONEBOT_IMPL,
     MENU_FEATURES,
-    MILKY_ADAPTER_ID,
     NAPCAT_IMPL,
     ONEBOT_V11_ADAPTER_ID,
     MenuRuntimeContext,
@@ -39,6 +38,8 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.triggers import (
 )
 from src.plugins.nonebot_plugin_lingchu_bot.platforms import PlatformCapability
 from tests.handle.commands.conftest import finish_text
+
+MILKY_ADAPTER_ID = "~milky"
 
 
 def test_menu_registry_uses_known_command_keys() -> None:

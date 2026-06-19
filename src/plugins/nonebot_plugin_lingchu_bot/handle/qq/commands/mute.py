@@ -2,12 +2,10 @@ from importlib import import_module
 from typing import Any
 
 from arclet.alconna import Alconna, Args
-from nonebot import logger
 from nonebot.internal.matcher.matcher import Matcher
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 
-from ....i18n import _async as _
 from .triggers import COMMAND_TRIGGERS
 
 _MEMBER_MUTE = COMMAND_TRIGGERS["member_mute"]
@@ -39,7 +37,7 @@ whole_mute_cmd: type[Matcher] = on_alconna(
 member_unmute_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _MEMBER_UNMUTE.primary,
-        Args["user", At | int]["reason?", str, None],
+        Args["user", At | int],
     ),
     aliases=_MEMBER_UNMUTE.aliases,
     priority=5,
@@ -77,7 +75,3 @@ def __getattr__(name: str) -> Any:
     value = getattr(module, name)
     globals()[name] = value
     return value
-
-
-async def import_handle() -> Any:
-    logger.debug(await _("导入mute处理器..."))

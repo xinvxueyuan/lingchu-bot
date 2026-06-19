@@ -79,7 +79,7 @@ def mock_onebot11_bot() -> MagicMock:
     bot = MagicMock(spec=OneBot11Bot)
     bot.adapter = MagicMock()
     bot.adapter.get_name.return_value = "OneBot V11"
-    bot.self_id = "bot-1"
+    bot.self_id = "1000"
     bot.get_group_member_info = AsyncMock(return_value={})
     return bot
 
