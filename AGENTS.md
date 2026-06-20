@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3311 symbols, 6244 relationships, 278 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3317 symbols, 6250 relationships, 278 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -180,6 +180,8 @@ pnpm --filter docs exec tsc --noEmit             # TypeScript check (docs only)
 
 ```bash
 pnpm --filter docs test                          # Vitest for docs site
+pnpm --filter docs run test:e2e:hook             # Playwright Chromium smoke test
+pnpm --filter docs run test:e2e                  # Playwright all configured browsers
 ```
 
 ### Docs Site — Dev & Build
@@ -215,14 +217,14 @@ task ci                                          # check + test + build
 | What changed | Minimum checks before commit |
 |---|---|
 | Python source only | `ruff check` + `ruff format --check` + `pyright` + `ty check` + `pytest` |
-| Docs site only | `pnpm --filter docs lint` + `pnpm --filter docs test` + `pnpm turbo run check-types --filter=docs` + `pnpm --filter docs lint:links` |
+| Docs site only | `pnpm --filter docs lint` + `pnpm --filter docs test` + `pnpm --filter docs run test:e2e:hook` + `pnpm turbo run check-types --filter=docs` + `pnpm --filter docs lint:links` |
 | Markdown only | `markdownlint-cli2` |
 | i18n strings | `task i18n` + `pytest` |
 | Mixed / unsure | `task check && task test` |
 
 ## Git Hooks
 
-- **pre-commit**: Conditional checks (v3 — granularized) — Prek auto-fix (always) → Markdownlint via `markdownlint-cli2` (on `.md` changes, uses the same glob as `Taskfile.yml`'s `MD_GLOB`) → Ruff lint/format (on Python changes) → Pyright/ty (on Python changes) → pytest (on Python changes) → ESLint via `pnpm turbo run lint` (on code/style/config changes — `NEEDS_LINT`: docs `.ts`/`.tsx`/`.mjs`/`.mts`/`.css`/config, packages `.ts`/`.tsx`/`.mjs`/`.mts`/`.js`/`.css`; skips pure `.mdx`/`.json` content changes) → check-types via `pnpm turbo run check-types` (on any frontend change — `NEEDS_TYPE_CHECK`) → Docs Vitest (on docs code/content/config changes — `NEEDS_DOCS_TEST`; skips pure `.css` style-only changes) → React Doctor (on `.tsx` changes only — `NEEDS_REACT_DOCTOR`, prefers global/local install, falls back to `pnpm dlx` cache, last resort `npx -y`) → Gitnexus analyze (always, non-blocking, prefers `node_modules/.bin/gitnexus` for zero download)
+- **pre-commit**: Conditional checks (v3 — granularized) — Prek auto-fix (always) → Markdownlint via `markdownlint-cli2` (on `.md` changes, uses the same glob as `Taskfile.yml`'s `MD_GLOB`) → Ruff lint/format (on Python changes) → Pyright/ty (on Python changes) → pytest (on Python changes) → ESLint via `pnpm turbo run lint` (on code/style/config changes — `NEEDS_LINT`: docs `.ts`/`.tsx`/`.mjs`/`.mts`/`.css`/config, packages `.ts`/`.tsx`/`.mjs`/`.mts`/`.js`/`.css`; skips pure `.mdx`/`.json` content changes) → check-types via `pnpm turbo run check-types` (on any frontend change — `NEEDS_TYPE_CHECK`) → Docs Vitest (on docs code/content/config changes — `NEEDS_DOCS_TEST`; skips pure `.css` style-only changes) → Docs Playwright Chromium smoke test (on any docs change) → React Doctor (on `.tsx` changes only — `NEEDS_REACT_DOCTOR`, prefers global/local install, falls back to `pnpm dlx` cache, last resort `npx -y`) → Gitnexus analyze (always, non-blocking, prefers `node_modules/.bin/gitnexus` for zero download)
 - **commit-msg**: gitmoji + Conventional Commits format validation + auto-append Signed-off-by (with trailer block detection)
 - **prepare-commit-msg**: Interactive gitmoji commit message via direct `node_modules/.bin/gitmoji --hook` (zero pnpm/npx overhead; falls back to npx / global gitmoji if local missing)
 - **CLI resolution order** (all hooks): local `node_modules/.bin/<bin>` → global PATH → global `.cmd` shim → `pnpm dlx` cache (last resort: `npx -y` for non-devDeps)
@@ -303,6 +305,7 @@ Use conventional commit + gitmoji: `✨ feat:`, `🐛 fix:`, `📝 docs:`, `⚡ 
 GitHub Actions runs on push to `main`/`dev` and on PRs:
 
 - **🧪 CI**: Change detection job (`changes`) outputs boolean flags per file type (python/markdown/frontend/frontend-code/frontend-style/frontend-content/frontend-tsx), then conditionally runs downstream jobs — Static analysis (Ruff + Markdown + Turborepo lint, on Python or markdown changes), Tests & type check (Pyright + ty + pytest, on Python changes), Docs check (ESLint on code/style, check-types on any frontend, link validation on content, Vitest on code/content — aligned with pre-commit v3 `NEEDS_LINT`/`NEEDS_TYPE_CHECK`/`NEEDS_DOCS_TEST`). Auto-format on push to main/dev. Test jobs install `--extra deprecated-adapters` so test files importing optional dependencies (Milky adapter) can resolve.
+- **🎭 Playwright**: Docs E2E workflow for `apps/docs` and `packages` changes. It installs Playwright browsers with system dependencies, runs `pnpm --filter docs run test:e2e`, and uploads HTML report / trace artifacts.
 - **👷 CI-builds**: Build verification on Python/package changes
 - **📚 Docs Deploy**: Build and deploy to GitHub Pages on push to main/dev
 - **� React Doctor**: React codebase health check on PRs (uses CLI, not the action — see Lessons Learned)
@@ -1140,6 +1143,7 @@ lingchu-bot/
 | Dev server (docs) | `pnpm --filter docs dev` |
 | Build docs | `pnpm turbo run build --filter=docs` |
 | Test docs | `pnpm --filter docs test` |
+| Test docs E2E | `pnpm --filter docs run test:e2e:hook` |
 | Lint docs | `pnpm --filter docs lint` |
 | Type check docs | `pnpm turbo run check-types --filter=docs` |
 | Link validation | `pnpm --filter docs lint:links` |
@@ -1179,7 +1183,7 @@ When the project structure, components, or conventions change:
 
 ### Git Hooks Optimization
 
-- **Pre-commit should conditionally trigger checks by file type (v3 — granularized)**: Use `git diff --cached --name-only --diff-filter=ACMR` to collect staged files, detect file extensions/paths via `has_pattern()`, skip Ruff/Pyright/ty/pytest when no Python changes. For frontend, split into 5 docs categories (CODE/TSX/CONTENT/STYLE/CONFIG) and 2 packages categories (CODE/CONFIG) to derive independent conditions: `NEEDS_LINT` (skip ESLint for pure `.mdx`/`.json` content changes), `NEEDS_TYPE_CHECK` (any frontend change), `NEEDS_REACT_DOCTOR` (only `.tsx` changes), `NEEDS_DOCS_TEST` (skip Vitest for pure `.css` style-only changes) — saves 30-90 seconds depending on change type
+- **Pre-commit should conditionally trigger checks by file type (v3 — granularized)**: Use `git diff --cached --name-only --diff-filter=ACMR` to collect staged files, detect file extensions/paths via `has_pattern()`, skip Ruff/Pyright/ty/pytest when no Python changes. For frontend, split into 5 docs categories (CODE/TSX/CONTENT/STYLE/CONFIG) and 2 packages categories (CODE/CONFIG) to derive independent conditions: `NEEDS_LINT` (skip ESLint for pure `.mdx`/`.json` content changes), `NEEDS_TYPE_CHECK` (any frontend change), `NEEDS_REACT_DOCTOR` (only `.tsx` changes), `NEEDS_DOCS_TEST` (skip Vitest for pure `.css` style-only changes), and run `test:e2e:hook` for any docs change — saves 30-90 seconds depending on change type while still smoke-testing docs navigation
 - **CI workflows should mirror pre-commit v3 granularization**: The `🧪-ci.yml` workflow uses a `changes` detection job that outputs boolean flags (`python`/`markdown`/`frontend`/`frontend-code`/`frontend-style`/`frontend-content`/`frontend-tsx`) via `git diff --name-only` between PR base or push `HEAD~1`. Downstream jobs use `needs.changes.outputs.<flag> == 'true'` in `if` conditions: `static-analysis` (Python or markdown), `tests` (Python), `docs-check` (any frontend). Within `docs-check`, ESLint runs on `frontend-code || frontend-style` (matches `NEEDS_LINT`), check-types on any frontend (matches `NEEDS_TYPE_CHECK`), Vitest on `frontend-code || frontend-content` (matches `NEEDS_DOCS_TEST`, skips pure `.css`). `auto-format` uses `always()` with `needs.<job>.result != 'failure'` to handle skipped upstream jobs. The `🩺-react-doctor.yml` workflow narrows `paths` to `.tsx` only (matches `NEEDS_REACT_DOCTOR`). This consistency ensures local and CI behavior match.
 - **Signed-off-by appending needs trailer block detection**: When existing trailers (e.g., `Closes #`, `BREAKING CHANGE:`, `Reviewed-by:`) are present, append to the same block (no blank line separation); only use blank line separation when no trailers exist
 - **Blank line cleanup must not break message structure**: `sed '/^$/N;/^\n$/d'` removes all consecutive blank lines, breaking subject-body-trailer structure; only compress ≥3 consecutive blank lines to 2
