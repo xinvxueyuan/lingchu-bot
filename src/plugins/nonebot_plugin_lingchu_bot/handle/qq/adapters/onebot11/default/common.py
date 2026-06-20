@@ -287,4 +287,4 @@ async def record_command_audit(  # noqa: PLR0913
             audit_type="command",
         )
     except DatabaseError:
-        logger.warning(f"记录命令审计失败: action={action}")
+        logger.exception(f"记录命令审计失败: action={action}")

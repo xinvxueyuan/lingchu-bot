@@ -45,6 +45,25 @@ def enabled_config() -> SimpleNamespace:
     )
 
 
+def install_fire_and_forget_spy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[Any, str]]:
+    """Patch ``fire_and_forget`` on the messagestore module to capture coroutines.
+
+    Returns a list of ``(coroutine, name)`` tuples so tests can assert that
+    background scheduling happened (and optionally await the coroutine to
+    verify the repository call behaviour).
+    """
+    captured: list[tuple[Any, str]] = []
+
+    def _spy(coro: Any, *, name: str = "fire_and_forget") -> Any:
+        captured.append((coro, name))
+        return MagicMock()
+
+    monkeypatch.setattr(messagestore, "fire_and_forget", _spy)
+    return captured
+
+
 def test_normalize_message_event_truncates_text(
     monkeypatch: pytest.MonkeyPatch,
     enabled_config: SimpleNamespace,
@@ -91,9 +110,14 @@ async def test_message_store_preprocessor_records_event(
     record_event = AsyncMock()
     monkeypatch.setattr(messagestore.repository, "record_event_received", record_event)
     state: dict[str, Any] = {}
+    captured = install_fire_and_forget_spy(monkeypatch)
 
     await messagestore.message_store_preprocessor(make_bot(), make_event(), state)
 
+    assert len(captured) == 1
+    coro, name = captured[0]
+    assert name == "record_event_received"
+    await coro
     record_event.assert_awaited_once()
     assert isinstance(state[messagestore.STATE_KEY], messagestore.MessageIdentity)
 
@@ -106,6 +130,7 @@ async def test_message_store_preprocessor_skips_disabled_known_adapter(
     record_event = AsyncMock()
     monkeypatch.setattr(messagestore.repository, "record_event_received", record_event)
     state: dict[str, Any] = {}
+    captured = install_fire_and_forget_spy(monkeypatch)
 
     await messagestore.message_store_preprocessor(
         make_bot("Milky"),
@@ -113,7 +138,7 @@ async def test_message_store_preprocessor_skips_disabled_known_adapter(
         state,
     )
 
-    record_event.assert_not_awaited()
+    assert captured == []
     assert messagestore.STATE_KEY not in state
 
 
@@ -124,6 +149,7 @@ async def test_message_store_preprocessor_skips_unknown_adapter(
     monkeypatch.setattr(messagestore, "runtime_config", enabled_config)
     record_event = AsyncMock()
     monkeypatch.setattr(messagestore.repository, "record_event_received", record_event)
+    captured = install_fire_and_forget_spy(monkeypatch)
 
     await messagestore.message_store_preprocessor(
         make_bot("Custom"),
@@ -131,7 +157,7 @@ async def test_message_store_preprocessor_skips_unknown_adapter(
         {},
     )
 
-    record_event.assert_not_awaited()
+    assert captured == []
 
 
 async def test_message_store_preprocessor_skips_meta_event(
@@ -141,13 +167,14 @@ async def test_message_store_preprocessor_skips_meta_event(
     monkeypatch.setattr(messagestore, "runtime_config", enabled_config)
     record_event = AsyncMock()
     monkeypatch.setattr(messagestore.repository, "record_event_received", record_event)
+    captured = install_fire_and_forget_spy(monkeypatch)
     event = make_event()
     event.get_type.return_value = "meta_event"
     event.get_event_name.return_value = "meta_event.heartbeat"
 
     await messagestore.message_store_preprocessor(make_bot(), event, {})
 
-    record_event.assert_not_awaited()
+    assert captured == []
 
 
 async def test_message_store_preprocessor_swallows_database_errors(
@@ -157,9 +184,14 @@ async def test_message_store_preprocessor_swallows_database_errors(
     monkeypatch.setattr(messagestore, "runtime_config", enabled_config)
     record_event = AsyncMock(side_effect=messagestore.DatabaseError("boom"))
     monkeypatch.setattr(messagestore.repository, "record_event_received", record_event)
+    captured = install_fire_and_forget_spy(monkeypatch)
 
     await messagestore.message_store_preprocessor(make_bot(), make_event(), {})
 
+    assert len(captured) == 1
+    coro, name = captured[0]
+    assert name == "record_event_received"
+    await coro  # DatabaseError is swallowed inside the scheduled coroutine
     record_event.assert_awaited_once()
 
 
@@ -180,6 +212,7 @@ async def test_run_postprocessor_updates_status(
     )
     matcher = MagicMock()
     matcher.block = False
+    captured = install_fire_and_forget_spy(monkeypatch)
 
     await messagestore.message_store_run_postprocessor(
         matcher,
@@ -187,6 +220,10 @@ async def test_run_postprocessor_updates_status(
         {messagestore.STATE_KEY: identity},
     )
 
+    assert len(captured) == 1
+    coro, name = captured[0]
+    assert name == "record_matcher_result"
+    await coro
     record_result.assert_awaited_once()
     record_result_args = record_result.await_args
     assert record_result_args is not None
@@ -201,6 +238,7 @@ async def test_on_called_api_records_result(
     monkeypatch.setattr(messagestore, "runtime_config", enabled_config)
     record_api = AsyncMock()
     monkeypatch.setattr(messagestore.repository, "record_api_call", record_api)
+    captured = install_fire_and_forget_spy(monkeypatch)
 
     await messagestore.message_store_on_called_api(
         make_bot(),
@@ -210,6 +248,10 @@ async def test_on_called_api_records_result(
         {"message_id": "out-1"},
     )
 
+    assert len(captured) == 1
+    coro, name = captured[0]
+    assert name == "record_api_call"
+    await coro
     record_api.assert_awaited_once()
     record_api_args = record_api.await_args
     assert record_api_args is not None
@@ -224,6 +266,7 @@ async def test_lifecycle_and_api_recording_skip_disabled_known_adapter(
     monkeypatch.setattr(messagestore, "runtime_config", enabled_config)
     record_api = AsyncMock()
     monkeypatch.setattr(messagestore.repository, "record_api_call", record_api)
+    captured = install_fire_and_forget_spy(monkeypatch)
 
     lifecycle_recorded = await messagestore.record_bot_lifecycle(
         make_bot("Milky"),
@@ -238,4 +281,4 @@ async def test_lifecycle_and_api_recording_skip_disabled_known_adapter(
     )
 
     assert not lifecycle_recorded
-    record_api.assert_not_awaited()
+    assert captured == []

@@ -2,7 +2,8 @@ from nonebot import get_adapters, get_driver, logger
 from nonebot.adapters import Bot
 from nonebot.internal.driver.abstract import Driver
 
-from ..core.runtime_config import ensure_runtime_config_file
+from ..core.async_utils import fire_and_forget
+from ..core.runtime_config import ensure_runtime_config_file_async
 from ..handle.menu import import_handle as menu_import_handle
 from ..handle.qq.adapters import import_handle as group_import_handle
 from ..i18n import _async as _
@@ -27,7 +28,7 @@ async def startup() -> None:
 
     依次执行：预热翻译缓存、导入并注册 group 命令处理器（含所有子模块）。
     """
-    ensure_runtime_config_file()
+    await ensure_runtime_config_file_async()
     registered_adapter_names = tuple(
         str(adapter_name) for adapter_name in get_adapters()
     )
@@ -69,9 +70,13 @@ async def shutdown_runtime_services() -> None:
 
 @driver.on_bot_connect
 async def record_bot_connected(bot: Bot) -> None:
-    await record_bot_lifecycle(bot, "bot_connected")
+    fire_and_forget(
+        record_bot_lifecycle(bot, "bot_connected"), name="record_bot_lifecycle"
+    )
 
 
 @driver.on_bot_disconnect
 async def record_bot_disconnected(bot: Bot) -> None:
-    await record_bot_lifecycle(bot, "bot_disconnected")
+    fire_and_forget(
+        record_bot_lifecycle(bot, "bot_disconnected"), name="record_bot_lifecycle"
+    )

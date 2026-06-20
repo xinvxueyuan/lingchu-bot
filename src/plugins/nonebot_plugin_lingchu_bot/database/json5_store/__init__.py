@@ -15,7 +15,11 @@ JSON5-compatible objects: dict, list, str, int, float, bool, and None.
 from __future__ import annotations
 
 from ._async_db import RobustAsyncJSON5DB
-from ._sync import ensure_json5_dict_file_sync, load_json5_dict_sync
+from ._sync import (
+    ensure_json5_dict_file_async,
+    ensure_json5_dict_file_sync,
+    load_json5_dict_sync,
+)
 from .exceptions import (
     AtomicReplacementError,
     CallbackTypeError,
@@ -51,6 +55,7 @@ __all__ = [
     "RobustAsyncJSON5DB",
     "TerminalPathResolutionError",
     "WatchAlreadyRunningError",
+    "ensure_json5_dict_file_async",
     "ensure_json5_dict_file_sync",
     "load_json5_dict_sync",
 ]

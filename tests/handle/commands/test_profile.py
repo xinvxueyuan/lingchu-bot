@@ -3,12 +3,14 @@
 """
 
 import base64
+import hashlib
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import profile
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.profile import (
     milkybot_set_group_avatar,
     milkybot_set_group_name,
@@ -206,3 +208,31 @@ async def test_onebot11_set_group_avatar_rejects_unsupported_impl(
 
     mock_onebot11_bot.call_api.assert_not_called()
     assert "不支持设置群头像" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_returns_none_for_none_image() -> None:
+    """image 为 None 时返回 None。"""
+    result = await profile._resolve_image_path(None)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_caches_raw_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_resolve_image_path 通过 aiofiles 异步写入缓存文件。"""
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(profile, "plugin_config", fake_config)
+
+    raw_bytes = b"fake-avatar-bytes"
+    image = create_mock_image(raw=raw_bytes)
+
+    result = await profile._resolve_image_path(image)
+
+    expected_md5 = hashlib.md5(raw_bytes).hexdigest()
+    expected_path = tmp_path / "announcement_images" / f"{expected_md5}.png"
+    assert result == expected_path
+    assert result is not None
+    assert result.read_bytes() == raw_bytes

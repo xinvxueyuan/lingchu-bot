@@ -363,6 +363,16 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 - **🧹 Clear Workflow**: Stale workflow cleanup
 - **🏷️ Issues Top**: Issue triage automation
 
+## Engineering Conventions
+
+### `fire_and_forget` Helper
+
+- **Location**: `src/plugins/nonebot_plugin_lingchu_bot/core/async_utils.py`
+- **Signature**: `fire_and_forget(coro, *, name="fire_and_forget")`
+- **Use for**: discardable background operations (audit logs, telemetry, cache writes) whose results the caller does not need. The helper schedules the coroutine as an `asyncio.Task`, tracks it in a module-level set, and logs exceptions via `logger.exception` in a done-callback.
+- **Do NOT use for**: operations whose results are needed by the caller, or operations that must complete before the function returns. In those cases, use `await` directly.
+- **Reference management**: the helper stores the task in a module-level set so Python's GC does not cancel it prematurely; the done-callback removes the reference after logging any exception.
+
 ## Lessons Learned
 
 > **Timeliness warning**: Lessons below reflect the state of the codebase and dependencies at the time they were written. Before relying on any lesson, verify it still holds — APIs change, packages add exports, and CI configs evolve. When a lesson becomes outdated, update or remove it rather than propagating stale assumptions.
@@ -816,6 +826,14 @@ When adding CI checks or unit tests for the docs site (`apps/docs/`), several pi
 - **English comments in all .github config files**: All YAML config files in `.github/` use English comments for consistency. This includes `dependabot.yml`, `labeler.yml`, `auto_assign.yml`, etc.
 - **Remove broken `yaml-language-server: $schema=` lines**: If a config file has a `# yaml-language-server: $schema=` comment with an empty or invalid URL, remove the line. Only add the schema comment if a valid JSON schema URL exists.
 - **Dependabot monorepo configuration**: Use `directories` (plural, supports glob patterns) instead of `directory` (singular) for npm ecosystems in pnpm/Turborepo monorepos. Use `groups` with `patterns` and `update-types` to merge minor/patch updates into a single PR across all workspace directories.
+
+### Async Conversion: Fire-and-Forget Tasks and Async I/O
+
+- **Fire-and-forget background tasks must retain strong references**: store scheduled tasks in a module-level `set` and attach done-callbacks that log exceptions via `logger.exception` and discard the reference. Without a strong reference, Python's garbage collector may cancel pending tasks before they complete.
+- **Discardable sync operations block the event loop**: audit/telemetry DB writes and image cache writes inside async functions block the event loop. Convert DB writes to `fire_and_forget` (so they run as background tasks) and file I/O to `aiofiles` (`aiofiles.open` for read/write).
+- **Prefer `asyncio.gather(..., return_exceptions=True)` over sequential `await` loops** for independent startup operations (registry seeding, superuser grants). Log per-item failures instead of aborting the whole batch — one failing item should not block the rest.
+- **Async file I/O pattern**: when converting sync file I/O to async, use `aiofiles.os.makedirs`/`aiofiles.os.replace`/`aiofiles.os.unlink` for path operations and `aiofiles.open` for read/write, mirroring the pattern in `database/json5_store/_async_db.py`.
+- **Keep sync variants of file-ensure functions for import-time use**: there is no event loop available at module load, so sync variants (e.g., `ensure_json5_dict_file_sync`) must remain for module-level callers; async variants (e.g., `ensure_json5_dict_file_async`) are for runtime callers inside `async def` functions.
 
 # Claude Code Behavioral Guidelines
 

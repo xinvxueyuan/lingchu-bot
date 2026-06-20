@@ -2,6 +2,7 @@
 测试禁言命令 - 边界行为覆盖
 """
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -11,6 +12,9 @@ from nonebot.adapters.milky.exception import ActionFailed, NetworkError
 from nonebot_plugin_alconna import UniMessage
 from nonebot_plugin_alconna.uniseg import At
 
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
+    mute as mute_module,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.mute import (
     member_mute_cmd,
     member_unmute_cmd,
@@ -717,13 +721,18 @@ class TestOneBot11Mute:
     """OneBot11 禁言 API 映射测试。"""
 
     @pytest.fixture(autouse=True)
-    def _mock_record_audit(self):
-        """避免审计记录触发数据库调用。"""
-        with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.mute.record_command_audit",
-            AsyncMock(),
-        ):
+    def _mock_fire_and_forget(self):
+        """避免审计记录触发后台任务和数据库调用。"""
+        captured: list[tuple[Any, str]] = []
+
+        def _spy(coro: Any, *, name: str = "fire_and_forget") -> Any:
+            captured.append((coro, name))
+            return MagicMock()
+
+        with patch.object(mute_module, "fire_and_forget", side_effect=_spy):
             yield
+        for coro, _name in captured:
+            coro.close()
 
     @pytest.mark.asyncio
     async def test_onebot11_mute_calls_set_group_ban(

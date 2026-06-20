@@ -8,6 +8,7 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import At
 
+from ......core.async_utils import fire_and_forget
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......repositories.blocklist import find_active_block
@@ -78,8 +79,15 @@ async def _kick_member(  # noqa: PLR0911
         return await command.finish(await _("踢出群成员失败，操作被拒绝"))
 
     # 记录审计
-    await record_command_audit(
-        bot, event, action="kick_member", target_user_id=target_user_id, reason=reason
+    fire_and_forget(
+        record_command_audit(
+            bot,
+            event,
+            action="kick_member",
+            target_user_id=target_user_id,
+            reason=reason,
+        ),
+        name="audit:kick_member",
     )
 
     # 反馈结果
