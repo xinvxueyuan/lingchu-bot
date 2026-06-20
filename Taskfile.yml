@@ -133,7 +133,7 @@ tasks:
         echo "Bumping version to: $new_version"
 
   ci:version:write-config:
-    desc: "[CI] Write version into config.py"
+    desc: "[CI] Write version into config.py and package.json"
     requires:
       vars: [VERSION, CONFIG_PATH]
     cmds:
@@ -160,6 +160,20 @@ tasks:
             raise RuntimeError("未找到唯一的 core_version 字段")
 
         path.write_text(new_text, encoding="utf-8")
+        PY
+
+        python - <<'PY'
+        import json
+        import os
+        from pathlib import Path
+
+        version = os.environ["VERSION"]
+        pkg_path = Path("package.json")
+
+        data = json.loads(pkg_path.read_text(encoding="utf-8"))
+        data["version"] = version
+        pkg_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        print(f"Wrote version {version} into {pkg_path}")
         PY
 
   ci:version:tag-only:

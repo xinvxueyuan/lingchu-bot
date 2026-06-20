@@ -19,7 +19,6 @@ quit_group_cmd: type[Matcher] = on_alconna(
 )
 
 _LAZY_EXPORTS = {
-    "milkybot_quit_group": "..adapters.milky.default.lifecycle",
     "onebot11_quit_group": "..adapters.onebot11.default.lifecycle",
 }
 

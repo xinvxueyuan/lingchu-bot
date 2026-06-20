@@ -57,10 +57,6 @@ whole_unmute_cmd: type[Matcher] = on_alconna(
 )
 
 _LAZY_EXPORTS = {
-    "milkybot_mute": "..adapters.milky.default.mute",
-    "milkybot_whole_mute": "..adapters.milky.default.mute",
-    "milkybot_unmute": "..adapters.milky.default.mute",
-    "milkybot_whole_unmute": "..adapters.milky.default.mute",
     "onebot11_mute": "..adapters.onebot11.default.mute",
     "onebot11_whole_mute": "..adapters.onebot11.default.mute",
     "onebot11_unmute": "..adapters.onebot11.default.mute",

@@ -6,7 +6,6 @@ import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle import menu
 from src.plugins.nonebot_plugin_lingchu_bot.handle.menu import (
-    LLBOT_IMPL,
     LLONEBOT_IMPL,
     MENU_FEATURES,
     NAPCAT_IMPL,
@@ -18,13 +17,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.menu import (
     render_menu_for_context,
     render_menu_index,
     render_menu_page,
-)
-from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.milky.default import (
-    menu as milky_menu_module,
-)
-from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.milky.default import (
-    milkybot_menu,
-    milkybot_menu_pages,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     menu as onebot_menu_module,
@@ -38,8 +30,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.triggers import (
 )
 from src.plugins.nonebot_plugin_lingchu_bot.platforms import PlatformCapability
 from tests.handle.commands.conftest import finish_text
-
-MILKY_ADAPTER_ID = "~milky"
 
 
 def test_menu_registry_uses_known_command_keys() -> None:
@@ -154,18 +144,6 @@ def test_member_management_page_hides_denied_commands() -> None:
     assert "设置群名片" in rendered
 
 
-def test_milky_member_management_page_hides_onebot_blocklist_commands() -> None:
-    rendered = render_menu_page(
-        "member-management",
-        qq_menu_context(adapter_id=MILKY_ADAPTER_ID),
-        "zh_CN",
-    )
-
-    assert "踢出群成员" in rendered
-    assert "拉黑群成员" not in rendered
-    assert "清空本群黑名单" not in rendered
-
-
 def test_speech_management_page_lists_speech_commands_only() -> None:
     rendered = render_menu_page(
         "speech-management",
@@ -253,28 +231,6 @@ def test_onebot_low_versions_hide_extension_features() -> None:
     assert "设置群头像" not in napcat_rendered
 
 
-def test_milky_llbot_supports_text_announcement_only() -> None:
-    rendered = render_menu_page(
-        "group-chat-management",
-        qq_menu_context(adapter_id=MILKY_ADAPTER_ID, implementation_name=LLBOT_IMPL),
-        "zh_CN",
-    )
-
-    assert "发送群公告: 发送群公告 <内容>" in rendered
-    assert "发送群公告 <内容> [图片]" not in rendered
-
-
-def test_milky_unknown_hides_announcement() -> None:
-    rendered = render_menu_page(
-        "group-chat-management",
-        qq_menu_context(adapter_id=MILKY_ADAPTER_ID),
-        "zh_CN",
-    )
-
-    assert "发送群公告" not in rendered
-    assert "设置群头像" in rendered
-
-
 def test_fail_closed_when_platform_capability_missing() -> None:
     context = MenuRuntimeContext(
         platform_id="qq",
@@ -334,78 +290,31 @@ def test_remote_management_page_shows_announcement_for_napcat() -> None:
     assert "远程禁言" in rendered
 
 
-def test_remote_management_page_hides_for_milky_adapter() -> None:
-    rendered = render_menu_page(
-        "remote-management",
-        qq_menu_context(adapter_id=MILKY_ADAPTER_ID),
-        "zh_CN",
-    )
-
-    assert "远程禁言" not in rendered
-    assert "远程公告" not in rendered
-
-
 @pytest.mark.asyncio
 async def test_menu_loader_imports_only_onebot11_modules(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    loaded_modules: list[str] = []
     called_handlers: list[str] = []
+    load_calls: list[str] = []
 
-    def fake_import_module(module_path: str, _package: str | None = None) -> Any:
-        loaded_modules.append(module_path)
+    async def fake_handler() -> None:
+        called_handlers.append(".qq.adapters.onebot11.default.menu")
 
-        async def fake_import_handle_for_module() -> None:
-            called_handlers.append(module_path)
-
-        return SimpleNamespace(import_handle=fake_import_handle_for_module)
+    def fake_load_adapter_handlers(
+        adapter_id: str,
+        _adapter_modules: dict[str, tuple[str, ...]],
+        _package: str,
+    ) -> tuple[Any, ...]:
+        load_calls.append(adapter_id)
+        return (fake_handler,)
 
     monkeypatch.setattr(menu, "resolve_enabled_adapters", lambda: {"~onebot.v11"})
-    monkeypatch.setattr(
-        menu,
-        "_ADAPTER_MODULES",
-        {
-            "~onebot.v11": (".qq.adapters.onebot11.default.menu",),
-            "~milky": (".qq.adapters.milky.default.menu",),
-        },
-    )
-    monkeypatch.setattr(menu, "import_module", fake_import_module)
-    menu._loaded_handlers.clear()
+    monkeypatch.setattr(menu, "load_adapter_handlers", fake_load_adapter_handlers)
 
     await menu.import_handle()
 
-    assert loaded_modules == [".qq.adapters.onebot11.default.menu"]
+    assert load_calls == ["~onebot.v11"]
     assert called_handlers == [".qq.adapters.onebot11.default.menu"]
-
-
-@pytest.mark.asyncio
-async def test_menu_loader_imports_only_milky_modules(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    loaded_modules: list[str] = []
-
-    async def fake_import_handle() -> None:
-        return None
-
-    def fake_import_module(module_path: str, _package: str | None = None) -> Any:
-        loaded_modules.append(module_path)
-        return SimpleNamespace(import_handle=fake_import_handle)
-
-    monkeypatch.setattr(menu, "resolve_enabled_adapters", lambda: {"~milky"})
-    monkeypatch.setattr(
-        menu,
-        "_ADAPTER_MODULES",
-        {
-            "~onebot.v11": (".qq.adapters.onebot11.default.menu",),
-            "~milky": (".qq.adapters.milky.default.menu",),
-        },
-    )
-    monkeypatch.setattr(menu, "import_module", fake_import_module)
-    menu._loaded_handlers.clear()
-
-    await menu.import_handle()
-
-    assert loaded_modules == [".qq.adapters.milky.default.menu"]
 
 
 @pytest.mark.asyncio
@@ -451,38 +360,6 @@ async def test_onebot11_menu_page_reads_version_info_and_finishes() -> None:
 
 
 @pytest.mark.asyncio
-async def test_milky_menu_reads_impl_info_and_finishes() -> None:
-    bot = SimpleNamespace(
-        get_impl_info=AsyncMock(
-            return_value=SimpleNamespace(impl_name=LLBOT_IMPL, impl_version="0.0.0")
-        )
-    )
-
-    with patch.object(menu_cmd, "finish") as mock_finish:
-        await milkybot_menu(bot=bot)
-
-    bot.get_impl_info.assert_awaited_once()
-    assert "群聊管理" in finish_text(mock_finish)
-    assert "发送群公告" not in finish_text(mock_finish)
-
-
-@pytest.mark.asyncio
-async def test_milky_menu_page_reads_impl_info_and_finishes() -> None:
-    bot = SimpleNamespace(
-        get_impl_info=AsyncMock(
-            return_value=SimpleNamespace(impl_name=LLBOT_IMPL, impl_version="0.0.0")
-        )
-    )
-    command = menu_page_cmds["group-chat-management"]
-
-    with patch.object(command, "finish") as mock_finish:
-        await milkybot_menu_pages["group-chat-management"](bot=bot)
-
-    bot.get_impl_info.assert_awaited_once()
-    assert "发送群公告: 发送群公告 <内容>" in finish_text(mock_finish)
-
-
-@pytest.mark.asyncio
 async def test_onebot11_menu_fails_closed_when_detection_fails() -> None:
     bot = SimpleNamespace(get_version_info=AsyncMock(side_effect=RuntimeError("boom")))
 
@@ -495,17 +372,3 @@ async def test_onebot11_menu_fails_closed_when_detection_fails() -> None:
     mock_debug.assert_called_once()
     assert "发送群公告" not in finish_text(mock_finish)
     assert "设置群头像" not in finish_text(mock_finish)
-
-
-@pytest.mark.asyncio
-async def test_milky_menu_fails_closed_when_detection_fails() -> None:
-    bot = SimpleNamespace(get_impl_info=AsyncMock(side_effect=RuntimeError("boom")))
-
-    with (
-        patch.object(milky_menu_module.logger, "debug") as mock_debug,
-        patch.object(menu_cmd, "finish") as mock_finish,
-    ):
-        await milkybot_menu(bot=bot)
-
-    mock_debug.assert_called_once()
-    assert "发送群公告" not in finish_text(mock_finish)

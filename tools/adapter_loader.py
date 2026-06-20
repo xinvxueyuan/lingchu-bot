@@ -1,14 +1,14 @@
 """停维适配器按需加载工具。
 
 此模块提供独立于启动流程的适配器加载能力，
-用于按需加载已停维的 Milky 等适配器的 handler 模块。
+用于按需加载已停维适配器的 handler 模块。
 
 使用示例::
 
     from tools.adapter_loader import load_deprecated_adapter
 
-    # 按需加载 Milky 适配器
-    load_deprecated_adapter("~milky")
+    # 按需加载停维适配器
+    load_deprecated_adapter("~qq")
 """
 
 from __future__ import annotations
@@ -23,23 +23,12 @@ if TYPE_CHECKING:
 
 # 停维适配器的模块映射表
 # 这些适配器已从启动流程中移除，但源码保留以备未来复用
-# 注意：~qq 和 ~onebot.v12 列于 _DEPRECATED_ADAPTER_IDS 仅用于停维检查，
-# 它们没有对应的 handler 模块，无法通过本工具按需加载。
-_DEPRECATED_ADAPTER_MODULES: dict[str, tuple[str, ...]] = {
-    "~milky": (
-        "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.milky.default",
-        "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.milky.llbot",
-    ),
-}
+# 注意：~milky、~qq、~onebot.v12 仅供停维检查，无 handler 模块。
+_DEPRECATED_ADAPTER_MODULES: dict[str, tuple[str, ...]] = {}
 
-_DEPRECATED_MENU_MODULES: dict[str, tuple[str, ...]] = {
-    "~milky": (
-        "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.milky.default.menu",
-    ),
-}
+_DEPRECATED_MENU_MODULES: dict[str, tuple[str, ...]] = {}
 
 # 所有停维适配器 ID 列表，与 registry._DEPRECATED_ADAPTER_IDS 保持一致。
-# 其中 ~qq 和 ~onebot.v12 仅供停维检查使用，没有 handler 模块。
 _DEPRECATED_ADAPTER_IDS: tuple[str, ...] = ("~milky", "~qq", "~onebot.v12")
 
 
@@ -47,7 +36,7 @@ def load_deprecated_adapter(adapter_id: str) -> tuple[Callable[..., Any], ...]:
     """按需加载停维适配器的 handler 模块。
 
     Args:
-        adapter_id: 适配器 ID，如 ``~milky``
+        adapter_id: 适配器 ID，如 ``~qq``
 
     Returns:
         已加载模块的 ``import_handle`` 函数元组
@@ -77,7 +66,7 @@ async def load_and_init_deprecated_adapter(adapter_id: str) -> None:
     """按需加载并初始化停维适配器的 handler 模块。
 
     Args:
-        adapter_id: 适配器 ID，如 ``~milky``
+        adapter_id: 适配器 ID，如 ``~qq``
     """
     handlers = load_deprecated_adapter(adapter_id)
     for handler in handlers:

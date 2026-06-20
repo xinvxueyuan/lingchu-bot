@@ -67,8 +67,6 @@ class RuntimeConfig(BaseModel):
         default=None,
         validation_alias=AliasChoices(
             "lingchu_adapter",
-            "LINGCHUAdapter",
-            "LINGCHU_ADAPTER",
         ),
     )
 
@@ -257,12 +255,8 @@ def _nonebot_runtime_overrides() -> dict[str, Any]:
 
 
 def _normalize_runtime_aliases(values: dict[str, Any]) -> dict[str, Any]:
-    normalized = dict(values)
-    for alias in ("LINGCHUAdapter", "LINGCHU_ADAPTER", "lingchuadapter"):
-        value = normalized.pop(alias, None)
-        if value is not None:
-            normalized["lingchu_adapter"] = value
-    return normalized
+    """Normalize legacy alias keys to canonical field names."""
+    return values
 
 
 def get_runtime_config(

@@ -20,12 +20,11 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
     <Folder name="core">
       <File name="config.py" />
       <File name="runtime_config.py" />
-      <File name="sub_plugins.py" />
     </Folder>
     <Folder name="database">
       <Folder name="json5_store" />
-      <File name="models.py" />
-      <File name="orm_crud.py" />
+      <Folder name="models" />
+      <Folder name="orm_crud" />
     </Folder>
     <Folder name="handle">
       <Folder name="menu.py" />
@@ -44,10 +43,6 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
             <Folder name="llonebot" />
             <Folder name="napcat" />
           </Folder>
-          <Folder name="milky">
-            <Folder name="default" />
-            <Folder name="llbot" />
-          </Folder>
         </Folder>
       </Folder>
     </Folder>
@@ -60,7 +55,6 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
       </Folder>
     </Folder>
     <Folder name="platforms">
-      <File name="config.py" />
       <File name="registry.py" />
       <Folder name="qq">
         <File name="permissions.py" />
@@ -75,14 +69,11 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
       <File name="blocklist.py" />
       <File name="message_store.py" />
       <File name="permissions.py" />
-      <File name="user_mapping.py" />
     </Folder>
     <Folder name="services">
-      <File name="messagestore.py" />
+      <File name="message_store.py" />
     </Folder>
     <Folder name="start">
-      <File name="bootstrap.py" />
-      <File name="initialize.py" />
       <File name="startup.py" />
     </Folder>
   </Folder>
@@ -104,13 +95,12 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
 | --- | --- |
 | `core/config.py` | Core configuration, localstore paths, and platform information |
 | `core/runtime_config.py` | Runtime configuration helpers |
-| `core/sub_plugins.py` | Sub-plugin loader |
 | `database/json5_store/` | JSON5 file storage package |
-| `database/orm_crud.py` | Async CRUD helper based on `nonebot-plugin-orm` |
+| `database/models/` | ORM models package (message, blocklist, registry, identity) |
+| `database/orm_crud/` | Async CRUD helpers based on `nonebot-plugin-orm` |
 | `handle/menu.py` | Menu system (pages, sections, features, availability) |
 | `handle/qq/commands/` | Shared QQ command definitions (Alconna matchers, triggers) |
 | `handle/qq/adapters/onebot11/` | OneBot V11 handlers (default, napcat, llonebot) |
-| `handle/qq/adapters/milky/` | Milky handlers (default, llbot) |
 | `i18n/__init__.py` | gettext/Babel translation helpers, locale reading, and async catalog warmup |
 | `platforms/registry.py` | Platform capabilities, adapter mapping, priority selection, and conflict validation |
 | `platforms/qq/permissions.py` | QQ default identity groups and runtime platform identity resolution |
@@ -118,13 +108,12 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
 | `repositories/blocklist.py` | Blocklist data access |
 | `repositories/message_store.py` | Message store repository |
 | `repositories/permissions.py` | Permission-system ORM repository |
-| `repositories/user_mapping.py` | Compatibility entrypoint for UID and platform account binding |
-| `services/messagestore.py` | Message event, processing result, bot lifecycle, and platform API call summary recording |
-| `start/` | Bootstrap, initialize, and startup hooks |
+| `services/message_store.py` | Message event, processing result, bot lifecycle, and platform API call summary recording |
+| `start/` | Startup hooks |
 
 ## Adapter status
 
-The plugin declares adapters by platform capability instead of treating every imported concrete adapter as enabled. The currently implemented profile is QQ, with only `~onebot.v11` active in the startup flow. Milky (`~milky`), QQ Official (`~qq`), and OneBot V12 (`~onebot.v12`) have been deprecated and removed from the startup flow; their source code is preserved for on-demand loading via `tools/adapter_loader.py`. When unset, the default is OneBot V11.
+The plugin declares adapters by platform capability instead of treating every imported concrete adapter as enabled. The currently implemented profile is QQ, with only `~onebot.v11` active in the startup flow. Milky (`~milky`), QQ Official (`~qq`), and OneBot V12 (`~onebot.v12`) have been deprecated and removed from the startup flow; configuring any of them exits with a clear `PlatformAdapterDeprecatedError`. When unset, the default is OneBot V11.
 
 Explicitly configuring multiple known adapters for the same platform raises `PlatformAdapterConflictError`. Lingchu Bot does not control which adapters NoneBot actually imports or registers; it only checks that the selected adapter has been loaded and registered by NoneBot. When unset, Lingchu selects `~onebot.v11` by default and raises `PlatformAdapterNotLoadedError` if OneBot V11 is not loaded. Other same-platform adapters may still be imported or registered, but Lingchu treats them as disabled and excludes them from platform resolution, message storage, and API call recording. Explicitly declaring an adapter that Lingchu has not implemented or cannot recognize in `LINGCHUAdapter` fails startup. Extra unknown adapters seen at runtime are not considered enabled by `is_adapter_enabled()`; message storage groups them under the stable `unknown` platform. Other platform profiles and non-group-management capabilities depend on later implementation and tests.
 

@@ -12,11 +12,10 @@ QQ is the only currently implemented platform profile. The plugin selects one QQ
 | Priority | Protocol | Adapter ID | NoneBot package | Status |
 | --- | --- | --- | --- | --- |
 | 1 (default) | OneBot V11 | `~onebot.v11` | `nonebot-adapter-onebot` | Active |
-| 2 | Milky | `~milky` | `nonebot-adapter-milky` | Deprecated |
-| 3 | QQ Official | `~qq` | `nonebot-adapter-qq` | Deprecated |
-| 4 | OneBot V12 | `~onebot.v12` | `nonebot-adapter-onebot` | Deprecated |
+| 2 | QQ Official | `~qq` | `nonebot-adapter-qq` | Deprecated |
+| 3 | OneBot V12 | `~onebot.v12` | `nonebot-adapter-onebot` | Deprecated |
 
-Only one QQ adapter is considered enabled at a time. Other adapters that NoneBot loads are treated as disabled and excluded from platform resolution, message storage, and API call recording. Milky, QQ Official, and OneBot V12 have been deprecated and removed from the startup flow; their source code is preserved for on-demand loading via `tools/adapter_loader.py`.
+Only one QQ adapter is considered enabled at a time. Other adapters that NoneBot loads are treated as disabled and excluded from platform resolution, message storage, and API call recording. QQ Official and OneBot V12 have been deprecated and removed from the startup flow; their source code is preserved for on-demand loading via `tools/adapter_loader.py`.
 
 ## Switching protocols
 
@@ -29,7 +28,7 @@ ONEBOT_ACCESS_TOKEN=your-token
 
 <Callout type="warn" title="Deprecated adapters">
 
-Milky (`~milky`), QQ Official (`~qq`), and OneBot V12 (`~onebot.v12`) have been deprecated and removed from the startup flow. Setting `LINGCHUAdapter` to a deprecated adapter ID is no longer supported. Their source code is preserved for on-demand loading via `tools/adapter_loader.py`.
+QQ Official (`~qq`) and OneBot V12 (`~onebot.v12`) have been deprecated and removed from the startup flow. Setting `LINGCHUAdapter` to a deprecated adapter ID is no longer supported. Their source code is preserved for on-demand loading via `tools/adapter_loader.py`.
 
 </Callout>
 
@@ -42,14 +41,6 @@ Each protocol has a `default` handler set and optional implementation-specific e
 | OneBot V11 | `default` | Core group management commands |
 | OneBot V11 | [NapCat](./onebot-v11/napcat) | Group announcement + group avatar |
 | OneBot V11 | [LLOneBot](./onebot-v11/llonebot) | Group announcement (text + image) |
-| Milky (deprecated) | `default` | Core group management commands |
-| Milky (deprecated) | [LLBot](./milky/llbot) | Text-only group announcement |
-
-<Callout type="warn" title="API surface differences">
-
-Same-named APIs return different types across adapters. OneBot V11 returns `dict`; Milky returns pydantic `Model` objects. See [Adapter Guide](../../developer-guide/adapter-guide) for details.
-
-</Callout>
 
 ## Source layout
 
@@ -64,17 +55,13 @@ handle/qq/
 │   ├── remote.py          # Remote management commands
 │   └── ...
 └── adapters/
-    ├── onebot11/
-    │   ├── default/       # OneBot V11 default handlers
-    │   ├── napcat/        # NapCat extensions
-    │   └── llonebot/      # LLOneBot extensions
-    └── milky/
-        ├── default/       # Milky default handlers
-        └── llbot/         # LLBot extensions
+    └── onebot11/
+        ├── default/       # OneBot V11 default handlers
+        ├── napcat/        # NapCat extensions
+        └── llonebot/      # LLOneBot extensions
 ```
 
 ## Next steps
 
 - [QQ Commands](./commands) — Full command reference including remote management
 - [OneBot V11 Protocol](./onebot-v11/overview) — Protocol overview and implementation-specific docs
-- [Milky Protocol](./milky/overview) — Protocol overview and implementation-specific docs

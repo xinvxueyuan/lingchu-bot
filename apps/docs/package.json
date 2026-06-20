@@ -38,6 +38,7 @@
     "twoslash": "^0.3.8"
   },
   "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "^4.3.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

@@ -9,19 +9,16 @@ Resolution semantics:
 - ``silent_mode``: global OR platform. Global ON silences all platforms.
 """
 
-import contextlib
 from pathlib import Path
 from typing import Any
 
-import aiofiles
-import aiofiles.os
-import json5
 from nonebot import logger
 from nonebot_plugin_localstore import get_plugin_data_dir
 
 from ..database.json5_store import (
     ensure_json5_dict_file_sync,
     load_json5_dict_sync,
+    write_json5_dict_file_async,
 )
 from .async_utils import fire_and_forget
 
@@ -68,7 +65,7 @@ def load_bot_state() -> None:
 
 
 async def _save_bot_state() -> None:
-    """Persist in-memory state to bot_state.json5 (atomic write)."""
+    """Persist in-memory state to bot_state.json5."""
     path = _get_state_file_path()
     data = {
         "global": {
@@ -77,16 +74,10 @@ async def _save_bot_state() -> None:
         },
         "platforms": _state["platforms"],
     }
-    temp_path = path.with_suffix(".tmp.json5")
     try:
-        content = json5.dumps(data, indent=2, ensure_ascii=False)
-        async with aiofiles.open(temp_path, "w", encoding="utf-8") as f:
-            await f.write(content)
-        await aiofiles.os.replace(temp_path, path)
+        await write_json5_dict_file_async(path, data)
     except Exception:  # noqa: BLE001
         logger.exception("Failed to save bot state")
-        with contextlib.suppress(OSError):
-            await aiofiles.os.unlink(temp_path)
 
 
 def _persist_state() -> None:

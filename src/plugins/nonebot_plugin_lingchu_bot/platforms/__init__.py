@@ -1,6 +1,7 @@
 """Platform capability registry for Lingchu Bot."""
 
 from .registry import (
+    QQ_CAPABILITIES,
     UNKNOWN_PLATFORM_ID,
     PlatformAdapterConflictError,
     PlatformAdapterDeprecatedError,
@@ -26,6 +27,7 @@ from .registry import (
 )
 
 __all__ = [
+    "QQ_CAPABILITIES",
     "UNKNOWN_PLATFORM_ID",
     "PlatformAdapterConflictError",
     "PlatformAdapterDeprecatedError",

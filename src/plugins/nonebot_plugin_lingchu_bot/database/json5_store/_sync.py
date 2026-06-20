@@ -110,3 +110,34 @@ async def ensure_json5_dict_file_async(
             await aiofiles.os.unlink(temp_path)
         raise JSON5FileReadError(path, exc) from exc
     return path
+
+
+async def write_json5_dict_file_async(
+    file_path: str | Path,
+    data: dict[str, Any],
+    *,
+    indent: int = 2,
+    ensure_ascii: bool = False,
+) -> Path:
+    """异步原子写入 JSON5 字典文件，覆盖已有内容。
+
+    与 ``ensure_json5_dict_file_async`` 不同，该函数始终写入数据，
+    适合持久化需要覆盖旧内容的场景（如状态保存）。
+    """
+    path = Path(file_path)
+    await aiofiles.os.makedirs(path.parent, exist_ok=True)
+    temp_path = path.with_suffix(".tmp.json5")
+    try:
+        content = json5.dumps(
+            data,
+            indent=indent,
+            ensure_ascii=ensure_ascii,
+        )
+        async with aiofiles.open(temp_path, "w", encoding="utf-8") as f:
+            await f.write(content)
+        await aiofiles.os.replace(temp_path, path)
+    except (OSError, TypeError, ValueError) as exc:
+        with contextlib.suppress(OSError):
+            await aiofiles.os.unlink(temp_path)
+        raise JSON5FileReadError(path, exc) from exc
+    return path

@@ -10,7 +10,6 @@ from ...permissions.types import PermissionContext, PlatformIdentityGroupSeed
 logger = logging.getLogger(__name__)
 
 PLATFORM_ID = "qq"
-QQ_PLATFORM_ID = PLATFORM_ID
 
 
 def get_default_identity_groups() -> tuple[PlatformIdentityGroupSeed, ...]:

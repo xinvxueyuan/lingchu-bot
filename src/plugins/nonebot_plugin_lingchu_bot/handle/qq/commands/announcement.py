@@ -67,7 +67,6 @@ send_group_announcement_cmd: type[AlconnaMatcher] = on_alconna(
 )
 
 _LAZY_EXPORTS = {
-    "milkybot_send_group_announcement": "..adapters.milky.default.announcement",
     "onebot_v11_send_group_announcement": ("..adapters.onebot11.default.announcement"),
 }
 

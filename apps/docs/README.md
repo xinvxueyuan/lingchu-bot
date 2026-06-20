@@ -28,6 +28,6 @@ Important files:
 | Route                     | Description                                            |
 | ------------------------- | ------------------------------------------------------ |
 | `app/(home)`              | The language landing page.                             |
-| `app/docs`                | Simplified Chinese documentation.                      |
-| `app/en/docs`             | English documentation.                                 |
+| `app/docs`                | English documentation (default locale).                |
+| `app/zh/docs`             | Simplified Chinese documentation.                      |
 | `app/api/search/route.ts` | Static search index route.                             |

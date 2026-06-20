@@ -8,7 +8,6 @@ import pytest
 from src.plugins.nonebot_plugin_lingchu_bot.permissions.types import PermissionContext
 from src.plugins.nonebot_plugin_lingchu_bot.platforms.qq.permissions import (
     PLATFORM_ID,
-    QQ_PLATFORM_ID,
     resolve_runtime_identity_groups,
 )
 
@@ -133,6 +132,5 @@ async def test_member_role_returns_member_groups_without_api_call() -> None:
 
 
 def test_platform_id_constant() -> None:
-    """PLATFORM_ID 为 qq，QQ_PLATFORM_ID 为兼容别名。"""
+    """PLATFORM_ID 为 qq。"""
     assert PLATFORM_ID == "qq"
-    assert QQ_PLATFORM_ID == PLATFORM_ID

@@ -19,6 +19,7 @@ from ._sync import (
     ensure_json5_dict_file_async,
     ensure_json5_dict_file_sync,
     load_json5_dict_sync,
+    write_json5_dict_file_async,
 )
 from .exceptions import (
     AtomicReplacementError,
@@ -58,4 +59,5 @@ __all__ = [
     "ensure_json5_dict_file_async",
     "ensure_json5_dict_file_sync",
     "load_json5_dict_sync",
+    "write_json5_dict_file_async",
 ]

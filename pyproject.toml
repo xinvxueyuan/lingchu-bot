@@ -51,7 +51,6 @@ dependencies = [
 
 [project.optional-dependencies]
 deprecated-adapters = [
-    "nonebot-adapter-milky>=1.2.0",
     "nonebot-adapter-qq>=1.7.1",
 ]
 
@@ -133,6 +132,7 @@ nonebot-plugin-docs = ["nonebot_plugin_docs"]
 [tool.ruff]
 line-length = 88
 target-version = "py313"
+# skills 排除列表同步至 prek.toml
 extend-exclude = ["skills", ".agents/skills", ".claude/skills", ".trae/skills"]
 
 [tool.ruff.format]
@@ -223,6 +223,7 @@ keep-runtime-typing = true
 pythonVersion = "3.13"
 pythonPlatform = "All"
 typeCheckingMode = "standard"
+# skills 排除列表同步至 prek.toml
 exclude = [
   "skills",
   ".agents/skills",
@@ -238,11 +239,10 @@ exclude = [
   ".mypy_cache",
   ".ruff_cache",
   ".pyright",
-  # Deprecated adapters — optional dependencies not installed in CI
-  "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/milky",
 ]
 
 [tool.ty.src]
+# skills 排除列表同步至 prek.toml
 exclude = [
   "skills/",
   ".agents/skills/",
@@ -251,13 +251,13 @@ exclude = [
   "apps/",
   "packages/",
   "docker/",
-  "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/milky",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 pythonpath = ["src"]
+addopts = "--import-mode=importlib"
 filterwarnings = [
     "ignore:No path_separator found in configuration:DeprecationWarning:alembic.config",
     "ignore:The version_path_separator configuration parameter is deprecated:DeprecationWarning:alembic.config",
