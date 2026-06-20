@@ -126,15 +126,19 @@ def _mock_sql_constructors() -> Generator[None]:
     """
     with (
         patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud.select",
+            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._single.select",
             MagicMock(return_value=MagicMock()),
         ),
         patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud.sqlalchemy_delete",
+            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._bulk.select",
             MagicMock(return_value=MagicMock()),
         ),
         patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud.sqlalchemy_update",
+            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._single.sqlalchemy_delete",
+            MagicMock(return_value=MagicMock()),
+        ),
+        patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._single.sqlalchemy_update",
             MagicMock(return_value=MagicMock()),
         ),
     ):
@@ -185,9 +189,15 @@ def _patch_get_session(mock_async_session: Mock) -> Generator[None]:
     Yields:
         None: Yields during test execution, restores get_session afterward.
     """
-    with patch(
-        "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud.get_session",
-        new=lambda: _fake_session_ctx(mock_async_session),
+    with (
+        patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._single.get_session",
+            new=lambda: _fake_session_ctx(mock_async_session),
+        ),
+        patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._bulk.get_session",
+            new=lambda: _fake_session_ctx(mock_async_session),
+        ),
     ):
         yield
 
@@ -454,7 +464,7 @@ class TestGetColumnMap:
             AssertionError: If extracted column names don't match expected set.
         """
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud.inspect"
+            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._base.inspect"
         ) as mock_inspect:
             mapper = MagicMock()
             mapper.columns = [MagicMock(key="id"), MagicMock(key="name")]
@@ -475,7 +485,7 @@ class TestGetColumnMap:
             AssertionError: If None is not returned on inspection failure.
         """
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud.inspect",
+            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._base.inspect",
             side_effect=SQLAlchemyError,
         ):
             cols = _get_column_map(model=mock_model)
@@ -1014,8 +1024,7 @@ class TestUpdate:
         """
         with (
             patch(
-                "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud."
-                "_get_column_map",
+                "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._base._get_column_map",
                 return_value={"id": mock_model.id, "name": mock_model.name},
             ),
             pytest.raises(expected_exception=ValueError, match="Unknown column"),
@@ -1394,7 +1403,7 @@ class TestUpsert:
         mock_async_session.execute.return_value.scalar_one.return_value = obj
 
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud.sqlite_insert",
+            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._bulk.sqlite_insert",
             return_value=stmt,
             create=True,
         ) as sqlite_insert:
@@ -1422,7 +1431,7 @@ class TestUpsert:
         mock_async_session.execute.return_value.scalar_one.return_value = obj
 
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud.postgresql_insert",
+            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._bulk.postgresql_insert",
             return_value=stmt,
             create=True,
         ) as postgresql_insert:
@@ -1469,7 +1478,7 @@ class TestUpsert:
         ]
 
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud.mysql_insert",
+            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._bulk.mysql_insert",
             return_value=stmt,
             create=True,
         ) as mysql_insert_mock:
@@ -1503,7 +1512,7 @@ class TestUpsert:
         ]
 
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud.mysql_insert",
+            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._bulk.mysql_insert",
             return_value=stmt,
             create=True,
         ):
@@ -1544,7 +1553,7 @@ class TestUpsert:
 
         with (
             patch(
-                "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud.mysql_insert",
+                "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._bulk.mysql_insert",
                 return_value=stmt,
                 create=True,
             ),

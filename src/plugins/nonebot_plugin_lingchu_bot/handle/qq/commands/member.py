@@ -70,11 +70,6 @@ kick_group_member_cmd: type[AlconnaMatcher] = on_alconna(
 )
 
 _LAZY_EXPORTS = {
-    "milkybot_set_group_member_card": "..adapters.milky.default.member",
-    "milkybot_set_group_member_special_title": "..adapters.milky.default.member",
-    "milkybot_set_group_member_admin": "..adapters.milky.default.member",
-    "milkybot_unset_group_member_admin": "..adapters.milky.default.member",
-    "milkybot_kick_group_member": "..adapters.milky.default.member",
     "onebot11_set_group_member_card": "..adapters.onebot11.default.member",
     "onebot11_set_group_member_special_title": "..adapters.onebot11.default.member",
     "onebot11_set_group_member_admin": "..adapters.onebot11.default.member",

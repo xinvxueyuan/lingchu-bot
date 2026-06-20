@@ -75,8 +75,6 @@ set_group_avatar_cmd: type[AlconnaMatcher] = on_alconna(
 )
 
 _LAZY_EXPORTS = {
-    "milkybot_set_group_name": "..adapters.milky.default.profile",
-    "milkybot_set_group_avatar": "..adapters.milky.default.profile",
     "onebot11_set_group_name": "..adapters.onebot11.default.profile",
     "onebot11_set_group_avatar": "..adapters.onebot11.default.profile",
 }

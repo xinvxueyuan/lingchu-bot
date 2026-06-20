@@ -46,7 +46,7 @@ __plugin_meta__ = PluginMetadata(
 from .database import json5_store as json5_store
 from .database import models as models
 from .database import orm_crud as orm_crud
-from .services import messagestore as messagestore
+from .services import message_store as message_store
 from .start.startup import startup as startup
 
 config: Config = get_plugin_config(config=Config)

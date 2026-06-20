@@ -16,7 +16,7 @@ from ..platforms import (
     validate_enabled_adapters_loaded,
 )
 from ..repositories.registry import seed_registry_tables
-from ..services.messagestore import (
+from ..services.message_store import (
     initialize_message_store,
     record_bot_lifecycle,
     shutdown_message_store,

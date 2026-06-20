@@ -119,9 +119,9 @@ def test_deprecated_adapter_onebot_v12_raises_error() -> None:
 def test_multiple_deprecated_adapters_raises_error_with_all() -> None:
     """同时配置多个停维适配器时错误信息包含全部。"""
     with pytest.raises(PlatformAdapterDeprecatedError) as exc_info:
-        get_supported_adapters("~milky+~qq")
+        get_supported_adapters("~qq+~onebot.v12")
 
-    assert exc_info.value.adapters == frozenset({"~milky", "~qq"})
+    assert exc_info.value.adapters == frozenset({"~qq", "~onebot.v12"})
 
 
 def test_deprecated_error_message_contains_status_and_suggestion() -> None:

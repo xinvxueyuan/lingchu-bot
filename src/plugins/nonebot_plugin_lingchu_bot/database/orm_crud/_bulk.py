@@ -1,0 +1,421 @@
+"""批量与 upsert 操作：bulk_create、upsert、list_items、async_iterate_safe。"""
+
+# ruff: noqa: TRY003
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable, Sequence  # noqa: TC003
+from typing import TYPE_CHECKING, Any
+
+from nonebot_plugin_orm import Model, get_session
+from sqlalchemy import select
+from sqlalchemy.dialects.mysql import insert as mysql_insert
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.exc import SQLAlchemyError
+
+from ._base import (
+    DatabaseError,
+    _combined_conditions,
+    _get_column_map,
+    _get_session_dialect_name,
+    _orders,
+    _validate_column_values,
+    logger,
+)
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.sql.elements import ColumnElement
+
+
+async def bulk_create[T: Model](
+    model: type[T],
+    objs: list[dict[str, Any]],
+    *,
+    commit: bool = True,
+    partial: bool = False,
+) -> tuple[list[T], list[tuple[int, str]]]:
+    """批量创建多条记录。
+
+    Args:
+        model: ORM 模型类 / ORM model class.
+        objs: 待创建字段字典列表 / List of field dictionaries.
+        commit: 是否立即提交 / Whether to commit immediately.
+        partial: 是否允许部分成功 / Whether to skip failed rows and continue.
+
+    Returns:
+        (成功对象列表, 失败项列表) / (created objects, failure list).
+
+    Raises:
+        DatabaseError: partial 为 False 且批量创建失败时。
+    """
+    validated_objs = [_validate_column_values(model, fields) for fields in objs]
+    async with get_session() as s:
+        if not partial:
+            instances = [model(**fields) for fields in validated_objs]
+            s.add_all(instances)
+            try:
+                if commit:
+                    await s.commit()
+                    for obj in instances:
+                        await s.refresh(obj)
+                else:
+                    await s.flush()
+            except SQLAlchemyError as e:
+                await s.rollback()
+                raise DatabaseError("Bulk create failed") from e
+            return instances, []
+
+        # Partial mode: individual savepoints
+        created: list[T] = []
+        failed: list[tuple[int, str]] = []
+        for idx, fields in enumerate(validated_objs):
+            savepoint = await s.begin_nested()
+            try:
+                obj = model(**fields)
+                s.add(obj)
+                await savepoint.commit()
+                created.append(obj)
+            except SQLAlchemyError as exc:
+                await savepoint.rollback()
+                msg = f"{type(exc).__name__}: {exc}"
+                logger.warning(
+                    "Skipped item %d in bulk_create (partial=True): %s", idx, msg
+                )
+                failed.append((idx, msg))
+        try:
+            if commit:
+                await s.commit()
+                for obj in created:
+                    await s.refresh(obj)
+            else:
+                await s.flush()
+        except SQLAlchemyError as e:
+            await s.rollback()
+            raise DatabaseError("Bulk create failed") from e
+        return created, failed
+
+
+def _validate_upsert_conflict_target[T: Model](
+    model: type[T],
+    columns: dict[str, Any],
+    conflict_fields: Sequence[str] | None,
+    constraint: str | None,
+) -> list[str]:
+    """校验 upsert 冲突目标并返回字段列表。"""
+    if conflict_fields and constraint:
+        raise ValueError("Specify either conflict_fields or constraint, not both")
+    if not conflict_fields and not constraint:
+        raise ValueError("An upsert conflict target is required")
+
+    conflict_keys = list(conflict_fields or [])
+    for key in conflict_keys:
+        if key not in columns:
+            raise ValueError(f"Unknown column '{key}' for model '{model.__name__}'")
+    return conflict_keys
+
+
+def _prepare_upsert_update_values[T: Model](
+    model: type[T],
+    insert_values: dict[str, Any],
+    conflict_keys: Sequence[str],
+    update_values: dict[str, Any] | None,
+) -> tuple[list[str], dict[str, Any] | None]:
+    """准备 upsert 的更新字段。"""
+    if update_values is not None:
+        explicit_update_values = _validate_column_values(model, update_values)
+        if not explicit_update_values:
+            raise ValueError("At least one update column is required for upsert")
+        return [], explicit_update_values
+
+    update_keys = [key for key in insert_values if key not in conflict_keys]
+    if not update_keys:
+        raise ValueError("At least one update column is required for upsert")
+    return update_keys, None
+
+
+def _dialect_insert_statement[T: Model](
+    model: type[T],
+    dialect_name: str,
+    constraint: str | None,
+) -> Any:
+    """按数据库方言创建 upsert insert 语句。"""
+    if dialect_name == "sqlite":
+        if constraint is not None:
+            raise ValueError("SQLite upsert requires conflict_fields")
+        return sqlite_insert(model)
+    if dialect_name == "postgresql":
+        return postgresql_insert(model)
+    raise DatabaseError(f"Upsert is not supported for dialect '{dialect_name}'")
+
+
+def _upsert_set_values(
+    stmt: Any,
+    update_keys: Sequence[str],
+    explicit_update_values: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """生成 upsert 的 SET 字段。"""
+    if explicit_update_values is not None:
+        return explicit_update_values
+    return {key: getattr(stmt.excluded, key) for key in update_keys}
+
+
+def _upsert_conflict_kwargs(
+    columns: dict[str, Any],
+    conflict_keys: Sequence[str],
+    constraint: str | None,
+) -> dict[str, Any]:
+    """生成 on_conflict_do_update 的冲突目标参数。"""
+    if constraint is not None:
+        return {"constraint": constraint}
+    return {"index_elements": [columns[key] for key in conflict_keys]}
+
+
+def _mysql_upsert_set_values(
+    stmt: Any,
+    update_keys: Sequence[str],
+    explicit_update_values: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """生成 MySQL on_duplicate_key_update 的 SET 字段。
+
+    MySQL 使用 ``stmt.inserted.<col>`` 引用 INSERT 的值，
+    等价于 PostgreSQL/SQLite 的 ``stmt.excluded.<col>``。
+    """
+    if explicit_update_values is not None:
+        return explicit_update_values
+    return {key: getattr(stmt.inserted, key) for key in update_keys}
+
+
+async def upsert[T: Model](
+    model: type[T],
+    insert_values: dict[str, Any],
+    *,
+    conflict_fields: Sequence[str] | None = None,
+    constraint: str | None = None,
+    update_values: dict[str, Any] | None = None,
+) -> T:
+    """执行方言级原子 upsert（SQLite/PostgreSQL/MySQL）。
+
+    Args:
+        model: ORM 模型类 / ORM model class.
+        insert_values: 插入字段 / Values used for INSERT.
+        conflict_fields: 唯一冲突字段 / Conflict-target columns.
+        constraint: PostgreSQL 约束名 / PostgreSQL constraint name.
+        update_values: 冲突时更新字段；默认使用 excluded insert values。
+
+    Returns:
+        upsert 后返回的 ORM 对象 / ORM object returned by RETURNING.
+
+    Raises:
+        ValueError: 参数或字段非法时 / On invalid arguments or columns.
+        DatabaseError: 数据库执行失败或方言不支持时 / On DB failure.
+    """
+    if not insert_values:
+        raise ValueError("insert_values cannot be empty")
+
+    insert_values = _validate_column_values(model, insert_values)
+    columns = _get_column_map(model)
+    conflict_keys = _validate_upsert_conflict_target(
+        model,
+        columns,
+        conflict_fields,
+        constraint,
+    )
+    update_keys, explicit_update_values = _prepare_upsert_update_values(
+        model,
+        insert_values,
+        conflict_keys,
+        update_values,
+    )
+
+    async with get_session() as s:
+        dialect_name = _get_session_dialect_name(s)
+
+        if dialect_name == "mysql":
+            return await _mysql_upsert(
+                s,
+                model,
+                insert_values,
+                columns,
+                conflict_keys,
+                update_keys,
+                explicit_update_values,
+                constraint,
+            )
+
+        insert_stmt = _dialect_insert_statement(model, dialect_name, constraint)
+        stmt = insert_stmt.values(**insert_values)
+        set_values = _upsert_set_values(stmt, update_keys, explicit_update_values)
+        conflict_kwargs = _upsert_conflict_kwargs(columns, conflict_keys, constraint)
+
+        stmt = stmt.on_conflict_do_update(**conflict_kwargs, set_=set_values)
+        stmt = stmt.returning(model)
+
+        try:
+            result = await s.execute(stmt)
+            obj = result.scalar_one()
+            await s.commit()
+        except SQLAlchemyError as e:
+            await s.rollback()
+            raise DatabaseError("Upsert failed") from e
+        return obj
+
+
+async def _mysql_upsert[T: Model](  # noqa: PLR0913
+    s: AsyncSession,
+    model: type[T],
+    insert_values: dict[str, Any],
+    columns: dict[str, Any],
+    conflict_keys: list[str],
+    update_keys: list[str],
+    explicit_update_values: dict[str, Any] | None,
+    constraint: str | None,
+) -> T:
+    """MySQL 方言的 upsert 实现。
+
+    使用 ``INSERT ... ON DUPLICATE KEY UPDATE`` 语义。MySQL 不支持
+    ``RETURNING``，因此执行后通过 ``conflict_fields`` 做一次 follow-up
+    ``SELECT`` 取回最新行。
+    """
+    if constraint is not None:
+        raise ValueError(
+            "MySQL upsert does not support constraint; use conflict_fields"
+        )
+    if not conflict_keys:
+        raise ValueError("MySQL upsert requires conflict_fields for follow-up SELECT")
+
+    insert_stmt = mysql_insert(model).values(**insert_values)
+    set_values = _mysql_upsert_set_values(
+        insert_stmt, update_keys, explicit_update_values
+    )
+    stmt = insert_stmt.on_duplicate_key_update(**set_values)
+
+    try:
+        await s.execute(stmt)
+        await s.commit()
+    except SQLAlchemyError as e:
+        await s.rollback()
+        raise DatabaseError("Upsert failed") from e
+
+    # MySQL 不支持 RETURNING，通过 conflict_keys 做一次 SELECT 取回最新行。
+    where_clauses = [
+        columns[key].is_(insert_values[key])
+        if insert_values[key] is None
+        else columns[key] == insert_values[key]
+        for key in conflict_keys
+    ]
+    try:
+        result = await s.execute(select(model).where(*where_clauses))
+        obj = result.scalar_one_or_none()
+    except SQLAlchemyError as e:
+        raise DatabaseError("Upsert failed to fetch row") from e
+    if obj is None:
+        raise DatabaseError("Upsert succeeded but row not found")
+    return obj
+
+
+async def list_items[T: Model](  # noqa: PLR0913
+    model: type[T],
+    filters: dict[str, Any] | None = None,
+    order_by: Sequence[str] | None = None,
+    *,
+    conditions: Sequence[ColumnElement[bool]] | None = None,
+    offset: int = 0,
+    limit: int = 100,
+) -> list[T]:
+    """列出符合条件的记录。
+
+    Args:
+        model: ORM 模型类 / ORM model class.
+        filters: 筛选条件 / Filter conditions.
+        order_by: 排序字段 / Sort fields.
+        offset: 偏移量 / Result offset.
+        limit: 限制数量 / Maximum number of rows.
+
+    Returns:
+        模型对象列表 / List of model objects.
+
+    Raises:
+        DatabaseError: 查询失败时 / On query failure.
+    """
+    cs = _combined_conditions(
+        model,
+        filters,
+        conditions,
+        require_non_empty=False,
+    )
+    async with get_session() as s:
+        try:
+            stmt = select(model)
+            if cs:
+                stmt = stmt.where(*cs)
+            os = _orders(model, order_by)
+            if os:
+                stmt = stmt.order_by(*os)
+            if offset:
+                stmt = stmt.offset(offset)
+            if limit:
+                stmt = stmt.limit(limit)
+            res = await s.execute(stmt)
+            return list(res.scalars().all())
+        except SQLAlchemyError as e:
+            raise DatabaseError("Failed to list records") from e
+
+
+async def async_iterate_safe[T: Model](  # noqa: PLR0913
+    model: type[T],
+    *,
+    filters: dict[str, Any] | None = None,
+    conditions: Sequence[ColumnElement[bool]] | None = None,
+    order_by: Sequence[str] | None = None,
+    batch_size: int = 1000,
+    callback: Callable[[T], Awaitable[None]] | None = None,
+    collect: bool = False,
+) -> list[T]:
+    """安全遍历大型结果集。
+
+    Args:
+        model: ORM 模型类 / ORM model class.
+        filters: 筛选条件 / Filter conditions.
+        order_by: 排序字段列表 / Sort field list.
+        batch_size: 每批加载的记录数 / Rows fetched per batch.
+        callback: 对每条记录调用的异步回调 / Async callback per item.
+        collect: 是否把所有结果收集后返回 / Whether to collect all items.
+
+    Returns:
+        若 collect 为 True，则返回收集到的对象列表，否则返回空列表。
+        Returns the collected objects when collect is True, otherwise an empty list.
+
+    Raises:
+        ValueError: callback 与 collect 同时启用时 / When callback and collect
+            are both set.
+        DatabaseError: 迭代查询失败时 / On iteration query failure.
+    """
+    if callback is not None and collect:
+        raise ValueError("callback and collect are mutually exclusive")
+
+    cs = _combined_conditions(
+        model,
+        filters,
+        conditions,
+        require_non_empty=False,
+    )
+    results: list[T] = []
+    async with get_session() as s:
+        try:
+            stmt = select(model)
+            if cs:
+                stmt = stmt.where(*cs)
+            os = _orders(model, order_by)
+            if os:
+                stmt = stmt.order_by(*os)
+            stream = await s.stream(stmt, execution_options={"yield_per": batch_size})
+            async for row in stream:
+                item = row[0]
+                if callback is not None:
+                    await callback(item)
+                if collect:
+                    results.append(item)
+        except SQLAlchemyError as e:
+            raise DatabaseError("Failed to iterate records") from e
+    return results

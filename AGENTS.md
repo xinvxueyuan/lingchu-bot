@@ -336,6 +336,13 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
   - "开机"/"关机" (boot/shutdown) use both `bypass_gate=True` and `bypass_silent=True` — they must always work to recover the bot from any state.
 - **Menu**: The "bot-control" page is replaced with a "system-management" / "系统管理" top-level page containing children "silent-mode" / "静默模式" and "handle-gate" / "开关机".
 
+### Configuration Management
+
+- **Pre-commit hooks**: `prek.toml` is the single source of truth for pre-commit hook configuration. The legacy `.pre-commit-config.yaml` has been removed — do not re-introduce it.
+- **Version sync**: The `Taskfile.yml` `ci:version:write-config` task writes the project version to both `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` (Python `__version__`) and `apps/docs/package.json` (`version` field). When bumping the version, run this task rather than editing files manually.
+- **JSON Schemas**: The `schema/` directory at the repository root contains JSON Schema files for validating JSON5 config files: `config.schema.json5` (for `config.json5`) and `bot_state.schema.json5` (for `bot_state.json5`). Editors that support `$schema` comments can reference these for autocompletion and validation.
+- **Skills exclusion sync**: `pyproject.toml` has comments at skills exclusion lists noting "skills 排除列表同步至 prek.toml" — when updating exclusion patterns in one config, sync the other.
+
 ## Lessons Learned
 
 > **Timeliness warning**: Lessons below reflect the state of the codebase and dependencies at the time they were written. Before relying on any lesson, verify it still holds — APIs change, packages add exports, and CI configs evolve. When a lesson becomes outdated, update or remove it rather than propagating stale assumptions.
@@ -391,7 +398,7 @@ Same-named APIs return different types across adapters:
 | `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
 | `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
 
-The project uses `platforms/registry.py` to unify adapters under a single "QQ" platform profile. Only OneBot V11 is now active; Milky, QQ, and OneBot V12 are deprecated and removed from the startup flow, but their source files are preserved with `DEPRECATED = True` markers and can be loaded on demand via `tools/adapter_loader.py`. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,llonebot,napcat}/`, and (deprecated) Milky handlers in `handle/qq/adapters/milky/{default,llbot}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+The project uses `platforms/registry.py` to unify adapters under a single "QQ" platform profile. Only OneBot V11 is now active; Milky, QQ, and OneBot V12 are deprecated and removed from the startup flow. QQ and OneBot V12 source files are preserved with `DEPRECATED = True` markers and can be loaded on demand via `tools/adapter_loader.py`; the Milky adapter has been fully removed. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,llonebot,napcat}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
 
 ### Function Signature Changes
 
@@ -479,8 +486,8 @@ When removing functions/helpers:
 
 ### Database Storage Reorganization
 
-- **Unified ORM consolidation**: When migrating from custom SQLAlchemy engines to `nonebot_plugin_orm`, remove ALL custom engine management code (`Base`, `_ENGINES`, `session_for()`, `storage_target()`, `close_engines()`) — do not leave remnants. All data access must go through `orm_crud.py` + `get_session()`.
-- **Test rewrite pattern**: Tests that directly manipulated database files (e.g., checking `.db` file existence, using `session_for()` to modify records) MUST be rewritten to mock `orm_crud` functions at the repository module level using `patch.object(repository, "create"/"upsert"/"get_one"/"update"/"list_items"/"delete", ...)`. Follow the pattern in `tests/database/test_blocklist.py`.
+- **Unified ORM consolidation**: When migrating from custom SQLAlchemy engines to `nonebot_plugin_orm`, remove ALL custom engine management code (`Base`, `_ENGINES`, `session_for()`, `storage_target()`, `close_engines()`) — do not leave remnants. All data access must go through `orm_crud/` package + `get_session()`.
+- **Test rewrite pattern**: Tests that directly manipulated database files (e.g., checking `.db` file existence, using `session_for()` to modify records) MUST be rewritten to mock `orm_crud` functions at the repository module level using `patch.object(repository, "create"/"upsert"/"get_one"/"update"/"list_items"/"delete", ...)`. Follow the pattern in `tests/repositories/test_blocklist.py`.
 - **Alembic migration generation**: `nb orm revision` may generate an empty migration (`pass` in both `upgrade()` and `downgrade()`) if the database file already contains tables from previous `create_all` calls. In this case, manually write the migration script with `op.create_table()` / `op.create_index()` operations based on the model definitions, or delete the existing database file first (if not locked by another process).
 - **File-to-package conversion**: When converting a single `.py` file (e.g., `json5_store.py`) to a package (`json5_store/`), the `__init__.py` MUST explicitly re-export all public API symbols via `from .submodule import Symbol` and list them in `__all__`. Merely importing the submodule is insufficient — test imports like `from ..database.json5_store import RobustAsyncJSON5DB` will fail without explicit re-exports.
 - **Migration script lint**: Alembic-generated migration scripts use `collections.abc.Sequence` only for type annotations. With `from __future__ import annotations` in place, move the `Sequence` import into a `TYPE_CHECKING` block to satisfy ruff's `TC003` rule.
@@ -876,6 +883,7 @@ These components are registered in `getMDXComponents()` and available in all `.m
 |------|---------|
 | `source.config.ts` | Fumadocs MDX config: remark plugins (AutoTypeTable, MdxFiles, Mermaid), rehype code options (Twoslash, themes), last-modified plugin |
 | `next.config.mjs` | Next.js config with Fumadocs static export settings |
+| `tsconfig.json` | TypeScript config — extends `@repo/typescript-config/nextjs.json` from the shared `packages/typescript-config/` workspace |
 | `vitest.config.ts` | Vitest config: jsdom environment, CSS ignore, path aliases |
 | `eslint.config.mjs` | ESLint flat config with Next.js rules |
 | `postcss.config.mjs` | PostCSS with `@tailwindcss/postcss` |
@@ -903,14 +911,23 @@ lingchu-bot/
 │   └── plugins/nonebot_plugin_lingchu_bot/   # Core Python plugin
 │       ├── __init__.py               # Plugin entry point, matcher registration
 │       ├── core/
+│       │   ├── async_utils.py        # fire_and_forget helper for discardable background tasks
 │       │   ├── config.py             # Plugin config model (Pydantic)
 │       │   ├── runtime_config.py     # Runtime configuration helpers
-│       │   ├── bot_state.py          # Two-tier bot state (global + per-platform) with JSON5 persistence
-│       │   └── sub_plugins.py        # Sub-plugin loader
+│       │   └── bot_state.py          # Two-tier bot state (global + per-platform) with JSON5 persistence
 │       ├── database/
 │       │   ├── json5_store/          # JSON5-based key-value store (package)
-│       │   ├── models.py             # ORM models: records/audit/blocklist + platform/adapter/protocol registry (nonebot_plugin_orm)
-│       │   └── orm_crud.py           # Async CRUD helpers
+│       │   ├── models/               # ORM models package (nonebot_plugin_orm)
+│       │   │   ├── __init__.py       # Re-exports 11 models + utc_now
+│       │   │   ├── message.py       # MessageRecord, AuditRecord, utc_now
+│       │   │   ├── blocklist.py     # BlocklistEntry
+│       │   │   ├── registry.py      # Platform, Adapter, ProtocolImplementation
+│       │   │   └── identity.py      # IdentityUser, PlatformAccount, PlatformIdentityGroup, IdentityMembership, PermissionGrant
+│       │   └── orm_crud/             # Async CRUD helpers package
+│       │       ├── __init__.py       # Re-exports CRUD functions
+│       │       ├── _base.py         # DatabaseError, helpers, session
+│       │       ├── _single.py        # create, get_one, update, delete, exists, count, get_or_create, update_or_create
+│       │       └── _bulk.py          # upsert, bulk_create, list_items, async_iterate_safe
 │       ├── handle/
 │       │   ├── menu.py               # Menu system (pages, sections, features, availability)
 │       │   └── qq/                   # QQ platform handlers
@@ -925,8 +942,7 @@ lingchu-bot/
 │       │       │   ├── profile.py    # Group profile commands
 │       │       │   ├── lifecycle.py  # Bot lifecycle command
 │       │       │   ├── kick.py       # Kick command
-│       │       │   ├── common.py     # Shared command helpers (selected_adapter_handle)
-│       │       │   └── test.py       # Test command
+│       │       │   └── common.py     # Shared command helpers (selected_adapter_handle)
 │       │       └── adapters/
 │       │           ├── onebot11/     # OneBot V11 protocol handlers
 │       │           │   ├── default/  # Default implementation handlers
@@ -935,30 +951,24 @@ lingchu-bot/
 │       │           │   │   └── ...   # mute, member, block, kick, profile, menu, lifecycle, test, bot_state
 │       │           │   ├── llonebot/ # LLOneBot extensions (announcement)
 │       │           │   └── napcat/   # NapCat extensions (announcement, profile)
-│       │           └── milky/        # Milky protocol handlers
-│       │               ├── default/  # Default implementation handlers
-│       │               └── llbot/    # LLBot extensions (announcement)
 │       ├── i18n/                     # Babel/gettext translations (en, zh)
 │       ├── migrations/                # Alembic database migration scripts
 │       ├── platforms/                # Adapter registry and platform-owned permission definitions
-│       │   ├── config.py            # Platform runtime configuration helpers
 │       │   ├── registry.py          # Cross-platform capability & adapter selection
 │       │   └── qq/permissions.py    # QQ default identity groups and runtime identity resolution
 │       ├── permissions/              # UID identity, platform account, command grant & SUPERUSERS APIs
 │       ├── repositories/             # Data access layer
+│       │   ├── __init__.py         # Package init
 │       │   ├── blocklist.py         # Blocklist repository
 │       │   ├── message_store.py     # Message store repository
 │       │   ├── permissions.py       # Permission-system ORM repository
-│       │   ├── registry.py          # Platform/adapter/protocol registry seeding
-│       │   └── user_mapping.py      # UID/platform account binding compatibility entrypoint
+│       │   └── registry.py          # Platform/adapter/protocol registry seeding
 │       ├── services/                 # Business logic services
-│       │   └── messagestore.py      # Message storage service
+│       │   └── message_store.py     # Message storage service
 │       └── start/                    # Startup & initialization
-│           ├── bootstrap.py         # Bootstrap sequence
-│           ├── initialize.py        # Plugin initialization
 │           └── startup.py           # Startup hooks
 ├── apps/
-│   ├── docs/                         # Fumadocs documentation site
+│   └── docs/                         # Fumadocs documentation site
 │       ├── content/docs/             # MDX content
 │       │   ├── index.mdx             # Docs landing page (en)
 │       │   ├── index.zh.mdx          # Docs landing page (zh)
@@ -976,15 +986,11 @@ lingchu-bot/
 │       │   │   └── qq/               # QQ platform docs
 │       │   │       ├── overview.mdx  # QQ platform overview (protocol priority, implementation matrix)
 │       │   │       ├── commands.mdx  # Full QQ command reference (incl. remote management)
-│       │   │       ├── onebot-v11/   # OneBot V11 protocol docs
+│       │   │       └── onebot-v11/   # OneBot V11 protocol docs
 │       │   │       │   ├── overview.mdx  # Protocol overview
 │       │   │       │   ├── default.mdx   # Default implementation
 │       │   │       │   ├── napcat.mdx    # NapCat implementation
 │       │   │       │   └── llonebot.mdx  # LLOneBot implementation
-│       │   │       └── milky/        # Milky protocol docs
-│       │   │           ├── overview.mdx  # Protocol overview
-│       │   │           ├── default.mdx   # Default implementation
-│       │   │           └── llbot.mdx     # LLBot implementation
 │       │   └── developer-guide/      # Developer documentation
 │       │       ├── introduction.mdx  # Project structure & architecture
 │       │       ├── adapter-guide.mdx # Adapter selection & configuration
@@ -1025,12 +1031,14 @@ lingchu-bot/
 │       ├── next.config.mjs           # Next.js config
 │       ├── vitest.config.ts          # Test config
 │       └── eslint.config.mjs         # Lint config
-│   └── web/                          # Web workspace (placeholder, currently empty)
 ├── packages/
 │   ├── eslint-config/                # Shared ESLint configs (base, next, react-internal)
 │   ├── typescript-config/            # Shared TS configs (base, nextjs, react-library)
 │   └── ui/                           # Shared UI components (button, card, code)
 ├── docker/                          # Docker runtime support scripts (gunicorn, start.sh)
+├── schema/                          # JSON Schemas for config files
+│   ├── config.schema.json5         # Schema for config.json5
+│   └── bot_state.schema.json5      # Schema for bot_state.json5
 ├── tools/                           # Standalone utility tools
 │   ├── __init__.py
 │   └── adapter_loader.py           # Deprecated adapter on-demand loader (Milky, QQ, OneBot V12)
@@ -1045,8 +1053,7 @@ lingchu-bot/
 ├── pyproject.toml                    # Python project config (uv, ruff, pyright, pytest)
 ├── package.json                      # Monorepo root (pnpm + Turborepo)
 ├── Taskfile.yml                      # Task runner for CI/local commands
-├── prek.toml                         # Prek (Rust pre-commit) config
-├── .pre-commit-config.yaml           # Pre-commit config (legacy)
+├── prek.toml                         # Prek (Rust pre-commit) config — single source of truth for pre-commit hooks
 ├── CHANGELOG.md                      # Changelog
 ├── README-zh.md                      # Chinese README
 ├── Repository-Policy.md              # Repository policy (English)
@@ -1091,15 +1098,15 @@ lingchu-bot/
 │                                                                   │
 │  __init__.py ──► core/config.py ──► Pydantic settings            │
 │              ──► core/runtime_config.py ──► runtime helpers       │
-│              ──► core/sub_plugins.py ──► sub-plugin loader        │
+│              ──► core/async_utils.py ──► fire_and_forget helper    │
 │              ──► platforms/registry.py ──► adapter resolution + protocol impls │
-│              ──► database/orm_crud.py ──► models.py (records/audit/blocklist + registry tables) │
+│              ──► database/orm_crud/ ──► models/ (records/audit/blocklist + identity + registry tables) │
 │              ──► database/json5_store/ ──► JSON5 KV store      │
 │              ──► repositories/blocklist.py ──► blocklist data    │
 │              ──► repositories/message_store.py ──► data access   │
 │              ──► repositories/registry.py ──► seed registry tables │
-│              ──► services/messagestore.py ──► business logic (platform_id/adapter_id/protocol_id) │
-│              ──► start/ ──► bootstrap, initialize, startup       │
+│              ──► services/message_store.py ──► business logic (platform_id/adapter_id/protocol_id) │
+│              ──► start/ ──► startup hooks                        │
 │              ──► i18n/ ──► Babel gettext catalogs                │
 │                                                                   │
 │  handle/menu.py ──► Menu system (pages, features, availability)  │
@@ -1112,8 +1119,7 @@ lingchu-bot/
 │    └── adapters/                                                  │
 │        ├── onebot11/default/ ──► OneBot V11 handlers             │
 │        │   └── remote.py ──► 8 remote management handlers        │
-│        ├── onebot11/{llonebot,napcat}/ ──► OneBot extensions     │
-│        └── milky/{default,llbot}/ ──► Milky handlers             │
+│        └── onebot11/{llonebot,napcat}/ ──► OneBot extensions     │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1337,6 +1343,7 @@ Rule suppressions and temporary workarounds that should be reverted once the tri
 
 | What | Where | Why suppressed | Rollback condition |
 |------|-------|---------------|-------------------|
+| Pyright/ty exclude `src/.../adapters/milky` | `pyproject.toml` `[tool.pyright]` and `[tool.ty.src]` | Milky adapter moved to optional dependency; static-analysis env doesn't install it, causing `reportMissingImports` | **Rollback condition met**: Milky adapter has been fully deleted; remove this entry from `pyproject.toml` exclude lists |
 | `deslop/unused-export: "off"` | `doctor.config.ts` | `useMDXComponents` in `mdx.tsx` is a framework-required re-export but currently unused (no `providerImportSource` in `source.config.ts`) | Remove this suppression once `useMDXComponents` is actually consumed (e.g., after adding `providerImportSource` to `source.config.ts` or importing it elsewhere) |
 | CLI instead of `millionco/react-doctor@v2` action | `.github/workflows/🩺-react-doctor.yml` | Upstream action has bugs: detached HEAD, ANSI leak in PR comments (PR #80 pending) | Switch back to the action once upstream releases a fix (monitor PR #80) |
 
@@ -1411,15 +1418,11 @@ platforms/
 └── qq/                    # QQ platform
     ├── overview.mdx       # Protocol priority, implementation matrix
     ├── commands.mdx       # Full QQ command reference (incl. remote management)
-    ├── onebot-v11/        # OneBot V11 protocol
-    │   ├── overview.mdx   # Protocol overview, runtime detection
-    │   ├── default.mdx    # Default implementation (core commands + remote management)
-    │   ├── napcat.mdx     # NapCat extensions (announcement + avatar)
-    │   └── llonebot.mdx   # LLOneBot extensions (announcement)
-    └── milky/             # Milky protocol
-        ├── overview.mdx   # Protocol overview, API differences from OneBot V11
-        ├── default.mdx    # Default implementation
-        └── llbot.mdx      # LLBot extensions (text-only announcement)
+    └── onebot-v11/        # OneBot V11 protocol
+        ├── overview.mdx   # Protocol overview, runtime detection
+        ├── default.mdx    # Default implementation (core commands + remote management)
+        ├── napcat.mdx     # NapCat extensions (announcement + avatar)
+        └── llonebot.mdx   # LLOneBot extensions (announcement)
 ```
 
 The `user-guide/commands.mdx` is now a high-level overview that links to the platform-specific pages instead of duplicating command details. When adding new commands or changing availability:
@@ -1469,3 +1472,10 @@ When adding CI checks or unit tests for the docs site (`apps/docs/`), several pi
 - **Prefer `asyncio.gather(..., return_exceptions=True)` over sequential `await` loops** for independent startup operations (registry seeding, superuser grants). Log per-item failures instead of aborting the whole batch — one failing item should not block the rest.
 - **Async file I/O pattern**: when converting sync file I/O to async, use `aiofiles.os.makedirs`/`aiofiles.os.replace`/`aiofiles.os.unlink` for path operations and `aiofiles.open` for read/write, mirroring the pattern in `database/json5_store/_async_db.py`.
 - **Keep sync variants of file-ensure functions for import-time use**: there is no event loop available at module load, so sync variants (e.g., `ensure_json5_dict_file_sync`) must remain for module-level callers; async variants (e.g., `ensure_json5_dict_file_async`) are for runtime callers inside `async def` functions.
+
+### Database Module Splitting & Config Simplification
+
+- **Test patch target updates**: When splitting a single module (e.g., `orm_crud.py`) into a package (e.g., `orm_crud/` with `_base.py`, `_single.py`, `_bulk.py`), all test `patch.object()` targets must be updated from module-level to sub-module-level. For example, `patch("...orm_crud.select", ...)` becomes `patch("...orm_crud._single.select", ...)`. Failing to update patch targets causes `AttributeError` at test time because the symbol is no longer on the package `__init__` — it's on the sub-module.
+- **`nonebot_plugin_orm` model discovery with packages**: `nonebot_plugin_orm` discovers ORM models by scanning module paths. When converting `models.py` to a `models/` package, model discovery still works as long as `models/__init__.py` explicitly imports all model classes (e.g., `from .message import MessageRecord, AuditRecord`). Without explicit imports in `__init__.py`, the ORM will not register the tables and migrations will be empty.
+- **`ensure_json5_dict_file_async` vs `write_json5_dict_file_async`**: `ensure_json5_dict_file_async` only creates a file if it does not already exist (idempotent ensure). For overwriting an existing file with new content (e.g., `bot_state.py` persisting state changes), use `write_json5_dict_file_async` instead — it unconditionally writes the file. Using `ensure_*` when you need `write_*` silently keeps stale data.
+- **Removing backward-compatibility aliases is a breaking change**: Simplifying `RuntimeConfig.lingchu_adapter` to a single alias (removing `LINGCHUAdapter` and `LINGCHU_ADAPTER`) cleans up the config but breaks any user who referenced the old alias names in their `.env` or `config.json5`. Document the removal in the changelog and migration guide; only do this in pre-1.0 or when the project accepts breaking changes (see Agent Preferences: "pre-planning development stage").

@@ -112,13 +112,12 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 ```text
 ├── src/plugins/nonebot_plugin_lingchu_bot/   # Core NoneBot plugin
 │   ├── core/           # Config, platform info, two-tier bot state (global + per-platform) with JSON5 persistence
-│   ├── database/       # JSON5 store package, ORM models (records/audit/blocklist + registry) & CRUD helpers
+│   ├── database/       # JSON5 store package, ORM models package (records/audit/blocklist + identity + registry) & CRUD helpers package
 │   ├── handle/         # 平台/协议/实现命令处理器
 │   │   └── qq/         # QQ 平台处理器
 │   │       ├── commands/           # 共享命令定义（Alconna matchers、触发词）
 │   │       └── adapters/           # 协议特定处理器
-│   │           ├── onebot11/{default,llonebot,napcat}/  # OneBot V11 处理器
-│   │           └── milky/{default,llbot}/               # （已停维）Milky 处理器
+│   │           └── onebot11/{default,llonebot,napcat}/  # OneBot V11 处理器
 │   ├── menu.py         # 菜单系统（页面、功能、可用性）
 │   ├── i18n/           # Babel/gettext translations
 │   ├── migrations/     # Alembic database migration scripts
@@ -126,13 +125,15 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 │   │   └── qq/permissions.py # QQ 默认身份组与运行时身份解析
 │   ├── permissions/    # UID 身份、平台账号、命令授权与 SUPERUSERS API
 │   ├── repositories/   # Data access layer
+│   │   ├── __init__.py      # Package init
 │   │   ├── blocklist.py     # Blocklist repository
 │   │   ├── message_store.py # Message store repository
 │   │   ├── permissions.py   # Permission-system ORM repository
-│   │   ├── registry.py      # Platform/adapter/protocol registry seeding
-│   │   └── user_mapping.py  # UID/platform account binding compatibility entrypoint
+│   │   └── registry.py      # Platform/adapter/protocol registry seeding
 │   ├── services/       # Business logic services
+│   │   └── message_store.py # Message storage service
 │   └── start/          # Startup & initialization
+│       └── startup.py  # Startup hooks
 ├── apps/docs/          # Fumadocs documentation site
 │   ├── content/docs/   # MDX content (zh + en)
 │   ├── src/
@@ -142,6 +143,7 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 │   │   └── __tests__/  # Vitest unit tests
 │   └── source.config.ts # Fumadocs MDX config
 ├── packages/           # Shared frontend packages
+├── schema/             # JSON Schemas for config files (config.schema.json5, bot_state.schema.json5)
 ├── tools/                           # Standalone utility tools
 │   ├── __init__.py
 │   └── adapter_loader.py           # Deprecated adapter on-demand loader (Milky, QQ, OneBot V12)
@@ -375,6 +377,13 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
   - "开机"/"关机"（启动/关闭）同时使用 `bypass_gate=True` 和 `bypass_silent=True` —— 必须始终能工作以从任何状态恢复机器人。
 - **菜单**："bot-control" 页面被替换为 "system-management" / "系统管理" 顶层页面，包含子页面 "silent-mode" / "静默模式" 和 "handle-gate" / "开关机"。
 
+### 配置管理
+
+- **Pre-commit hooks**：`prek.toml` 是 pre-commit hook 配置的唯一真实来源。已移除遗留的 `.pre-commit-config.yaml` —— 不要重新引入。
+- **版本同步**：`Taskfile.yml` 的 `ci:version:write-config` 任务将项目版本写入 `src/plugins/nonebot_plugin_lingchu_bot/core/config.py`（Python `__version__`）和 `apps/docs/package.json`（`version` 字段）。升级版本时运行此任务，而非手动编辑文件。
+- **JSON Schemas**：仓库根目录的 `schema/` 目录包含用于校验 JSON5 配置文件的 JSON Schema 文件：`config.schema.json5`（对应 `config.json5`）和 `bot_state.schema.json5`（对应 `bot_state.json5`）。支持 `$schema` 注释的编辑器可引用这些文件获得自动补全和校验。
+- **Skills 排除列表同步**：`pyproject.toml` 中的 skills 排除列表有注释标注 "skills 排除列表同步至 prek.toml" —— 更新一个配置的排除模式时，需同步另一个。
+
 ## Lessons Learned
 
 > **时效性警示**：以下经验反映的是编写时代码库和依赖的状态。在依赖任何经验之前，请先验证其是否仍然成立——API 会变、包会新增导出、CI 配置也会演进。当经验过时时，应更新或删除，而非传播过时假设。
@@ -430,7 +439,7 @@ Same-named APIs return different types across adapters:
 | `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
 | `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
 
-The project uses `platforms/registry.py` to unify adapters under a single "QQ" platform profile. Only OneBot V11 is now active; Milky, QQ, and OneBot V12 are deprecated and removed from the startup flow, but their source files are preserved with `DEPRECATED = True` markers and can be loaded on demand via `tools/adapter_loader.py`. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,llonebot,napcat}/`, and (deprecated) Milky handlers in `handle/qq/adapters/milky/{default,llbot}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+The project uses `platforms/registry.py` to unify adapters under a single "QQ" platform profile. Only OneBot V11 is now active; Milky, QQ, and OneBot V12 are deprecated and removed from the startup flow. QQ and OneBot V12 source files are preserved with `DEPRECATED = True` markers and can be loaded on demand via `tools/adapter_loader.py`; the Milky adapter has been fully removed. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,llonebot,napcat}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
 
 ### Function Signature Changes
 
@@ -678,7 +687,7 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 
 | 内容                                                    | 位置                                   | 抑制原因                                                                                                                             | 回退条件                                                                                                     |
 | ------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Pyright/ty 排除 `src/.../adapters/milky` | `pyproject.toml` `[tool.pyright]` 和 `[tool.ty.src]` | Milky 适配器移至可选依赖；静态分析环境未安装，导致 `reportMissingImports` | 当 Milky 适配器完全删除或静态分析环境安装 `--extra deprecated-adapters` 时移除排除 |
+| Pyright/ty 排除 `src/.../adapters/milky` | `pyproject.toml` `[tool.pyright]` 和 `[tool.ty.src]` | Milky 适配器移至可选依赖；静态分析环境未安装，导致 `reportMissingImports` | **回退条件已满足**：Milky 适配器已完全删除，需从 `pyproject.toml` 排除列表中移除该条目 |
 | `deslop/unused-export: "off"`                           | `doctor.config.ts`                     | `mdx.tsx` 中的 `useMDXComponents` 是框架必需的重导出，但当前未被消费（`source.config.ts` 未配置 `providerImportSource`）               | 当 `useMDXComponents` 被实际消费后移除此抑制（如添加 `providerImportSource` 到 `source.config.ts` 或在其他地方导入它） |
 | 使用 CLI 而非 `millionco/react-doctor@v2` action        | `.github/workflows/🩺-react-doctor.yml`   | 上游 action 存在 bug：detached HEAD、ANSI 泄漏到 PR 评论（PR #80 待合并）                                                             | 上游修复发布后切换回 action（关注 PR #80）                                                                     |
 
@@ -753,15 +762,11 @@ platforms/
 └── qq/                    # QQ 平台
     ├── overview.mdx       # 协议优先级、实现矩阵
     ├── commands.mdx       # 完整 QQ 命令参考（含远程管理）
-    ├── onebot-v11/        # OneBot V11 协议
-    │   ├── overview.mdx   # 协议概览、运行时检测
-    │   ├── default.mdx    # 默认实现（核心命令 + 远程管理）
-    │   ├── napcat.mdx     # NapCat 扩展（公告 + 头像）
-    │   └── llonebot.mdx   # LLOneBot 扩展（公告）
-    └── milky/             # Milky 协议
-        ├── overview.mdx   # 协议概览、与 OneBot V11 的 API 差异
-        ├── default.mdx    # 默认实现
-        └── llbot.mdx      # LLBot 扩展（纯文本公告）
+    └── onebot-v11/        # OneBot V11 协议
+        ├── overview.mdx   # 协议概览、运行时检测
+        ├── default.mdx    # 默认实现（核心命令 + 远程管理）
+        ├── napcat.mdx     # NapCat 扩展（公告 + 头像）
+        └── llonebot.mdx   # LLOneBot 扩展（公告）
 ```
 
 `user-guide/commands.mdx` 现在是高层概览，链接到平台特定页面而非重复命令详情。添加新命令或更改可用性时：
@@ -787,8 +792,8 @@ platforms/
 
 ### 数据库存储重组
 
-- **统一 ORM 合并**：从自定义 SQLAlchemy 引擎迁移到 `nonebot_plugin_orm` 时，必须移除所有自定义引擎管理代码（`Base`、`_ENGINES`、`session_for()`、`storage_target()`、`close_engines()`）——不要遗留残余。所有数据访问必须通过 `orm_crud.py` + `get_session()` 进行。
-- **测试重写模式**：直接操作数据库文件的测试（如检查 `.db` 文件是否存在、使用 `session_for()` 修改记录）必须重写为在仓储模块级别 mock `orm_crud` 函数，使用 `patch.object(repository, "create"/"upsert"/"get_one"/"update"/"list_items"/"delete", ...)`。参照 `tests/database/test_blocklist.py` 的模式。
+- **统一 ORM 合并**：从自定义 SQLAlchemy 引擎迁移到 `nonebot_plugin_orm` 时，必须移除所有自定义引擎管理代码（`Base`、`_ENGINES`、`session_for()`、`storage_target()`、`close_engines()`）——不要遗留残余。所有数据访问必须通过 `orm_crud/` 包 + `get_session()` 进行。
+- **测试重写模式**：直接操作数据库文件的测试（如检查 `.db` 文件是否存在、使用 `session_for()` 修改记录）必须重写为在仓储模块级别 mock `orm_crud` 函数，使用 `patch.object(repository, "create"/"upsert"/"get_one"/"update"/"list_items"/"delete", ...)`。参照 `tests/repositories/test_blocklist.py` 的模式。
 - **Alembic 迁移脚本生成**：如果数据库文件已包含之前 `create_all` 创建的表，`nb orm revision` 可能生成空迁移（`upgrade()` 和 `downgrade()` 中均为 `pass`）。此时需根据模型定义手动编写迁移脚本，包含 `op.create_table()` / `op.create_index()` 操作，或先删除现有数据库文件（若未被其他进程锁定）。
 - **单文件转包**：将单个 `.py` 文件（如 `json5_store.py`）转为包（`json5_store/`）时，`__init__.py` 必须通过 `from .submodule import Symbol` 显式重新导出所有公共 API 符号，并在 `__all__` 中列出。仅导入子模块是不够的——`from ..database.json5_store import RobustAsyncJSON5DB` 等测试导入在没有显式重导出时会失败。
 - **迁移脚本 lint**：Alembic 生成的迁移脚本中 `collections.abc.Sequence` 仅用于类型注解。在已有 `from __future__ import annotations` 的情况下，将 `Sequence` 导入移至 `TYPE_CHECKING` 块以满足 ruff 的 `TC003` 规则。
@@ -834,3 +839,10 @@ platforms/
 - **优先使用 `asyncio.gather(..., return_exceptions=True)` 而非顺序 `await` 循环**：用于独立的启动操作（注册表播种、超级用户授权）。记录每项失败而非中止整批——一项失败不应阻塞其余项。
 - **异步文件 I/O 模式**：将同步文件 I/O 转换为异步时，使用 `aiofiles.os.makedirs`/`aiofiles.os.replace`/`aiofiles.os.unlink` 进行路径操作，`aiofiles.open` 进行读写，参照 `database/json5_store/_async_db.py` 的模式。
 - **为导入时使用保留同步变体**：模块加载时没有事件循环可用，因此同步变体（如 `ensure_json5_dict_file_sync`）必须保留供模块级调用者使用；异步变体（如 `ensure_json5_dict_file_async`）供 `async def` 函数内的运行时调用者使用。
+
+### 数据库模块拆分与配置简化
+
+- **测试 patch 目标更新**：将单个模块（如 `orm_crud.py`）拆分为包（如 `orm_crud/`，含 `_base.py`、`_single.py`、`_bulk.py`）时，所有测试中的 `patch.object()` 目标必须从模块级更新到子模块级。例如 `patch("...orm_crud.select", ...)` 需改为 `patch("...orm_crud._single.select", ...)`。未更新 patch 目标会导致测试时 `AttributeError`，因为符号不再在包 `__init__` 上——它在子模块上。
+- **`nonebot_plugin_orm` 包目录模型发现**：`nonebot_plugin_orm` 通过扫描模块路径发现 ORM 模型。将 `models.py` 转为 `models/` 包时，只要 `models/__init__.py` 显式导入所有模型类（如 `from .message import MessageRecord, AuditRecord`），模型发现仍然有效。若 `__init__.py` 中缺少显式导入，ORM 将不会注册表，迁移脚本将为空。
+- **`ensure_json5_dict_file_async` 与 `write_json5_dict_file_async` 的区别**：`ensure_json5_dict_file_async` 仅在文件不存在时创建（幂等 ensure）。需要覆盖已有文件内容时（如 `bot_state.py` 持久化状态变更），应使用 `write_json5_dict_file_async`——它无条件写入文件。在需要 `write_*` 时误用 `ensure_*` 会静默保留过期数据。
+- **移除向后兼容别名是破坏性变更**：将 `RuntimeConfig.lingchu_adapter` 简化为单一别名（移除 `LINGCHUAdapter` 和 `LINGCHU_ADAPTER`）能清理配置，但会破坏在 `.env` 或 `config.json5` 中引用旧别名名的用户。需在 changelog 和迁移指南中记录该移除；仅在 pre-1.0 或项目接受破坏性变更时执行（参见 Agent Preferences："pre-planning development stage"）。

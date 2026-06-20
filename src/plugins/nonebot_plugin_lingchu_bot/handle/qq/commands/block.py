@@ -85,14 +85,6 @@ _LAZY_EXPORTS = {
     "onebot11_global_clear_blocklist": "..adapters.onebot11.default.block",
     "onebot11_kick_blocklisted_message": "..adapters.onebot11.default.block",
     "onebot11_reject_blocklisted_group_request": "..adapters.onebot11.default.block",
-    "milkybot_block_member": "..adapters.milky.default.block",
-    "milkybot_global_block_member": "..adapters.milky.default.block",
-    "milkybot_unblock_member": "..adapters.milky.default.block",
-    "milkybot_global_unblock_member": "..adapters.milky.default.block",
-    "milkybot_clear_blocklist": "..adapters.milky.default.block",
-    "milkybot_global_clear_blocklist": "..adapters.milky.default.block",
-    "milkybot_kick_blocklisted_message": "..adapters.milky.default.block",
-    "milkybot_reject_blocklisted_group_request": "..adapters.milky.default.block",
 }
 
 

@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Any
 
 import nonebot
 import pytest
-from nonebot.adapters.milky import Adapter as MilkyAdapterilkyBot
 from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
 from pytest_asyncio import is_async_test
 
@@ -64,7 +63,7 @@ def pytest_configure(config: pytest.Config) -> None:
     init_config: dict[str, Any] = {
         "LOCALSTORE_USE_CWD": "True",
         "DRIVER": "~fastapi+~httpx+~websockets",
-        "LINGCHUAdapter": "~onebot.v11",
+        "lingchu_adapter": "~onebot.v11",
         "LINGCHU_SUPERUSERS": {"user1": {"qq": "42"}},
         "lingchu_locale": "zh_CN",
     }
@@ -78,7 +77,6 @@ def pytest_configure(config: pytest.Config) -> None:
 
     driver: Driver = nonebot.get_driver()
     driver.register_adapter(adapter=ONEBOT_V11Adapter)
-    driver.register_adapter(adapter=MilkyAdapterilkyBot)
 
     nonebot.load_from_toml(file_path="pyproject.toml")
 

@@ -1,0 +1,159 @@
+"""Identity, platform account, group membership and permission ORM models."""
+
+from __future__ import annotations
+
+from datetime import datetime  # noqa: TC003
+
+from nonebot import require
+
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import Model
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Integer,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import Mapped, mapped_column
+
+from .message import utc_now
+
+
+class IdentityUser(Model):
+    """Lingchu-wide user identity used across platform accounts."""
+
+    __tablename__ = "lingchu_identity_users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    uid: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    nickname: Mapped[str] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        index=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        index=True,
+    )
+
+
+class PlatformAccount(Model):
+    """Binding between a Lingchu UID and one platform account."""
+
+    __tablename__ = "lingchu_platform_accounts"
+    __table_args__ = (
+        UniqueConstraint(
+            "platform_id",
+            "account_id",
+            name="uq_lingchu_platform_account_identity",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    uid: Mapped[str] = mapped_column(String(64), index=True)
+    platform_id: Mapped[str] = mapped_column(String(64), index=True)
+    account_id: Mapped[str] = mapped_column(String(128), index=True)
+    account_type: Mapped[str] = mapped_column(String(64), default="user", index=True)
+    display_name: Mapped[str | None] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        index=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        index=True,
+    )
+
+
+class PlatformIdentityGroup(Model):
+    """Platform-scoped identity group, including builtin and custom groups."""
+
+    __tablename__ = "lingchu_platform_identity_groups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    group_id: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    platform_id: Mapped[str] = mapped_column(String(64), index=True)
+    parent_group_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    display_name: Mapped[str] = mapped_column(String(128))
+    builtin: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    managed_by: Mapped[str | None] = mapped_column(String(64), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        index=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        index=True,
+    )
+
+
+class IdentityMembership(Model):
+    """Membership of a UID in an identity group, optionally scoped."""
+
+    __tablename__ = "lingchu_identity_memberships"
+    __table_args__ = (
+        UniqueConstraint(
+            "uid",
+            "group_id",
+            "scope_type",
+            "scope_id",
+            name="uq_lingchu_identity_membership_identity",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    uid: Mapped[str] = mapped_column(String(64), index=True)
+    group_id: Mapped[str] = mapped_column(String(128), index=True)
+    scope_type: Mapped[str] = mapped_column(String(64), default="global", index=True)
+    scope_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    source: Mapped[str] = mapped_column(String(64), default="manual", index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        index=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        index=True,
+    )
+
+
+class PermissionGrant(Model):
+    """Allow-list grant from an identity group to a command key."""
+
+    __tablename__ = "lingchu_permission_grants"
+    __table_args__ = (
+        UniqueConstraint(
+            "group_id",
+            "command_key",
+            name="uq_lingchu_permission_grant_identity",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    group_id: Mapped[str] = mapped_column(String(128), index=True)
+    command_key: Mapped[str] = mapped_column(String(128), index=True)
+    effect: Mapped[str] = mapped_column(String(16), default="allow", index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        index=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        index=True,
+    )

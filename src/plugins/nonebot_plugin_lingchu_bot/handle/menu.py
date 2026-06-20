@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from importlib import import_module
 from typing import TYPE_CHECKING, Any, Final
 
 from arclet.alconna import Alconna
@@ -11,18 +10,18 @@ from packaging.version import InvalidVersion, Version, parse
 
 from ..i18n import _async as _
 from ..i18n import get_configured_locale, gettext, normalize_locale
-from ..platforms import PlatformCapability, resolve_enabled_adapters
+from ..platforms import QQ_CAPABILITIES, PlatformCapability, resolve_enabled_adapters
+from .qq.adapters import load_adapter_handlers
 from .qq.commands.triggers import COMMAND_TRIGGERS
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Iterable
 
 _MENU = COMMAND_TRIGGERS["menu"]
 QQ_PLATFORM_ID: Final = "qq"
 ONEBOT_V11_ADAPTER_ID: Final = "~onebot.v11"
 LLONEBOT_IMPL: Final = "LLOneBot"
 NAPCAT_IMPL: Final = "NapCat.Onebot"
-LLBOT_IMPL: Final = "LLBot"
 
 menu_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(_MENU.primary),
@@ -36,7 +35,6 @@ menu_cmd: type[AlconnaMatcher] = on_alconna(
 _ADAPTER_MODULES: dict[str, tuple[str, ...]] = {
     "~onebot.v11": (".qq.adapters.onebot11.default.menu",),
 }
-_loaded_handlers: dict[str, tuple[Callable[[], Any], ...]] = {}
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,17 +87,6 @@ class MenuRuntimeContext:
     protocol_version: str | None = None
     platform_capabilities: frozenset[PlatformCapability] = frozenset()
 
-
-QQ_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset(
-    {
-        PlatformCapability.GROUP_MANAGEMENT,
-        PlatformCapability.MEMBER_MODERATION,
-        PlatformCapability.MEMBER_PROFILE,
-        PlatformCapability.GROUP_PROFILE,
-        PlatformCapability.ANNOUNCEMENT,
-        PlatformCapability.API_AUDIT,
-    }
-)
 
 MENU_PAGES: Final[tuple[MenuPage, ...]] = (
     MenuPage(
@@ -179,7 +166,6 @@ menu_page_cmds: Final[dict[str, type[AlconnaMatcher]]] = {
 
 _QQ_BOTH: Final[tuple[MenuAvailability, ...]] = (
     MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),
-    MenuAvailability(QQ_PLATFORM_ID, "~milky"),
 )
 _ONEBOT_NAPCAT: Final[tuple[MenuAvailability, ...]] = (
     MenuAvailability(
@@ -199,14 +185,6 @@ _ONEBOT_ANNOUNCEMENT: Final[tuple[MenuAvailability, ...]] = (
         protocol_version="v11",
     ),
     *_ONEBOT_NAPCAT,
-)
-_MILKY_LLBOT_ANNOUNCEMENT: Final[tuple[MenuAvailability, ...]] = (
-    MenuAvailability(
-        QQ_PLATFORM_ID,
-        "~milky",
-        implementation_name=LLBOT_IMPL,
-        usage_override=LocalizedText("<内容>", "<content>"),
-    ),
 )
 
 MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
@@ -361,10 +339,7 @@ MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         LocalizedText("设置群头像", "Set group avatar"),
         LocalizedText("<图片>", "<image>"),
         PlatformCapability.GROUP_PROFILE,
-        (
-            *_ONEBOT_NAPCAT,
-            MenuAvailability(QQ_PLATFORM_ID, "~milky"),
-        ),
+        (*_ONEBOT_NAPCAT,),
     ),
     MenuFeature(
         "send-announcement",
@@ -373,7 +348,7 @@ MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         LocalizedText("发送群公告", "Send group announcement"),
         LocalizedText("<内容> [图片]", "<content> [image]"),
         PlatformCapability.ANNOUNCEMENT,
-        (*_ONEBOT_ANNOUNCEMENT, *_MILKY_LLBOT_ANNOUNCEMENT),
+        (*_ONEBOT_ANNOUNCEMENT,),
     ),
     MenuFeature(
         "leave-group",
@@ -775,22 +750,9 @@ def _version_gte(current: str, minimum: str) -> bool:
     return current_version >= minimum_version
 
 
-def _load_adapter_handlers(adapter_id: str) -> tuple[Callable[[], Any], ...]:
-    if adapter_id in _loaded_handlers:
-        return _loaded_handlers[adapter_id]
-
-    handlers: list[Callable[[], Any]] = []
-    for module_name in _ADAPTER_MODULES.get(adapter_id, ()):
-        mod = import_module(module_name, __package__)
-        if hasattr(mod, "import_handle"):
-            handlers.append(mod.import_handle)
-    _loaded_handlers[adapter_id] = tuple(handlers)
-    return _loaded_handlers[adapter_id]
-
-
 async def import_handle() -> Any:
     for adapter_id in sorted(resolve_enabled_adapters()):
-        handlers = _load_adapter_handlers(adapter_id)
+        handlers = load_adapter_handlers(adapter_id, _ADAPTER_MODULES, __package__)
         if not handlers:
             logger.debug(
                 (await _("Lingchu 未为适配器 {adapter_id} 声明 menu 处理器")).format(

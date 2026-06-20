@@ -23,7 +23,6 @@ kick_member_cmd: type[AlconnaMatcher] = on_alconna(
 
 _LAZY_EXPORTS = {
     "onebot11_kick_member": "..adapters.onebot11.default.kick",
-    "milkybot_kick_member": "..adapters.milky.default.kick",
 }
 
 

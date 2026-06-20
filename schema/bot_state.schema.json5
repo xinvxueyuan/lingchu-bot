@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bot_state.schema.json5",
+  "title": "Lingchu Bot State",
+  "description": "Two-tier bot state persisted to bot_state.json5. Maintains a global state plus per-platform overrides for handle_active and silent_mode flags.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "global": {
+      "description": "Global state flags applied to all platforms.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "handle_active": {
+          "description": "Global handle-active gate. When false, all platforms are disabled regardless of their per-platform setting (AND semantics).",
+          "type": "boolean",
+          "default": true
+        },
+        "silent_mode": {
+          "description": "Global silent-mode flag. When true, all platforms are silenced regardless of their per-platform setting (OR semantics).",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": ["handle_active", "silent_mode"]
+    },
+    "platforms": {
+      "description": "Per-platform state overrides keyed by platform identifier (e.g. \"qq\", \"telegram\").",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "handle_active": {
+            "description": "Per-platform handle-active flag. Defaults to true when absent. Resolution: global AND platform.",
+            "type": "boolean"
+          },
+          "silent_mode": {
+            "description": "Per-platform silent-mode flag. Defaults to false when absent. Resolution: global OR platform.",
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "required": ["global", "platforms"]
+}

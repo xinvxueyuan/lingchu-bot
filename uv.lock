@@ -833,18 +833,6 @@ wheels = [
 ]
 
 [[package]]
-name = "nonebot-adapter-milky"
-version = "1.2.0"
-source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
-dependencies = [
-    { name = "nonebot2" },
-]
-sdist = { url = "https://mirrors.aliyun.com/pypi/packages/64/d6/04620e9da3a662e80d7911fcca1ea588a13007b2d6861ea709c826e9a322/nonebot_adapter_milky-1.2.0.tar.gz", hash = "sha256:f8ea6c91d0e3b8e9560c6ff1e7691a6a590e8ec9cacc9edee109bf174b18e095" }
-wheels = [
-    { url = "https://mirrors.aliyun.com/pypi/packages/bf/e1/9c26a6bd00180a04c2a83f74204c283cd56379dc4f0a57813a04c0c22c99/nonebot_adapter_milky-1.2.0-py3-none-any.whl", hash = "sha256:393536aaafbb53c15e9675fef38d4e8500526e0f2416119925bdf34d3ad0ef31" },
-]
-
-[[package]]
 name = "nonebot-adapter-onebot"
 version = "2.4.6"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
@@ -980,7 +968,6 @@ dependencies = [
 
 [package.optional-dependencies]
 deprecated-adapters = [
-    { name = "nonebot-adapter-milky" },
     { name = "nonebot-adapter-qq" },
 ]
 
@@ -1055,7 +1042,6 @@ requires-dist = [
     { name = "babel", specifier = ">=2.18.0" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "json5", specifier = ">=0.14.0" },
-    { name = "nonebot-adapter-milky", marker = "extra == 'deprecated-adapters'", specifier = ">=1.2.0" },
     { name = "nonebot-adapter-onebot", specifier = ">=2.4.6" },
     { name = "nonebot-adapter-qq", marker = "extra == 'deprecated-adapters'", specifier = ">=1.7.1" },
     { name = "nonebot-plugin-alconna", specifier = ">=0.62.0" },

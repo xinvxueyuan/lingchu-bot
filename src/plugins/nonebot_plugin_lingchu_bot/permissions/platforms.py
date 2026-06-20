@@ -27,9 +27,6 @@ async def resolve_runtime_identity_groups(
 ) -> frozenset[str]:
     for module in _iter_permission_modules():
         platform_id = getattr(module, "PLATFORM_ID", None)
-        if platform_id is None:
-            # Fall back to QQ_PLATFORM_ID for backward compatibility
-            platform_id = getattr(module, "QQ_PLATFORM_ID", None)
         if platform_id != context.platform_id:
             continue
         resolver = getattr(module, "resolve_runtime_identity_groups", None)

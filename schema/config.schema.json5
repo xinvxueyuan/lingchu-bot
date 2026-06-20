@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config.schema.json5",
+  "title": "Lingchu Bot Runtime Config",
+  "description": "Runtime configuration for Lingchu Bot, backed by JSON5. Values here provide low-priority defaults; NoneBot direct config, environment variables and dotenv files override them.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "superuser_key": {
+      "description": "Secret key required to invoke superuser-only commands.",
+      "type": "string",
+      "default": "123456789abcdef"
+    },
+    "message_store_enabled": {
+      "description": "Whether the message store (conversation history persistence) is enabled.",
+      "type": "boolean",
+      "default": true
+    },
+    "message_store_retention_days": {
+      "description": "Number of days to retain stored messages before cleanup. Set to 0 to keep messages indefinitely.",
+      "type": "integer",
+      "minimum": 0,
+      "default": 30
+    },
+    "message_store_summary_limit": {
+      "description": "Maximum number of messages kept per conversation for summarization. Set to 0 for no limit.",
+      "type": "integer",
+      "minimum": 0,
+      "default": 500
+    },
+    "message_store_record_api_calls": {
+      "description": "Whether API call metadata is recorded alongside stored messages.",
+      "type": "boolean",
+      "default": true
+    },
+    "message_store_cleanup_enabled": {
+      "description": "Whether automatic cleanup of expired messages runs on startup.",
+      "type": "boolean",
+      "default": true
+    },
+    "lingchu_superusers": {
+      "description": "Mapping of Lingchu superuser UIDs to their platform account IDs. Each UID maps platform identifiers (e.g. \"qq\", \"telegram\") to the corresponding account ID (string or integer). Set to null to fall back to the SUPERUSERS list.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [
+                { "type": "string" },
+                { "type": "integer" }
+              ]
+            }
+          }
+        }
+      ],
+      "default": null
+    },
+    "lingchu_adapter": {
+      "description": "Adapter name or list of adapter names to load. When null, all installed adapters are loaded. Accepts a single string or an array of strings.",
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string" },
+        {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      ],
+      "default": null
+    }
+  }
+}

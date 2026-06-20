@@ -1,8 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from nonebot.adapters.milky import Bot as MilkyBot
-from nonebot.adapters.milky.event import GroupMessageEvent as MilkyGroupMessageEvent
 from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
 from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent as OneBot11GroupMessageEvent,
@@ -27,42 +25,6 @@ def finish_text(mock_finish: MagicMock) -> str:
     if call_args.args:
         return str(call_args.args[0])
     return ""
-
-
-@pytest.fixture
-def mock_event() -> MagicMock:
-    """
-    构造并返回一个用于测试的、符合 MilkyGroupMessageEvent 规格的消息事件模拟对象。
-
-    返回值为一个 MagicMock，其 spec 设置为 MilkyGroupMessageEvent，包含 .data 属性：
-    - data.peer_id: 123456789
-    - data.sender.user_id: 111222333
-    - data.segments: 空列表
-    """
-    event = MagicMock(spec=MilkyGroupMessageEvent)
-    event.data = MagicMock()
-    event.data.peer_id = 123456789
-    event.data.sender = MagicMock()
-    event.data.sender.user_id = 111222333
-    event.data.segments = []
-    return event
-
-
-@pytest.fixture
-def mock_bot() -> MagicMock:
-    """
-    创建并返回一个用于测试的模拟 MilkyBot 对象。
-
-    返回:
-        MagicMock: 一个以 MilkyBot 为规范的模拟对象，已配置其
-            `adapter.get_name()` 返回值为 "Milky"。
-    """
-    bot = MagicMock(spec=MilkyBot)
-    bot.adapter = MagicMock()
-    bot.adapter.get_name.return_value = "Milky"
-    bot.self_id = "bot-1"
-    bot.get_group_member_info = AsyncMock(return_value=MagicMock(card="", nickname=""))
-    return bot
 
 
 @pytest.fixture

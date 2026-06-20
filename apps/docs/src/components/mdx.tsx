@@ -20,7 +20,7 @@ const generator = createGenerator({
   cache: createFileSystemGeneratorCache(".next/fumadocs-typescript"),
 });
 
-export function getMDXComponents(components?: MDXComponents) {
+export function getMDXComponents(components?: MDXComponents): MDXComponents {
   return {
     ...defaultMdxComponents,
     ...Twoslash,
