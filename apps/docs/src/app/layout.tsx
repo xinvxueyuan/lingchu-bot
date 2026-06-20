@@ -1,5 +1,5 @@
 import { Provider } from '@/components/provider';
-import { Banner } from 'fumadocs-ui/components/banner';
+import { AnnouncementBanner } from '@/components/announcement-banner';
 import type { Metadata } from 'next';
 import { appName, gitConfig } from '@/lib/shared';
 import './global.css';
@@ -21,9 +21,7 @@ export default async function Layout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="flex flex-col min-h-screen" suppressHydrationWarning>
-        <Banner variant="rainbow">
-          Lingchu Bot documentation is now live — check it out!
-        </Banner>
+        <AnnouncementBanner />
         <Provider>{children}</Provider>
       </body>
     </html>
