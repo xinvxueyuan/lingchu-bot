@@ -142,6 +142,11 @@ has_pattern() {
 HAS_PYTHON=false
 HAS_PY_CONFIG=false   # pyproject.toml / ruff.toml / uv.lock 等 Python 配置
 HAS_DOCS=false        # apps/docs/ 下的前端/文档变更
+HAS_PACKAGES=false    # packages/ 下的工作区变更
+HAS_MARKDOWN=false    # .md 文件变更
+
+# markdownlint-cli2 glob，与 Taskfile.yml 的 MD_GLOB 保持一致
+MD_LINT_GLOB=("apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" "SECURITY.md" ".github/**/*.md")
 
 if has_pattern '\.py$'; then
     HAS_PYTHON=true
@@ -149,16 +154,31 @@ fi
 if has_pattern '(^|/)(pyproject\.toml|ruff\.toml|\.ruff\.toml|uv\.lock|\.python-version)$'; then
     HAS_PY_CONFIG=true
 fi
-if has_pattern '^apps/docs/.*\.(ts|tsx|css|mdx|mjs|json)$'; then
+if has_pattern '^apps/docs/.*\.(ts|tsx|css|mdx|mjs|mts|json)$'; then
     HAS_DOCS=true
 fi
 if has_pattern '^apps/docs/(next\.config\.mjs|source\.config\.ts|tsconfig\.json|vitest\.config\.ts|eslint\.config\.mjs|postcss\.config\.mjs|package\.json)$'; then
     HAS_DOCS=true
 fi
+if has_pattern '^packages/.*\.(ts|tsx|css|mdx|mjs|mts|json)$'; then
+    HAS_PACKAGES=true
+fi
+if has_pattern '^packages/(.*\.config\.(ts|mjs|js)|tsconfig\.json|package\.json|eslint\.config\..*)$'; then
+    HAS_PACKAGES=true
+fi
+if has_pattern '\.md$'; then
+    HAS_MARKDOWN=true
+fi
 
 NEEDS_PYTHON_CHECK=false
 if [ "$HAS_PYTHON" = true ] || [ "$HAS_PY_CONFIG" = true ]; then
     NEEDS_PYTHON_CHECK=true
+fi
+
+# 前端变更：docs 或 packages 任一变更即触发 lint/check-types
+HAS_FRONTEND=false
+if [ "$HAS_DOCS" = true ] || [ "$HAS_PACKAGES" = true ]; then
+    HAS_FRONTEND=true
 fi
 
 echo "🚀 正在运行代码检查..."
@@ -175,7 +195,19 @@ else
     echo "⚠️  未找到 uv，跳过 Prek 检查。"
 fi
 
-# ── Phase 2: 快速检查（秒级）──────────────────────────
+# ── Phase 2: Markdownlint（秒级）──────────────────────────
+if [ "$HAS_MARKDOWN" = true ] && [ -n "$PNPM_RUNNER" ]; then
+    echo "📝 正在运行 markdownlint-cli2..."
+    run_pnpm exec markdownlint-cli2 "${MD_LINT_GLOB[@]}"
+    if [ $? -ne 0 ]; then
+        echo "❌ markdownlint 检查失败，请修复后重新提交。"
+        exit 1
+    fi
+else
+    echo "⏭️  无 Markdown 变更，跳过 markdownlint。"
+fi
+
+# ── Phase 3: 快速检查（秒级）──────────────────────────
 if [ "$NEEDS_PYTHON_CHECK" = true ] && [ -n "$UV_CMD" ]; then
     echo "🔍 正在运行 Ruff lint..."
     "$UV_CMD" run -m ruff check . --output-format=github
@@ -194,7 +226,7 @@ else
     echo "⏭️  无 Python 变更，跳过 Ruff lint/format 检查。"
 fi
 
-# ── Phase 3: 类型检查（十秒级）────────────────────────
+# ── Phase 4: 类型检查（十秒级）────────────────────────
 if [ "$NEEDS_PYTHON_CHECK" = true ] && [ -n "$UV_CMD" ]; then
     echo "🔍 正在运行 Pyright 类型检查..."
     "$UV_CMD" run -m pyright .
@@ -213,7 +245,7 @@ else
     echo "⏭️  无 Python 变更，跳过 Pyright/ty 类型检查。"
 fi
 
-# ── Phase 4: 测试（十秒级）────────────────────────────
+# ── Phase 5: 测试（十秒级）────────────────────────────
 if [ "$NEEDS_PYTHON_CHECK" = true ] && [ -n "$UV_CMD" ]; then
     echo "🧪 正在运行 pytest..."
     "$UV_CMD" run -m pytest -x -q
@@ -225,33 +257,35 @@ else
     echo "⏭️  无 Python 变更，跳过 pytest 测试。"
 fi
 
-# ── Phase 5: Docs 检查（十秒级）────────────────────────
+# ── Phase 6: Docs/Packages 检查（十秒级）────────────────────────
+if [ "$HAS_FRONTEND" = true ] && [ -n "$PNPM_RUNNER" ]; then
+    echo "🔍 正在运行 ESLint (all workspaces)..."
+    run_pnpm turbo run lint
+    if [ $? -ne 0 ]; then
+        echo "❌ ESLint 检查失败，请修复后重新提交。"
+        exit 1
+    fi
+
+    echo "🔍 正在运行类型检查 (all workspaces)..."
+    run_pnpm turbo run check-types
+    if [ $? -ne 0 ]; then
+        echo "❌ 类型检查失败，请修复后重新提交。"
+        exit 1
+    fi
+else
+    echo "⏭️  无前端变更，跳过 ESLint/类型检查。"
+fi
+
 if [ "$HAS_DOCS" = true ] && [ -n "$PNPM_RUNNER" ]; then
-    echo "🔍 正在运行 Docs ESLint..."
-    run_pnpm --filter docs lint
-    if [ $? -ne 0 ]; then
-        echo "❌ Docs ESLint 检查失败，请修复后重新提交。"
-        exit 1
-    fi
-
-    echo "🔍 正在运行 Docs 类型检查..."
-    run_pnpm --filter docs check-types
-    if [ $? -ne 0 ]; then
-        echo "❌ Docs 类型检查失败，请修复后重新提交。"
-        exit 1
-    fi
-
     echo "🧪 正在运行 Docs Vitest..."
     run_pnpm --filter docs test
     if [ $? -ne 0 ]; then
         echo "❌ Docs 测试失败，请修复后重新提交。"
         exit 1
     fi
-else
-    echo "⏭️  无 Docs 变更，跳过 Docs 检查。"
 fi
 
-# ── Phase 6: React Doctor（十秒级）───────────────────────
+# ── Phase 7: React Doctor（十秒级）───────────────────────
 if [ "$HAS_DOCS" = true ]; then
     if [ -n "$REACT_DOCTOR_RESOLVED" ]; then
         echo "🩺 正在运行 React Doctor..."
@@ -286,7 +320,7 @@ else
     echo "⏭️  无 Docs 变更，跳过 React Doctor 检查。"
 fi
 
-# ── Phase 7: 非阻断分析 ────────────────────────────────
+# ── Phase 8: 非阻断分析 ────────────────────────────────
 # Gitnexus 优先本地 node_modules/.bin（devDep 已装时零下载零 pnpm 开销），
 # 其次 pnpm exec，最后才走 pnpm dlx 缓存
 if [ -n "$GITNEXUS_RESOLVED" ]; then

@@ -8,6 +8,11 @@ on:
       - "**.py"
       - "**.ts"
       - "**.tsx"
+      - "**.md"
+      - "**.mts"
+      - "**.mjs"
+      - "**.mdx"
+      - "**.css"
       - ".github/workflows/🧪-ci.yml"
       - "**.toml"
       - "package.json"
@@ -24,6 +29,11 @@ on:
       - "**.py"
       - "**.ts"
       - "**.tsx"
+      - "**.md"
+      - "**.mts"
+      - "**.mjs"
+      - "**.mdx"
+      - "**.css"
       - ".github/workflows/🧪-ci.yml"
       - "**.toml"
       - "package.json"
@@ -74,8 +84,7 @@ jobs:
       - name: Static Analysis
         run: |
           # Auto-fix before check to self-heal fixable issues
-          uv run -m ruff check --fix .
-          uv run -m ruff format .
+          task ci:fix
           task ci:static
 
   tests:
