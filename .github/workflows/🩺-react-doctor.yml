@@ -7,6 +7,10 @@
 # NOTE: Uses CLI directly instead of millionco/react-doctor@v2 action due to
 # upstream bugs (detached HEAD, ANSI leak in PR comments — see PR #80).
 # Switch back to the action once upstream fixes are released.
+#
+# 颗粒度化（v3）：paths 仅触发 .tsx 变更，与 .husky/pre-commit 的
+# NEEDS_REACT_DOCTOR 逻辑保持一致。React Doctor 扫描 React 组件（.tsx），
+# 非 .ts/.css/.mdx 变更无需触发。
 
 name: 🩺 React Doctor
 
@@ -14,13 +18,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
-      - "**.ts"
       - "**.tsx"
-      - "**.jsx"
-      - "**.mts"
-      - "**.mjs"
-      - "**.mdx"
-      - "**.css"
       - ".github/workflows/🩺-react-doctor.yml"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -28,13 +26,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "**.ts"
       - "**.tsx"
-      - "**.jsx"
-      - "**.mts"
-      - "**.mjs"
-      - "**.mdx"
-      - "**.css"
       - ".github/workflows/🩺-react-doctor.yml"
       - "package.json"
       - "pnpm-lock.yaml"
