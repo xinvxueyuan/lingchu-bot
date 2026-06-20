@@ -117,12 +117,20 @@ tasks:
       - |
         set -euo pipefail
 
+        # Sync version from latest remote tag so the version advances across runs
+        git fetch --tags --quiet
+        latest_tag="$(git tag --sort=-v:refname --list 'v[0-9]*' | head -1)"
+        if [ -n "$latest_tag" ]; then
+          tag_version="${latest_tag#v}"
+          uv version "$tag_version" --no-sync
+        fi
+
         version_json="$(uv version --bump dev --output-format json --no-sync)"
         new_version="$(python -c 'import json, sys; print(json.load(sys.stdin)["version"])' <<< "$version_json")"
 
         echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
         echo "$version_json"
-        uv version --bump dev --dry-run --short --output-format text | xargs echo "Bumping version to:"
+        echo "Bumping version to: $new_version"
 
   ci:version:write-config:
     desc: "[CI] Write version into config.py"
