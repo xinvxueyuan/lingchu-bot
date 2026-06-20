@@ -238,4 +238,28 @@ COMMAND_TRIGGERS = {
         chinese_aliases=frozenset({"跨群公告", "远程群公告", "远程发公告"}),
         english_aliases=frozenset({"remote-notice", "cross-group-announcement"}),
     ),
+    "bot_silence": CommandTrigger(
+        chinese="闭嘴",
+        english="silence",
+        chinese_aliases=frozenset(),
+        english_aliases=frozenset(),
+    ),
+    "bot_speak": CommandTrigger(
+        chinese="说话",
+        english="speak",
+        chinese_aliases=frozenset(),
+        english_aliases=frozenset(),
+    ),
+    "bot_boot": CommandTrigger(
+        chinese="开机",
+        english="boot",
+        chinese_aliases=frozenset(),
+        english_aliases=frozenset(),
+    ),
+    "bot_shutdown": CommandTrigger(
+        chinese="关机",
+        english="shutdown",
+        chinese_aliases=frozenset(),
+        english_aliases=frozenset(),
+    ),
 }

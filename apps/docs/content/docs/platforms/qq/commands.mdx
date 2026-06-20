@@ -29,6 +29,7 @@ Default submenu commands:
 - `speech-management` / `发言管理`: mute/unmute member, enable/disable whole-group mute.
 - `group-chat-management` / `群聊管理`: set group name, set group avatar (when supported), send group announcement (when supported), leave current group.
 - `remote-management` / `远程管理`: cross-group mute/unmute, whole-group mute/unmute, kick, block/unblock, send announcement.
+- `bot-control` / `机器人控制`: silence/speak (silent mode), boot/shutdown (handle gate).
 
 <Callout type="info" title="Remote management">
 
@@ -146,3 +147,39 @@ Remote announcement requires `LLOneBot >= 7.12.0` or `NapCat.Onebot >= 4.18.0`. 
 Group management commands return readable error messages for covered adapter network errors and rejected operations. Unknown exceptions are still raised outward so developers can find uncovered cases.
 
 Feedback text and command trigger language use `LINGCHU_LOCALE`, `lc_locale`, or `locale` from the current NoneBot configuration. See [Internationalization](../../developer-guide/i18n).
+
+## Bot Control
+
+```text
+silence
+闭嘴
+```
+
+Enable silent mode: commands still execute (mute, kick, etc. take effect) but no response messages are sent.
+
+```text
+speak
+说话
+```
+
+Disable silent mode: resume sending command response messages.
+
+```text
+boot
+开机
+```
+
+Boot: enable all command handlers. All commands respond normally when booted.
+
+```text
+shutdown
+关机
+```
+
+Shutdown: disable all command handlers (except boot/shutdown themselves). No commands execute or respond. Only boot/shutdown commands work when shut down.
+
+<Callout type="warning" title="Shutdown Scope">
+
+After shutdown, all group management commands (mute, kick, block, etc.) stop responding. Only the boot command can restore operation. In silent mode, commands still execute — only feedback messages are suppressed.
+
+</Callout>

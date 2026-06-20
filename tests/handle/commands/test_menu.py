@@ -107,6 +107,7 @@ def test_menu_page_commands_do_not_claim_announcement_alias() -> None:
         "speech-management",
         "group-chat-management",
         "remote-management",
+        "system-management",
     }
     assert COMMAND_TRIGGERS["send_announcement"].chinese_aliases == {
         "发群公告",

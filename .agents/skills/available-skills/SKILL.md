@@ -1,63 +1,48 @@
 ---
 name: available-skills
-description: Project-local index of currently available Codex skills and plugins for Lingchu Bot. Use when an agent needs to choose which skill to load for documentation lookup, code intelligence, browser verification, artifact editing, deployment, or skill authoring in this repository.
+description: Lingchu Bot 项目本地 skill 与外部插件的紧凑路由索引。Use when agent 需要为文档查询、代码理解、GitNexus、调试交付、前端质量、hook 校验、制品处理、部署或 skill 编写选择应该加载的技能。
 ---
 
-# Available Skills
+# 可用技能
 
-Use this file as a compact routing table. Do not load every external skill preemptively; load the specific `SKILL.md` only after the user request matches its trigger.
+把这里当作路由表使用。不要预先加载所有技能；只有用户请求命中触发条件后，再读取对应 `SKILL.md` 或 reference。
 
-## Mandatory Documentation Rule
+## 强制文档规则
 
-When the user asks about a library, framework, SDK, API, CLI tool, or cloud service, use Context7 MCP or `find-docs` for current documentation. Start with `resolve-library-id` unless the user gives an exact `/org/project` ID, then query docs with the full user question. Prefer documentation lookup over web search for developer docs.
+当用户询问库、框架、SDK、API、CLI 工具或云服务时，使用 Context7 MCP 或 `find-docs` 获取当前文档。除非用户给出精确 `/org/project` ID，否则先 `resolve-library-id`，再用用户完整问题查询文档。开发文档优先 Context7，而不是普通 web 搜索。
 
-## Project-Local Skills
+## 项目本地入口
 
-- `gitnexus/gitnexus-exploring`: understand architecture, execution flows, and unfamiliar code.
-- `gitnexus/gitnexus-impact-analysis`: assess blast radius before changing symbols.
-- `gitnexus/gitnexus-debugging`: trace errors, failures, and unexpected behavior.
-- `gitnexus/gitnexus-refactoring`: rename, extract, split, move, or restructure code safely.
-- `gitnexus/gitnexus-guide`: answer questions about GitNexus tools, schema, and workflow.
-- `gitnexus/gitnexus-cli`: run GitNexus CLI tasks such as analyze, status, clean, wiki, and repo listing.
-- `prek`: set up or run `prek` hook checks.
-- `delivery-loop`: debug, TDD, and code review with disciplined feedback loops.
-- `frontend-quality`: React/frontend diagnostics, visual polish, and health checks for the docs site.
-- `issue-planning`: PRDs, issue breakdown, triage, and refactor plans.
-- `design-prototyping`: interface design, design grilling, and throwaway prototypes.
+- `engineering-workflow`：工程类统一入口。覆盖 GitNexus 代码理解/影响分析/调试/重构/PR review、delivery loop、设计原型、前端质量和 issue/PRD/QA 拆解。
+- `tool-workflows`：工具类统一入口。覆盖 Context7 文档查询、prek/Husky/hooks、skill 管理与合并汉化。
+- `available-skills`：只在需要选择技能或更新项目 skill 索引时读取。
 
-## Coding And Repository Skills
+## 外部代码与仓库技能
 
-- `github:*`: inspect GitHub repositories, PRs, issues, review comments, CI failures, and publish flows.
-- `gitnexus-pr-review`: review pull requests and assess merge risk.
-- `context7-mcp` / `find-docs`: fetch current developer documentation.
-- `openai-docs`: answer OpenAI product and API questions from official docs.
+- `github:*`：检查 GitHub 仓库、PR、issue、review comment、CI 失败和发布流程。
+- `openai-docs`：回答 OpenAI 产品和 API 问题，优先官方文档。
+- `context7` / `find-docs`：获取当前开发者文档；项目本地路由在 `tool-workflows`。
 
-## Frontend And Browser Skills
+## 前端与浏览器技能
 
-- `browser:control-in-app-browser`: open, inspect, click, screenshot, and verify local web targets in the Codex browser.
-- `playwright`: automate browser flows from the terminal.
-- `chrome:control-chrome`: use the user's Chrome state when cookies, tabs, or extensions matter.
-- `vercel:nextjs`, `vercel:react-best-practices`, `vercel:shadcn`, `vercel:verification`, and related Vercel skills: build, verify, and deploy frontend work.
+- `browser` / Playwright / Chrome：本地网页验证、截图、点击、表单和浏览器流程调试。
+- `vercel:*`：Next.js、React best practices、shadcn/ui、部署、Vercel API/CLI、存储、认证、函数、workflow、observability 和 AI SDK。
 
-## Cloud And Platform Skills
+## 云平台技能
 
-- `cloudflare:*`: Workers, Wrangler, Durable Objects, Agents SDK, MCP servers, sandbox SDK, and Cloudflare platform work.
-- `vercel:*`: Vercel deployments, API/CLI, auth, storage, payments, functions, queues, workflow, observability, and AI SDK integrations.
+- `cloudflare:*`：Workers、Wrangler、Durable Objects、Agents SDK、MCP servers、sandbox SDK 和 Cloudflare 平台工作。
+- `vercel:*`：Vercel 部署、运行时、API、队列、存储和平台集成。
 
-## Artifact Skills
+## 制品与媒体技能
 
-- `documents:documents`: create, edit, redline, and verify Word documents.
-- `presentations:Presentations`: create, edit, render, and verify slide decks.
-- `spreadsheets:Spreadsheets`: create, edit, analyze, visualize, and export spreadsheets.
-- `pdf`: read, create, or review PDFs with visual checks when layout matters.
-- `imagegen`: generate or edit raster images.
+- `documents`：创建、编辑、批注、校验 Word 文档。
+- `presentations`：创建、编辑、渲染、校验 slide deck。
+- `spreadsheets`：创建、编辑、分析、可视化、导出 spreadsheet。
+- `pdf`：阅读、创建或审查 PDF；布局重要时做视觉检查。
+- `imagegen`：生成或编辑位图图片。
 
-## Skill And Plugin Authoring
+## Skill 与插件编写
 
-- `skill-creator`: create or update skills with concise `SKILL.md` files and optional resources.
-- `skill-installer`: install Codex skills.
-- `plugin-creator`: scaffold Codex plugins.
-
-## Understand-Anything Skills
-
-Use `understand-anything:*` when the task explicitly asks for repository graphs, dashboards, onboarding guides, domain extraction, diff analysis, or deep explanations using the Understand Anything plugin.
+- `skill-creator`：创建或更新技能，保持 `SKILL.md` 简洁，并按需使用 `references/`、`scripts/`、`assets/`。
+- `skill-installer`：安装 Codex skills。
+- `plugin-creator`：脚手架化 Codex plugins。

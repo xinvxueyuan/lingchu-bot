@@ -127,6 +127,15 @@ MENU_PAGES: Final[tuple[MenuPage, ...]] = (
         LocalizedText("远程管理", "Remote Management"),
         command=LocalizedText("远程管理", "remote-management"),
     ),
+    MenuPage(
+        "system-management",
+        LocalizedText("系统管理", "System Management"),
+        children=(
+            MenuPage("silent-mode", LocalizedText("静默模式", "Silent Mode")),
+            MenuPage("handle-gate", LocalizedText("开关机", "Handle Gate")),
+        ),
+        command=LocalizedText("系统管理", "system-management"),
+    ),
 )
 MENU_SECTIONS: Final[tuple[MenuSection, ...]] = tuple(
     MenuSection(page.id, page.title) for page in MENU_PAGES
@@ -464,6 +473,42 @@ MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         ),
         PlatformCapability.ANNOUNCEMENT,
         (*_ONEBOT_ANNOUNCEMENT,),
+    ),
+    MenuFeature(
+        "bot-silence",
+        "bot_silence",
+        "silent-mode",
+        LocalizedText("闭嘴", "Silence"),
+        LocalizedText("", ""),
+        PlatformCapability.GROUP_MANAGEMENT,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
+        "bot-speak",
+        "bot_speak",
+        "silent-mode",
+        LocalizedText("说话", "Speak"),
+        LocalizedText("", ""),
+        PlatformCapability.GROUP_MANAGEMENT,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
+        "bot-boot",
+        "bot_boot",
+        "handle-gate",
+        LocalizedText("开机", "Boot"),
+        LocalizedText("", ""),
+        PlatformCapability.GROUP_MANAGEMENT,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
+        "bot-shutdown",
+        "bot_shutdown",
+        "handle-gate",
+        LocalizedText("关机", "Shutdown"),
+        LocalizedText("", ""),
+        PlatformCapability.GROUP_MANAGEMENT,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
     ),
 )
 

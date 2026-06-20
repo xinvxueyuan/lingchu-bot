@@ -3,6 +3,7 @@ from nonebot.adapters import Bot
 from nonebot.internal.driver.abstract import Driver
 
 from ..core.async_utils import fire_and_forget
+from ..core.bot_state import load_bot_state
 from ..core.runtime_config import ensure_runtime_config_file_async
 from ..handle.menu import import_handle as menu_import_handle
 from ..handle.qq.adapters import import_handle as group_import_handle
@@ -29,6 +30,7 @@ async def startup() -> None:
     依次执行：预热翻译缓存、导入并注册 group 命令处理器（含所有子模块）。
     """
     await ensure_runtime_config_file_async()
+    load_bot_state()
     registered_adapter_names = tuple(
         str(adapter_name) for adapter_name in get_adapters()
     )
