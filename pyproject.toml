@@ -251,6 +251,7 @@ exclude = [
   "apps/",
   "packages/",
   "docker/",
+  "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/milky",
 ]
 
 [tool.pytest.ini_options]

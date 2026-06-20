@@ -48,6 +48,9 @@ jobs:
       - name: 安装 Node 依赖
         run: pnpm install --frozen-lockfile
 
+      - name: Markdown Lint
+        run: pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" "SECURITY.md" ".github/**/*.md"
+
       - name: Lint & Type Check
         run: pnpm turbo run lint check-types
 

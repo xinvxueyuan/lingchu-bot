@@ -16,6 +16,12 @@ on:
       - "Taskfile.yml"
       - "**/*.py"
       - "**/LICENSE*"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - "apps/docs/**"
+      - "packages/**"
       - ".github/workflows/👷-ci-builds.yml"
   push:
     branches:
@@ -31,6 +37,12 @@ on:
       - "Taskfile.yml"
       - "**/*.py"
       - "**/LICENSE*"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - "apps/docs/**"
+      - "packages/**"
       - ".github/workflows/👷-ci-builds.yml"
 
 permissions:

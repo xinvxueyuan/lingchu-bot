@@ -262,7 +262,7 @@ task ci                                          # check + test + build
 
 ## Git Hooks
 
-- **pre-commit**: 条件触发检查 — Prek auto-fix（始终）→ Ruff lint/format（Python 变更时）→ Pyright/ty（Python 变更时）→ pytest（Python 变更时）→ Docs ESLint/type-check/Vitest（docs 变更时）→ React Doctor（docs 变更时，优先全局/本地安装，回退到 `pnpm dlx` 缓存，最终兜底 `npx -y`）→ Gitnexus analyze（始终，非阻断，优先 `node_modules/.bin/gitnexus` 直接调用，零下载）
+- **pre-commit**: 条件触发检查 — Prek auto-fix（始终）→ Markdownlint via `markdownlint-cli2`（`.md` 变更时，使用与 `Taskfile.yml` 的 `MD_GLOB` 相同的 glob）→ Ruff lint/format（Python 变更时）→ Pyright/ty（Python 变更时）→ pytest（Python 变更时）→ Docs/Packages ESLint + check-types via `pnpm turbo run`（前端变更时 — `apps/docs/` 和 `packages/`，含 `.mts`；覆盖所有工作区）+ Docs Vitest（仅 docs 变更时）→ React Doctor（仅 docs 变更时，优先全局/本地安装，回退到 `pnpm dlx` 缓存，最终兜底 `npx -y`）→ Gitnexus analyze（始终，非阻断，优先 `node_modules/.bin/gitnexus` 直接调用，零下载）
 - **commit-msg**: gitmoji + Conventional Commits 格式校验 + 自动追加 Signed-off-by（含 trailer 块检测）
 - **prepare-commit-msg**: 通过 `node_modules/.bin/gitmoji --hook` 直接启动交互式 gitmoji（零 pnpm/npx 开销；若本地缺失则回退 npx / 全局 gitmoji）
 - **CLI 解析顺序**（所有 hooks 统一）：本地 `node_modules/.bin/<bin>` → 全局 PATH → 全局 `.cmd` shim → `pnpm dlx` 缓存（对非 devDep 工具的最终兜底：`npx -y`）
