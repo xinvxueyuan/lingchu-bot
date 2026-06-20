@@ -2,12 +2,13 @@
 
 # Pre-commit hook: 自动修复 → 快速检查 → 慢速检查 → 非阻断分析
 # 原则：快反馈优先，阻断性检查在前，非阻断分析放最后
-# 优化（v2）：
-#   1. 新增 resolve_js 解析器：优先 node_modules/.bin/<bin>（devDep 零下载），
-#      其次全局 PATH，最后才回退 pnpm dlx（缓存）/ npx（兜底）
-#   2. 一次性探测并缓存所有外部 CLI，避免每个阶段重复子 shell
-#   3. CHANGED 检测由 6 次 git 调用减为 3 次
-#   4. 使用 uv run 链式短命令的检查保持原状（uv 缓存已足够快）
+# 优化（v3 — 颗粒度化）：
+#   1. 继承 v2 的 resolve_js / 一次性探测 / CHANGED 检测优化
+#   2. 拆分 HAS_DOCS → CODE/TSX/CONTENT/STYLE/CONFIG 五类，拆分 HAS_PACKAGES → CODE/CONFIG 两类
+#   3. ESLint 与 check-types 解耦：ESLint 跳过纯内容变更，check-types 跳过纯样式变更
+#   4. React Doctor 仅在 .tsx 变更时运行（React 组件扫描）
+#   5. Docs Vitest 跳过纯样式变更（CSS 不影响测试）
+#   6. 新增 NEEDS_LINT / NEEDS_TYPE_CHECK / NEEDS_REACT_DOCTOR / NEEDS_DOCS_TEST 派生条件
 set +e
 
 # ── 工具解析辅助函数 ────────────────────────────────────
@@ -141,9 +142,18 @@ has_pattern() {
 
 HAS_PYTHON=false
 HAS_PY_CONFIG=false   # pyproject.toml / ruff.toml / uv.lock 等 Python 配置
-HAS_DOCS=false        # apps/docs/ 下的前端/文档变更
-HAS_PACKAGES=false    # packages/ 下的工作区变更
 HAS_MARKDOWN=false    # .md 文件变更
+
+# ── Docs 文件分类（apps/docs/）─────────────────────────
+HAS_DOCS_CODE=false     # .ts/.tsx/.mjs/.mts — 代码文件，触发 ESLint + check-types + Vitest
+HAS_DOCS_TSX=false      # .tsx — React 组件，触发 React Doctor（CODE 的子集）
+HAS_DOCS_CONTENT=false  # .mdx/.json — 内容文件，触发 check-types + Vitest（fumadocs-mdx 重新生成类型）
+HAS_DOCS_STYLE=false    # .css — 样式文件，触发 ESLint（CSS Modules 可能影响类型）
+HAS_DOCS_CONFIG=false   # 配置文件（next.config.mjs/tsconfig.json 等），触发 ESLint + check-types + Vitest
+
+# ── Packages 文件分类（packages/）──────────────────────
+HAS_PACKAGES_CODE=false   # .ts/.tsx/.mjs/.mts/.js/.css — 代码/样式文件
+HAS_PACKAGES_CONFIG=false # .json — 配置文件（含嵌套路径）
 
 # markdownlint-cli2 glob，与 Taskfile.yml 的 MD_GLOB 保持一致
 MD_LINT_GLOB=("apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" "SECURITY.md" ".github/**/*.md")
@@ -154,18 +164,38 @@ fi
 if has_pattern '(^|/)(pyproject\.toml|ruff\.toml|\.ruff\.toml|uv\.lock|\.python-version)$'; then
     HAS_PY_CONFIG=true
 fi
-if has_pattern '^apps/docs/.*\.(ts|tsx|css|mdx|mjs|mts|json)$'; then
-    HAS_DOCS=true
+
+# Docs: 代码文件（.ts/.tsx/.mjs/.mts）
+if has_pattern '^apps/docs/.*\.(ts|tsx|mjs|mts)$'; then
+    HAS_DOCS_CODE=true
 fi
+# Docs: React 组件（.tsx，CODE 的子集，单独标记以触发 React Doctor）
+if has_pattern '^apps/docs/.*\.tsx$'; then
+    HAS_DOCS_TSX=true
+fi
+# Docs: 内容文件（.mdx/.json，fumadocs-mdx 据此生成类型）
+if has_pattern '^apps/docs/.*\.(mdx|json)$'; then
+    HAS_DOCS_CONTENT=true
+fi
+# Docs: 样式文件（.css）
+if has_pattern '^apps/docs/.*\.css$'; then
+    HAS_DOCS_STYLE=true
+fi
+# Docs: 配置文件（影响 lint/type/test 行为）
 if has_pattern '^apps/docs/(next\.config\.mjs|source\.config\.ts|tsconfig\.json|vitest\.config\.ts|eslint\.config\.mjs|postcss\.config\.mjs|package\.json)$'; then
-    HAS_DOCS=true
+    HAS_DOCS_CONFIG=true
 fi
-if has_pattern '^packages/.*\.(ts|tsx|css|mdx|mjs|mts|json)$'; then
-    HAS_PACKAGES=true
+
+# Packages: 代码/样式文件（.ts/.tsx/.mjs/.mts/.js/.css）
+if has_pattern '^packages/.*\.(ts|tsx|mjs|mts|js|css)$'; then
+    HAS_PACKAGES_CODE=true
 fi
-if has_pattern '^packages/(.*\.config\.(ts|mjs|js)|tsconfig\.json|package\.json|eslint\.config\..*)$'; then
-    HAS_PACKAGES=true
+# Packages: 配置文件（.json，含嵌套路径如 packages/ui/tsconfig.json）
+if has_pattern '^packages/.*\.json$'; then
+    HAS_PACKAGES_CONFIG=true
 fi
+
+# Markdown 文件
 if has_pattern '\.md$'; then
     HAS_MARKDOWN=true
 fi
@@ -175,10 +205,43 @@ if [ "$HAS_PYTHON" = true ] || [ "$HAS_PY_CONFIG" = true ]; then
     NEEDS_PYTHON_CHECK=true
 fi
 
-# 前端变更：docs 或 packages 任一变更即触发 lint/check-types
+# ── 派生条件 ──────────────────────────────────────────
+# HAS_DOCS / HAS_PACKAGES / HAS_FRONTEND: 用于日志和兜底判断
+HAS_DOCS=false
+if [ "$HAS_DOCS_CODE" = true ] || [ "$HAS_DOCS_CONTENT" = true ] || [ "$HAS_DOCS_STYLE" = true ] || [ "$HAS_DOCS_CONFIG" = true ]; then
+    HAS_DOCS=true
+fi
+HAS_PACKAGES=false
+if [ "$HAS_PACKAGES_CODE" = true ] || [ "$HAS_PACKAGES_CONFIG" = true ]; then
+    HAS_PACKAGES=true
+fi
 HAS_FRONTEND=false
 if [ "$HAS_DOCS" = true ] || [ "$HAS_PACKAGES" = true ]; then
     HAS_FRONTEND=true
+fi
+
+# NEEDS_LINT: 代码/样式/文档配置变更触发 ESLint（纯内容 .mdx/.json 跳过）
+NEEDS_LINT=false
+if [ "$HAS_DOCS_CODE" = true ] || [ "$HAS_DOCS_STYLE" = true ] || [ "$HAS_DOCS_CONFIG" = true ] || [ "$HAS_PACKAGES_CODE" = true ]; then
+    NEEDS_LINT=true
+fi
+
+# NEEDS_TYPE_CHECK: 任意前端变更触发（fumadocs-mdx 需重新生成类型，CSS Modules 可能影响类型）
+NEEDS_TYPE_CHECK=false
+if [ "$HAS_FRONTEND" = true ]; then
+    NEEDS_TYPE_CHECK=true
+fi
+
+# NEEDS_REACT_DOCTOR: 仅 .tsx 变更触发（React 组件扫描）
+NEEDS_REACT_DOCTOR=false
+if [ "$HAS_DOCS_TSX" = true ]; then
+    NEEDS_REACT_DOCTOR=true
+fi
+
+# NEEDS_DOCS_TEST: 代码/内容/配置变更触发 Vitest（纯样式 .css 跳过）
+NEEDS_DOCS_TEST=false
+if [ "$HAS_DOCS_CODE" = true ] || [ "$HAS_DOCS_CONTENT" = true ] || [ "$HAS_DOCS_CONFIG" = true ]; then
+    NEEDS_DOCS_TEST=true
 fi
 
 echo "🚀 正在运行代码检查..."
@@ -257,15 +320,20 @@ else
     echo "⏭️  无 Python 变更，跳过 pytest 测试。"
 fi
 
-# ── Phase 6: Docs/Packages 检查（十秒级）────────────────────────
-if [ "$HAS_FRONTEND" = true ] && [ -n "$PNPM_RUNNER" ]; then
+# ── Phase 6a: ESLint（秒级，仅代码/样式/配置变更）──────────────────
+if [ "$NEEDS_LINT" = true ] && [ -n "$PNPM_RUNNER" ]; then
     echo "🔍 正在运行 ESLint (all workspaces)..."
     run_pnpm turbo run lint
     if [ $? -ne 0 ]; then
         echo "❌ ESLint 检查失败，请修复后重新提交。"
         exit 1
     fi
+else
+    echo "⏭️  无代码/样式/配置变更，跳过 ESLint。"
+fi
 
+# ── Phase 6b: 类型检查（十秒级，任意前端变更）──────────────────────
+if [ "$NEEDS_TYPE_CHECK" = true ] && [ -n "$PNPM_RUNNER" ]; then
     echo "🔍 正在运行类型检查 (all workspaces)..."
     run_pnpm turbo run check-types
     if [ $? -ne 0 ]; then
@@ -273,10 +341,11 @@ if [ "$HAS_FRONTEND" = true ] && [ -n "$PNPM_RUNNER" ]; then
         exit 1
     fi
 else
-    echo "⏭️  无前端变更，跳过 ESLint/类型检查。"
+    echo "⏭️  无前端变更，跳过类型检查。"
 fi
 
-if [ "$HAS_DOCS" = true ] && [ -n "$PNPM_RUNNER" ]; then
+# ── Phase 6c: Docs Vitest（十秒级，代码/内容/配置变更）──────────────
+if [ "$NEEDS_DOCS_TEST" = true ] && [ -n "$PNPM_RUNNER" ]; then
     echo "🧪 正在运行 Docs Vitest..."
     run_pnpm --filter docs test
     if [ $? -ne 0 ]; then
@@ -285,8 +354,8 @@ if [ "$HAS_DOCS" = true ] && [ -n "$PNPM_RUNNER" ]; then
     fi
 fi
 
-# ── Phase 7: React Doctor（十秒级）───────────────────────
-if [ "$HAS_DOCS" = true ]; then
+# ── Phase 7: React Doctor（十秒级，仅 .tsx 变更）────────────────────
+if [ "$NEEDS_REACT_DOCTOR" = true ]; then
     if [ -n "$REACT_DOCTOR_RESOLVED" ]; then
         echo "🩺 正在运行 React Doctor..."
         NO_COLOR=1 run_resolved "$REACT_DOCTOR_RESOLVED" . --blocking error --no-telemetry --project docs
@@ -317,7 +386,7 @@ if [ "$HAS_DOCS" = true ]; then
         echo "⚠️  未找到 react-doctor / pnpm / npx，跳过 React Doctor 检查。"
     fi
 else
-    echo "⏭️  无 Docs 变更，跳过 React Doctor 检查。"
+    echo "⏭️  无 .tsx 变更，跳过 React Doctor 检查。"
 fi
 
 # ── Phase 8: 非阻断分析 ────────────────────────────────

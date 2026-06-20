@@ -103,7 +103,7 @@ task i18n
 
 ## CI 工作流
 
-- `🧪 CI`：Static Analysis 运行 `task ci:static`；Tests & Type Check 运行 Pyright、ty 和 pytest；Docs Check 运行 Turbo lint/type check 和 docs test。
+- `🧪 CI`：`changes` 检测 job 按文件类型输出布尔标志（python/markdown/frontend/frontend-code/frontend-style/frontend-content/frontend-tsx），然后条件触发下游 job — Static Analysis（Python 或 markdown 变更时）、Tests & Type Check（Python 变更时）、Docs Check（ESLint 在代码/样式变更时，check-types 在任意前端变更时，link validation 在内容变更时，Vitest 在代码/内容变更时）。Auto Fix & Format 在 `main`/`dev` push 时运行。条件与 pre-commit v3 的 `NEEDS_LINT`/`NEEDS_TYPE_CHECK`/`NEEDS_DOCS_TEST` 对齐。
 - `👷 CI-builds`：运行 `task ci:build`；在 `main`、`dev`、`releases/**` 的 push 上还会 bump dev version、写回 `core_version`、构建、归档产物、生成 provenance 并提交 tag。
 - `📚 Docs Deploy`：docs 相关路径 push 到 `main` 或 `dev` 时，运行 pnpm/turbo lint、docs test 和 docs build，然后部署 GitHub Pages。
 - Auto Fix & Format：`main` 和 `dev` push 上，在 CI 通过后运行 `task ci:fix` 并可能自动提交格式修复。

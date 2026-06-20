@@ -13,14 +13,15 @@ on:
       - "**.mjs"
       - "**.mdx"
       - "**.css"
+      - "**.json"
       - ".github/workflows/🧪-ci.yml"
       - "**.toml"
+      - "prek.toml"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "turbo.json"
       - "uv.lock"
-      - ".pre-commit-config.yaml"
       - ".markdownlint.jsonc"
       - "Taskfile.yml"
   push:
@@ -34,14 +35,15 @@ on:
       - "**.mjs"
       - "**.mdx"
       - "**.css"
+      - "**.json"
       - ".github/workflows/🧪-ci.yml"
       - "**.toml"
+      - "prek.toml"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "turbo.json"
       - "uv.lock"
-      - ".pre-commit-config.yaml"
       - ".markdownlint.jsonc"
       - "Taskfile.yml"
 
@@ -55,8 +57,114 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── Change Detection ──────────────────────────────────────────────
+  # 颗粒度化：检测变更文件类型，按需触发下游 job，避免无谓的 Python/frontend 检查
+  # 逻辑与 .husky/pre-commit v3 保持一致
+  changes:
+    name: 🔍 Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.detect.outputs.python }}
+      markdown: ${{ steps.detect.outputs.markdown }}
+      frontend: ${{ steps.detect.outputs.frontend }}
+      frontend-code: ${{ steps.detect.outputs.frontend-code }}
+      frontend-style: ${{ steps.detect.outputs.frontend-style }}
+      frontend-content: ${{ steps.detect.outputs.frontend-content }}
+      frontend-tsx: ${{ steps.detect.outputs.frontend-tsx }}
+    steps:
+      - name: Checkout
+        # pinned from actions/checkout@v6.0.3
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+      - name: Detect changes
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Determine diff range: PR → base..HEAD, push → before..after
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=1
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE="HEAD~1"
+          fi
+          FILES=$(git diff --name-only "$BASE" HEAD 2>/dev/null || git ls-files)
+
+          PYTHON=false
+          MARKDOWN=false
+          FRONTEND=false
+          FRONTEND_CODE=false
+          FRONTEND_STYLE=false
+          FRONTEND_CONTENT=false
+          FRONTEND_TSX=false
+
+          # Python: .py / pyproject.toml / uv.lock / ruff.toml / .python-version
+          if echo "$FILES" | grep -qE '\.py$|(^|/)(pyproject\.toml|uv\.lock|\.python-version|ruff\.toml|\.ruff\.toml)$'; then
+            PYTHON=true
+          fi
+          # Markdown: .md
+          if echo "$FILES" | grep -qE '\.md$'; then
+            MARKDOWN=true
+          fi
+          # Docs: code files (.ts/.tsx/.mjs/.mts) + config files
+          if echo "$FILES" | grep -qE '^apps/docs/.*\.(ts|tsx|mjs|mts)$|^apps/docs/(next\.config\.mjs|source\.config\.ts|tsconfig\.json|vitest\.config\.ts|eslint\.config\.mjs|postcss\.config\.mjs|package\.json)$'; then
+            FRONTEND=true
+            FRONTEND_CODE=true
+          fi
+          # Docs: content files (.mdx/.json)
+          if echo "$FILES" | grep -qE '^apps/docs/.*\.(mdx|json)$'; then
+            FRONTEND=true
+            FRONTEND_CONTENT=true
+          fi
+          # Docs: style files (.css) — triggers ESLint but NOT Vitest
+          if echo "$FILES" | grep -qE '^apps/docs/.*\.css$'; then
+            FRONTEND=true
+            FRONTEND_STYLE=true
+          fi
+          # Docs: .tsx files (React components → React Doctor)
+          if echo "$FILES" | grep -qE '^apps/docs/.*\.tsx$'; then
+            FRONTEND_TSX=true
+          fi
+          # Packages: code/style files (.ts/.tsx/.mjs/.mts/.js/.css)
+          if echo "$FILES" | grep -qE '^packages/.*\.(ts|tsx|mjs|mts|js|css)$'; then
+            FRONTEND=true
+            FRONTEND_CODE=true
+          fi
+          # Packages: config files (.json)
+          if echo "$FILES" | grep -qE '^packages/.*\.json$'; then
+            FRONTEND=true
+          fi
+
+          {
+            echo "python=$PYTHON"
+            echo "markdown=$MARKDOWN"
+            echo "frontend=$FRONTEND"
+            echo "frontend-code=$FRONTEND_CODE"
+            echo "frontend-style=$FRONTEND_STYLE"
+            echo "frontend-content=$FRONTEND_CONTENT"
+            echo "frontend-tsx=$FRONTEND_TSX"
+          } >> "$GITHUB_OUTPUT"
+
+          # Step summary
+          {
+            echo "## 🔍 Change Detection"
+            echo ""
+            echo "| Category | Detected |"
+            echo "|----------|----------|"
+            echo "| Python | \`$PYTHON\` |"
+            echo "| Markdown | \`$MARKDOWN\` |"
+            echo "| Frontend (any) | \`$FRONTEND\` |"
+            echo "| Frontend Code (ESLint+Vitest) | \`$FRONTEND_CODE\` |"
+            echo "| Frontend Style (ESLint only) | \`$FRONTEND_STYLE\` |"
+            echo "| Frontend Content (check-types+Vitest) | \`$FRONTEND_CONTENT\` |"
+            echo "| Frontend TSX (React Doctor) | \`$FRONTEND_TSX\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   static-analysis:
     name: 🔍 Static Analysis
+    needs: changes
+    if: needs.changes.outputs.python == 'true' || needs.changes.outputs.markdown == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -89,6 +197,8 @@ jobs:
 
   tests:
     name: 🧪 Tests & Type Check (${{ matrix.db == 'sqlite+aiosqlite:///db.sqlite3' && 'SQLite' || (startsWith(matrix.db, 'postgresql') && 'PostgreSQL' || 'MySQL') }})
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -153,6 +263,8 @@ jobs:
 
   docs-check:
     name: 📚 Docs Check
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -164,17 +276,35 @@ jobs:
         uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
-      - name: Lint & Type Check
-        run: pnpm turbo run lint check-types
+      - name: ESLint
+        # 对齐 pre-commit v3 NEEDS_LINT：代码/样式/配置变更触发（纯 .mdx/.json 内容跳过）
+        if: needs.changes.outputs.frontend-code == 'true' || needs.changes.outputs.frontend-style == 'true'
+        run: pnpm turbo run lint
+      - name: Type Check
+        # 对齐 pre-commit v3 NEEDS_TYPE_CHECK：任意前端变更触发（fumadocs-mdx 重新生成类型，CSS Modules 可能影响类型）
+        run: pnpm turbo run check-types
       - name: Link Validation
+        # 内容变更（.mdx）可能引入新链接，需校验
+        if: needs.changes.outputs.frontend-content == 'true'
         run: pnpm --filter docs lint:links
       - name: Test
+        # 对齐 pre-commit v3 NEEDS_DOCS_TEST：代码/内容/配置变更触发（纯 .css 样式跳过）
+        if: needs.changes.outputs.frontend-code == 'true' || needs.changes.outputs.frontend-content == 'true'
         run: pnpm --filter docs test
 
   auto-format:
     name: 🎨 Auto Fix & Format
-    if: github.event_name == 'push' && contains(fromJSON('["refs/heads/main", "refs/heads/dev"]'), github.ref)
-    needs: [static-analysis, tests]
+    needs: [changes, static-analysis, tests]
+    # always() allows running even when static-analysis/tests are skipped (no Python changes).
+    # Only run when Python or markdown files changed (ci:fix only fixes Python + markdown).
+    # Block on failure (not skip) of upstream jobs.
+    if: >-
+      always() &&
+      github.event_name == 'push' &&
+      contains(fromJSON('["refs/heads/main", "refs/heads/dev"]'), github.ref) &&
+      (needs.changes.outputs.python == 'true' || needs.changes.outputs.markdown == 'true') &&
+      needs.static-analysis.result != 'failure' &&
+      needs.tests.result != 'failure'
     permissions:
       contents: write
     runs-on: ubuntu-latest

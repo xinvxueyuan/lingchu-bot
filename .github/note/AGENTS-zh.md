@@ -264,7 +264,7 @@ task ci                                          # check + test + build
 
 ## Git Hooks
 
-- **pre-commit**: 条件触发检查 — Prek auto-fix（始终）→ Markdownlint via `markdownlint-cli2`（`.md` 变更时，使用与 `Taskfile.yml` 的 `MD_GLOB` 相同的 glob）→ Ruff lint/format（Python 变更时）→ Pyright/ty（Python 变更时）→ pytest（Python 变更时）→ Docs/Packages ESLint + check-types via `pnpm turbo run`（前端变更时 — `apps/docs/` 和 `packages/`，含 `.mts`；覆盖所有工作区）+ Docs Vitest（仅 docs 变更时）→ React Doctor（仅 docs 变更时，优先全局/本地安装，回退到 `pnpm dlx` 缓存，最终兜底 `npx -y`）→ Gitnexus analyze（始终，非阻断，优先 `node_modules/.bin/gitnexus` 直接调用，零下载）
+- **pre-commit**: 条件触发检查（v3 — 颗粒度化）— Prek auto-fix（始终）→ Markdownlint via `markdownlint-cli2`（`.md` 变更时，使用与 `Taskfile.yml` 的 `MD_GLOB` 相同的 glob）→ Ruff lint/format（Python 变更时）→ Pyright/ty（Python 变更时）→ pytest（Python 变更时）→ ESLint via `pnpm turbo run lint`（代码/样式/配置变更时 — `NEEDS_LINT`：docs `.ts`/`.tsx`/`.mjs`/`.mts`/`.css`/配置，packages `.ts`/`.tsx`/`.mjs`/`.mts`/`.js`/`.css`；纯 `.mdx`/`.json` 内容变更跳过）→ check-types via `pnpm turbo run check-types`（任意前端变更时 — `NEEDS_TYPE_CHECK`）→ Docs Vitest（docs 代码/内容/配置变更时 — `NEEDS_DOCS_TEST`；纯 `.css` 样式变更跳过）→ React Doctor（仅 `.tsx` 变更时 — `NEEDS_REACT_DOCTOR`，优先全局/本地安装，回退到 `pnpm dlx` 缓存，最终兜底 `npx -y`）→ Gitnexus analyze（始终，非阻断，优先 `node_modules/.bin/gitnexus` 直接调用，零下载）
 - **commit-msg**: gitmoji + Conventional Commits 格式校验 + 自动追加 Signed-off-by（含 trailer 块检测）
 - **prepare-commit-msg**: 通过 `node_modules/.bin/gitmoji --hook` 直接启动交互式 gitmoji（零 pnpm/npx 开销；若本地缺失则回退 npx / 全局 gitmoji）
 - **CLI 解析顺序**（所有 hooks 统一）：本地 `node_modules/.bin/<bin>` → 全局 PATH → 全局 `.cmd` shim → `pnpm dlx` 缓存（对非 devDep 工具的最终兜底：`npx -y`）
@@ -343,7 +343,7 @@ Use conventional commit + gitmoji: `✨ feat:`, `🐛 fix:`, `📝 docs:`, `⚡ 
 
 GitHub Actions runs on push to `main`/`dev` and on PRs:
 
-- **🧪 CI**: Static analysis (Ruff + Markdown + Turborepo lint), tests & type check (Pyright + ty + pytest + docs test), auto-format on push to main/dev. Test jobs install `--extra deprecated-adapters` so test files importing optional dependencies (Milky adapter) can resolve.
+- **🧪 CI**: Change detection job (`changes`) outputs boolean flags per file type (python/markdown/frontend/frontend-code/frontend-style/frontend-content/frontend-tsx), then conditionally runs downstream jobs — Static analysis (Ruff + Markdown + Turborepo lint, on Python or markdown changes), Tests & type check (Pyright + ty + pytest, on Python changes), Docs check (ESLint on code/style, check-types on any frontend, link validation on content, Vitest on code/content — aligned with pre-commit v3 `NEEDS_LINT`/`NEEDS_TYPE_CHECK`/`NEEDS_DOCS_TEST`). Auto-format on push to main/dev. Test jobs install `--extra deprecated-adapters` so test files importing optional dependencies (Milky adapter) can resolve.
 - **👷 CI-builds**: Build verification on Python/package changes
 - **📚 Docs Deploy**: Build and deploy to GitHub Pages on push to main/dev
 - **🩺 React Doctor**: React codebase health check on PRs (uses CLI, not the action — see Lessons Learned)
@@ -498,7 +498,8 @@ When removing functions/helpers:
 
 ### Git Hooks Optimization
 
-- **Pre-commit 应按变更文件类型条件触发检查**：用 `git diff --cached --name-only --diff-filter=ACMR` 收集暂存文件，通过 `has_pattern()` 检测文件后缀/路径，无 Python 变更时跳过 Ruff/Pyright/ty/pytest，无 Docs 变更时跳过 ESLint/type-check/Vitest，可节省 30-60 秒
+- **Pre-commit 应按变更文件类型条件触发检查（v3 — 颗粒度化）**：用 `git diff --cached --name-only --diff-filter=ACMR` 收集暂存文件，通过 `has_pattern()` 检测文件后缀/路径，无 Python 变更时跳过 Ruff/Pyright/ty/pytest。前端变更拆分为 docs 5 类（CODE/TSX/CONTENT/STYLE/CONFIG）和 packages 2 类（CODE/CONFIG），派生独立条件：`NEEDS_LINT`（纯 `.mdx`/`.json` 内容变更跳过 ESLint）、`NEEDS_TYPE_CHECK`（任意前端变更）、`NEEDS_REACT_DOCTOR`（仅 `.tsx` 变更）、`NEEDS_DOCS_TEST`（纯 `.css` 样式变更跳过 Vitest），视变更类型可节省 30-90 秒
+- **CI workflows 应与 pre-commit v3 颗粒度化保持一致**：`🧪-ci.yml` workflow 使用 `changes` 检测 job，通过 `git diff --name-only`（PR 对比 base，push 对比 `HEAD~1`）输出布尔标志（`python`/`markdown`/`frontend`/`frontend-code`/`frontend-style`/`frontend-content`/`frontend-tsx`）。下游 job 在 `if` 条件中使用 `needs.changes.outputs.<flag> == 'true'`：`static-analysis`（Python 或 markdown）、`tests`（Python）、`docs-check`（任意前端）。`docs-check` 内部，ESLint 在 `frontend-code || frontend-style` 时运行（对应 `NEEDS_LINT`），check-types 在任意前端变更时运行（对应 `NEEDS_TYPE_CHECK`），Vitest 在 `frontend-code || frontend-content` 时运行（对应 `NEEDS_DOCS_TEST`，跳过纯 `.css`）。`auto-format` 使用 `always()` 配合 `needs.<job>.result != 'failure'` 处理被跳过的上游 job。`🩺-react-doctor.yml` workflow 将 `paths` 收窄为仅 `.tsx`（对应 `NEEDS_REACT_DOCTOR`）。一致性确保本地与 CI 行为匹配。
 - **Signed-off-by 追加需检测 trailer 块**：已有 trailer（如 `Closes #`、`BREAKING CHANGE:`、`Reviewed-by:`）时应追加到同一块（无空行分隔），无 trailer 时才用空行分隔
 - **空行清理不能破坏消息结构**：`sed '/^$/N;/^\n$/d'` 会删除所有连续空行，破坏 subject-body-trailer 结构；应仅压缩 ≥3 连续空行为 2 个
 - **重复签名检测需忽略尾部空白**：`grep -qF` 可能因行尾空白差异误判，应先 `sed 's/[[:space:]]*$//'` 去尾空白再 `grep -qxF` 精确整行匹配
