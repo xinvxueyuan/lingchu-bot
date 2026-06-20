@@ -4,6 +4,8 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+import aiofiles
+import aiofiles.os
 from arclet.alconna import Alconna, Args
 from nonebot import get_driver
 from nonebot.drivers import Request
@@ -21,10 +23,11 @@ async def _resolve_image_path(image: UniImage) -> Path | None:
     if raw is not None:
         raw_bytes = raw.getvalue() if isinstance(raw, BytesIO) else raw
         cache_dir = plugin_config.cache_dir / "announcement_images"
-        cache_dir.mkdir(parents=True, exist_ok=True)
+        await aiofiles.os.makedirs(cache_dir, exist_ok=True)
         md5 = hashlib.md5(raw_bytes).hexdigest()
         cache_path = cache_dir / f"{md5}.png"
-        cache_path.write_bytes(raw_bytes)
+        async with aiofiles.open(cache_path, "wb") as f:
+            await f.write(raw_bytes)
         return cache_path
 
     path = getattr(image, "path", None)
@@ -41,10 +44,11 @@ async def _resolve_image_path(image: UniImage) -> Path | None:
                 response = await session.request(request)
                 content = response.content
                 cache_dir = plugin_config.cache_dir / "announcement_images"
-                cache_dir.mkdir(parents=True, exist_ok=True)
+                await aiofiles.os.makedirs(cache_dir, exist_ok=True)
                 md5 = hashlib.md5(content).hexdigest()
                 cache_path = cache_dir / f"{md5}.png"
-                cache_path.write_bytes(content)
+                async with aiofiles.open(cache_path, "wb") as f:
+                    await f.write(content)
                 return cache_path
 
     return None

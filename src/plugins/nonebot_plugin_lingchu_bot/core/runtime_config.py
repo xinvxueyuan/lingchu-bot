@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 
 from ..database.json5_store import (
     DatabaseError,
+    ensure_json5_dict_file_async,
     ensure_json5_dict_file_sync,
     load_json5_dict_sync,
 )
@@ -285,6 +286,21 @@ def ensure_runtime_config_file(
     path = Path(config_file) if config_file is not None else get_runtime_config_file()
     try:
         return ensure_json5_dict_file_sync(path, runtime_config_defaults())
+    except DatabaseError as exc:
+        raise RuntimeConfigError(path, exc) from exc
+
+
+async def ensure_runtime_config_file_async(
+    config_file: str | Path | None = None,
+) -> Path:
+    """Async variant of :func:`ensure_runtime_config_file`.
+
+    Uses ``aiofiles`` for non-blocking I/O so it can be awaited from
+    ``startup()`` inside the event loop.
+    """
+    path = Path(config_file) if config_file is not None else get_runtime_config_file()
+    try:
+        return await ensure_json5_dict_file_async(path, runtime_config_defaults())
     except DatabaseError as exc:
         raise RuntimeConfigError(path, exc) from exc
 

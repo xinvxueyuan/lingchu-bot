@@ -8,6 +8,7 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import At
 
+from ......core.async_utils import fire_and_forget
 from ......i18n import _async as _
 from ....commands.common import selected_adapter_handle
 from ....commands.mute import (
@@ -74,13 +75,16 @@ async def onebot11_mute(  # noqa: PLR0911
         return await member_mute_cmd.finish(await _("禁言失败，操作被拒绝"))
 
     # 6. 记录审计
-    await record_command_audit(
-        bot,
-        event,
-        action="member_mute",
-        target_user_id=target_user_id,
-        duration=duration,
-        reason=reason,
+    fire_and_forget(
+        record_command_audit(
+            bot,
+            event,
+            action="member_mute",
+            target_user_id=target_user_id,
+            duration=duration,
+            reason=reason,
+        ),
+        name="audit:member_mute",
     )
 
     # 7. 格式化反馈消息
@@ -120,7 +124,10 @@ async def onebot11_whole_mute(
         return await whole_mute_cmd.finish(await _("全体禁言失败，操作被拒绝"))
 
     # 3. 记录审计
-    await record_command_audit(bot, event, action="whole_mute")
+    fire_and_forget(
+        record_command_audit(bot, event, action="whole_mute"),
+        name="audit:whole_mute",
+    )
 
     return await whole_mute_cmd.finish(await _("全体禁言成功"))
 
@@ -156,8 +163,11 @@ async def onebot11_unmute(
         return await member_unmute_cmd.finish(await _("解禁失败，操作被拒绝"))
 
     # 4. 记录审计
-    await record_command_audit(
-        bot, event, action="member_unmute", target_user_id=target_user_id
+    fire_and_forget(
+        record_command_audit(
+            bot, event, action="member_unmute", target_user_id=target_user_id
+        ),
+        name="audit:member_unmute",
     )
 
     # 5. 格式化反馈消息
@@ -183,6 +193,9 @@ async def onebot11_whole_unmute(
         return await whole_unmute_cmd.finish(await _("全体解禁失败，操作被拒绝"))
 
     # 记录审计
-    await record_command_audit(bot, event, action="whole_unmute")
+    fire_and_forget(
+        record_command_audit(bot, event, action="whole_unmute"),
+        name="audit:whole_unmute",
+    )
 
     return await whole_unmute_cmd.finish(await _("全体解禁成功"))

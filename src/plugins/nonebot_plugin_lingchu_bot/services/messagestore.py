@@ -17,6 +17,7 @@ from nonebot.message import (
 )
 from nonebot.typing import T_State  # noqa: TC002
 
+from ..core.async_utils import fire_and_forget
 from ..core.runtime_config import runtime_config
 from ..database.orm_crud import DatabaseError
 from ..platforms import get_platform_profile, resolve_adapter_id
@@ -348,23 +349,27 @@ async def message_store_preprocessor(
     if normalized is None:
         return
     state[STATE_KEY] = normalized.identity
-    try:
-        await repository.record_event_received(
-            platform_id=normalized.identity.platform_id,
-            adapter_id=normalized.identity.adapter_id,
-            protocol_id=normalized.identity.protocol_id,
-            bot_id=normalized.identity.bot_id,
-            conversation_id=normalized.identity.conversation_id,
-            user_id=normalized.user_id,
-            message_id=normalized.identity.message_id,
-            event_type=normalized.event_type,
-            message_type=normalized.message_type,
-            text_summary=normalized.text_summary,
-            raw_message=normalized.raw_message,
-            raw_event=normalized.raw_event,
-        )
-    except DatabaseError:
-        logger.exception("Failed to record incoming message event")
+
+    async def _record() -> None:
+        try:
+            await repository.record_event_received(
+                platform_id=normalized.identity.platform_id,
+                adapter_id=normalized.identity.adapter_id,
+                protocol_id=normalized.identity.protocol_id,
+                bot_id=normalized.identity.bot_id,
+                conversation_id=normalized.identity.conversation_id,
+                user_id=normalized.user_id,
+                message_id=normalized.identity.message_id,
+                event_type=normalized.event_type,
+                message_type=normalized.message_type,
+                text_summary=normalized.text_summary,
+                raw_message=normalized.raw_message,
+                raw_event=normalized.raw_event,
+            )
+        except DatabaseError:
+            logger.exception("Failed to record incoming message event")
+
+    fire_and_forget(_record(), name="record_event_received")
 
 
 @event_postprocessor
@@ -392,19 +397,23 @@ async def message_store_run_postprocessor(
     status = "handled" if exception is None else "failed"
     if getattr(matcher, "block", False):
         status = f"{status}:blocked"
-    try:
-        await repository.record_matcher_result(
-            platform_id=identity.platform_id,
-            adapter_id=identity.adapter_id,
-            protocol_id=identity.protocol_id,
-            bot_id=identity.bot_id,
-            conversation_id=identity.conversation_id,
-            message_id=identity.message_id,
-            process_status=status,
-            exception_summary=_stringify(exception),
-        )
-    except DatabaseError:
-        logger.exception("Failed to update message processing status")
+
+    async def _record() -> None:
+        try:
+            await repository.record_matcher_result(
+                platform_id=identity.platform_id,
+                adapter_id=identity.adapter_id,
+                protocol_id=identity.protocol_id,
+                bot_id=identity.bot_id,
+                conversation_id=identity.conversation_id,
+                message_id=identity.message_id,
+                process_status=status,
+                exception_summary=_stringify(exception),
+            )
+        except DatabaseError:
+            logger.exception("Failed to update message processing status")
+
+    fire_and_forget(_record(), name="record_matcher_result")
 
 
 @Bot.on_calling_api
@@ -436,16 +445,21 @@ async def message_store_on_called_api(
     if adapter_identity is None:
         return
     platform_id, adapter_id = adapter_identity
-    try:
-        await repository.record_api_call(
-            platform_id=platform_id,
-            adapter_id=adapter_id,
-            protocol_id=None,
-            bot_id=_stringify(getattr(bot, "self_id", None), limit=128) or "unknown",
-            api_name=api,
-            data_summary=_stringify(data),
-            result_summary=_stringify(result),
-            exception_summary=_stringify(exception),
-        )
-    except DatabaseError:
-        logger.exception("Failed to record platform API call: %s", api)
+    bot_id = _stringify(getattr(bot, "self_id", None), limit=128) or "unknown"
+
+    async def _record() -> None:
+        try:
+            await repository.record_api_call(
+                platform_id=platform_id,
+                adapter_id=adapter_id,
+                protocol_id=None,
+                bot_id=bot_id,
+                api_name=api,
+                data_summary=_stringify(data),
+                result_summary=_stringify(result),
+                exception_summary=_stringify(exception),
+            )
+        except DatabaseError:
+            logger.exception("Failed to record platform API call: %s", api)
+
+    fire_and_forget(_record(), name="record_api_call")

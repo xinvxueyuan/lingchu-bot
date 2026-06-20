@@ -358,6 +358,16 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 - **🧹 Clear Workflow**: Stale workflow cleanup
 - **🏷️ Issues Top**: Issue triage automation
 
+## Engineering Conventions
+
+### `fire_and_forget` 辅助函数
+
+- **位置**：`src/plugins/nonebot_plugin_lingchu_bot/core/async_utils.py`
+- **签名**：`fire_and_forget(coro, *, name="fire_and_forget")`
+- **适用场景**：可丢弃的后台操作（审计日志、遥测、缓存写入），调用者不需要其结果。该辅助函数将协程调度为 `asyncio.Task`，在模块级 set 中跟踪，并通过 done-callback 中的 `logger.exception` 记录异常。
+- **不适用场景**：调用者需要结果的操作，或函数返回前必须完成的操作。这些情况下直接使用 `await`。
+- **引用管理**：辅助函数将任务存储在模块级 set 中，防止 Python GC 过早取消；done-callback 在记录任何异常后移除引用。
+
 ## Lessons Learned
 
 > **时效性警示**：以下经验反映的是编写时代码库和依赖的状态。在依赖任何经验之前，请先验证其是否仍然成立——API 会变、包会新增导出、CI 配置也会演进。当经验过时时，应更新或删除，而非传播过时假设。
@@ -809,3 +819,11 @@ platforms/
 - **所有 .github 配置文件使用英文注释**：`.github/` 下所有 YAML 配置文件统一使用英文注释。包括 `dependabot.yml`、`labeler.yml`、`auto_assign.yml` 等。
 - **移除损坏的 `yaml-language-server: $schema=` 行**：如果配置文件有 `# yaml-language-server: $schema=` 注释但 URL 为空或无效，移除该行。仅在存在有效 JSON schema URL 时才添加 schema 注释。
 - **Dependabot monorepo 配置**：pnpm/Turborepo monorepo 的 npm 生态使用 `directories`（复数，支持 glob 模式）而非 `directory`（单数）。使用 `groups` + `patterns` + `update-types` 将次版本/补丁更新合并为单个 PR，跨所有工作区目录。
+
+### 异步转换：Fire-and-Forget 任务与异步 I/O
+
+- **Fire-and-forget 后台任务必须保留强引用**：将调度的任务存储在模块级 `set` 中，并附加 done-callback 通过 `logger.exception` 记录异常并丢弃引用。若无强引用，Python 垃圾回收器可能在任务完成前将其取消。
+- **可丢弃的同步操作会阻塞事件循环**：async 函数中的审计/遥测 DB 写入和图片缓存写入会阻塞事件循环。将 DB 写入转换为 `fire_and_forget`（作为后台任务运行），文件 I/O 转换为 `aiofiles`（`aiofiles.open` 用于读写）。
+- **优先使用 `asyncio.gather(..., return_exceptions=True)` 而非顺序 `await` 循环**：用于独立的启动操作（注册表播种、超级用户授权）。记录每项失败而非中止整批——一项失败不应阻塞其余项。
+- **异步文件 I/O 模式**：将同步文件 I/O 转换为异步时，使用 `aiofiles.os.makedirs`/`aiofiles.os.replace`/`aiofiles.os.unlink` 进行路径操作，`aiofiles.open` 进行读写，参照 `database/json5_store/_async_db.py` 的模式。
+- **为导入时使用保留同步变体**：模块加载时没有事件循环可用，因此同步变体（如 `ensure_json5_dict_file_sync`）必须保留供模块级调用者使用；异步变体（如 `ensure_json5_dict_file_async`）供 `async def` 函数内的运行时调用者使用。

@@ -12,6 +12,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+import aiofiles
+import aiofiles.os
 import json5
 
 from .exceptions import InvalidJSON5RootTypeError, JSON5FileReadError
@@ -72,5 +74,39 @@ def ensure_json5_dict_file_sync(
     except (OSError, TypeError, ValueError) as exc:
         with contextlib.suppress(OSError):
             temp_path.unlink()
+        raise JSON5FileReadError(path, exc) from exc
+    return path
+
+
+async def ensure_json5_dict_file_async(
+    file_path: str | Path,
+    default: dict[str, Any],
+    *,
+    indent: int = 2,
+    ensure_ascii: bool = False,
+) -> Path:
+    """异步确保 JSON5 字典文件存在，已存在时不覆盖。
+
+    镜像 ``ensure_json5_dict_file_sync`` 的逻辑，但使用 ``aiofiles`` 进行
+    非阻塞 I/O，适合在事件循环中调用（如 ``startup()``）。
+    """
+    path = Path(file_path)
+    if await aiofiles.os.path.exists(path):
+        return path
+
+    await aiofiles.os.makedirs(path.parent, exist_ok=True)
+    temp_path = path.with_suffix(".tmp.json5")
+    try:
+        content = json5.dumps(
+            default,
+            indent=indent,
+            ensure_ascii=ensure_ascii,
+        )
+        async with aiofiles.open(temp_path, "w", encoding="utf-8") as f:
+            await f.write(content)
+        await aiofiles.os.replace(temp_path, path)
+    except (OSError, TypeError, ValueError) as exc:
+        with contextlib.suppress(OSError):
+            await aiofiles.os.unlink(temp_path)
         raise JSON5FileReadError(path, exc) from exc
     return path

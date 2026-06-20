@@ -2,10 +2,13 @@
 测试群公告命令 - Milky 群 API 映射覆盖
 """
 
+import hashlib
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import announcement
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.announcement import (
     milkybot_send_group_announcement,
     onebot_v11_send_group_announcement,
@@ -154,3 +157,37 @@ async def test_onebot11_send_group_announcement_rejects_unsupported_impl(
 
     mock_onebot11_bot.call_api.assert_not_called()
     assert "不支持的 OneBot 版本" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_caches_raw_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_resolve_image_path 通过 aiofiles 异步写入缓存文件。"""
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(announcement, "plugin_config", fake_config)
+
+    raw_bytes = b"fake-image-bytes"
+    image = create_mock_image(raw=raw_bytes)
+
+    result = await announcement._resolve_image_path(image)
+
+    expected_md5 = hashlib.md5(raw_bytes).hexdigest()
+    expected_path = tmp_path / "announcement_images" / f"{expected_md5}.png"
+    assert result == expected_path
+    assert result is not None
+    assert result.read_bytes() == raw_bytes
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_returns_path_attribute() -> None:
+    """raw 为空但 path 存在时，直接返回该路径。"""
+    image = MagicMock()
+    image.raw = None
+    image.path = "/tmp/existing.png"
+    image.url = None
+
+    result = await announcement._resolve_image_path(image)
+
+    assert result == Path("/tmp/existing.png")

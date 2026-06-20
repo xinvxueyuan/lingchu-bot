@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from collections.abc import Mapping
 from typing import Any
 
@@ -14,6 +16,8 @@ from ..handle.menu import MENU_FEATURES
 from ..platforms import iter_platform_profiles
 from ..repositories import permissions as repo
 from .platforms import iter_default_identity_groups
+
+logger = logging.getLogger(__name__)
 
 MAX_COMPAT_SUPERUSERS = 999
 
@@ -145,8 +149,20 @@ async def _sync_superusers(superusers: Mapping[str, Mapping[str, str]]) -> None:
                 display_name=uid,
             )
 
-    for feature in MENU_FEATURES:
-        await repo.grant_command(
-            group_id=repo.SUPERUSERS_GROUP_ID,
-            command_key=feature.command_key,
-        )
+    grant_results = await asyncio.gather(
+        *(
+            repo.grant_command(
+                group_id=repo.SUPERUSERS_GROUP_ID,
+                command_key=feature.command_key,
+            )
+            for feature in MENU_FEATURES
+        ),
+        return_exceptions=True,
+    )
+    for feature, result in zip(MENU_FEATURES, grant_results, strict=True):
+        if isinstance(result, Exception):
+            logger.warning(
+                "Failed to grant command during superuser sync: %s",
+                feature.command_key,
+                exc_info=result,
+            )

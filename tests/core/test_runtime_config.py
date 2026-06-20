@@ -8,6 +8,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.core import runtime_config as runtim
 from src.plugins.nonebot_plugin_lingchu_bot.core.runtime_config import (
     RuntimeConfigError,
     ensure_runtime_config_file,
+    ensure_runtime_config_file_async,
     get_runtime_config,
 )
 
@@ -163,6 +164,34 @@ def test_ensure_runtime_config_file_does_not_overwrite_existing(
     config_file.write_text("{message_store_retention_days: 7}", encoding="utf-8")
 
     ensure_runtime_config_file(config_file)
+
+    assert "7" in config_file.read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
+async def test_ensure_runtime_config_file_async_creates_default_json5(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.json5"
+
+    created = await ensure_runtime_config_file_async(config_file)
+
+    assert created == config_file
+    assert config_file.exists()
+    assert (
+        get_runtime_config(config_file).message_store_retention_days
+        == DEFAULT_RETENTION_DAYS
+    )
+
+
+@pytest.mark.asyncio
+async def test_ensure_runtime_config_file_async_does_not_overwrite_existing(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.json5"
+    config_file.write_text("{message_store_retention_days: 7}", encoding="utf-8")
+
+    await ensure_runtime_config_file_async(config_file)
 
     assert "7" in config_file.read_text(encoding="utf-8")
 

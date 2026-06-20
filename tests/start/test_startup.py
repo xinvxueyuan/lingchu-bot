@@ -16,7 +16,7 @@ async def test_startup_imports_group_and_menu_handlers(
     group_import = AsyncMock()
     menu_import = AsyncMock()
 
-    monkeypatch.setattr(startup_module, "ensure_runtime_config_file", MagicMock())
+    monkeypatch.setattr(startup_module, "ensure_runtime_config_file_async", AsyncMock())
     monkeypatch.setattr(startup_module, "get_adapters", dict)
     monkeypatch.setattr(
         startup_module,

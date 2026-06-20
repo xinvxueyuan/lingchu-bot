@@ -12,6 +12,7 @@ from nonebot_plugin_alconna.uniseg import At
 from nonebot_plugin_alconna.uniseg import Image as UniImage
 from packaging.version import InvalidVersion, parse
 
+from ......core.async_utils import fire_and_forget
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......repositories.blocklist import (
@@ -228,14 +229,17 @@ async def onebot11_remote_mute(  # noqa: PLR0911, PLR0913
         return await remote_mute_cmd.finish(await _("远程禁言失败，操作被拒绝"))
 
     # 7. 记录审计
-    await record_command_audit(
-        bot,
-        event,
-        action="remote_mute",
-        target_user_id=target_user_id,
-        duration=duration,
-        reason=reason,
-        group_id=group_id_int,
+    fire_and_forget(
+        record_command_audit(
+            bot,
+            event,
+            action="remote_mute",
+            target_user_id=target_user_id,
+            duration=duration,
+            reason=reason,
+            group_id=group_id_int,
+        ),
+        name="audit:remote_mute",
     )
 
     # 8. 格式化反馈消息
@@ -303,12 +307,15 @@ async def onebot11_remote_unmute(
         return await remote_unmute_cmd.finish(await _("远程解禁失败，操作被拒绝"))
 
     # 6. 记录审计
-    await record_command_audit(
-        bot,
-        event,
-        action="remote_unmute",
-        target_user_id=target_user_id,
-        group_id=group_id_int,
+    fire_and_forget(
+        record_command_audit(
+            bot,
+            event,
+            action="remote_unmute",
+            target_user_id=target_user_id,
+            group_id=group_id_int,
+        ),
+        name="audit:remote_unmute",
     )
 
     # 7. 格式化反馈消息
@@ -362,8 +369,11 @@ async def onebot11_remote_whole_mute(
         )
 
     # 4. 记录审计
-    await record_command_audit(
-        bot, event, action="remote_whole_mute", group_id=group_id_int
+    fire_and_forget(
+        record_command_audit(
+            bot, event, action="remote_whole_mute", group_id=group_id_int
+        ),
+        name="audit:remote_whole_mute",
     )
 
     return await remote_whole_mute_cmd.finish(
@@ -402,8 +412,11 @@ async def onebot11_remote_whole_unmute(
         )
 
     # 4. 记录审计
-    await record_command_audit(
-        bot, event, action="remote_whole_unmute", group_id=group_id_int
+    fire_and_forget(
+        record_command_audit(
+            bot, event, action="remote_whole_unmute", group_id=group_id_int
+        ),
+        name="audit:remote_whole_unmute",
     )
 
     return await remote_whole_unmute_cmd.finish(
@@ -472,13 +485,16 @@ async def onebot11_remote_kick(  # noqa: PLR0911
         return await remote_kick_cmd.finish(await _("远程踢出群成员失败，操作被拒绝"))
 
     # 7. 记录审计
-    await record_command_audit(
-        bot,
-        event,
-        action="remote_kick",
-        target_user_id=target_user_id,
-        reason=reason,
-        group_id=group_id_int,
+    fire_and_forget(
+        record_command_audit(
+            bot,
+            event,
+            action="remote_kick",
+            target_user_id=target_user_id,
+            reason=reason,
+            group_id=group_id_int,
+        ),
+        name="audit:remote_kick",
     )
 
     # 8. 反馈结果
@@ -539,14 +555,17 @@ async def onebot11_remote_block(  # noqa: PLR0913
         return await remote_block_cmd.finish(await _("远程拉黑失败，操作被拒绝"))
 
     # 5. 记录审计
-    await record_command_audit(
-        bot,
-        event,
-        action="remote_block",
-        target_user_id=target_user_id,
-        duration=duration,
-        reason=reason,
-        group_id=group_id_int,
+    fire_and_forget(
+        record_command_audit(
+            bot,
+            event,
+            action="remote_block",
+            target_user_id=target_user_id,
+            duration=duration,
+            reason=reason,
+            group_id=group_id_int,
+        ),
+        name="audit:remote_block",
     )
 
     # 6. 格式化反馈消息
@@ -615,12 +634,15 @@ async def onebot11_remote_unblock(
         return await remote_unblock_cmd.finish(await _("远程删黑失败，数据库异常"))
 
     # 5. 记录审计
-    await record_command_audit(
-        bot,
-        event,
-        action="remote_unblock",
-        target_user_id=target_user_id,
-        group_id=group_id_int,
+    fire_and_forget(
+        record_command_audit(
+            bot,
+            event,
+            action="remote_unblock",
+            target_user_id=target_user_id,
+            group_id=group_id_int,
+        ),
+        name="audit:remote_unblock",
     )
 
     # 6. 格式化反馈消息
@@ -738,8 +760,11 @@ async def onebot11_remote_announcement(
         return await remote_announcement_cmd.finish(await _("远程公告失败，操作被拒绝"))
 
     # 8. 记录审计
-    await record_command_audit(
-        bot, event, action="remote_announcement", group_id=group_id_int
+    fire_and_forget(
+        record_command_audit(
+            bot, event, action="remote_announcement", group_id=group_id_int
+        ),
+        name="audit:remote_announcement",
     )
 
     # 9. 反馈结果

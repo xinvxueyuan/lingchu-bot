@@ -8,6 +8,7 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import At
 
+from ......core.async_utils import fire_and_forget
 from ......i18n import _async as _
 from ....commands.common import selected_adapter_handle
 from ....commands.member import (
@@ -76,8 +77,11 @@ async def onebot11_set_group_member_card(
         )
 
     # 7. 记录审计
-    await record_command_audit(
-        bot, event, action="set_member_card", target_user_id=target_user_id
+    fire_and_forget(
+        record_command_audit(
+            bot, event, action="set_member_card", target_user_id=target_user_id
+        ),
+        name="audit:set_member_card",
     )
 
     # 8. 格式化反馈消息
@@ -146,8 +150,11 @@ async def onebot11_set_group_member_special_title(
         )
 
     # 7. 记录审计
-    await record_command_audit(
-        bot, event, action="set_member_title", target_user_id=target_user_id
+    fire_and_forget(
+        record_command_audit(
+            bot, event, action="set_member_title", target_user_id=target_user_id
+        ),
+        name="audit:set_member_title",
     )
 
     # 8. 格式化反馈消息
@@ -194,8 +201,11 @@ async def onebot11_set_group_member_admin(
         )
 
     # 5. 记录审计
-    await record_command_audit(
-        bot, event, action="set_member_admin", target_user_id=target_user_id
+    fire_and_forget(
+        record_command_audit(
+            bot, event, action="set_member_admin", target_user_id=target_user_id
+        ),
+        name="audit:set_member_admin",
     )
 
     # 6. 格式化反馈消息
@@ -257,8 +267,11 @@ async def onebot11_kick_group_member(
         return await kick_group_member_cmd.finish(await _("踢出群成员失败，操作被拒绝"))
 
     # 5. 记录审计
-    await record_command_audit(
-        bot, event, action="kick_member", target_user_id=target_user_id
+    fire_and_forget(
+        record_command_audit(
+            bot, event, action="kick_member", target_user_id=target_user_id
+        ),
+        name="audit:kick_member",
     )
 
     # 6. 格式化反馈消息
