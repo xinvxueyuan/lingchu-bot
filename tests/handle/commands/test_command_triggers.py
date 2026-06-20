@@ -214,6 +214,30 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         "chinese_aliases": {"跨群公告", "远程群公告", "远程发公告"},
         "english_aliases": {"remote-notice", "cross-group-announcement"},
     },
+    "bot_silence": {
+        "primary": "闭嘴",
+        "english": "silence",
+        "chinese_aliases": set(),
+        "english_aliases": set(),
+    },
+    "bot_speak": {
+        "primary": "说话",
+        "english": "speak",
+        "chinese_aliases": set(),
+        "english_aliases": set(),
+    },
+    "bot_boot": {
+        "primary": "开机",
+        "english": "boot",
+        "chinese_aliases": set(),
+        "english_aliases": set(),
+    },
+    "bot_shutdown": {
+        "primary": "关机",
+        "english": "shutdown",
+        "chinese_aliases": set(),
+        "english_aliases": set(),
+    },
 }
 
 

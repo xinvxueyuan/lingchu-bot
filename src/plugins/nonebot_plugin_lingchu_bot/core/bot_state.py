@@ -1,0 +1,165 @@
+"""Two-tier bot state model with JSON5 persistence.
+
+Maintains a global state plus per-platform overrides for ``handle_active``
+and ``silent_mode`` flags. State is persisted to ``bot_state.json5`` in the
+plugin data directory.
+
+Resolution semantics:
+- ``handle_active``: global AND platform. Global OFF disables all platforms.
+- ``silent_mode``: global OR platform. Global ON silences all platforms.
+"""
+
+import contextlib
+from pathlib import Path
+from typing import Any
+
+import aiofiles
+import aiofiles.os
+import json5
+from nonebot import logger
+from nonebot_plugin_localstore import get_plugin_data_dir
+
+from ..database.json5_store import (
+    ensure_json5_dict_file_sync,
+    load_json5_dict_sync,
+)
+from .async_utils import fire_and_forget
+
+_BOT_STATE_FILENAME = "bot_state.json5"
+
+_DEFAULT_STATE: dict[str, Any] = {
+    "global": {
+        "handle_active": True,
+        "silent_mode": False,
+    },
+    "platforms": {},
+}
+
+_state: dict[str, Any] = {
+    "global_handle_active": True,
+    "global_silent_mode": False,
+    "platforms": {},
+}
+
+
+def _get_state_file_path() -> Path:
+    """Resolve the path to the bot state JSON5 file."""
+    return get_plugin_data_dir() / _BOT_STATE_FILENAME
+
+
+def load_bot_state() -> None:
+    """Load bot state from JSON5 file into memory. Called at startup."""
+    path = _get_state_file_path()
+    ensure_json5_dict_file_sync(path, _DEFAULT_STATE)
+    data = load_json5_dict_sync(path, default=_DEFAULT_STATE, merge_default=True)
+
+    global_state = data.get("global", {})
+    _state["global_handle_active"] = global_state.get("handle_active", True)
+    _state["global_silent_mode"] = global_state.get("silent_mode", False)
+
+    platforms = data.get("platforms", {})
+    _state["platforms"] = platforms if isinstance(platforms, dict) else {}
+
+    logger.info(
+        f"Lingchu bot state loaded: handle_active={_state['global_handle_active']}, "
+        f"silent_mode={_state['global_silent_mode']}, "
+        f"platforms={list(_state['platforms'].keys())}"
+    )
+
+
+async def _save_bot_state() -> None:
+    """Persist in-memory state to bot_state.json5 (atomic write)."""
+    path = _get_state_file_path()
+    data = {
+        "global": {
+            "handle_active": _state["global_handle_active"],
+            "silent_mode": _state["global_silent_mode"],
+        },
+        "platforms": _state["platforms"],
+    }
+    temp_path = path.with_suffix(".tmp.json5")
+    try:
+        content = json5.dumps(data, indent=2, ensure_ascii=False)
+        async with aiofiles.open(temp_path, "w", encoding="utf-8") as f:
+            await f.write(content)
+        await aiofiles.os.replace(temp_path, path)
+    except Exception:  # noqa: BLE001
+        logger.exception("Failed to save bot state")
+        with contextlib.suppress(OSError):
+            await aiofiles.os.unlink(temp_path)
+
+
+def _persist_state() -> None:
+    """Fire-and-forget persist state to JSON5 file."""
+    fire_and_forget(_save_bot_state(), name="save_bot_state")
+
+
+def get_global_handle_active() -> bool:
+    """Return the global handle-active flag."""
+    return _state["global_handle_active"]
+
+
+def get_global_silent_mode() -> bool:
+    """Return the global silent-mode flag."""
+    return _state["global_silent_mode"]
+
+
+def set_global_handle_active(*, active: bool) -> None:
+    """Set the global handle-active flag and persist."""
+    _state["global_handle_active"] = active
+    _persist_state()
+
+
+def set_global_silent_mode(*, silent: bool) -> None:
+    """Set the global silent-mode flag and persist."""
+    _state["global_silent_mode"] = silent
+    _persist_state()
+
+
+def get_platform_handle_active(platform_id: str) -> bool:
+    """Return the per-platform handle-active flag (default True)."""
+    platform = _state["platforms"].get(platform_id, {})
+    return platform.get("handle_active", True)
+
+
+def get_platform_silent_mode(platform_id: str) -> bool:
+    """Return the per-platform silent-mode flag (default False)."""
+    platform = _state["platforms"].get(platform_id, {})
+    return platform.get("silent_mode", False)
+
+
+def set_platform_handle_active(platform_id: str, *, active: bool) -> None:
+    """Set the per-platform handle-active flag and persist."""
+    if platform_id not in _state["platforms"]:
+        _state["platforms"][platform_id] = {}
+    _state["platforms"][platform_id]["handle_active"] = active
+    _persist_state()
+
+
+def set_platform_silent_mode(platform_id: str, *, silent: bool) -> None:
+    """Set the per-platform silent-mode flag and persist."""
+    if platform_id not in _state["platforms"]:
+        _state["platforms"][platform_id] = {}
+    _state["platforms"][platform_id]["silent_mode"] = silent
+    _persist_state()
+
+
+def is_handle_active(platform_id: str) -> bool:
+    """Resolve handle-active: global AND platform. Global OFF -> all OFF."""
+    if not _state["global_handle_active"]:
+        return False
+    return get_platform_handle_active(platform_id)
+
+
+def is_silent_mode(platform_id: str) -> bool:
+    """Resolve silent-mode: global OR platform. Global ON -> all silent."""
+    if _state["global_silent_mode"]:
+        return True
+    return get_platform_silent_mode(platform_id)
+
+
+def _reset_state_for_testing() -> None:
+    """Reset state to defaults. For test fixtures only."""
+    _state["global_handle_active"] = True
+    _state["global_silent_mode"] = False
+    _state["platforms"] = {}

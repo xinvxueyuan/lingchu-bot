@@ -33,12 +33,12 @@ This project is indexed by GitNexus as **lingchu-bot** (3223 symbols, 6266 relat
 
 | Task | Read this skill file |
 |------|---------------------|
-| Understand architecture / "How does X work?" | `.agents/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.agents/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.agents/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.agents/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.agents/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.agents/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Understand architecture / "How does X work?" | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-exploring/guide.md` |
+| Blast radius / "What breaks if I change X?" | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-impact-analysis/guide.md` |
+| Trace bugs / "Why is X failing?" | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-debugging/guide.md` |
+| Rename / extract / split / refactor | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-refactoring/guide.md` |
+| Tools, resources, schema reference | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-guide/guide.md` |
+| Index, status, clean, wiki CLI commands | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-cli/guide.md` |
 
 <!-- gitnexus:end -->
 
@@ -48,24 +48,21 @@ This repo can use the current Codex skill set when a task matches the skill trig
 
 ### Documentation Lookup
 
-- **Context7 / find-docs**: Use for current documentation for libraries, frameworks, SDKs, APIs, CLIs, and cloud services. Start with `resolve-library-id` unless the user provides an exact `/org/project` ID, then query docs with the full user question. Prefer this over web search for developer docs.
+- **tool-workflows**：使用 `.agents/skills/tool-workflows/SKILL.md` 处理 Context7/find-docs、prek/Husky hook 和项目 skill 管理。查询当前文档时，除非用户提供精确 `/org/project` ID，否则先 `resolve-library-id`，再用用户完整问题查询文档。
 - **openai-docs**: Use for OpenAI product/API questions; prefer official OpenAI docs. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 
 ### Code Intelligence And Git
 
-- **GitNexus skills**: Use `.agents/skills/gitnexus/*` for architecture exploration, debugging, impact analysis, refactoring, PR review, and CLI operations. Follow the GitNexus requirements above before editing symbols or committing.
-- **prek**: Use `.agents/skills/prek/SKILL.md` when setting up or running hook checks with `prek`.
+- **engineering-workflow**：使用 `.agents/skills/engineering-workflow/SKILL.md` 处理 GitNexus 架构探索、调试、影响分析、重构、PR review、CLI 操作、交付循环、前端质量、设计原型和议题规划。编辑符号或提交前遵守上面的 GitNexus 要求。
 - **GitHub skills**: Use for GitHub repository, issue, pull request, review-comment, CI, and publish/PR workflows.
 
 ### Development Workflow
 
-- **delivery-loop**: Use `.agents/skills/delivery-loop/SKILL.md` for disciplined debugging, TDD, and code review loops. Routes to debug-investigation, TDD, or change-review references based on the task.
-- **issue-planning**: Use `.agents/skills/issue-planning/SKILL.md` for PRDs, issue breakdown, triage, and refactor plans. Integrates with GitHub MCP tools for issue management.
-- **design-prototyping**: Use `.agents/skills/design-prototyping/SKILL.md` for interface design exploration, design grilling, and throwaway prototypes before committing to implementation.
+- **engineering-workflow**：通过聚焦 reference 路由纪律化调试、TDD、代码审查、PRD、issue 拆分、triage、重构计划、界面设计探索、设计 grill 和一次性原型。
 
 ### Frontend And Docs Site
 
-- **frontend-quality**: Use `.agents/skills/frontend-quality/SKILL.md` for React diagnostics, visual polish, accessibility, and health checks on the docs site (`apps/docs`). Includes react-doctor and frontend-polish references.
+- **engineering-workflow**：使用其中的 frontend-quality 路由处理 docs 站点（`apps/docs`）的 React 诊断、视觉打磨、可访问性和健康检查。
 - **Browser / Playwright / Chrome**: Use Browser for local in-app browser checks, Playwright for terminal-driven browser automation, and Chrome only when existing user Chrome state is required. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 - **Vercel skills**: Use for Next.js, React best practices, shadcn/ui, AI SDK, deployments, Vercel CLI/API, storage, auth, payments, cron, routing middleware, functions, workflow, and verification tasks. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 - **Cloudflare skills**: Use for Workers, Wrangler, Durable Objects, Agents SDK, MCP servers, sandbox SDK, and Cloudflare platform work. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
@@ -114,7 +111,7 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 
 ```text
 ├── src/plugins/nonebot_plugin_lingchu_bot/   # Core NoneBot plugin
-│   ├── core/           # Config, platform info
+│   ├── core/           # Config, platform info, two-tier bot state (global + per-platform) with JSON5 persistence
 │   ├── database/       # JSON5 store package, ORM models (records/audit/blocklist + registry) & CRUD helpers
 │   ├── handle/         # 平台/协议/实现命令处理器
 │   │   └── qq/         # QQ 平台处理器
@@ -309,15 +306,8 @@ task ci                                          # check + test + build
 | 技能                           | 触发条件                                       | 用途                                                                                                     |
 | ------------------------------ | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `available-skills/`            | 选择加载哪个技能时                             | 所有可用技能的紧凑路由索引。列出项目本地、编码、前端、云、制品和技能创作技能。                             |
-| `context7-mcp/`                | 查找库/框架文档、API 参考、代码示例            | Context7 MCP 集成，用于获取最新文档。                                                                     |
-| `gitnexus/gitnexus-cli/`       | 运行 GitNexus CLI 命令（analyze、status、clean、wiki） | GitNexus 操作的 CLI 任务参考。                                                                           |
-| `gitnexus/gitnexus-debugging/` | 调试 bug、追踪错误、"为什么 X 失败？"         | 科学调试工作流：假设 → 插桩 → 复现 → 分析 → 修复 → 验证。                                               |
-| `gitnexus/gitnexus-exploring/` | 理解架构、"X 是怎么工作的？"                   | 通过知识图谱探索代码：执行流、符号关系。                                                                   |
-| `gitnexus/gitnexus-guide/`            | 关于 GitNexus 工具/模式/工作流的问题           | 所有 GitNexus MCP 工具、资源和图谱模式的快速参考。                                                       |
-| `gitnexus/gitnexus-impact-analysis/`  | "改 X 会破坏什么？"、编辑前安全检查           | 爆炸半径分析：深度 1/2/3 的上下游影响。                                                                   |
-| `gitnexus/gitnexus-refactoring/`      | 重命名、提取、拆分、移动代码                   | 使用知识图谱 + 文本搜索的多文件协调重命名。                                                               |
-| `gitnexus/gitnexus-pr-review/`        | 审查 Pull Request、评估合并风险                | 基于知识图谱的变更分析 PR 审查。                                                                         |
-| `prek/`                               | 设置或运行 `prek` Git 钩子                     | `prek`（Rust 版 `pre-commit` 替代品）的配置、安装和工作流指南。                                           |
+| `engineering-workflow/`        | 代码理解、GitNexus、调试、TDD、review、前端质量、设计和议题规划 | 合并后的工程入口，包含 GitNexus、delivery-loop、design-prototyping、frontend-quality 和 issue-planning reference。 |
+| `tool-workflows/`              | 文档查询、hooks、prek/Husky 和 skill 维护       | 合并后的工具入口，包含 Context7 文档、仓库 hooks 和 skill 管理 reference。                                |
 
 ### 跨语言对应文件
 
@@ -367,6 +357,23 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 - **适用场景**：可丢弃的后台操作（审计日志、遥测、缓存写入），调用者不需要其结果。该辅助函数将协程调度为 `asyncio.Task`，在模块级 set 中跟踪，并通过 done-callback 中的 `logger.exception` 记录异常。
 - **不适用场景**：调用者需要结果的操作，或函数返回前必须完成的操作。这些情况下直接使用 `await`。
 - **引用管理**：辅助函数将任务存储在模块级 set 中，防止 Python GC 过早取消；done-callback 在记录任何异常后移除引用。
+
+### 命令处理器状态控制（静默模式与处理门控）
+
+- **位置**：`src/plugins/nonebot_plugin_lingchu_bot/core/bot_state.py`
+- **两层状态模型**：维护全局状态加按平台覆盖的 `handle_active`（门控，默认 `True`）和 `silent_mode`（默认 `False`）标志。状态通过 `get_plugin_data_dir()` 持久化到插件数据目录的 `bot_state.json5` 文件。
+- **解析语义**：
+  - `is_handle_active(platform_id)`：全局 AND 平台 —— 全局 OFF 时禁用所有平台。
+  - `is_silent_mode(platform_id)`：全局 OR 平台 —— 全局 ON 时静默所有平台。
+  - 两个函数现在都要求传入 `platform_id` 参数。
+- **`selected_adapter_handle` 参数**：`handle/qq/commands/common.py` 中的装饰器接受 `bypass_gate: bool = False` 和 `bypass_silent: bool = False` 关键字参数。它通过 `get_platform_profile` 从 `adapter_id` 解析 `platform_id`。两个绕过标志均为 `False`（默认）时，handler 被 `_state_wrapper` 包装，同时强制处理门控和静默模式。
+- **`_state_wrapper`**：接受 `platform_id`、`check_gate` 和 `check_silent` 参数。包装器链顺序：`_state_wrapper`（最外层）→ `_permission_wrapper` → `func`。`_state_wrapper` 先检查门控（处理未激活时提前返回），再检查静默模式（静默时路由到 `_silent_call`）。
+- **`_silent_call`**：临时将 `command.finish` 替换为不发送消息的版本（抛出 `FinishedException`），使 handler 执行其逻辑但不发送响应消息。原始 `finish` 在 `finally` 块中恢复。
+- **命令控制全局状态**：4 个命令（"闭嘴"/"说话"/"开机"/"关机"）通过 `set_global_silent_mode()` 和 `set_global_handle_active()` 函数控制全局状态。
+- **命令绕过设置**：
+  - "闭嘴"/"说话"（静默/解除）使用 `bypass_silent=True` —— 始终响应，但在机器人关机（门控关闭）时禁用。
+  - "开机"/"关机"（启动/关闭）同时使用 `bypass_gate=True` 和 `bypass_silent=True` —— 必须始终能工作以从任何状态恢复机器人。
+- **菜单**："bot-control" 页面被替换为 "system-management" / "系统管理" 顶层页面，包含子页面 "silent-mode" / "静默模式" 和 "handle-gate" / "开关机"。
 
 ## Lessons Learned
 
@@ -610,7 +617,7 @@ Rule of thumb: **after every push, wait for all CI workflows to complete and inv
 
 Before manually running checks or fixing issues, check if a skill already handles it:
 
-- **pre-commit.ci failures** → use the **prek** skill (`.agents/skills/prek/SKILL.md`) to reproduce and fix pre-commit hook failures locally, instead of manually running each hook
+- **pre-commit.ci failures** → use the **tool-workflows** hook route (`.agents/skills/tool-workflows/SKILL.md`) to reproduce and fix pre-commit hook failures locally, instead of manually running each hook
 - **Code intelligence** → use **GitNexus** skills instead of manual grep/find
 - **Library docs** → use **Context7 / find-docs** instead of web search
 - **GitHub workflows** → use **GitHub** skills for PR/issue/CI operations

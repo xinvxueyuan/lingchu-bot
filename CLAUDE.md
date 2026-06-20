@@ -33,12 +33,12 @@ This project is indexed by GitNexus as **lingchu-bot** (3327 symbols, 6505 relat
 
 | Task | Read this skill file |
 |------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Understand architecture / "How does X work?" | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-exploring/guide.md` |
+| Blast radius / "What breaks if I change X?" | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-impact-analysis/guide.md` |
+| Trace bugs / "Why is X failing?" | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-debugging/guide.md` |
+| Rename / extract / split / refactor | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-refactoring/guide.md` |
+| Tools, resources, schema reference | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-guide/guide.md` |
+| Index, status, clean, wiki CLI commands | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-cli/guide.md` |
 
 <!-- gitnexus:end -->
 
@@ -48,24 +48,21 @@ This repo can use the current Codex skill set when a task matches the skill trig
 
 ### Documentation Lookup
 
-- **Context7 / find-docs**: Use for current documentation for libraries, frameworks, SDKs, APIs, CLIs, and cloud services. Start with `resolve-library-id` unless the user provides an exact `/org/project` ID, then query docs with the full user question. Prefer this over web search for developer docs.
+- **tool-workflows**: Use `.agents/skills/tool-workflows/SKILL.md` for Context7/find-docs, prek/Husky hook work, and project skill management. For current documentation, start with `resolve-library-id` unless the user provides an exact `/org/project` ID, then query docs with the full user question.
 - **openai-docs**: Use for OpenAI product/API questions; prefer official OpenAI docs. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 
 ### Code Intelligence And Git
 
-- **GitNexus skills**: Use `.agents/skills/gitnexus/*` for architecture exploration, debugging, impact analysis, refactoring, PR review, and CLI operations. Follow the GitNexus requirements above before editing symbols or committing.
-- **prek**: Use `.agents/skills/prek/SKILL.md` when setting up or running hook checks with `prek`.
+- **engineering-workflow**: Use `.agents/skills/engineering-workflow/SKILL.md` for GitNexus architecture exploration, debugging, impact analysis, refactoring, PR review, CLI operations, delivery loops, frontend quality, design prototyping, and issue planning. Follow the GitNexus requirements above before editing symbols or committing.
 - **GitHub skills**: Use for GitHub repository, issue, pull request, review-comment, CI, and publish/PR workflows.
 
 ### Development Workflow
 
-- **delivery-loop**: Use `.agents/skills/delivery-loop/SKILL.md` for disciplined debugging, TDD, and code review loops. Routes to debug-investigation, TDD, or change-review references based on the task.
-- **issue-planning**: Use `.agents/skills/issue-planning/SKILL.md` for PRDs, issue breakdown, triage, and refactor plans. Integrates with GitHub MCP tools for issue management.
-- **design-prototyping**: Use `.agents/skills/design-prototyping/SKILL.md` for interface design exploration, design grilling, and throwaway prototypes before committing to implementation.
+- **engineering-workflow**: Routes disciplined debugging, TDD, code review, PRDs, issue breakdown, triage, refactor plans, interface design exploration, design grilling, and throwaway prototypes through focused references.
 
 ### Frontend And Docs Site
 
-- **frontend-quality**: Use `.agents/skills/frontend-quality/SKILL.md` for React diagnostics, visual polish, accessibility, and health checks on the docs site (`apps/docs`). Includes react-doctor and frontend-polish references.
+- **engineering-workflow**: Use its frontend-quality route for React diagnostics, visual polish, accessibility, and health checks on the docs site (`apps/docs`).
 - **Browser / Playwright / Chrome**: Use Browser for local in-app browser checks, Playwright for terminal-driven browser automation, and Chrome only when existing user Chrome state is required. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 - **Vercel skills**: Use for Next.js, React best practices, shadcn/ui, AI SDK, deployments, Vercel CLI/API, storage, auth, payments, cron, routing middleware, functions, workflow, and verification tasks. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
 - **Cloudflare skills**: Use for Workers, Wrangler, Durable Objects, Agents SDK, MCP servers, sandbox SDK, and Cloudflare platform work. (Routing-only — no local SKILL.md; loaded from Codex platform skills at runtime.)
@@ -115,7 +112,7 @@ Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains a Py
 ```
 lingchu-bot/
 ├── src/plugins/nonebot_plugin_lingchu_bot/   # Core NoneBot plugin
-│   ├── core/           # Config, platform info
+│   ├── core/           # Config, platform info, two-tier bot state (global + per-platform) with JSON5 persistence
 │   ├── database/       # JSON5 store package, ORM models (records/audit/blocklist + registry) & CRUD helpers
 │   ├── handle/         # Platform/protocol/implementation command handlers
 │   │   └── qq/         # QQ platform handlers
@@ -310,19 +307,8 @@ Skills are loaded **on demand** — only when the user's task matches the skill 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
 | `available-skills/` | When choosing which skill to load | Compact routing index of all available skills. Lists project-local, coding, frontend, cloud, artifact, and skill-authoring skills. |
-| `context7-mcp/` | Looking up library/framework docs, API references, code examples | Context7 MCP integration for up-to-date documentation retrieval. |
-| `delivery-loop/` | Debugging, TDD, code review, implementation verification | Disciplined feedback loops: debug-investigation, TDD, change-review. |
-| `frontend-quality/` | React diagnostics, visual polish, accessibility, health checks | React Doctor integration and frontend polish checklist for the docs site. |
-| `issue-planning/` | PRDs, issue breakdown, triage, refactor plans | Turn conversation into trackable work via GitHub Issues. |
-| `design-prototyping/` | Interface design, design grilling, throwaway prototypes | Explore and harden designs before committing to implementation. |
-| `gitnexus/gitnexus-cli/` | Running GitNexus CLI commands (analyze, status, clean, wiki) | CLI task reference for GitNexus operations. |
-| `gitnexus/gitnexus-debugging/` | Debugging bugs, tracing errors, "why does X fail?" | Scientific debugging workflow: hypothesis → instrument → reproduce → analyze → fix → verify. |
-| `gitnexus/gitnexus-exploring/` | Understanding architecture, "how does X work?" | Code exploration via knowledge graph: execution flows, symbol relationships. |
-| `gitnexus/gitnexus-guide/` | Questions about GitNexus tools/schema/workflow | Quick reference for all GitNexus MCP tools, resources, and graph schema. |
-| `gitnexus/gitnexus-impact-analysis/` | "What breaks if I change X?", pre-edit safety check | Blast radius analysis: upstream/downstream impact at depth 1/2/3. |
-| `gitnexus/gitnexus-refactoring/` | Renaming, extracting, splitting, moving code | Multi-file coordinated rename using knowledge graph + text search. |
-| `gitnexus/gitnexus-pr-review/` | Reviewing pull requests, assessing merge risk | PR review with knowledge-graph-aware change analysis. |
-| `prek/` | Setting up or running Git hooks with `prek` | `prek` (Rust `pre-commit` alternative) configuration, installation, and workflow guide. |
+| `engineering-workflow/` | Code understanding, GitNexus, debugging, TDD, review, frontend quality, design, and issue planning | Consolidated engineering entrypoint with focused references for GitNexus, delivery-loop, design-prototyping, frontend-quality, and issue-planning. |
+| `tool-workflows/` | Documentation lookup, hooks, prek/Husky, and skill maintenance | Consolidated tool entrypoint with focused references for Context7 docs, repo hooks, and skill management. |
 
 ### Cross-Language Counterpart
 
@@ -372,6 +358,23 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 - **Use for**: discardable background operations (audit logs, telemetry, cache writes) whose results the caller does not need. The helper schedules the coroutine as an `asyncio.Task`, tracks it in a module-level set, and logs exceptions via `logger.exception` in a done-callback.
 - **Do NOT use for**: operations whose results are needed by the caller, or operations that must complete before the function returns. In those cases, use `await` directly.
 - **Reference management**: the helper stores the task in a module-level set so Python's GC does not cancel it prematurely; the done-callback removes the reference after logging any exception.
+
+### Command Handler State Control (Silent Mode & Handle Gate)
+
+- **Location**: `src/plugins/nonebot_plugin_lingchu_bot/core/bot_state.py`
+- **Two-tier state model**: Maintains a global state plus per-platform overrides for `handle_active` (gate, default `True`) and `silent_mode` (default `False`). State is persisted to `bot_state.json5` in the plugin data directory via `get_plugin_data_dir()`.
+- **Resolution semantics**:
+  - `is_handle_active(platform_id)`: global AND platform — global OFF disables all platforms.
+  - `is_silent_mode(platform_id)`: global OR platform — global ON silences all platforms.
+  - Both functions now require a `platform_id` parameter.
+- **`selected_adapter_handle` params**: The decorator in `handle/qq/commands/common.py` accepts `bypass_gate: bool = False` and `bypass_silent: bool = False` keyword params. It resolves `platform_id` from `adapter_id` via `get_platform_profile`. When both bypass flags are `False` (default), the handler is wrapped by `_state_wrapper` which enforces both the handle gate and silent mode.
+- **`_state_wrapper`**: Accepts `platform_id`, `check_gate`, and `check_silent` params. Wrapper chain order: `_state_wrapper` (outermost) → `_permission_wrapper` → `func`. `_state_wrapper` checks the gate first (returns early if handle is inactive), then checks silent mode (routes to `_silent_call` if silent).
+- **`_silent_call`**: Temporarily replaces `command.finish` with a no-send version that raises `FinishedException`, so the handler runs its logic but no response message is sent. The original `finish` is restored in a `finally` block.
+- **Commands control global state**: The 4 commands ("闭嘴"/"说话"/"开机"/"关机") control global state via `set_global_silent_mode()` and `set_global_handle_active()` functions.
+- **Command bypass settings**:
+  - "闭嘴"/"说话" (silence/speak) use `bypass_silent=True` — they always respond, but are disabled when the bot is shut down (gate off).
+  - "开机"/"关机" (boot/shutdown) use both `bypass_gate=True` and `bypass_silent=True` — they must always work to recover the bot from any state.
+- **Menu**: The "bot-control" page is replaced with a "system-management" / "系统管理" top-level page containing children "silent-mode" / "静默模式" and "handle-gate" / "开关机".
 
 ## Lessons Learned
 
@@ -614,7 +617,7 @@ Rule of thumb: **after every push, wait for all CI workflows to complete and inv
 
 Before manually running checks or fixing issues, check if a skill already handles it:
 
-- **pre-commit.ci failures** → use the **prek** skill (`.agents/skills/prek/SKILL.md`) to reproduce and fix pre-commit hook failures locally, instead of manually running each hook
+- **pre-commit.ci failures** → use the **tool-workflows** hook route (`.agents/skills/tool-workflows/SKILL.md`) to reproduce and fix pre-commit hook failures locally, instead of manually running each hook
 - **Code intelligence** → use **GitNexus** skills instead of manual grep/find
 - **Library docs** → use **Context7 / find-docs** instead of web search
 - **GitHub workflows** → use **GitHub** skills for PR/issue/CI operations
