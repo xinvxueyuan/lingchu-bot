@@ -75,15 +75,21 @@ CI 在三种数据库后端上运行测试：
 
 ## Docs / frontend 聚焦检查
 
-文档站使用 pnpm、Vitest、ESLint、Fumadocs 和 Turbo：
+文档站使用 pnpm、Vitest、Playwright、ESLint、Fumadocs 和 Turbo：
 
 ```bash
 pnpm --filter docs lint
 pnpm --filter docs test
+pnpm --filter docs run test:e2e:hook
+pnpm --filter docs run test:e2e
 pnpm --filter docs run lint:links
 pnpm turbo run check-types --filter=docs
 pnpm turbo run build --filter=docs
 ```
+
+Vitest 覆盖 `apps/docs/src/__tests__` 下的组件和库行为。Playwright 测试放在 `apps/docs/e2e`，覆盖浏览器级文档导航。本地 hook 在 docs 变更时运行 Chromium 冒烟命令（`test:e2e:hook`）；CI 运行全部配置的 Playwright 浏览器项目，并上传 HTML report 与 trace 产物。
+
+编写 Playwright 测试时优先使用 role/text locator 和 `toBeVisible()`、`toHaveAttribute()` 等 web-first assertion。除非变更明确需要，否则不要使用 sleep、截图断言或宽泛的视觉检查。
 
 ## Markdown 检查
 
@@ -104,6 +110,7 @@ task i18n
 ## CI 工作流
 
 - `🧪 CI`：`changes` 检测 job 按文件类型输出布尔标志（python/markdown/frontend/frontend-code/frontend-style/frontend-content/frontend-tsx），然后条件触发下游 job — Static Analysis（Python 或 markdown 变更时）、Tests & Type Check（Python 变更时）、Docs Check（ESLint 在代码/样式变更时，check-types 在任意前端变更时，link validation 在内容变更时，Vitest 在代码/内容变更时）。Auto Fix & Format 在 `main`/`dev` push 时运行。条件与 pre-commit v3 的 `NEEDS_LINT`/`NEEDS_TYPE_CHECK`/`NEEDS_DOCS_TEST` 对齐。
+- `🎭 Playwright`：针对 `apps/docs` 和 `packages` 变更运行 docs E2E 测试，安装浏览器依赖，并上传 Playwright report 产物。
 - `👷 CI-builds`：运行 `task ci:build`；在 `main`、`dev`、`releases/**` 的 push 上还会 bump dev version、写回 `core_version`、构建、归档产物、生成 provenance 并提交 tag。
 - `📚 Docs Deploy`：docs 相关路径 push 到 `main` 或 `dev` 时，运行 pnpm/turbo lint、docs test 和 docs build，然后部署 GitHub Pages。
 - Auto Fix & Format：`main` 和 `dev` push 上，在 CI 通过后运行 `task ci:fix` 并可能自动提交格式修复。

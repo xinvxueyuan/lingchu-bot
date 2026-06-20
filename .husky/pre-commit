@@ -9,6 +9,7 @@
 #   4. React Doctor 仅在 .tsx 变更时运行（React 组件扫描）
 #   5. Docs Vitest 跳过纯样式变更（CSS 不影响测试）
 #   6. 新增 NEEDS_LINT / NEEDS_TYPE_CHECK / NEEDS_REACT_DOCTOR / NEEDS_DOCS_TEST 派生条件
+#   7. Docs 变更时运行 Chromium Playwright 冒烟测试
 set +e
 
 # ── 工具解析辅助函数 ────────────────────────────────────
@@ -182,7 +183,7 @@ if has_pattern '^apps/docs/.*\.css$'; then
     HAS_DOCS_STYLE=true
 fi
 # Docs: 配置文件（影响 lint/type/test 行为）
-if has_pattern '^apps/docs/(next\.config\.mjs|source\.config\.ts|tsconfig\.json|vitest\.config\.ts|eslint\.config\.mjs|postcss\.config\.mjs|package\.json)$'; then
+if has_pattern '^apps/docs/(next\.config\.mjs|source\.config\.ts|tsconfig\.json|vitest\.config\.ts|playwright\.config\.ts|eslint\.config\.mjs|postcss\.config\.mjs|package\.json)$'; then
     HAS_DOCS_CONFIG=true
 fi
 
@@ -350,6 +351,16 @@ if [ "$NEEDS_DOCS_TEST" = true ] && [ -n "$PNPM_RUNNER" ]; then
     run_pnpm --filter docs test
     if [ $? -ne 0 ]; then
         echo "❌ Docs 测试失败，请修复后重新提交。"
+        exit 1
+    fi
+fi
+
+# ── Phase 6d: Docs Playwright（Chromium 冒烟，任意 docs 变更）────────
+if [ "$HAS_DOCS" = true ] && [ -n "$PNPM_RUNNER" ]; then
+    echo "🎭 正在运行 Docs Playwright (Chromium)..."
+    run_pnpm --filter docs run test:e2e:hook
+    if [ $? -ne 0 ]; then
+        echo "❌ Docs Playwright 测试失败，请修复后重新提交。"
         exit 1
     fi
 fi
