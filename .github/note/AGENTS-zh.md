@@ -817,6 +817,12 @@ platforms/
 - **测试前迁移**：在非 SQLite 数据库上运行测试前，务必执行 `uv run nb orm upgrade`，因为 `ALEMBIC_STARTUP_CHECK=false` 仅在启动时自动同步（不会在测试收集期间同步）。
 - **测试依赖隔离**：数据库驱动（`psycopg[binary]`、`aiomysql`）位于 `test` 依赖组中，而非主依赖。这使生产安装保持轻量，同时在开发/CI 中支持多数据库测试。
 
+### Mock 调用签名灵活性
+
+- `assert_called_once_with(...)` 是精确匹配：只要实际调用的 kwargs 与预期不完全一致就会失败，包括某个 kwarg 的"存在 vs 不存在"差异。当业务代码改为条件性包含某个 kwarg（例如 `if image_path is not None: call_api(..., image=image_path)`）时，测试断言必须精确镜像该契约 —— 若生产代码路径完全不传 `image`，则绝不能断言 `image=None`。
+- 仅做"存在性"检查时，使用 `assert "kwarg" in mock.call_args.kwargs` 替代 `assert_called_once_with`，或者先取出实际 kwargs 再用实际值重新断言。
+- 新增同时混用 fixtures 和 `@pytest.mark.parametrize` 值的测试时，总形参数量务必 ≤ 5，以满足 `ruff` 的 `PLR0913` 规则。将相关的 parametrize 值合并到单个元组中（例如 `scenario: tuple[tuple[str, str], type]`），然后在函数体内解包使用。
+
 ### GitHub Actions SHA 固定最佳实践
 
 - **优先使用 commit SHA 而非 annotated tag 对象 SHA**：固定 GitHub Actions 到版本标签时，`git/refs/tags/{tag}` API 返回的是 annotated tag 对象 SHA，而非 commit SHA。使用 `git/tags/{sha}` 将 annotated tag 解引用为 commit SHA。固定到 commit SHA 是文档推荐的最佳实践——确保 pin 指向实际被审查的代码，而非可能被重新创建的中间 Git 对象。

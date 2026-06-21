@@ -30,12 +30,13 @@ def create_mock_image(raw: bytes | None = None) -> MagicMock:
     ("app_name", "version"),
     [("LLOneBot", "7.12.0"), ("NapCat.Onebot", "4.18.0")],
 )
-async def test_onebot11_send_group_announcement_calls_extension_api(
+async def test_onebot11_send_group_announcement_calls_extension_api_without_image(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
     app_name: str,
     version: str,
 ) -> None:
+    """无图片时，_send_group_notice 不应传入 image 参数。"""
     mock_onebot11_bot.get_version_info = AsyncMock(
         return_value={
             "protocol_version": "v11",
@@ -58,7 +59,61 @@ async def test_onebot11_send_group_announcement_calls_extension_api(
         "_send_group_notice",
         group_id=mock_onebot11_event.group_id,
         content="公告",
-        image=None,
+    )
+    assert "image" not in mock_onebot11_bot.call_api.call_args.kwargs
+    assert finish_text(mock_finish) == "群公告已发送"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        (("LLOneBot", "7.12.0"), Path),
+        (("NapCat.Onebot", "4.18.0"), str),
+    ],
+    ids=["LLOneBot-7.12.0", "NapCat.Onebot-4.18.0"],
+)
+async def test_onebot11_send_group_announcement_calls_extension_api_with_image(
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    scenario: tuple[tuple[str, str], type],
+) -> None:
+    """有图片时，_send_group_notice 应传入 image 参数（NapCat 转为 str）。"""
+    (app_name, version), image_type = scenario
+    mock_onebot11_bot.get_version_info = AsyncMock(
+        return_value={
+            "protocol_version": "v11",
+            "app_name": app_name,
+            "app_version": version,
+        }
+    )
+    mock_onebot11_bot.call_api = AsyncMock()
+    mock_onebot11_bot.get_group_member_info = AsyncMock(return_value={"role": "admin"})
+
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(announcement, "plugin_config", fake_config)
+
+    image = create_mock_image(raw=b"fake-image-bytes")
+
+    with patch.object(send_group_announcement_cmd, "finish") as mock_finish:
+        await onebot_v11_send_group_announcement(
+            content="公告",
+            image=image,
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+        )
+
+    call_kwargs = mock_onebot11_bot.call_api.call_args.kwargs
+    assert "image" in call_kwargs
+    assert isinstance(call_kwargs["image"], image_type)
+    mock_onebot11_bot.call_api.assert_called_once_with(
+        "_send_group_notice",
+        group_id=mock_onebot11_event.group_id,
+        content="公告",
+        image=call_kwargs["image"],
     )
     assert finish_text(mock_finish) == "群公告已发送"
 
