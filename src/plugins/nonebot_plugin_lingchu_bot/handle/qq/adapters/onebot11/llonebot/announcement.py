@@ -17,12 +17,19 @@ async def send_group_notice_llonebot(
 ) -> None:
     """发送群公告（LLOneBot 实现）"""
     try:
-        await bot.call_api(
-            "_send_group_notice",
-            group_id=event.group_id,
-            content=content,
-            image=image_path,
-        )
+        if image_path is not None:
+            await bot.call_api(
+                "_send_group_notice",
+                group_id=event.group_id,
+                content=content,
+                image=image_path,
+            )
+        else:
+            await bot.call_api(
+                "_send_group_notice",
+                group_id=event.group_id,
+                content=content,
+            )
     except OneBot11ActionFailed as e:
         logger.error(f"发送群公告失败: {e!r}")
         raise

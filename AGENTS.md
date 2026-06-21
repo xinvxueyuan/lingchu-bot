@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3317 symbols, 6250 relationships, 278 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3320 symbols, 6277 relationships, 279 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -509,6 +509,12 @@ When removing functions/helpers:
 - **CI matrix strategy**: Use GitHub Actions matrix with `fail-fast: false` to test all database backends independently. PostgreSQL and MySQL use `services` containers with conditional images (`startsWith(matrix.db, 'postgresql') && 'postgres' || ''`) to avoid starting unnecessary services for SQLite.
 - **Migration before tests**: Always run `uv run nb orm upgrade` before running tests on non-SQLite databases, since `ALEMBIC_STARTUP_CHECK=false` only auto-syncs on startup (not during test collection).
 - **Test dependency isolation**: Database drivers (`psycopg[binary]`, `aiomysql`) are in the `test` dependency group, not the main dependencies. This keeps production installs lightweight while enabling multi-database testing in dev/CI.
+
+### Mock Call Signature Flexibility
+
+- `assert_called_once_with(...)` is exact-match: it fails if the actual call has different kwargs, including the presence vs. absence of a kwarg. When business code conditionally includes a kwarg (e.g., `if image_path is not None: call_api(..., image=image_path)`), tests must mirror that exact contract — do not assert `image=None` if the production code path omits the kwarg entirely.
+- For presence-only checks, use `assert "kwarg" in mock.call_args.kwargs` instead of `assert_called_once_with`, or capture the kwargs first and re-assert with the captured value.
+- When adding a parameterized test that mixes fixtures and `@pytest.mark.parametrize` values, keep the total argument count ≤ 5 to satisfy `ruff` `PLR0913`. Combine related parametrize values into a single tuple (e.g., `scenario: tuple[tuple[str, str], type]`) and unpack inside the function body.
 
 ## Docs Site Component Catalog
 
