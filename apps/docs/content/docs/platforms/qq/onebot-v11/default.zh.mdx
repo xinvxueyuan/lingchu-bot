@@ -70,7 +70,8 @@ title: 默认实现
 - `resolve_user_onebot11(user, bot, event)` — 把 `At | int` 解析为 `(user_id, name)` 元组。输入无效时抛出 `ValueError`。
 - `check_target_privilege(bot, event, target_user_id, cmd_matcher)` — 检查目标用户是否为管理员/群主；操作者不是群主或超级用户时拒绝操作。检查通过返回 `True`。
 - `check_bot_privilege(bot, group_id, cmd_matcher)` — 检查机器人在指定群内是否具有管理员/群主角色。检查通过返回 `True`。
-- `record_command_audit(bot, event, *, action, target_user_id=None, reason=None, duration=None, group_id=None)` — 通过消息存储仓库写入命令级审计日志。
+- `CommandAudit(action, target_user_id=None, reason=None, duration=None, group_id=None)` — 承载命令审计载荷。
+- `record_command_audit(bot, event, CommandAudit(...))` / `record_audit_fire_and_forget(bot, event, CommandAudit(...))` — 通过消息存储仓库写入命令级审计日志，可直接等待执行，也可作为后台任务调度。
 
 ## 权限 API 集成
 

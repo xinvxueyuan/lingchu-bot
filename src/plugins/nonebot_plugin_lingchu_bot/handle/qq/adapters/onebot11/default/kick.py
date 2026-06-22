@@ -16,6 +16,7 @@ from ....commands.kick import kick_member_cmd
 from .common import (
     ONEBOT_V11_ADAPTER_ID,
     QQ_PLATFORM_ID,
+    CommandAudit,
     bot_id,
     check_bot_privilege,
     check_self_target,
@@ -82,9 +83,11 @@ async def _kick_member(  # noqa: PLR0911
     await record_audit_fire_and_forget(
         bot,
         event,
-        action="kick_member",
-        target_user_id=target_user_id,
-        reason=reason,
+        CommandAudit(
+            action="kick_member",
+            target_user_id=target_user_id,
+            reason=reason,
+        ),
     )
 
     # 反馈结果

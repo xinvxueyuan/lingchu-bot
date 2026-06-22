@@ -17,6 +17,7 @@ from ....commands.member import (
     unset_group_member_admin_cmd,
 )
 from .common import (
+    CommandAudit,
     bot_self_id_safe,
     check_bot_privilege,
     check_target_privilege,
@@ -79,8 +80,7 @@ async def onebot11_set_group_member_card(
     await record_audit_fire_and_forget(
         bot,
         event,
-        action="set_member_card",
-        target_user_id=target_user_id,
+        CommandAudit(action="set_member_card", target_user_id=target_user_id),
     )
 
     # 8. 格式化反馈消息
@@ -149,8 +149,7 @@ async def onebot11_set_group_member_special_title(
     await record_audit_fire_and_forget(
         bot,
         event,
-        action="set_member_title",
-        target_user_id=target_user_id,
+        CommandAudit(action="set_member_title", target_user_id=target_user_id),
     )
 
     # 8. 格式化反馈消息
@@ -197,8 +196,7 @@ async def onebot11_set_group_member_admin(
     await record_audit_fire_and_forget(
         bot,
         event,
-        action="set_member_admin",
-        target_user_id=target_user_id,
+        CommandAudit(action="set_member_admin", target_user_id=target_user_id),
     )
 
     # 6. 格式化反馈消息
@@ -262,8 +260,7 @@ async def onebot11_kick_group_member(
     await record_audit_fire_and_forget(
         bot,
         event,
-        action="kick_member",
-        target_user_id=target_user_id,
+        CommandAudit(action="kick_member", target_user_id=target_user_id),
     )
 
     # 6. 格式化反馈消息
