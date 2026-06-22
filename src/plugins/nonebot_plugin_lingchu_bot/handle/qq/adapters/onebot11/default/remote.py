@@ -1,6 +1,6 @@
 """Remote management handlers for OneBot V11 adapter."""
 
-from typing import Any, Final
+from typing import Any
 
 from nonebot import logger
 from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
@@ -10,7 +10,6 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import At
 from nonebot_plugin_alconna.uniseg import Image as UniImage
-from packaging.version import InvalidVersion, parse
 
 from ......core.async_utils import fire_and_forget
 from ......database.orm_crud import DatabaseError
@@ -31,6 +30,7 @@ from ....commands.remote import (
     remote_whole_mute_cmd,
     remote_whole_unmute_cmd,
 )
+from .announcement import send_onebot11_group_announcement_notice
 from .common import (
     MUTE_DURATION_MAX,
     MUTE_DURATION_MIN,
@@ -45,9 +45,6 @@ from .common import (
     resolve_user_onebot11,
     store_block_record,
 )
-
-LLONEBOT_IMPL: Final = "LLOneBot"
-NAPCAT_IMPL: Final = "NapCat.Onebot"
 
 
 async def _resolve_group_id(  # noqa: PLR0911
@@ -667,46 +664,6 @@ async def onebot11_remote_unblock(
     return await remote_unblock_cmd.finish(message=message)
 
 
-_LLOneBOT_MIN_VERSION = parse("7.12.0")
-_NAPCAT_MIN_VERSION = parse("4.18.0")
-_SUPPORTED_ONEBOT_APPS: Final[frozenset[str]] = frozenset({LLONEBOT_IMPL, NAPCAT_IMPL})
-
-
-async def _validate_announcement_version(
-    bot: OneBot11Bot,
-) -> str | None:
-    """验证 OneBot 实现是否支持远程公告。
-
-    返回 None 表示通过，否则返回错误提示 key 对应的本地化文本。
-    """
-    try:
-        version_info = await bot.get_version_info()
-    except OneBot11ActionFailed:
-        return await _("远程公告失败，操作被拒绝")
-
-    data = version_info.get("data", version_info)
-
-    if data.get("protocol_version") != "v11":
-        return await _("不支持的 OneBot 协议版本")
-
-    raw_version = data.get("app_version", "0")
-    try:
-        current_version = parse(raw_version)
-    except InvalidVersion:
-        current_version = parse("0")
-
-    app_name = data.get("app_name")
-
-    if app_name == LLONEBOT_IMPL and current_version < _LLOneBOT_MIN_VERSION:
-        return await _("不支持的 OneBot 版本")
-    if app_name == NAPCAT_IMPL and current_version < _NAPCAT_MIN_VERSION:
-        return await _("不支持的 OneBot 版本")
-    if app_name not in _SUPPORTED_ONEBOT_APPS:
-        return await _("不支持的 OneBot 版本")
-
-    return None
-
-
 @selected_adapter_handle(
     remote_announcement_cmd,
     "~onebot.v11",
@@ -740,26 +697,22 @@ async def onebot11_remote_announcement(
     # 5. 解析图片路径
     image_path = await _resolve_image_path(image) if image is not None else None
 
-    # 6. 验证 OneBot 实现版本
-    error_msg = await _validate_announcement_version(bot)
-    if error_msg is not None:
-        if error_msg == await _("远程公告失败，操作被拒绝"):
-            logger.error("远程公告失败，操作被拒绝")
-        return await remote_announcement_cmd.finish(error_msg)
-
-    # 7. 构造目标群事件上下文并执行发送
+    # 6. 构造目标群事件上下文并执行发送
     try:
-        await bot.call_api(
-            "_send_group_notice",
+        error_msg = await send_onebot11_group_announcement_notice(
+            bot=bot,
+            event=event,
             group_id=group_id_int,
             content=content,
-            image=image_path,
+            image_path=image_path,
         )
+        if error_msg is not None:
+            return await remote_announcement_cmd.finish(error_msg)
     except OneBot11ActionFailed as e:
         logger.error(f"远程公告失败，操作被拒绝: {e!r}")
         return await remote_announcement_cmd.finish(await _("远程公告失败，操作被拒绝"))
 
-    # 8. 记录审计
+    # 7. 记录审计
     fire_and_forget(
         record_command_audit(
             bot, event, action="remote_announcement", group_id=group_id_int
@@ -767,7 +720,7 @@ async def onebot11_remote_announcement(
         name="audit:remote_announcement",
     )
 
-    # 9. 反馈结果
+    # 8. 反馈结果
     return await remote_announcement_cmd.finish(
         (await _("远程公告已发送: 目标群 {group_id}")).format(group_id=group_id_int)
     )

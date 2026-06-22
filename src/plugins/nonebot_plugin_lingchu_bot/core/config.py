@@ -110,6 +110,8 @@ class Config(BaseModel):
     data_dir: Path = Field(default_factory=get_plugin_data_dir)
     config_dir: Path = Field(default_factory=get_plugin_config_dir)
     cache_dir: Path = Field(default_factory=get_plugin_cache_dir)
+    announcement_image_cache_dir: Path | None = None
+    announcement_image_protocol_dir: str | None = None
 
     @property
     def superuser_key(self) -> str:

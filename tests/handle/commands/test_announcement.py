@@ -26,22 +26,16 @@ def create_mock_image(raw: bytes | None = None) -> MagicMock:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("app_name", "version"),
-    [("LLOneBot", "7.12.0"), ("NapCat.Onebot", "4.18.0")],
-)
 async def test_onebot11_send_group_announcement_calls_extension_api_without_image(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
-    app_name: str,
-    version: str,
 ) -> None:
     """无图片时，_send_group_notice 不应传入 image 参数。"""
     mock_onebot11_bot.get_version_info = AsyncMock(
         return_value={
             "protocol_version": "v11",
-            "app_name": app_name,
-            "app_version": version,
+            "app_name": "NapCat.Onebot",
+            "app_version": "4.18.0",
         }
     )
     mock_onebot11_bot.call_api = AsyncMock()
@@ -65,28 +59,18 @@ async def test_onebot11_send_group_announcement_calls_extension_api_without_imag
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "scenario",
-    [
-        (("LLOneBot", "7.12.0"), Path),
-        (("NapCat.Onebot", "4.18.0"), str),
-    ],
-    ids=["LLOneBot-7.12.0", "NapCat.Onebot-4.18.0"],
-)
 async def test_onebot11_send_group_announcement_calls_extension_api_with_image(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    scenario: tuple[tuple[str, str], type],
 ) -> None:
     """有图片时，_send_group_notice 应传入 image 参数（NapCat 转为 str）。"""
-    (app_name, version), image_type = scenario
     mock_onebot11_bot.get_version_info = AsyncMock(
         return_value={
             "protocol_version": "v11",
-            "app_name": app_name,
-            "app_version": version,
+            "app_name": "NapCat.Onebot",
+            "app_version": "4.18.0",
         }
     )
     mock_onebot11_bot.call_api = AsyncMock()
@@ -94,6 +78,8 @@ async def test_onebot11_send_group_announcement_calls_extension_api_with_image(
 
     fake_config = MagicMock()
     fake_config.cache_dir = tmp_path
+    fake_config.announcement_image_cache_dir = None
+    fake_config.announcement_image_protocol_dir = None
     monkeypatch.setattr(announcement, "plugin_config", fake_config)
 
     image = create_mock_image(raw=b"fake-image-bytes")
@@ -108,7 +94,7 @@ async def test_onebot11_send_group_announcement_calls_extension_api_with_image(
 
     call_kwargs = mock_onebot11_bot.call_api.call_args.kwargs
     assert "image" in call_kwargs
-    assert isinstance(call_kwargs["image"], image_type)
+    assert isinstance(call_kwargs["image"], str)
     mock_onebot11_bot.call_api.assert_called_once_with(
         "_send_group_notice",
         group_id=mock_onebot11_event.group_id,
@@ -151,6 +137,8 @@ async def test_resolve_image_path_caches_raw_bytes(
     """_resolve_image_path 通过 aiofiles 异步写入缓存文件。"""
     fake_config = MagicMock()
     fake_config.cache_dir = tmp_path
+    fake_config.announcement_image_cache_dir = None
+    fake_config.announcement_image_protocol_dir = None
     monkeypatch.setattr(announcement, "plugin_config", fake_config)
 
     raw_bytes = b"fake-image-bytes"
@@ -160,14 +148,46 @@ async def test_resolve_image_path_caches_raw_bytes(
 
     expected_md5 = hashlib.md5(raw_bytes).hexdigest()
     expected_path = tmp_path / "announcement_images" / f"{expected_md5}.png"
-    assert result == expected_path
     assert result is not None
-    assert result.read_bytes() == raw_bytes
+    assert result.local_path == expected_path
+    assert result.protocol_path is None
+    assert result.local_path.read_bytes() == raw_bytes
 
 
 @pytest.mark.asyncio
-async def test_resolve_image_path_returns_path_attribute() -> None:
+async def test_resolve_image_path_uses_announcement_cache_bridge(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """配置路径桥接时，缓存写入宿主路径并返回协议端路径。"""
+    host_cache_dir = tmp_path / "napcat-announcement-images"
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path / "default-cache"
+    fake_config.announcement_image_cache_dir = host_cache_dir
+    fake_config.announcement_image_protocol_dir = "/lingchu/announcement-images"
+    monkeypatch.setattr(announcement, "plugin_config", fake_config)
+
+    raw_bytes = b"fake-image-bytes"
+    image = create_mock_image(raw=raw_bytes)
+
+    result = await announcement._resolve_image_path(image)
+
+    expected_md5 = hashlib.md5(raw_bytes).hexdigest()
+    assert result is not None
+    assert result.local_path == host_cache_dir / f"{expected_md5}.png"
+    assert result.protocol_path == f"/lingchu/announcement-images/{expected_md5}.png"
+    assert result.local_path.read_bytes() == raw_bytes
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_returns_path_attribute(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """raw 为空但 path 存在时，直接返回该路径。"""
+    fake_config = MagicMock()
+    fake_config.announcement_image_cache_dir = None
+    fake_config.announcement_image_protocol_dir = None
+    monkeypatch.setattr(announcement, "plugin_config", fake_config)
+
     image = MagicMock()
     image.raw = None
     image.path = "/tmp/existing.png"
@@ -175,4 +195,6 @@ async def test_resolve_image_path_returns_path_attribute() -> None:
 
     result = await announcement._resolve_image_path(image)
 
-    assert result == Path("/tmp/existing.png")
+    assert result is not None
+    assert result.local_path == Path("/tmp/existing.png")
+    assert result.protocol_path is None

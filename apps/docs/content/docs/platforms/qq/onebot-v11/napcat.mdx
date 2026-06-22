@@ -33,7 +33,9 @@ NapCat supports both text and image announcements via the `_send_group_notice` A
 send-announcement <content> [image]
 ```
 
-The image argument accepts `UniImage` from `nonebot-plugin-alconna`. The implementation resolves raw bytes, local paths, or downloadable URLs into cached files before passing them to the API.
+The image argument accepts `UniImage` from `nonebot-plugin-alconna`. The implementation resolves raw bytes, local paths, or downloadable URLs into cached files before passing a filesystem path to the API.
+
+NapCat currently expects the announcement `image` field to be readable from the NapCat side. If Lingchu Bot and NapCat run in different filesystems, configure the announcement image path bridge in the user configuration guide.
 
 ## Group avatar
 
@@ -57,7 +59,7 @@ See [Default Implementation](./default) for group ID resolution and context vali
 
 ## Configuration
 
-NapCat does not require additional Lingchu Bot configuration beyond the standard OneBot V11 setup. Ensure NapCat is running and connected to NoneBot via WebSocket or HTTP reverse proxy.
+NapCat does not require additional Lingchu Bot configuration beyond the standard OneBot V11 setup for text-only announcements. Image announcements across Docker or separate hosts require the announcement image path bridge. Ensure NapCat is running and connected to NoneBot via WebSocket or HTTP reverse proxy.
 
 ```dotenv
 DRIVER=~fastapi+~httpx+~websockets

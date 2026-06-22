@@ -1,0 +1,97 @@
+---
+icon: Cable
+title: Framework Integrations
+---
+
+## Framework Integrations
+
+This section records protocol-side runtimes that can connect Lingchu Bot to a platform. Lingchu Bot still runs as the NoneBot application; these runtimes provide the platform protocol endpoint.
+
+## NapCat-Docker
+
+[NapNeko/NapCat-Docker](https://github.com/NapNeko/NapCat-Docker) packages NapCat as a Docker container for OneBot V11. Its README exposes ports `3000`, `3001`, and `6099`; the WebUI is available at `http://<host>:6099/webui`, and the startup token can be read with `docker logs napcat`.
+
+For a Windows development setup where Lingchu Bot runs on the host and NapCat runs in Docker Desktop, run NapCat with the OneBot ports and a readable mount for announcement images:
+
+```powershell
+docker run -d `
+  --name napcat `
+  --restart always `
+  -p 3000:3000 `
+  -p 3001:3001 `
+  -p 6099:6099 `
+  -v C:/dev/lingchu-bot:/lingchu-bot:ro `
+  mlikiowa/napcat-docker:latest
+```
+
+If you already persist NapCat data, keep those mounts as well:
+
+```powershell
+docker run -d `
+  --name napcat `
+  --restart always `
+  -p 3000:3000 `
+  -p 3001:3001 `
+  -p 6099:6099 `
+  -v napcat-qq:/app/.config/QQ `
+  -v napcat-config:/app/napcat/config `
+  -v C:/dev/lingchu-bot:/lingchu-bot:ro `
+  mlikiowa/napcat-docker:latest
+```
+
+The same setup in Compose:
+
+```yaml
+services:
+  napcat:
+    image: mlikiowa/napcat-docker:latest
+    container_name: napcat
+    restart: always
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+      - "6099:6099"
+    volumes:
+      - napcat-qq:/app/.config/QQ
+      - napcat-config:/app/napcat/config
+      - C:/dev/lingchu-bot:/lingchu-bot:ro
+
+volumes:
+  napcat-qq:
+  napcat-config:
+```
+
+## Announcement image path passthrough
+
+NapCat's `_send_group_notice` image field is path-based: the path must be readable from the NapCat container, not only from Lingchu Bot. Configure Lingchu Bot to write announcement image cache files under the host path that is mounted into the container:
+
+```dotenv
+ANNOUNCEMENT_IMAGE_CACHE_DIR=C:/dev/lingchu-bot/.local/napcat-announcement-images
+ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu-bot/.local/napcat-announcement-images
+```
+
+With the mount above, Lingchu Bot writes files such as:
+
+```text
+C:/dev/lingchu-bot/.local/napcat-announcement-images/<md5>.png
+```
+
+NapCat receives the matching container path:
+
+```text
+/lingchu-bot/.local/napcat-announcement-images/<md5>.png
+```
+
+Use a dedicated cache mount instead if you do not want to mount the whole project:
+
+```yaml
+volumes:
+  - C:/dev/lingchu-bot/.local/napcat-announcement-images:/lingchu/announcement-images:ro
+```
+
+```dotenv
+ANNOUNCEMENT_IMAGE_CACHE_DIR=C:/dev/lingchu-bot/.local/napcat-announcement-images
+ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu/announcement-images
+```
+
+After changing `.env`, restart Lingchu Bot so NoneBot reloads the new path settings. After changing Docker mounts, recreate the NapCat container because Docker cannot add bind mounts to an already running container.

@@ -22,7 +22,6 @@ def test_group_loader_registry_uses_adapter_entry_modules() -> None:
     assert group_loader._ADAPTER_MODULES == {
         "~onebot.v11": (
             ".onebot11.default",
-            ".onebot11.llonebot",
             ".onebot11.napcat",
         ),
     }

@@ -5,13 +5,13 @@ title: Default Implementation
 
 ## Default Implementation
 
-The `default` package contains OneBot V11 handlers that rely only on the standard OneBot V11 API surface. These handlers run on any OneBot V11 implementation (NapCat, LLOneBot, Lagrange, etc.) without implementation-specific extensions.
+The `default` package contains OneBot V11 handlers that rely only on the standard OneBot V11 API surface. These handlers run on any OneBot V11 implementation (NapCat, Lagrange, etc.) without implementation-specific extensions.
 
 ## Available commands
 
 All commands listed in [QQ Commands](../commands) are available in the default implementation, except:
 
-- `发送群公告` / `send-announcement` — gated by implementation version (see [NapCat](./napcat) and [LLOneBot](./llonebot))
+- `发送群公告` / `send-announcement` — gated by implementation version (see [NapCat](./napcat))
 - `设置群头像` / `set-group-avatar` — gated by implementation version (see [NapCat](./napcat))
 - `远程公告` / `remote-announcement` — gated by implementation version
 

@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 _MENU = COMMAND_TRIGGERS["menu"]
 QQ_PLATFORM_ID: Final = "qq"
 ONEBOT_V11_ADAPTER_ID: Final = "~onebot.v11"
-LLONEBOT_IMPL: Final = "LLOneBot"
 NAPCAT_IMPL: Final = "NapCat.Onebot"
 
 menu_cmd: type[AlconnaMatcher] = on_alconna(
@@ -176,16 +175,7 @@ _ONEBOT_NAPCAT: Final[tuple[MenuAvailability, ...]] = (
         protocol_version="v11",
     ),
 )
-_ONEBOT_ANNOUNCEMENT: Final[tuple[MenuAvailability, ...]] = (
-    MenuAvailability(
-        QQ_PLATFORM_ID,
-        ONEBOT_V11_ADAPTER_ID,
-        implementation_name=LLONEBOT_IMPL,
-        minimum_version="7.12.0",
-        protocol_version="v11",
-    ),
-    *_ONEBOT_NAPCAT,
-)
+_ONEBOT_ANNOUNCEMENT: Final[tuple[MenuAvailability, ...]] = _ONEBOT_NAPCAT
 
 MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
     MenuFeature(

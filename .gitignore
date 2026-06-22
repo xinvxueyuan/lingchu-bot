@@ -162,6 +162,7 @@ dmypy.json
 
 # nonebot.plugin.orm.dev.data
 /data
+/.local/
 
 # PyCharm/IntelliJ IDEA
 

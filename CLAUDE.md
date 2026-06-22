@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3320 symbols, 6277 relationships, 279 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3318 symbols, 6276 relationships, 279 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -118,7 +118,7 @@ lingchu-bot/
 │   │   └── qq/         # QQ platform handlers
 │   │       ├── commands/           # Shared command definitions (Alconna matchers, triggers)
 │   │       └── adapters/           # Protocol-specific handlers
-│   │           └── onebot11/{default,llonebot,napcat}/  # OneBot V11 handlers
+│   │           └── onebot11/{default,napcat}/  # OneBot V11 handlers
 │   ├── menu.py         # Menu system (pages, features, availability)
 │   ├── i18n/           # Babel/gettext translations
 │   ├── migrations/     # Alembic database migration scripts
@@ -443,7 +443,7 @@ Same-named APIs return different types across adapters:
 | `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
 | `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
 
-The project uses `platforms/registry.py` to unify adapters under a single "QQ" platform profile. Only OneBot V11 is now active; Milky, QQ, and OneBot V12 are deprecated and removed from the startup flow. QQ and OneBot V12 source files are preserved with `DEPRECATED = True` markers and can be loaded on demand via `tools/adapter_loader.py`; the Milky adapter has been fully removed. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,llonebot,napcat}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+The project uses `platforms/registry.py` to unify adapters under a single "QQ" platform profile. Only OneBot V11 is now active; Milky, QQ, and OneBot V12 are deprecated and removed from the startup flow. QQ and OneBot V12 source files are preserved with `DEPRECATED = True` markers and can be loaded on demand via `tools/adapter_loader.py`; the Milky and LLOneBot paths have been fully removed. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,napcat}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
 
 ### Function Signature Changes
 
@@ -747,7 +747,7 @@ Key behaviors:
 - **Group ID resolution**: `<群号|群名称>` accepts `int` (direct), numeric `str` (parsed to int), or non-numeric `str` (fuzzy matched via `get_group_list`). Exact name match takes priority; substring containment is fallback. Multiple matches trigger `cmd_matcher.finish` asking for a more precise identifier.
 - **Context validation**: Before executing, the bot checks it is in the target group, has admin role (for most commands), the target user is in the group, and the target is not the bot or sender.
 - **Remote kick requires blocklist**: `远程踢出` only works on users already in the blocklist. Use `远程拉黑` first.
-- **Remote announcement version gating**: Requires `LLOneBot >= 7.12.0` or `NapCat.Onebot >= 4.18.0`. The menu hides this command for unsupported implementations.
+- **Remote announcement version gating**: Requires `NapCat.Onebot >= 4.18.0`. The menu hides this command for unsupported implementations.
 
 ### Menu System Architecture
 
@@ -774,7 +774,6 @@ platforms/
         ├── overview.mdx   # Protocol overview, runtime detection
         ├── default.mdx    # Default implementation (core commands + remote management)
         ├── napcat.mdx     # NapCat extensions (announcement + avatar)
-        └── llonebot.mdx   # LLOneBot extensions (announcement)
 ```
 
 The `user-guide/commands.mdx` is now a high-level overview that links to the platform-specific pages instead of duplicating command details. When adding new commands or changing availability:

@@ -49,6 +49,21 @@ def test_config_has_path_fields(config: Config) -> None:
     assert isinstance(config.data_dir, Path)
     assert isinstance(config.config_dir, Path)
     assert isinstance(config.cache_dir, Path)
+    assert config.announcement_image_cache_dir is None
+    assert config.announcement_image_protocol_dir is None
+
+
+def test_config_accepts_announcement_image_path_bridge(tmp_path: Path) -> None:
+    config = Config(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        cache_dir=tmp_path / "cache",
+        announcement_image_cache_dir=tmp_path / "announcement-images",
+        announcement_image_protocol_dir="/lingchu/announcement-images",
+    )
+
+    assert config.announcement_image_cache_dir == tmp_path / "announcement-images"
+    assert config.announcement_image_protocol_dir == "/lingchu/announcement-images"
 
 
 def test_system_type_returns_windows(

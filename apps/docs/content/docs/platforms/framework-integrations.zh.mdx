@@ -1,0 +1,97 @@
+---
+icon: Cable
+title: 框架对接
+---
+
+## 框架对接
+
+本节记录可将 Lingchu Bot 接入平台的协议端运行框架。Lingchu Bot 仍作为 NoneBot 应用运行；这些运行框架负责提供平台协议端点。
+
+## NapCat-Docker
+
+[NapNeko/NapCat-Docker](https://github.com/NapNeko/NapCat-Docker) 将 NapCat 打包为 OneBot V11 的 Docker 容器。其 README 暴露 `3000`、`3001` 和 `6099` 端口；WebUI 位于 `http://<宿主机>:6099/webui`，启动 token 可通过 `docker logs napcat` 查看。
+
+Windows 开发环境中，如果 Lingchu Bot 运行在宿主机，而 NapCat 运行在 Docker Desktop，请暴露 OneBot 端口，并挂载一个 NapCat 可读取的公告图片目录：
+
+```powershell
+docker run -d `
+  --name napcat `
+  --restart always `
+  -p 3000:3000 `
+  -p 3001:3001 `
+  -p 6099:6099 `
+  -v C:/dev/lingchu-bot:/lingchu-bot:ro `
+  mlikiowa/napcat-docker:latest
+```
+
+如果已经持久化 NapCat 数据，请保留这些挂载：
+
+```powershell
+docker run -d `
+  --name napcat `
+  --restart always `
+  -p 3000:3000 `
+  -p 3001:3001 `
+  -p 6099:6099 `
+  -v napcat-qq:/app/.config/QQ `
+  -v napcat-config:/app/napcat/config `
+  -v C:/dev/lingchu-bot:/lingchu-bot:ro `
+  mlikiowa/napcat-docker:latest
+```
+
+对应的 Compose 写法：
+
+```yaml
+services:
+  napcat:
+    image: mlikiowa/napcat-docker:latest
+    container_name: napcat
+    restart: always
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+      - "6099:6099"
+    volumes:
+      - napcat-qq:/app/.config/QQ
+      - napcat-config:/app/napcat/config
+      - C:/dev/lingchu-bot:/lingchu-bot:ro
+
+volumes:
+  napcat-qq:
+  napcat-config:
+```
+
+## 群公告图片路径穿透
+
+NapCat 的 `_send_group_notice` 图片字段依赖文件路径：这个路径必须能被 NapCat 容器读取，而不只是 Lingchu Bot 能读取。请让 Lingchu Bot 将公告图片缓存写入已挂载到容器的宿主机路径：
+
+```dotenv
+ANNOUNCEMENT_IMAGE_CACHE_DIR=C:/dev/lingchu-bot/.local/napcat-announcement-images
+ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu-bot/.local/napcat-announcement-images
+```
+
+在上面的挂载下，Lingchu Bot 写入：
+
+```text
+C:/dev/lingchu-bot/.local/napcat-announcement-images/<md5>.png
+```
+
+NapCat 收到对应的容器内路径：
+
+```text
+/lingchu-bot/.local/napcat-announcement-images/<md5>.png
+```
+
+如果不想挂载整个项目，也可以只挂载专用缓存目录：
+
+```yaml
+volumes:
+  - C:/dev/lingchu-bot/.local/napcat-announcement-images:/lingchu/announcement-images:ro
+```
+
+```dotenv
+ANNOUNCEMENT_IMAGE_CACHE_DIR=C:/dev/lingchu-bot/.local/napcat-announcement-images
+ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu/announcement-images
+```
+
+修改 `.env` 后需要重启 Lingchu Bot，让 NoneBot 重新读取路径配置。修改 Docker 挂载后需要重建 NapCat 容器，因为 Docker 不能给已运行容器追加 bind mount。

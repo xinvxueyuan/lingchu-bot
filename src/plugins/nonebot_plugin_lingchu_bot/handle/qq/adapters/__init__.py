@@ -12,7 +12,6 @@ __all__ = ("import_handle", "load_adapter_handlers")
 _ADAPTER_MODULES: dict[str, tuple[str, ...]] = {
     "~onebot.v11": (
         ".onebot11.default",
-        ".onebot11.llonebot",
         ".onebot11.napcat",
     ),
 }
