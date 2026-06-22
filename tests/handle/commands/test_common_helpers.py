@@ -1,5 +1,6 @@
 """测试 common.py 中新增的权限检查和审计函数。"""
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -9,6 +10,8 @@ from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import DatabaseErr
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common import (  # noqa: E501
     check_bot_privilege,
     check_target_privilege,
+    format_user_display_name,
+    record_audit_fire_and_forget,
     record_command_audit,
 )
 
@@ -214,3 +217,92 @@ class TestRecordCommandAudit:
                 action="member_unmute",
                 target_user_id=_TARGET_USER_ID,
             )
+
+
+# ================= format_user_display_name 测试 =================
+
+
+class TestFormatUserDisplayName:
+    """format_user_display_name 用户显示名称格式化测试。"""
+
+    def test_at_style_with_name(self) -> None:
+        """at 样式带名称时输出 @名称。"""
+        assert format_user_display_name(123, "测试用户") == "@测试用户"
+
+    def test_at_style_without_name_falls_back_to_id(self) -> None:
+        """at 样式无名称时回退到 ID。"""
+        assert format_user_display_name(123, None) == "123"
+        assert format_user_display_name(123, "") == "123"
+
+    def test_detail_style_with_name(self) -> None:
+        """detail 样式带名称时输出 名称(ID)。"""
+        assert (
+            format_user_display_name(123, "测试用户", style="detail") == "测试用户(123)"
+        )
+
+    def test_detail_style_without_name_falls_back_to_id(self) -> None:
+        """detail 样式无名称时回退到 ID。"""
+        assert format_user_display_name(123, None, style="detail") == "123"
+        assert format_user_display_name(123, "", style="detail") == "123"
+
+
+# ================= record_audit_fire_and_forget 测试 =================
+
+
+class TestRecordAuditFireAndForget:
+    """record_audit_fire_and_forget fire-and-forget 审计调度测试。"""
+
+    @pytest.mark.asyncio
+    async def test_schedules_audit_task_with_audit_prefix(
+        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    ) -> None:
+        """调度时使用 audit:<action> 命名。"""
+        captured: list[tuple[Any, str]] = []
+
+        def _spy(coro: Any, *, name: str = "fire_and_forget") -> Any:
+            captured.append((coro, name))
+            return MagicMock()
+
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.core.async_utils.fire_and_forget",
+            side_effect=_spy,
+        ):
+            await record_audit_fire_and_forget(
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                action="member_mute",
+                target_user_id=_TARGET_USER_ID,
+                duration=300,
+                reason="违规",
+            )
+
+        assert len(captured) == 1
+        coro, name = captured[0]
+        assert name == "audit:member_mute"
+        coro.close()
+
+    @pytest.mark.asyncio
+    async def test_schedules_audit_task_without_optional_fields(
+        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    ) -> None:
+        """可选字段缺省时仍正确调度。"""
+        captured: list[tuple[Any, str]] = []
+
+        def _spy(coro: Any, *, name: str = "fire_and_forget") -> Any:
+            captured.append((coro, name))
+            return MagicMock()
+
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.core.async_utils.fire_and_forget",
+            side_effect=_spy,
+        ):
+            await record_audit_fire_and_forget(
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                action="whole_mute",
+            )
+
+        assert len(captured) == 1
+        coro, name = captured[0]
+        assert name == "audit:whole_mute"
+        coro.close()

@@ -1,6 +1,5 @@
 from typing import Any
 
-from nonebot import logger
 from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
 from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent as OneBot11GroupMessageEvent,
@@ -8,7 +7,6 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import At
 
-from ......core.async_utils import fire_and_forget
 from ......i18n import _async as _
 from ....commands.common import selected_adapter_handle
 from ....commands.member import (
@@ -22,7 +20,9 @@ from .common import (
     bot_self_id_safe,
     check_bot_privilege,
     check_target_privilege,
-    record_command_audit,
+    finish_action_error_onebot11,
+    format_user_display_name,
+    record_audit_fire_and_forget,
     resolve_user_onebot11,
 )
 
@@ -71,23 +71,20 @@ async def onebot11_set_group_member_card(
             group_id=event.group_id, user_id=target_user_id, card=card
         )
     except OneBot11ActionFailed as e:
-        logger.error(f"设置群名片失败，操作被拒绝: {e!r}")
-        return await set_group_member_card_cmd.finish(
-            await _("设置群名片失败，操作被拒绝")
+        return await finish_action_error_onebot11(
+            set_group_member_card_cmd, await _("设置群名片"), e
         )
 
     # 7. 记录审计
-    fire_and_forget(
-        record_command_audit(
-            bot, event, action="set_member_card", target_user_id=target_user_id
-        ),
-        name="audit:set_member_card",
+    await record_audit_fire_and_forget(
+        bot,
+        event,
+        action="set_member_card",
+        target_user_id=target_user_id,
     )
 
     # 8. 格式化反馈消息
-    name_display = (
-        f"{target_name}({target_user_id})" if target_name else str(target_user_id)
-    )
+    name_display = format_user_display_name(target_user_id, target_name, style="detail")
     message = await _("已设置群名片: {name_display} -> {card}")
     return await set_group_member_card_cmd.finish(
         message.format(name_display=name_display, card=card)
@@ -144,23 +141,20 @@ async def onebot11_set_group_member_special_title(
             duration=-1,
         )
     except OneBot11ActionFailed as e:
-        logger.error(f"设置群头衔失败，操作被拒绝: {e!r}")
-        return await set_group_member_special_title_cmd.finish(
-            await _("设置群头衔失败，操作被拒绝")
+        return await finish_action_error_onebot11(
+            set_group_member_special_title_cmd, await _("设置群头衔"), e
         )
 
     # 7. 记录审计
-    fire_and_forget(
-        record_command_audit(
-            bot, event, action="set_member_title", target_user_id=target_user_id
-        ),
-        name="audit:set_member_title",
+    await record_audit_fire_and_forget(
+        bot,
+        event,
+        action="set_member_title",
+        target_user_id=target_user_id,
     )
 
     # 8. 格式化反馈消息
-    name_display = (
-        f"{target_name}({target_user_id})" if target_name else str(target_user_id)
-    )
+    name_display = format_user_display_name(target_user_id, target_name, style="detail")
     message = await _("已设置群头衔: {name_display} -> {special_title}")
     return await set_group_member_special_title_cmd.finish(
         message.format(name_display=name_display, special_title=special_title)
@@ -195,24 +189,21 @@ async def onebot11_set_group_member_admin(
             group_id=event.group_id, user_id=target_user_id, enable=is_set
         )
     except OneBot11ActionFailed as e:
-        logger.error(f"设置管理员失败，操作被拒绝: {e!r}")
-        return await set_group_member_admin_cmd.finish(
-            await _("设置管理员失败，操作被拒绝")
+        return await finish_action_error_onebot11(
+            set_group_member_admin_cmd, await _("设置管理员"), e
         )
 
     # 5. 记录审计
-    fire_and_forget(
-        record_command_audit(
-            bot, event, action="set_member_admin", target_user_id=target_user_id
-        ),
-        name="audit:set_member_admin",
+    await record_audit_fire_and_forget(
+        bot,
+        event,
+        action="set_member_admin",
+        target_user_id=target_user_id,
     )
 
     # 6. 格式化反馈消息
     action_text = await _("设置") if is_set else await _("取消")
-    name_display = (
-        f"{target_name}({target_user_id})" if target_name else str(target_user_id)
-    )
+    name_display = format_user_display_name(target_user_id, target_name, style="detail")
     message = await _("{action}群管理员: {name_display}")
     return await set_group_member_admin_cmd.finish(
         message.format(action=action_text, name_display=name_display)
@@ -263,20 +254,19 @@ async def onebot11_kick_group_member(
             reject_add_request=False,
         )
     except OneBot11ActionFailed as e:
-        logger.error(f"踢出群成员失败，操作被拒绝: {e!r}")
-        return await kick_group_member_cmd.finish(await _("踢出群成员失败，操作被拒绝"))
+        return await finish_action_error_onebot11(
+            kick_group_member_cmd, await _("踢出群成员"), e
+        )
 
     # 5. 记录审计
-    fire_and_forget(
-        record_command_audit(
-            bot, event, action="kick_member", target_user_id=target_user_id
-        ),
-        name="audit:kick_member",
+    await record_audit_fire_and_forget(
+        bot,
+        event,
+        action="kick_member",
+        target_user_id=target_user_id,
     )
 
     # 6. 格式化反馈消息
-    name_display = (
-        f"{target_name}({target_user_id})" if target_name else str(target_user_id)
-    )
+    name_display = format_user_display_name(target_user_id, target_name, style="detail")
     message = await _("已踢出群成员: {name_display}")
     return await kick_group_member_cmd.finish(message.format(name_display=name_display))

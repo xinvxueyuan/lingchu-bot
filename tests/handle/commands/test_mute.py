@@ -2,7 +2,6 @@
 测试禁言命令 - 边界行为覆盖
 """
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -51,18 +50,10 @@ class TestOneBot11Mute:
     """OneBot11 禁言 API 映射测试。"""
 
     @pytest.fixture(autouse=True)
-    def _mock_fire_and_forget(self):
+    def _mock_record_audit_fire_and_forget(self):
         """避免审计记录触发后台任务和数据库调用。"""
-        captured: list[tuple[Any, str]] = []
-
-        def _spy(coro: Any, *, name: str = "fire_and_forget") -> Any:
-            captured.append((coro, name))
-            return MagicMock()
-
-        with patch.object(mute_module, "fire_and_forget", side_effect=_spy):
+        with patch.object(mute_module, "record_audit_fire_and_forget", new=AsyncMock()):
             yield
-        for coro, _name in captured:
-            coro.close()
 
     @pytest.mark.asyncio
     async def test_onebot11_mute_calls_set_group_ban(

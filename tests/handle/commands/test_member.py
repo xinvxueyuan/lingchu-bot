@@ -2,7 +2,6 @@
 测试群成员设置与踢出命令 - OneBot11 群 API 映射覆盖
 """
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -26,18 +25,12 @@ from tests.handle.commands.conftest import finish_text
 
 
 @pytest.fixture(autouse=True)
-def _mock_fire_and_forget():
+def _mock_record_audit_fire_and_forget():
     """避免审计记录触发后台任务和数据库调用。"""
-    captured: list[tuple[Any, str]] = []
-
-    def _spy(coro: Any, *, name: str = "fire_and_forget") -> Any:
-        captured.append((coro, name))
-        return MagicMock()
-
-    with patch.object(onebot11_member_module, "fire_and_forget", side_effect=_spy):
+    with patch.object(
+        onebot11_member_module, "record_audit_fire_and_forget", new=AsyncMock()
+    ):
         yield
-    for coro, _name in captured:
-        coro.close()
 
 
 @pytest.mark.asyncio

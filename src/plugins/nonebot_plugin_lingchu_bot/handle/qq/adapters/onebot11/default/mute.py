@@ -8,7 +8,6 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import At
 
-from ......core.async_utils import fire_and_forget
 from ......i18n import _async as _
 from ....commands.common import selected_adapter_handle
 from ....commands.mute import (
@@ -24,7 +23,8 @@ from .common import (
     check_bot_privilege,
     check_self_target,
     check_target_privilege,
-    record_command_audit,
+    format_user_display_name,
+    record_audit_fire_and_forget,
     resolve_user_onebot11,
 )
 
@@ -75,21 +75,18 @@ async def onebot11_mute(  # noqa: PLR0911
         return await member_mute_cmd.finish(await _("禁言失败，操作被拒绝"))
 
     # 6. 记录审计
-    fire_and_forget(
-        record_command_audit(
-            bot,
-            event,
-            action="member_mute",
-            target_user_id=target_user_id,
-            duration=duration,
-            reason=reason,
-        ),
-        name="audit:member_mute",
+    await record_audit_fire_and_forget(
+        bot,
+        event,
+        action="member_mute",
+        target_user_id=target_user_id,
+        duration=duration,
+        reason=reason,
     )
 
     # 7. 格式化反馈消息
     reason_text = await _("违反群规「默认」") if reason is None else reason
-    name_display = f"@{target_name}" if target_name else str(target_user_id)
+    name_display = format_user_display_name(target_user_id, target_name)
     message = await _(
         "已禁言: \n"
         "名称: {name_display}\n"
@@ -124,10 +121,7 @@ async def onebot11_whole_mute(
         return await whole_mute_cmd.finish(await _("全体禁言失败，操作被拒绝"))
 
     # 3. 记录审计
-    fire_and_forget(
-        record_command_audit(bot, event, action="whole_mute"),
-        name="audit:whole_mute",
-    )
+    await record_audit_fire_and_forget(bot, event, action="whole_mute")
 
     return await whole_mute_cmd.finish(await _("全体禁言成功"))
 
@@ -163,15 +157,15 @@ async def onebot11_unmute(
         return await member_unmute_cmd.finish(await _("解禁失败，操作被拒绝"))
 
     # 4. 记录审计
-    fire_and_forget(
-        record_command_audit(
-            bot, event, action="member_unmute", target_user_id=target_user_id
-        ),
-        name="audit:member_unmute",
+    await record_audit_fire_and_forget(
+        bot,
+        event,
+        action="member_unmute",
+        target_user_id=target_user_id,
     )
 
     # 5. 格式化反馈消息
-    name_display = f"@{target_name}" if target_name else str(target_user_id)
+    name_display = format_user_display_name(target_user_id, target_name)
     message = await _("已解禁: \n名称: {name_display}\n标识: {target_user_id}")
     return await member_unmute_cmd.finish(
         message.format(
@@ -193,9 +187,6 @@ async def onebot11_whole_unmute(
         return await whole_unmute_cmd.finish(await _("全体解禁失败，操作被拒绝"))
 
     # 记录审计
-    fire_and_forget(
-        record_command_audit(bot, event, action="whole_unmute"),
-        name="audit:whole_unmute",
-    )
+    await record_audit_fire_and_forget(bot, event, action="whole_unmute")
 
     return await whole_unmute_cmd.finish(await _("全体解禁成功"))
