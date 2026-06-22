@@ -284,20 +284,46 @@ async def test_record_matcher_result_returns_false_when_not_found() -> None:
 
 
 @pytest.mark.asyncio
+async def test_record_api_call_accepts_structured_request() -> None:
+    audit_mock = _audit_record()
+    create_mock = AsyncMock(return_value=audit_mock)
+
+    with patch.object(message_store, "create", create_mock):
+        result = await message_store.record_api_call(
+            message_store.AuditEvent(
+                platform_id="qq",
+                adapter_id="~onebot.v11",
+                protocol_id=None,
+                bot_id="bot-1",
+                api_name="send_message",
+                data_summary='{"message":"hello"}',
+                result_summary='{"message_id":"out-1"}',
+                exception_summary=None,
+            )
+        )
+
+    assert result is audit_mock
+    assert create_mock.call_args.kwargs["event_type"] == "send_message"
+    assert create_mock.call_args.kwargs["audit_type"] == "api_call"
+
+
+@pytest.mark.asyncio
 async def test_record_api_call_calls_create_with_audit_record() -> None:
     audit_mock = _audit_record()
     create_mock = AsyncMock(return_value=audit_mock)
 
     with patch.object(message_store, "create", create_mock):
         result = await message_store.record_api_call(
-            platform_id="qq",
-            adapter_id="~onebot.v11",
-            protocol_id=None,
-            bot_id="bot-1",
-            api_name="send_message",
-            data_summary='{"message":"hello"}',
-            result_summary='{"message_id":"out-1"}',
-            exception_summary=None,
+            message_store.AuditEvent(
+                platform_id="qq",
+                adapter_id="~onebot.v11",
+                protocol_id=None,
+                bot_id="bot-1",
+                api_name="send_message",
+                data_summary='{"message":"hello"}',
+                result_summary='{"message_id":"out-1"}',
+                exception_summary=None,
+            )
         )
 
     assert result is audit_mock
@@ -323,14 +349,16 @@ async def test_record_api_call_passes_protocol_id_through_to_create() -> None:
 
     with patch.object(message_store, "create", create_mock):
         await message_store.record_api_call(
-            platform_id="qq",
-            adapter_id="~onebot.v11",
-            protocol_id="napcat",
-            bot_id="bot-1",
-            api_name="send_message",
-            data_summary='{"message":"hello"}',
-            result_summary='{"message_id":"out-1"}',
-            exception_summary=None,
+            message_store.AuditEvent(
+                platform_id="qq",
+                adapter_id="~onebot.v11",
+                protocol_id="napcat",
+                bot_id="bot-1",
+                api_name="send_message",
+                data_summary='{"message":"hello"}',
+                result_summary='{"message_id":"out-1"}',
+                exception_summary=None,
+            )
         )
 
     create_mock.assert_awaited_once()

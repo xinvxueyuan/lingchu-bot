@@ -28,6 +28,20 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import ColumnElement
 
 
+async def _finalize_bulk_create[T: Model](
+    session: AsyncSession,
+    instances: Sequence[T],
+    *,
+    commit: bool,
+) -> None:
+    if commit:
+        await session.commit()
+        for obj in instances:
+            await session.refresh(obj)
+    else:
+        await session.flush()
+
+
 async def bulk_create[T: Model](
     model: type[T],
     objs: list[dict[str, Any]],
@@ -55,12 +69,7 @@ async def bulk_create[T: Model](
             instances = [model(**fields) for fields in validated_objs]
             s.add_all(instances)
             try:
-                if commit:
-                    await s.commit()
-                    for obj in instances:
-                        await s.refresh(obj)
-                else:
-                    await s.flush()
+                await _finalize_bulk_create(s, instances, commit=commit)
             except SQLAlchemyError as e:
                 await s.rollback()
                 raise DatabaseError("Bulk create failed") from e
@@ -84,12 +93,7 @@ async def bulk_create[T: Model](
                 )
                 failed.append((idx, msg))
         try:
-            if commit:
-                await s.commit()
-                for obj in created:
-                    await s.refresh(obj)
-            else:
-                await s.flush()
+            await _finalize_bulk_create(s, created, commit=commit)
         except SQLAlchemyError as e:
             await s.rollback()
             raise DatabaseError("Bulk create failed") from e

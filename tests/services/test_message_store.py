@@ -257,8 +257,11 @@ async def test_on_called_api_records_result(
     record_api.assert_awaited_once()
     record_api_args = record_api.await_args
     assert record_api_args is not None
-    assert record_api_args.kwargs["api_name"] == "send_message"
-    assert record_api_args.kwargs["adapter_id"] == "~onebot.v11"
+    audit_event = record_api_args.args[0]
+    assert audit_event.api_name == "send_message"
+    assert audit_event.adapter_id == "~onebot.v11"
+    assert audit_event.data_summary == "{'message': 'hello'}"
+    assert audit_event.result_summary == "{'message_id': 'out-1'}"
 
 
 async def test_lifecycle_and_api_recording_skip_disabled_known_adapter(

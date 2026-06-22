@@ -31,6 +31,7 @@ from ....commands.common import selected_adapter_handle
 from .common import (
     ONEBOT_V11_ADAPTER_ID,
     QQ_PLATFORM_ID,
+    CommandAudit,
     bot_id,
     check_bot_privilege,
     check_target_privilege,
@@ -112,10 +113,12 @@ async def _block_member(  # noqa: PLR0913
     await record_audit_fire_and_forget(
         bot,
         event,
-        action="block_member",
-        target_user_id=target_user_id,
-        duration=duration,
-        reason=reason,
+        CommandAudit(
+            action="block_member",
+            target_user_id=target_user_id,
+            duration=duration,
+            reason=reason_text,
+        ),
     )
 
     scope_text = await _("全局") if scope == "global" else await _("本群")
@@ -209,7 +212,13 @@ async def _unblock_member(  # noqa: PLR0913
 
     # 记录审计
     await record_audit_fire_and_forget(
-        bot, event, action="unblock_member", target_user_id=target_user_id
+        bot,
+        event,
+        CommandAudit(
+            action="unblock_member",
+            target_user_id=target_user_id,
+            reason=reason_text,
+        ),
     )
 
     scope_text = await _("全局") if scope == "global" else await _("本群")
@@ -294,7 +303,9 @@ async def _clear_blocklist(
         return await _finish_database_error(command, await _("清空黑名单"), error)
 
     # 记录审计
-    await record_audit_fire_and_forget(bot, event, action="clear_blocklist")
+    await record_audit_fire_and_forget(
+        bot, event, CommandAudit(action="clear_blocklist", reason=reason_text)
+    )
 
     scope_text = await _("全局") if scope == "global" else await _("本群")
     message = (

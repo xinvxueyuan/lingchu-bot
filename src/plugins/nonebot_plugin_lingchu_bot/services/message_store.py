@@ -320,15 +320,18 @@ async def record_bot_lifecycle(bot: Bot, event_type: str) -> bool:
     platform_id, adapter_id = adapter_identity
     try:
         await repository.record_api_call(
-            platform_id=platform_id,
-            adapter_id=adapter_id,
-            protocol_id=None,
-            bot_id=_stringify(getattr(bot, "self_id", None), limit=128) or "unknown",
-            api_name=event_type,
-            data_summary=None,
-            result_summary=None,
-            exception_summary=None,
-            audit_type="lifecycle",
+            repository.AuditEvent(
+                platform_id=platform_id,
+                adapter_id=adapter_id,
+                protocol_id=None,
+                bot_id=_stringify(getattr(bot, "self_id", None), limit=128)
+                or "unknown",
+                api_name=event_type,
+                data_summary=None,
+                result_summary=None,
+                exception_summary=None,
+                audit_type="lifecycle",
+            )
         )
     except DatabaseError:
         logger.exception("Failed to record bot lifecycle event: %s", event_type)
@@ -450,14 +453,16 @@ async def message_store_on_called_api(
     async def _record() -> None:
         try:
             await repository.record_api_call(
-                platform_id=platform_id,
-                adapter_id=adapter_id,
-                protocol_id=None,
-                bot_id=bot_id,
-                api_name=api,
-                data_summary=_stringify(data),
-                result_summary=_stringify(result),
-                exception_summary=_stringify(exception),
+                repository.AuditEvent(
+                    platform_id=platform_id,
+                    adapter_id=adapter_id,
+                    protocol_id=None,
+                    bot_id=bot_id,
+                    api_name=api,
+                    data_summary=_stringify(data),
+                    result_summary=_stringify(result),
+                    exception_summary=_stringify(exception),
+                )
             )
         except DatabaseError:
             logger.exception("Failed to record platform API call: %s", api)

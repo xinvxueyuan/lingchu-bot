@@ -8,6 +8,7 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as Onebot11Action
 
 from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import DatabaseError
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common import (  # noqa: E501
+    CommandAudit,
     check_bot_privilege,
     check_target_privilege,
     format_user_display_name,
@@ -188,19 +189,21 @@ class TestRecordCommandAudit:
             await record_command_audit(
                 mock_onebot11_bot,
                 mock_onebot11_event,
-                action="member_mute",
-                target_user_id=_TARGET_USER_ID,
-                duration=300,
-                reason="违规",
+                CommandAudit(
+                    action="member_mute",
+                    target_user_id=_TARGET_USER_ID,
+                    duration=300,
+                    reason="违规",
+                ),
             )
 
         mock_record.assert_called_once()
-        call_kwargs = mock_record.call_args.kwargs
-        assert call_kwargs["api_name"] == "command:member_mute"
-        assert call_kwargs["audit_type"] == "command"
-        assert "target=999" in call_kwargs["data_summary"]
-        assert "duration=300" in call_kwargs["data_summary"]
-        assert "reason=违规" in call_kwargs["data_summary"]
+        audit_event = mock_record.call_args.args[0]
+        assert audit_event.api_name == "command:member_mute"
+        assert audit_event.audit_type == "command"
+        assert "target=999" in audit_event.data_summary
+        assert "duration=300" in audit_event.data_summary
+        assert "reason=违规" in audit_event.data_summary
 
     @pytest.mark.asyncio
     async def test_database_error_silent(
@@ -214,8 +217,7 @@ class TestRecordCommandAudit:
             await record_command_audit(
                 mock_onebot11_bot,
                 mock_onebot11_event,
-                action="member_unmute",
-                target_user_id=_TARGET_USER_ID,
+                CommandAudit(action="member_unmute", target_user_id=_TARGET_USER_ID),
             )
 
 
@@ -270,10 +272,12 @@ class TestRecordAuditFireAndForget:
             await record_audit_fire_and_forget(
                 mock_onebot11_bot,
                 mock_onebot11_event,
-                action="member_mute",
-                target_user_id=_TARGET_USER_ID,
-                duration=300,
-                reason="违规",
+                CommandAudit(
+                    action="member_mute",
+                    target_user_id=_TARGET_USER_ID,
+                    duration=300,
+                    reason="违规",
+                ),
             )
 
         assert len(captured) == 1
@@ -299,10 +303,49 @@ class TestRecordAuditFireAndForget:
             await record_audit_fire_and_forget(
                 mock_onebot11_bot,
                 mock_onebot11_event,
-                action="whole_mute",
+                CommandAudit(action="whole_mute"),
             )
 
         assert len(captured) == 1
         coro, name = captured[0]
         assert name == "audit:whole_mute"
         coro.close()
+
+    @pytest.mark.asyncio
+    async def test_schedules_structured_remote_audit_with_group_id(
+        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    ) -> None:
+        """远程命令通过结构化审计对象携带目标群。"""
+        captured: list[tuple[Any, str]] = []
+
+        def _spy(coro: Any, *, name: str = "fire_and_forget") -> Any:
+            captured.append((coro, name))
+            return MagicMock()
+
+        with (
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.core.async_utils.fire_and_forget",
+                side_effect=_spy,
+            ),
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.repositories.message_store.record_api_call",
+                AsyncMock(),
+            ) as mock_record,
+        ):
+            await record_audit_fire_and_forget(
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                CommandAudit(
+                    action="remote_mute",
+                    target_user_id=_TARGET_USER_ID,
+                    duration=300,
+                    reason="违规",
+                    group_id=987654321,
+                ),
+            )
+            coro, name = captured[0]
+            assert name == "audit:remote_mute"
+            await coro
+
+        audit_event = mock_record.call_args.args[0]
+        assert "group=987654321" in audit_event.data_summary

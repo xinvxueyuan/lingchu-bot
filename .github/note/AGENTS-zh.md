@@ -363,6 +363,12 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 - **不适用场景**：调用者需要结果的操作，或函数返回前必须完成的操作。这些情况下直接使用 `await`。
 - **引用管理**：辅助函数将任务存储在模块级 set 中，防止 Python GC 过早取消；done-callback 在记录任何异常后移除引用。
 
+### 结构化请求对象
+
+- **仓储 API**：需要多项关联字段的写入/审计 API 优先使用冻结 dataclass 请求对象。例如 `repositories/blocklist.py` 中的 `BlocklistUpsert` 和 `repositories/message_store.py` 中的 `AuditEvent`。
+- **命令审计**：命令审计载荷使用 `handle/qq/adapters/onebot11/default/common.py` 中的 `CommandAudit`，再传给 `record_audit_fire_and_forget()` 或 `record_command_audit()`。
+- **不要新增长参数列表**：如果新 helper 需要 platform、adapter、bot、group、target、reason、duration 等多个耦合字段，定义请求对象，而不是继续扩展函数签名。
+
 ### 命令处理器状态控制（静默模式与处理门控）
 
 - **位置**：`src/plugins/nonebot_plugin_lingchu_bot/core/bot_state.py`

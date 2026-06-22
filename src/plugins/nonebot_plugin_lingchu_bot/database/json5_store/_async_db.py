@@ -507,32 +507,20 @@ class RobustAsyncJSON5DB:
             raise DatabaseClosedError
         return await self._set_with_condition(key_path, value, mode="update")
 
+    async def _commit_data_copy(self, data_copy: dict[str, Any]) -> None:
+        """Commit a prepared data snapshot through the shared write semantics."""
+        if self.auto_save:
+            await self._unsafe_save_data(data_copy)
+        self._data = data_copy
+
     async def _set_with_condition(self, key_path: str, value: Any, mode: str) -> bool:
         """按模式写入单个路径。"""
         async with self._lock:
-            if self.auto_save:
-                data_copy = await _deepcopy_async(self._data)
-
-                segments = self._validate_path(key_path)
-                create_missing = mode != "update"
-                parent, key, exists = self._navigate_to_parent(
-                    segments, create_missing=create_missing, root=data_copy
-                )
-
-                if mode == "create" and exists:
-                    return False
-                if mode == "update" and (parent is None or not exists):
-                    return False
-
-                parent[key] = value
-
-                await self._unsafe_save_data(data_copy)
-                self._data = data_copy
-                return True
+            data_copy = await _deepcopy_async(self._data)
             segments = self._validate_path(key_path)
             create_missing = mode != "update"
             parent, key, exists = self._navigate_to_parent(
-                segments, create_missing=create_missing
+                segments, create_missing=create_missing, root=data_copy
             )
 
             if mode == "create" and exists:
@@ -541,6 +529,7 @@ class RobustAsyncJSON5DB:
                 return False
 
             parent[key] = value
+            await self._commit_data_copy(data_copy)
             return True
 
     async def set_batch(self, updates: dict[str, Any]) -> None:
@@ -565,9 +554,7 @@ class RobustAsyncJSON5DB:
                 )
                 parent[key] = val
 
-            if self.auto_save:
-                await self._unsafe_save_data(data_copy)
-            self._data = data_copy
+            await self._commit_data_copy(data_copy)
 
     async def delete(self, key_path: str) -> bool:
         """删除指定路径的值。
@@ -578,27 +565,15 @@ class RobustAsyncJSON5DB:
         if self._closed:
             raise DatabaseClosedError
         async with self._lock:
-            if self.auto_save:
-                data_copy = await _deepcopy_async(self._data)
-
-                segments = self._validate_path(key_path)
-                parent, key, exists = self._navigate_to_parent(
-                    segments, create_missing=False, root=data_copy
-                )
-                if not exists:
-                    return False
-
-                del parent[key]
-                await self._unsafe_save_data(data_copy)
-                self._data = data_copy
-                return True
+            data_copy = await _deepcopy_async(self._data)
             segments = self._validate_path(key_path)
             parent, key, exists = self._navigate_to_parent(
-                segments, create_missing=False
+                segments, create_missing=False, root=data_copy
             )
             if not exists:
                 return False
             del parent[key]
+            await self._commit_data_copy(data_copy)
             return True
 
     async def exists(self, key_path: str) -> bool:
@@ -617,12 +592,7 @@ class RobustAsyncJSON5DB:
         if self._closed:
             raise DatabaseClosedError
         async with self._lock:
-            if self.auto_save:
-                empty: dict[str, Any] = {}
-                await self._unsafe_save_data(empty)
-                self._data = empty
-            else:
-                self._data = {}
+            await self._commit_data_copy({})
 
     def _navigate_to_parent(
         self,
