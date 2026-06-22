@@ -13,7 +13,7 @@ Lingchu Bot organizes platform support around three layers: **platform**, **prot
 | --- | --- | --- |
 | Platform | The chat network the bot connects to | QQ |
 | Protocol | The wire/API standard the adapter implements | OneBot V11, Milky |
-| Implementation | A concrete server that speaks the protocol | NapCat, LLOneBot, LLBot, default |
+| Implementation | A concrete server that speaks the protocol | NapCat, default |
 
 A platform profile (in `platforms/registry.py`) declares the known protocols and their priority. Each protocol maps to a NoneBot adapter package. Within a protocol, one or more implementations may extend the default handler set with implementation-specific APIs.
 
@@ -23,6 +23,8 @@ A platform profile (in `platforms/registry.py`) declares the known protocols and
 | --- | --- | --- |
 | [QQ](/docs/platforms/qq/overview) | OneBot V11, Milky (deprecated) | Implemented |
 
+For protocol-side runtime setup, see [Framework Integrations](/docs/platforms/framework-integrations).
+
 <Callout type="info" title="Adding new platforms">
 
 Platform profiles for Telegram, Discord, and others are candidates for future work. See [Adapter Guide](/docs/developer-guide/adapter-guide) for the contribution workflow.
@@ -31,6 +33,6 @@ Platform profiles for Telegram, Discord, and others are candidates for future wo
 
 ## How commands are scoped
 
-Command handlers live under `handle/<platform>/adapters/<protocol>/<implementation>/`. The menu system filters visible commands by the active platform, protocol, and implementation at runtime, so implementation-specific extension APIs (for example, group announcements on LLOneBot) are hidden unless the current runtime is known to support them.
+Command handlers live under `handle/<platform>/adapters/<protocol>/<implementation>/`. The menu system filters visible commands by the active platform, protocol, and implementation at runtime, so implementation-specific extension APIs (for example, group announcements on NapCat) are hidden unless the current runtime is known to support them.
 
 See [QQ Platform](/docs/platforms/qq/overview) for protocol- and implementation-specific command references.

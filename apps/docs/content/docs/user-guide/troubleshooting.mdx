@@ -90,6 +90,19 @@ Mute, unmute, and whole-group mute depend on platform permissions. When they fai
 Check whether `LINGCHU_LOCALE`, `lc_locale`, or `locale` is set to a supported catalog such as `zh_CN` or `en_US`. Unknown text falls back to the original message.
 
   </Accordion>
+  <Accordion title="Announcement image is not sent">
+
+OneBot V11 group announcements use implementation-specific APIs. For NapCat, `_send_group_notice` expects the `image` value to be a filesystem path readable by the NapCat side. Common causes:
+
+- Lingchu Bot wrote the cached image on Windows, but the NapCat Docker container cannot read that path.
+- `ANNOUNCEMENT_IMAGE_CACHE_DIR` and `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` are unset or point to different directories.
+- The Docker bind mount was changed without recreating the NapCat container.
+- Lingchu Bot was not restarted after changing `.env`.
+- NapCat is below the supported version or the current implementation is not detected as `NapCat.Onebot`.
+
+For Windows plus Docker Desktop, configure the path bridge described in [Framework Integrations](../platforms/framework-integrations), then verify that a file written under `ANNOUNCEMENT_IMAGE_CACHE_DIR` is visible inside the container at `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR`.
+
+  </Accordion>
 </Accordions>
 
 ## CI or local checks

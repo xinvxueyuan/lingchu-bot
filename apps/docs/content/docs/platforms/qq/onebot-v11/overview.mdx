@@ -24,14 +24,12 @@ OneBot V11 handlers are split into a `default` package and implementation-specif
 | --- | --- | --- | --- |
 | [default](./default) | — | — | Core group management |
 | [NapCat](./napcat) | `napcat/` | `4.18.0` | Group announcement, group avatar |
-| [LLOneBot](./llonebot) | `llonebot/` | `7.12.0` | Group announcement (text + image) |
 
 ## Runtime detection
 
 The bot calls `get_version_info()` at runtime to detect the active implementation (`app_name`) and its version. The menu system uses this to show or hide implementation-specific commands:
 
 - Unknown implementation: hides group announcement and group avatar.
-- `LLOneBot < 7.12.0`: hides group announcement.
 - `NapCat.Onebot < 4.18.0`: hides group announcement and group avatar.
 
 ## API notes
@@ -62,9 +60,6 @@ handle/qq/adapters/onebot11/
 │   ├── profile.py          # Group profile commands
 │   ├── remote.py           # Remote management commands (8 commands)
 │   └── test.py             # Test command
-├── llonebot/
-│   ├── __init__.py
-│   └── announcement.py     # LLOneBot-specific announcement extension
 └── napcat/
     ├── __init__.py
     ├── announcement.py     # NapCat-specific announcement extension
@@ -75,4 +70,3 @@ handle/qq/adapters/onebot11/
 
 - [Default implementation](./default) — Core OneBot V11 commands
 - [NapCat implementation](./napcat) — NapCat-specific extensions
-- [LLOneBot implementation](./llonebot) — LLOneBot-specific extensions

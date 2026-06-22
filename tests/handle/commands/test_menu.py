@@ -6,7 +6,6 @@ import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle import menu
 from src.plugins.nonebot_plugin_lingchu_bot.handle.menu import (
-    LLONEBOT_IMPL,
     MENU_FEATURES,
     NAPCAT_IMPL,
     ONEBOT_V11_ADAPTER_ID,
@@ -172,19 +171,19 @@ def test_onebot_unknown_hides_extension_features() -> None:
     assert "踢出群成员" not in rendered
 
 
-def test_onebot_llonebot_supports_announcement_only() -> None:
+def test_onebot_llonebot_hides_extension_features() -> None:
     rendered = render_menu_page(
         "group-chat-management",
         qq_menu_context(
             adapter_id=ONEBOT_V11_ADAPTER_ID,
-            implementation_name=LLONEBOT_IMPL,
+            implementation_name="LLOneBot",
             implementation_version="7.12.0",
             protocol_version="v11",
         ),
         "zh_CN",
     )
 
-    assert "发送群公告" in rendered
+    assert "发送群公告" not in rendered
     assert "设置群头像" not in rendered
 
 
@@ -205,16 +204,6 @@ def test_onebot_napcat_supports_announcement_and_avatar() -> None:
 
 
 def test_onebot_low_versions_hide_extension_features() -> None:
-    llonebot_rendered = render_menu_page(
-        "group-chat-management",
-        qq_menu_context(
-            adapter_id=ONEBOT_V11_ADAPTER_ID,
-            implementation_name=LLONEBOT_IMPL,
-            implementation_version="7.11.9",
-            protocol_version="v11",
-        ),
-        "zh_CN",
-    )
     napcat_rendered = render_menu_page(
         "group-chat-management",
         qq_menu_context(
@@ -226,7 +215,6 @@ def test_onebot_low_versions_hide_extension_features() -> None:
         "zh_CN",
     )
 
-    assert "发送群公告" not in llonebot_rendered
     assert "发送群公告" not in napcat_rendered
     assert "设置群头像" not in napcat_rendered
 

@@ -6,7 +6,6 @@
   "pages": [
     "overview",
     "default",
-    "napcat",
-    "llonebot"
+    "napcat"
   ]
 }

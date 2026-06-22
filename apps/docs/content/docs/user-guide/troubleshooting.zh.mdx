@@ -90,6 +90,19 @@ NoneBot 配置文件只接受标准 JSON 小写 `true` / `false`。
 检查 `LINGCHU_LOCALE`、`lc_locale` 或 `locale` 是否设置为支持的目录，如 `zh_CN` 或 `en_US`。未知文本会回退到原始消息。
 
   </Accordion>
+  <Accordion title="群公告图片发不出去">
+
+OneBot V11 群公告使用实现专属 API。对 NapCat 来说，`_send_group_notice` 的 `image` 值必须是 NapCat 侧可读取的文件系统路径。常见原因：
+
+- Lingchu Bot 在 Windows 写入了缓存图片，但 NapCat Docker 容器无法读取这个路径。
+- `ANNOUNCEMENT_IMAGE_CACHE_DIR` 与 `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` 未设置，或没有指向同一个挂载目录。
+- 修改了 Docker bind mount，但没有重建 NapCat 容器。
+- 修改 `.env` 后没有重启 Lingchu Bot。
+- NapCat 版本低于支持范围，或当前实现未被识别为 `NapCat.Onebot`。
+
+Windows 加 Docker Desktop 场景请按[框架对接](../platforms/framework-integrations)配置路径穿透，并验证写入 `ANNOUNCEMENT_IMAGE_CACHE_DIR` 的文件能在容器内通过 `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` 读取。
+
+  </Accordion>
 </Accordions>
 
 ## CI 或本地检查

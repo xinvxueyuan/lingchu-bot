@@ -122,6 +122,24 @@ SUPERUSERS always pass Lingchu command permission checks, but platform API restr
 | `config_dir` | Configuration file directory |
 | `cache_dir` | Cache file directory |
 
+### Announcement image path bridge
+
+OneBot V11 group announcements use implementation-specific `_send_group_notice` APIs. NapCat currently reads the announcement `image` field as a filesystem path on the protocol side. When Lingchu Bot runs on Windows and NapCat runs in Docker Desktop, configure a shared directory and pass NapCat the container path:
+
+```dotenv
+ANNOUNCEMENT_IMAGE_CACHE_DIR=C:/dev/lingchu-bot/.local/napcat-announcement-images
+ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu/announcement-images
+```
+
+Mount the same host directory into the NapCat container:
+
+```yaml
+volumes:
+  - C:/dev/lingchu-bot/.local/napcat-announcement-images:/lingchu/announcement-images:ro
+```
+
+When these settings are unset, announcement images use the normal `cache_dir / "announcement_images"` path and preserve the previous same-filesystem behavior.
+
 ## Adapter selection
 
 Lingchu Bot groups concrete adapters into platform capabilities. Only one adapter is enabled per platform by default. The current QQ platform priority is:

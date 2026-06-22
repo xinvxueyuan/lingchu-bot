@@ -1,5 +1,7 @@
 """测试远程管理命令 - 边界行为覆盖"""
 
+import hashlib
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -13,6 +15,9 @@ from nonebot_plugin_alconna.uniseg import At
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     remote as remote_module,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import (
+    announcement as announcement_module,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.remote import (
     remote_announcement_cmd,
@@ -522,7 +527,11 @@ class TestRemoteAnnouncement:
                 event=mock_event,
                 image=None,
             )
-            mock_bot.call_api.assert_called_once()
+            mock_bot.call_api.assert_called_once_with(
+                "_send_group_notice",
+                group_id=_GROUP_ID_1,
+                content="测试公告内容",
+            )
 
     @pytest.mark.asyncio
     async def test_remote_announcement_empty_content(
@@ -574,3 +583,53 @@ class TestRemoteAnnouncement:
                 image=None,
             )
             mock_bot.call_api.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_remote_announcement_uses_protocol_image_path(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """远程公告图片复用公告路径桥接，向 NapCat 传容器内路径。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_version_info.return_value = {
+            "data": {
+                "protocol_version": "v11",
+                "app_version": "4.18.0",
+                "app_name": "NapCat.Onebot",
+            }
+        }
+        mock_bot.call_api.return_value = {}
+
+        host_cache_dir = tmp_path / "napcat-announcement-images"
+        fake_config = MagicMock()
+        fake_config.cache_dir = tmp_path / "default-cache"
+        fake_config.announcement_image_cache_dir = host_cache_dir
+        fake_config.announcement_image_protocol_dir = "/lingchu/announcement-images"
+        monkeypatch.setattr(announcement_module, "plugin_config", fake_config)
+
+        raw_bytes = b"remote-announcement-image"
+        image = MagicMock()
+        image.raw = raw_bytes
+        image.path = None
+        image.url = None
+
+        with patch.object(remote_announcement_cmd, "finish", new_callable=AsyncMock):
+            await onebot11_remote_announcement(
+                group_id=_GROUP_ID_1,
+                content="测试公告内容",
+                bot=mock_bot,
+                event=mock_event,
+                image=image,
+            )
+
+        expected_md5 = hashlib.md5(raw_bytes).hexdigest()
+        mock_bot.call_api.assert_called_once_with(
+            "_send_group_notice",
+            group_id=_GROUP_ID_1,
+            content="测试公告内容",
+            image=f"/lingchu/announcement-images/{expected_md5}.png",
+        )

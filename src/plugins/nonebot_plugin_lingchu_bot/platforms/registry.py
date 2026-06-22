@@ -194,7 +194,6 @@ PLATFORM_PROFILES: Final[tuple[PlatformProfile, ...]] = (
 
 _PROTOCOL_DISPLAY_NAMES: Final[dict[str, str]] = {
     "default": "Default",
-    "llonebot": "LLOneBot",
     "napcat": "NapCat",
 }
 
@@ -204,12 +203,6 @@ _PROTOCOL_IMPLEMENTATIONS: Final[tuple[ProtocolImplementationInfo, ...]] = (
         adapter_id="~onebot.v11",
         display_name=_PROTOCOL_DISPLAY_NAMES["default"],
         module_path="handle.qq.adapters.onebot11.default",
-    ),
-    ProtocolImplementationInfo(
-        protocol_id="llonebot",
-        adapter_id="~onebot.v11",
-        display_name=_PROTOCOL_DISPLAY_NAMES["llonebot"],
-        module_path="handle.qq.adapters.onebot11.llonebot",
     ),
     ProtocolImplementationInfo(
         protocol_id="napcat",
