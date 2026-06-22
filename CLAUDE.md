@@ -365,6 +365,12 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 - **Do NOT use for**: operations whose results are needed by the caller, or operations that must complete before the function returns. In those cases, use `await` directly.
 - **Reference management**: the helper stores the task in a module-level set so Python's GC does not cancel it prematurely; the done-callback removes the reference after logging any exception.
 
+### Structured Request Objects
+
+- **Repository APIs**: Prefer frozen dataclass request objects for write/audit APIs that need many related fields. Examples include `BlocklistUpsert` in `repositories/blocklist.py` and `AuditEvent` in `repositories/message_store.py`.
+- **Command audit**: Use `CommandAudit` from `handle/qq/adapters/onebot11/default/common.py` for command audit payloads, then pass it to `record_audit_fire_and_forget()` or `record_command_audit()`.
+- **Do NOT add new long parameter lists**: If a new helper needs more than a few coupled fields such as platform, adapter, bot, group, target, reason, and duration, define a request object instead of expanding the function signature.
+
 ### Command Handler State Control (Silent Mode & Handle Gate)
 
 - **Location**: `src/plugins/nonebot_plugin_lingchu_bot/core/bot_state.py`

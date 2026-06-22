@@ -70,7 +70,8 @@ Before executing a remote action, the bot checks:
 - `resolve_user_onebot11(user, bot, event)` — Resolves `At | int` to `(user_id, name)` tuple. Raises `ValueError` on invalid input.
 - `check_target_privilege(bot, event, target_user_id, cmd_matcher)` — Checks whether the target user is an admin/owner; rejects the operation unless the operator is the group owner or a superuser. Returns `True` when the check passes.
 - `check_bot_privilege(bot, group_id, cmd_matcher)` — Checks whether the bot has admin/owner role in the given group. Returns `True` when the check passes.
-- `record_command_audit(bot, event, *, action, target_user_id=None, reason=None, duration=None, group_id=None)` — Writes a command-level audit log entry via the message store repository.
+- `CommandAudit(action, target_user_id=None, reason=None, duration=None, group_id=None)` — Carries command audit payloads.
+- `record_command_audit(bot, event, CommandAudit(...))` / `record_audit_fire_and_forget(bot, event, CommandAudit(...))` — Writes a command-level audit log entry via the message store repository, either awaited directly or scheduled in the background.
 
 ## Permission API Integration
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
@@ -13,6 +14,20 @@ from ..database.orm_crud import delete, get_one, upsert
 BlockScope = Literal["group", "global"]
 
 GLOBAL_SCOPE_KEY = "*"
+
+
+@dataclass(frozen=True, slots=True)
+class BlocklistUpsert:
+    platform_id: str
+    adapter_id: str
+    bot_id: str
+    scope: BlockScope
+    group_id: str | int | None
+    user_id: str | int
+    operator_id: str | int | None
+    reason: str | None
+    expires_at: datetime | None
+    protocol_id: str | None = None
 
 
 def scope_key_for(scope: BlockScope, group_id: str | int | None = None) -> str:
@@ -32,33 +47,23 @@ def expires_at_from_duration(duration: int | None) -> datetime | None:
     return datetime.now(UTC) + timedelta(seconds=duration)
 
 
-async def upsert_block(  # noqa: PLR0913
-    *,
-    platform_id: str,
-    adapter_id: str,
-    protocol_id: str | None = None,
-    bot_id: str,
-    scope: BlockScope,
-    group_id: str | int | None,
-    user_id: str | int,
-    operator_id: str | int | None,
-    reason: str | None,
-    expires_at: datetime | None,
-) -> BlocklistEntry:
+async def upsert_block(request: BlocklistUpsert) -> BlocklistEntry:
     now = datetime.now(UTC)
-    scope_key = scope_key_for(scope, group_id)
+    scope_key = scope_key_for(request.scope, request.group_id)
     values = {
-        "platform_id": platform_id,
-        "adapter_id": adapter_id,
-        "protocol_id": protocol_id,
-        "bot_id": bot_id,
-        "scope": scope,
+        "platform_id": request.platform_id,
+        "adapter_id": request.adapter_id,
+        "protocol_id": request.protocol_id,
+        "bot_id": request.bot_id,
+        "scope": request.scope,
         "scope_key": scope_key,
-        "group_id": None if scope == "global" else str(group_id),
-        "user_id": str(user_id),
-        "operator_id": None if operator_id is None else str(operator_id),
-        "reason": reason,
-        "expires_at": expires_at,
+        "group_id": None if request.scope == "global" else str(request.group_id),
+        "user_id": str(request.user_id),
+        "operator_id": None
+        if request.operator_id is None
+        else str(request.operator_id),
+        "reason": request.reason,
+        "expires_at": request.expires_at,
         "created_at": now,
         "updated_at": now,
     }
@@ -75,10 +80,10 @@ async def upsert_block(  # noqa: PLR0913
             "user_id",
         ],
         update_values={
-            "protocol_id": protocol_id,
+            "protocol_id": request.protocol_id,
             "operator_id": values["operator_id"],
-            "reason": reason,
-            "expires_at": expires_at,
+            "reason": request.reason,
+            "expires_at": request.expires_at,
             "updated_at": now,
         },
     )

@@ -33,20 +33,46 @@ def test_expires_at_from_duration_defaults_to_permanent() -> None:
 
 
 @pytest.mark.asyncio
+async def test_upsert_block_accepts_structured_request() -> None:
+    upsert_mock = AsyncMock(return_value=_entry())
+
+    with patch.object(blocklist, "upsert", upsert_mock):
+        await blocklist.upsert_block(
+            blocklist.BlocklistUpsert(
+                platform_id="qq",
+                adapter_id="~onebot.v11",
+                bot_id="bot-1",
+                scope="group",
+                group_id=123,
+                user_id=456,
+                operator_id=789,
+                reason="bad",
+                expires_at=None,
+            )
+        )
+
+    _, insert_values = upsert_mock.call_args.args[:2]
+    assert insert_values["scope_key"] == "123"
+    assert insert_values["user_id"] == "456"
+
+
+@pytest.mark.asyncio
 async def test_upsert_block_uses_scope_identity_and_update_values() -> None:
     upsert_mock = AsyncMock(return_value=_entry())
 
     with patch.object(blocklist, "upsert", upsert_mock):
         await blocklist.upsert_block(
-            platform_id="qq",
-            adapter_id="~onebot.v11",
-            bot_id="bot-1",
-            scope="group",
-            group_id=123,
-            user_id=456,
-            operator_id=789,
-            reason="bad",
-            expires_at=None,
+            blocklist.BlocklistUpsert(
+                platform_id="qq",
+                adapter_id="~onebot.v11",
+                bot_id="bot-1",
+                scope="group",
+                group_id=123,
+                user_id=456,
+                operator_id=789,
+                reason="bad",
+                expires_at=None,
+            )
         )
 
     _, insert_values = upsert_mock.call_args.args[:2]
@@ -72,16 +98,18 @@ async def test_upsert_block_passes_protocol_id_through_to_upsert() -> None:
 
     with patch.object(blocklist, "upsert", upsert_mock):
         await blocklist.upsert_block(
-            platform_id="qq",
-            adapter_id="~onebot.v11",
-            protocol_id="napcat",
-            bot_id="bot-1",
-            scope="group",
-            group_id=123,
-            user_id=456,
-            operator_id=789,
-            reason="bad",
-            expires_at=None,
+            blocklist.BlocklistUpsert(
+                platform_id="qq",
+                adapter_id="~onebot.v11",
+                protocol_id="napcat",
+                bot_id="bot-1",
+                scope="group",
+                group_id=123,
+                user_id=456,
+                operator_id=789,
+                reason="bad",
+                expires_at=None,
+            )
         )
 
     _, insert_values = upsert_mock.call_args.args[:2]
@@ -96,20 +124,46 @@ async def test_upsert_block_defaults_protocol_id_to_none() -> None:
 
     with patch.object(blocklist, "upsert", upsert_mock):
         await blocklist.upsert_block(
-            platform_id="qq",
-            adapter_id="~onebot.v11",
-            bot_id="bot-1",
-            scope="group",
-            group_id=123,
-            user_id=456,
-            operator_id=789,
-            reason="bad",
-            expires_at=None,
+            blocklist.BlocklistUpsert(
+                platform_id="qq",
+                adapter_id="~onebot.v11",
+                bot_id="bot-1",
+                scope="group",
+                group_id=123,
+                user_id=456,
+                operator_id=789,
+                reason="bad",
+                expires_at=None,
+            )
         )
 
     _, insert_values = upsert_mock.call_args.args[:2]
     assert insert_values["protocol_id"] is None
     assert upsert_mock.call_args.kwargs["update_values"]["protocol_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_upsert_block_preserves_none_operator_id() -> None:
+    upsert_mock = AsyncMock(return_value=_entry())
+
+    with patch.object(blocklist, "upsert", upsert_mock):
+        await blocklist.upsert_block(
+            blocklist.BlocklistUpsert(
+                platform_id="qq",
+                adapter_id="~onebot.v11",
+                bot_id="bot-1",
+                scope="group",
+                group_id=123,
+                user_id=456,
+                operator_id=None,
+                reason="bad",
+                expires_at=None,
+            )
+        )
+
+    _, insert_values = upsert_mock.call_args.args[:2]
+    assert insert_values["operator_id"] is None
+    assert upsert_mock.call_args.kwargs["update_values"]["operator_id"] is None
 
 
 @pytest.mark.asyncio

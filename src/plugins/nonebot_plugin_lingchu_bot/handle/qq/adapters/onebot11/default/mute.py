@@ -19,6 +19,7 @@ from ....commands.mute import (
 from .common import (
     MUTE_DURATION_MAX,
     MUTE_DURATION_MIN,
+    CommandAudit,
     bot_self_id_safe,
     check_bot_privilege,
     check_self_target,
@@ -78,10 +79,12 @@ async def onebot11_mute(  # noqa: PLR0911
     await record_audit_fire_and_forget(
         bot,
         event,
-        action="member_mute",
-        target_user_id=target_user_id,
-        duration=duration,
-        reason=reason,
+        CommandAudit(
+            action="member_mute",
+            target_user_id=target_user_id,
+            duration=duration,
+            reason=reason,
+        ),
     )
 
     # 7. 格式化反馈消息
@@ -121,7 +124,7 @@ async def onebot11_whole_mute(
         return await whole_mute_cmd.finish(await _("全体禁言失败，操作被拒绝"))
 
     # 3. 记录审计
-    await record_audit_fire_and_forget(bot, event, action="whole_mute")
+    await record_audit_fire_and_forget(bot, event, CommandAudit(action="whole_mute"))
 
     return await whole_mute_cmd.finish(await _("全体禁言成功"))
 
@@ -160,8 +163,7 @@ async def onebot11_unmute(
     await record_audit_fire_and_forget(
         bot,
         event,
-        action="member_unmute",
-        target_user_id=target_user_id,
+        CommandAudit(action="member_unmute", target_user_id=target_user_id),
     )
 
     # 5. 格式化反馈消息
@@ -187,6 +189,6 @@ async def onebot11_whole_unmute(
         return await whole_unmute_cmd.finish(await _("全体解禁失败，操作被拒绝"))
 
     # 记录审计
-    await record_audit_fire_and_forget(bot, event, action="whole_unmute")
+    await record_audit_fire_and_forget(bot, event, CommandAudit(action="whole_unmute"))
 
     return await whole_unmute_cmd.finish(await _("全体解禁成功"))

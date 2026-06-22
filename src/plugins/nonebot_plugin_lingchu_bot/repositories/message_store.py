@@ -2,11 +2,25 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from ..database.models import AuditRecord, MessageRecord
 from ..database.orm_crud import create, delete, get_one, list_items, update, upsert
+
+
+@dataclass(frozen=True, slots=True)
+class AuditEvent:
+    platform_id: str
+    adapter_id: str
+    bot_id: str
+    api_name: str
+    data_summary: str | None
+    result_summary: str | None
+    exception_summary: str | None
+    protocol_id: str | None = None
+    audit_type: str = "api_call"
 
 
 async def record_event_received(  # noqa: PLR0913
@@ -98,30 +112,19 @@ async def record_matcher_result(  # noqa: PLR0913
     return True
 
 
-async def record_api_call(  # noqa: PLR0913
-    *,
-    platform_id: str,
-    adapter_id: str,
-    protocol_id: str | None = None,
-    bot_id: str,
-    api_name: str,
-    data_summary: str | None,
-    result_summary: str | None,
-    exception_summary: str | None,
-    audit_type: str = "api_call",
-) -> AuditRecord:
+async def record_api_call(event: AuditEvent) -> AuditRecord:
     """Record a platform API or lifecycle event as an audit record."""
     return await create(
         AuditRecord,
-        platform_id=platform_id,
-        adapter_id=adapter_id,
-        protocol_id=protocol_id,
-        bot_id=bot_id,
-        audit_type=audit_type,
-        event_type=api_name,
-        data_summary=data_summary,
-        result_summary=result_summary,
-        exception_summary=exception_summary,
+        platform_id=event.platform_id,
+        adapter_id=event.adapter_id,
+        protocol_id=event.protocol_id,
+        bot_id=event.bot_id,
+        audit_type=event.audit_type,
+        event_type=event.api_name,
+        data_summary=event.data_summary,
+        result_summary=event.result_summary,
+        exception_summary=event.exception_summary,
         created_at=datetime.now(UTC),
     )
 

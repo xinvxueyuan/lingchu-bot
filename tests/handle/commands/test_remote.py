@@ -2,7 +2,6 @@
 
 import hashlib
 from pathlib import Path
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -49,18 +48,10 @@ onebot11_remote_whole_unmute = remote_module.onebot11_remote_whole_unmute
 
 
 @pytest.fixture(autouse=True)
-def _mock_fire_and_forget():
+def _mock_record_audit_fire_and_forget():
     """避免审计记录触发后台任务和数据库调用。"""
-    captured: list[tuple[Any, str]] = []
-
-    def _spy(coro: Any, *, name: str = "fire_and_forget") -> Any:
-        captured.append((coro, name))
-        return MagicMock()
-
-    with patch.object(remote_module, "fire_and_forget", side_effect=_spy):
+    with patch.object(remote_module, "record_audit_fire_and_forget", new=AsyncMock()):
         yield
-    for coro, _name in captured:
-        coro.close()
 
 
 @pytest.fixture

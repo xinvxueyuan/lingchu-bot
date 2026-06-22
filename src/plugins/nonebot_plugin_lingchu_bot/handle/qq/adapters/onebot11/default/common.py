@@ -1,4 +1,5 @@
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any, Final
 
 from nonebot import logger
@@ -13,6 +14,7 @@ from nonebot_plugin_alconna.uniseg import At
 
 from ......i18n import _async as _
 from ......repositories.blocklist import (
+    BlocklistUpsert,
     BlockScope,
     expires_at_from_duration,
     upsert_block,
@@ -25,6 +27,17 @@ MUTE_DURATION_MIN: Final[int] = 1
 MUTE_DURATION_MAX: Final[int] = 30 * 24 * 60 * 60  # 30 天
 
 type GroupAction = Callable[[], Awaitable[Any]]
+
+
+@dataclass(frozen=True, slots=True)
+class CommandAudit:
+    """Command audit payload shared by local and remote handlers."""
+
+    action: str
+    target_user_id: int | None = None
+    reason: str | None = None
+    duration: int | None = None
+    group_id: int | None = None
 
 
 async def target_user_onebot11(
@@ -170,15 +183,17 @@ async def store_block_record(  # noqa: PLR0913
 ) -> None:
     """存储黑名单记录（本地和远程统一入口）"""
     await upsert_block(
-        platform_id=QQ_PLATFORM_ID,
-        adapter_id=ONEBOT_V11_ADAPTER_ID,
-        bot_id=bot_id(bot),
-        scope=scope,
-        group_id=group_id,
-        user_id=user_id,
-        operator_id=operator_id,
-        reason=reason,
-        expires_at=expires_at_from_duration(duration),
+        BlocklistUpsert(
+            platform_id=QQ_PLATFORM_ID,
+            adapter_id=ONEBOT_V11_ADAPTER_ID,
+            bot_id=bot_id(bot),
+            scope=scope,
+            group_id=group_id,
+            user_id=user_id,
+            operator_id=operator_id,
+            reason=reason,
+            expires_at=expires_at_from_duration(duration),
+        )
     )
 
 
@@ -250,44 +265,41 @@ async def check_bot_privilege(
     return True
 
 
-async def record_command_audit(  # noqa: PLR0913
+async def record_command_audit(
     bot: Onebot11Bot,
     event: Onebot11GroupMessageEvent,
-    *,
-    action: str,
-    target_user_id: int | None = None,
-    reason: str | None = None,
-    duration: int | None = None,
-    group_id: int | None = None,
+    audit: CommandAudit,
 ) -> None:
     """记录命令级审计日志。"""
     from ......database.orm_crud import DatabaseError
-    from ......repositories.message_store import record_api_call
+    from ......repositories.message_store import AuditEvent, record_api_call
 
-    audit_group_id = group_id if group_id is not None else event.group_id
+    audit_group_id = audit.group_id if audit.group_id is not None else event.group_id
     data_summary = (
-        f"operator={event.user_id}, target={target_user_id}, "
-        f"action={action}, group={audit_group_id}"
+        f"operator={event.user_id}, target={audit.target_user_id}, "
+        f"action={audit.action}, group={audit_group_id}"
     )
-    if duration is not None:
-        data_summary += f", duration={duration}"
-    if reason is not None:
-        data_summary += f", reason={reason}"
+    if audit.duration is not None:
+        data_summary += f", duration={audit.duration}"
+    if audit.reason is not None:
+        data_summary += f", reason={audit.reason}"
 
     try:
         await record_api_call(
-            platform_id=QQ_PLATFORM_ID,
-            adapter_id=ONEBOT_V11_ADAPTER_ID,
-            protocol_id=None,
-            bot_id=bot_id(bot),
-            api_name=f"command:{action}",
-            data_summary=data_summary,
-            result_summary="success",
-            exception_summary=None,
-            audit_type="command",
+            AuditEvent(
+                platform_id=QQ_PLATFORM_ID,
+                adapter_id=ONEBOT_V11_ADAPTER_ID,
+                protocol_id=None,
+                bot_id=bot_id(bot),
+                api_name=f"command:{audit.action}",
+                data_summary=data_summary,
+                result_summary="success",
+                exception_summary=None,
+                audit_type="command",
+            )
         )
     except DatabaseError:
-        logger.exception(f"记录命令审计失败: action={action}")
+        logger.exception(f"记录命令审计失败: action={audit.action}")
 
 
 def format_user_display_name(
@@ -312,14 +324,10 @@ def format_user_display_name(
     return f"{target_name}({target_user_id})" if target_name else str(target_user_id)
 
 
-async def record_audit_fire_and_forget(  # noqa: PLR0913
+async def record_audit_fire_and_forget(
     bot: Onebot11Bot,
     event: Onebot11GroupMessageEvent,
-    *,
-    action: str,
-    target_user_id: int | None = None,
-    reason: str | None = None,
-    duration: int | None = None,
+    audit: CommandAudit,
 ) -> None:
     """异步记录审计日志（fire-and-forget 模式）。
 
@@ -331,10 +339,7 @@ async def record_audit_fire_and_forget(  # noqa: PLR0913
         record_command_audit(
             bot,
             event,
-            action=action,
-            target_user_id=target_user_id,
-            reason=reason,
-            duration=duration,
+            audit,
         ),
-        name=f"audit:{action}",
+        name=f"audit:{audit.action}",
     )
