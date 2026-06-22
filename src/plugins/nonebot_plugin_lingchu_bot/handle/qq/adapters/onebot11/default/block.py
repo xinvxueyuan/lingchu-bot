@@ -11,7 +11,6 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import At
 
-from ......core.async_utils import fire_and_forget
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......repositories.blocklist import (
@@ -38,7 +37,8 @@ from .common import (
     default_admin_reason,
     default_block_reason,
     finish_action_error_onebot11,
-    record_command_audit,
+    format_user_display_name,
+    record_audit_fire_and_forget,
     resolve_user_onebot11,
     store_block_record,
 )
@@ -109,21 +109,18 @@ async def _block_member(  # noqa: PLR0913
         return await finish_action_error_onebot11(command, await _("拉黑"), error)
 
     # 记录审计
-    fire_and_forget(
-        record_command_audit(
-            bot,
-            event,
-            action="block_member",
-            target_user_id=target_user_id,
-            duration=duration,
-            reason=reason,
-        ),
-        name="audit:block_member",
+    await record_audit_fire_and_forget(
+        bot,
+        event,
+        action="block_member",
+        target_user_id=target_user_id,
+        duration=duration,
+        reason=reason,
     )
 
     scope_text = await _("全局") if scope == "global" else await _("本群")
     duration_text = await _("永久") if duration is None else f"{duration} 秒"
-    name_display = f"@{target_name}" if target_name else str(target_user_id)
+    name_display = format_user_display_name(target_user_id, target_name)
     message = (
         await _(
             "已拉黑并踢出: \n"
@@ -211,15 +208,12 @@ async def _unblock_member(  # noqa: PLR0913
         return await _finish_database_error(command, await _("删黑"), error)
 
     # 记录审计
-    fire_and_forget(
-        record_command_audit(
-            bot, event, action="unblock_member", target_user_id=target_user_id
-        ),
-        name="audit:unblock_member",
+    await record_audit_fire_and_forget(
+        bot, event, action="unblock_member", target_user_id=target_user_id
     )
 
     scope_text = await _("全局") if scope == "global" else await _("本群")
-    name_display = f"@{target_name}" if target_name else str(target_user_id)
+    name_display = format_user_display_name(target_user_id, target_name)
     message = (
         await _(
             "已删黑: \n"
@@ -300,10 +294,7 @@ async def _clear_blocklist(
         return await _finish_database_error(command, await _("清空黑名单"), error)
 
     # 记录审计
-    fire_and_forget(
-        record_command_audit(bot, event, action="clear_blocklist"),
-        name="audit:clear_blocklist",
-    )
+    await record_audit_fire_and_forget(bot, event, action="clear_blocklist")
 
     scope_text = await _("全局") if scope == "global" else await _("本群")
     message = (

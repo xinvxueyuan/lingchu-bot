@@ -74,7 +74,7 @@ def _mock_fire_and_forget() -> Any:
         return MagicMock()
 
     with (
-        patch.object(mute_module, "fire_and_forget", side_effect=_spy),
+        patch.object(mute_module, "record_audit_fire_and_forget", new=AsyncMock()),
         patch.object(bot_state_module, "fire_and_forget", side_effect=_spy),
     ):
         yield

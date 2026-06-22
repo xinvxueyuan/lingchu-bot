@@ -288,3 +288,53 @@ async def record_command_audit(  # noqa: PLR0913
         )
     except DatabaseError:
         logger.exception(f"记录命令审计失败: action={action}")
+
+
+def format_user_display_name(
+    target_user_id: int,
+    target_name: str | None,
+    *,
+    style: str = "at",
+) -> str:
+    """格式化用户显示名称。
+
+    Args:
+        target_user_id: 用户 ID
+        target_name: 用户名称（可能为空）
+        style: 显示样式，"at" 表示 @名称 格式，"detail" 表示 名称(ID) 格式
+
+    Returns:
+        格式化后的用户显示名称
+    """
+    if style == "at":
+        return f"@{target_name}" if target_name else str(target_user_id)
+    # detail style
+    return f"{target_name}({target_user_id})" if target_name else str(target_user_id)
+
+
+async def record_audit_fire_and_forget(  # noqa: PLR0913
+    bot: Onebot11Bot,
+    event: Onebot11GroupMessageEvent,
+    *,
+    action: str,
+    target_user_id: int | None = None,
+    reason: str | None = None,
+    duration: int | None = None,
+) -> None:
+    """异步记录审计日志（fire-and-forget 模式）。
+
+    封装 fire_and_forget + record_command_audit 的常用模式。
+    """
+    from ......core.async_utils import fire_and_forget
+
+    fire_and_forget(
+        record_command_audit(
+            bot,
+            event,
+            action=action,
+            target_user_id=target_user_id,
+            reason=reason,
+            duration=duration,
+        ),
+        name=f"audit:{action}",
+    )

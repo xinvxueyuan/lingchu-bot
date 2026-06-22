@@ -8,7 +8,6 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import At
 
-from ......core.async_utils import fire_and_forget
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......repositories.blocklist import find_active_block
@@ -21,7 +20,8 @@ from .common import (
     check_bot_privilege,
     check_self_target,
     check_target_privilege,
-    record_command_audit,
+    format_user_display_name,
+    record_audit_fire_and_forget,
     resolve_user_onebot11,
 )
 
@@ -59,7 +59,7 @@ async def _kick_member(  # noqa: PLR0911
         return await command.finish(await _("查询黑名单失败，数据库异常"))
 
     if entry is None:
-        display_name = target_name or str(target_user_id)
+        display_name = format_user_display_name(target_user_id, target_name)
         message = await _("用户 {name} 不在黑名单中，无法执行踢出操作")
         return await command.finish(message.format(name=display_name))
 
@@ -79,19 +79,16 @@ async def _kick_member(  # noqa: PLR0911
         return await command.finish(await _("踢出群成员失败，操作被拒绝"))
 
     # 记录审计
-    fire_and_forget(
-        record_command_audit(
-            bot,
-            event,
-            action="kick_member",
-            target_user_id=target_user_id,
-            reason=reason,
-        ),
-        name="audit:kick_member",
+    await record_audit_fire_and_forget(
+        bot,
+        event,
+        action="kick_member",
+        target_user_id=target_user_id,
+        reason=reason,
     )
 
     # 反馈结果
-    display_name = target_name or str(target_user_id)
+    display_name = format_user_display_name(target_user_id, target_name)
     reason_text = f"，原因: {reason}" if reason else ""
     message = await _("已踢出群成员 {name}{reason}")
     return await command.finish(message.format(name=display_name, reason=reason_text))
