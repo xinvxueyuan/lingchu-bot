@@ -55,10 +55,10 @@ describe('source utilities', () => {
     });
 
     it('should handle nested slugs', () => {
-      const page = mockPage({ locale: 'en', slugs: ['developer-guide', 'commit-style'] });
+      const page = mockPage({ locale: 'en', slugs: ['developer-guide', 'engineering', 'commit-style'] });
       const result = getPageImage(page);
 
-      expect(result.url).toBe('/og/docs/developer-guide/commit-style/image.png');
+      expect(result.url).toBe('/og/docs/developer-guide/engineering/commit-style/image.png');
     });
   });
 

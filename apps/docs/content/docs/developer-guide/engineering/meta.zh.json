@@ -1,0 +1,15 @@
+{
+  "title": "工程",
+  "description": "开发流程、工具链与项目政策",
+  "icon": "Wrench",
+  "root": true,
+  "pages": [
+    "workflow",
+    "commit-style",
+    "i18n",
+    "testing-ci",
+    "gitnexus",
+    "skills",
+    "project-policy"
+  ]
+}

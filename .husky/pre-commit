@@ -378,7 +378,7 @@ if [ "$NEEDS_REACT_DOCTOR" = true ]; then
     elif [ "$DLX_RUNNER" = "pnpm" ]; then
         # pnpm dlx 命中 pnpm 内容寻址缓存，后续调用零下载
         echo "🩺 正在运行 React Doctor (pnpm dlx 缓存)..."
-        NO_COLOR=1 run_pnpm dlx react-doctor@latest . --blocking error --no-telemetry --project docs
+        NO_COLOR=1 run_pnpm dlx -y react-doctor@latest . --blocking error --no-telemetry --project docs --yes
         if [ $? -ne 0 ]; then
             echo "❌ React Doctor 发现错误，请修复后重新提交。"
             echo "💡 运行 'pnpm doctor -- --verbose' 查看详细信息。"
@@ -387,7 +387,7 @@ if [ "$NEEDS_REACT_DOCTOR" = true ]; then
     elif [ -n "$DLX_RUNNER" ]; then
         # 终极兜底：npx 每次都会重新下载（最慢路径）
         echo "🩺 正在运行 React Doctor (npx 兜底)..."
-        NO_COLOR=1 cmd.exe /c "${DLX_RUNNER#cmd:}" -y react-doctor@latest . --blocking error --no-telemetry --project docs
+        NO_COLOR=1 cmd.exe /c "${DLX_RUNNER#cmd:}" -y react-doctor@latest . --blocking error --no-telemetry --project docs --yes
         if [ $? -ne 0 ]; then
             echo "❌ React Doctor 发现错误，请修复后重新提交。"
             echo "💡 运行 'pnpm doctor -- --verbose' 查看详细信息。"

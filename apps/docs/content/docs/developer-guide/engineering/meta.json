@@ -1,0 +1,15 @@
+{
+  "title": "Engineering",
+  "description": "Development workflow, tooling, and project policy",
+  "icon": "Wrench",
+  "root": true,
+  "pages": [
+    "workflow",
+    "commit-style",
+    "i18n",
+    "testing-ci",
+    "gitnexus",
+    "skills",
+    "project-policy"
+  ]
+}
