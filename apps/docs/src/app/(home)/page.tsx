@@ -19,7 +19,7 @@ const features = [
 const docLinks = [
   ['Start', 'Configure the active QQ adapter and platform identity model.', '/docs/platforms/qq'],
   ['Operate', 'Use documented group commands for daily moderation.', '/docs/user-guide/commands'],
-  ['Extend', 'Follow the developer guide for tests, i18n, and delivery checks.', '/docs/developer-guide/introduction'],
+  ['Extend', 'Follow the developer guide for tests, i18n, and delivery checks.', '/docs/developer-guide/architecture/introduction'],
 ] as const;
 
 export default function HomePage() {

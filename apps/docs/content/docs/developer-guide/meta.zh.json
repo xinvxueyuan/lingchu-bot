@@ -4,14 +4,7 @@
   "icon": "Code",
   "root": true,
   "pages": [
-    "introduction",
-    "adapter-guide",
-    "message-store",
-    "workflow",
-    "commit-style",
-    "i18n",
-    "testing-ci",
-    "gitnexus",
-    "skills"
+    "architecture",
+    "engineering"
   ]
 }

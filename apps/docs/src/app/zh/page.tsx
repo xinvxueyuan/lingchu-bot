@@ -18,7 +18,7 @@ const features = [
 const docLinks = [
   ['接入', '配置当前 QQ 适配器与平台身份模型。', '/zh/docs/platforms/qq'],
   ['运营', '使用文档化群命令完成日常群管。', '/zh/docs/user-guide/commands'],
-  ['扩展', '按开发者指南补齐测试、国际化与交付检查。', '/zh/docs/developer-guide/introduction'],
+  ['扩展', '按开发者指南补齐测试、国际化与交付检查。', '/zh/docs/developer-guide/architecture/introduction'],
 ] as const;
 
 export default function ChineseHomePage() {

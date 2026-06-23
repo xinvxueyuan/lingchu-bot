@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3316 symbols, 6301 relationships, 278 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3390 symbols, 6428 relationships, 285 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -522,6 +522,13 @@ When removing functions/helpers:
 - `assert_called_once_with(...)` is exact-match: it fails if the actual call has different kwargs, including the presence vs. absence of a kwarg. When business code conditionally includes a kwarg (e.g., `if image_path is not None: call_api(..., image=image_path)`), tests must mirror that exact contract — do not assert `image=None` if the production code path omits the kwarg entirely.
 - For presence-only checks, use `assert "kwarg" in mock.call_args.kwargs` instead of `assert_called_once_with`, or capture the kwargs first and re-assert with the captured value.
 - When adding a parameterized test that mixes fixtures and `@pytest.mark.parametrize` values, keep the total argument count ≤ 5 to satisfy `ruff` `PLR0913`. Combine related parametrize values into a single tuple (e.g., `scenario: tuple[tuple[str, str], type]`) and unpack inside the function body.
+
+### Docker Port Conflicts with Playwright webServer
+
+- `playwright.config.ts` uses `port 3100` for the webServer (Next.js dev server). If a Docker container on the same host also binds port `3100`, the webServer fails to start and the pre-commit hook fails with `EADDRINUSE`.
+- **Diagnose**: Use PowerShell `TcpListener` binding test (reliable on Windows) rather than `netstat` alone — netstat may not show WSL-intercepted ports. Alternatively, `wsl -- ss -tlnp 'sport = :3100'` reveals WSL-bound listeners.
+- **Fix**: Move the conflicting Docker service to a different host port (e.g., `6100:3000` for SnowLuma), leaving `3100` available for Playwright's webServer.
+- **Prevention**: When documenting Docker deployment commands in `apps/docs/`, always check for port conflicts with CI tooling (Playwright webServer ports). If the same host runs both Docker containers and CI Playwright tests, assign Docker services to ports outside the CI range (e.g., `3100-3299`).
 
 ## Docs Site Component Catalog
 

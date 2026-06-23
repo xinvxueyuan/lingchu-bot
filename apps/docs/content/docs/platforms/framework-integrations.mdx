@@ -61,6 +61,51 @@ volumes:
   napcat-config:
 ```
 
+## SnowLuma Docker
+
+[SnowLuma's Docker deployment guide](https://snowluma.github.io/guide/deploy/docker.html) runs SnowLuma with Linux QQ, VNC, noVNC, and OneBot endpoints in one container. The official image is `motricseven7/snowluma:latest`; it exposes VNC on `5900`, noVNC on `6081`, the SnowLuma WebUI on `5099`, OneBot HTTP on `3000`, and OneBot WebSocket on `3001`.
+
+### Port allocation
+
+When both NapCat (ports `3000`, `3001`) and SnowLuma run simultaneously on the same host, port `3100` must be kept free for the Playwright webServer in CI. Therefore SnowLuma's OneBot ports are mapped to `6100` and `6101` instead of `3100` and `3101`:
+
+```powershell
+docker run -d `
+  --name snowluma `
+  --restart unless-stopped `
+  --shm-size=1g `
+  --cap-add=SYS_PTRACE `
+  --security-opt seccomp=unconfined `
+  -e VNC_PASSWD=<change-me> `
+  -p 5900:5900 `
+  -p 6081:6081 `
+  -p 5099:5099 `
+  -p 6100:3000 `
+  -p 6101:3001 `
+  -v snowluma-data:/app/snowluma-data `
+  -v snowluma-qq-config:/app/.config `
+  -v snowluma-qq-data:/app/.local/share `
+  -v C:/dev/lingchu-bot:/lingchu-bot:ro `
+  motricseven7/snowluma:latest
+```
+
+The project mount makes files under `C:/dev/lingchu-bot` visible inside SnowLuma as `/lingchu-bot`. This keeps the same host/container path bridge used by the NapCat setup.
+
+After startup:
+
+- SnowLuma WebUI: `http://127.0.0.1:5099`
+- noVNC: `http://127.0.0.1:6081`
+- OneBot HTTP from the Windows host: `http://127.0.0.1:6100`
+- OneBot WebSocket from the Windows host: `ws://127.0.0.1:6101`
+
+Read the first WebUI admin password from `docker logs snowluma`, then change it in the WebUI. If the SnowLuma process exits with `EACCES: permission denied, open 'config/runtime.json'` on a fresh named volume, fix ownership once and restart the process:
+
+```powershell
+docker exec snowluma sh -lc "chown -R snowluma:snowluma /app/snowluma-data /app/.config /app/.local/share && supervisorctl restart snowluma"
+```
+
+SnowLuma is a protocol-side OneBot runtime. Lingchu Bot's standard OneBot V11 commands can connect through it, but NapCat-only extension commands stay hidden unless the runtime reports the supported NapCat implementation identity and version.
+
 ## Announcement image path passthrough
 
 NapCat's `_send_group_notice` image field is path-based: the path must be readable from the NapCat container, not only from Lingchu Bot. Configure Lingchu Bot to write announcement image cache files under the host path that is mounted into the container:
