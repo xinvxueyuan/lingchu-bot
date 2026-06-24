@@ -11,7 +11,7 @@ Lingchu Bot includes an optional message storage service that records event data
 
 ## Overview
 
-The message store is implemented in `services/message_store.py`. It hooks into NoneBot's event processing pipeline and records structured summaries rather than raw message content.
+The message store is implemented in `services/message_store.py`. It hooks into NoneBot's event processing pipeline and records structured summaries rather than raw message content. Events are routed through repository-level model selection so high-volume platform/adapter/framework combinations can use dedicated ORM tables.
 
 <Callout title="Optional feature">
 
@@ -23,12 +23,12 @@ Message storage is enabled by default but can be disabled entirely by setting `m
 
 | Record type | Description |
 | --- | --- |
-| Event receipt | When an event is received by the bot |
+| Event receipt | When any adapter event is received by the bot |
 | Processing result | The outcome of handling an event |
 | Bot lifecycle | Startup, shutdown, and connection events |
 | API call summary | Platform API calls made during event handling |
 
-Each record includes a `platform` field derived from the enabled adapter. Unknown adapters are grouped under the `unknown` platform.
+Each record includes platform, adapter, framework, event category, and adapter event type fields. QQ + OneBot V11 + NoneBot events are stored in dedicated partition tables; unsupported combinations fall back to the legacy global tables.
 
 ## Configuration
 

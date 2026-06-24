@@ -12,7 +12,9 @@ from nonebot.adapters.onebot.v11.exception import (
 )
 from nonebot_plugin_alconna.uniseg import At
 
+from ......core.runtime_config import runtime_config
 from ......i18n import _async as _
+from ......permissions.subject_policy import find_active_subject_policy
 from ......repositories.blocklist import (
     BlocklistUpsert,
     BlockScope,
@@ -207,6 +209,10 @@ async def check_target_privilege(
 
     如果目标用户是管理员或群主，且操作者不是群主或超级用户，则拒绝操作。
     """
+    if await _is_protected_target(bot, event, target_user_id, cmd_matcher):
+        await cmd_matcher.finish(await _("目标用户受白名单保护，无法执行"))
+        return False
+
     # 获取目标用户角色
     try:
         member_info = await bot.get_group_member_info(
@@ -229,19 +235,45 @@ async def check_target_privilege(
         await cmd_matcher.finish(await _("无法验证操作权限"))
         return False
 
-    operator_role = operator_info.get("role", "member")
-    if operator_role == "owner":
-        return True  # 群主可以操作任何人
-
-    # 检查是否为超级用户
-    from nonebot import get_driver
-
-    superusers = get_driver().config.superusers
-    if str(event.user_id) in superusers:
+    if _operator_can_manage_privileged_target(operator_info, event.user_id):
         return True
 
     await cmd_matcher.finish(await _("目标用户权限过高，无法执行"))
     return False
+
+
+async def _is_protected_target(
+    bot: Onebot11Bot,
+    event: Onebot11GroupMessageEvent,
+    target_user_id: int,
+    cmd_matcher: Any,
+) -> bool:
+    command_key = getattr(cmd_matcher, "_lingchu_command_key", None)
+    if command_key not in runtime_config.protected_subject_feature_keys:
+        return False
+    protected = await find_active_subject_policy(
+        policy_type="protected",
+        platform_id=QQ_PLATFORM_ID,
+        adapter_id=ONEBOT_V11_ADAPTER_ID,
+        bot_id=bot_id(bot),
+        group_id=event.group_id,
+        user_id=target_user_id,
+    )
+    return protected is not None
+
+
+def _operator_can_manage_privileged_target(
+    operator_info: Any,
+    operator_user_id: int,
+) -> bool:
+    operator_role = operator_info.get("role", "member")
+    if operator_role == "owner":
+        return True
+
+    from nonebot import get_driver
+
+    superusers = get_driver().config.superusers
+    return str(operator_user_id) in superusers
 
 
 async def check_bot_privilege(

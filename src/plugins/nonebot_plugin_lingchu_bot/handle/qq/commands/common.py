@@ -1,6 +1,6 @@
 from collections.abc import Awaitable, Callable
 from functools import wraps
-from typing import Any
+from typing import Any, cast
 
 from nonebot.exception import FinishedException
 from nonebot.internal.matcher.matcher import Matcher
@@ -27,6 +27,8 @@ def selected_adapter_handle(
 
     def decorator(func: GroupHandler) -> GroupHandler:
         if is_adapter_enabled(adapter_id):
+            if command_key is not None:
+                cast("Any", command)._lingchu_command_key = command_key
             profile = get_platform_profile(adapter_id)
             platform_id = profile.platform_id if profile else ""
             wrapped: GroupHandler = func

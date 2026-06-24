@@ -76,6 +76,12 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         },
         "english_aliases": {"unmute-group", "disable-whole-mute"},
     },
+    "recall_message": {
+        "primary": "撤回",
+        "english": "recall",
+        "chinese_aliases": {"撤回消息", "批量撤回"},
+        "english_aliases": {"delete-message", "recall-message"},
+    },
     "set_group_name": {
         "primary": "设置群名称",
         "english": "set-group-name",

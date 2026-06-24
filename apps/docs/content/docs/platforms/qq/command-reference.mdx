@@ -26,10 +26,10 @@ The menu command is an index entry. It lists the available submenu commands inst
 Default submenu commands:
 
 - `member-management` / `成员管理`: kick, block/unblock, set member card, set member title, set/unset admin.
-- `speech-management` / `发言管理`: mute/unmute member, enable/disable whole-group mute.
+- `speech-management` / `发言管理`: mute/unmute member, enable/disable whole-group mute, recall recent messages.
 - `group-chat-management` / `群聊管理`: set group name, set group avatar (when supported), send group announcement (when supported), leave current group.
 - `remote-management` / `远程管理`: cross-group mute/unmute, whole-group mute/unmute, kick, block/unblock, send announcement.
-- `bot-control` / `机器人控制`: silence/speak (silent mode), boot/shutdown (handle gate).
+- `system-management` / `系统管理`: silence/speak (silent mode), boot/shutdown (handle gate).
 
 <Callout type="info" title="Remote management">
 
@@ -73,6 +73,19 @@ mute-all
 全体解禁
 unmute-all
 ```
+
+## Message recall
+
+```text
+撤回 [@用户] [数量]
+recall [@user] [count]
+```
+
+- Count default: `recall_message_default_count` from `config.json5` (default `10`).
+- A single numeric argument is treated as the count: `撤回 20`.
+- To target a user, mention them first: `撤回 @用户 20`.
+- The command reads recent current-group message records from the message store, skips the triggering command message, verifies each candidate through OneBot V11 `get_msg`, then recalls it through `delete_msg`.
+- The bot skips messages from the operator, itself, group admins/owner, and protected users configured through `protected_subject_feature_keys`.
 
 ## OneBot V11 blocklist
 

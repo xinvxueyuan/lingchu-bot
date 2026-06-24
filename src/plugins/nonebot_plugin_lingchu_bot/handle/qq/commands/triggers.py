@@ -1,5 +1,12 @@
 from dataclasses import dataclass
+from typing import Any
 
+from ....core.runtime_config import (
+    get_runtime_config_file,
+    runtime_config,
+    runtime_config_defaults,
+)
+from ....database.json5_store import RobustAsyncJSON5DB
 from ....i18n import get_configured_locale, normalize_locale
 
 
@@ -29,12 +36,154 @@ class CommandTrigger:
         return self.aliases_for()
 
 
+@dataclass(frozen=True)
+class CommandTriggerOverride:
+    chinese: str | None = None
+    english: str | None = None
+    chinese_aliases: frozenset[str] | None = None
+    english_aliases: frozenset[str] | None = None
+
+
 def _is_english_locale(locale: str | None = None) -> bool:
     configured_locale = get_configured_locale() if locale is None else locale
     return normalize_locale(configured_locale).lower().startswith("en")
 
 
-COMMAND_TRIGGERS = {
+def build_command_triggers(
+    defaults: dict[str, CommandTrigger],
+    overrides: dict[str, CommandTriggerOverride],
+) -> dict[str, CommandTrigger]:
+    catalog = dict(defaults)
+    for command_key, override in overrides.items():
+        if command_key not in catalog:
+            continue
+        current = catalog[command_key]
+        catalog[command_key] = CommandTrigger(
+            chinese=_validated_primary(override.chinese, current.chinese),
+            english=_validated_primary(override.english, current.english),
+            chinese_aliases=current.chinese_aliases
+            if override.chinese_aliases is None
+            else override.chinese_aliases,
+            english_aliases=current.english_aliases
+            if override.english_aliases is None
+            else override.english_aliases,
+        )
+    _validate_no_duplicates(catalog)
+    return catalog
+
+
+def _validated_primary(value: str | None, fallback: str) -> str:
+    if value is None:
+        return fallback
+    stripped = value.strip()
+    if not stripped:
+        msg = "Command trigger primary cannot be empty"
+        raise ValueError(msg)
+    return stripped
+
+
+def _validate_no_duplicates(catalog: dict[str, CommandTrigger]) -> None:
+    seen: dict[str, str] = {}
+    for command_key, trigger in catalog.items():
+        values = {
+            trigger.chinese,
+            trigger.english,
+            *trigger.chinese_aliases,
+            *trigger.english_aliases,
+        }
+        for value in values:
+            if not value:
+                continue
+            owner = seen.setdefault(value, command_key)
+            if owner != command_key:
+                msg = f"Duplicate command trigger {value!r}: {owner}, {command_key}"
+                raise ValueError(msg)
+
+
+def _override_from_raw(raw: Any) -> CommandTriggerOverride:
+    if not isinstance(raw, dict):
+        return CommandTriggerOverride()
+    return CommandTriggerOverride(
+        chinese=_optional_str(raw.get("chinese")),
+        english=_optional_str(raw.get("english")),
+        chinese_aliases=_optional_str_set(raw.get("chinese_aliases")),
+        english_aliases=_optional_str_set(raw.get("english_aliases")),
+    )
+
+
+def _optional_str(value: Any) -> str | None:
+    if value is None:
+        return None
+    return str(value)
+
+
+def _optional_str_set(value: Any) -> frozenset[str] | None:
+    if value is None:
+        return None
+    if not isinstance(value, (list, tuple, set, frozenset)):
+        return None
+    return frozenset(str(item).strip() for item in value if str(item).strip())
+
+
+def _runtime_overrides() -> dict[str, CommandTriggerOverride]:
+    return {
+        str(command_key): _override_from_raw(raw)
+        for command_key, raw in runtime_config.command_trigger_overrides.items()
+    }
+
+
+def _override_to_json(value: CommandTriggerOverride) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    if value.chinese is not None:
+        result["chinese"] = value.chinese
+    if value.english is not None:
+        result["english"] = value.english
+    if value.chinese_aliases is not None:
+        result["chinese_aliases"] = sorted(value.chinese_aliases)
+    if value.english_aliases is not None:
+        result["english_aliases"] = sorted(value.english_aliases)
+    return result
+
+
+async def list_command_trigger_overrides() -> dict[str, CommandTriggerOverride]:
+    async with RobustAsyncJSON5DB(
+        get_runtime_config_file(),
+        default=runtime_config_defaults(),
+    ) as db:
+        raw = await db.read("command_trigger_overrides", {})
+    if not isinstance(raw, dict):
+        return {}
+    return {str(key): _override_from_raw(value) for key, value in raw.items()}
+
+
+async def upsert_command_trigger_override(
+    command_key: str,
+    override: CommandTriggerOverride,
+) -> dict[str, CommandTriggerOverride]:
+    existing = await list_command_trigger_overrides()
+    merged = dict(existing)
+    merged[command_key] = override
+    build_command_triggers(_DEFAULT_COMMAND_TRIGGERS, merged)
+    async with RobustAsyncJSON5DB(
+        get_runtime_config_file(),
+        default=runtime_config_defaults(),
+    ) as db:
+        await db.set(
+            f"command_trigger_overrides.{command_key}",
+            _override_to_json(override),
+        )
+    return merged
+
+
+async def delete_command_trigger_override(command_key: str) -> bool:
+    async with RobustAsyncJSON5DB(
+        get_runtime_config_file(),
+        default=runtime_config_defaults(),
+    ) as db:
+        return await db.delete(f"command_trigger_overrides.{command_key}")
+
+
+_DEFAULT_COMMAND_TRIGGERS = {
     "menu": CommandTrigger(
         chinese="菜单",
         english="menu",
@@ -99,6 +248,12 @@ COMMAND_TRIGGERS = {
             }
         ),
         english_aliases=frozenset({"unmute-group", "disable-whole-mute"}),
+    ),
+    "recall_message": CommandTrigger(
+        chinese="撤回",
+        english="recall",
+        chinese_aliases=frozenset({"撤回消息", "批量撤回"}),
+        english_aliases=frozenset({"delete-message", "recall-message"}),
     ),
     "set_group_name": CommandTrigger(
         chinese="设置群名称",
@@ -263,3 +418,8 @@ COMMAND_TRIGGERS = {
         english_aliases=frozenset(),
     ),
 }
+
+COMMAND_TRIGGERS = build_command_triggers(
+    _DEFAULT_COMMAND_TRIGGERS,
+    _runtime_overrides(),
+)
