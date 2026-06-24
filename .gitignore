@@ -2,6 +2,17 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 
+# ===== Turbo / Monorepo tooling =====
+
+# Turbo (root + nested): daemon 日志、preferences、运行产物
+.turbo/
+# GitNexus 本地知识图谱索引（由 `npx gitnexus analyze` 重建）
+.gitnexus/
+# git worktree 检出目录
+.worktrees/
+# fumadocs 生成的 source 目录
+.source/
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -164,6 +175,16 @@ dmypy.json
 /data
 /.local/
 
+# ===== Testing & Build artifacts =====
+
+# Playwright 报告与产物
+playwright-report/
+test-results/
+# TypeScript 增量编译缓存（root + nested）
+*.tsbuildinfo
+# 根目录覆盖率报告（与 apps/docs/.gitignore 一致）
+coverage/
+
 # PyCharm/IntelliJ IDEA
 
 .idea/*.iml
@@ -184,6 +205,10 @@ pyvenv.cfg
 !.idea/vcs.xml
 
 # VS Code
+# 忽略用户级 settings，保留项目级 extensions 与 mcp 推荐
+.vscode/*
+!.vscode/extensions.json
+!.vscode/mcp.json
 *.code-workspace
 
 # Version Control(add other all)

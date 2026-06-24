@@ -1,5 +1,27 @@
 * text=auto eol=lf
 
-*.png binary
-*.ico binary
-*.mo binary
+# Binary assets
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.tar.gz binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+
+# Media
+*.mp4  binary
+*.mp3  binary
+*.webm binary
+*.ogg  binary
+
+# Localization
+*.po  text eol=lf
+*.pot text eol=lf
+*.mo  binary
