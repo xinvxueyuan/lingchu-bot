@@ -1,0 +1,32 @@
+---
+icon: Plug
+title: Adapter Selection
+---
+
+Lingchu Bot groups concrete adapters into platform capabilities. Only one adapter is enabled per platform by default. The current QQ platform priority is:
+
+1. `~onebot.v11`
+
+When unset, QQ uses `~onebot.v11`. To select an adapter explicitly, set a global NoneBot configuration value:
+
+```toml
+LINGCHUAdapter = "~onebot.v11"
+```
+
+Default selection. Make sure NoneBot has loaded the OneBot V11 adapter. Milky, QQ, and OneBot V12 are deprecated and their source code has been fully removed; `tools/adapter_loader.py` exists as a stub with empty module mappings.
+
+<Callout type="warn" title="Conflict prevention">
+
+Explicitly configuring multiple known adapters for the same platform fails startup:
+
+```toml
+LINGCHUAdapter = "~onebot.v11+~another_adapter"
+```
+
+Lingchu Bot does not control which adapters NoneBot actually imports or registers; it only selects business code through `LINGCHUAdapter` and checks that the selected adapter has been loaded and registered by NoneBot.
+
+</Callout>
+
+An unknown adapter that does not belong to any platform profile is not considered enabled. Message storage still accepts its events, but writes the `platform` field as `unknown`. This gives downstream displays a stable Unknown bucket instead of treating the raw adapter name as a platform ID.
+
+For developer documentation on the adapter registry and adding new platforms, see [Adapter Guide](/docs/developer-guide/architecture/adapter-guide).

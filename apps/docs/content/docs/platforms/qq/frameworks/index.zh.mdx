@@ -1,0 +1,21 @@
+---
+icon: Cable
+title: 框架对接
+---
+
+## 框架对接
+
+本节记录可将 Lingchu Bot 接入平台的协议端运行框架。Lingchu Bot 仍作为 NoneBot 应用运行；这些运行框架负责提供平台协议端点。
+
+| 框架 | 协议 | 镜像 | 特点 |
+|------|------|------|------|
+| [NapCat Docker](/docs/platforms/qq/frameworks/napcat-docker) | OneBot V11 | `mlikiowa/napcat-docker:latest` | 轻量，WebUI 位于 6099 端口，群公告图片路径桥接 |
+| [SnowLuma Docker](/docs/platforms/qq/frameworks/snowluma-docker) | OneBot V11 | `motricseven7/snowluma:latest` | 一体化（QQ + VNC + noVNC），WebUI 位于 5099 端口 |
+
+两个框架都暴露 OneBot V11 端点，因此 Lingchu Bot 的标准 OneBot V11 命令可以通过任一运行框架连接。NapCat 专属扩展命令仍会按运行时上报的 NapCat 实现身份和版本进行门控。
+
+<Callout type="info" title="端口分配">
+
+当 NapCat 和 SnowLuma 同时在宿主机上运行时，NapCat 使用 `3000`/`3001` 端口，SnowLuma 使用 `6100`/`6101` 端口，端口 `3100` 保留给 CI 中 Playwright webServer 使用。
+
+</Callout>

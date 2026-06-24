@@ -12,7 +12,7 @@ Lingchu Bot organizes platform support around three layers: **platform**, **prot
 | Layer | Purpose | Examples |
 | --- | --- | --- |
 | Platform | The chat network the bot connects to | QQ |
-| Protocol | The wire/API standard the adapter implements | OneBot V11, Milky |
+| Protocol | The wire/API standard the adapter implements | OneBot V11 |
 | Implementation | A concrete server that speaks the protocol | NapCat, default |
 
 A platform profile (in `platforms/registry.py`) declares the known protocols and their priority. Each protocol maps to a NoneBot adapter package. Within a protocol, one or more implementations may extend the default handler set with implementation-specific APIs.
@@ -21,9 +21,9 @@ A platform profile (in `platforms/registry.py`) declares the known protocols and
 
 | Platform | Protocols | Status |
 | --- | --- | --- |
-| [QQ](/docs/platforms/qq/overview) | OneBot V11, Milky (deprecated) | Implemented |
+| [QQ](/docs/platforms/qq/overview) | OneBot V11 | Implemented |
 
-For protocol-side runtime setup, see [Framework Integrations](/docs/platforms/framework-integrations).
+For protocol-side runtime setup, see [Framework Integrations](/docs/platforms/qq/frameworks).
 
 <Callout type="info" title="Adding new platforms">
 

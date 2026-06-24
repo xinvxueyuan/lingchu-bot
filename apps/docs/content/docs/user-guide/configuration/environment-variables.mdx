@@ -1,0 +1,53 @@
+---
+icon: Terminal
+title: Environment Variables
+---
+
+Lingchu Bot uses NoneBot2's environment variable system. Copy `.env.example` to `.env` and adjust values for your environment.
+
+### Server settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENVIRONMENT` | `prod` | Runtime environment (`prod` or `dev`) |
+| `HOST` | `0.0.0.0` | FastAPI listen address |
+| `PORT` | `8080` | FastAPI listen port |
+| `DRIVER` | `~fastapi+~httpx+~websockets` | NoneBot driver stack; prefix `~` enables default adapter config |
+
+### Command settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `COMMAND_START` | `["/", ""]` | Command start prefixes; empty string allows no-prefix commands |
+| `COMMAND_SEP` | `[".", " "]` | Command segment separators |
+
+### Logging and API docs
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOG_LEVEL` | `INFO` | Python logging level |
+| `FASTAPI_OPENAPI_URL` | `/openapi.json` | OpenAPI schema path; set to empty string to disable |
+| `FASTAPI_DOCS_URL` | `/docs` | Swagger UI path; disable in production |
+| `FASTAPI_REDOC_URL` | `/redoc` | ReDoc documentation path; disable in production |
+
+### Database settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ALEMBIC_STARTUP_CHECK` | `false` | Set to `true` in production to enforce schema migration checks on startup |
+| `SQLALCHEMY_DATABASE_URL` | (unset) | SQLAlchemy database URL for multi-database testing; unset uses default SQLite |
+
+### Superuser settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LINGCHU_SUPERUSERS` | (unset) | JSON object mapping Lingchu UIDs to platform accounts; see [Superuser Identity](./superuser) |
+| `SUPERUSERS` | (unset) | NoneBot native fallback; used when `LINGCHU_SUPERUSERS` is missing or null |
+
+See [Superuser Identity](./superuser) for detailed configuration.
+
+<Callout type="warn" title="Boolean format">
+
+NoneBot configuration files only accept standard JSON lowercase `true` / `false`. Using `True` / `False` will raise a configuration error at startup.
+
+</Callout>

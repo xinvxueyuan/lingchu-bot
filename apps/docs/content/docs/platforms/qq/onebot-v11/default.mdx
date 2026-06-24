@@ -22,6 +22,7 @@ All commands listed in [QQ Commands](../command-reference) are available in the 
 | `mute.py` | `禁言`, `解禁`, `全员禁言`, `全体解禁`, `撤回` |
 | `member.py` | `踢出群成员`, `设置群名片`, `设置群头衔`, `设置群管理员`, `取消群管理员` |
 | `block.py` | `拉黑`, `全局拉黑`, `删黑`, `全局删黑`, `清空黑名单`, `全局清空黑名单` |
+| `protect.py` | `拉白`, `全局拉白`, `删白`, `全局删白` |
 | `profile.py` | `设置群名称`, `设置群头像` (NapCat only) |
 | `announcement.py` | `发送群公告` (version-gated) |
 | `lifecycle.py` | Bot lifecycle hooks (no user-facing command) |
@@ -70,7 +71,7 @@ The recall command in `mute.py` stays on the standard OneBot V11 API surface: it
 `common.py` provides:
 
 - `resolve_user_onebot11(user, bot, event)` — Resolves `At | int` to `(user_id, name)` tuple. Raises `ValueError` on invalid input.
-- `check_target_privilege(bot, event, target_user_id, cmd_matcher)` — Checks whether the target user is an admin/owner; rejects the operation unless the operator is the group owner or a superuser. Returns `True` when the check passes.
+- `check_target_privilege(bot, event, target_user_id, cmd_matcher)` — Checks protected targets first, allowing only repository-backed `SUPERUSERS` to bypass whitelist protection; then checks whether admin/owner targets can be managed by the operator. Returns `True` when the check passes.
 - `check_bot_privilege(bot, group_id, cmd_matcher)` — Checks whether the bot has admin/owner role in the given group. Returns `True` when the check passes.
 - `CommandAudit(action, target_user_id=None, reason=None, duration=None, group_id=None)` — Carries command audit payloads.
 - `record_command_audit(bot, event, CommandAudit(...))` / `record_audit_fire_and_forget(bot, event, CommandAudit(...))` — Writes a command-level audit log entry via the message store repository, either awaited directly or scheduled in the background.

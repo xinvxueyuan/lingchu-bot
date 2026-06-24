@@ -22,7 +22,7 @@ on:
       - "pnpm-workspace.yaml"
       - "turbo.json"
       - "uv.lock"
-      - ".markdownlint.jsonc"
+      - ".markdownlint-cli2.jsonc"
       - "Taskfile.yml"
   push:
     branches: [main, dev]
@@ -44,7 +44,7 @@ on:
       - "pnpm-workspace.yaml"
       - "turbo.json"
       - "uv.lock"
-      - ".markdownlint.jsonc"
+      - ".markdownlint-cli2.jsonc"
       - "Taskfile.yml"
 
 permissions:

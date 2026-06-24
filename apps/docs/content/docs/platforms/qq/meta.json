@@ -5,6 +5,7 @@
   "root": true,
   "pages": [
     "overview",
+    "frameworks",
     "command-reference",
     "onebot-v11"
   ]

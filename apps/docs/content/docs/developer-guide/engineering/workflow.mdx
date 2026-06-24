@@ -7,6 +7,108 @@ title: Workflow
 
 Keep development changes small, validation explicit, and impact understandable. The repository uses `Taskfile.yml` as the main automation entrypoint: Python/code work runs through `uv`, docs/frontend work runs through `pnpm`, and cross-workspace tasks are orchestrated by Turbo.
 
+## Development environment setup
+
+This section guides external developers from zero to a working development environment.
+
+### Prerequisites
+
+- Python 3.13 (`requires-python = ">=3.13, <3.14"`)
+- [uv](https://docs.astral.sh/uv/) — Python package and project manager
+- [Node.js](https://nodejs.org/) 22+ and [pnpm](https://pnpm.io/) — for docs site and frontend workspace
+- [git](https://git-scm.com/)
+
+### Install
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/xinvxueyuan/lingchu-bot.git
+   cd lingchu-bot
+   ```
+
+2. Install all dependencies (Python + Node.js):
+
+   ```bash
+   task install
+   ```
+
+   This runs `uv sync` and `pnpm install`. To install separately:
+
+   ```bash
+   uv sync --frozen       # Python dependencies
+   pnpm install --frozen-lockfile  # Node.js dependencies
+   ```
+
+3. Copy the environment template:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Edit `.env` to set `LINGCHU_SUPERUSERS`, `SUPERUSERS`, and adapter connection details for your environment.
+
+4. Verify the setup:
+
+   ```bash
+   task check    # Static checks, format, Markdown lint, type check
+   task test     # Python tests + docs tests
+   ```
+
+   If both pass, the environment is ready for development.
+
+### Development workflow
+
+The typical development cycle:
+
+1. Create a branch: `git checkout -b feature/your-feature`
+2. Make changes following existing patterns and style.
+3. Run focused checks on changed files:
+
+   ```bash
+   uv run -m ruff check path/to/file.py
+   uv run -m ruff format path/to/file.py
+   ```
+
+4. Run the full check suite before committing:
+
+   ```bash
+   task check
+   task test
+   ```
+
+5. Commit with gitmoji + Conventional Commits format (enforced by `.husky/commit-msg`).
+6. Push and open a PR following the [PR description guidelines](#pr-description).
+
+### Testing
+
+| Test type | Command | Scope |
+|-----------|---------|-------|
+| Python unit tests | `uv run -m pytest` | All Python tests |
+| Python focused tests | `uv run -m pytest tests/handle/commands/test_mute.py` | Single test file |
+| Docs tests | `pnpm --filter docs test` | Vitest component/unit tests |
+| Docs link check | `pnpm --filter docs run lint:links` | Internal link validation |
+| E2E tests | `pnpm --filter docs exec playwright test` | Playwright browser tests |
+| Full CI sequence | `task ci` | check + test + build |
+
+### Building
+
+```bash
+task build      # Build all workspaces (Python + docs)
+pnpm turbo run build --filter=docs  # Build docs site only
+uv build --clear  # Build Python package only
+```
+
+### i18n workflow
+
+When changing translatable strings:
+
+```bash
+task i18n   # Extract, update, and compile gettext catalogs
+```
+
+This runs `pybabel extract`, `pybabel update`, and `pybabel compile`. See [Internationalization](i18n) for details.
+
 ## Recommended steps
 
 <Steps>

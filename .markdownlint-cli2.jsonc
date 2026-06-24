@@ -1,0 +1,27 @@
+{
+  // 单一配置源：规则 + 检查范围 + 忽略目录
+  // 所有调用方（Taskfile / husky / CI）均无参调用 markdownlint-cli2，由此文件统一驱动
+  "config": {
+    "default": true,
+    "MD013": false, // 禁用行长度限制（CJK 内容不适用）
+    "MD033": false, // 允许内联 HTML（Callout / 章节标记等需要）
+    "MD041": false, // 不强制首行必须为一级标题
+    "MD060": {
+      "style": "consistent", // 标题末尾标点风格保持一致
+    },
+  },
+  "globs": [
+    "*.md", // 根目录所有 .md（AGENTS / CLAUDE / README / README-zh / CHANGELOG 等）
+    "apps/**/*.md",
+    "packages/**/*.md",
+    ".github/**/*.md",
+  ],
+  "ignores": [
+    "node_modules/**",
+    "**/node_modules/**",
+    "**/out/**",
+    ".venv/**",
+    "**/.venv/**",
+    ".pytest_cache/**",
+  ],
+}

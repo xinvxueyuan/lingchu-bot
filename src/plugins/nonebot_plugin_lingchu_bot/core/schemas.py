@@ -105,7 +105,7 @@ CONFIG_SCHEMA_TEXT: Final = """{
     "protected_subject_feature_keys": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Feature keys whose subject is protected from automatic overrides."
+      "description": "Command feature keys covered by the handle whitelist gate. Targets in protected subject policy cannot be managed by these commands unless the operator is in the repository-backed SUPERUSERS group."
     },
     "lingchu_superusers": {
       "oneOf": [

@@ -38,7 +38,7 @@ Lingchu Bot is currently best suited for development, testing, and early trials.
 
 - The project is still in pre-alpha / development.
 - The repository root currently does not ship a committed local `bot.py`; the Docker build generates a runtime `/tmp/bot.py`, and existing NoneBot projects can load `src/plugins` according to `pyproject.toml`.
-- QQ group management is the currently implemented and tested business path. The default adapter is OneBot V11; Milky must be enabled explicitly with `LINGCHUAdapter = "~milky"`.
+- QQ group management is the currently implemented and tested business path. The default adapter is OneBot V11. Milky, QQ, and OneBot V12 are deprecated and fully removed.
 - The adapter selected by `LINGCHUAdapter` must be loaded by NoneBot; extra registered same-platform adapters are treated as disabled.
 - Other platforms and non-group-management capabilities depend on later implementation and tests.
 - The command surface is still small. The docs only list capabilities confirmed in the current repository.

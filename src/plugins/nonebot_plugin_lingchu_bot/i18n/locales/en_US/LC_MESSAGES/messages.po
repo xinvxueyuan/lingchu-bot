@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nonebot-plugin-lingchu-bot 0.0.0.dev8\n"
 "Report-Msgid-Bugs-To: xinvxueyuan@yeah.net\n"
-"POT-Creation-Date: 2026-06-24 02:19+0800\n"
+"POT-Creation-Date: 2026-06-25 00:52+0800\n"
 "PO-Revision-Date: 2026-05-20 00:00+0800\n"
 "Last-Translator: xinvxueyuan <xinvxueyuan@yeah.net>\n"
 "Language: en_US\n"
@@ -44,16 +44,16 @@ msgstr ""
 "expected a bool, but got {value_type}: {value!r}\n"
 "Please check the NoneBot2 config file."
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:514
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:550
 msgid "灵初功能菜单"
 msgstr "Lingchu Menu"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:763
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:799
 #, python-brace-format
 msgid "Lingchu 未为适配器 {adapter_id} 声明 menu 处理器"
 msgstr "Lingchu has no menu handlers declared for adapter {adapter_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:769
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:805
 #, python-brace-format
 msgid "Lingchu 为适配器 {adapter_id} 导入 menu 处理器"
 msgstr "Lingchu imports menu handlers for adapter {adapter_id}"
@@ -91,6 +91,7 @@ msgid "群公告已发送"
 msgstr "Group announcement sent"
 
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:56
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:43
 #, python-brace-format
 msgid "{operation}失败，数据库异常: {error!r}"
 msgstr "{operation} failed, database error: {error!r}"
@@ -103,12 +104,16 @@ msgstr "Block"
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:124
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:224
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:310
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:98
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:193
 msgid "全局"
 msgstr "Global"
 
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:124
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:224
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:310
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:98
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:193
 msgid "本群"
 msgstr "Current group"
 
@@ -188,45 +193,45 @@ msgstr "Bot started"
 msgid "已关机"
 msgstr "Bot stopped"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:111
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:113
 #, python-brace-format
 msgid "{operation}失败，操作被拒绝: {error!r}"
 msgstr "{operation} failed, operation rejected: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:146
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:278
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:148
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:362
 msgid "违反群规「默认」"
 msgstr "Violated group rules (default)"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:151
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:153
 msgid "管理员操作「默认」"
 msgstr "Administrator action (default)"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:163
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:165
 #, python-brace-format
 msgid "不能{action}自己"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:169
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:171
 #, python-brace-format
 msgid "不能{action}机器人"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:213
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:217
 #, fuzzy
 msgid "目标用户受白名单保护，无法执行"
 msgstr "Target user has insufficient privileges to perform this action"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:235
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:239
 msgid "无法验证操作权限"
 msgstr "Unable to verify operation permission"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:241
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:245
 msgid "目标用户权限过高，无法执行"
 msgstr "Target user has insufficient privileges to perform this action"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:290
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:295
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:307
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:312
 msgid "机器人缺少管理员权限"
 msgstr "Bot lacks administrator privileges"
 
@@ -332,24 +337,24 @@ msgstr ""
 msgid "已踢出群成员: {name_display}"
 msgstr "Kicked group member: {name_display}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:231
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:315
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:197
 #, python-brace-format
 msgid "禁言时长不能小于 {min} 秒"
 msgstr "Mute duration cannot be less than {min} seconds"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:235
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:319
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:201
 #, python-brace-format
 msgid "禁言时长不能超过 {max} 秒（30天）"
 msgstr "Mute duration cannot exceed {max} seconds (30 days)"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:263
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:347
 #, fuzzy
 msgid "禁言失败，操作被拒绝"
 msgstr "Failed to mute, operation rejected: {error}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:281
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:365
 #, fuzzy, python-brace-format
 msgid ""
 "已禁言: \n"
@@ -364,29 +369,29 @@ msgstr ""
 "Reason: {reason}\n"
 "ID: {target_user_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:311
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:395
 #, fuzzy
 msgid "全体禁言失败，操作被拒绝"
 msgstr "Failed to enable whole-group mute, operation rejected: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:316
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:400
 msgid "全体禁言成功"
 msgstr "Whole-group mute enabled"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:334
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:418
 msgid "不能解禁自己"
 msgstr "Cannot unmute yourself"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:338
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:422
 msgid "不能解禁机器人"
 msgstr "Cannot unmute the bot"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:347
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:431
 #, fuzzy
 msgid "解禁失败，操作被拒绝"
 msgstr "Failed to unmute, operation rejected: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:358
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:442
 #, python-brace-format
 msgid ""
 "已解禁: \n"
@@ -397,33 +402,35 @@ msgstr ""
 "Name: {name_display}\n"
 "ID: {target_user_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:376
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:460
 #, fuzzy
 msgid "全体解禁失败，操作被拒绝"
 msgstr "Failed to disable whole-group mute, operation rejected: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:381
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:465
 msgid "全体解禁成功"
 msgstr "Whole-group mute disabled"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:405
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:489
 msgid "撤回数量不能小于 1 条"
 msgstr "Recall count cannot be less than 1"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:408
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:492
 #, python-brace-format
 msgid "撤回数量不能超过 {max} 条"
 msgstr "Recall count cannot exceed {max}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:445
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:527
 #, python-brace-format
 msgid "目标: {target}"
 msgstr "Target: {target}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:449
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:531
 #, python-brace-format
 msgid "已撤回 {recalled} 条消息，跳过 {skipped} 条，失败 {failed} 条{target_text}"
-msgstr "Recalled {recalled} messages, skipped {skipped}, failed {failed}{target_text}"
+msgstr ""
+"Recalled {recalled} messages, skipped {skipped}, failed "
+"{failed}{target_text}"
 
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:36
 msgid "群名称不能为空"
@@ -458,6 +465,51 @@ msgstr "Failed to set group avatar, operation rejected"
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:104
 msgid "群头像已更新"
 msgstr "Group avatar updated"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:53
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/common.py:68
+msgid "权限不足"
+msgstr "Insufficient permissions"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:86
+msgid "拉白"
+msgstr "protect"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:102
+#, python-brace-format
+msgid ""
+"已拉白: \n"
+"范围: {scope}\n"
+"名称: {name_display}\n"
+"原因: {reason}\n"
+"标识: {target_user_id}"
+msgstr ""
+"Protected:\n"
+"Scope: {scope}\n"
+"Name: {name_display}\n"
+"Reason: {reason}\n"
+"ID: {target_user_id}"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:181
+msgid "删白"
+msgstr "unprotect"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:197
+#, python-brace-format
+msgid ""
+"已删白: \n"
+"范围: {scope}\n"
+"名称: {name_display}\n"
+"原因: {reason}\n"
+"标识: {target_user_id}\n"
+"删除记录: {deleted}"
+msgstr ""
+"Unprotected:\n"
+"Scope: {scope}\n"
+"Name: {name_display}\n"
+"Reason: {reason}\n"
+"ID: {target_user_id}\n"
+"Deleted records: {deleted}"
 
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:75
 msgid "获取群列表失败"
@@ -606,16 +658,12 @@ msgstr "Remote announcement failed, operation rejected"
 msgid "远程公告已发送: 目标群 {group_id}"
 msgstr "Remote announcement sent: Target group {group_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/common.py:68
-msgid "权限不足"
-msgstr "Insufficient permissions"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:42
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:48
 #, python-brace-format
 msgid "Lingchu 启用适配器: {adapters}"
 msgstr "Lingchu enabled adapters: {adapters}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:48
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:54
 #, python-brace-format
 msgid "Lingchu 忽略未选中的已注册适配器: {adapters}"
 msgstr "Lingchu ignored unselected registered adapters: {adapters}"

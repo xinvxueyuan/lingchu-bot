@@ -160,6 +160,30 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         "chinese_aliases": set(),
         "english_aliases": set(),
     },
+    "protect_member": {
+        "primary": "拉白",
+        "english": "protect",
+        "chinese_aliases": {"拉白用户"},
+        "english_aliases": {"protect-member"},
+    },
+    "global_protect_member": {
+        "primary": "全局拉白",
+        "english": "global-protect",
+        "chinese_aliases": {"全局拉白用户"},
+        "english_aliases": {"global-protect-member"},
+    },
+    "unprotect_member": {
+        "primary": "删白",
+        "english": "unprotect",
+        "chinese_aliases": {"删除白名单"},
+        "english_aliases": {"unprotect-member"},
+    },
+    "global_unprotect_member": {
+        "primary": "全局删白",
+        "english": "global-unprotect",
+        "chinese_aliases": {"全局删除白名单"},
+        "english_aliases": {"global-unprotect-member"},
+    },
     "send_announcement": {
         "primary": "发送群公告",
         "english": "send-announcement",

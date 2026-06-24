@@ -1,0 +1,11 @@
+{
+  "title": "Framework Integrations",
+  "description": "Protocol-side runtime frameworks for the QQ platform",
+  "icon": "Cable",
+  "root": true,
+  "pages": [
+    "index",
+    "napcat-docker",
+    "snowluma-docker"
+  ]
+}

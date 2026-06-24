@@ -67,7 +67,7 @@ The selected adapter was not loaded or registered by NoneBot. Load the matching 
   </Accordion>
   <Accordion title="Multiple adapters for the same platform">
 
-Do not explicitly configure multiple adapters for the same platform. For example, `LINGCHUAdapter = "~milky+~onebot.v11"` fails immediately.
+Do not explicitly configure multiple adapters for the same platform. For example, `LINGCHUAdapter = "~onebot.v11+~another_adapter"` fails immediately.
 
   </Accordion>
   <Accordion title="Unknown adapter registered at runtime">
@@ -100,7 +100,7 @@ OneBot V11 group announcements use implementation-specific APIs. For NapCat, `_s
 - Lingchu Bot was not restarted after changing `.env`.
 - NapCat is below the supported version or the current implementation is not detected as `NapCat.Onebot`.
 
-For Windows plus Docker Desktop, configure the path bridge described in [Framework Integrations](../platforms/framework-integrations), then verify that a file written under `ANNOUNCEMENT_IMAGE_CACHE_DIR` is visible inside the container at `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR`.
+For Windows plus Docker Desktop, configure the path bridge described in [NapCat Docker](../platforms/qq/frameworks/napcat-docker), then verify that a file written under `ANNOUNCEMENT_IMAGE_CACHE_DIR` is visible inside the container at `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR`.
 
   </Accordion>
 </Accordions>

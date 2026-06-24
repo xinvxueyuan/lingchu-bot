@@ -2,10 +2,9 @@
 
 version: "3"
 
-vars:
-  MD_GLOB: >-
-    "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**"
-    "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" "SECURITY.md" ".github/**/*.md"
+# vars:
+  # markdownlint-cli2 范围由根目录 .markdownlint-cli2.jsonc 统一驱动（globs + ignores + config）
+  # 所有调用方无参调用 markdownlint-cli2，避免多处维护 glob 列表
 
 tasks:
   default:
@@ -30,7 +29,7 @@ tasks:
     cmds:
       - uv run -m ruff check . --output-format=github
       - uv run -m ruff format --check .
-      - pnpm exec markdownlint-cli2 {{.MD_GLOB}}
+      - pnpm exec markdownlint-cli2
       - pnpm turbo run lint --log-order=stream
       - uv run -m pyright .
       - uv run -m ty check --output-format github
@@ -46,7 +45,7 @@ tasks:
     desc: Format all code
     cmds:
       - uv run -m ruff format .
-      - pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}
+      - pnpm exec markdownlint-cli2 --fix
 
   fix:
     desc: Auto-fix all linting and type issues
@@ -54,7 +53,7 @@ tasks:
       - uv run -m ruff check --fix .
       - uv run -m ruff format .
       - uv run -m ty check --fix . || true
-      - pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}
+      - pnpm exec markdownlint-cli2 --fix
 
   build:
     desc: Build all workspaces
@@ -73,7 +72,7 @@ tasks:
     cmds:
       - uv run -m ruff check . --output-format=github
       - uv run -m ruff format --check .
-      - pnpm exec markdownlint-cli2 {{.MD_GLOB}}
+      - pnpm exec markdownlint-cli2
       - pnpm turbo run lint
 
   ci:typecheck:
@@ -95,7 +94,7 @@ tasks:
       - uv run -m ruff check --fix .
       - uv run -m ruff format .
       - uv run -m ty check --fix . || true
-      - pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}
+      - pnpm exec markdownlint-cli2 --fix
 
   ci:build:
     desc: "[CI] Build distribution artifacts"

@@ -12,6 +12,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.
     check_bot_privilege,
     check_target_privilege,
     format_user_display_name,
+    operator_is_superuser_onebot11,
     record_audit_fire_and_forget,
     record_command_audit,
 )
@@ -102,6 +103,93 @@ class TestCheckTargetPrivilege:
 
         assert result is True
         matcher.finish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_protected_target_rejects_non_superuser(
+        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    ) -> None:
+        """白名单保护目标拒绝非 SUPERUSERS。"""
+        matcher = MagicMock()
+        matcher.finish = AsyncMock()
+        matcher._lingchu_command_key = "kick_member"
+
+        with (
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.find_active_subject_policy",
+                AsyncMock(return_value=MagicMock()),
+            ),
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.operator_is_superuser_onebot11",
+                AsyncMock(return_value=False),
+            ),
+        ):
+            result = await check_target_privilege(
+                mock_onebot11_bot, mock_onebot11_event, _TARGET_USER_ID, matcher
+            )
+
+        assert result is False
+        matcher.finish.assert_awaited_once()
+        mock_onebot11_bot.get_group_member_info.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_protected_target_passes_for_repository_superuser(
+        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    ) -> None:
+        """白名单保护目标只允许仓库 SUPERUSERS 绕过。"""
+        matcher = MagicMock()
+        matcher.finish = AsyncMock()
+        matcher._lingchu_command_key = "kick_member"
+
+        with (
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.find_active_subject_policy",
+                AsyncMock(return_value=MagicMock()),
+            ),
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.operator_is_superuser_onebot11",
+                AsyncMock(return_value=True),
+            ),
+        ):
+            result = await check_target_privilege(
+                mock_onebot11_bot, mock_onebot11_event, _TARGET_USER_ID, matcher
+            )
+
+        assert result is True
+        matcher.finish.assert_not_called()
+        mock_onebot11_bot.get_group_member_info.assert_not_awaited()
+
+
+class TestOperatorIsSuperuserOnebot11:
+    """仓库 SUPERUSERS 解析测试。"""
+
+    @pytest.mark.asyncio
+    async def test_returns_true_for_bound_superuser(self) -> None:
+        user = MagicMock(uid="uid-1")
+        with (
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.permission_repo.get_user_by_platform_account",
+                AsyncMock(return_value=user),
+            ) as get_user,
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.permission_repo.is_superuser",
+                AsyncMock(return_value=True),
+            ) as is_superuser,
+        ):
+            result = await operator_is_superuser_onebot11(123)
+
+        assert result is True
+        get_user.assert_awaited_once_with("qq", "123")
+        is_superuser.assert_awaited_once_with("uid-1")
+
+    @pytest.mark.asyncio
+    async def test_returns_false_without_bound_uid(self) -> None:
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.permission_repo.get_user_by_platform_account",
+            AsyncMock(return_value=None),
+        ):
+            result = await operator_is_superuser_onebot11(123)
+
+        assert result is False
 
 
 # ================= check_bot_privilege 测试 =================

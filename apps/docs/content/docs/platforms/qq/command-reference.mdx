@@ -89,7 +89,7 @@ recall [@user] [count]
 
 ## OneBot V11 blocklist
 
-Blocklist commands are available on OneBot V11 only. Blocking stores the user in the group or global blocklist, kicks the user from the current group, and rejects future group join requests while the block is active.
+Blocklist and whitelist commands are available on OneBot V11 only. Blocking stores the user in the group or global blocklist, kicks the user from the current group, and rejects future group join requests while the block is active. Whitelisting stores the user as a protected subject; only repository-backed `SUPERUSERS` can add or remove whitelist entries.
 
 ```text
 拉黑 @用户 [时长秒数] [原因]
@@ -98,15 +98,20 @@ Blocklist commands are available on OneBot V11 only. Blocking stores the user in
 全局删黑 @用户 [原因]
 清空黑名单 [原因]
 全局清空黑名单 [reason]
+拉白 @用户 [原因]
+全局拉白 @用户 [原因]
+删白 @用户 [原因]
+全局删白 @用户 [原因]
 ```
 
-English: `block`, `global-block`, `unblock`, `global-unblock`, `clear-blocklist`, `global-clear-blocklist`.
+English: `block`, `global-block`, `unblock`, `global-unblock`, `clear-blocklist`, `global-clear-blocklist`, `protect`, `global-protect`, `unprotect`, `global-unprotect`.
 
 - Duration default: permanent.
 - Block reason default: `违反群规「默认」`.
-- Unblock/clear reason default: `管理员操作「默认」`.
+- Unblock/clear/whitelist reason default: `管理员操作「默认」`.
 
 `清空黑名单` only clears the current group blocklist. Use `全局清空黑名单` to clear global entries.
+`拉白` and `删白` only affect the current group whitelist. Use the global variants for protected users across groups.
 
 ## Group settings and operations
 

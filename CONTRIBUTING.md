@@ -19,6 +19,64 @@ task install
 
 Before starting, read [README.md](README.md), [Repository-Policy.md](Repository-Policy.md), and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). When submitting media, screenshots, or sample data, comply with the license and anonymization requirements in the repository policy.
 
+## Local Development Environment Setup
+
+### Prerequisites
+
+- Python 3.13 (managed by `uv`)
+- Node.js 22+ and pnpm (for docs site and frontend workspace)
+- git
+
+### Step-by-step setup
+
+1. Clone the repository and enter the project directory:
+
+   ```bash
+   git clone https://github.com/xinvxueyuan/lingchu-bot.git
+   cd lingchu-bot
+   ```
+
+2. Install Python dependencies with `uv`:
+
+   ```bash
+   uv sync --frozen
+   ```
+
+3. Install Node.js dependencies with `pnpm`:
+
+   ```bash
+   pnpm install --frozen-lockfile
+   ```
+
+4. Or install both at once using the Taskfile:
+
+   ```bash
+   task install
+   ```
+
+5. Copy `.env.example` to `.env` and adjust values for your environment:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+6. Install Git hooks (husky):
+
+   ```bash
+   pnpm exec husky
+   ```
+
+   This is typically auto-installed by `pnpm install`. Verify hooks are active by checking `.husky/` exists.
+
+7. Verify the setup by running checks:
+
+   ```bash
+   task check
+   task test
+   ```
+
+   If both pass, the development environment is ready.
+
 ## Toolchain
 
 - `Taskfile.yml`: Unified wrapper for install, check, test, build, fix, version, and i18n workflows.
@@ -87,7 +145,7 @@ pnpm turbo run build --filter=docs
 Markdown check:
 
 ```bash
-pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" ".github/**/*.md"
+pnpm exec markdownlint-cli2
 ```
 
 When auto-fixing format, prefer running focused commands on relevant files to avoid pulling unrelated files into the PR:
@@ -105,6 +163,11 @@ uv run -m ruff check --fix path/to/file.py
 - Do not silently swallow unknown exceptions; only catch exceptions you can explicitly handle and provide readable user feedback.
 - Comments should explain non-obvious reasons or constraints, not repeat the code itself.
 - Documentation changes should be concise and actionable, avoiding inconsistency with CI, Taskfile, or actual directory structure.
+- Python code follows Ruff rules (see `pyproject.toml` `[tool.ruff]`). Run `uv run -m ruff check .` and `uv run -m ruff format --check .` before committing.
+- TypeScript code follows ESLint rules (see `packages/eslint-config/`). Run `pnpm turbo run lint` before committing.
+- Function signatures should have ≤ 5 parameters (Ruff `PLR0913`). Combine related params into a single object if needed.
+- Test files must avoid hard-coded module paths; use direct object references instead.
+- When migrating files, update all dependent references (tests, i18n, docs, configs) to reflect new paths.
 
 ## Commit Convention
 
@@ -129,6 +192,14 @@ PR descriptions should include:
 - Associated Issues, e.g., `Closes #123`.
 - Any outstanding items, known risks, or trade-offs that need maintainer confirmation.
 
+### PR naming conventions
+
+- Use the format `<type>(<scope>): <subject>` in the PR title, matching the commit message style (without the gitmoji prefix).
+- Keep PR titles under 50 characters.
+- Use lowercase scope names: `auth`, `db`, `api`, `i18n`, `docs`, `frontend`, `core`, `handle`, `platforms`, `permissions`, `repositories`, `services`, `tests`.
+- Link the PR to the related issue using `Closes #123` or `Fixes #123` in the PR description.
+- For breaking changes, add `!` after the type/scope and describe the breaking change in the PR body.
+
 ## CI and Failure Handling
 
 - PRs trigger GitHub Actions; pushes to `main` and `dev` also trigger main CI.
@@ -138,6 +209,20 @@ PR descriptions should include:
 - The auto-format job on pushes to `main` and `dev` runs `task ci:fix` and may auto-commit format fixes.
 
 If CI fails, open the failed job's logs first and locate the specific command, rule, and line number. When fixing CI, only change the minimal scope that caused the failure, and re-run the corresponding local command to verify.
+
+## Code Review Process
+
+1. **Self-review**: Before requesting review, re-read your diff and verify that every change is intentional.
+2. **Automated checks**: CI must pass. If a check fails, fix the root cause rather than suppressing the warning.
+3. **Reviewer assignment**: Maintainers assign reviewers based on the changed areas. At least one approval is required.
+4. **Review criteria**:
+   - Changes are minimal and focused on the stated goal.
+   - Tests cover new behavior, error branches, and edge cases.
+   - No unrelated refactoring or formatting changes.
+   - Public interfaces, configuration, and data structure changes are documented.
+   - GitNexus impact analysis is included for code changes.
+5. **Addressing feedback**: Respond to every comment. Push fixes as new commits (do not force-push during review unless requested).
+6. **Merge**: A maintainer merges the PR after approval and CI passes. Squash-merge is the default strategy.
 
 ## Issues and Communication
 

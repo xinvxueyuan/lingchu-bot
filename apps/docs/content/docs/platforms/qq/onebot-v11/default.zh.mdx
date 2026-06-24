@@ -22,6 +22,7 @@ title: 默认实现
 | `mute.py` | `禁言`、`解禁`、`全员禁言`、`全体解禁`、`撤回` |
 | `member.py` | `踢出群成员`、`设置群名片`、`设置群头衔`、`设置群管理员`、`取消群管理员` |
 | `block.py` | `拉黑`、`全局拉黑`、`删黑`、`全局删黑`、`清空黑名单`、`全局清空黑名单` |
+| `protect.py` | `拉白`、`全局拉白`、`删白`、`全局删白` |
 | `profile.py` | `设置群名称`、`设置群头像`（仅 NapCat） |
 | `announcement.py` | `发送群公告`（版本门控） |
 | `lifecycle.py` | 机器人生命周期钩子（无用户命令） |
@@ -70,7 +71,7 @@ title: 默认实现
 `common.py` 提供：
 
 - `resolve_user_onebot11(user, bot, event)` — 把 `At | int` 解析为 `(user_id, name)` 元组。输入无效时抛出 `ValueError`。
-- `check_target_privilege(bot, event, target_user_id, cmd_matcher)` — 检查目标用户是否为管理员/群主；操作者不是群主或超级用户时拒绝操作。检查通过返回 `True`。
+- `check_target_privilege(bot, event, target_user_id, cmd_matcher)` — 先检查受保护目标，仅允许仓库内 `SUPERUSERS` 绕过白名单保护；随后检查管理员/群主目标是否可由操作者管理。检查通过返回 `True`。
 - `check_bot_privilege(bot, group_id, cmd_matcher)` — 检查机器人在指定群内是否具有管理员/群主角色。检查通过返回 `True`。
 - `CommandAudit(action, target_user_id=None, reason=None, duration=None, group_id=None)` — 承载命令审计载荷。
 - `record_command_audit(bot, event, CommandAudit(...))` / `record_audit_fire_and_forget(bot, event, CommandAudit(...))` — 通过消息存储仓库写入命令级审计日志，可直接等待执行，也可作为后台任务调度。

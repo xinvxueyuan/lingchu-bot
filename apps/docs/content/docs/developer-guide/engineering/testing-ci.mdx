@@ -94,8 +94,10 @@ Write Playwright tests with role/text locators and web-first assertions such as 
 ## Markdown checks
 
 ```bash
-pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" ".github/**/*.md"
+pnpm exec markdownlint-cli2
 ```
+
+Globs and ignores are configured centrally in `.markdownlint-cli2.jsonc` at the repository root, so no path arguments are needed.
 
 ## Internationalization checks
 
