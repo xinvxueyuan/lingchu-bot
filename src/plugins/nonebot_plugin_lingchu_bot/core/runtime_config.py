@@ -56,6 +56,28 @@ class RuntimeConfig(BaseModel):
     message_store_summary_limit: int = Field(default=500, ge=0)
     message_store_record_api_calls: bool = True
     message_store_cleanup_enabled: bool = True
+    recall_message_default_count: int = Field(default=10, ge=1, le=100)
+    permission_platform_runtime_passthrough: bool | dict[str, bool] = True
+    command_trigger_overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    menu_page_trigger_overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    protected_subject_feature_keys: frozenset[str] = Field(
+        default_factory=lambda: frozenset(
+            {
+                "kick_member",
+                "block_member",
+                "global_block_member",
+                "member_mute",
+                "recall_message",
+                "set_member_card",
+                "set_member_title",
+                "set_member_admin",
+                "unset_member_admin",
+                "remote_kick",
+                "remote_block",
+                "remote_mute",
+            }
+        )
+    )
     lingchu_superusers: dict[str, dict[str, str | int]] | None = Field(
         default=None,
         validation_alias=AliasChoices(
@@ -108,10 +130,24 @@ class RuntimeConfig(BaseModel):
                 result[uid_text][platform_text] = account_id
         return result
 
+    @field_validator("protected_subject_feature_keys", mode="before")
+    @classmethod
+    def _validate_protected_subject_feature_keys(cls, value: Any) -> frozenset[str]:
+        if value is None:
+            return frozenset()
+        if isinstance(value, str):
+            try:
+                value = json5.loads(value)
+            except ValueError:
+                value = [value]
+        if not isinstance(value, (list, tuple, set, frozenset)):
+            raise TypeError("protected_subject_feature_keys must be a list")
+        return frozenset(str(item).strip() for item in value if str(item).strip())
+
 
 def runtime_config_defaults() -> dict[str, Any]:
     """Return validated code defaults for the generated JSON5 file."""
-    return RuntimeConfig().model_dump(mode="python")
+    return RuntimeConfig().model_dump(mode="json")
 
 
 def get_runtime_config_file() -> Path:

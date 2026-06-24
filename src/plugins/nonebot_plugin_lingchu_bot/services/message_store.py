@@ -36,6 +36,7 @@ class MessageIdentity:
     platform_id: str
     adapter_id: str
     protocol_id: str | None
+    framework_id: str
     bot_id: str
     conversation_id: str | None
     message_id: str | None
@@ -48,6 +49,7 @@ class NormalizedMessageEvent:
     identity: MessageIdentity
     user_id: str | None
     event_type: str
+    event_category: str | None
     message_type: str | None
     text_summary: str | None
     raw_message: str | None
@@ -134,16 +136,14 @@ def _message_type(event: Event) -> str | None:
 
 
 def _conversation_id(event: Event) -> str | None:
-    value = _safe_call(event, "get_session_id")
-    if value is None:
-        value = _first_attr(
-            event,
-            "group_id",
-            "guild_id",
-            "channel_id",
-            "peer_id",
-            "session_id",
-        )
+    value = _first_attr(
+        event,
+        "group_id",
+        "guild_id",
+        "channel_id",
+        "peer_id",
+        "session_id",
+    )
     if value is None:
         value = _first_attr(
             _event_data(event),
@@ -153,6 +153,8 @@ def _conversation_id(event: Event) -> str | None:
             "peer_id",
             "session_id",
         )
+    if value is None:
+        value = _safe_call(event, "get_session_id")
     return _stringify(value, limit=128)
 
 
@@ -246,8 +248,6 @@ def _raw_event(event: Event) -> str | None:
 
 def normalize_message_event(bot: Bot, event: Event) -> NormalizedMessageEvent | None:
     """Normalize an adapter event into message-store metadata."""
-    if _event_category(event) != "message":
-        return None
     adapter = _adapter_name(bot)
     adapter_identity = _adapter_identity(adapter)
     if adapter_identity is None:
@@ -258,6 +258,7 @@ def normalize_message_event(bot: Bot, event: Event) -> NormalizedMessageEvent | 
         platform_id=platform_id,
         adapter_id=adapter_id,
         protocol_id=None,
+        framework_id="nonebot",
         bot_id=bot_id,
         conversation_id=_conversation_id(event),
         message_id=_message_id(event),
@@ -266,6 +267,7 @@ def normalize_message_event(bot: Bot, event: Event) -> NormalizedMessageEvent | 
         identity=identity,
         user_id=_user_id(event),
         event_type=_event_type(event),
+        event_category=_event_category(event),
         message_type=_message_type(event),
         text_summary=_plain_text(event),
         raw_message=_raw_message(event),
@@ -359,11 +361,13 @@ async def message_store_preprocessor(
                 platform_id=normalized.identity.platform_id,
                 adapter_id=normalized.identity.adapter_id,
                 protocol_id=normalized.identity.protocol_id,
+                framework_id=normalized.identity.framework_id,
                 bot_id=normalized.identity.bot_id,
                 conversation_id=normalized.identity.conversation_id,
                 user_id=normalized.user_id,
                 message_id=normalized.identity.message_id,
                 event_type=normalized.event_type,
+                event_category=normalized.event_category,
                 message_type=normalized.message_type,
                 text_summary=normalized.text_summary,
                 raw_message=normalized.raw_message,
@@ -407,6 +411,7 @@ async def message_store_run_postprocessor(
                 platform_id=identity.platform_id,
                 adapter_id=identity.adapter_id,
                 protocol_id=identity.protocol_id,
+                framework_id=identity.framework_id,
                 bot_id=identity.bot_id,
                 conversation_id=identity.conversation_id,
                 message_id=identity.message_id,

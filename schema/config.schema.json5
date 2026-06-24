@@ -38,6 +38,80 @@
       "type": "boolean",
       "default": true
     },
+    "recall_message_default_count": {
+      "description": "Default number of recent group messages to recall when the recall command omits a count.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "default": 10
+    },
+    "permission_platform_runtime_passthrough": {
+      "description": "Whether platform-side runtime roles such as QQ owner/admin/member can satisfy Lingchu command grants. Use a boolean globally or a platform-id map.",
+      "oneOf": [
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "additionalProperties": { "type": "boolean" }
+        }
+      ],
+      "default": true
+    },
+    "command_trigger_overrides": {
+      "description": "Command trigger overrides keyed by stable command_key.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chinese": { "type": "string", "minLength": 1 },
+          "english": { "type": "string", "minLength": 1 },
+          "chinese_aliases": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          },
+          "english_aliases": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          }
+        }
+      },
+      "default": {}
+    },
+    "menu_page_trigger_overrides": {
+      "description": "Menu page command trigger overrides keyed by menu page id.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chinese": { "type": "string", "minLength": 1 },
+          "english": { "type": "string", "minLength": 1 }
+        }
+      },
+      "default": {}
+    },
+    "protected_subject_feature_keys": {
+      "description": "Command keys whose target-side effects are blocked for protected whitelist users.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "default": [
+        "kick_member",
+        "block_member",
+        "global_block_member",
+        "member_mute",
+        "recall_message",
+        "set_member_card",
+        "set_member_title",
+        "set_member_admin",
+        "unset_member_admin",
+        "remote_kick",
+        "remote_block",
+        "remote_mute"
+      ]
+    },
     "lingchu_superusers": {
       "description": "Mapping of Lingchu superuser UIDs to their platform account IDs. Each UID maps platform identifiers (e.g. \"qq\", \"telegram\") to the corresponding account ID (string or integer). Set to null to fall back to the SUPERUSERS list.",
       "oneOf": [

@@ -56,6 +56,31 @@ OS environment variable and dotenv loading, case handling, Boolean parsing, path
       default: "true",
       description: "Whether to clean expired message records during shutdown",
     },
+    recall_message_default_count: {
+      type: "number",
+      default: "10",
+      description: "Default count used by the group message recall command",
+    },
+    permission_platform_runtime_passthrough: {
+      type: "boolean | object",
+      default: "true",
+      description: "Whether platform runtime roles may satisfy command permission grants",
+    },
+    command_trigger_overrides: {
+      type: "object",
+      default: "{}",
+      description: "Per-command primary trigger and alias overrides keyed by command_key",
+    },
+    menu_page_trigger_overrides: {
+      type: "object",
+      default: "{}",
+      description: "Menu page command trigger overrides keyed by page id",
+    },
+    protected_subject_feature_keys: {
+      type: "string[]",
+      default: "moderation side-effect commands",
+      description: "Command keys blocked when their target user is protected by whitelist policy",
+    },
     lingchu_adapter: {
       type: "string",
       default: "unset",
@@ -79,6 +104,23 @@ Example `config.json5`:
   message_store_summary_limit: 500,
   message_store_record_api_calls: true,
   message_store_cleanup_enabled: true,
+  recall_message_default_count: 10,
+  permission_platform_runtime_passthrough: true,
+  command_trigger_overrides: {
+    member_mute: {
+      chinese: "禁言",
+      chinese_aliases: ["禁言用户", "禁"],
+      english: "mute",
+      english_aliases: ["ban"],
+    },
+  },
+  menu_page_trigger_overrides: {
+    "member-management": {
+      chinese: "成员管理",
+      english: "member-management",
+    },
+  },
+  protected_subject_feature_keys: ["kick_member", "member_mute", "recall_message", "block_member"],
   lingchu_adapter: "~onebot.v11",
   lingchu_superusers: null,
 }
@@ -111,6 +153,14 @@ The object key is the Lingchu UID. Each value maps platform IDs, such as `qq`, `
 If `LINGCHU_SUPERUSERS` is missing, Lingchu imports NoneBot's native `SUPERUSERS` as QQ platform accounts and assigns generated UIDs from `user1` to `user999` in order. Startup fails when neither source is present, the value is not a UID-to-platform mapping, or a platform account is bound to multiple UIDs.
 
 SUPERUSERS always pass Lingchu command permission checks, but platform API restrictions and command-level safety checks still apply.
+
+## Permission and trigger customization
+
+`permission_platform_runtime_passthrough` controls whether platform-side roles such as QQ group owner/admin/member can satisfy Lingchu permission grants through runtime identity groups. Set it to `false` to require explicit Lingchu memberships, or to an object such as `{ qq: false }` for platform-specific behavior.
+
+`command_trigger_overrides` and `menu_page_trigger_overrides` are loaded before matchers are registered. Primary trigger changes therefore take effect on restart. The override loader rejects duplicate triggers across commands.
+
+Whitelist protection is configured through subject policy APIs and `protected_subject_feature_keys`. When a protected user is the target of a listed side-effect command, Lingchu blocks that command; protected users may still operate commands they are otherwise allowed to use.
 
 ## Core path settings
 

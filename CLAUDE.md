@@ -467,6 +467,15 @@ When changing a function signature (sync→async, adding/removing params):
 - `ActionFailed()` from Milky and OneBot V11 adapters may not accept positional arguments — always check the constructor signature
 - Use `ruff check` to catch BLE001 (blind `except Exception`) — prefer specific adapter exceptions
 
+### OneBot Group Message Identity
+
+- OneBot V11 group `event.get_session_id()` may include both group and user ids
+  (for example `group_<group_id>_<user_id>`). Group-scoped features that read
+  message history must use `group_id` as the stored/query `conversation_id`,
+  not `get_session_id()`. When reading older rows, validate `raw_event.group_id`
+  or the legacy `group_<group_id>_...` prefix before treating them as
+  current-group candidates.
+
 ### Gettext Helper Shadowing
 
 - Many handlers import gettext as `_`. Do not use `_` as a throwaway local variable in those functions (for example `deleted, _ = ...`) because it shadows the gettext helper and causes later `await _("...")` calls to fail at runtime. Use `result = ...; deleted = result[0]` or a descriptive unused name outside gettext-heavy scopes.
@@ -864,7 +873,9 @@ When adding CI checks or unit tests for the docs site (`apps/docs/`), several pi
 
 - **Test patch target updates**: When splitting a single module (e.g., `orm_crud.py`) into a package (e.g., `orm_crud/` with `_base.py`, `_single.py`, `_bulk.py`), all test `patch.object()` targets must be updated from module-level to sub-module-level. For example, `patch("...orm_crud.select", ...)` becomes `patch("...orm_crud._single.select", ...)`. Failing to update patch targets causes `AttributeError` at test time because the symbol is no longer on the package `__init__` — it's on the sub-module.
 - **`nonebot_plugin_orm` model discovery with packages**: `nonebot_plugin_orm` discovers ORM models by scanning module paths. When converting `models.py` to a `models/` package, model discovery still works as long as `models/__init__.py` explicitly imports all model classes (e.g., `from .message import MessageRecord, AuditRecord`). Without explicit imports in `__init__.py`, the ORM will not register the tables and migrations will be empty.
+- **Partition ORM models need router, migration, and type-test updates together**: When adding physical partition models (e.g., platform + adapter + framework event tables), update the repository model router, `models/__init__.py` exports, Alembic table/index creation, cleanup paths, and tests that assert patched CRUD model arguments. Return types must widen to include partition model classes so Pyright/ty do not report false return-type errors.
 - **`ensure_json5_dict_file_async` vs `write_json5_dict_file_async`**: `ensure_json5_dict_file_async` only creates a file if it does not already exist (idempotent ensure). For overwriting an existing file with new content (e.g., `bot_state.py` persisting state changes), use `write_json5_dict_file_async` instead — it unconditionally writes the file. Using `ensure_*` when you need `write_*` silently keeps stale data.
+- **Runtime config defaults must be JSON-serializable**: `runtime_config_defaults()` feeds `ensure_json5_dict_file_sync()` / async file generation. If `RuntimeConfig` contains Python-only containers such as `frozenset`, dump defaults with `model_dump(mode="json")` or normalize those fields before writing; otherwise first-start config creation fails with "not JSON5 serializable".
 - **Removing backward-compatibility aliases is a breaking change**: Simplifying `RuntimeConfig.lingchu_adapter` to a single alias (removing `LINGCHUAdapter` and `LINGCHU_ADAPTER`) cleans up the config but breaks any user who referenced the old alias names in their `.env` or `config.json5`. Document the removal in the changelog and migration guide; only do this in pre-1.0 or when the project accepts breaking changes (see Agent Preferences: "pre-planning development stage").
 
 # Claude Code Behavioral Guidelines

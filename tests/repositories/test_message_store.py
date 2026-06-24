@@ -7,11 +7,13 @@ import pytest
 from src.plugins.nonebot_plugin_lingchu_bot.database.models import (
     AuditRecord,
     MessageRecord,
+    QQOneBotV11NoneBotAuditRecord,
+    QQOneBotV11NoneBotEventRecord,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.repositories import message_store
 
 LIST_ITEMS_LIMIT = 10
-DELETE_CALL_COUNT = 2
+DELETE_CALL_COUNT = 4
 
 
 def _message_record(*, record_id: int = 1) -> MagicMock:
@@ -48,7 +50,7 @@ async def test_record_event_received_with_none_message_id_calls_create() -> None
 
     assert result is record_mock
     create_mock.assert_awaited_once()
-    assert create_mock.call_args.args[0] is MessageRecord
+    assert create_mock.call_args.args[0] is QQOneBotV11NoneBotEventRecord
     kwargs = create_mock.call_args.kwargs
     assert kwargs["platform_id"] == "qq"
     assert kwargs["adapter_id"] == "~onebot.v11"
@@ -91,7 +93,7 @@ async def test_record_event_received_with_message_id_calls_upsert() -> None:
 
     assert result is record_mock
     upsert_mock.assert_awaited_once()
-    assert upsert_mock.call_args.args[0] is MessageRecord
+    assert upsert_mock.call_args.args[0] is QQOneBotV11NoneBotEventRecord
     insert_values = upsert_mock.call_args.args[1]
     assert insert_values["platform_id"] == "qq"
     assert insert_values["adapter_id"] == "~onebot.v11"
@@ -101,6 +103,8 @@ async def test_record_event_received_with_message_id_calls_upsert() -> None:
     assert insert_values["user_id"] == "user-1"
     assert insert_values["message_id"] == "msg-1"
     assert insert_values["event_type"] == "message.group"
+    assert insert_values["event_category"] == "message"
+    assert insert_values["framework_id"] == "nonebot"
     assert insert_values["message_type"] == "group"
     assert insert_values["text_summary"] == "hello"
     assert insert_values["raw_message"] == '"hello"'
@@ -193,7 +197,7 @@ async def test_record_matcher_result_updates_record_when_found() -> None:
 
     assert result is True
     get_one_mock.assert_awaited_once()
-    assert get_one_mock.call_args.args[0] is MessageRecord
+    assert get_one_mock.call_args.args[0] is QQOneBotV11NoneBotEventRecord
     assert get_one_mock.call_args.args[1] == {
         "platform_id": "qq",
         "adapter_id": "~onebot.v11",
@@ -202,7 +206,7 @@ async def test_record_matcher_result_updates_record_when_found() -> None:
         "message_id": "msg-1",
     }
     update_mock.assert_awaited_once()
-    assert update_mock.call_args.args[0] is MessageRecord
+    assert update_mock.call_args.args[0] is QQOneBotV11NoneBotEventRecord
     assert update_mock.call_args.args[1] == {"id": 42}
     update_values = update_mock.call_args.args[2]
     assert update_values["process_status"] == "handled"
@@ -328,13 +332,14 @@ async def test_record_api_call_calls_create_with_audit_record() -> None:
 
     assert result is audit_mock
     create_mock.assert_awaited_once()
-    assert create_mock.call_args.args[0] is AuditRecord
+    assert create_mock.call_args.args[0] is QQOneBotV11NoneBotAuditRecord
     kwargs = create_mock.call_args.kwargs
     assert kwargs["platform_id"] == "qq"
     assert kwargs["adapter_id"] == "~onebot.v11"
     assert kwargs["protocol_id"] is None
     assert kwargs["bot_id"] == "bot-1"
     assert kwargs["audit_type"] == "api_call"
+    assert kwargs["framework_id"] == "nonebot"
     assert kwargs["event_type"] == "send_message"
     assert kwargs["data_summary"] == '{"message":"hello"}'
     assert kwargs["result_summary"] == '{"message_id":"out-1"}'
@@ -374,6 +379,7 @@ async def test_list_recent_messages_calls_list_items_with_filters() -> None:
         result = await message_store.list_recent_messages(
             platform_id="qq",
             adapter_id="~onebot.v11",
+            bot_id="bot-1",
             conversation_id="group-1",
             user_id="user-1",
             limit=10,
@@ -381,10 +387,11 @@ async def test_list_recent_messages_calls_list_items_with_filters() -> None:
 
     assert result == records
     list_items_mock.assert_awaited_once()
-    assert list_items_mock.call_args.args[0] is MessageRecord
+    assert list_items_mock.call_args.args[0] is QQOneBotV11NoneBotEventRecord
     assert list_items_mock.call_args.args[1] == {
         "platform_id": "qq",
         "adapter_id": "~onebot.v11",
+        "bot_id": "bot-1",
         "conversation_id": "group-1",
         "user_id": "user-1",
     }
@@ -419,16 +426,18 @@ async def test_list_recent_messages_includes_protocol_id_filter_when_provided() 
 
 @pytest.mark.asyncio
 async def test_cleanup_expired_messages_calls_delete_twice_and_returns_tuple() -> None:
-    delete_mock = AsyncMock(side_effect=[(2, True), (1, True)])
+    delete_mock = AsyncMock(side_effect=[(2, True), (1, True), (3, True), (4, True)])
 
     with patch.object(message_store, "delete", delete_mock):
         result = await message_store.cleanup_expired_messages(retention_days=7)
 
-    assert result == (3, True)
+    assert result == (10, True)
     assert delete_mock.await_count == DELETE_CALL_COUNT
     assert delete_mock.call_args_list[0].args[0] is MessageRecord
-    assert delete_mock.call_args_list[0].args[1] == {}
     assert delete_mock.call_args_list[1].args[0] is AuditRecord
+    assert delete_mock.call_args_list[2].args[0] is QQOneBotV11NoneBotEventRecord
+    assert delete_mock.call_args_list[3].args[0] is QQOneBotV11NoneBotAuditRecord
+    assert delete_mock.call_args_list[0].args[1] == {}
     assert delete_mock.call_args_list[1].args[1] == {}
     assert len(delete_mock.call_args_list[0].kwargs["conditions"]) == 1
     assert len(delete_mock.call_args_list[1].kwargs["conditions"]) == 1
@@ -447,9 +456,9 @@ async def test_cleanup_expired_messages_with_zero_retention_returns_empty() -> N
 
 @pytest.mark.asyncio
 async def test_cleanup_expired_messages_propagates_known_flag() -> None:
-    delete_mock = AsyncMock(side_effect=[(1, True), (0, False)])
+    delete_mock = AsyncMock(side_effect=[(1, True), (0, False), (2, True), (0, True)])
 
     with patch.object(message_store, "delete", delete_mock):
         result = await message_store.cleanup_expired_messages(retention_days=7)
 
-    assert result == (1, False)
+    assert result == (3, False)

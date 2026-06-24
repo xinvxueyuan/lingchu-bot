@@ -10,8 +10,15 @@ from .identity import (
     PlatformAccount,
     PlatformIdentityGroup,
 )
-from .message import AuditRecord, MessageRecord, utc_now
+from .message import (
+    AuditRecord,
+    MessageRecord,
+    QQOneBotV11NoneBotAuditRecord,
+    QQOneBotV11NoneBotEventRecord,
+    utc_now,
+)
 from .registry import Adapter, Platform, ProtocolImplementation
+from .subject_policy import SubjectPolicyEntry
 
 __all__ = (
     "Adapter",
@@ -25,5 +32,8 @@ __all__ = (
     "PlatformAccount",
     "PlatformIdentityGroup",
     "ProtocolImplementation",
+    "QQOneBotV11NoneBotAuditRecord",
+    "QQOneBotV11NoneBotEventRecord",
+    "SubjectPolicyEntry",
     "utc_now",
 )

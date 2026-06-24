@@ -36,7 +36,10 @@ def test_expires_at_from_duration_defaults_to_permanent() -> None:
 async def test_upsert_block_accepts_structured_request() -> None:
     upsert_mock = AsyncMock(return_value=_entry())
 
-    with patch.object(blocklist, "upsert", upsert_mock):
+    with (
+        patch.object(blocklist, "upsert", upsert_mock),
+        patch.object(blocklist, "_sync_blocked_policy_upsert", AsyncMock()),
+    ):
         await blocklist.upsert_block(
             blocklist.BlocklistUpsert(
                 platform_id="qq",
@@ -60,7 +63,10 @@ async def test_upsert_block_accepts_structured_request() -> None:
 async def test_upsert_block_uses_scope_identity_and_update_values() -> None:
     upsert_mock = AsyncMock(return_value=_entry())
 
-    with patch.object(blocklist, "upsert", upsert_mock):
+    with (
+        patch.object(blocklist, "upsert", upsert_mock),
+        patch.object(blocklist, "_sync_blocked_policy_upsert", AsyncMock()),
+    ):
         await blocklist.upsert_block(
             blocklist.BlocklistUpsert(
                 platform_id="qq",
@@ -96,7 +102,10 @@ async def test_upsert_block_uses_scope_identity_and_update_values() -> None:
 async def test_upsert_block_passes_protocol_id_through_to_upsert() -> None:
     upsert_mock = AsyncMock(return_value=_entry())
 
-    with patch.object(blocklist, "upsert", upsert_mock):
+    with (
+        patch.object(blocklist, "upsert", upsert_mock),
+        patch.object(blocklist, "_sync_blocked_policy_upsert", AsyncMock()),
+    ):
         await blocklist.upsert_block(
             blocklist.BlocklistUpsert(
                 platform_id="qq",
@@ -122,7 +131,10 @@ async def test_upsert_block_passes_protocol_id_through_to_upsert() -> None:
 async def test_upsert_block_defaults_protocol_id_to_none() -> None:
     upsert_mock = AsyncMock(return_value=_entry())
 
-    with patch.object(blocklist, "upsert", upsert_mock):
+    with (
+        patch.object(blocklist, "upsert", upsert_mock),
+        patch.object(blocklist, "_sync_blocked_policy_upsert", AsyncMock()),
+    ):
         await blocklist.upsert_block(
             blocklist.BlocklistUpsert(
                 platform_id="qq",
@@ -146,7 +158,10 @@ async def test_upsert_block_defaults_protocol_id_to_none() -> None:
 async def test_upsert_block_preserves_none_operator_id() -> None:
     upsert_mock = AsyncMock(return_value=_entry())
 
-    with patch.object(blocklist, "upsert", upsert_mock):
+    with (
+        patch.object(blocklist, "upsert", upsert_mock),
+        patch.object(blocklist, "_sync_blocked_policy_upsert", AsyncMock()),
+    ):
         await blocklist.upsert_block(
             blocklist.BlocklistUpsert(
                 platform_id="qq",
@@ -167,10 +182,40 @@ async def test_upsert_block_preserves_none_operator_id() -> None:
 
 
 @pytest.mark.asyncio
+async def test_upsert_block_syncs_blocked_subject_policy() -> None:
+    upsert_mock = AsyncMock(return_value=_entry())
+    sync_mock = AsyncMock()
+    request = blocklist.BlocklistUpsert(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        protocol_id="napcat",
+        bot_id="bot-1",
+        scope="group",
+        group_id=123,
+        user_id=456,
+        operator_id=789,
+        reason="bad",
+        expires_at=None,
+    )
+
+    with (
+        patch.object(blocklist, "upsert", upsert_mock),
+        patch.object(blocklist, "_sync_blocked_policy_upsert", sync_mock),
+    ):
+        await blocklist.upsert_block(request)
+
+    sync_mock.assert_awaited_once_with(request)
+
+
+@pytest.mark.asyncio
 async def test_remove_and_clear_use_expected_scope_filters() -> None:
     delete_mock = AsyncMock(return_value=(1, True))
 
-    with patch.object(blocklist, "delete", delete_mock):
+    with (
+        patch.object(blocklist, "delete", delete_mock),
+        patch.object(blocklist, "_sync_blocked_policy_remove", AsyncMock()),
+        patch.object(blocklist, "_sync_blocked_policy_clear", AsyncMock()),
+    ):
         await blocklist.remove_block(
             platform_id="qq",
             adapter_id="~onebot.v11",
@@ -201,7 +246,10 @@ async def test_remove_and_clear_use_expected_scope_filters() -> None:
 async def test_remove_block_includes_protocol_id_filter_when_provided() -> None:
     delete_mock = AsyncMock(return_value=(1, True))
 
-    with patch.object(blocklist, "delete", delete_mock):
+    with (
+        patch.object(blocklist, "delete", delete_mock),
+        patch.object(blocklist, "_sync_blocked_policy_remove", AsyncMock()),
+    ):
         await blocklist.remove_block(
             platform_id="qq",
             adapter_id="~onebot.v11",
