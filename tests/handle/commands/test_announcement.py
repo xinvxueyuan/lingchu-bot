@@ -78,7 +78,9 @@ async def test_onebot11_send_group_announcement_calls_extension_api_with_image(
 
     fake_config = MagicMock()
     fake_config.cache_dir = tmp_path
-    fake_config.announcement_image_cache_dir = None
+    # 模拟"未配置路径桥接"的默认场景：announcement_image_cache_dir 派生自
+    # cache_dir（与新类型 `Path` 下的 localstore 默认行为一致），protocol_dir 留空
+    fake_config.announcement_image_cache_dir = tmp_path / "announcement_images"
     fake_config.announcement_image_protocol_dir = None
     monkeypatch.setattr(announcement, "plugin_config", fake_config)
 
@@ -137,7 +139,9 @@ async def test_resolve_image_path_caches_raw_bytes(
     """_resolve_image_path 通过 aiofiles 异步写入缓存文件。"""
     fake_config = MagicMock()
     fake_config.cache_dir = tmp_path
-    fake_config.announcement_image_cache_dir = None
+    # 模拟"未配置路径桥接"的默认场景：announcement_image_cache_dir 派生自
+    # cache_dir（与新类型 `Path` 下的 localstore 默认行为一致），protocol_dir 留空
+    fake_config.announcement_image_cache_dir = tmp_path / "announcement_images"
     fake_config.announcement_image_protocol_dir = None
     monkeypatch.setattr(announcement, "plugin_config", fake_config)
 
@@ -180,11 +184,14 @@ async def test_resolve_image_path_uses_announcement_cache_bridge(
 
 @pytest.mark.asyncio
 async def test_resolve_image_path_returns_path_attribute(
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """raw 为空但 path 存在时，直接返回该路径。"""
     fake_config = MagicMock()
-    fake_config.announcement_image_cache_dir = None
+    # 模拟"未配置路径桥接"的默认场景：announcement_image_cache_dir 派生自
+    # cache_dir（与新类型 `Path` 下的 localstore 默认行为一致），protocol_dir 留空
+    fake_config.announcement_image_cache_dir = tmp_path / "announcement_images"
     fake_config.announcement_image_protocol_dir = None
     monkeypatch.setattr(announcement, "plugin_config", fake_config)
 

@@ -49,7 +49,11 @@ def test_config_has_path_fields(config: Config) -> None:
     assert isinstance(config.data_dir, Path)
     assert isinstance(config.config_dir, Path)
     assert isinstance(config.cache_dir, Path)
-    assert config.announcement_image_cache_dir is None
+    # 公告图片缓存目录默认由 localstore 派生
+    # （`get_plugin_cache_dir() / "announcement_images"`），
+    # 不再为 None；协议侧目录保持可选（仅当 .env 显式提供）。
+    assert config.announcement_image_cache_dir is not None
+    assert isinstance(config.announcement_image_cache_dir, Path)
     assert config.announcement_image_protocol_dir is None
 
 

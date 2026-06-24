@@ -30,6 +30,7 @@ from ..database.json5_store import (
     ensure_json5_dict_file_sync,
     load_json5_dict_sync,
 )
+from .schemas import CONFIG_SCHEMA_BASENAME
 
 CONFIG_FILENAME: Final = "config.json5"
 
@@ -146,8 +147,17 @@ class RuntimeConfig(BaseModel):
 
 
 def runtime_config_defaults() -> dict[str, Any]:
-    """Return validated code defaults for the generated JSON5 file."""
-    return RuntimeConfig().model_dump(mode="json")
+    """Return validated code defaults for the generated JSON5 file.
+
+    The ``$schema`` field is injected as a basename so editors locate
+    the sibling schema file inside the localstore config directory
+    (managed by ``nonebot_plugin_localstore``) without any hard-coded
+    relative or absolute path.
+    """
+    return {
+        "$schema": CONFIG_SCHEMA_BASENAME,
+        **RuntimeConfig().model_dump(mode="json"),
+    }
 
 
 def get_runtime_config_file() -> Path:
