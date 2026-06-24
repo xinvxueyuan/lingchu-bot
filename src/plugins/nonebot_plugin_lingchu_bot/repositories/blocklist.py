@@ -67,7 +67,7 @@ async def upsert_block(request: BlocklistUpsert) -> BlocklistEntry:
         "created_at": now,
         "updated_at": now,
     }
-    return await upsert(
+    entry = await upsert(
         BlocklistEntry,
         values,
         conflict_fields=[
@@ -87,6 +87,8 @@ async def upsert_block(request: BlocklistUpsert) -> BlocklistEntry:
             "updated_at": now,
         },
     )
+    await _sync_blocked_policy_upsert(request)
+    return entry
 
 
 async def remove_block(  # noqa: PLR0913
@@ -109,7 +111,17 @@ async def remove_block(  # noqa: PLR0913
     }
     if protocol_id is not None:
         filters["protocol_id"] = protocol_id
-    return await delete(BlocklistEntry, filters)
+    result = await delete(BlocklistEntry, filters)
+    await _sync_blocked_policy_remove(
+        platform_id=platform_id,
+        adapter_id=adapter_id,
+        protocol_id=protocol_id,
+        bot_id=bot_id,
+        scope=scope,
+        group_id=group_id,
+        user_id=user_id,
+    )
+    return result
 
 
 async def clear_blocklist(  # noqa: PLR0913
@@ -130,7 +142,16 @@ async def clear_blocklist(  # noqa: PLR0913
     }
     if protocol_id is not None:
         filters["protocol_id"] = protocol_id
-    return await delete(BlocklistEntry, filters)
+    result = await delete(BlocklistEntry, filters)
+    await _sync_blocked_policy_clear(
+        platform_id=platform_id,
+        adapter_id=adapter_id,
+        protocol_id=protocol_id,
+        bot_id=bot_id,
+        scope=scope,
+        group_id=group_id,
+    )
+    return result
 
 
 async def find_active_block(  # noqa: PLR0913
@@ -211,3 +232,69 @@ def active_block_condition() -> object:
     """Return the SQL condition used by callers that need active entries."""
     now = datetime.now(UTC)
     return or_(BlocklistEntry.expires_at.is_(None), BlocklistEntry.expires_at > now)
+
+
+async def _sync_blocked_policy_upsert(request: BlocklistUpsert) -> None:
+    from ..permissions.subject_policy import SubjectPolicyUpsert, upsert_subject_policy
+
+    await upsert_subject_policy(
+        SubjectPolicyUpsert(
+            policy_type="blocked",
+            platform_id=request.platform_id,
+            adapter_id=request.adapter_id,
+            protocol_id=request.protocol_id,
+            bot_id=request.bot_id,
+            scope=request.scope,
+            group_id=request.group_id,
+            user_id=request.user_id,
+            operator_id=request.operator_id,
+            reason=request.reason,
+            expires_at=request.expires_at,
+        )
+    )
+
+
+async def _sync_blocked_policy_remove(  # noqa: PLR0913
+    *,
+    platform_id: str,
+    adapter_id: str,
+    protocol_id: str | None,
+    bot_id: str,
+    scope: BlockScope,
+    group_id: str | int | None,
+    user_id: str | int,
+) -> None:
+    from ..permissions.subject_policy import remove_subject_policy
+
+    await remove_subject_policy(
+        policy_type="blocked",
+        platform_id=platform_id,
+        adapter_id=adapter_id,
+        protocol_id=protocol_id,
+        bot_id=bot_id,
+        scope=scope,
+        group_id=group_id,
+        user_id=user_id,
+    )
+
+
+async def _sync_blocked_policy_clear(  # noqa: PLR0913
+    *,
+    platform_id: str,
+    adapter_id: str,
+    protocol_id: str | None,
+    bot_id: str,
+    scope: BlockScope,
+    group_id: str | int | None,
+) -> None:
+    from ..permissions.subject_policy import clear_subject_policy
+
+    await clear_subject_policy(
+        policy_type="blocked",
+        platform_id=platform_id,
+        adapter_id=adapter_id,
+        protocol_id=protocol_id,
+        bot_id=bot_id,
+        scope=scope,
+        group_id=group_id,
+    )

@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
 DEFAULT_RETENTION_DAYS = 30
 DEFAULT_SUMMARY_LIMIT = 500
+DEFAULT_RECALL_COUNT = 10
 JSON_SUMMARY_LIMIT = 12
 ENV_SUMMARY_LIMIT = 42
 DOTENV_SUMMARY_LIMIT = 64
@@ -35,6 +36,8 @@ def test_runtime_config_uses_code_defaults_without_json(
     assert config.message_store_enabled is True
     assert config.message_store_retention_days == DEFAULT_RETENTION_DAYS
     assert config.message_store_summary_limit == DEFAULT_SUMMARY_LIMIT
+    assert config.recall_message_default_count == DEFAULT_RECALL_COUNT
+    assert "recall_message" in config.protected_subject_feature_keys
     assert config.lingchu_adapter is None
 
 

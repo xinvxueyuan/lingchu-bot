@@ -28,6 +28,7 @@ def make_event(**overrides: Any) -> MagicMock:
     event.message_id = "msg-1"
     event.id = None
     event.message_type = "group"
+    event.group_id = "group-1"
     event.data = SimpleNamespace(peer_id="group-1", segments=[])
     for key, value in overrides.items():
         setattr(event, key, value)
@@ -102,6 +103,20 @@ def test_normalize_message_event_handles_missing_message_id(
     assert normalized.identity.conversation_id == "group-1"
 
 
+def test_normalize_message_event_prefers_group_id_over_session_id(
+    monkeypatch: pytest.MonkeyPatch,
+    enabled_config: SimpleNamespace,
+) -> None:
+    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
+    event = make_event(group_id=868258211)
+    event.get_session_id.return_value = "group_868258211_3128682634"
+
+    normalized = message_store.normalize_message_event(make_bot(), event)
+
+    assert normalized is not None
+    assert normalized.identity.conversation_id == "868258211"
+
+
 async def test_message_store_preprocessor_records_event(
     monkeypatch: pytest.MonkeyPatch,
     enabled_config: SimpleNamespace,
@@ -160,7 +175,7 @@ async def test_message_store_preprocessor_skips_unknown_adapter(
     assert captured == []
 
 
-async def test_message_store_preprocessor_skips_meta_event(
+async def test_message_store_preprocessor_records_meta_event(
     monkeypatch: pytest.MonkeyPatch,
     enabled_config: SimpleNamespace,
 ) -> None:
@@ -174,7 +189,16 @@ async def test_message_store_preprocessor_skips_meta_event(
 
     await message_store.message_store_preprocessor(make_bot(), event, {})
 
-    assert captured == []
+    assert len(captured) == 1
+    coro, name = captured[0]
+    assert name == "record_event_received"
+    await coro
+    record_event.assert_awaited_once()
+    record_args = record_event.await_args
+    assert record_args is not None
+    record_kwargs = record_args.kwargs
+    assert record_kwargs["event_type"] == "meta_event.heartbeat"
+    assert record_kwargs["event_category"] == "meta_event"
 
 
 async def test_message_store_preprocessor_swallows_database_errors(
@@ -208,6 +232,7 @@ async def test_run_postprocessor_updates_status(
         platform_id="qq",
         adapter_id="~milky",
         protocol_id=None,
+        framework_id="nonebot",
         bot_id="bot-1",
         conversation_id="group-1",
         message_id="msg-1",

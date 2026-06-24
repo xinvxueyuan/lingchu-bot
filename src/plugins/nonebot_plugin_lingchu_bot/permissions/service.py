@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..core.runtime_config import runtime_config
 from ..platforms import get_platform_profile, resolve_adapter_id
 from ..repositories import permissions as repo
 from .platforms import resolve_runtime_identity_groups
@@ -85,7 +86,11 @@ async def check_permission_for_context(
             matched_groups=frozenset({repo.SUPERUSERS_GROUP_ID}),
         )
 
-    direct_groups = set(context.runtime_group_ids)
+    direct_groups = (
+        set(context.runtime_group_ids)
+        if platform_runtime_passthrough_enabled(context)
+        else set()
+    )
     for membership in await repo.list_memberships(uid=context.uid):
         if _membership_matches_context(membership, context):
             direct_groups.add(membership.group_id)
@@ -110,6 +115,16 @@ async def check_permission_for_context(
             matched_groups=allowed_groups,
         )
     return PermissionDecision(allowed=False, reason="missing_grant", uid=context.uid)
+
+
+def platform_runtime_passthrough_enabled(context: PermissionContext) -> bool:
+    setting = runtime_config.permission_platform_runtime_passthrough
+    if isinstance(setting, bool):
+        return setting
+    platform_value = setting.get(context.platform_id)
+    if isinstance(platform_value, bool):
+        return platform_value
+    return True
 
 
 async def allowed_command_keys(
