@@ -125,6 +125,8 @@ def test_member_management_page_lists_member_commands_only() -> None:
     assert "踢出群成员" in rendered
     assert "拉黑群成员" in rendered
     assert "清空本群黑名单" in rendered
+    assert "拉白群成员" in rendered
+    assert "删除本群白名单" in rendered
     assert "设置群名片" in rendered
     assert "禁言群成员" not in rendered
     assert "设置群名称" not in rendered

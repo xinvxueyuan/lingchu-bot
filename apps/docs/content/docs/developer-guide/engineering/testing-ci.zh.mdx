@@ -94,8 +94,10 @@ Vitest 覆盖 `apps/docs/src/__tests__` 下的组件和库行为。Playwright �
 ## Markdown 检查
 
 ```bash
-pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" ".github/**/*.md"
+pnpm exec markdownlint-cli2
 ```
+
+glob 与 ignore 列表由仓库根目录的 `.markdownlint-cli2.jsonc` 统一配置，无需传入路径参数。
 
 ## 国际化检查
 

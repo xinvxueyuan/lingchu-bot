@@ -13,6 +13,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.runtime_config import (
     get_runtime_config,
     runtime_config_defaults,
 )
+from src.plugins.nonebot_plugin_lingchu_bot.core.schemas import CONFIG_SCHEMA_TEXT
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -228,6 +229,26 @@ def test_runtime_config_defaults_contain_schema_basename() -> None:
     assert defaults["$schema"] == CONFIG_SCHEMA_BASENAME
     assert "/" not in defaults["$schema"]
     assert "\\" not in defaults["$schema"]
+
+
+def test_runtime_config_defaults_contain_whitelist_gate_keys() -> None:
+    defaults = runtime_config_defaults()
+
+    assert "protected_subject_feature_keys" in defaults
+    assert set(defaults["protected_subject_feature_keys"]) >= {
+        "kick_member",
+        "block_member",
+        "global_block_member",
+        "member_mute",
+        "recall_message",
+        "remote_kick",
+        "remote_block",
+    }
+
+
+def test_runtime_config_schema_documents_whitelist_gate() -> None:
+    assert "protected_subject_feature_keys" in CONFIG_SCHEMA_TEXT
+    assert "handle whitelist gate" in CONFIG_SCHEMA_TEXT
 
 
 def test_runtime_config_user_schema_overrides_default(

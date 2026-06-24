@@ -140,20 +140,6 @@ LINGCHUAdapter=~onebot.v11
 
 If the same key appears in OS environment variables, dotenv, and `config.json5`, the OS environment variable wins.
 
-## Superuser identity settings
-
-Lingchu permissions use stable UIDs and platform account bindings instead of treating a platform account ID as the only identity. Configure the dedicated superuser mapping with JSON5:
-
-```dotenv
-LINGCHU_SUPERUSERS='{"userA":{"qq":123,"telegram":"tg-id","discord":"discord-id"}}'
-```
-
-The object key is the Lingchu UID. Each value maps platform IDs, such as `qq`, `telegram`, or `discord`, to that user's account ID on the platform.
-
-If `LINGCHU_SUPERUSERS` is missing, Lingchu imports NoneBot's native `SUPERUSERS` as QQ platform accounts and assigns generated UIDs from `user1` to `user999` in order. Startup fails when neither source is present, the value is not a UID-to-platform mapping, or a platform account is bound to multiple UIDs.
-
-SUPERUSERS always pass Lingchu command permission checks, but platform API restrictions and command-level safety checks still apply.
-
 ## Permission and trigger customization
 
 `permission_platform_runtime_passthrough` controls whether platform-side roles such as QQ group owner/admin/member can satisfy Lingchu permission grants through runtime identity groups. Set it to `false` to require explicit Lingchu memberships, or to an object such as `{ qq: false }` for platform-specific behavior.
@@ -174,67 +160,7 @@ Whitelist protection is configured through subject policy APIs and `protected_su
 
 ### Announcement image path bridge
 
-OneBot V11 group announcements use implementation-specific `_send_group_notice` APIs. NapCat currently reads the announcement `image` field as a filesystem path on the protocol side. When Lingchu Bot runs on Windows and NapCat runs in Docker Desktop, configure a shared directory and pass NapCat the container path:
-
-```dotenv
-ANNOUNCEMENT_IMAGE_CACHE_DIR=C:/dev/lingchu-bot/.local/napcat-announcement-images
-ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu/announcement-images
-```
-
-Mount the same host directory into the NapCat container:
-
-```yaml
-volumes:
-  - C:/dev/lingchu-bot/.local/napcat-announcement-images:/lingchu/announcement-images:ro
-```
-
-When these settings are unset, announcement images use the normal `cache_dir / "announcement_images"` path and preserve the previous same-filesystem behavior.
-
-## Adapter selection
-
-Lingchu Bot groups concrete adapters into platform capabilities. Only one adapter is enabled per platform by default. The current QQ platform priority is:
-
-1. `~onebot.v11`
-2. `~milky`
-3. `~qq`
-4. `~onebot.v12`
-
-When unset, QQ uses `~onebot.v11`. To select an adapter explicitly, set a global NoneBot configuration value:
-
-<Tabs items={['OneBot V11', 'Milky']}>
-  <Tab value="OneBot V11">
-
-```toml
-LINGCHUAdapter = "~onebot.v11"
-```
-
-Default selection. Make sure NoneBot has loaded the OneBot V11 adapter.
-
-  </Tab>
-  <Tab value="Milky">
-
-```toml
-LINGCHUAdapter = "~milky"
-```
-
-Requires the Milky adapter to be loaded by NoneBot.
-
-  </Tab>
-</Tabs>
-
-<Callout type="warn" title="Conflict prevention">
-
-Explicitly configuring multiple known adapters for the same platform fails startup:
-
-```toml
-LINGCHUAdapter = "~milky+~onebot.v11"
-```
-
-Lingchu Bot does not control which adapters NoneBot actually imports or registers; it only selects business code through `LINGCHUAdapter` and checks that the selected adapter has been loaded and registered by NoneBot.
-
-</Callout>
-
-An unknown adapter that does not belong to any platform profile is not considered enabled. Message storage still accepts its events, but writes the `platform` field as `unknown`. This gives downstream displays a stable Unknown bucket instead of treating the raw adapter name as a platform ID.
+For NapCat Docker announcement image path bridging, see [NapCat Docker](/docs/platforms/qq/frameworks/napcat-docker).
 
 ## Internationalization settings
 
@@ -275,3 +201,9 @@ LOCALSTORE_USE_CWD=true
 ```
 
 This means localstore-related directories prefer the current working directory, which is convenient for local development and debugging.
+
+## Related pages
+
+- [Environment Variables](/docs/user-guide/configuration/environment-variables) — .env variable reference
+- [Adapter Selection](/docs/user-guide/configuration/adapter-selection) — LINGCHUAdapter configuration
+- [Superuser Identity](/docs/user-guide/configuration/superuser) — LINGCHU_SUPERUSERS settings

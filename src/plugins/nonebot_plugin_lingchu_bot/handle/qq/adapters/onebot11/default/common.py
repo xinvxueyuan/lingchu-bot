@@ -13,8 +13,10 @@ from nonebot.adapters.onebot.v11.exception import (
 from nonebot_plugin_alconna.uniseg import At
 
 from ......core.runtime_config import runtime_config
+from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......permissions.subject_policy import find_active_subject_policy
+from ......repositories import permissions as permission_repo
 from ......repositories.blocklist import (
     BlocklistUpsert,
     BlockScope,
@@ -199,7 +201,7 @@ async def store_block_record(  # noqa: PLR0913
     )
 
 
-async def check_target_privilege(
+async def check_target_privilege(  # noqa: PLR0911
     bot: Onebot11Bot,
     event: Onebot11GroupMessageEvent,
     target_user_id: int,
@@ -210,6 +212,8 @@ async def check_target_privilege(
     如果目标用户是管理员或群主，且操作者不是群主或超级用户，则拒绝操作。
     """
     if await _is_protected_target(bot, event, target_user_id, cmd_matcher):
+        if await operator_is_superuser_onebot11(event.user_id):
+            return True
         await cmd_matcher.finish(await _("目标用户受白名单保护，无法执行"))
         return False
 
@@ -260,6 +264,19 @@ async def _is_protected_target(
         user_id=target_user_id,
     )
     return protected is not None
+
+
+async def operator_is_superuser_onebot11(operator_user_id: int) -> bool:
+    try:
+        user = await permission_repo.get_user_by_platform_account(
+            QQ_PLATFORM_ID,
+            str(operator_user_id),
+        )
+        uid = getattr(user, "uid", None) if user is not None else None
+        return bool(uid and await permission_repo.is_superuser(str(uid)))
+    except DatabaseError:
+        logger.exception("验证 SUPERUSERS 权限失败: user_id=%s", operator_user_id)
+        return False
 
 
 def _operator_can_manage_privileged_target(

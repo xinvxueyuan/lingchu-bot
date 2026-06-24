@@ -92,7 +92,7 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 ### Python Backend
 
 - Python 3.13，由 `uv` 管理
-- NoneBot2 + OneBot V11 适配器（Milky、QQ、OneBot V12 已停维，可通过 `tools/adapter_loader.py` 按需加载）
+- NoneBot2 + OneBot V11 适配器（Milky、QQ、OneBot V12 已停维并完全移除；`tools/adapter_loader.py` 为空映射存根）
 - `nonebot-plugin-alconna` 命令解析
 - `nonebot-plugin-orm`（aiosqlite）异步数据库
 - `nonebot-plugin-localstore` 文件存储
@@ -235,8 +235,8 @@ pnpm turbo run build --filter=docs               # 生产构建
 ### Markdown Lint
 
 ```bash
-pnpm exec markdownlint-cli2 {{.MD_GLOB}}         # 检查（MD_GLOB 见 Taskfile.yml）
-pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}   # 自动修复
+pnpm exec markdownlint-cli2                       # 检查（globs 见 .markdownlint-cli2.jsonc）
+pnpm exec markdownlint-cli2 --fix                 # 自动修复
 ```
 
 ### i18n
@@ -265,7 +265,7 @@ task ci                                          # check + test + build
 
 ## Git Hooks
 
-- **pre-commit**: 条件触发检查（v3 — 颗粒度化）— Prek auto-fix（始终）→ Markdownlint via `markdownlint-cli2`（`.md` 变更时，使用与 `Taskfile.yml` 的 `MD_GLOB` 相同的 glob）→ Ruff lint/format（Python 变更时）→ Pyright/ty（Python 变更时）→ pytest（Python 变更时）→ ESLint via `pnpm turbo run lint`（代码/样式/配置变更时 — `NEEDS_LINT`：docs `.ts`/`.tsx`/`.mjs`/`.mts`/`.css`/配置，packages `.ts`/`.tsx`/`.mjs`/`.mts`/`.js`/`.css`；纯 `.mdx`/`.json` 内容变更跳过）→ check-types via `pnpm turbo run check-types`（任意前端变更时 — `NEEDS_TYPE_CHECK`）→ Docs Vitest（docs 代码/内容/配置变更时 — `NEEDS_DOCS_TEST`；纯 `.css` 样式变更跳过）→ Docs Playwright Chromium 冒烟测试（任意 docs 变更时）→ React Doctor（仅 `.tsx` 变更时 — `NEEDS_REACT_DOCTOR`，优先全局/本地安装，回退到 `pnpm dlx` 缓存，最终兜底 `npx -y`）→ Gitnexus analyze（始终，非阻断，优先 `node_modules/.bin/gitnexus` 直接调用，零下载）
+- **pre-commit**: 条件触发检查（v3 — 颗粒度化）— Prek auto-fix（始终）→ Markdownlint via `markdownlint-cli2`（`.md` 变更时运行，globs 由 `.markdownlint-cli2.jsonc` 驱动）→ Ruff lint/format（Python 变更时）→ Pyright/ty（Python 变更时）→ pytest（Python 变更时）→ ESLint via `pnpm turbo run lint`（代码/样式/配置变更时 — `NEEDS_LINT`：docs `.ts`/`.tsx`/`.mjs`/`.mts`/`.css`/配置，packages `.ts`/`.tsx`/`.mjs`/`.mts`/`.js`/`.css`；纯 `.mdx`/`.json` 内容变更跳过）→ check-types via `pnpm turbo run check-types`（任意前端变更时 — `NEEDS_TYPE_CHECK`）→ Docs Vitest（docs 代码/内容/配置变更时 — `NEEDS_DOCS_TEST`；纯 `.css` 样式变更跳过）→ Docs Playwright Chromium 冒烟测试（任意 docs 变更时）→ React Doctor（仅 `.tsx` 变更时 — `NEEDS_REACT_DOCTOR`，优先全局/本地安装，回退到 `pnpm dlx` 缓存，最终兜底 `npx -y`）→ Gitnexus analyze（始终，非阻断，优先 `node_modules/.bin/gitnexus` 直接调用，零下载）
 - **commit-msg**: gitmoji + Conventional Commits 格式校验 + 自动追加 Signed-off-by（含 trailer 块检测）
 - **prepare-commit-msg**: 通过 `node_modules/.bin/gitmoji --hook` 直接启动交互式 gitmoji（零 pnpm/npx 开销；若本地缺失则回退 npx / 全局 gitmoji）
 - **CLI 解析顺序**（所有 hooks 统一）：本地 `node_modules/.bin/<bin>` → 全局 PATH → 全局 `.cmd` shim → `pnpm dlx` 缓存（对非 devDep 工具的最终兜底：`npx -y`）
@@ -344,13 +344,13 @@ Use conventional commit + gitmoji: `✨ feat:`, `🐛 fix:`, `📝 docs:`, `⚡ 
 
 GitHub Actions runs on push to `main`/`dev` and on PRs:
 
-- **🧪 CI**: Change detection job (`changes`) outputs boolean flags per file type (python/markdown/frontend/frontend-code/frontend-style/frontend-content/frontend-tsx), then conditionally runs downstream jobs — Static analysis (Ruff + Markdown + Turborepo lint, on Python or markdown changes), Tests & type check (Pyright + ty + pytest, on Python changes), Docs check (ESLint on code/style, check-types on any frontend, link validation on content, Vitest on code/content — aligned with pre-commit v3 `NEEDS_LINT`/`NEEDS_TYPE_CHECK`/`NEEDS_DOCS_TEST`). Auto-format on push to main/dev. Test jobs install `--extra deprecated-adapters` so test files importing optional dependencies (Milky adapter) can resolve.
+- **🧪 CI**: Change detection job (`changes`) outputs boolean flags per file type (python/markdown/frontend/frontend-code/frontend-style/frontend-content/frontend-tsx), then conditionally runs downstream jobs — Static analysis (Ruff + Markdown + Turborepo lint, on Python or markdown changes), Tests & type check (Pyright + ty + pytest, on Python changes), Docs check (ESLint on code/style, check-types on any frontend, link validation on content, Vitest on code/content — aligned with pre-commit v3 `NEEDS_LINT`/`NEEDS_TYPE_CHECK`/`NEEDS_DOCS_TEST`). Auto-format on push to main/dev. Test jobs install `--extra deprecated-adapters` so test files importing optional dependencies（提供 `nonebot-adapter-qq`）can resolve.
 - **🎭 Playwright**: Docs E2E workflow for `apps/docs` and `packages` changes. It installs Playwright browsers with system dependencies, runs `pnpm --filter docs run test:e2e`, and uploads HTML report / trace artifacts.
 - **👷 CI-builds**: Build verification on Python/package changes
 - **📚 Docs Deploy**: Build and deploy to GitHub Pages on push to main/dev
 - **🩺 React Doctor**: React codebase health check on PRs (uses CLI, not the action — see Lessons Learned)
 - **🧹 Clear Workflow**: Stale workflow cleanup
-- **🏷️ Issues Top**: Issue triage automation
+- **🏷️ Top Issues**: Issue triage automation
 
 ## 硬约束
 
@@ -394,7 +394,7 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 ### 配置管理
 
 - **Pre-commit hooks**：`prek.toml` 是 pre-commit hook 配置的唯一真实来源。已移除遗留的 `.pre-commit-config.yaml` —— 不要重新引入。
-- **版本同步**：`Taskfile.yml` 的 `ci:version:write-config` 任务将项目版本写入 `src/plugins/nonebot_plugin_lingchu_bot/core/config.py`（Python `__version__`）和 `apps/docs/package.json`（`version` 字段）。升级版本时运行此任务，而非手动编辑文件。
+- **版本同步**：`Taskfile.yml` 的 `ci:version:write-config` 任务将项目版本写入 `src/plugins/nonebot_plugin_lingchu_bot/core/config.py`（Python `core_version`）和根目录 `package.json`（`version` 字段）。升级版本时运行此任务，而非手动编辑文件。
 - **JSON Schemas**：JSON Schema 定义以 Python 字符串字面量形式存储在 `src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py`（`CONFIG_SCHEMA_TEXT` / `BOT_STATE_SCHEMA_TEXT`）。启动时 `install_schemas()` 将其写入 `nonebot_plugin_localstore` 管理的 `config_dir` / `data_dir`，分别生成 `config.schema.json5` / `bot_state.schema.json5`，与对应运行时 JSON5 文件同级。`runtime_config.py` / `bot_state.py` 注入的 `$schema` 字段为**纯 basename**，编辑器据此定位同级 schema。运行时校验完全由 Pydantic 模型（`RuntimeConfig` / `bot_state`）承担；schema 文件仅服务于编辑器工具链。路径由 `nonebot_plugin_localstore` 统一管理——**禁止**硬编码 `c:\dev\lingchu-bot\schema/`，也**禁止**使用 `importlib.resources` / wheel data 维护 schema 资源。
 - **Skills 排除列表同步**：`pyproject.toml` 中的 skills 排除列表有注释标注 "skills 排除列表同步至 prek.toml" —— 更新一个配置的排除模式时，需同步另一个。
 
@@ -410,10 +410,11 @@ When modifying business logic (especially adapter-layer code), changes MUST prop
 2. **Tests** — `tests/` (add/update tests for new behavior, remove tests for deleted behavior)
 3. **i18n** — `src/plugins/nonebot_plugin_lingchu_bot/i18n/` (run `task i18n` if user-facing strings change)
 4. **Docs** — `apps/docs/content/docs/`:
-   - `platforms/qq/commands.mdx` (and `.zh.mdx`) — Full command reference
+   - `platforms/qq/command-reference.mdx` (and `.zh.mdx`) — Full command reference
    - `platforms/qq/<protocol>/<implementation>.mdx` — Implementation-specific docs
    - `user-guide/commands.mdx` — High-level overview (only if menu structure changes)
-   - `developer-guide/introduction.mdx` — Project structure (only if source layout changes)
+   - `user-guide/configuration/` — 配置子目录（环境变量或配置字段变更时更新 `index.mdx`、`environment-variables.mdx`、`adapter-selection.mdx` 或 `superuser.mdx`）
+   - `developer-guide/architecture/introduction.mdx` — Project structure (only if source layout changes)
 5. **Menu** — `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py` (update `MENU_FEATURES` when adding/removing/modifying command handlers: command key, usage text, summary, availability)
 6. **Triggers** — `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` (add command triggers for new commands)
 7. **AGENTS.md** — Update Project Directory Tree and Lessons Learned if structure or conventions change
@@ -436,6 +437,10 @@ At the end of every conversation that involves code changes, review what went wr
 
 群命令触发词按 locale 互斥启用。不要为同一个 matcher 同时注册中文和英文命令触发词。应通过 i18n locale 解析辅助（`LINGCHU_LOCALE`、`lc_locale`、`locale` 经 `get_configured_locale()`）在命令注册时选择一种触发语言，并确保未选中的语言不会进入 `aliases`。
 
+### Babel Fuzzy Translations
+
+运行 `task i18n` 后，检查 `i18n/locales/*/LC_MESSAGES/messages.po` 中新增或变更的条目。`pybabel update` 可能会把相似的新消息标记为 `fuzzy` 并复制旧的 `msgstr`；编译前要清除 fuzzy 标记并写入准确翻译。
+
 ### Layered Menu Commands
 
 将菜单分类升级为独立命令时，注册分类 matcher 前必须审计它是否与现有功能命令别名冲突。顶层 `菜单` / `menu` 应保持为索引入口，并与分类页分别测试，这样功能过滤断言才会落在实际渲染功能行的页面上。
@@ -446,14 +451,14 @@ At the end of every conversation that involves code changes, review what went wr
 
 ### Adapter API Differences
 
-Same-named APIs return different types across adapters:
+Same-named APIs return different types across adapters（Milky 列为历史记录——Milky 源码已完全移除）：
 
-| API | OneBot V11 | Milky |
+| API | OneBot V11 | Milky（已移除） |
 | --- | ---------- | ----- |
 | `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
 | `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
 
-The project uses `platforms/registry.py` to unify adapters under a single "QQ" platform profile. Only OneBot V11 is now active; Milky, QQ, and OneBot V12 are deprecated and removed from the startup flow. QQ and OneBot V12 source files are preserved with `DEPRECATED = True` markers and can be loaded on demand via `tools/adapter_loader.py`; the Milky adapter has been fully removed. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,llonebot,napcat}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+The project uses `platforms/registry.py` to unify adapters under a single "QQ" platform profile. Only OneBot V11 is now active; Milky, QQ, and OneBot V12 are deprecated and removed from the startup flow. All deprecated adapter source files have been fully removed — `tools/adapter_loader.py` exists as a stub with empty module mappings (`_DEPRECATED_ADAPTER_MODULES = {}`), and deprecated adapter IDs are tracked in `_DEPRECATED_ADAPTER_IDS` in `registry.py`. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,napcat}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
 
 ### Function Signature Changes
 
@@ -494,7 +499,7 @@ When removing functions/helpers:
 ### Mock Object Patterns for Adapter Models
 
 - OneBot V11 returns `dict` → mock with `return_value={}`
-- Milky returns pydantic `Model` objects → mock with `MagicMock(card="", nickname="")` so attribute access works
+- Milky returned pydantic `Model` objects → mock with `MagicMock(card="", nickname="")` so attribute access works (historical — Milky source has been fully removed)
 - Never use `dict` as mock return value for APIs that return Model objects — attribute access (`obj.card`) will raise `AttributeError`
 
 ### Python Package Directory Names
@@ -509,13 +514,13 @@ When removing functions/helpers:
 
 ### CI 工作流项目引用
 
-- 当工作区包被禁用或移除时，**所有引用它的 CI 工作流都必须更新**。例如，React Doctor 的 `--project docs,web` 标志在 `web` 没有 React 源码时会失败。
+- 当工作区包被禁用或移除时，**所有引用它的 CI 工作流都必须更新**。例如，React Doctor 的 `--project` 标志在引用的项目没有 React 源码时会失败（`web` 工作区此前已移除；当前代码仅使用 `--project docs`）。
 - **规则**：任何工作区包变更（禁用、移除、重命名）后，grep 所有工作流文件查找对该包名的引用并更新。
 
 ### Markdown 表格对齐（MD060）
 
 - `markdownlint-cli2` v0.22+ 强制执行 MD060（表格列样式）。默认样式 `aligned` 要求视觉上的管道符对齐，但对 CJK 字符并不可靠，因为字符显示宽度（CJK 为 2 列）与字符数（源码中每个 CJK 字符为 1）不一致。
-- **修复**：在 `.markdownlint.jsonc` 中将 MD060 样式设为 `consistent` —— 这只要求每列的管道符在所有行的相同字符位置出现，不要求视觉对齐。这对纯 ASCII 和 CJK/拉丁混合表格都能正确工作。
+- **修复**：在 `.markdownlint-cli2.jsonc` 中将 MD060 样式设为 `consistent` —— 这只要求每列的管道符在所有行的相同字符位置出现，不要求视觉对齐。这对纯 ASCII 和 CJK/拉丁混合表格都能正确工作。
 - **不要**完全禁用 MD060 —— `consistent` 样式仍能捕获真正的格式错误（缺失管道符、列数不一致），同时避免 CJK 宽度不匹配导致的误报。
 
 ### Git Hooks Optimization
@@ -533,15 +538,16 @@ When removing functions/helpers:
 - Hook 顶部应集中解析工具命令。对于 `pnpm.cmd`、`npx.cmd` 这类 Windows `.cmd` Node shim，应通过 `cmd.exe /c` 调用；在 Bash 中直接执行 `.cmd` 文件可能静默跳过检查，或输出误导性的 `node` 错误。
 - 用暂存区文件决定检查范围时，不要吞掉 `git diff --cached` 失败。如果 hook shell 中没有可用的 `git`，应明确失败，而不是把暂存文件列表当成空。
 
-### PowerShell Markdownlint Glob
+### PowerShell Markdownlint 调用
 
-- 通过 `pwsh.exe -NoProfile -Command` 运行 `markdownlint-cli2` 时，glob 参数必须按目标 shell 实际接收的形式传入；错误的嵌套或转义引号会把 glob 变成异常路径，让 Node 扫描远超预期的内容。将 markdownlint 超时视为 lint 失败前，优先使用 Taskfile 命令或已验证的直接命令形式。
+- `markdownlint-cli2` 无需传入 glob 参数——文件发现完全由根目录的 `.markdownlint-cli2.jsonc` 配置文件的 `globs` 和 `ignores` 属性驱动。优先使用 Taskfile 命令（`task markdownlint` / `task markdownlint:fix`）调用，避免在 PowerShell 中手动拼接 glob 字符串时出现嵌套引号或转义问题。
 
-### Markdownlint 按目录覆盖
+### Markdownlint 统一配置
 
-- `markdownlint-cli2` 支持分层配置：子目录中的 `.markdownlint.jsonc` 文件覆盖该目录下文件的根配置。
-- **重要**：子目录的 `.markdownlint.jsonc` 会**替换**（而非合并）根配置的规则。必须在子目录配置中包含所有根设置（如 `MD013: false`、`MD033: false`、`MD041: false`、`MD060` 配置），再加上额外的规则抑制。
-- `.github/.markdownlint.jsonc` 为 `.github` 文档禁用了 MD022（标题周围空行）和 MD032（列表周围空行），因为 AGENTS-zh.md 中的 CJK 内容频繁触发这些规则但并无实际格式问题。
+- 所有 markdownlint 配置（规则 + globs + ignores）集中在仓库根目录的单一 `.markdownlint-cli2.jsonc` 文件中，不再有子目录级别的 `.markdownlint.jsonc` 覆盖。
+- 所有调用方（Taskfile、husky pre-commit、CI）无参调用 `markdownlint-cli2`——由配置文件的 `globs` 和 `ignores` 属性驱动文件发现。
+- 要向 lint 范围添加新目录，编辑 `.markdownlint-cli2.jsonc` 的 `globs` 数组；要排除路径，编辑 `ignores` 数组。
+- MD022（标题周围空行）和 MD032（列表周围空行）全局启用——CJK 内容必须在标题和列表周围使用正确的空行。
 
 ### Husky Hook 中的 CLI 解析
 
@@ -567,13 +573,13 @@ When removing functions/helpers:
 
 When adding, moving, or renaming files or directories, verify that CI and lint configurations still cover them. Check and update:
 
-1. **Markdown lint** — `markdownlint-cli2` glob patterns in `Taskfile.yml` and `package.json` scripts
+1. **Markdown lint** — `markdownlint-cli2` 的 globs 在 `.markdownlint-cli2.jsonc` 中
 2. **ESLint / TypeScript** — `tsconfig.json` includes, `eslint.config` overrides, Vitest coverage paths
 3. **Ruff / Pyright / ty** — `pyproject.toml` source paths and exclusion patterns
 4. **GitHub Actions** — trigger paths in `on.push.paths` / `on.pull_request.paths`
 5. **GitNexus** — re-analyze if new source directories are introduced
 
-Example: adding `.github/note/` required updating the `markdownlint-cli2` glob to include `.github/**/*.md` (already covered), but if the directory had been `.github/notes/` or a new top-level `legal/` dir, the lint command would have silently skipped it.
+Example: adding `.github/note/` required updating the `globs` array in `.markdownlint-cli2.jsonc` to include `.github/**/*.md` (already covered), but if the directory had been `.github/notes/` or a new top-level `legal/` dir, the lint command would have silently skipped it.
 
 ### Multi-Language File Synchronization
 
@@ -679,9 +685,9 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 - **5+ 个 OneBot V11 handler 文件中的代码重复**通过将共享辅助函数和常量收口到 `onebot11/default/common.py` 解决（`bot_self_id_safe()`、`bot_id()`、`default_block_reason()`、`default_admin_reason()`、`check_self_target()`、`store_block_record()`、`check_target_privilege()`、`check_bot_privilege()`、`record_command_audit()`；常量 `QQ_PLATFORM_ID`、`ONEBOT_V11_ADAPTER_ID`、`MUTE_DURATION_MIN`、`MUTE_DURATION_MAX`）。
 - **缺少审计记录**通过新增 `record_command_audit()` 解决 —— 每个管理命令在执行成功后都会记录操作者、目标、动作和原因。
 - **缺少权限预检**通过新增 `check_target_privilege()`（防止对管理员/群主操作）和 `check_bot_privilege()`（防止调用机器人无权限的 API）解决。
-- **适配器停维**（Milky、QQ、OneBot V12）通过从 `platforms/registry.py` 和启动钩子流程（`handle/qq/adapters/__init__.py`、`handle/menu.py`）中移除来解决，同时保留源码文件并添加 `DEPRECATED = True` 标记和停维说明 docstring。
-- **复用需求**通过独立的 `tools/adapter_loader.py` 模块解决，提供 `load_deprecated_adapter()`、`load_and_init_deprecated_adapter()` 和 `list_deprecated_adapters()` 用于按需加载，不参与正常启动流程。
-- **关键经验**：停维适配器时，应将其移出启动流程但保留源码并添加停维标记；提供独立的加载工具用于按需访问。收口重复 handler 逻辑时，应将共享辅助函数提取到单一 `common.py` 模块，而非在各 handler 文件中保留副本。
+- **适配器停维**（Milky、QQ、OneBot V12）通过从 `platforms/registry.py` 和启动钩子流程（`handle/qq/adapters/__init__.py`、`handle/menu.py`）中移除来解决。所有停维适配器源码已完全移除；`tools/adapter_loader.py` 作为空映射存根保留，停维适配器 ID 在 `registry.py` 的 `_DEPRECATED_ADAPTER_IDS` 中跟踪。
+- **复用需求**通过独立的 `tools/adapter_loader.py` 模块解决，提供 `load_deprecated_adapter()`、`load_and_init_deprecated_adapter()` 和 `list_deprecated_adapters()` 用于按需加载，不参与正常启动流程。模块映射现已为空（`_DEPRECATED_ADAPTER_MODULES = {}`）。
+- **关键经验**：停维适配器时，应将其移出启动流程并完全移除源码；在中心 frozenset 中跟踪停维适配器 ID 用于运行时停维检查。收口重复 handler 逻辑时，应将共享辅助函数提取到单一 `common.py` 模块，而非在各 handler 文件中保留副本。
 
 ### 权限 API 集成与停维强制提示
 
@@ -691,13 +697,15 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 - 关键经验：停维功能时应提供清晰的退出时反馈而非静默移除；权限门禁依赖被动事件数据时，应添加主动 API 验证作为回退。
 
 ### CI 可选依赖类型检查与 i18n 维护
+
 - 将依赖移至 `[project.optional-dependencies]`（如 `deprecated-adapters`）后，CI 测试任务必须使用 `uv sync --frozen --extra deprecated-adapters` 安装——否则导入这些包的测试文件会因 `ImportError` 失败。
-- `pyproject.toml` 中的 Pyright/ty 排除列表必须包含停维适配器源码目录（如 `src/.../handle/qq/adapters/milky`）——否则类型检查会因静态分析环境中未安装的包而报 `reportMissingImports` 错误。
+- Milky 适配器源码已删除，`pyproject.toml` 中的 Pyright/ty 排除条目 `src/.../handle/qq/adapters/milky` 已随之移除。
 - **`pybabel update` 行为**：自动将已删除的字符串标记为废弃（`#~` 前缀），并为相似 msgid 的条目添加 `fuzzy` 标记。运行 `pybabel update` 后，需手动检查 fuzzy 条目，移除 `fuzzy` 标记并修正翻译。
 - **过期 msgid 处理**：当函数签名变更（如从格式字符串中移除 `reason` 参数）时，旧 msgid 变为过期。`pybabel update` 会检测相似性并创建 fuzzy 条目，但 msgstr 必须手动更新以匹配新 msgid。
 - **关键经验**：停维含 i18n 字符串的代码时，代码变更后须运行 `task i18n` 提取/更新翻译。检查 fuzzy 条目和废弃条目。从类型检查中排除目录时，须同时添加到 `[tool.pyright]` 和 `[tool.ty.src]` 排除列表。
 
 ### OneBot V11 图片类 API 文件字段格式
+
 - NapCat / OneBot V11 图片类 API（如 `set_group_portrait`）的 `file` 字段要求 `http(s)://`、`base64://` 或 `file://` 格式，直接传入裸本地路径（如 `C:\...` 或 `/tmp/...`）会被拒绝（`retcode=1200`, `file字段可能格式不正确`）。
 - **修复**：将本地文件读取为 bytes，base64 编码后以 `base64://<encoded>` 格式传入。选择 `base64://` 而非 `file://` 的原因：bot 与 NapCat 可能运行在不同容器/文件系统中，`base64://` 在所有部署场景下都能工作。
 - **异步文件 I/O**：在 async 函数中读取文件应使用 `await asyncio.to_thread(path.read_bytes)` 避免 `ASYNC240` 违规；直接调用 `path.read_bytes()` 会被 ruff 标记。
@@ -710,7 +718,6 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 
 | 内容                                                    | 位置                                   | 抑制原因                                                                                                                             | 回退条件                                                                                                     |
 | ------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Pyright/ty 排除 `src/.../adapters/milky` | `pyproject.toml` `[tool.pyright]` 和 `[tool.ty.src]` | Milky 适配器移至可选依赖；静态分析环境未安装，导致 `reportMissingImports` | **回退条件已满足**：Milky 适配器已完全删除，需从 `pyproject.toml` 排除列表中移除该条目 |
 | `deslop/unused-export: "off"`                           | `doctor.config.ts`                     | `mdx.tsx` 中的 `useMDXComponents` 是框架必需的重导出，但当前未被消费（`source.config.ts` 未配置 `providerImportSource`）               | 当 `useMDXComponents` 被实际消费后移除此抑制（如添加 `providerImportSource` 到 `source.config.ts` 或在其他地方导入它） |
 | 使用 CLI 而非 `millionco/react-doctor@v2` action        | `.github/workflows/🩺-react-doctor.yml`   | 上游 action 存在 bug：detached HEAD、ANSI 泄漏到 PR 评论（PR #80 待合并）                                                             | 上游修复发布后切换回 action（关注 PR #80）                                                                     |
 
@@ -729,13 +736,14 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 |------|--------------|----------|
 | Ruff | `uv run -m ruff check --fix .` | 导入排序（I001）、未使用导入（F401）、未使用变量、简单样式违规 |
 | Ruff format | `uv run -m ruff format .` | 代码格式化（行长度、空白、引号） |
-| Markdownlint | `pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}` | Markdown 格式化（MD060、MD009 等） |
+| Markdownlint | `pnpm exec markdownlint-cli2 --fix` | Markdown 格式化（MD060、MD009 等） |
 | ESLint | `pnpm --filter docs lint --fix` | JS/TS lint 问题（未使用变量、格式化） |
 | Prek | `prek run --all-files` | 依次运行所有 pre-commit 自动修复器 |
 
 <Callout type="warn" title="自动修复无法处理的内容">
 
 自动修复工具仅处理**机械性**问题。它们无法修复：
+
 - 逻辑错误（TRY300 —— 将 return 移到 else 块需要理解控制流）
 - 复杂度问题（PLR0911、PLR0913、C901 —— 需要提取辅助函数）
 - 类型不匹配（Pyright/ty —— 需要理解预期类型）
@@ -746,6 +754,7 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 </Callout>
 
 **工作流：**
+
 1. 先运行 `uv run -m ruff check --fix .` —— 修复导入和简单样式问题
 2. 运行 `uv run -m ruff format .` —— 应用格式化
 3. 运行 `uv run -m pyright .` 和 `uv run -m ty check` —— 识别剩余的类型/逻辑问题
@@ -759,6 +768,7 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 8 个远程管理命令（`远程禁言`、`远程解禁`、`远程全体禁言`、`远程全体解禁`、`远程踢出`、`远程拉黑`、`远程删黑`、`远程公告`）仅支持 OneBot V11。它们定义在 `handle/qq/commands/remote.py`（Alconna matchers）中，实现于 `handle/qq/adapters/onebot11/default/remote.py`（handlers）。
 
 关键行为：
+
 - **群号解析**：`<群号|群名称>` 接受 `int`（直接）、数字 `str`（解析为 int）或非数字 `str`（通过 `get_group_list` 模糊匹配）。精确名称匹配优先；子串包含为回退。多个匹配时触发 `cmd_matcher.finish` 要求更精确的标识符。
 - **上下文校验**：执行前，机器人检查自己在目标群中、具有管理员角色（对大多数命令）、目标用户在群中，且目标不是机器人或发送者。
 - **远程踢出需要黑名单**：`远程踢出` 仅对已在黑名单中的用户生效。需先使用 `远程拉黑`。
@@ -773,7 +783,7 @@ Rule of thumb: **when a CI check fails or you need to do something repetitive, f
 3. 如果创建新菜单页（如 `remote-management` 这样的顶层分类），在 `MENU_PAGES` 中添加 `MenuPage` 条目，并确保它有用于子菜单触发词的 `command` 字段。
 4. 更新 `tests/handle/commands/test_command_triggers.py` 中的 `EXPECTED_TRIGGERS` 以包含新触发词。
 5. 更新 `tests/handle/commands/test_menu.py` 中的菜单测试，覆盖新功能在不同适配器/实现上下文下的可见性。
-6. 更新 `apps/docs/content/docs/platforms/qq/commands.mdx`（及 `.zh.mdx`）中的新命令参考。
+6. 更新 `apps/docs/content/docs/platforms/qq/command-reference.mdx`（及 `.zh.mdx`）中的新命令参考。
 
 ### 文档站点结构：平台 → 协议 → 实现
 
@@ -784,20 +794,23 @@ platforms/
 ├── index.mdx              # 层模型概览（平台 → 协议 → 实现）
 └── qq/                    # QQ 平台
     ├── overview.mdx       # 协议优先级、实现矩阵
-    ├── commands.mdx       # 完整 QQ 命令参考（含远程管理）
+    ├── frameworks/        # 协议端运行框架（按实现拆分）
+    │   ├── index.mdx               # 框架对比与端口分配
+    │   ├── napcat-docker.mdx       # NapCat Docker 部署 + 群公告图片路径穿透
+    │   └── snowluma-docker.mdx     # SnowLuma Docker 部署
+    ├── command-reference.mdx  # 完整 QQ 命令参考（含远程管理）
     └── onebot-v11/        # OneBot V11 协议
         ├── overview.mdx   # 协议概览、运行时检测
         ├── default.mdx    # 默认实现（核心命令 + 远程管理）
         ├── napcat.mdx     # NapCat 扩展（公告 + 头像）
-        └── llonebot.mdx   # LLOneBot 扩展（公告）
 ```
 
 `user-guide/commands.mdx` 现在是高层概览，链接到平台特定页面而非重复命令详情。添加新命令或更改可用性时：
 
-1. 更新 `platforms/qq/commands.mdx`（及 `.zh.mdx`）的完整命令参考
+1. 更新 `platforms/qq/command-reference.mdx`（及 `.zh.mdx`）的完整命令参考
 2. 如果命令是实现特定的，更新相关实现页面（如 `platforms/qq/onebot-v11/napcat.mdx`）
 3. 仅在高层菜单结构或过滤规则变更时更新 `user-guide/commands.mdx`
-4. 如果项目源码结构变更，更新 `developer-guide/introduction.mdx`
+4. 如果项目源码结构变更，更新 `developer-guide/architecture/introduction.mdx`
 
 ### Docs CI 和单元测试覆盖
 
@@ -807,7 +820,7 @@ platforms/
 
 2. **`fumadocs-mdx` node loader 无法处理图片资源**：`lint:links` 脚本使用 `fumadocs-mdx/node` 的 `register()` 加载 MDX 文件以进行链接验证。当 MDX 文件导入 `.png`/`.jpg`/`.svg` 时，loader 的 `load` 钩子会调用 `nextLoad`，到达 Node 默认加载器并抛出 `ERR_UNKNOWN_FILE_EXTENSION`。解决方法是通过 `node:module` 的 `module.registerHooks()`（Node.js 23+）注册一个 `load` 钩子，对图片文件扩展名返回 `export default undefined;`。在 `scripts/lint.mts` 顶部、导入 `fumadocs-mdx/node` 之前添加此钩子。
 
-3. **`next-validate-link` 从根索引页的 URL 解析**：根索引页（如 `platforms/index.mdx`）的 URL 没有尾部斜杠（`/docs/platforms`），因此相对链接如 `./qq` 会解析为 `/docs/qq` 而非 `/docs/platforms/qq`。从根索引页链接时应使用绝对 URL（如 `/docs/platforms/qq/overview`）。目录链接（如 `./onebot-v11`）必须包含具体页面后缀（`./onebot-v11/overview`）——纯目录链接无法通过验证。
+3. **`next-validate-link` 从根索引页的 URL 解析**：根索引页（如 `platforms/index.mdx`）的 URL 没有尾部斜杠（`/docs/platforms`），因此相对链接如 `./qq` 会解析为 `/docs/qq` 而非 `/docs/platforms/qq`。从根索引页链接时应使用绝对 URL（如 `/docs/platforms/qq/overview`）。目录链接（如 `./onebot-v11`）必须包含具体页面后缀（`./onebot-v11/overview`）——纯目录链接无法通过验证。从同级页面链接到索引页（如 `superuser.mdx` 中的 `./index`）同样会失败，因为索引页的 URL 不包含 `/index` 段——应使用绝对目录 URL（如 `/docs/user-guide/configuration`）。
 
 4. **提取共享函数以提高可测试性**：当函数（如 `provider.tsx` 中的 `switchLocale`）定义在 React 组件文件内时，单元测试要么无法导入它，要么必须复制逻辑（从而偏离真实实现）。应将此类函数提取到独立模块（如 `src/lib/locale.ts`），组件和测试都从该模块导入。这确保测试验证的是真实导出，而非过时副本。
 

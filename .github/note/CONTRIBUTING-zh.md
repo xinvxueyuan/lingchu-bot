@@ -19,6 +19,64 @@ task install
 
 开始前请阅读 [README.md](../../README.md)、[Repository-Policy.md](../../Repository-Policy.md) 和 [CODE_OF_CONDUCT.md](../../CODE_OF_CONDUCT.md)。提交媒体、截图或示例数据时，遵守仓库策略中的许可和脱敏要求。
 
+## 本地开发环境搭建
+
+### 前置条件
+
+- Python 3.13（由 `uv` 管理）
+- Node.js 22+ 和 pnpm（用于文档站和前端工作区）
+- git
+
+### 分步搭建
+
+1. 克隆仓库并进入项目目录：
+
+   ```bash
+   git clone https://github.com/xinvxueyuan/lingchu-bot.git
+   cd lingchu-bot
+   ```
+
+2. 使用 `uv` 安装 Python 依赖：
+
+   ```bash
+   uv sync --frozen
+   ```
+
+3. 使用 `pnpm` 安装 Node.js 依赖：
+
+   ```bash
+   pnpm install --frozen-lockfile
+   ```
+
+4. 或使用 Taskfile 一次性安装两者：
+
+   ```bash
+   task install
+   ```
+
+5. 将 `.env.example` 复制为 `.env`，并根据你的环境调整配置值：
+
+   ```bash
+   cp .env.example .env
+   ```
+
+6. 安装 Git hooks（husky）：
+
+   ```bash
+   pnpm exec husky
+   ```
+
+   这通常由 `pnpm install` 自动安装。通过检查 `.husky/` 是否存在来验证 hooks 是否已激活。
+
+7. 运行检查以验证环境：
+
+   ```bash
+   task check
+   task test
+   ```
+
+   如果两者都通过，开发环境即准备就绪。
+
 ## 工具链
 
 - `Taskfile.yml`：统一封装安装、检查、测试、构建、修复、版本和 i18n 流程。
@@ -87,7 +145,7 @@ pnpm turbo run build --filter=docs
 Markdown 检查：
 
 ```bash
-pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" ".github/**/*.md"
+pnpm exec markdownlint-cli2
 ```
 
 需要自动修复格式时，优先对相关文件运行聚焦命令，避免把无关文件卷进 PR：
@@ -105,6 +163,11 @@ uv run -m ruff check --fix path/to/file.py
 - 未知异常不要随意吞掉；只捕获能明确处理并能给用户可读反馈的异常。
 - 注释应解释不明显的原因或约束，不重复代码本身。
 - 文档改动应简洁、可执行，避免和 CI、Taskfile 或实际目录结构不一致。
+- Python 代码遵循 Ruff 规则（见 `pyproject.toml` 的 `[tool.ruff]`）。提交前运行 `uv run -m ruff check .` 和 `uv run -m ruff format --check .`。
+- TypeScript 代码遵循 ESLint 规则（见 `packages/eslint-config/`）。提交前运行 `pnpm turbo run lint`。
+- 函数签名参数数量应 ≤ 5（Ruff `PLR0913`）。如有需要，将相关参数合并为单个对象。
+- 测试文件必须避免硬编码模块路径；改用直接对象引用。
+- 迁移文件时，更新所有依赖引用（测试、i18n、文档、配置）以反映新路径。
 
 ## 提交规范
 
@@ -129,6 +192,14 @@ PR 描述应包含：
 - 关联 Issue，例如 `Closes #123`。
 - 任何未完成事项、已知风险或需要维护者确认的取舍。
 
+### PR 命名规范
+
+- PR 标题使用 `<type>(<scope>): <subject>` 格式，与提交信息风格一致（不含 gitmoji 前缀）。
+- PR 标题控制在 50 字符以内。
+- 使用小写 scope 名称：`auth`、`db`、`api`、`i18n`、`docs`、`frontend`、`core`、`handle`、`platforms`、`permissions`、`repositories`、`services`、`tests`。
+- 在 PR 描述中使用 `Closes #123` 或 `Fixes #123` 关联相关 Issue。
+- 破坏性变更在 type/scope 后加 `!`，并在 PR 正文中说明破坏性变更内容。
+
 ## CI 与失败处理
 
 - PR 会触发 GitHub Actions；`main` 和 `dev` 的 push 也会触发主要 CI。
@@ -138,6 +209,20 @@ PR 描述应包含：
 - `main` 和 `dev` push 上的 auto-format job 会运行 `task ci:fix` 并可能自动提交格式修复。
 
 如果 CI 失败，先打开失败 job 的日志，定位具体命令、规则和行号。修 CI 时只改导致失败的最小范围，并重新跑对应本地命令验证。
+
+## 代码审查流程
+
+1. **自审**：请求审查前，重新阅读你的 diff，确认每处改动都是有意的。
+2. **自动化检查**：CI 必须通过。如果检查失败，修复根本原因，而不是抑制警告。
+3. **审查者分配**：维护者根据改动区域分配审查者。至少需要一位审查者批准。
+4. **审查标准**：
+   - 改动最小且聚焦于既定目标。
+   - 测试覆盖新行为、错误分支和边界情况。
+   - 没有无关的重构或格式化改动。
+   - 公共接口、配置和数据结构变更已文档化。
+   - 代码改动包含 GitNexus 影响分析。
+5. **回应反馈**：回复每条评论。以新提交方式推送修复（审查期间不要 force-push，除非被要求）。
+6. **合并**：维护者在审查通过且 CI 通过后合并 PR。默认采用 squash-merge 策略。
 
 ## Issue 与沟通
 

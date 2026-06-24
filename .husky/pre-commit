@@ -156,8 +156,8 @@ HAS_DOCS_CONFIG=false   # 配置文件（next.config.mjs/tsconfig.json 等），
 HAS_PACKAGES_CODE=false   # .ts/.tsx/.mjs/.mts/.js/.css — 代码/样式文件
 HAS_PACKAGES_CONFIG=false # .json — 配置文件（含嵌套路径）
 
-# markdownlint-cli2 glob，与 Taskfile.yml 的 MD_GLOB 保持一致
-MD_LINT_GLOB=("apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" "SECURITY.md" ".github/**/*.md")
+# markdownlint-cli2 范围由根目录 .markdownlint-cli2.jsonc 统一驱动（globs + ignores + config）
+# 无参调用即可，无需在此维护 glob 列表
 
 if has_pattern '\.py$'; then
     HAS_PYTHON=true
@@ -262,7 +262,7 @@ fi
 # ── Phase 2: Markdownlint（秒级）──────────────────────────
 if [ "$HAS_MARKDOWN" = true ] && [ -n "$PNPM_RUNNER" ]; then
     echo "📝 正在运行 markdownlint-cli2..."
-    run_pnpm exec markdownlint-cli2 "${MD_LINT_GLOB[@]}"
+    run_pnpm exec markdownlint-cli2
     if [ $? -ne 0 ]; then
         echo "❌ markdownlint 检查失败，请修复后重新提交。"
         exit 1

@@ -1,0 +1,11 @@
+{
+  "title": "框架对接",
+  "description": "QQ 平台的协议端运行框架",
+  "icon": "Cable",
+  "root": true,
+  "pages": [
+    "index",
+    "napcat-docker",
+    "snowluma-docker"
+  ]
+}

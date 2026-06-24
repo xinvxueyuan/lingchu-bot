@@ -1,0 +1,18 @@
+---
+icon: ShieldCheck
+title: 超级用户身份
+---
+
+Lingchu 权限系统使用稳定 UID 和平台账号绑定，而不是只把平台账号 ID 当作身份。推荐用 JSON5 配置专属超级用户映射：
+
+```dotenv
+LINGCHU_SUPERUSERS='{"userA":{"qq":123,"telegram":"tg-id","discord":"discord-id"}}'
+```
+
+对象键是 Lingchu UID；每个值将 `qq`、`telegram`、`discord` 等平台 ID 映射到该用户在对应平台的账号 ID。
+
+如果未设置 `LINGCHU_SUPERUSERS`，Lingchu 会兼容导入 NoneBot 原生 `SUPERUSERS`，将其作为 QQ 平台账号并按顺序生成 `user1` 到 `user999`。当两个来源都不存在、值不是 UID 到平台账号的映射，或同一平台账号绑定到多个 UID 时，启动会失败。
+
+SUPERUSERS 始终通过 Lingchu 命令权限检查，但平台 API 限制和命令自身的业务防呆仍然生效。
+
+参见[环境变量](./environment-variables)了解环境变量参考，或[配置](/docs/user-guide/configuration)了解运行时设置。

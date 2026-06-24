@@ -21,7 +21,7 @@ If you want to follow the design and usage instructions, please read these first
 
 - [Online Documentation](https://lingchu.zone.id/)
 - [User Guide](apps/docs/content/docs/user-guide/overview.mdx)
-- [Developer Guide](apps/docs/content/docs/developer-guide/introduction.mdx)
+- [Developer Guide](apps/docs/content/docs/developer-guide/architecture/introduction.mdx)
 - [Contributing Guide](CONTRIBUTING.md)
 
 [![Zread Q&A][zread-shield]][zread-link]

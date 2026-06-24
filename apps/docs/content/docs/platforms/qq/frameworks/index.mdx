@@ -1,0 +1,21 @@
+---
+icon: Cable
+title: Framework Integrations
+---
+
+## Framework Integrations
+
+This section records protocol-side runtimes that can connect Lingchu Bot to a platform. Lingchu Bot still runs as the NoneBot application; these runtimes provide the platform protocol endpoint.
+
+| Framework | Protocol | Image | Highlights |
+|-----------|----------|-------|------------|
+| [NapCat Docker](/docs/platforms/qq/frameworks/napcat-docker) | OneBot V11 | `mlikiowa/napcat-docker:latest` | Lightweight, WebUI on port 6099, announcement image path bridge |
+| [SnowLuma Docker](/docs/platforms/qq/frameworks/snowluma-docker) | OneBot V11 | `motricseven7/snowluma:latest` | All-in-one (QQ + VNC + noVNC), WebUI on port 5099 |
+
+Both frameworks expose OneBot V11 endpoints, so Lingchu Bot's standard OneBot V11 commands can connect through either runtime. NapCat-only extension commands stay hidden unless the runtime reports the supported NapCat implementation identity and version.
+
+<Callout type="info" title="Port allocation">
+
+When running both NapCat and SnowLuma on the same host, NapCat uses ports `3000`/`3001`, SnowLuma uses ports `6100`/`6101`, and port `3100` is reserved for the Playwright webServer in CI.
+
+</Callout>

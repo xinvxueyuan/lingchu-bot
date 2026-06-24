@@ -1,11 +1,7 @@
 ---
-icon: Cable
-title: 框架对接
+icon: Cat
+title: NapCat Docker
 ---
-
-## 框架对接
-
-本节记录可将 Lingchu Bot 接入平台的协议端运行框架。Lingchu Bot 仍作为 NoneBot 应用运行；这些运行框架负责提供平台协议端点。
 
 ## NapCat-Docker
 
@@ -61,51 +57,6 @@ volumes:
   napcat-config:
 ```
 
-## SnowLuma Docker
-
-[SnowLuma Docker 部署指南](https://snowluma.github.io/guide/deploy/docker.html) 将 SnowLuma、Linux QQ、VNC、noVNC 与 OneBot 端点放在同一个容器中运行。官方镜像为 `motricseven7/snowluma:latest`；容器内 `5900` 是 VNC，`6081` 是 noVNC，`5099` 是 SnowLuma WebUI，`3000` 是 OneBot HTTP，`3001` 是 OneBot WebSocket。
-
-### 端口分配
-
-当 NapCat（端口 `3000`、`3001`）和 SnowLuma 同时在宿主机上运行时，端口 `3100` 需要保留给 CI 中 Playwright webServer 使用。因此 SnowLuma 的 OneBot 端口映射到 `6100` 和 `6101`，而非 `3100` 和 `3101`：
-
-```powershell
-docker run -d `
-  --name snowluma `
-  --restart unless-stopped `
-  --shm-size=1g `
-  --cap-add=SYS_PTRACE `
-  --security-opt seccomp=unconfined `
-  -e VNC_PASSWD=<change-me> `
-  -p 5900:5900 `
-  -p 6081:6081 `
-  -p 5099:5099 `
-  -p 6100:3000 `
-  -p 6101:3001 `
-  -v snowluma-data:/app/snowluma-data `
-  -v snowluma-qq-config:/app/.config `
-  -v snowluma-qq-data:/app/.local/share `
-  -v C:/dev/lingchu-bot:/lingchu-bot:ro `
-  motricseven7/snowluma:latest
-```
-
-项目挂载会让 `C:/dev/lingchu-bot` 在 SnowLuma 容器内显示为 `/lingchu-bot`。这样可以沿用 NapCat 部署里的宿主机路径与容器路径桥接方式。
-
-启动后访问：
-
-- SnowLuma WebUI：`http://127.0.0.1:5099`
-- noVNC：`http://127.0.0.1:6081`
-- Windows 宿主机访问 OneBot HTTP：`http://127.0.0.1:6100`
-- Windows 宿主机访问 OneBot WebSocket：`ws://127.0.0.1:6101`
-
-首次 WebUI 管理员密码可通过 `docker logs snowluma` 查看，登录后请在 WebUI 中修改。如果新建数据卷后 SnowLuma 进程因为 `EACCES: permission denied, open 'config/runtime.json'` 退出，可修复一次目录归属并重启进程：
-
-```powershell
-docker exec snowluma sh -lc "chown -R snowluma:snowluma /app/snowluma-data /app/.config /app/.local/share && supervisorctl restart snowluma"
-```
-
-SnowLuma 是协议端 OneBot 运行框架。Lingchu Bot 的标准 OneBot V11 命令可以通过它连接；但 NapCat 专属扩展命令仍会按运行时上报的 NapCat 实现身份和版本进行门控。
-
 ## 群公告图片路径穿透
 
 NapCat 的 `_send_group_notice` 图片字段依赖文件路径：这个路径必须能被 NapCat 容器读取，而不只是 Lingchu Bot 能读取。请让 Lingchu Bot 将公告图片缓存写入已挂载到容器的宿主机路径：
@@ -140,3 +91,9 @@ ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu/announcement-images
 ```
 
 修改 `.env` 后需要重启 Lingchu Bot，让 NoneBot 重新读取路径配置。修改 Docker 挂载后需要重建 NapCat 容器，因为 Docker 不能给已运行容器追加 bind mount。
+
+## 后续步骤
+
+- [OneBot V11 协议](../onebot-v11/overview)
+- [NapCat 实现](../onebot-v11/napcat)
+- [配置](/docs/user-guide/configuration)

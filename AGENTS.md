@@ -80,7 +80,7 @@ This repo can use the current Codex skill set when a task matches the skill trig
 
 Project-local skill index is available at `.agents/skills/available-skills/SKILL.md`.
 
-# Project Context
+## Project Context
 
 > English | [中文](.github/note/AGENTS-zh.md)
 
@@ -93,7 +93,7 @@ Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains a Py
 ### Python Backend
 
 - Python 3.13, managed by `uv`
-- NoneBot2 with OneBot V11 adapter (Milky, QQ, OneBot V12 deprecated; available via `tools/adapter_loader.py`)
+- NoneBot2 with OneBot V11 adapter (Milky, QQ, OneBot V12 deprecated and fully removed; `tools/adapter_loader.py` is a stub with empty module mappings)
 - `nonebot-plugin-alconna` for command parsing
 - `nonebot-plugin-orm` (aiosqlite) for async database
 - `nonebot-plugin-localstore` for file storage
@@ -195,8 +195,8 @@ pnpm turbo run build --filter=docs               # Production build
 ### Markdown Lint
 
 ```bash
-pnpm exec markdownlint-cli2 {{.MD_GLOB}}         # Check (use the MD_GLOB from Taskfile.yml)
-pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}   # Auto-fix
+pnpm exec markdownlint-cli2                       # Check (globs from .markdownlint-cli2.jsonc)
+pnpm exec markdownlint-cli2 --fix                 # Auto-fix
 ```
 
 ### i18n
@@ -225,7 +225,7 @@ task ci                                          # check + test + build
 
 ## Git Hooks
 
-- **pre-commit**: Conditional checks (v3 — granularized) — Prek auto-fix (always) → Markdownlint via `markdownlint-cli2` (on `.md` changes, uses the same glob as `Taskfile.yml`'s `MD_GLOB`) → Ruff lint/format (on Python changes) → Pyright/ty (on Python changes) → pytest (on Python changes) → ESLint via `pnpm turbo run lint` (on code/style/config changes — `NEEDS_LINT`: docs `.ts`/`.tsx`/`.mjs`/`.mts`/`.css`/config, packages `.ts`/`.tsx`/`.mjs`/`.mts`/`.js`/`.css`; skips pure `.mdx`/`.json` content changes) → check-types via `pnpm turbo run check-types` (on any frontend change — `NEEDS_TYPE_CHECK`) → Docs Vitest (on docs code/content/config changes — `NEEDS_DOCS_TEST`; skips pure `.css` style-only changes) → Docs Playwright Chromium smoke test (on any docs change) → React Doctor (on `.tsx` changes only — `NEEDS_REACT_DOCTOR`, prefers global/local install, falls back to `pnpm dlx` cache, last resort `npx -y`) → Gitnexus analyze (always, non-blocking, prefers `node_modules/.bin/gitnexus` for zero download)
+- **pre-commit**: Conditional checks (v3 — granularized) — Prek auto-fix (always) → Markdownlint via `markdownlint-cli2` (on `.md` changes, globs driven by `.markdownlint-cli2.jsonc`) → Ruff lint/format (on Python changes) → Pyright/ty (on Python changes) → pytest (on Python changes) → ESLint via `pnpm turbo run lint` (on code/style/config changes — `NEEDS_LINT`: docs `.ts`/`.tsx`/`.mjs`/`.mts`/`.css`/config, packages `.ts`/`.tsx`/`.mjs`/`.mts`/`.js`/`.css`; skips pure `.mdx`/`.json` content changes) → check-types via `pnpm turbo run check-types` (on any frontend change — `NEEDS_TYPE_CHECK`) → Docs Vitest (on docs code/content/config changes — `NEEDS_DOCS_TEST`; skips pure `.css` style-only changes) → Docs Playwright Chromium smoke test (on any docs change) → React Doctor (on `.tsx` changes only — `NEEDS_REACT_DOCTOR`, prefers global/local install, falls back to `pnpm dlx` cache, last resort `npx -y`) → Gitnexus analyze (always, non-blocking, prefers `node_modules/.bin/gitnexus` for zero download)
 - **commit-msg**: gitmoji + Conventional Commits format validation + auto-append Signed-off-by (with trailer block detection)
 - **prepare-commit-msg**: Interactive gitmoji commit message via direct `node_modules/.bin/gitmoji --hook` (zero pnpm/npx overhead; falls back to npx / global gitmoji if local missing)
 - **CLI resolution order** (all hooks): local `node_modules/.bin/<bin>` → global PATH → global `.cmd` shim → `pnpm dlx` cache (last resort: `npx -y` for non-devDeps)
@@ -305,13 +305,13 @@ Use conventional commit + gitmoji: `✨ feat:`, `🐛 fix:`, `📝 docs:`, `⚡ 
 
 GitHub Actions runs on push to `main`/`dev` and on PRs:
 
-- **🧪 CI**: Change detection job (`changes`) outputs boolean flags per file type (python/markdown/frontend/frontend-code/frontend-style/frontend-content/frontend-tsx), then conditionally runs downstream jobs — Static analysis (Ruff + Markdown + Turborepo lint, on Python or markdown changes), Tests & type check (Pyright + ty + pytest, on Python changes), Docs check (ESLint on code/style, check-types on any frontend, link validation on content, Vitest on code/content — aligned with pre-commit v3 `NEEDS_LINT`/`NEEDS_TYPE_CHECK`/`NEEDS_DOCS_TEST`). Auto-format on push to main/dev. Test jobs install `--extra deprecated-adapters` so test files importing optional dependencies (Milky adapter) can resolve.
+- **🧪 CI**: Change detection job (`changes`) outputs boolean flags per file type (python/markdown/frontend/frontend-code/frontend-style/frontend-content/frontend-tsx), then conditionally runs downstream jobs — Static analysis (Ruff + Markdown + Turborepo lint, on Python or markdown changes), Tests & type check (Pyright + ty + pytest, on Python changes), Docs check (ESLint on code/style, check-types on any frontend, link validation on content, Vitest on code/content — aligned with pre-commit v3 `NEEDS_LINT`/`NEEDS_TYPE_CHECK`/`NEEDS_DOCS_TEST`). Auto-format on push to main/dev. Test jobs install `--extra deprecated-adapters` (provides `nonebot-adapter-qq`) so test files importing optional dependencies can resolve.
 - **🎭 Playwright**: Docs E2E workflow for `apps/docs` and `packages` changes. It installs Playwright browsers with system dependencies, runs `pnpm --filter docs run test:e2e`, and uploads HTML report / trace artifacts.
 - **👷 CI-builds**: Build verification on Python/package changes
 - **📚 Docs Deploy**: Build and deploy to GitHub Pages on push to main/dev
 - **� React Doctor**: React codebase health check on PRs (uses CLI, not the action — see Lessons Learned)
 - **� Clear Workflow**: Stale workflow cleanup
-- **🏷️ Issues Top**: Issue triage automation
+- **🏷️ Top Issues**: Issue triage automation
 
 ## Hard Constraints
 
@@ -355,7 +355,7 @@ The following rules are **non-negotiable**. Violations MUST be rejected at code 
 ### Configuration Management
 
 - **Pre-commit hooks**: `prek.toml` is the single source of truth for pre-commit hook configuration. The legacy `.pre-commit-config.yaml` has been removed — do not re-introduce it.
-- **Version sync**: The `Taskfile.yml` `ci:version:write-config` task writes the project version to both `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` (Python `__version__`) and `apps/docs/package.json` (`version` field). When bumping the version, run this task rather than editing files manually.
+- **Version sync**: The `Taskfile.yml` `ci:version:write-config` task writes the project version to both `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` (Python `core_version` field) and the root `package.json` (`version` field). When bumping the version, run this task rather than editing files manually.
 - **JSON Schemas**: JSON Schema definitions are stored as Python string literals in `src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py` (`CONFIG_SCHEMA_TEXT` / `BOT_STATE_SCHEMA_TEXT`). At startup, `install_schemas()` writes them to `nonebot_plugin_localstore`-managed `config_dir` / `data_dir` as `config.schema.json5` / `bot_state.schema.json5`, sitting as siblings of the runtime JSON5 files. The `$schema` field injected by `runtime_config.py` / `bot_state.py` is a pure basename so editors can resolve the sibling schema. Runtime validation is fully delegated to Pydantic models (`RuntimeConfig` / `bot_state`); the schema files exist purely for editor tooling. Paths are owned by `nonebot_plugin_localstore` — never hard-code `c:\dev\lingchu-bot\schema/` or rely on `importlib.resources` / wheel data for schema resources.
 - **Skills exclusion sync**: `pyproject.toml` has comments at skills exclusion lists noting "skills 排除列表同步至 prek.toml" — when updating exclusion patterns in one config, sync the other.
 
@@ -371,10 +371,11 @@ When modifying business logic (especially adapter-layer code), changes MUST prop
 2. **Tests** — `tests/` (add/update tests for new behavior, remove tests for deleted behavior)
 3. **i18n** — `src/plugins/nonebot_plugin_lingchu_bot/i18n/` (run `task i18n` if user-facing strings change)
 4. **Docs** — `apps/docs/content/docs/`:
-   - `platforms/qq/commands.mdx` (and `.zh.mdx`) — Full command reference
+   - `platforms/qq/command-reference.mdx` (and `.zh.mdx`) — Full command reference
    - `platforms/qq/<protocol>/<implementation>.mdx` — Implementation-specific docs
    - `user-guide/commands.mdx` — High-level overview (only if menu structure changes)
-   - `developer-guide/introduction.mdx` — Project structure (only if source layout changes)
+   - `user-guide/configuration/` — Configuration subdirectory (update `index.mdx`, `environment-variables.mdx`, `adapter-selection.mdx`, or `superuser.mdx` when env vars or config fields change)
+   - `developer-guide/architecture/introduction.mdx` — Project structure (only if source layout changes)
 5. **Menu** — `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py` (update `MENU_FEATURES` when adding/removing/modifying command handlers: command key, usage text, summary, availability)
 6. **Triggers** — `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` (add command triggers for new commands)
 7. **AGENTS.md** — Update Project Directory Tree and Lessons Learned if structure or conventions change
@@ -397,6 +398,10 @@ At the end of every conversation that involves code changes, review what went wr
 
 Group command trigger words are locale-exclusive. Do not register Chinese and English command triggers at the same time for the same matcher. Use the i18n locale resolution helpers (`LINGCHU_LOCALE`, `lc_locale`, `locale` via `get_configured_locale()`) to choose one trigger language during command registration, and keep the inactive language out of `aliases`.
 
+### Babel Fuzzy Translations
+
+After `task i18n`, inspect new or changed entries in `i18n/locales/*/LC_MESSAGES/messages.po`. `pybabel update` may mark similar new messages as `fuzzy` and copy an old `msgstr`; clear the fuzzy marker and set an exact translation before compiling.
+
 ### Layered Menu Commands
 
 When turning menu categories into standalone commands, audit conflicts with existing feature command aliases before registering the category matcher. Keep the top-level `菜单` / `menu` response as an index and test it separately from category pages, so feature filtering assertions target the page that actually renders the feature rows.
@@ -407,14 +412,14 @@ Platform default identity groups live in platform modules such as `platforms/qq/
 
 ### Adapter API Differences
 
-Same-named APIs return different types across adapters:
+Same-named APIs return different types across adapters (Milky column is historical — Milky source has been fully removed):
 
-| API | OneBot V11 | Milky |
+| API | OneBot V11 | Milky (removed) |
 |-----|-----------|-------|
 | `get_group_member_info` | `dict` (use `.get("card")`) | `Member` model (use `.card`) |
 | `set_group_ban` | `set_group_ban(group_id, user_id, duration)` | `set_group_member_mute(group_id, user_id, duration)` |
 
-The project uses `platforms/registry.py` to unify adapters under a single "QQ" platform profile. Only OneBot V11 is now active; Milky, QQ, and OneBot V12 are deprecated and removed from the startup flow. QQ and OneBot V12 source files are preserved with `DEPRECATED = True` markers and can be loaded on demand via `tools/adapter_loader.py`; the Milky and LLOneBot paths have been fully removed. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,napcat}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
+The project uses `platforms/registry.py` to unify adapters under a single "QQ" platform profile. Only OneBot V11 is now active; Milky, QQ, and OneBot V12 are deprecated and removed from the startup flow. All deprecated adapter source files have been fully removed — `tools/adapter_loader.py` exists as a stub with empty module mappings (`_DEPRECATED_ADAPTER_MODULES = {}`), and deprecated adapter IDs are tracked in `_DEPRECATED_ADAPTER_IDS` in `registry.py`. QQ group command code lives under `handle/qq/`: shared command definitions in `handle/qq/commands/`, OneBot V11 handlers in `handle/qq/adapters/onebot11/{default,napcat}/`. Always verify the return type by inspecting the adapter source in `.venv/Lib/site-packages/nonebot/adapters/` before writing access patterns.
 
 ### Function Signature Changes
 
@@ -456,7 +461,7 @@ When removing functions/helpers:
 ### Mock Object Patterns for Adapter Models
 
 - OneBot V11 returns `dict` → mock with `return_value={}`
-- Milky returns pydantic `Model` objects → mock with `MagicMock(card="", nickname="")` so attribute access works
+- Milky returned pydantic `Model` objects → mock with `MagicMock(card="", nickname="")` so attribute access works (historical — Milky source has been fully removed)
 - Never use `dict` as mock return value for APIs that return Model objects — attribute access (`obj.card`) will raise `AttributeError`
 
 ### Python Package Directory Names
@@ -476,13 +481,13 @@ When removing functions/helpers:
 
 ### CI Workflow Project References
 
-- When a workspace package is disabled or removed, **all CI workflows that reference it must be updated**. For example, React Doctor's `--project docs,web` flag will fail if `web` has no React source files.
+- When a workspace package is disabled or removed, **all CI workflows that reference it must be updated**. For example, React Doctor's `--project` flag will fail if a referenced project has no React source files (the `web` workspace was previously removed; current code uses `--project docs` only).
 - **Rule**: After any workspace package change (disable, remove, rename), grep all workflow files for references to that package name and update them.
 
 ### Markdown Table Alignment (MD060)
 
 - `markdownlint-cli2` v0.22+ enforces MD060 (table column style). The default style `aligned` requires visual pipe alignment, which is unreliable with CJK characters because character display width (2 columns for CJK) differs from character count (1 per CJK char in source).
-- **Fix**: Set MD060 style to `consistent` in `.markdownlint.jsonc` — this only requires that each column's pipes appear at the same character position across all rows, without demanding visual alignment. This works correctly for both pure-ASCII and mixed CJK/Latin tables.
+- **Fix**: Set MD060 style to `consistent` in `.markdownlint-cli2.jsonc` — this only requires that each column's pipes appear at the same character position across all rows, without demanding visual alignment. This works correctly for both pure-ASCII and mixed CJK/Latin tables.
 - **Do not** disable MD060 entirely — `consistent` style still catches real formatting errors (missing pipes, inconsistent column counts) while avoiding false positives from CJK width mismatches.
 
 ### Windows Commands in Bash Hooks
@@ -491,15 +496,16 @@ When removing functions/helpers:
 - Prefer resolving tool commands once near the top of the hook. For Windows `.cmd` Node shims such as `pnpm.cmd` and `npx.cmd`, invoke them through `cmd.exe /c`; executing the `.cmd` file directly from Bash can silently skip checks or emit misleading `node` errors.
 - Do not suppress `git diff --cached` failures when deciding which checks to run. If `git` is unavailable in the hook shell, fail clearly instead of treating the staged file list as empty.
 
-### PowerShell Markdownlint Globs
+### PowerShell Markdownlint Invocation
 
-- When running `markdownlint-cli2` through `pwsh.exe -NoProfile -Command`, pass glob arguments exactly as the shell should see them; incorrectly nested or escaped quotes can turn globs into malformed paths and make Node scan far more than intended. Prefer the Taskfile command or a known-good direct command form before treating a markdownlint timeout as a lint failure.
+- When running `markdownlint-cli2` through `pwsh.exe -NoProfile -Command`, no glob arguments are needed — the `.markdownlint-cli2.jsonc` config file drives globs and ignores centrally. If passing globs manually, ensure quotes are correct; incorrectly nested or escaped quotes can turn globs into malformed paths. Prefer the Taskfile command (`task check` / `task format`) before treating a markdownlint timeout as a lint failure.
 
-### Markdownlint Per-Directory Overrides
+### Markdownlint Unified Configuration
 
-- `markdownlint-cli2` supports hierarchical configuration: a `.markdownlint.jsonc` file in a subdirectory overrides the root config for files in that directory.
-- **Important**: The subdirectory `.markdownlint.jsonc` REPLACES the root rule config, it does not merge. Always include all root settings (e.g., `MD013: false`, `MD033: false`, `MD041: false`, `MD060` config) in the subdirectory config, plus any additional rule suppressions.
-- `.github/.markdownlint.jsonc` disables MD022 (blanks-around-headings) and MD032 (blanks-around-lists) for `.github` docs, as CJK content in AGENTS-zh.md frequently triggers these rules without actual formatting issues.
+- All markdownlint configuration (rules + globs + ignores) is centralized in a single `.markdownlint-cli2.jsonc` at the repository root. There are no per-directory `.markdownlint.jsonc` overrides.
+- All invocation sites (Taskfile, husky pre-commit, CI) call `markdownlint-cli2` with no arguments — the config file's `globs` and `ignores` properties drive file discovery.
+- To add new directories to the lint scope, edit the `globs` array in `.markdownlint-cli2.jsonc`. To exclude paths, edit the `ignores` array.
+- MD022 (blanks-around-headings) and MD032 (blanks-around-lists) are enabled globally — CJK content must use proper blank lines around headings and lists.
 
 ### Husky Hook CLI Resolution
 
@@ -645,7 +651,7 @@ These components are registered in `getMDXComponents()` and available in all `.m
 |-------|--------|
 | **Full name** | `fumadocs-ui/components/accordion.Accordion`, `Accordions` |
 | **Purpose** | Collapsible FAQ-style sections. `Accordions` wraps multiple `Accordion` items with single/multi expand mode. |
-| **Props (Accordions)** | `type: "single" | "multiple"` — single allows only one open at a time. |
+| **Props (Accordions)** | `type: "single" \| "multiple"` — single allows only one open at a time. |
 | **Props (Accordion)** | `title: string` — header text. Children are the collapsible content. |
 | **MDX usage** | `<Accordions type="single"><Accordion title="Q1">Answer</Accordion></Accordions>` |
 | **Limitation** | Children must be plain text or inline JSX — Markdown list syntax (`- item`) inside `<Accordion>` causes MDX parse errors. Use prose text instead. |
@@ -684,7 +690,7 @@ These components are registered in `getMDXComponents()` and available in all `.m
 | **Full name** | `fumadocs-ui/components/type-table.TypeTable` |
 | **Purpose** | Manually define a typed property table with full control over each entry's type, default, and description. |
 | **Props** | `type: Record<string, { type: string, default?: string, description: string, required?: boolean }>` |
-| **MDX usage** | See `configuration.mdx` for a working example. |
+| **MDX usage** | See `user-guide/configuration/index.mdx` for a working example. |
 | **Best practice** | Use when the type source is not a TypeScript file (e.g., Python config, environment variables). |
 
 **Use cases:**
@@ -703,13 +709,13 @@ These components are registered in `getMDXComponents()` and available in all `.m
 | **Purpose** | Show mutually exclusive content panels, ideal for platform-specific or adapter-specific instructions. |
 | **Props (Tabs)** | `items: string[]` — tab labels. |
 | **Props (Tab)** | `value: string` — must match an item from `items`. |
-| **MDX usage** | `<Tabs items={['OneBot V11', 'Milky']}><Tab value="OneBot V11">...</Tab><Tab value="Milky">...</Tab></Tabs>` |
+| **MDX usage** | `<Tabs items={['Plugin directory', 'Docker']}><Tab value="Plugin directory">...</Tab><Tab value="Docker">...</Tab></Tabs>` |
 
 **Use cases:**
 
-1. **Adapter guide** — Show per-adapter configuration in separate tabs.
+1. **Deployment mode** — Show plugin directory vs Docker deployment instructions (current usage in `quick-start.mdx`).
 2. **OS-specific setup** — Linux/macOS/Windows installation steps.
-3. **Runtime mode** — Plugin directory vs Docker deployment instructions.
+3. **Implementation guide** — Show per-implementation configuration (e.g., NapCat vs default) in separate tabs.
 
 ---
 
@@ -785,7 +791,7 @@ These components are registered in `getMDXComponents()` and available in all `.m
 | **Full name** | `fumadocs-ui/components/image-zoom.ImageZoom` |
 | **Purpose** | Wraps all `<img>` tags to enable click-to-zoom functionality. |
 | **Tech** | Applied globally via `mdx.tsx` — replaces the default `img` renderer. |
-| **No explicit usage needed** — all images in MDX automatically get zoom behavior. |
+| **No explicit usage needed** | All images in MDX automatically get zoom behavior. |
 
 ---
 
@@ -928,7 +934,7 @@ These components are registered in `getMDXComponents()` and available in all `.m
 
 ## Project Directory Tree
 
-```
+```text
 lingchu-bot/
 ├── .agents/                          # Trae/Codex skill definitions
 │   └── skills/
@@ -942,7 +948,6 @@ lingchu-bot/
 │   │   └── git-commit-message.md     # Gitmoji + Conventional Commits spec
 │   └── skills/                       # Trae skill definitions (mirror of .agents/)
 ├── .github/
-│   ├── .markdownlint.jsonc            # Per-directory override: disables MD022/MD032 for .github docs
 │   └── note/AGENTS-zh.md            # Chinese translation of AGENTS.md
 ├── .husky/                           # Git hooks (pre-commit, commit-msg, prepare-commit-msg)
 ├── src/
@@ -952,15 +957,17 @@ lingchu-bot/
 │       │   ├── async_utils.py        # fire_and_forget helper for discardable background tasks
 │       │   ├── config.py             # Plugin config model (Pydantic)
 │       │   ├── runtime_config.py     # Runtime configuration helpers
+│       │   ├── schemas.py            # JSON Schema text literals + install_schemas()
 │       │   └── bot_state.py          # Two-tier bot state (global + per-platform) with JSON5 persistence
 │       ├── database/
 │       │   ├── json5_store/          # JSON5-based key-value store (package)
 │       │   ├── models/               # ORM models package (nonebot_plugin_orm)
-│       │   │   ├── __init__.py       # Re-exports 11 models + utc_now
-│       │   │   ├── message.py       # MessageRecord, AuditRecord, utc_now
+│       │   │   ├── __init__.py       # Re-exports 14 models + utc_now
+│       │   │   ├── message.py       # MessageRecord, AuditRecord, QQOneBotV11NoneBotEventRecord, QQOneBotV11NoneBotAuditRecord, utc_now
 │       │   │   ├── blocklist.py     # BlocklistEntry
 │       │   │   ├── registry.py      # Platform, Adapter, ProtocolImplementation
-│       │   │   └── identity.py      # IdentityUser, PlatformAccount, PlatformIdentityGroup, IdentityMembership, PermissionGrant
+│       │   │   ├── identity.py      # IdentityUser, PlatformAccount, PlatformIdentityGroup, IdentityMembership, PermissionGrant
+│       │   │   └── subject_policy.py # SubjectPolicyEntry
 │       │   └── orm_crud/             # Async CRUD helpers package
 │       │       ├── __init__.py       # Re-exports CRUD functions
 │       │       ├── _base.py         # DatabaseError, helpers, session
@@ -980,13 +987,15 @@ lingchu-bot/
 │       │       │   ├── profile.py    # Group profile commands
 │       │       │   ├── lifecycle.py  # Bot lifecycle command
 │       │       │   ├── kick.py       # Kick command
+│       │       │   ├── protect.py    # Protection commands
 │       │       │   └── common.py     # Shared command helpers (selected_adapter_handle)
 │       │       └── adapters/
 │       │           ├── onebot11/     # OneBot V11 protocol handlers
 │       │           │   ├── default/  # Default implementation handlers
 │       │           │   │   ├── remote.py # Remote management handlers (8 commands)
 │       │           │   │   ├── announcement.py # Version-gated announcement handler
-│       │           │   │   └── ...   # mute, member, block, kick, profile, menu, lifecycle, test, bot_state
+│       │           │   │   ├── protect.py # Protection handlers
+│       │           │   │   └── ...   # mute, member, block, kick, profile, menu, lifecycle, bot_state, common
 │       │           │   └── napcat/   # NapCat extensions (announcement, profile)
 │       ├── i18n/                     # Babel/gettext translations (en, zh)
 │       ├── migrations/                # Alembic database migration scripts
@@ -1011,31 +1020,42 @@ lingchu-bot/
 │       │   ├── index.zh.mdx          # Docs landing page (zh)
 │       │   ├── meta.json             # Navigation config (en)
 │       │   ├── meta.zh.json          # Navigation config (zh)
-│       │   ├── project-policy.mdx    # Contribution/security/license policy
 │       │   ├── user-guide/           # User-facing documentation
 │       │   │   ├── overview.mdx      # Bot overview & capabilities
 │       │   │   ├── quick-start.mdx   # Installation & first run
 │       │   │   ├── commands.mdx      # Commands overview (links to platform-specific pages)
-│       │   │   ├── configuration.mdx # Configuration options
+│       │   │   ├── configuration/    # Configuration subdirectory (split by topic)
+│       │   │   │   ├── index.mdx             # Configuration overview (config.json5, paths, i18n)
+│       │   │   │   ├── environment-variables.mdx # .env variable tables
+│       │   │   │   ├── adapter-selection.mdx # LINGCHUAdapter config & conflict prevention
+│       │   │   │   └── superuser.mdx          # LINGCHU_SUPERUSERS identity settings
 │       │   │   └── troubleshooting.mdx # Common issues & solutions
-│       │   ├── platforms/            # Platform-specific documentation (NEW)
+│       │   ├── platforms/            # Platform-specific documentation
 │       │   │   ├── index.mdx         # Platforms overview (layer model)
 │       │   │   └── qq/               # QQ platform docs
 │       │   │       ├── overview.mdx  # QQ platform overview (protocol priority, implementation matrix)
-│       │   │       ├── commands.mdx  # Full QQ command reference (incl. remote management)
+│       │   │       ├── frameworks/   # Protocol-side runtime frameworks
+│       │   │       │   ├── index.mdx           # Framework comparison & port allocation
+│       │   │       │   ├── napcat-docker.mdx    # NapCat Docker setup + path bridge
+│       │   │       │   └── snowluma-docker.mdx  # SnowLuma Docker setup
+│       │   │       ├── command-reference.mdx # Full QQ command reference (incl. remote management)
 │       │   │       └── onebot-v11/   # OneBot V11 protocol docs
 │       │   │       │   ├── overview.mdx  # Protocol overview
 │       │   │       │   ├── default.mdx   # Default implementation
 │       │   │       │   ├── napcat.mdx    # NapCat implementation
 │       │   └── developer-guide/      # Developer documentation
-│       │       ├── introduction.mdx  # Project structure & architecture
-│       │       ├── adapter-guide.mdx # Adapter selection & configuration
-│       │       ├── message-store.mdx # Message storage service
-│       │       ├── workflow.mdx      # Development workflow
-│       │       ├── commit-style.mdx  # Commit conventions
-│       │       ├── i18n.mdx          # Internationalization guide
-│       │       ├── testing-ci.mdx    # Testing & CI pipeline
-│       │       └── gitnexus.mdx      # GitNexus code intelligence
+│       │       ├── architecture/      # Architecture docs
+│       │       │   ├── introduction.mdx  # Project structure & architecture
+│       │       │   ├── adapter-guide.mdx # Adapter selection & configuration
+│       │       │   └── message-store.mdx # Message storage service
+│       │       └── engineering/       # Engineering docs
+│       │           ├── workflow.mdx      # Development workflow
+│       │           ├── commit-style.mdx  # Commit conventions
+│       │           ├── i18n.mdx          # Internationalization guide
+│       │           ├── testing-ci.mdx    # Testing & CI pipeline
+│       │           ├── gitnexus.mdx      # GitNexus code intelligence
+│       │           ├── skills.mdx        # Skills system guide
+│       │           └── project-policy.mdx # Contribution/security/license policy
 │       ├── src/
 │       │   ├── app/                  # Next.js App Router
 │       │   │   ├── layout.tsx        # Root layout (en)
@@ -1050,9 +1070,11 @@ lingchu-bot/
 │       │   │   ├── mdx.tsx           # MDX component registry
 │       │   │   ├── graph-view.tsx    # Document relationship graph
 │       │   │   ├── llm-badge.tsx     # AI-friendly docs badge
+│       │   │   ├── announcement-banner.tsx # Announcement banner
 │       │   │   ├── provider.tsx      # App-wide context provider
 │       │   │   ├── search.tsx        # Full-text search dialog
 │       │   │   └── mdx/mermaid.tsx   # Mermaid diagram renderer
+│       │   │       └── mermaid-utils.ts # Mermaid config/sanitize helpers
 │       │   ├── lib/                  # Shared logic
 │       │   │   ├── source.ts         # Content source API
 │       │   │   ├── build-graph.ts    # Graph data builder
@@ -1062,7 +1084,7 @@ lingchu-bot/
 │       │   │   ├── shared.ts         # Shared constants
 │       │   │   ├── layout.shared.tsx # Layout configuration
 │       │   │   └── cn.ts             # Class name utility
-│       │   └── __tests__/            # Vitest test files (12 files, 60 tests)
+│       │   └── __tests__/            # Vitest test files (13 files)
 │       ├── source.config.ts          # Fumadocs MDX pipeline config
 │       ├── next.config.mjs           # Next.js config
 │       ├── vitest.config.ts          # Test config
@@ -1087,6 +1109,7 @@ lingchu-bot/
 ├── package.json                      # Monorepo root (pnpm + Turborepo)
 ├── Taskfile.yml                      # Task runner for CI/local commands
 ├── prek.toml                         # Prek (Rust pre-commit) config — single source of truth for pre-commit hooks
+├── .markdownlint-cli2.jsonc          # Unified markdownlint config (rules + globs + ignores)
 ├── CHANGELOG.md                      # Changelog
 ├── README-zh.md                      # Chinese README
 ├── Repository-Policy.md              # Repository policy (English)
@@ -1098,7 +1121,7 @@ lingchu-bot/
 
 ## Core Module Dependencies
 
-```
+```text
 ┌──────────────────────────────────────────────────────────────────┐
 │                        apps/docs                                  │
 │                                                                   │
@@ -1236,13 +1259,13 @@ When the project structure, components, or conventions change:
 
 When adding, moving, or renaming files or directories, verify that CI and lint configurations still cover them. Check and update:
 
-1. **Markdown lint** — `markdownlint-cli2` glob patterns in `Taskfile.yml` and `package.json` scripts
+1. **Markdown lint** — `markdownlint-cli2` globs in `.markdownlint-cli2.jsonc`
 2. **ESLint / TypeScript** — `tsconfig.json` includes, `eslint.config` overrides, Vitest coverage paths
 3. **Ruff / Pyright / ty** — `pyproject.toml` source paths and exclusion patterns
 4. **GitHub Actions** — trigger paths in `on.push.paths` / `on.pull_request.paths`
 5. **GitNexus** — re-analyze if new source directories are introduced
 
-Example: adding `.github/note/` required updating the `markdownlint-cli2` glob to include `.github/**/*.md` (already covered), but if the directory had been `.github/notes/` or a new top-level `legal/` dir, the lint command would have silently skipped it.
+Example: adding `.github/note/` required updating the `markdownlint-cli2` globs in `.markdownlint-cli2.jsonc` to include `.github/**/*.md` (already covered), but if the directory had been `.github/notes/` or a new top-level `legal/` dir, the lint command would have silently skipped it.
 
 ### Multi-Language File Synchronization
 
@@ -1348,24 +1371,27 @@ Rule of thumb: **if you haven't seen the syntax used in the project's existing c
 - **Code duplication across 5+ OneBot V11 handler files** was solved by centralizing shared helpers and constants in `onebot11/default/common.py` (`bot_self_id_safe()`, `bot_id()`, `default_block_reason()`, `default_admin_reason()`, `check_self_target()`, `store_block_record()`, `check_target_privilege()`, `check_bot_privilege()`, `record_command_audit()`; constants `QQ_PLATFORM_ID`, `ONEBOT_V11_ADAPTER_ID`, `MUTE_DURATION_MIN`, `MUTE_DURATION_MAX`).
 - **Missing audit trail** was solved by adding `record_command_audit()` — every management command now records operator, target, action, and reason after successful execution.
 - **Missing privilege checks** were solved by adding `check_target_privilege()` (prevents operating on admins/owners) and `check_bot_privilege()` (prevents calling APIs the bot lacks permission for).
-- **Adapter deprecation** (Milky, QQ, OneBot V12) was solved by removing them from `platforms/registry.py` and the startup hook flow (`handle/qq/adapters/__init__.py`, `handle/menu.py`), while preserving source files with `DEPRECATED = True` markers and deprecation docstrings.
-- **Reuse need** was solved by the standalone `tools/adapter_loader.py` module, which provides `load_deprecated_adapter()`, `load_and_init_deprecated_adapter()`, and `list_deprecated_adapters()` for on-demand loading without participating in the normal startup flow.
-- **Key lesson**: When deprecating adapters, move them out of the startup flow but keep source code with deprecation markers; provide a standalone loader tool for on-demand access. When consolidating duplicated handler logic, extract shared helpers into a single `common.py` module rather than leaving copies in each handler file.
+- **Adapter deprecation** (Milky, QQ, OneBot V12) was solved by removing them from `platforms/registry.py` and the startup hook flow (`handle/qq/adapters/__init__.py`, `handle/menu.py`). All deprecated adapter source files have been fully removed; `tools/adapter_loader.py` remains as a stub with empty module mappings, and deprecated adapter IDs are tracked in `_DEPRECATED_ADAPTER_IDS` in `registry.py`.
+- **Reuse need** was historically solved by the standalone `tools/adapter_loader.py` module, which provides `load_deprecated_adapter()`, `load_and_init_deprecated_adapter()`, and `list_deprecated_adapters()` — but the module mappings are now empty (`_DEPRECATED_ADAPTER_MODULES = {}`), so these functions always raise `ValueError` for any deprecated adapter ID.
+- **Key lesson**: When deprecating adapters, move them out of the startup flow and remove source code entirely; track deprecated adapter IDs in a central frozenset for runtime deprecation checks. When consolidating duplicated handler logic, extract shared helpers into a single `common.py` module rather than leaving copies in each handler file.
 
 ### Permission API Integration & Deprecation Enforcement
+
 - Permission system now actively verifies user roles via OneBot V11 `get_group_member_info` API when event data is incomplete, ensuring access control is enforced.
 - Deprecated adapters (`~milky`, `~qq`, `~onebot.v12`) now trigger `PlatformAdapterDeprecatedError` with clear guidance, instead of being treated as "unknown".
 - Platform permission modules are discovered through `PlatformProfile.permission_module` field in the registry, eliminating hardcoded module paths in `permissions/platforms.py`.
 - Key lesson: when deprecating features, provide clear exit-time feedback rather than silent removal; when permission gates rely on passive event data, add active API verification as a fallback.
 
 ### CI Type-Checking for Optional Dependencies & i18n Maintenance
+
 - When moving dependencies to `[project.optional-dependencies]` (e.g., `deprecated-adapters`), the CI test jobs must install them with `uv sync --frozen --extra deprecated-adapters` — otherwise test files importing those packages fail with `ImportError`.
-- Pyright/ty exclude lists in `pyproject.toml` must include deprecated adapter source directories (e.g., `src/.../handle/qq/adapters/milky`) — otherwise type-checking fails on `reportMissingImports` for packages not installed in the static-analysis environment.
+- **Pyright/ty exclude lists** in `pyproject.toml` should include any deprecated adapter source directories that are not installed in the static-analysis environment. (Note: the Milky adapter source has been fully deleted and its exclude entry was already removed from `pyproject.toml`.)
 - **`pybabel update` behavior**: Automatically marks removed strings as obsolete (`#~` prefix) and adds `fuzzy` flags to entries with similar msgids. After running `pybabel update`, manually review fuzzy entries, remove the `fuzzy` flag, and correct translations.
 - **Stale msgid handling**: When function signatures change (e.g., removing a `reason` parameter from a format string), the old msgid becomes stale. `pybabel update` detects the similarity and creates a fuzzy entry, but the msgstr must be manually updated to match the new msgid.
 - **Key lesson**: When deprecating code that has i18n strings, run `task i18n` after code changes to extract/update translations. Check for fuzzy entries and obsolete entries. When excluding directories from type-checking, add them to both `[tool.pyright]` and `[tool.ty.src]` exclude lists.
 
 ### OneBot V11 Image API File Field Format
+
 - NapCat / OneBot V11 图片类 API（如 `set_group_portrait`）的 `file` 字段要求 `http(s)://`、`base64://` 或 `file://` 格式，直接传入裸本地路径（如 `C:\...` 或 `/tmp/...`）会被拒绝（`retcode=1200`, `file字段可能格式不正确`）。
 - **Fix**: 将本地文件读取为 bytes，base64 编码后以 `base64://<encoded>` 格式传入。选择 `base64://` 而非 `file://` 的原因：bot 与 NapCat 可能运行在不同容器/文件系统中，`base64://` 在所有部署场景下都能工作。
 - **Async file I/O**: 在 async 函数中读取文件应使用 `await asyncio.to_thread(path.read_bytes)` 避免 `ASYNC240` 违规；直接调用 `path.read_bytes()` 会被 ruff 标记。
@@ -1406,7 +1432,6 @@ Rule suppressions and temporary workarounds that should be reverted once the tri
 
 | What | Where | Why suppressed | Rollback condition |
 |------|-------|---------------|-------------------|
-| Pyright/ty exclude `src/.../adapters/milky` | `pyproject.toml` `[tool.pyright]` and `[tool.ty.src]` | Milky adapter moved to optional dependency; static-analysis env doesn't install it, causing `reportMissingImports` | **Rollback condition met**: Milky adapter has been fully deleted; remove this entry from `pyproject.toml` exclude lists |
 | `deslop/unused-export: "off"` | `doctor.config.ts` | `useMDXComponents` in `mdx.tsx` is a framework-required re-export but currently unused (no `providerImportSource` in `source.config.ts`) | Remove this suppression once `useMDXComponents` is actually consumed (e.g., after adding `providerImportSource` to `source.config.ts` or importing it elsewhere) |
 | CLI instead of `millionco/react-doctor@v2` action | `.github/workflows/🩺-react-doctor.yml` | Upstream action has bugs: detached HEAD, ANSI leak in PR comments (PR #80 pending) | Switch back to the action once upstream releases a fix (monitor PR #80) |
 
@@ -1425,13 +1450,14 @@ When lint or type-check tools report mechanical issues (import sorting, unused i
 |------|------------------|---------------|
 | Ruff | `uv run -m ruff check --fix .` | Import sorting (I001), unused imports (F401), unused variables, simple style violations |
 | Ruff format | `uv run -m ruff format .` | Code formatting (line length, whitespace, quotes) |
-| Markdownlint | `pnpm exec markdownlint-cli2 --fix {{.MD_GLOB}}` | Markdown formatting (MD060, MD009, etc.) |
+| Markdownlint | `pnpm exec markdownlint-cli2 --fix` | Markdown formatting (MD060, MD009, etc.) |
 | ESLint | `pnpm --filter docs lint --fix` | JS/TS lint issues (unused vars, formatting) |
 | Prek | `prek run --all-files` | Runs all pre-commit auto-fixers in sequence |
 
 <Callout type="warn" title="What auto-fix CANNOT do">
 
 Auto-fix tools handle **mechanical** issues only. They cannot fix:
+
 - Logic errors (TRY300 — move return to else block requires understanding control flow)
 - Complexity issues (PLR0911, PLR0913, C901 — require extracting helper functions)
 - Type mismatches (Pyright/ty — require understanding the intended type)
@@ -1442,6 +1468,7 @@ For these, manually refactor after running auto-fix. Use `# noqa: <rule>` commen
 </Callout>
 
 **Workflow:**
+
 1. Run `uv run -m ruff check --fix .` first — fixes imports and simple style issues
 2. Run `uv run -m ruff format .` — applies formatting
 3. Run `uv run -m pyright .` and `uv run -m ty check` — identify remaining type/logic issues
@@ -1455,6 +1482,7 @@ For these, manually refactor after running auto-fix. Use `# noqa: <rule>` commen
 The 8 remote management commands (`远程禁言`, `远程解禁`, `远程全体禁言`, `远程全体解禁`, `远程踢出`, `远程拉黑`, `远程删黑`, `远程公告`) are OneBot V11 only. They are defined in `handle/qq/commands/remote.py` (Alconna matchers) and implemented in `handle/qq/adapters/onebot11/default/remote.py` (handlers).
 
 Key behaviors:
+
 - **Group ID resolution**: `<群号|群名称>` accepts `int` (direct), numeric `str` (parsed to int), or non-numeric `str` (fuzzy matched via `get_group_list`). Exact name match takes priority; substring containment is fallback. Multiple matches trigger `cmd_matcher.finish` asking for a more precise identifier.
 - **Context validation**: Before executing, the bot checks it is in the target group, has admin role (for most commands), the target user is in the group, and the target is not the bot or sender.
 - **Remote kick requires blocklist**: `远程踢出` only works on users already in the blocklist. Use `远程拉黑` first.
@@ -1469,18 +1497,22 @@ The menu system in `handle/menu.py` uses a layered `MenuPage` → `MenuSection` 
 3. If creating a new menu page (top-level category like `remote-management`), add a `MenuPage` entry to `MENU_PAGES` and ensure it has a `command` field for the submenu trigger.
 4. Update `EXPECTED_TRIGGERS` in `tests/handle/commands/test_command_triggers.py` to include the new trigger.
 5. Update menu tests in `tests/handle/commands/test_menu.py` to cover the new feature's visibility under different adapter/implementation contexts.
-6. Update `apps/docs/content/docs/platforms/qq/commands.mdx` (and `.zh.mdx`) with the new command reference.
+6. Update `apps/docs/content/docs/platforms/qq/command-reference.mdx` (and `.zh.mdx`) with the new command reference.
 
 ### Docs Site Structure: Platform → Protocol → Implementation
 
 The docs site (`apps/docs/content/docs/`) separates platform-specific documentation into a dedicated `platforms/` section:
 
-```
+```text
 platforms/
 ├── index.mdx              # Layer model overview (platform → protocol → implementation)
 └── qq/                    # QQ platform
     ├── overview.mdx       # Protocol priority, implementation matrix
-    ├── commands.mdx       # Full QQ command reference (incl. remote management)
+    ├── frameworks/        # Protocol-side runtime frameworks (split by implementation)
+    │   ├── index.mdx               # Framework comparison & port allocation
+    │   ├── napcat-docker.mdx       # NapCat Docker setup + announcement image path bridge
+    │   └── snowluma-docker.mdx     # SnowLuma Docker setup
+    ├── command-reference.mdx # Full QQ command reference (incl. remote management)
     └── onebot-v11/        # OneBot V11 protocol
         ├── overview.mdx   # Protocol overview, runtime detection
         ├── default.mdx    # Default implementation (core commands + remote management)
@@ -1489,10 +1521,10 @@ platforms/
 
 The `user-guide/commands.mdx` is now a high-level overview that links to the platform-specific pages instead of duplicating command details. When adding new commands or changing availability:
 
-1. Update `platforms/qq/commands.mdx` (and `.zh.mdx`) with the full command reference
+1. Update `platforms/qq/command-reference.mdx` (and `.zh.mdx`) with the full command reference
 2. Update the relevant implementation page (e.g., `platforms/qq/onebot-v11/napcat.mdx`) if the command is implementation-specific
 3. Update `user-guide/commands.mdx` only if the high-level menu structure or filtering rules change
-4. Update `developer-guide/introduction.mdx` if the project source structure changes
+4. Update `developer-guide/architecture/introduction.mdx` if the project source structure changes
 
 ### Docs CI and Unit Test Coverage
 
@@ -1502,7 +1534,7 @@ When adding CI checks or unit tests for the docs site (`apps/docs/`), several pi
 
 2. **`fumadocs-mdx` node loader cannot handle image assets**: The `lint:links` script uses `register()` from `fumadocs-mdx/node` to load MDX files for link validation. When an MDX file imports a `.png`/`.jpg`/`.svg`, the loader's `load` hook calls `nextLoad`, reaching Node's default loader which throws `ERR_UNKNOWN_FILE_EXTENSION`. Fix by registering a `load` hook via `module.registerHooks()` (Node.js 23+) from `node:module` that returns `export default undefined;` for image file extensions. Add this at the top of `scripts/lint.mts` before importing `fumadocs-mdx/node`.
 
-3. **`next-validate-link` URL resolution from root index pages**: Root index pages (e.g., `platforms/index.mdx`) have a URL without a trailing slash (`/docs/platforms`), so relative links like `./qq` resolve to `/docs/qq` instead of `/docs/platforms/qq`. Use absolute URLs (`/docs/platforms/qq/overview`) for links from root index pages. Directory links (e.g., `./onebot-v11`) must include a specific page suffix (`./onebot-v11/overview`) — bare directory links fail validation.
+3. **`next-validate-link` URL resolution from root index pages**: Root index pages (e.g., `platforms/index.mdx`) have a URL without a trailing slash (`/docs/platforms`), so relative links like `./qq` resolve to `/docs/qq` instead of `/docs/platforms/qq`. Use absolute URLs (`/docs/platforms/qq/overview`) for links from root index pages. Directory links (e.g., `./onebot-v11`) must include a specific page suffix (`./onebot-v11/overview`) — bare directory links fail validation. Links to an index page from a sibling (e.g., `./index` from `superuser.mdx`) also fail because the index page's URL omits the `/index` segment — use the absolute directory URL (e.g., `/docs/user-guide/configuration`) instead.
 
 4. **Extract shared functions for testability**: When a function (e.g., `switchLocale` in `provider.tsx`) is defined inside a React component file, unit tests either can't import it or must duplicate the logic (which drifts from the real implementation). Extract such functions to a dedicated module (e.g., `src/lib/locale.ts`) and import from both the component and the test. This ensures tests verify the real export, not a stale copy.
 

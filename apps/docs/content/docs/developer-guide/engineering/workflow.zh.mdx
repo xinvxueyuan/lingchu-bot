@@ -7,6 +7,108 @@ title: 工作流
 
 保持开发变更小而聚焦、验证明确、影响可理解。仓库使用 `Taskfile.yml` 作为主要自动化入口：Python/代码工作通过 `uv` 运行，文档/前端工作通过 `pnpm` 运行，跨工作区任务由 Turbo 编排。
 
+## 开发环境搭建
+
+本节引导外部开发者从零开始搭建可用的开发环境。
+
+### 前置条件
+
+- Python 3.13（`requires-python = ">=3.13, <3.14"`）
+- [uv](https://docs.astral.sh/uv/) — Python 包和项目管理器
+- [Node.js](https://nodejs.org/) 22+ 和 [pnpm](https://pnpm.io/) — 用于文档站点和前端工作区
+- [git](https://git-scm.com/)
+
+### 安装
+
+1. 克隆仓库：
+
+   ```bash
+   git clone https://github.com/xinvxueyuan/lingchu-bot.git
+   cd lingchu-bot
+   ```
+
+2. 安装所有依赖（Python + Node.js）：
+
+   ```bash
+   task install
+   ```
+
+   这会运行 `uv sync` 和 `pnpm install`。如需分别安装：
+
+   ```bash
+   uv sync --frozen       # Python 依赖
+   pnpm install --frozen-lockfile  # Node.js 依赖
+   ```
+
+3. 复制环境模板：
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   编辑 `.env`，设置 `LINGCHU_SUPERUSERS`、`SUPERUSERS` 以及适配器连接详情以适配你的环境。
+
+4. 验证搭建：
+
+   ```bash
+   task check    # 静态检查、格式化、Markdown lint、类型检查
+   task test     # Python 测试 + 文档测试
+   ```
+
+   如果两者均通过，则环境已准备好进行开发。
+
+### 开发工作流
+
+典型的开发周期：
+
+1. 创建分支：`git checkout -b feature/your-feature`
+2. 遵循现有模式和风格进行修改。
+3. 对修改过的文件运行聚焦检查：
+
+   ```bash
+   uv run -m ruff check path/to/file.py
+   uv run -m ruff format path/to/file.py
+   ```
+
+4. 提交前运行完整检查套件：
+
+   ```bash
+   task check
+   task test
+   ```
+
+5. 使用 gitmoji + Conventional Commits 格式提交（由 `.husky/commit-msg` 强制执行）。
+6. 推送并按照 [PR 描述指南](#pr-描述) 开启 PR。
+
+### 测试
+
+| 测试类型 | 命令 | 范围 |
+|-----------|---------|-------|
+| Python 单元测试 | `uv run -m pytest` | 所有 Python 测试 |
+| Python 聚焦测试 | `uv run -m pytest tests/handle/commands/test_mute.py` | 单个测试文件 |
+| 文档测试 | `pnpm --filter docs test` | Vitest 组件/单元测试 |
+| 文档链接检查 | `pnpm --filter docs run lint:links` | 内部链接验证 |
+| E2E 测试 | `pnpm --filter docs exec playwright test` | Playwright 浏览器测试 |
+| 完整 CI 序列 | `task ci` | check + test + build |
+
+### 构建
+
+```bash
+task build      # 构建所有工作区（Python + 文档）
+pnpm turbo run build --filter=docs  # 仅构建文档站点
+uv build --clear  # 仅构建 Python 包
+```
+
+### i18n 工作流
+
+当修改可翻译字符串时：
+
+```bash
+task i18n   # 提取、更新和编译 gettext 目录
+```
+
+这会运行 `pybabel extract`、`pybabel update` 和 `pybabel compile`。详见[国际化](i18n)。
+
 ## 推荐步骤
 
 <Steps>

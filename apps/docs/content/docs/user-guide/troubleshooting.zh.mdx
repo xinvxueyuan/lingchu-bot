@@ -67,7 +67,7 @@ NoneBot 配置文件只接受标准 JSON 小写 `true` / `false`。
   </Accordion>
   <Accordion title="同一平台配置了多个适配器">
 
-不要为同一平台显式配置多个适配器。例如 `LINGCHUAdapter = "~milky+~onebot.v11"` 会立即失败。
+不要为同一平台显式配置多个适配器。例如 `LINGCHUAdapter = "~onebot.v11+~another_adapter"` 会立即失败。
 
   </Accordion>
   <Accordion title="运行时注册了未知适配器">
@@ -100,7 +100,7 @@ OneBot V11 群公告使用实现专属 API。对 NapCat 来说，`_send_group_no
 - 修改 `.env` 后没有重启 Lingchu Bot。
 - NapCat 版本低于支持范围，或当前实现未被识别为 `NapCat.Onebot`。
 
-Windows 加 Docker Desktop 场景请按[框架对接](../platforms/framework-integrations)配置路径穿透，并验证写入 `ANNOUNCEMENT_IMAGE_CACHE_DIR` 的文件能在容器内通过 `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` 读取。
+Windows 加 Docker Desktop 场景请按[NapCat Docker](../platforms/qq/frameworks/napcat-docker)配置路径穿透，并验证写入 `ANNOUNCEMENT_IMAGE_CACHE_DIR` 的文件能在容器内通过 `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` 读取。
 
   </Accordion>
 </Accordions>

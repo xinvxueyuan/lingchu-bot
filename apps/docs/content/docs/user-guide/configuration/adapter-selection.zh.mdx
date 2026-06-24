@@ -1,0 +1,32 @@
+---
+icon: Plug
+title: 适配器选择
+---
+
+Lingchu Bot 将具体适配器按平台能力分组。每个平台默认只启用一个适配器。当前 QQ 平台优先级为：
+
+1. `~onebot.v11`
+
+未设置时，QQ 使用 `~onebot.v11`。要显式选择适配器，设置 NoneBot 全局配置值：
+
+```toml
+LINGCHUAdapter = "~onebot.v11"
+```
+
+默认选择。请确保 NoneBot 已加载 OneBot V11 适配器。Milky、QQ 和 OneBot V12 已弃用，其源代码已被完全移除；`tools/adapter_loader.py` 仅作为桩文件存在，模块映射为空。
+
+<Callout type="warn" title="冲突预防">
+
+为同一平台显式配置多个已知适配器会导致启动失败：
+
+```toml
+LINGCHUAdapter = "~onebot.v11+~another_adapter"
+```
+
+Lingchu Bot 不控制 NoneBot 实际导入或注册哪些适配器；它只通过 `LINGCHUAdapter` 选择业务代码，并校验选中的适配器已被 NoneBot 加载和注册。
+
+</Callout>
+
+不属于任何平台 profile 的未知适配器不被视为已启用。消息存储仍会接受其事件，但会将 `platform` 字段写入 `unknown`。这为下游展示提供了稳定的 Unknown 分桶，而非将原始适配器名称视为平台 ID。
+
+关于适配器注册表和新增平台的开发者文档，参见 [Adapter Guide](/docs/developer-guide/architecture/adapter-guide)。

@@ -333,6 +333,30 @@ _DEFAULT_COMMAND_TRIGGERS = {
         chinese_aliases=frozenset(),
         english_aliases=frozenset(),
     ),
+    "protect_member": CommandTrigger(
+        chinese="拉白",
+        english="protect",
+        chinese_aliases=frozenset({"拉白用户"}),
+        english_aliases=frozenset({"protect-member"}),
+    ),
+    "global_protect_member": CommandTrigger(
+        chinese="全局拉白",
+        english="global-protect",
+        chinese_aliases=frozenset({"全局拉白用户"}),
+        english_aliases=frozenset({"global-protect-member"}),
+    ),
+    "unprotect_member": CommandTrigger(
+        chinese="删白",
+        english="unprotect",
+        chinese_aliases=frozenset({"删除白名单"}),
+        english_aliases=frozenset({"unprotect-member"}),
+    ),
+    "global_unprotect_member": CommandTrigger(
+        chinese="全局删白",
+        english="global-unprotect",
+        chinese_aliases=frozenset({"全局删除白名单"}),
+        english_aliases=frozenset({"global-unprotect-member"}),
+    ),
     "send_announcement": CommandTrigger(
         chinese="发送群公告",
         english="send-announcement",

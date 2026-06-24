@@ -24,12 +24,9 @@ The QQ platform is the only currently implemented profile. Its known adapter pri
 | Priority | Adapter | NoneBot package | Status |
 | --- | --- | --- | --- |
 | 1 (default) | `~onebot.v11` | `nonebot-adapter-onebot` | Active |
-| 2 | `~milky` | `nonebot-adapter-milky` | Deprecated |
-| 3 | `~qq` | `nonebot-adapter-qq` | Deprecated |
-| 4 | `~onebot.v12` | `nonebot-adapter-onebot` | Deprecated |
-
-<Tabs items={['OneBot V11', 'Milky', 'QQ Official', 'OneBot V12']}>
-  <Tab value="OneBot V11">
+| 2 | `~milky` | `nonebot-adapter-milky` | Deprecated (source removed) |
+| 3 | `~qq` | `nonebot-adapter-qq` | Deprecated (source removed) |
+| 4 | `~onebot.v12` | `nonebot-adapter-onebot` | Deprecated (source removed) |
 
 The default adapter. Requires a running OneBot V11 implementation (such as NapCat or Lagrange) connected to NoneBot via WebSocket or HTTP.
 
@@ -40,71 +37,20 @@ DRIVER=~fastapi+~httpx+~websockets
 ONEBOT_ACCESS_TOKEN=your-token
 ```
 
-  </Tab>
-  <Tab value="Milky">
+## Deprecated adapters
 
-<Callout type="warn" title="Deprecated">
+Deprecated adapters (Milky, QQ Official, OneBot V12) have been fully removed from the project. Their source code is no longer preserved — `tools/adapter_loader.py` exists as a stub with empty module mappings (`_DEPRECATED_ADAPTER_MODULES = {}`).
 
-The Milky adapter has been deprecated and removed from the startup flow. Source code is preserved for on-demand loading via `tools/adapter_loader.py`.
+The loader functions (`load_deprecated_adapter()`, `load_and_init_deprecated_adapter()`, `list_deprecated_adapters()`) still exist but always raise `ValueError` for any deprecated adapter ID, because no handler modules are registered.
 
-</Callout>
-
-A newer QQ adapter. Set `LINGCHUAdapter = "~milky"` and install the Milky adapter.
-
-Configuration in `.env`:
-
-```dotenv
-LINGCHUAdapter=~milky
-```
-
-  </Tab>
-  <Tab value="QQ Official">
-
-<Callout type="warn" title="Deprecated">
-
-The QQ Official adapter has been deprecated and removed from the startup flow. Source code is preserved for on-demand loading via `tools/adapter_loader.py`.
-
-</Callout>
-
-The official QQ bot adapter. Set `LINGCHUAdapter = "~qq"` and install the QQ adapter.
-
-<Callout type="warn" title="Limited API support">
-
-The QQ official adapter has a different API surface from OneBot V11. Some group management commands may not be available or may behave differently.
-
-</Callout>
-
-  </Tab>
-  <Tab value="OneBot V12">
-
-<Callout type="warn" title="Deprecated">
-
-The OneBot V12 adapter has been deprecated and removed from the startup flow. Source code is preserved for on-demand loading via `tools/adapter_loader.py`.
-
-</Callout>
-
-The OneBot V12 standard adapter. Set `LINGCHUAdapter = "~onebot.v12"` and ensure the OneBot V12 implementation is running.
-
-  </Tab>
-</Tabs>
-
-## On-demand loading of deprecated adapters
-
-Deprecated adapters (Milky, QQ Official, OneBot V12) have been removed from the startup flow, but their source code is preserved under `handle/qq/adapters/`. The standalone `tools/adapter_loader.py` module provides on-demand loading for these adapters without re-entering them into the startup registry.
+Deprecated adapter IDs are tracked in `_DEPRECATED_ADAPTER_IDS` in `platforms/registry.py`. Configuring any of them in `LINGCHUAdapter` exits with a clear `PlatformAdapterDeprecatedError`:
 
 ```python
-from tools.adapter_loader import load_deprecated_adapter, list_deprecated_adapters
+from nonebot import get_driver
+from src.plugins.nonebot_plugin_lingchu_bot.platforms.registry import _DEPRECATED_ADAPTER_IDS
 
-# List all deprecated adapter IDs
-print(list_deprecated_adapters())  # ('~milky',)
-
-# Load a deprecated adapter's handler modules on demand
-handlers = load_deprecated_adapter("~milky")
-for handler in handlers:
-    await handler()
+print(_DEPRECATED_ADAPTER_IDS)  # frozenset({'~milky', '~qq', '~onebot.v12'})
 ```
-
-`list_deprecated_adapters()` returns the IDs of adapters whose handler modules are available for on-demand loading. `load_deprecated_adapter()` imports the handler modules and returns their `import_handle` callables. Note that only adapters with preserved handler modules (currently `~milky`) can be loaded this way.
 
 ## Error handling
 
@@ -114,7 +60,7 @@ The adapter registry raises specific exceptions when configuration is invalid:
 | --- | --- |
 | `PlatformAdapterConflictError` | Multiple known adapters explicitly configured for the same platform |
 | `PlatformAdapterNotLoadedError` | The selected adapter was not loaded or registered by NoneBot |
-| `PlatformAdapterDeprecatedError` | A deprecated adapter (`~milky`, `~qq`, `~onebot.v12`) is specified in `LINGCHUAdapter` |
+| `PlatformAdapterDeprecatedError` | A deprecated adapter (`~milky`, `~qq`, `~onebot.v12`) is specified in `LINGCHUAdapter`. Source code for these adapters has been fully removed. |
 
 <Callout type="warn" title="Startup failure">
 
