@@ -152,6 +152,7 @@ def test_speech_management_page_lists_speech_commands_only() -> None:
 
     assert "发言管理" in rendered
     assert "禁言群成员" in rendered
+    assert "撤回群消息" in rendered
     assert "关闭全体禁言" in rendered
     assert "踢出群成员" not in rendered
     assert "退出当前群" not in rendered

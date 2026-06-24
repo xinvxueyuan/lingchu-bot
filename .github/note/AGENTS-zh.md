@@ -465,6 +465,14 @@ When changing a function signature (sync→async, adding/removing params):
 - `ActionFailed()` from Milky and OneBot V11 adapters may not accept positional arguments — always check the constructor signature
 - Use `ruff check` to catch BLE001 (blind `except Exception`) — prefer specific adapter exceptions
 
+### OneBot Group Message Identity
+
+- OneBot V11 群消息的 `event.get_session_id()` 可能同时包含群号和用户号
+  （例如 `group_<group_id>_<user_id>`）。读取消息历史的群维度功能必须用
+  `group_id` 作为存储/查询 `conversation_id`，不要使用 `get_session_id()`。
+  读取旧数据时，先校验 `raw_event.group_id` 或旧格式
+  `group_<group_id>_...` 前缀，再把记录当作当前群候选。
+
 ### Gettext Helper Shadowing
 
 - 许多 handler 会把 gettext helper 导入为 `_`。不要在这些函数里把 `_` 当作一次性局部变量使用（例如 `deleted, _ = ...`），否则会遮蔽 gettext helper，并让后续 `await _("...")` 在运行时失败。可改用 `result = ...; deleted = result[0]`，或在 gettext 密集作用域外使用更明确的未使用变量名。
@@ -860,5 +868,7 @@ platforms/
 
 - **测试 patch 目标更新**：将单个模块（如 `orm_crud.py`）拆分为包（如 `orm_crud/`，含 `_base.py`、`_single.py`、`_bulk.py`）时，所有测试中的 `patch.object()` 目标必须从模块级更新到子模块级。例如 `patch("...orm_crud.select", ...)` 需改为 `patch("...orm_crud._single.select", ...)`。未更新 patch 目标会导致测试时 `AttributeError`，因为符号不再在包 `__init__` 上——它在子模块上。
 - **`nonebot_plugin_orm` 包目录模型发现**：`nonebot_plugin_orm` 通过扫描模块路径发现 ORM 模型。将 `models.py` 转为 `models/` 包时，只要 `models/__init__.py` 显式导入所有模型类（如 `from .message import MessageRecord, AuditRecord`），模型发现仍然有效。若 `__init__.py` 中缺少显式导入，ORM 将不会注册表，迁移脚本将为空。
+- **分区 ORM 模型需要同步更新 router、迁移和类型测试**：新增物理分区模型（如平台 + 适配器 + 框架事件表）时，必须同时更新仓储模型路由、`models/__init__.py` 导出、Alembic 表/索引创建、清理路径，以及断言 patched CRUD 模型参数的测试。返回类型也要放宽到包含分区模型类，否则 Pyright/ty 会报告返回类型不匹配。
 - **`ensure_json5_dict_file_async` 与 `write_json5_dict_file_async` 的区别**：`ensure_json5_dict_file_async` 仅在文件不存在时创建（幂等 ensure）。需要覆盖已有文件内容时（如 `bot_state.py` 持久化状态变更），应使用 `write_json5_dict_file_async`——它无条件写入文件。在需要 `write_*` 时误用 `ensure_*` 会静默保留过期数据。
+- **运行时配置默认值必须可 JSON 序列化**：`runtime_config_defaults()` 会传给 `ensure_json5_dict_file_sync()` / async 文件生成。如果 `RuntimeConfig` 包含 `frozenset` 等 Python 专用容器，写入默认值前应使用 `model_dump(mode="json")` 或规范化这些字段；否则首次启动创建配置文件会因 "not JSON5 serializable" 失败。
 - **移除向后兼容别名是破坏性变更**：将 `RuntimeConfig.lingchu_adapter` 简化为单一别名（移除 `LINGCHUAdapter` 和 `LINGCHU_ADAPTER`）能清理配置，但会破坏在 `.env` 或 `config.json5` 中引用旧别名名的用户。需在 changelog 和迁移指南中记录该移除；仅在 pre-1.0 或项目接受破坏性变更时执行（参见 Agent Preferences："pre-planning development stage"）。

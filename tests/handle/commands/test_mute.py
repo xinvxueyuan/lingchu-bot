@@ -2,6 +2,7 @@
 测试禁言命令 - 边界行为覆盖
 """
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -14,12 +15,17 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.mute import (
     member_mute_cmd,
     member_unmute_cmd,
     onebot11_mute,
+    onebot11_recall_message,
     onebot11_unmute,
     onebot11_whole_mute,
     onebot11_whole_unmute,
+    recall_message_cmd,
     whole_mute_cmd,
     whole_unmute_cmd,
 )
+
+RECALL_DELETE_COUNT = 2
+RECALL_QUERY_COUNT = 2
 
 
 def finish_message(mock_finish: MagicMock) -> object:
@@ -140,3 +146,207 @@ class TestOneBot11Mute:
             group_id=mock_onebot11_event.group_id, enable=False
         )
         assert finish_text(mock_finish) == "全体解禁成功"
+
+    @pytest.mark.asyncio
+    async def test_onebot11_recall_message_verifies_and_deletes_recent_messages(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+    ) -> None:
+        first_record = MagicMock(
+            message_id="101",
+            user_id="2001",
+            conversation_id=str(mock_onebot11_event.group_id),
+        )
+        command_record = MagicMock(
+            message_id="999",
+            user_id="111222333",
+            conversation_id=str(mock_onebot11_event.group_id),
+        )
+        admin_record = MagicMock(
+            message_id="102",
+            user_id="2002",
+            conversation_id=str(mock_onebot11_event.group_id),
+        )
+        second_record = MagicMock(
+            message_id="103",
+            user_id="2003",
+            conversation_id=str(mock_onebot11_event.group_id),
+        )
+        mock_onebot11_event.message_id = 999
+        mock_onebot11_bot.get_msg = AsyncMock(
+            side_effect=[
+                {
+                    "message_id": 101,
+                    "message_type": "group",
+                    "group_id": mock_onebot11_event.group_id,
+                    "sender": {"user_id": 2001},
+                },
+                {
+                    "message_id": 102,
+                    "message_type": "group",
+                    "group_id": mock_onebot11_event.group_id,
+                    "sender": {"user_id": 2002},
+                },
+                {
+                    "message_id": 103,
+                    "message_type": "group",
+                    "group_id": mock_onebot11_event.group_id,
+                    "sender": {"user_id": 2003},
+                },
+            ]
+        )
+        mock_onebot11_bot.delete_msg = AsyncMock()
+        mock_onebot11_bot.get_group_member_info = AsyncMock(
+            side_effect=[
+                {"role": "admin"},  # bot privilege check
+                {"role": "member"},
+                {"role": "admin"},
+                {"role": "member"},
+            ]
+        )
+
+        with (
+            patch.object(
+                mute_module.message_repository,
+                "list_recent_messages",
+                AsyncMock(
+                    return_value=[
+                        first_record,
+                        command_record,
+                        admin_record,
+                        second_record,
+                    ]
+                ),
+            ) as list_recent,
+            patch.object(
+                mute_module,
+                "find_active_subject_policy",
+                AsyncMock(return_value=None),
+            ),
+            patch.object(recall_message_cmd, "finish") as mock_finish,
+        ):
+            await onebot11_recall_message(
+                target=None,
+                count=2,
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+            )
+
+        assert list_recent.await_count == RECALL_QUERY_COUNT
+        assert list_recent.call_args.kwargs["bot_id"] == mock_onebot11_bot.self_id
+        mock_onebot11_bot.delete_msg.assert_any_await(message_id=101)
+        mock_onebot11_bot.delete_msg.assert_any_await(message_id=103)
+        assert mock_onebot11_bot.delete_msg.await_count == RECALL_DELETE_COUNT
+        assert "已撤回 2 条消息" in finish_text(mock_finish)
+
+    @pytest.mark.asyncio
+    async def test_onebot11_recall_message_uses_legacy_session_records(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+    ) -> None:
+        record = MagicMock(
+            message_id="101",
+            user_id="2001",
+            conversation_id=f"group_{mock_onebot11_event.group_id}_2001",
+            raw_event=json.dumps({"group_id": mock_onebot11_event.group_id}),
+        )
+        mock_onebot11_event.message_id = 999
+        mock_onebot11_bot.get_msg = AsyncMock(
+            return_value={
+                "message_id": 101,
+                "message_type": "group",
+                "group_id": mock_onebot11_event.group_id,
+                "sender": {"user_id": 2001},
+            }
+        )
+        mock_onebot11_bot.delete_msg = AsyncMock()
+        mock_onebot11_bot.get_group_member_info = AsyncMock(
+            side_effect=[
+                {"role": "admin"},  # bot privilege check
+                {"role": "member"},
+            ]
+        )
+
+        with (
+            patch.object(
+                mute_module.message_repository,
+                "list_recent_messages",
+                AsyncMock(side_effect=[[record], []]),
+            ) as list_recent,
+            patch.object(
+                mute_module,
+                "find_active_subject_policy",
+                AsyncMock(return_value=None),
+            ),
+            patch.object(recall_message_cmd, "finish") as mock_finish,
+        ):
+            await onebot11_recall_message(
+                target=None,
+                count=1,
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+            )
+
+        assert list_recent.await_count == RECALL_QUERY_COUNT
+        assert "conversation_id" not in list_recent.await_args_list[0].kwargs
+        assert list_recent.await_args_list[1].kwargs["conversation_id"] == str(
+            mock_onebot11_event.group_id
+        )
+        mock_onebot11_bot.delete_msg.assert_awaited_once_with(message_id=101)
+        assert "已撤回 1 条消息" in finish_text(mock_finish)
+
+    @pytest.mark.asyncio
+    async def test_onebot11_recall_message_filters_by_target_user(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_at: MagicMock,
+    ) -> None:
+        record = MagicMock(
+            message_id="101",
+            user_id="987654321",
+            conversation_id=str(mock_onebot11_event.group_id),
+        )
+        mock_onebot11_event.message_id = 999
+        mock_onebot11_bot.get_msg = AsyncMock(
+            return_value={
+                "message_id": 101,
+                "message_type": "group",
+                "group_id": mock_onebot11_event.group_id,
+                "sender": {"user_id": 987654321},
+            }
+        )
+        mock_onebot11_bot.delete_msg = AsyncMock()
+        mock_onebot11_bot.get_group_member_info = AsyncMock(
+            side_effect=[
+                {"role": "admin"},  # bot privilege check
+                {"role": "member"},
+            ]
+        )
+
+        with (
+            patch.object(
+                mute_module.message_repository,
+                "list_recent_messages",
+                AsyncMock(return_value=[record]),
+            ) as list_recent,
+            patch.object(
+                mute_module,
+                "find_active_subject_policy",
+                AsyncMock(return_value=None),
+            ),
+            patch.object(recall_message_cmd, "finish") as mock_finish,
+        ):
+            await onebot11_recall_message(
+                target=mock_at,
+                count=1,
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+            )
+
+        assert list_recent.call_args.kwargs["user_id"] == "987654321"
+        assert list_recent.await_count == RECALL_QUERY_COUNT
+        mock_onebot11_bot.delete_msg.assert_awaited_once_with(message_id=101)
+        assert "目标: @测试用户" in finish_text(mock_finish)

@@ -12,6 +12,7 @@ _MEMBER_MUTE = COMMAND_TRIGGERS["member_mute"]
 _WHOLE_MUTE = COMMAND_TRIGGERS["whole_mute"]
 _MEMBER_UNMUTE = COMMAND_TRIGGERS["member_unmute"]
 _WHOLE_UNMUTE = COMMAND_TRIGGERS["whole_unmute"]
+_RECALL_MESSAGE = COMMAND_TRIGGERS["recall_message"]
 
 member_mute_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
@@ -55,12 +56,24 @@ whole_unmute_cmd: type[Matcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
+recall_message_cmd: type[AlconnaMatcher] = on_alconna(
+    command=Alconna(
+        _RECALL_MESSAGE.primary,
+        Args["target?", At | int, None]["count?", int, None],
+    ),
+    aliases=_RECALL_MESSAGE.aliases,
+    priority=5,
+    block=True,
+    use_cmd_sep=True,
+    use_cmd_start=True,
+)
 
 _LAZY_EXPORTS = {
     "onebot11_mute": "..adapters.onebot11.default.mute",
     "onebot11_whole_mute": "..adapters.onebot11.default.mute",
     "onebot11_unmute": "..adapters.onebot11.default.mute",
     "onebot11_whole_unmute": "..adapters.onebot11.default.mute",
+    "onebot11_recall_message": "..adapters.onebot11.default.mute",
 }
 
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Interactive Runtime Debugging"
+  short_description: "Debug live runtime issues with evidence."
+  default_prompt: "Use $interactive-runtime-debugging to reproduce a live Lingchu Bot runtime bug, inspect NapCat/logs/database evidence, fix the root cause, and verify with live UI plus targeted tests."

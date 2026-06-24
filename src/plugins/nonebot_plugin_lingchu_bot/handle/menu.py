@@ -8,6 +8,7 @@ from nonebot import logger
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from packaging.version import InvalidVersion, Version, parse
 
+from ..core.runtime_config import runtime_config
 from ..i18n import _async as _
 from ..i18n import get_configured_locale, gettext, normalize_locale
 from ..platforms import QQ_CAPABILITIES, PlatformCapability, resolve_enabled_adapters
@@ -149,7 +150,12 @@ def _menu_page_command(page: MenuPage) -> str:
     if command is None:
         return ""
     locale = normalize_locale(get_configured_locale())
-    return command.en_us if locale.lower().startswith("en") else command.zh_cn
+    override = runtime_config.menu_page_trigger_overrides.get(page.id, {})
+    if locale.lower().startswith("en"):
+        value = override.get("english") if isinstance(override, dict) else None
+        return str(value).strip() if value else command.en_us
+    value = override.get("chinese") if isinstance(override, dict) else None
+    return str(value).strip() if value else command.zh_cn
 
 
 menu_page_cmds: Final[dict[str, type[AlconnaMatcher]]] = {
@@ -310,6 +316,15 @@ MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         "speech-management",
         LocalizedText("关闭全体禁言", "Disable whole-group mute"),
         LocalizedText("", ""),
+        PlatformCapability.MEMBER_MODERATION,
+        _QQ_BOTH,
+    ),
+    MenuFeature(
+        "recall-message",
+        "recall_message",
+        "speech-management",
+        LocalizedText("撤回群消息", "Recall group messages"),
+        LocalizedText("[@用户] [数量]", "[@user] [count]"),
         PlatformCapability.MEMBER_MODERATION,
         _QQ_BOTH,
     ),

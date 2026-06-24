@@ -26,10 +26,10 @@ menu
 默认子菜单命令：
 
 - `成员管理` / `member-management`：踢出、拉黑/删黑、设置群名片、设置群头衔、设置/取消管理员。
-- `发言管理` / `speech-management`：禁言/解禁群成员、开启/关闭全体禁言。
+- `发言管理` / `speech-management`：禁言/解禁群成员、开启/关闭全体禁言、撤回最近消息。
 - `群聊管理` / `group-chat-management`：设置群名称、设置群头像（实现支持时）、发送群公告（实现支持时）、退出当前群。
 - `远程管理` / `remote-management`：跨群禁言/解禁、全体禁言/解禁、踢出、拉黑/删黑、发送公告。
-- `机器人控制` / `bot-control`：闭嘴/说话（静默模式）、开机/关机（处理器门禁）。
+- `系统管理` / `system-management`：闭嘴/说话（静默模式）、开机/关机（处理器门禁）。
 
 <Callout type="info" title="远程管理">
 
@@ -73,6 +73,19 @@ mute-all
 全体解禁
 unmute-all
 ```
+
+## 消息撤回
+
+```text
+撤回 [@用户] [数量]
+recall [@user] [count]
+```
+
+- 数量默认读取 `config.json5` 的 `recall_message_default_count`（默认 `10`）。
+- 单个数字参数会被视为数量：`撤回 20`。
+- 定向撤回用户消息时先提供 @：`撤回 @用户 20`。
+- 命令从消息存储读取当前群最近消息，跳过触发命令本身，通过 OneBot V11 `get_msg` 校验候选消息，再调用 `delete_msg` 撤回。
+- 机器人会跳过操作者、机器人自己、群管理员/群主，以及通过 `protected_subject_feature_keys` 保护的用户消息。
 
 ## OneBot V11 黑名单
 
