@@ -143,7 +143,6 @@ Lingchu Bot 是一个基于 NoneBot2 的群管机器人。本 monorepo 包含 Py
 │   │   └── __tests__/  # Vitest unit tests
 │   └── source.config.ts # Fumadocs MDX config
 ├── packages/           # Shared frontend packages
-├── schema/             # JSON Schemas for config files (config.schema.json5, bot_state.schema.json5)
 ├── tools/                           # Standalone utility tools
 │   ├── __init__.py
 │   └── adapter_loader.py           # Deprecated adapter on-demand loader (Milky, QQ, OneBot V12)
@@ -353,6 +352,12 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 - **🧹 Clear Workflow**: Stale workflow cleanup
 - **🏷️ Issues Top**: Issue triage automation
 
+## 硬约束
+
+以下规则**不可妥协**。任何违反必须在代码审查 / PR 检查阶段被拦截。
+
+- **可变路径必须由 `nonebot_plugin_localstore` 统一管理**：所有可变的数据 / 配置 / 缓存 / 资源 / schema 文件**必须**通过 `nonebot_plugin_localstore` 提供的目录或文件接口解析——`get_plugin_data_dir()`、`get_plugin_config_dir()`、`get_plugin_cache_dir()`、`get_plugin_data_file()`、`get_plugin_config_file()`、`get_plugin_cache_file()`。**禁止**使用 `Path("...")` 相对或绝对硬编码；**禁止**使用 `importlib.resources` / wheel data 维护 schema 或资源文件——schema 资源以 Python 字符串字面量存储于 `src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py`，启动时由 `install_schemas()` 写入 localstore 目录。
+
 ## Engineering Conventions
 
 ### `fire_and_forget` 辅助函数
@@ -390,7 +395,7 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 
 - **Pre-commit hooks**：`prek.toml` 是 pre-commit hook 配置的唯一真实来源。已移除遗留的 `.pre-commit-config.yaml` —— 不要重新引入。
 - **版本同步**：`Taskfile.yml` 的 `ci:version:write-config` 任务将项目版本写入 `src/plugins/nonebot_plugin_lingchu_bot/core/config.py`（Python `__version__`）和 `apps/docs/package.json`（`version` 字段）。升级版本时运行此任务，而非手动编辑文件。
-- **JSON Schemas**：仓库根目录的 `schema/` 目录包含用于校验 JSON5 配置文件的 JSON Schema 文件：`config.schema.json5`（对应 `config.json5`）和 `bot_state.schema.json5`（对应 `bot_state.json5`）。支持 `$schema` 注释的编辑器可引用这些文件获得自动补全和校验。
+- **JSON Schemas**：JSON Schema 定义以 Python 字符串字面量形式存储在 `src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py`（`CONFIG_SCHEMA_TEXT` / `BOT_STATE_SCHEMA_TEXT`）。启动时 `install_schemas()` 将其写入 `nonebot_plugin_localstore` 管理的 `config_dir` / `data_dir`，分别生成 `config.schema.json5` / `bot_state.schema.json5`，与对应运行时 JSON5 文件同级。`runtime_config.py` / `bot_state.py` 注入的 `$schema` 字段为**纯 basename**，编辑器据此定位同级 schema。运行时校验完全由 Pydantic 模型（`RuntimeConfig` / `bot_state`）承担；schema 文件仅服务于编辑器工具链。路径由 `nonebot_plugin_localstore` 统一管理——**禁止**硬编码 `c:\dev\lingchu-bot\schema/`，也**禁止**使用 `importlib.resources` / wheel data 维护 schema 资源。
 - **Skills 排除列表同步**：`pyproject.toml` 中的 skills 排除列表有注释标注 "skills 排除列表同步至 prek.toml" —— 更新一个配置的排除模式时，需同步另一个。
 
 ## Lessons Learned
@@ -872,3 +877,8 @@ platforms/
 - **`ensure_json5_dict_file_async` 与 `write_json5_dict_file_async` 的区别**：`ensure_json5_dict_file_async` 仅在文件不存在时创建（幂等 ensure）。需要覆盖已有文件内容时（如 `bot_state.py` 持久化状态变更），应使用 `write_json5_dict_file_async`——它无条件写入文件。在需要 `write_*` 时误用 `ensure_*` 会静默保留过期数据。
 - **运行时配置默认值必须可 JSON 序列化**：`runtime_config_defaults()` 会传给 `ensure_json5_dict_file_sync()` / async 文件生成。如果 `RuntimeConfig` 包含 `frozenset` 等 Python 专用容器，写入默认值前应使用 `model_dump(mode="json")` 或规范化这些字段；否则首次启动创建配置文件会因 "not JSON5 serializable" 失败。
 - **移除向后兼容别名是破坏性变更**：将 `RuntimeConfig.lingchu_adapter` 简化为单一别名（移除 `LINGCHUAdapter` 和 `LINGCHU_ADAPTER`）能清理配置，但会破坏在 `.env` 或 `config.json5` 中引用旧别名名的用户。需在 changelog 和迁移指南中记录该移除；仅在 pre-1.0 或项目接受破坏性变更时执行（参见 Agent Preferences："pre-planning development stage"）。
+
+### Localstore 路径规范
+
+- **`schemas.py` 禁止改用 `import nonebot_plugin_localstore as store` 风格**：`test_install_schemas_uses_localstore_paths_only` 等测试依赖 `patch.object(schemas_module, "get_plugin_config_dir", ...)`，其生效前提是 `schemas.py` 通过 `from nonebot_plugin_localstore import get_plugin_config_dir` 把名字绑定到模块作用域。若改为 `import nonebot_plugin_localstore as store; store.get_plugin_config_dir(...)` 形式，patch target 会失效。如重构 import 风格，必须在同一 commit 中同步更新测试 fixture 的 mock target。
+- **`startup.py` 中 `install_schemas` 的失败语义固定为"日志不中断"**：`install_schemas()` 写入的是编辑器提示用 schema 文件，在 `startup()` 中被 `try/except BLE001` 包裹，失败时仅 `logger.exception`，**不**中断启动。运行时正确性由 Pydantic 模型承担，schema 不是必需品，因此失败按设计为非致命。**禁止**移除该 `try/except BLE001`；**禁止**把调用顺序调整到 `ensure_runtime_config_file_async()` 之后——schema 文件必须在 JSON5 数据文件以 `$schema` basename 引用它们之前就位。

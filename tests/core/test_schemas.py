@@ -1,0 +1,136 @@
+"""Tests for :mod:`core.schemas` localstore-backed schema installation."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+from unittest.mock import patch
+
+import pytest
+
+from src.plugins.nonebot_plugin_lingchu_bot.core import schemas as schemas_module
+from src.plugins.nonebot_plugin_lingchu_bot.core.schemas import (
+    BOT_STATE_SCHEMA_BASENAME,
+    BOT_STATE_SCHEMA_TEXT,
+    CONFIG_SCHEMA_BASENAME,
+    CONFIG_SCHEMA_TEXT,
+    install_schemas,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
+
+
+@pytest.fixture
+def patched_localstore(
+    tmp_path: Path,
+) -> Iterator[tuple[Path, Path]]:
+    """Redirect ``get_plugin_config_dir`` / ``get_plugin_data_dir`` to ``tmp_path``.
+
+    Returns the (config_dir, data_dir) tuple so individual tests can assert
+    the precise target paths.
+    """
+    config_dir = tmp_path / "config"
+    data_dir = tmp_path / "data"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    with (
+        patch.object(
+            schemas_module,
+            "get_plugin_config_dir",
+            return_value=config_dir,
+        ),
+        patch.object(
+            schemas_module,
+            "get_plugin_data_dir",
+            return_value=data_dir,
+        ),
+    ):
+        yield config_dir, data_dir
+
+
+def test_install_schemas_writes_config_schema_under_localstore_config_dir(
+    patched_localstore: tuple[Path, Path],
+) -> None:
+    """``install_schemas`` writes the config schema to the localstore config dir."""
+    config_dir, _ = patched_localstore
+
+    install_schemas()
+
+    config_schema_path = config_dir / CONFIG_SCHEMA_BASENAME
+    assert config_schema_path.exists()
+    assert config_schema_path.read_text(encoding="utf-8") == CONFIG_SCHEMA_TEXT
+
+
+def test_install_schemas_writes_bot_state_schema_under_localstore_data_dir(
+    patched_localstore: tuple[Path, Path],
+) -> None:
+    """``install_schemas`` writes the bot state schema to the localstore data dir."""
+    _, data_dir = patched_localstore
+
+    install_schemas()
+
+    data_schema_path = data_dir / BOT_STATE_SCHEMA_BASENAME
+    assert data_schema_path.exists()
+    assert data_schema_path.read_text(encoding="utf-8") == BOT_STATE_SCHEMA_TEXT
+
+
+def test_install_schemas_uses_localstore_paths_only(
+    patched_localstore: tuple[Path, Path],
+) -> None:
+    """Each schema is written under the corresponding localstore mock directory."""
+    config_dir, data_dir = patched_localstore
+
+    install_schemas()
+
+    # Both files exist only inside the mocked localstore directories.
+    expected_config = config_dir / CONFIG_SCHEMA_BASENAME
+    expected_data = data_dir / BOT_STATE_SCHEMA_BASENAME
+    assert expected_config.exists()
+    assert expected_data.exists()
+
+    # The data schema is *not* placed under the config dir, and vice versa.
+    assert not (config_dir / BOT_STATE_SCHEMA_BASENAME).exists()
+    assert not (data_dir / CONFIG_SCHEMA_BASENAME).exists()
+
+
+def test_install_schemas_is_idempotent(
+    patched_localstore: tuple[Path, Path],
+) -> None:
+    """Repeated calls do not raise and leave the file contents unchanged."""
+    config_dir, data_dir = patched_localstore
+
+    install_schemas()
+    first_config = (config_dir / CONFIG_SCHEMA_BASENAME).read_text(encoding="utf-8")
+    first_data = (data_dir / BOT_STATE_SCHEMA_BASENAME).read_text(encoding="utf-8")
+
+    install_schemas()
+
+    assert (config_dir / CONFIG_SCHEMA_BASENAME).read_text(encoding="utf-8") == (
+        first_config
+    )
+    assert (data_dir / BOT_STATE_SCHEMA_BASENAME).read_text(encoding="utf-8") == (
+        first_data
+    )
+
+
+def test_install_schemas_propagates_localstore_errors() -> None:
+    """``install_schemas`` must not swallow localstore errors.
+
+    The startup hook in ``start/startup.py`` wraps the call in
+    ``try/except BLE001`` and logs via ``logger.exception`` without
+    interrupting startup, but the schema module itself MUST let
+    exceptions propagate so the double-layer failure contract is
+    preserved (P6 in ``## Lessons Learned``). This test pins that
+    contract by asserting a ``RuntimeError`` from localstore bubbles
+    up unchanged.
+    """
+    with (
+        patch.object(
+            schemas_module,
+            "get_plugin_config_dir",
+            side_effect=RuntimeError("Cannot detect caller plugin"),
+        ),
+        pytest.raises(RuntimeError, match="Cannot detect caller plugin"),
+    ):
+        install_schemas()

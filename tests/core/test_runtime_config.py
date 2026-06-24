@@ -6,10 +6,12 @@ import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.core import runtime_config as runtime_module
 from src.plugins.nonebot_plugin_lingchu_bot.core.runtime_config import (
+    CONFIG_SCHEMA_BASENAME,
     RuntimeConfigError,
     ensure_runtime_config_file,
     ensure_runtime_config_file_async,
     get_runtime_config,
+    runtime_config_defaults,
 )
 
 if TYPE_CHECKING:
@@ -217,3 +219,30 @@ def test_runtime_config_rejects_invalid_field_type(tmp_path: Path) -> None:
         get_runtime_config(config_file)
 
     assert str(config_file) in str(exc_info.value)
+
+
+def test_runtime_config_defaults_contain_schema_basename() -> None:
+    """Default payloads embed the schema reference as a bare basename."""
+    defaults = runtime_config_defaults()
+
+    assert defaults["$schema"] == CONFIG_SCHEMA_BASENAME
+    assert "/" not in defaults["$schema"]
+    assert "\\" not in defaults["$schema"]
+
+
+def test_runtime_config_user_schema_overrides_default(
+    tmp_path: Path,
+) -> None:
+    """A user-provided ``$schema`` wins over the default basename."""
+    config_file = tmp_path / "config.json5"
+    config_file.write_text(
+        '{"$schema": "custom.schema.json5", "message_store_enabled": false}',
+        encoding="utf-8",
+    )
+
+    raw = runtime_config_defaults() | runtime_module.load_runtime_json_defaults(
+        config_file
+    )
+
+    assert raw["$schema"] == "custom.schema.json5"
+    assert raw["message_store_enabled"] is False

@@ -110,7 +110,17 @@ class Config(BaseModel):
     data_dir: Path = Field(default_factory=get_plugin_data_dir)
     config_dir: Path = Field(default_factory=get_plugin_config_dir)
     cache_dir: Path = Field(default_factory=get_plugin_cache_dir)
-    announcement_image_cache_dir: Path | None = None
+    # 公告图片缓存目录：默认由 localstore 派生
+    # （``get_plugin_cache_dir() / "announcement_images"``），
+    # 符合 Hard Constraints 章节"可变路径必须由 localstore 统一管理"规则。
+    # `.env` 中 ``ANNOUNCEMENT_IMAGE_CACHE_DIR`` 可显式覆盖
+    # （NoneBot Config 字段优先级高于 Pydantic 默认值），
+    # 用于跨容器文件共享（如 NapCat 容器挂载同一目录）。
+    announcement_image_cache_dir: Path = Field(
+        default_factory=lambda: get_plugin_cache_dir() / "announcement_images"
+    )
+    # 协议侧路径：容器内 NapCat 看到的目录路径。属于"协议侧"而非"宿主侧"，
+    # **不**通过 localstore 管理；由 `.env` 显式提供。
     announcement_image_protocol_dir: str | None = None
 
     @property

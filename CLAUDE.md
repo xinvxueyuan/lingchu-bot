@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3390 symbols, 6428 relationships, 285 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3681 symbols, 6947 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -145,7 +145,6 @@ lingchu-bot/
 │   │   └── __tests__/  # Vitest unit tests
 │   └── source.config.ts # Fumadocs MDX config
 ├── packages/           # Shared frontend packages
-├── schema/             # JSON Schemas for config files (config.schema.json5, bot_state.schema.json5)
 ├── tools/                           # Standalone utility tools
 │   ├── __init__.py
 │   └── adapter_loader.py           # Deprecated adapter on-demand loader (Milky, QQ, OneBot V12)
@@ -355,6 +354,12 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 - **🧹 Clear Workflow**: Stale workflow cleanup
 - **🏷️ Issues Top**: Issue triage automation
 
+## Hard Constraints
+
+The following rules are **non-negotiable**. Violations MUST be rejected at code review / PR check time.
+
+- **Variable paths must be owned by `nonebot_plugin_localstore`**: All mutable data / config / cache / resource / schema files MUST be resolved through `nonebot_plugin_localstore`'s directory or file helpers — `get_plugin_data_dir()`, `get_plugin_config_dir()`, `get_plugin_cache_dir()`, `get_plugin_data_file()`, `get_plugin_config_file()`, `get_plugin_cache_file()`. Hard-coding `Path("...")` (relative or absolute) is **forbidden**. Using `importlib.resources` / wheel data to ship schema or resource files is **forbidden** — schema resources are stored as Python string literals in `src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py` and written to the localstore directories at startup by `install_schemas()`.
+
 ## Engineering Conventions
 
 ### `fire_and_forget` Helper
@@ -392,7 +397,7 @@ GitHub Actions runs on push to `main`/`dev` and on PRs:
 
 - **Pre-commit hooks**: `prek.toml` is the single source of truth for pre-commit hook configuration. The legacy `.pre-commit-config.yaml` has been removed — do not re-introduce it.
 - **Version sync**: The `Taskfile.yml` `ci:version:write-config` task writes the project version to both `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` (Python `__version__`) and `apps/docs/package.json` (`version` field). When bumping the version, run this task rather than editing files manually.
-- **JSON Schemas**: The `schema/` directory at the repository root contains JSON Schema files for validating JSON5 config files: `config.schema.json5` (for `config.json5`) and `bot_state.schema.json5` (for `bot_state.json5`). Editors that support `$schema` comments can reference these for autocompletion and validation.
+- **JSON Schemas**: JSON Schema definitions are stored as Python string literals in `src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py` (`CONFIG_SCHEMA_TEXT` / `BOT_STATE_SCHEMA_TEXT`). At startup, `install_schemas()` writes them to `nonebot_plugin_localstore`-managed `config_dir` / `data_dir` as `config.schema.json5` / `bot_state.schema.json5`, sitting as siblings of the runtime JSON5 files. The `$schema` field injected by `runtime_config.py` / `bot_state.py` is a pure basename so editors can resolve the sibling schema. Runtime validation is fully delegated to Pydantic models (`RuntimeConfig` / `bot_state`); the schema files exist purely for editor tooling. Paths are owned by `nonebot_plugin_localstore` — never hard-code `c:\dev\lingchu-bot\schema/` or rely on `importlib.resources` / wheel data for schema resources.
 - **Skills exclusion sync**: `pyproject.toml` has comments at skills exclusion lists noting "skills 排除列表同步至 prek.toml" — when updating exclusion patterns in one config, sync the other.
 
 ## Lessons Learned
@@ -877,6 +882,11 @@ When adding CI checks or unit tests for the docs site (`apps/docs/`), several pi
 - **`ensure_json5_dict_file_async` vs `write_json5_dict_file_async`**: `ensure_json5_dict_file_async` only creates a file if it does not already exist (idempotent ensure). For overwriting an existing file with new content (e.g., `bot_state.py` persisting state changes), use `write_json5_dict_file_async` instead — it unconditionally writes the file. Using `ensure_*` when you need `write_*` silently keeps stale data.
 - **Runtime config defaults must be JSON-serializable**: `runtime_config_defaults()` feeds `ensure_json5_dict_file_sync()` / async file generation. If `RuntimeConfig` contains Python-only containers such as `frozenset`, dump defaults with `model_dump(mode="json")` or normalize those fields before writing; otherwise first-start config creation fails with "not JSON5 serializable".
 - **Removing backward-compatibility aliases is a breaking change**: Simplifying `RuntimeConfig.lingchu_adapter` to a single alias (removing `LINGCHUAdapter` and `LINGCHU_ADAPTER`) cleans up the config but breaks any user who referenced the old alias names in their `.env` or `config.json5`. Document the removal in the changelog and migration guide; only do this in pre-1.0 or when the project accepts breaking changes (see Agent Preferences: "pre-planning development stage").
+
+### Localstore Path Discipline
+
+- **`schemas.py` MUST NOT use `import nonebot_plugin_localstore as store` style**: The `test_install_schemas_uses_localstore_paths_only`-family tests rely on `patch.object(schemas_module, "get_plugin_config_dir", ...)`. This only works because `schemas.py` binds `get_plugin_config_dir` into the module namespace via `from nonebot_plugin_localstore import get_plugin_config_dir`. Switching to `import nonebot_plugin_localstore as store; store.get_plugin_config_dir(...)` would break the mock target. If the import style is ever refactored, the corresponding test fixture targets MUST be updated in the same commit.
+- **`install_schemas` failure semantics are fixed in `startup.py`**: `install_schemas()` writes editor-hint schema files; it is called inside a `try/except BLE001` wrapper in `startup()`, with `logger.exception` on failure and **no startup interruption**. The schemas are not required for runtime correctness (Pydantic models own validation), so failure is non-fatal by design. **Do not** remove the `try/except BLE001` wrapper. **Do not** reorder the call to run after `ensure_runtime_config_file_async()` — the schema files must exist before the JSON5 data files reference them via the `$schema` basename.
 
 # Claude Code Behavioral Guidelines
 

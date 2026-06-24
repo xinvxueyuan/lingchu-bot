@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from nonebot import logger
-from nonebot_plugin_localstore import get_plugin_data_dir
+from nonebot_plugin_localstore import get_plugin_data_file
 
 from ..database.json5_store import (
     ensure_json5_dict_file_sync,
@@ -21,10 +21,12 @@ from ..database.json5_store import (
     write_json5_dict_file_async,
 )
 from .async_utils import fire_and_forget
+from .schemas import BOT_STATE_SCHEMA_BASENAME
 
 _BOT_STATE_FILENAME = "bot_state.json5"
 
 _DEFAULT_STATE: dict[str, Any] = {
+    "$schema": BOT_STATE_SCHEMA_BASENAME,
     "global": {
         "handle_active": True,
         "silent_mode": False,
@@ -36,12 +38,18 @@ _state: dict[str, Any] = {
     "global_handle_active": True,
     "global_silent_mode": False,
     "platforms": {},
+    "$schema": BOT_STATE_SCHEMA_BASENAME,
 }
 
 
 def _get_state_file_path() -> Path:
-    """Resolve the path to the bot state JSON5 file."""
-    return get_plugin_data_dir() / _BOT_STATE_FILENAME
+    """Resolve the path to the bot state JSON5 file.
+
+    Returns the localstore-managed data file path. Owned by
+    ``nonebot_plugin_localstore`` per the ``## Hard Constraints`` rule
+    "variable paths must be owned by ``nonebot_plugin_localstore``".
+    """
+    return get_plugin_data_file(_BOT_STATE_FILENAME)
 
 
 def load_bot_state() -> None:
@@ -67,7 +75,9 @@ def load_bot_state() -> None:
 async def _save_bot_state() -> None:
     """Persist in-memory state to bot_state.json5."""
     path = _get_state_file_path()
+    schema_value = _state.get("$schema") or BOT_STATE_SCHEMA_BASENAME
     data = {
+        "$schema": schema_value,
         "global": {
             "handle_active": _state["global_handle_active"],
             "silent_mode": _state["global_silent_mode"],
@@ -154,3 +164,4 @@ def _reset_state_for_testing() -> None:
     _state["global_handle_active"] = True
     _state["global_silent_mode"] = False
     _state["platforms"] = {}
+    _state["$schema"] = BOT_STATE_SCHEMA_BASENAME
