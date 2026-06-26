@@ -353,7 +353,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - `mariadb` Python driver is required to actually distinguish MariaDB from MySQL; the legacy `mysql+mariadb://` URL form without the driver will fall through to the MySQL dialect.
 - `oracledb` 2.0+ uses Thin mode by default, so no Oracle Instant Client is required in CI.
 - `aioodbc` (and its `pyodbc` transitive dependency) needs the system ODBC Driver 18 package on Linux CI (`ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev`); macOS uses brew; Windows is built-in.
-- The CI matrix uses 6 backends with `fail-fast: false`; Oracle / SQL Server startup is slow (health-start-period 90-180s), and a full matrix run takes 5-10 minutes, so plan timing budgets accordingly.
+- The CI matrix runs 10 jobs across 6 engines with `fail-fast: false` (SQLite + PostgreSQL 16/18 + MySQL 8.4/9.7 LTS + MariaDB 11.4/11.8 LTS + Oracle 23ai + SQL Server 2022/2025); Oracle / SQL Server startup is slow (health-start-period 90-180s), and a full matrix run takes 8-15 minutes, so plan timing budgets accordingly. SQL Server migrated off the deprecated `azure-sql-edge` image to `mcr.microsoft.com/mssql/server:{2022,2025}-latest` (both ship `mssql-tools18` for the healthcheck). Matrix entries carry an `engine` + `image` field; service containers select their image via `${{ matrix.db.engine == '<engine>' && matrix.db.image || '' }}` so multiple versions of the same engine can coexist in one matrix.
 
 #### Hooks, CI, And GitHub
 
@@ -366,6 +366,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - Workflow filenames use emoji-prefix + kebab-case, and workflow `name:` uses English with matching emoji.
 - `.github` YAML comments should be English; remove broken empty schema comments.
 - Check remote branch existence with `git ls-remote` before `git push origin --delete`.
+- CI workflows are split by domain: `🧪-python.yml` (Python static analysis + multi-DB test matrix + auto-format), `🧪-frontend.yml` (docs lint/type/test/links), `📚-docs.yml` (docs deploy). Shared change detection lives in the `.github/actions/detect-changes` composite action (outputs python/markdown/frontend-* flags). Standard trigger convention: PR runs checks only (no commits/deploy); push to `main`/`dev` runs checks + auto-format + deploy. Each workflow has its own concurrency group to avoid cross-canceling.
 
 #### Pending Rollbacks
 

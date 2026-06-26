@@ -1,0 +1,117 @@
+name: Detect Changes
+description: Detect changed file categories (Python, Markdown, frontend) for CI workflow routing
+
+outputs:
+  python:
+    description: "true if Python-related files changed"
+    value: ${{ steps.detect.outputs.python }}
+  markdown:
+    description: "true if Markdown files changed"
+    value: ${{ steps.detect.outputs.markdown }}
+  frontend:
+    description: "true if any frontend file changed"
+    value: ${{ steps.detect.outputs.frontend }}
+  frontend-code:
+    description: "true if frontend code/config changed (ESLint+Vitest)"
+    value: ${{ steps.detect.outputs.frontend-code }}
+  frontend-style:
+    description: "true if frontend style changed (ESLint only)"
+    value: ${{ steps.detect.outputs.frontend-style }}
+  frontend-content:
+    description: "true if frontend content changed (check-types+Vitest)"
+    value: ${{ steps.detect.outputs.frontend-content }}
+  frontend-tsx:
+    description: "true if .tsx files changed (React Doctor)"
+    value: ${{ steps.detect.outputs.frontend-tsx }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      # pinned from actions/checkout@v6.0.3
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      with:
+        fetch-depth: 0
+    - name: Detect changes
+      id: detect
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Determine diff range: PR → base..HEAD, push → before..after
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          BASE="origin/${{ github.base_ref }}"
+        else
+          BASE="HEAD~1"
+        fi
+        FILES=$(git diff --name-only "$BASE" HEAD 2>/dev/null || git ls-files)
+
+        PYTHON=false
+        MARKDOWN=false
+        FRONTEND=false
+        FRONTEND_CODE=false
+        FRONTEND_STYLE=false
+        FRONTEND_CONTENT=false
+        FRONTEND_TSX=false
+
+        # Python: .py / pyproject.toml / uv.lock / ruff.toml / .python-version
+        if echo "$FILES" | grep -qE '\.py$|(^|/)(pyproject\.toml|uv\.lock|\.python-version|ruff\.toml|\.ruff\.toml)$'; then
+          PYTHON=true
+        fi
+        # Markdown: .md
+        if echo "$FILES" | grep -qE '\.md$'; then
+          MARKDOWN=true
+        fi
+        # Docs: code files (.ts/.tsx/.mjs/.mts) + config files
+        if echo "$FILES" | grep -qE '^apps/docs/.*\.(ts|tsx|mjs|mts)$|^apps/docs/(next\.config\.mjs|source\.config\.ts|tsconfig\.json|vitest\.config\.ts|eslint\.config\.mjs|postcss\.config\.mjs|package\.json)$'; then
+          FRONTEND=true
+          FRONTEND_CODE=true
+        fi
+        # Docs: content files (.mdx/.json)
+        if echo "$FILES" | grep -qE '^apps/docs/.*\.(mdx|json)$'; then
+          FRONTEND=true
+          FRONTEND_CONTENT=true
+        fi
+        # Docs: style files (.css) — triggers ESLint but NOT Vitest
+        if echo "$FILES" | grep -qE '^apps/docs/.*\.css$'; then
+          FRONTEND=true
+          FRONTEND_STYLE=true
+        fi
+        # Docs: .tsx files (React components → React Doctor)
+        if echo "$FILES" | grep -qE '^apps/docs/.*\.tsx$'; then
+          FRONTEND_TSX=true
+        fi
+        # Packages: code/style files (.ts/.tsx/.mjs/.mts/.js/.css)
+        if echo "$FILES" | grep -qE '^packages/.*\.(ts|tsx|mjs|mts|js|css)$'; then
+          FRONTEND=true
+          FRONTEND_CODE=true
+        fi
+        # Packages: config files (.json)
+        if echo "$FILES" | grep -qE '^packages/.*\.json$'; then
+          FRONTEND=true
+        fi
+
+        {
+          echo "python=$PYTHON"
+          echo "markdown=$MARKDOWN"
+          echo "frontend=$FRONTEND"
+          echo "frontend-code=$FRONTEND_CODE"
+          echo "frontend-style=$FRONTEND_STYLE"
+          echo "frontend-content=$FRONTEND_CONTENT"
+          echo "frontend-tsx=$FRONTEND_TSX"
+        } >> "$GITHUB_OUTPUT"
+
+        # Step summary
+        {
+          echo "## 🔍 Change Detection"
+          echo ""
+          echo "| Category | Detected |"
+          echo "|----------|----------|"
+          echo "| Python | \`$PYTHON\` |"
+          echo "| Markdown | \`$MARKDOWN\` |"
+          echo "| Frontend (any) | \`$FRONTEND\` |"
+          echo "| Frontend Code (ESLint+Vitest) | \`$FRONTEND_CODE\` |"
+          echo "| Frontend Style (ESLint only) | \`$FRONTEND_STYLE\` |"
+          echo "| Frontend Content (check-types+Vitest) | \`$FRONTEND_CONTENT\` |"
+          echo "| Frontend TSX (React Doctor) | \`$FRONTEND_TSX\` |"
+        } >> "$GITHUB_STEP_SUMMARY"

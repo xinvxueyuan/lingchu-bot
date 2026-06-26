@@ -83,15 +83,16 @@ uv run nb orm upgrade
 
 ### CI 多数据库矩阵
 
-CI 在 6 个数据库后端上运行测试：
-- **SQLite**（默认，无需额外服务）
-- **PostgreSQL**（`postgres:16-alpine` service container）
-- **MySQL**（`mysql:8.4` service container）
-- **MariaDB**（`mariadb:11` service container）
-- **Oracle**（`gvenzl/oracle-free:23-slim` service container）
-- **SQL Server**（`mcr.microsoft.com/azure-sql-edge:latest` service container + apt 安装 `msodbcsql18`）
+CI 跨 6 个数据库引擎跑 10 个任务，覆盖 LTS 与最新版：
 
-`fail-fast: false` 策略确保即使一个数据库失败，所有数据库仍会被测试。Oracle / SQL Server 启动较慢（health-start-period 90-180s），单次全跑约 5-10 分钟。
+- **SQLite**（默认，无需额外服务；版本由 Python `sqlite3`/`aiosqlite` 决定）
+- **PostgreSQL 16**（`postgres:16-alpine`，支持至 2028-11）与 **PostgreSQL 18**（`postgres:18-alpine`，最新版）
+- **MySQL 8.4 LTS**（`mysql:8.4`，支持至约 2032）与 **MySQL 9.7 LTS**（`mysql:9.7`，支持至约 2034）
+- **MariaDB 11.4 LTS**（`mariadb:11.4`，支持至 2029-05）与 **MariaDB 11.8 LTS**（`mariadb:11.8`，支持至 2028-06）
+- **Oracle 23ai**（`gvenzl/oracle-free:23-slim`；唯一免费版本，无 LTS 拆分）
+- **SQL Server 2022** 与 **SQL Server 2025**（`mcr.microsoft.com/mssql/server:2022-latest` / `2025-latest` + apt 安装 `msodbcsql18`；已从废弃的 `azure-sql-edge` 镜像迁移）
+
+每个矩阵条目携带 `engine` + `image` 字段；服务容器通过 `${{ matrix.db.engine == '<engine>' && matrix.db.image || '' }}` 选择镜像，使同一引擎的多个版本可在一个矩阵中共存。`fail-fast: false` 策略确保即使一个数据库失败，所有数据库仍会被测试。Oracle / SQL Server 启动较慢（health-start-period 90-180s），单次全跑约 8-15 分钟。
 
 ## Docs / frontend 聚焦检查
 
@@ -131,11 +132,11 @@ task i18n
 
 ## CI 工作流
 
-- `🧪 CI`：`changes` 检测 job 按文件类型输出布尔标志（python/markdown/frontend/frontend-code/frontend-style/frontend-content/frontend-tsx），然后条件触发下游 job — Static Analysis（Python 或 markdown 变更时）、Tests & Type Check（Python 变更时）、Docs Check（ESLint 在代码/样式变更时，check-types 在任意前端变更时，link validation 在内容变更时，Vitest 在代码/内容变更时）。Auto Fix & Format 在 `main`/`dev` push 时运行。条件与 pre-commit v3 的 `NEEDS_LINT`/`NEEDS_TYPE_CHECK`/`NEEDS_DOCS_TEST` 对齐。
+- `🧪 Python CI`：共享的 `detect-changes` 复合 action（`.github/actions/detect-changes`）按文件类型输出布尔标志（python/markdown/frontend/frontend-code/frontend-style/frontend-content/frontend-tsx），然后条件触发 Static Analysis（Python 或 markdown 变更时，通过 `task ci:static`）和 Tests & Type Check（Python 变更时，跨多数据库矩阵）。Auto Fix & Format 在 `main`/`dev` push 时运行。条件与 pre-commit v3 的 `NEEDS_LINT`/`NEEDS_TYPE_CHECK`/`NEEDS_DOCS_TEST` 对齐。
+- `🧪 Frontend CI`：使用同一个 `detect-changes` action，然后条件触发 Docs Check — ESLint 在代码/样式变更时，check-types 在任意前端变更时，link validation 在内容变更时，Vitest 在代码/内容变更时。
 - `🎭 Playwright`：针对 `apps/docs` 和 `packages` 变更运行 docs E2E 测试，安装浏览器依赖，并上传 Playwright report 产物。
 - `👷 CI-builds`：运行 `task ci:build`；在 `main`、`dev`、`releases/**` 的 push 上还会 bump dev version、写回 `core_version`、构建、归档产物、生成 provenance 并提交 tag。
 - `📚 Docs Deploy`：docs 相关路径 push 到 `main` 或 `dev` 时，运行 pnpm/turbo lint、docs test 和 docs build，然后部署 GitHub Pages。
-- Auto Fix & Format：`main` 和 `dev` push 上，在 CI 通过后运行 `task ci:fix` 并可能自动提交格式修复。
 
 ## CI 失败处理
 

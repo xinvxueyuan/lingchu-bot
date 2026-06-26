@@ -203,10 +203,10 @@ PR descriptions should include:
 ## CI and Failure Handling
 
 - PRs trigger GitHub Actions; pushes to `main` and `dev` also trigger main CI.
-- `🧪 CI` Static Analysis runs `task ci:static`; Tests & Type Check runs Pyright, ty, and pytest; Docs Check runs Turbo lint/type check and docs test.
+- `🧪 Python CI` runs Static Analysis (`task ci:static`) and Tests & Type Check (Pyright, ty, pytest across the multi-database matrix); `🧪 Frontend CI` runs Docs Check (Turbo lint, type check, link validation, docs test).
 - `👷 CI-builds` runs `task ci:build`; on pushes to `main`, `dev`, `releases/**`, it also performs version writing, build artifact archiving, provenance attestation, and tag workflow.
 - `📚 Docs Deploy` runs pnpm/turbo lint, docs test, and docs build when docs-related paths are pushed to `main` or `dev`, then deploys to GitHub Pages.
-- The auto-format job on pushes to `main` and `dev` runs `task ci:fix` and may auto-commit format fixes.
+- The auto-format job in `🧪 Python CI` on pushes to `main` and `dev` runs `task ci:fix` and may auto-commit format fixes.
 
 If CI fails, open the failed job's logs first and locate the specific command, rule, and line number. When fixing CI, only change the minimal scope that caused the failure, and re-run the corresponding local command to verify.
 
