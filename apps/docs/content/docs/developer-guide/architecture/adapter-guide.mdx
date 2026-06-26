@@ -39,9 +39,7 @@ ONEBOT_ACCESS_TOKEN=your-token
 
 ## Deprecated adapters
 
-Deprecated adapters (Milky, QQ Official, OneBot V12) have been fully removed from the project. Their source code is no longer preserved — `tools/adapter_loader.py` exists as a stub with empty module mappings (`_DEPRECATED_ADAPTER_MODULES = {}`).
-
-The loader functions (`load_deprecated_adapter()`, `load_and_init_deprecated_adapter()`, `list_deprecated_adapters()`) still exist but always raise `ValueError` for any deprecated adapter ID, because no handler modules are registered.
+Deprecated adapters (Milky, QQ Official, OneBot V12) have been fully removed from the project, including their source code. No on-demand loading utility is provided.
 
 Deprecated adapter IDs are tracked in `_DEPRECATED_ADAPTER_IDS` in `platforms/registry.py`. Configuring any of them in `LINGCHUAdapter` exits with a clear `PlatformAdapterDeprecatedError`:
 

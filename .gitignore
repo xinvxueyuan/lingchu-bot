@@ -230,8 +230,14 @@ output
 
 node_modules/
 
+# nonebot
+
+data/
+tmp/
+eache/
+config/
+
 # Other
 
-config/
 
 # End of https://www.toptal.com/developers/gitignore/api/python

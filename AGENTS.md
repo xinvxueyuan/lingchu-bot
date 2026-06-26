@@ -305,7 +305,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 #### Adapter And API Boundaries
 
 - Same-named adapter APIs can return different shapes. OneBot V11 APIs often return `dict`; inspect installed adapter source before writing access patterns.
-- Deprecated Milky, QQ, and OneBot V12 source has been removed. `tools/adapter_loader.py` is a stub with empty deprecated module mappings.
+- Deprecated Milky, QQ, and OneBot V12 source has been fully removed from the project, including any on-demand loading utility.
 - OneBot V11 group `event.get_session_id()` can include both group and user IDs. Group-scoped history must use `group_id` as `conversation_id`.
 - For OneBot V11 image APIs, verify file field format against current adapter and NapCat docs before changing calls.
 
