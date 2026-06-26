@@ -1,19 +1,16 @@
 import { Provider } from '@/components/provider';
 import { AnnouncementBanner } from '@/components/announcement-banner';
 import type { Metadata } from 'next';
-import { appName, gitConfig } from '@/lib/shared';
+import { getSiteAlternatesTypes, getSiteMetadata } from '@/lib/site-metadata';
 import './global.css';
 
-const baseUrl = `https://${gitConfig.user}.github.io/${gitConfig.repo}`;
+const site = getSiteMetadata();
 
 export const metadata: Metadata = {
+  ...site,
   alternates: {
-    types: {
-      'application/rss+xml': [
-        { title: `${appName} Docs`, url: `${baseUrl}/rss.xml` },
-        { title: `${appName} 文档`, url: `${baseUrl}/zh/rss.xml` },
-      ],
-    },
+    ...site.alternates,
+    types: getSiteAlternatesTypes(),
   },
 };
 

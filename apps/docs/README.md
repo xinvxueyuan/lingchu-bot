@@ -17,6 +17,14 @@ Open [localhost:3000](http://localhost:3000) with your browser.
 
 The root `Taskfile.yml` is the preferred automation surface for cross-project work. Use `task check`, `task test`, `task build`, or `task ci` when a change spans Python code, docs, packages, and shared tooling.
 
+## Environment variables
+
+| Name | Purpose | Default |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | Absolute site URL used by `metadataBase`, `openGraph`, `twitter`, and RSS feed ids. Set this when deploying to a custom domain or a preview environment. Trailing slashes are trimmed. | `https://lingchu.zone.id/` |
+
+`output: 'export'` resolves the value at build time, so set the variable in the CI environment that runs `next build`.
+
 ## Explore
 
 Important files:

@@ -10,10 +10,10 @@ import {
 } from 'fumadocs-ui/layouts/docs/page';
 import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/components/mdx';
-import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { gitConfig } from '@/lib/shared';
 import { LLMBadge } from '@/components/llm-badge';
+import { getDocsPageMetadata } from '@/lib/site-metadata';
 
 export default async function Page(props: PageProps<'/zh/docs/[[...slug]]'>) {
   const params = await props.params;
@@ -55,16 +55,14 @@ export async function generateStaticParams() {
 
 export async function generateMetadata(
   props: PageProps<'/zh/docs/[[...slug]]'>,
-): Promise<Metadata> {
+) {
   const params = await props.params;
   const page = source.getPage(params.slug, 'zh');
   if (!page) notFound();
 
-  return {
-    title: page.data.title,
-    description: page.data.description,
-    openGraph: {
-      images: getPageImage(page).url,
-    },
-  };
+  // Look up the en equivalent for cross-locale `alternates.languages`.
+  const enPage = source.getPage(params.slug, 'en');
+  const alternateUrl = enPage ? enPage.url : undefined;
+
+  return getDocsPageMetadata(page, getPageImage(page).url, alternateUrl);
 }
