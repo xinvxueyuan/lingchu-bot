@@ -53,8 +53,8 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: true
+  group: ci-${{ github.ref }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # ── Change Detection ──────────────────────────────────────────────
@@ -176,8 +176,8 @@ jobs:
         with:
           node-version: 24
       - name: Setup pnpm
-        # pinned from pnpm/action-setup@v6.0.8
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+        # pinned from pnpm/action-setup@v6.0.9
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
       - name: Setup uv
@@ -186,6 +186,7 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
+          cache-dependency-glob: uv.lock
       - name: Install Task
         # pinned from go-task/setup-task@v2.1.0
         uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa
@@ -200,6 +201,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         db:
@@ -211,15 +213,21 @@ jobs:
       SQLALCHEMY_DATABASE_URL: ${{ matrix.db }}
     services:
       postgresql:
-        image: ${{ startsWith(matrix.db, 'postgresql') && 'postgres' || '' }}
+        image: ${{ startsWith(matrix.db, 'postgresql') && 'postgres:16-alpine' || '' }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
         ports:
           - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 30s
       mysql:
-        image: ${{ startsWith(matrix.db, 'mysql') && 'mysql' || '' }}
+        image: ${{ startsWith(matrix.db, 'mysql') && 'mysql:8.4' || '' }}
         env:
           MYSQL_ROOT_PASSWORD: mysql
           MYSQL_USER: mysql
@@ -227,6 +235,12 @@ jobs:
           MYSQL_DATABASE: mymysql
         ports:
           - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -pmysql"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 30s
     steps:
       - name: Checkout
         # pinned from actions/checkout@v6.0.3
@@ -238,9 +252,16 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Install Python dependencies
-        run: uv sync --frozen --extra deprecated-adapters
+        # pinned from nick-fields/retry@v4.0.0
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
+        with:
+          timeout_minutes: 5
+          max_attempts: 4
+          retry_wait_seconds: 30
+          command: uv sync --frozen
 
       - name: Run migrations
         run: uv run nb orm upgrade
@@ -273,7 +294,7 @@ jobs:
         with:
           node-version: 24
       - name: Setup pnpm
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
       - name: ESLint
@@ -317,8 +338,8 @@ jobs:
         with:
           node-version: 24
       - name: Setup pnpm
-        # pinned from pnpm/action-setup@v6.0.8
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+        # pinned from pnpm/action-setup@v6.0.9
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
       - name: Setup uv
@@ -326,6 +347,7 @@ jobs:
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39
         with:
           python-version: "3.13"
+          cache-dependency-glob: uv.lock
       - name: Install Task
         # pinned from go-task/setup-task@v2.1.0
         uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa

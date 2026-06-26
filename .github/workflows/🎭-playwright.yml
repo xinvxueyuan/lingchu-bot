@@ -47,14 +47,29 @@ jobs:
           node-version: 24
 
       - name: Setup pnpm
-        # pinned from pnpm/action-setup@v6.0.8
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+        # pinned from pnpm/action-setup@v6.0.9
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
 
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cache Playwright browsers
+        # pinned from actions/cache@v6.0.0
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('apps/docs/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install Playwright browsers
-        run: pnpm --filter docs exec playwright install --with-deps
+        # pinned from nick-fields/retry@v4.0.0
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 60
+          command: pnpm --filter docs exec playwright install --with-deps
 
       - name: Run Playwright tests
         run: pnpm --filter docs run test:e2e

@@ -327,6 +327,7 @@ task ci
 - Component file 导出 utility 可能破坏 React Fast Refresh；移到非 component module。
 - `/llms.txt` 是 route handler；内部链接使用 Next.js `Link`。
 - Docker 服务不要占用 Playwright webServer 的 `3100` 端口；使用 `6100:3000` 等 CI 范围外端口。
+- `next typegen` 在首次 `fumadocs-mdx` 之后可能把 `apps/docs/.source/server.ts`（和 `browser.ts`）清空为 0 字节。`docs:check-types` 脚本 MUST 在 `next typegen` 之后再跑一次 `fumadocs-mdx` 以重新填充 collections 导出，否则 `tsc --noEmit` 会报 `TS2305: Module '"collections/server"' has no exported member 'docs'`。使用 `fumadocs-mdx && next typegen && fumadocs-mdx && tsc --noEmit`。
 
 #### Database And Runtime Files
 
