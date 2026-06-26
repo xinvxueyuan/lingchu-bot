@@ -7,7 +7,7 @@ from collections.abc import Awaitable, Callable, Sequence  # noqa: TC003
 from typing import TYPE_CHECKING, Any
 
 from nonebot_plugin_orm import Model, get_session
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -143,14 +143,22 @@ def _dialect_insert_statement[T: Model](
     dialect_name: str,
     constraint: str | None,
 ) -> Any:
-    """按数据库方言创建 upsert insert 语句。"""
+    """按数据库方言创建 upsert insert 语句。
+
+    支持 2 个方言：SQLite / PostgreSQL。MySQL / MariaDB 不使用本函数
+    （由 ``_mysql_upsert`` 直接处理）。Oracle / SQL Server 不使用本函数
+    （由 ``_oracle_upsert`` / ``_mssql_upsert`` 用 ``MERGE INTO`` 原始 SQL）。
+    """
     if dialect_name == "sqlite":
         if constraint is not None:
             raise ValueError("SQLite upsert requires conflict_fields")
         return sqlite_insert(model)
     if dialect_name == "postgresql":
         return postgresql_insert(model)
-    raise DatabaseError(f"Upsert is not supported for dialect '{dialect_name}'")
+    raise DatabaseError(
+        f"Upsert via dialect-insert is not supported for '{dialect_name}'; "
+        "use the dialect-specific helper"
+    )
 
 
 def _upsert_set_values(
@@ -190,6 +198,66 @@ def _mysql_upsert_set_values(
     return {key: getattr(stmt.inserted, key) for key in update_keys}
 
 
+def _build_merge_sql(  # noqa: PLR0913
+    table: str,
+    insert_values: dict[str, Any],
+    conflict_keys: list[str],
+    update_keys: list[str],
+    explicit_update_values: dict[str, Any] | None,
+    *,
+    use_dual: bool,
+) -> tuple[str, dict[str, Any]]:
+    """构造 Oracle / SQL Server 的 ``MERGE INTO`` SQL 与绑定参数。
+
+    SQLAlchemy 2.0.51 不提供 ``sqlalchemy.dialects.{oracle,mssql}.insert``，
+    故 Oracle / SQL Server 的 upsert 走显式 ``MERGE INTO``。
+
+    Args:
+        table: 目标表名。
+        insert_values: 完整插入字段；也作为基础绑定参数。
+        conflict_keys: ``ON`` 子句的关联列。
+        update_keys: 隐式模式下要更新的列（不在显式覆盖时使用）。
+        explicit_update_values: 显式更新字典（覆盖 insert_values 绑定）。
+        use_dual: True 为 Oracle（``SELECT ... FROM DUAL``），
+            False 为 SQL Server（裸 ``SELECT :p1 AS c1, ...``）。
+
+    Returns:
+        ``(sql, params)``，其中 ``sql`` 为参数化 MERGE 文本，``params`` 为
+        要传给 ``session.execute`` 的绑定字典。
+
+    Raises:
+        无 / None.
+    """
+    insert_cols = ", ".join(insert_values)
+    src_select = ", ".join(f":{k} AS {k}" for k in insert_values)
+    on_predicates = " AND ".join(f"t.{k} = s.{k}" for k in conflict_keys)
+
+    if explicit_update_values is not None:
+        set_parts = [f"t.{k} = :{k}" for k in explicit_update_values]
+    else:
+        set_parts = [f"t.{k} = s.{k}" for k in update_keys]
+    set_clause = ", ".join(set_parts)
+    insert_values_clause = ", ".join(f"s.{k}" for k in insert_values)
+
+    source = (
+        f"(SELECT {src_select} FROM DUAL) s" if use_dual else f"(SELECT {src_select}) s"
+    )
+
+    merge_sql = (
+        f"MERGE INTO {table} t "
+        f"USING {source} "
+        f"ON ({on_predicates}) "
+        f"WHEN MATCHED THEN UPDATE SET {set_clause} "
+        f"WHEN NOT MATCHED THEN INSERT ({insert_cols}) "
+        f"VALUES ({insert_values_clause})"
+    )
+
+    params: dict[str, Any] = dict(insert_values)
+    if explicit_update_values is not None:
+        params.update(explicit_update_values)
+    return merge_sql, params
+
+
 async def upsert[T: Model](
     model: type[T],
     insert_values: dict[str, Any],
@@ -198,7 +266,7 @@ async def upsert[T: Model](
     constraint: str | None = None,
     update_values: dict[str, Any] | None = None,
 ) -> T:
-    """执行方言级原子 upsert（SQLite/PostgreSQL/MySQL）。
+    """执行方言级原子 upsert（SQLite/PostgreSQL/MySQL/MariaDB/Oracle/SQL Server）。
 
     Args:
         model: ORM 模型类 / ORM model class.
@@ -235,8 +303,32 @@ async def upsert[T: Model](
     async with get_session() as s:
         dialect_name = _get_session_dialect_name(s)
 
-        if dialect_name == "mysql":
+        if dialect_name in {"mysql", "mariadb"}:
             return await _mysql_upsert(
+                s,
+                model,
+                insert_values,
+                columns,
+                conflict_keys,
+                update_keys,
+                explicit_update_values,
+                constraint,
+            )
+
+        if dialect_name == "oracle":
+            return await _oracle_upsert(
+                s,
+                model,
+                insert_values,
+                columns,
+                conflict_keys,
+                update_keys,
+                explicit_update_values,
+                constraint,
+            )
+
+        if dialect_name == "mssql":
+            return await _mssql_upsert(
                 s,
                 model,
                 insert_values,
@@ -275,18 +367,25 @@ async def _mysql_upsert[T: Model](  # noqa: PLR0913
     explicit_update_values: dict[str, Any] | None,
     constraint: str | None,
 ) -> T:
-    """MySQL 方言的 upsert 实现。
+    """MySQL / MariaDB 方言的 upsert 实现。
 
-    使用 ``INSERT ... ON DUPLICATE KEY UPDATE`` 语义。MySQL 不支持
+    使用 ``INSERT ... ON DUPLICATE KEY UPDATE`` 语义。MySQL / MariaDB 不支持
     ``RETURNING``，因此执行后通过 ``conflict_fields`` 做一次 follow-up
     ``SELECT`` 取回最新行。
+
+    MariaDB 10.3+ 支持 ON DUPLICATE KEY UPDATE，与 MySQL 协议兼容；MariaDB
+    官方驱动下 SQLAlchemy 仍以 ``mysql`` dialect 路径编译（``mysql_insert``
+    同时适用于两个方言）。``_get_session_dialect_name`` 返回 ``"mariadb"``
+    时，本函数被复用。
     """
     if constraint is not None:
         raise ValueError(
-            "MySQL upsert does not support constraint; use conflict_fields"
+            "MySQL/MariaDB upsert does not support constraint; use conflict_fields"
         )
     if not conflict_keys:
-        raise ValueError("MySQL upsert requires conflict_fields for follow-up SELECT")
+        raise ValueError(
+            "MySQL/MariaDB upsert requires conflict_fields for follow-up SELECT"
+        )
 
     insert_stmt = mysql_insert(model).values(**insert_values)
     set_values = _mysql_upsert_set_values(
@@ -302,6 +401,124 @@ async def _mysql_upsert[T: Model](  # noqa: PLR0913
         raise DatabaseError("Upsert failed") from e
 
     # MySQL 不支持 RETURNING，通过 conflict_keys 做一次 SELECT 取回最新行。
+    where_clauses = [
+        columns[key].is_(insert_values[key])
+        if insert_values[key] is None
+        else columns[key] == insert_values[key]
+        for key in conflict_keys
+    ]
+    try:
+        result = await s.execute(select(model).where(*where_clauses))
+        obj = result.scalar_one_or_none()
+    except SQLAlchemyError as e:
+        raise DatabaseError("Upsert failed to fetch row") from e
+    if obj is None:
+        raise DatabaseError("Upsert succeeded but row not found")
+    return obj
+
+
+async def _oracle_upsert[T: Model](  # noqa: PLR0913
+    s: AsyncSession,
+    model: type[T],
+    insert_values: dict[str, Any],
+    columns: dict[str, Any],
+    conflict_keys: list[str],
+    update_keys: list[str],
+    explicit_update_values: dict[str, Any] | None,
+    constraint: str | None,
+) -> T:
+    """Oracle upsert 实现（手写 ``MERGE INTO``）。
+
+    SQLAlchemy 2.0.51 不提供 ``sqlalchemy.dialects.oracle.insert`` 与方言级
+    ``on_conflict_do_update``，因此使用显式 ``MERGE INTO ... USING (SELECT
+    ... FROM DUAL) s ...`` 语句 + 命名参数绑定。Oracle 不支持 ``RETURNING``，
+    执行后通过 ``conflict_fields`` 做一次 follow-up ``SELECT`` 取回最新行。
+    """
+    if constraint is not None:
+        raise ValueError(
+            "Oracle upsert does not support constraint; use conflict_fields"
+        )
+    if not conflict_keys:
+        raise ValueError("Oracle upsert requires conflict_fields for MERGE ON clause")
+
+    table = model.__tablename__
+    merge_sql, params = _build_merge_sql(
+        table,
+        insert_values,
+        conflict_keys,
+        update_keys,
+        explicit_update_values,
+        use_dual=True,
+    )
+    stmt = text(merge_sql)
+
+    try:
+        await s.execute(stmt, params)
+        await s.commit()
+    except SQLAlchemyError as e:
+        await s.rollback()
+        raise DatabaseError("Upsert failed") from e
+
+    where_clauses = [
+        columns[key].is_(insert_values[key])
+        if insert_values[key] is None
+        else columns[key] == insert_values[key]
+        for key in conflict_keys
+    ]
+    try:
+        result = await s.execute(select(model).where(*where_clauses))
+        obj = result.scalar_one_or_none()
+    except SQLAlchemyError as e:
+        raise DatabaseError("Upsert failed to fetch row") from e
+    if obj is None:
+        raise DatabaseError("Upsert succeeded but row not found")
+    return obj
+
+
+async def _mssql_upsert[T: Model](  # noqa: PLR0913
+    s: AsyncSession,
+    model: type[T],
+    insert_values: dict[str, Any],
+    columns: dict[str, Any],
+    conflict_keys: list[str],
+    update_keys: list[str],
+    explicit_update_values: dict[str, Any] | None,
+    constraint: str | None,
+) -> T:
+    """SQL Server upsert 实现（手写 ``MERGE INTO``）。
+
+    SQLAlchemy 2.0.51 不提供 ``sqlalchemy.dialects.mssql.insert`` 与方言级
+    ``on_conflict_do_update``，因此使用显式 ``MERGE INTO ... USING (SELECT
+    ...) s ...`` 语句 + 命名参数绑定。SQL Server 不支持 ``RETURNING``，执行
+    后通过 ``conflict_fields`` 做一次 follow-up ``SELECT`` 取回最新行。
+    """
+    if constraint is not None:
+        raise ValueError(
+            "SQL Server upsert does not support constraint; use conflict_fields"
+        )
+    if not conflict_keys:
+        raise ValueError(
+            "SQL Server upsert requires conflict_fields for MERGE ON clause"
+        )
+
+    table = model.__tablename__
+    merge_sql, params = _build_merge_sql(
+        table,
+        insert_values,
+        conflict_keys,
+        update_keys,
+        explicit_update_values,
+        use_dual=False,
+    )
+    stmt = text(merge_sql)
+
+    try:
+        await s.execute(stmt, params)
+        await s.commit()
+    except SQLAlchemyError as e:
+        await s.rollback()
+        raise DatabaseError("Upsert failed") from e
+
     where_clauses = [
         columns[key].is_(insert_values[key])
         if insert_values[key] is None

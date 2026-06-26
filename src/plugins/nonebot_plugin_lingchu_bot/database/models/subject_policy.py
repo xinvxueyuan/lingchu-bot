@@ -8,9 +8,10 @@ from nonebot import require
 
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import Model
-from sqlalchemy import DateTime, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
+from .._dialect_compat import CompatDateTimeTZ, CompatText, compat_string
 from .message import utc_now
 
 
@@ -33,28 +34,28 @@ class SubjectPolicyEntry(Model):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    policy_type: Mapped[str] = mapped_column(String(32), index=True)
-    platform_id: Mapped[str] = mapped_column(String(64), index=True)
-    adapter_id: Mapped[str] = mapped_column(String(64), index=True)
-    protocol_id: Mapped[str | None] = mapped_column(String(64), index=True)
-    bot_id: Mapped[str] = mapped_column(String(128), index=True)
-    scope: Mapped[str] = mapped_column(String(32), index=True)
-    scope_key: Mapped[str] = mapped_column(String(128), index=True)
-    group_id: Mapped[str | None] = mapped_column(String(128), index=True)
-    user_id: Mapped[str] = mapped_column(String(128), index=True)
-    operator_id: Mapped[str | None] = mapped_column(String(128), index=True)
-    reason: Mapped[str | None] = mapped_column(Text)
+    policy_type: Mapped[str] = mapped_column(compat_string(32), index=True)
+    platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
+    adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)
+    protocol_id: Mapped[str | None] = mapped_column(compat_string(64), index=True)
+    bot_id: Mapped[str] = mapped_column(compat_string(128), index=True)
+    scope: Mapped[str] = mapped_column(compat_string(32), index=True)
+    scope_key: Mapped[str] = mapped_column(compat_string(128), index=True)
+    group_id: Mapped[str | None] = mapped_column(compat_string(128), index=True)
+    user_id: Mapped[str] = mapped_column(compat_string(128), index=True)
+    operator_id: Mapped[str | None] = mapped_column(compat_string(128), index=True)
+    reason: Mapped[str | None] = mapped_column(CompatText)
     expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         index=True,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         index=True,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         onupdate=utc_now,
         index=True,

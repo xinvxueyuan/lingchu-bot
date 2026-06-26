@@ -8,16 +8,10 @@ from nonebot import require
 
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import Model
-from sqlalchemy import (
-    Boolean,
-    DateTime,
-    Integer,
-    String,
-    Text,
-    UniqueConstraint,
-)
+from sqlalchemy import Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
+from .._dialect_compat import CompatBoolean, CompatDateTimeTZ, CompatText, compat_string
 from .message import utc_now
 
 
@@ -27,17 +21,18 @@ class Platform(Model):
     __tablename__ = "lingchu_platforms"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    platform_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
-    display_name: Mapped[str] = mapped_column(String(64))
-    capabilities: Mapped[str] = mapped_column(Text)  # JSON array of capability strings
-    implemented: Mapped[bool] = mapped_column(Boolean, default=True)
+    platform_id: Mapped[str] = mapped_column(compat_string(64), unique=True, index=True)
+    display_name: Mapped[str] = mapped_column(compat_string(64))
+    # JSON array of capability strings.
+    capabilities: Mapped[str] = mapped_column(CompatText)
+    implemented: Mapped[bool] = mapped_column(CompatBoolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         index=True,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         onupdate=utc_now,
         index=True,
@@ -50,17 +45,17 @@ class Adapter(Model):
     __tablename__ = "lingchu_adapters"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    adapter_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
-    platform_id: Mapped[str] = mapped_column(String(64), index=True)
-    display_name: Mapped[str] = mapped_column(String(64))
-    nonebot_adapter_id: Mapped[str] = mapped_column(String(64))
+    adapter_id: Mapped[str] = mapped_column(compat_string(64), unique=True, index=True)
+    platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
+    display_name: Mapped[str] = mapped_column(compat_string(64))
+    nonebot_adapter_id: Mapped[str] = mapped_column(compat_string(64))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         index=True,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         onupdate=utc_now,
         index=True,
@@ -80,17 +75,17 @@ class ProtocolImplementation(Model):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    protocol_id: Mapped[str] = mapped_column(String(64), index=True)
-    adapter_id: Mapped[str] = mapped_column(String(64), index=True)
-    display_name: Mapped[str] = mapped_column(String(64))
-    module_path: Mapped[str] = mapped_column(String(256))
+    protocol_id: Mapped[str] = mapped_column(compat_string(64), index=True)
+    adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)
+    display_name: Mapped[str] = mapped_column(compat_string(64))
+    module_path: Mapped[str] = mapped_column(compat_string(256))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         index=True,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         onupdate=utc_now,
         index=True,
