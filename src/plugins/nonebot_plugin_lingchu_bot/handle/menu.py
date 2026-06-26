@@ -88,7 +88,7 @@ class MenuRuntimeContext:
     platform_capabilities: frozenset[PlatformCapability] = frozenset()
 
 
-MENU_PAGES: Final[tuple[MenuPage, ...]] = (
+_DEFAULT_MENU_PAGES: Final[tuple[MenuPage, ...]] = (
     MenuPage(
         "member-management",
         LocalizedText("成员管理", "Member Management"),
@@ -124,12 +124,7 @@ MENU_PAGES: Final[tuple[MenuPage, ...]] = (
         command=LocalizedText("系统管理", "system-management"),
     ),
 )
-MENU_SECTIONS: Final[tuple[MenuSection, ...]] = tuple(
-    MenuSection(page.id, page.title) for page in MENU_PAGES
-)
-MENU_PAGE_COMMANDS: Final[tuple[MenuPage, ...]] = tuple(
-    page for page in MENU_PAGES if page.command is not None
-)
+MENU_PAGES: tuple[MenuPage, ...] = _DEFAULT_MENU_PAGES
 
 
 def _flatten_pages(pages: Iterable[MenuPage]) -> tuple[MenuPage, ...]:
@@ -140,9 +135,21 @@ def _flatten_pages(pages: Iterable[MenuPage]) -> tuple[MenuPage, ...]:
     return tuple(result)
 
 
-_MENU_PAGE_BY_ID: Final[dict[str, MenuPage]] = {
-    page.id: page for page in _flatten_pages(MENU_PAGES)
-}
+def _sections_from_pages(pages: tuple[MenuPage, ...]) -> tuple[MenuSection, ...]:
+    return tuple(MenuSection(page.id, page.title) for page in pages)
+
+
+def _page_commands_from_pages(pages: tuple[MenuPage, ...]) -> tuple[MenuPage, ...]:
+    return tuple(page for page in pages if page.command is not None)
+
+
+def _page_lookup_from_pages(pages: tuple[MenuPage, ...]) -> dict[str, MenuPage]:
+    return {page.id: page for page in _flatten_pages(pages)}
+
+
+MENU_SECTIONS: tuple[MenuSection, ...] = _sections_from_pages(MENU_PAGES)
+MENU_PAGE_COMMANDS: tuple[MenuPage, ...] = _page_commands_from_pages(MENU_PAGES)
+_MENU_PAGE_BY_ID: dict[str, MenuPage] = _page_lookup_from_pages(MENU_PAGES)
 
 
 def _menu_page_command(page: MenuPage) -> str:
@@ -166,7 +173,7 @@ menu_page_cmds: Final[dict[str, type[AlconnaMatcher]]] = {
         use_cmd_sep=True,
         use_cmd_start=True,
     )
-    for page in MENU_PAGE_COMMANDS
+    for page in _page_commands_from_pages(_DEFAULT_MENU_PAGES)
 }
 
 _QQ_BOTH: Final[tuple[MenuAvailability, ...]] = (
@@ -183,7 +190,7 @@ _ONEBOT_NAPCAT: Final[tuple[MenuAvailability, ...]] = (
 )
 _ONEBOT_ANNOUNCEMENT: Final[tuple[MenuAvailability, ...]] = _ONEBOT_NAPCAT
 
-MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
+_DEFAULT_MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
     MenuFeature(
         "kick-member",
         "kick_member",
@@ -527,6 +534,22 @@ MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
     ),
 )
+MENU_FEATURES: tuple[MenuFeature, ...] = _DEFAULT_MENU_FEATURES
+
+
+def set_menu_pages(pages: tuple[MenuPage, ...]) -> None:
+    """Replace runtime menu pages and refresh derived lookup data."""
+    global MENU_PAGES, MENU_PAGE_COMMANDS, MENU_SECTIONS, _MENU_PAGE_BY_ID  # noqa: PLW0603
+    MENU_PAGES = pages
+    MENU_SECTIONS = _sections_from_pages(pages)
+    MENU_PAGE_COMMANDS = _page_commands_from_pages(pages)
+    _MENU_PAGE_BY_ID = _page_lookup_from_pages(pages)
+
+
+def set_menu_features(features: tuple[MenuFeature, ...]) -> None:
+    """Replace runtime menu features used by renderers and permissions."""
+    global MENU_FEATURES  # noqa: PLW0603
+    MENU_FEATURES = features
 
 
 def render_menu(

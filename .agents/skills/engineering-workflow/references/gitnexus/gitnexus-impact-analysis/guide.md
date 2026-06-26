@@ -25,6 +25,16 @@ description: "Use when the user wants to know what will break if they change som
 
 > If "Index is stale" → run `node .gitnexus/run.cjs analyze` in terminal.
 
+## Tool Gaps
+
+GitNexus impact output is a starting point, not proof of completeness. If the
+index is stale, noisy, incomplete, or disagrees with the current file structure,
+refresh it first when practical. If it is still incomplete, manually inspect
+direct callers, imports, startup/load paths, menus, triggers, tests, docs,
+i18n, config, schemas, and persistence surfaces that are known to couple to the
+changed code. Report the gap explicitly; never treat "GitNexus did not report
+it" as "no impact".
+
 ## Checklist
 
 ```text

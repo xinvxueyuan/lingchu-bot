@@ -140,6 +140,18 @@ LINGCHUAdapter=~onebot.v11
 
 If the same key appears in OS environment variables, dotenv, and `config.json5`, the OS environment variable wins.
 
+## menu.json5
+
+Lingchu Bot also creates `menu.json5` in the plugin configuration directory. This file controls menu presentation only.
+
+Editable fields:
+
+- Page `title`
+- Feature `summary` and `usage`
+- Page, child page, and item order
+
+Code-owned fields are not editable from JSON5. The `command_key` set, menu page `command`, `platform_capability`, and implementation `availability` stay in code so the menu cannot claim a command or adapter capability that does not exist. Use `menu_page_trigger_overrides` in `config.json5` to change menu page triggers. If `menu.json5` references an unknown `command_key`, Lingchu rejects the file and keeps the code defaults. Unknown page ids are skipped with a warning.
+
 ## Permission and trigger customization
 
 `permission_platform_runtime_passthrough` controls whether platform-side roles such as QQ group owner/admin/member can satisfy Lingchu permission grants through runtime identity groups. Set it to `false` to require explicit Lingchu memberships, or to an object such as `{ qq: false }` for platform-specific behavior.

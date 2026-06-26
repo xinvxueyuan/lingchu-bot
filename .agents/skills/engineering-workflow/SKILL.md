@@ -17,6 +17,8 @@ description: 统筹 Lingchu Bot 的代码理解、GitNexus 影响分析、调试
 - GitNexus 辅助重构：读 `references/gitnexus/gitnexus-refactoring/guide.md`。
 - PR 或 diff review：优先读 `references/gitnexus/gitnexus-pr-review/guide.md`；需要一般审查循环时再读 `references/delivery-loop/delivery-loop-skill.md`。
 - Bug、失败追踪、性能或 flaky、TDD、实现后验证：读 `references/delivery-loop/delivery-loop-skill.md`。
+- 新增、修改、删除或重构 `handle`、QQ command、adapter handler、matcher、`command_key`、菜单/触发词/权限/配置耦合面：读 `references/delivery-loop/references/handle-feature-workflow.md`，再读 `references/delivery-loop/delivery-loop-skill.md` 执行和验证。
+- NapCat/QQ UI/实机才失败的 handle 问题：读 `../interactive-runtime-debugging/SKILL.md`，用现场证据定位后再回到 handle 变更路线补齐联动面。
 - 产品/API/UI/架构设计、方案对比、grill 提问、一次性原型：读 `references/design-prototyping/design-prototyping-skill.md`。
 - React/docs 站点诊断、可访问性、响应式、视觉打磨、浏览器验证：读 `references/frontend-quality/frontend-quality-skill.md`。
 - PRD、issue 拆分、triage、QA 会话、重构计划：读 `references/issue-planning/issue-planning-skill.md`。
@@ -28,3 +30,4 @@ description: 统筹 Lingchu Bot 的代码理解、GitNexus 影响分析、调试
 3. 用户要 review 时保持审查姿态：发现项优先，附文件和行号。
 4. 用户要实现时不要停在建议；完成编辑、针对性验证，并说明结果。
 5. reference 内若提到脚本或子 reference，路径按该 reference 所在目录解析。
+6. GitNexus、grep、测试覆盖和既有 skill 都可能漏掉业务关联；涉及业务行为时，必须结合当前源码结构手动核查关联面，并在结论里说明工具缺口。

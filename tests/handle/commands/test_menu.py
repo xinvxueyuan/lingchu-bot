@@ -6,9 +6,12 @@ import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle import menu
 from src.plugins.nonebot_plugin_lingchu_bot.handle.menu import (
+    _DEFAULT_MENU_FEATURES,
     MENU_FEATURES,
     NAPCAT_IMPL,
     ONEBOT_V11_ADAPTER_ID,
+    LocalizedText,
+    MenuPage,
     MenuRuntimeContext,
     menu_cmd,
     menu_page_cmds,
@@ -33,6 +36,57 @@ from tests.handle.commands.conftest import finish_text
 
 def test_menu_registry_uses_known_command_keys() -> None:
     assert {feature.command_key for feature in MENU_FEATURES} <= set(COMMAND_TRIGGERS)
+    assert {feature.command_key for feature in _DEFAULT_MENU_FEATURES} <= set(
+        COMMAND_TRIGGERS
+    )
+    assert {feature.command_key for feature in MENU_FEATURES} == {
+        feature.command_key for feature in _DEFAULT_MENU_FEATURES
+    }
+
+
+def test_set_menu_pages_replaces_runtime_lookup() -> None:
+    custom_pages = (
+        MenuPage(
+            "member-management",
+            LocalizedText("成员", "Members"),
+            command=LocalizedText("成员管理", "member-management"),
+        ),
+    )
+
+    try:
+        menu.set_menu_pages(custom_pages)
+        rendered = render_menu_page(
+            "member-management",
+            qq_menu_context(adapter_id=ONEBOT_V11_ADAPTER_ID),
+            "zh_CN",
+        )
+        assert rendered.startswith("成员")
+    finally:
+        menu.set_menu_pages(menu._DEFAULT_MENU_PAGES)
+
+
+def test_set_menu_features_replaces_runtime_data() -> None:
+    default_feature = menu._DEFAULT_MENU_FEATURES[0]
+    custom_feature = default_feature.__class__(
+        default_feature.id,
+        default_feature.command_key,
+        default_feature.section_id,
+        LocalizedText("自定义摘要", "Custom summary"),
+        default_feature.usage,
+        default_feature.platform_capability,
+        default_feature.availability,
+    )
+
+    try:
+        menu.set_menu_features((custom_feature,))
+        rendered = render_menu_page(
+            "member-management",
+            qq_menu_context(adapter_id=ONEBOT_V11_ADAPTER_ID),
+            "zh_CN",
+        )
+        assert "自定义摘要" in rendered
+    finally:
+        menu.set_menu_features(menu._DEFAULT_MENU_FEATURES)
 
 
 def test_extension_features_have_implementation_availability() -> None:

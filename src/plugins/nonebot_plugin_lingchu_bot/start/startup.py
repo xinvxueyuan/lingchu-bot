@@ -4,8 +4,10 @@ from nonebot.internal.driver.abstract import Driver
 
 from ..core.async_utils import fire_and_forget
 from ..core.bot_state import load_bot_state
+from ..core.menu_config import ensure_menu_config_file_async, load_menu_config
 from ..core.runtime_config import ensure_runtime_config_file_async
 from ..core.schemas import install_schemas
+from ..handle import menu as menu_module
 from ..handle.menu import import_handle as menu_import_handle
 from ..handle.qq.adapters import import_handle as group_import_handle
 from ..i18n import _async as _
@@ -36,7 +38,17 @@ async def startup() -> None:
         # Schema files are editor hints; missing them does not prevent startup.
         logger.exception("Failed to install JSON5 schemas")
     await ensure_runtime_config_file_async()
+    try:
+        await ensure_menu_config_file_async()
+    except Exception:  # noqa: BLE001
+        logger.exception("Failed to ensure menu config file")
     load_bot_state()
+    try:
+        menu_pages, menu_features = load_menu_config()
+        menu_module.set_menu_pages(menu_pages)
+        menu_module.set_menu_features(menu_features)
+    except Exception:  # noqa: BLE001
+        logger.exception("Failed to load menu config")
     registered_adapter_names = tuple(
         str(adapter_name) for adapter_name in get_adapters()
     )

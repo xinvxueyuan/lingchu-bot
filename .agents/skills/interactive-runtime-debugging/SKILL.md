@@ -62,6 +62,26 @@ or logged-in app accounts.
      call appears in logs and the UI outcome changes.
    - Stop long-running debug processes before finalizing.
 
+## Handle Command Failures
+
+Use this shortcut when a `handle` command, QQ matcher, adapter handler, or menu
+entry fails in live use:
+
+1. Start `nb run -r` and wait for plugin load, selected adapter output, and the
+   OneBot/NapCat connection line.
+2. Send a unique marker command from the real QQ group/user that reproduces the
+   failure.
+3. Trace the exact path: event received -> command trigger matched -> gate/silent
+   state -> permission decision -> handler branch -> repository/DB access ->
+   OneBot API call -> NapCat result -> QQ UI outcome.
+4. If the command is missing rather than failing, inspect handler import paths,
+   `selected_adapter_handle()`, `command_key`, triggers, menu feature rows, and
+   startup adapter selection before editing.
+5. After the root cause is fixed, add or update a regression test, replay the
+   live marker scenario, then return to `engineering-workflow`'s handle change
+   checklist so menus, permissions, config, i18n, docs, and packaging boundaries
+   stay in sync.
+
 ## Evidence Checklist
 
 Use this checklist before claiming completion:
