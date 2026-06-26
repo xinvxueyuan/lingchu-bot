@@ -42,11 +42,17 @@ jobs:
           node-version: 24
 
       - name: 配置 pnpm
-        # pinned from pnpm/action-setup@v6.0.8
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+        # pinned from pnpm/action-setup@v6.0.9
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
 
       - name: 安装 Node 依赖
-        run: pnpm install --frozen-lockfile
+        # pinned from nick-fields/retry@v4.0.0
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
+        with:
+          timeout_minutes: 5
+          max_attempts: 4
+          retry_wait_seconds: 30
+          command: pnpm install --frozen-lockfile
 
       - name: Markdown Lint
         run: pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" "SECURITY.md" ".github/**/*.md"

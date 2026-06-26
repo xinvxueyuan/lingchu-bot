@@ -224,6 +224,7 @@ output
 
 # AI
 
+.tools/
 .codex/
 
 # pnpm

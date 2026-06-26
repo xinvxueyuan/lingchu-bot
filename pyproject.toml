@@ -49,11 +49,6 @@ dependencies = [
     "openai>=2.38.0",
 ]
 
-[project.optional-dependencies]
-deprecated-adapters = [
-    "nonebot-adapter-qq>=1.7.1",
-]
-
 [project.urls]
 Homepage = "https://lingchu.zone.id/"
 Documentation = "https://lingchu.zone.id/"
