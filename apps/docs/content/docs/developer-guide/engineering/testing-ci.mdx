@@ -32,11 +32,11 @@ If only one module changed, run the related test file first, then broaden the sc
 
 ## Database testing
 
-The project supports multi-database testing via the `SQLALCHEMY_DATABASE_URL` environment variable, following [NoneBot database testing best practices](https://nonebot.dev/docs/best-practice/database/developer/test).
+The project supports six database backends for testing via the `SQLALCHEMY_DATABASE_URL` environment variable, following [NoneBot database testing best practices](https://nonebot.dev/docs/best-practice/database/developer/test).
 
 ### Local multi-database testing
 
-By default, tests use SQLite. To test against PostgreSQL or MySQL locally:
+By default, tests use SQLite. To test against PostgreSQL / MySQL / MariaDB / Oracle / SQL Server locally:
 
 1. Install the database drivers (already in the `test` dependency group):
 
@@ -56,6 +56,18 @@ uv run -m pytest
 # MySQL
 export SQLALCHEMY_DATABASE_URL="mysql+aiomysql://mysql:mysql@localhost:3306/mymysql"
 uv run -m pytest
+
+# MariaDB (requires the official mariadb driver)
+export SQLALCHEMY_DATABASE_URL="mariadb+mariadb://mariadb:mariadb@localhost:3306/mymariadb"
+uv run -m pytest
+
+# Oracle (oracledb 2.0+ default Thin mode, no Oracle Client required)
+export SQLALCHEMY_DATABASE_URL="oracle+oracledb://system:oracle@localhost:1521/?service_name=FREEPDB1"
+uv run -m pytest
+
+# SQL Server (requires aioodbc + pyodbc + system ODBC Driver 18)
+export SQLALCHEMY_DATABASE_URL="mssql+aioodbc://sa:Password!1@localhost:1433/master?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes"
+uv run -m pytest
 ```
 
 4. Run migrations before testing:
@@ -64,14 +76,22 @@ uv run -m pytest
 uv run nb orm upgrade
 ```
 
+#### System dependencies
+
+- **Oracle**: uses `gvenzl/oracle-free:23-slim`; requires Oracle 12.2+ (128-char identifiers + `MERGE INTO`).
+- **SQL Server**: Linux needs the `msodbcsql18` system package (`ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev`); macOS uses the same name from brew; Windows is built-in.
+
 ### CI multi-database matrix
 
-CI tests run on three database backends:
-- SQLite (default, no service required)
-- PostgreSQL (via service container)
-- MySQL (via service container)
+CI runs tests on six database backends:
+- **SQLite** (default, no service required)
+- **PostgreSQL** (`postgres:16-alpine` service container)
+- **MySQL** (`mysql:8.4` service container)
+- **MariaDB** (`mariadb:11` service container)
+- **Oracle** (`gvenzl/oracle-free:23-slim` service container)
+- **SQL Server** (`mcr.microsoft.com/azure-sql-edge:latest` service container + apt `msodbcsql18`)
 
-The `fail-fast: false` strategy ensures all databases are tested even if one fails.
+The `fail-fast: false` strategy ensures all databases are tested even if one fails. Oracle / SQL Server start slowly (health-start-period 90-180s); a full matrix run takes roughly 5-10 minutes.
 
 ## Docs / frontend focused checks
 

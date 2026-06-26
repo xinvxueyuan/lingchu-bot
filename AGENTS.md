@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3697 symbols, 7169 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3725 symbols, 7247 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -338,6 +338,22 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - Run migrations before non-SQLite tests.
 - `ensure_json5_dict_file_async()` only creates missing files; use `write_json5_dict_file_async()` to overwrite.
 - Runtime config defaults must be JSON-serializable; dump Pydantic defaults with `mode="json"` when needed.
+
+#### Cross-Database Compatibility (added with MariaDB / Oracle / SQL Server support)
+
+- `database/_dialect_compat.py` provides `CompatBoolean`, `CompatDateTimeTZ`, `CompatText`, and `compat_string(length)` as cross-dialect types; ORM models MUST use these helpers instead of raw `String` / `Text` / `Boolean` / `DateTime(timezone=True)`.
+- `CompatDateTimeTZ` on MySQL / MariaDB is compiled to `DATETIME(6)` and emits a "timezone only supported in MySQL 5.6+" warning; writes use `datetime.now(UTC)` (`utc_now()` in `database/models/message.py`) so no drift occurs in practice.
+- `CompatBoolean` maps to `NUMBER(1)` on Oracle pre-23c and native `BOOLEAN` on 23c+; no application-side variant is required.
+- `CompatText` maps to `CLOB` on Oracle to avoid `VARCHAR2(4000)` truncation.
+- `compat_string(length)` only switches to `NVARCHAR(MAX)` on SQL Server for `length > 4000`; all current `String` columns in this repo are ≤ 128, so they remain as `VARCHAR(N)` on every backend.
+- `orm_crud/_bulk.py::upsert` supports six backends: SQLite / PostgreSQL use `sqlite_insert` / `postgresql_insert` with `on_conflict_do_update`; MySQL / MariaDB share the `mysql_insert` + `on_duplicate_key_update` path (the `mariadb` official driver stays on the `mysql` dialect in SQLAlchemy 2.0.51, but `dialect.name == "mariadb"`); Oracle / SQL Server go through `_oracle_upsert` / `_mssql_upsert` private helpers that hand-write a `MERGE INTO` statement via `sqlalchemy.text()` with named bind parameters.
+- **Oracle / SQL Server upsert verified fact**: `from sqlalchemy.dialects.{oracle,mssql} import insert` raises `ImportError: cannot import name 'insert'`; the generic `from sqlalchemy import insert` returns an `Insert` object that has **no** `on_conflict_do_update` method; `oracle/base.py` and `mssql/base.py` have no `MERGE INTO` / `visit_insert` compilation logic. Re-evaluate if SQLAlchemy is upgraded to ≥ 2.1 (which adds `mssql.insert` / `oracle.insert`).
+- Oracle `MERGE INTO` uses `USING (SELECT :p1 AS c1, :p2 AS c2 FROM DUAL) s`; SQL Server uses `USING (SELECT :p1 AS c1, :p2 AS c2) s` (no `FROM DUAL`). Both execute the MERGE then follow up with a `SELECT ... WHERE conflict_keys` because neither backend supports `INSERT ... RETURNING`.
+- Oracle 12.2 (2016-12) is the minimum version; all current table / constraint names are within the 128-char limit, so no renames were needed. Do not extend identifier names past 30 characters without verifying the deployment target.
+- `mariadb` Python driver is required to actually distinguish MariaDB from MySQL; the legacy `mysql+mariadb://` URL form without the driver will fall through to the MySQL dialect.
+- `oracledb` 2.0+ uses Thin mode by default, so no Oracle Instant Client is required in CI.
+- `aioodbc` (and its `pyodbc` transitive dependency) needs the system ODBC Driver 18 package on Linux CI (`ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev`); macOS uses brew; Windows is built-in.
+- The CI matrix uses 6 backends with `fail-fast: false`; Oracle / SQL Server startup is slow (health-start-period 90-180s), and a full matrix run takes 5-10 minutes, so plan timing budgets accordingly.
 
 #### Hooks, CI, And GitHub
 

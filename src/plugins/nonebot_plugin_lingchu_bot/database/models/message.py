@@ -8,14 +8,10 @@ from nonebot import require
 
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import Model
-from sqlalchemy import (
-    DateTime,
-    Integer,
-    String,
-    Text,
-    UniqueConstraint,
-)
+from sqlalchemy import Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
+
+from .._dialect_compat import CompatDateTimeTZ, CompatText, compat_string
 
 
 def utc_now() -> datetime:
@@ -40,33 +36,35 @@ class MessageRecord(Model):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    platform_id: Mapped[str] = mapped_column(String(64), index=True)
-    adapter_id: Mapped[str] = mapped_column(String(64), index=True)
-    protocol_id: Mapped[str | None] = mapped_column(String(64), index=True)
-    framework_id: Mapped[str] = mapped_column(String(64), default="nonebot", index=True)
-    bot_id: Mapped[str] = mapped_column(String(128), index=True)
-    conversation_id: Mapped[str | None] = mapped_column(String(128), index=True)
-    user_id: Mapped[str | None] = mapped_column(String(128), index=True)
-    message_id: Mapped[str | None] = mapped_column(String(128), index=True)
-    event_type: Mapped[str] = mapped_column(String(128), index=True)
-    event_category: Mapped[str | None] = mapped_column(String(64), index=True)
-    message_type: Mapped[str | None] = mapped_column(String(64), index=True)
-    text_summary: Mapped[str | None] = mapped_column(Text)
-    raw_message: Mapped[str | None] = mapped_column(Text)
-    raw_event: Mapped[str | None] = mapped_column(Text)
+    platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
+    adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)
+    protocol_id: Mapped[str | None] = mapped_column(compat_string(64), index=True)
+    framework_id: Mapped[str] = mapped_column(
+        compat_string(64), default="nonebot", index=True
+    )
+    bot_id: Mapped[str] = mapped_column(compat_string(128), index=True)
+    conversation_id: Mapped[str | None] = mapped_column(compat_string(128), index=True)
+    user_id: Mapped[str | None] = mapped_column(compat_string(128), index=True)
+    message_id: Mapped[str | None] = mapped_column(compat_string(128), index=True)
+    event_type: Mapped[str] = mapped_column(compat_string(128), index=True)
+    event_category: Mapped[str | None] = mapped_column(compat_string(64), index=True)
+    message_type: Mapped[str | None] = mapped_column(compat_string(64), index=True)
+    text_summary: Mapped[str | None] = mapped_column(CompatText)
+    raw_message: Mapped[str | None] = mapped_column(CompatText)
+    raw_event: Mapped[str | None] = mapped_column(CompatText)
     process_status: Mapped[str] = mapped_column(
-        String(32),
+        compat_string(32),
         default="received",
         index=True,
     )
-    exception_summary: Mapped[str | None] = mapped_column(Text)
+    exception_summary: Mapped[str | None] = mapped_column(CompatText)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         index=True,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         onupdate=utc_now,
         index=True,
@@ -79,18 +77,20 @@ class AuditRecord(Model):
     __tablename__ = "lingchu_audit_records"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    platform_id: Mapped[str] = mapped_column(String(64), index=True)
-    adapter_id: Mapped[str] = mapped_column(String(64), index=True)
-    protocol_id: Mapped[str | None] = mapped_column(String(64), index=True)
-    framework_id: Mapped[str] = mapped_column(String(64), default="nonebot", index=True)
-    bot_id: Mapped[str] = mapped_column(String(128), index=True)
-    audit_type: Mapped[str] = mapped_column(String(64), index=True)
-    event_type: Mapped[str] = mapped_column(String(128), index=True)
-    data_summary: Mapped[str | None] = mapped_column(Text)
-    result_summary: Mapped[str | None] = mapped_column(Text)
-    exception_summary: Mapped[str | None] = mapped_column(Text)
+    platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
+    adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)
+    protocol_id: Mapped[str | None] = mapped_column(compat_string(64), index=True)
+    framework_id: Mapped[str] = mapped_column(
+        compat_string(64), default="nonebot", index=True
+    )
+    bot_id: Mapped[str] = mapped_column(compat_string(128), index=True)
+    audit_type: Mapped[str] = mapped_column(compat_string(64), index=True)
+    event_type: Mapped[str] = mapped_column(compat_string(128), index=True)
+    data_summary: Mapped[str | None] = mapped_column(CompatText)
+    result_summary: Mapped[str | None] = mapped_column(CompatText)
+    exception_summary: Mapped[str | None] = mapped_column(CompatText)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         index=True,
     )
@@ -113,33 +113,35 @@ class QQOneBotV11NoneBotEventRecord(Model):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    platform_id: Mapped[str] = mapped_column(String(64), index=True)
-    adapter_id: Mapped[str] = mapped_column(String(64), index=True)
-    protocol_id: Mapped[str | None] = mapped_column(String(64), index=True)
-    framework_id: Mapped[str] = mapped_column(String(64), default="nonebot", index=True)
-    bot_id: Mapped[str] = mapped_column(String(128), index=True)
-    conversation_id: Mapped[str | None] = mapped_column(String(128), index=True)
-    user_id: Mapped[str | None] = mapped_column(String(128), index=True)
-    message_id: Mapped[str | None] = mapped_column(String(128), index=True)
-    event_type: Mapped[str] = mapped_column(String(128), index=True)
-    event_category: Mapped[str | None] = mapped_column(String(64), index=True)
-    message_type: Mapped[str | None] = mapped_column(String(64), index=True)
-    text_summary: Mapped[str | None] = mapped_column(Text)
-    raw_message: Mapped[str | None] = mapped_column(Text)
-    raw_event: Mapped[str | None] = mapped_column(Text)
+    platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
+    adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)
+    protocol_id: Mapped[str | None] = mapped_column(compat_string(64), index=True)
+    framework_id: Mapped[str] = mapped_column(
+        compat_string(64), default="nonebot", index=True
+    )
+    bot_id: Mapped[str] = mapped_column(compat_string(128), index=True)
+    conversation_id: Mapped[str | None] = mapped_column(compat_string(128), index=True)
+    user_id: Mapped[str | None] = mapped_column(compat_string(128), index=True)
+    message_id: Mapped[str | None] = mapped_column(compat_string(128), index=True)
+    event_type: Mapped[str] = mapped_column(compat_string(128), index=True)
+    event_category: Mapped[str | None] = mapped_column(compat_string(64), index=True)
+    message_type: Mapped[str | None] = mapped_column(compat_string(64), index=True)
+    text_summary: Mapped[str | None] = mapped_column(CompatText)
+    raw_message: Mapped[str | None] = mapped_column(CompatText)
+    raw_event: Mapped[str | None] = mapped_column(CompatText)
     process_status: Mapped[str] = mapped_column(
-        String(32),
+        compat_string(32),
         default="received",
         index=True,
     )
-    exception_summary: Mapped[str | None] = mapped_column(Text)
+    exception_summary: Mapped[str | None] = mapped_column(CompatText)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         index=True,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         onupdate=utc_now,
         index=True,
@@ -152,18 +154,20 @@ class QQOneBotV11NoneBotAuditRecord(Model):
     __tablename__ = "lingchu_qq_onebot_v11_nonebot_audit_records"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    platform_id: Mapped[str] = mapped_column(String(64), index=True)
-    adapter_id: Mapped[str] = mapped_column(String(64), index=True)
-    protocol_id: Mapped[str | None] = mapped_column(String(64), index=True)
-    framework_id: Mapped[str] = mapped_column(String(64), default="nonebot", index=True)
-    bot_id: Mapped[str] = mapped_column(String(128), index=True)
-    audit_type: Mapped[str] = mapped_column(String(64), index=True)
-    event_type: Mapped[str] = mapped_column(String(128), index=True)
-    data_summary: Mapped[str | None] = mapped_column(Text)
-    result_summary: Mapped[str | None] = mapped_column(Text)
-    exception_summary: Mapped[str | None] = mapped_column(Text)
+    platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
+    adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)
+    protocol_id: Mapped[str | None] = mapped_column(compat_string(64), index=True)
+    framework_id: Mapped[str] = mapped_column(
+        compat_string(64), default="nonebot", index=True
+    )
+    bot_id: Mapped[str] = mapped_column(compat_string(128), index=True)
+    audit_type: Mapped[str] = mapped_column(compat_string(64), index=True)
+    event_type: Mapped[str] = mapped_column(compat_string(128), index=True)
+    data_summary: Mapped[str | None] = mapped_column(CompatText)
+    result_summary: Mapped[str | None] = mapped_column(CompatText)
+    exception_summary: Mapped[str | None] = mapped_column(CompatText)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        CompatDateTimeTZ,
         default=utc_now,
         index=True,
     )

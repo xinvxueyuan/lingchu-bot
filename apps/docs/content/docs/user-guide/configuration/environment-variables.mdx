@@ -35,7 +35,7 @@ Lingchu Bot uses NoneBot2's environment variable system. Copy `.env.example` to 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ALEMBIC_STARTUP_CHECK` | `false` | Set to `true` in production to enforce schema migration checks on startup |
-| `SQLALCHEMY_DATABASE_URL` | (unset) | SQLAlchemy database URL for multi-database testing; unset uses default SQLite |
+| `SQLALCHEMY_DATABASE_URL` | (unset) | SQLAlchemy database URL for multi-database testing; supports six backends (SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server); unset uses default SQLite |
 
 ### Superuser settings
 

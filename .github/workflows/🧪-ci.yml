@@ -197,23 +197,38 @@ jobs:
           task ci:static
 
   tests:
-    name: 🧪 Tests & Type Check (${{ matrix.db == 'sqlite+aiosqlite:///db.sqlite3' && 'SQLite' || (startsWith(matrix.db, 'postgresql') && 'PostgreSQL' || 'MySQL') }})
+    name: 🧪 Tests & Type Check (${{ matrix.db.label }})
     needs: changes
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     strategy:
       matrix:
         db:
-          - sqlite+aiosqlite:///db.sqlite3
-          - postgresql+psycopg://postgres:postgres@localhost:5432/postgres
-          - mysql+aiomysql://mysql:mysql@localhost:3306/mymysql
+          - url: sqlite+aiosqlite:///db.sqlite3
+            label: SQLite
+            driver_install: ""
+          - url: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
+            label: PostgreSQL
+            driver_install: ""
+          - url: mysql+aiomysql://mysql:mysql@localhost:3306/mymysql
+            label: MySQL
+            driver_install: ""
+          - url: mariadb+mariadb://mariadb:mariadb@localhost:3306/mymariadb
+            label: MariaDB
+            driver_install: ""
+          - url: oracle+oracledb://system:oracle@localhost:1521/?service_name=FREEPDB1
+            label: Oracle
+            driver_install: oracle_thin
+          - url: mssql+aioodbc://sa:Password!1@localhost:1433/master?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
+            label: SQLServer
+            driver_install: mssql_odbc
       fail-fast: false
     env:
-      SQLALCHEMY_DATABASE_URL: ${{ matrix.db }}
+      SQLALCHEMY_DATABASE_URL: ${{ matrix.db.url }}
     services:
       postgresql:
-        image: ${{ startsWith(matrix.db, 'postgresql') && 'postgres:16-alpine' || '' }}
+        image: ${{ startsWith(matrix.db.url, 'postgresql') && 'postgres:16-alpine' || '' }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -227,7 +242,7 @@ jobs:
           --health-retries 10
           --health-start-period 30s
       mysql:
-        image: ${{ startsWith(matrix.db, 'mysql') && 'mysql:8.4' || '' }}
+        image: ${{ startsWith(matrix.db.url, 'mysql') && 'mysql:8.4' || '' }}
         env:
           MYSQL_ROOT_PASSWORD: mysql
           MYSQL_USER: mysql
@@ -241,6 +256,47 @@ jobs:
           --health-timeout 5s
           --health-retries 10
           --health-start-period 30s
+      mariadb:
+        image: ${{ startsWith(matrix.db.url, 'mariadb') && 'mariadb:11' || '' }}
+        env:
+          MARIADB_USER: mariadb
+          MARIADB_PASSWORD: mariadb
+          MARIADB_DATABASE: mymariadb
+          MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+          --health-start-period 60s
+      oracle:
+        image: ${{ startsWith(matrix.db.url, 'oracle') && 'gvenzl/oracle-free:23-slim' || '' }}
+        env:
+          ORACLE_PASSWORD: oracle
+          ORACLE_DATABASE: FREEPDB1
+        ports:
+          - 1521:1521
+        options: >-
+          --health-cmd "bash -c 'echo > /dev/tcp/localhost/1521'"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 40
+          --health-start-period 180s
+      mssql:
+        image: ${{ startsWith(matrix.db.url, 'mssql') && 'mcr.microsoft.com/azure-sql-edge:latest' || '' }}
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "Password!1"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Password!1' -No -Q 'SELECT 1' || exit 1"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 30
+          --health-start-period 90s
     steps:
       - name: Checkout
         # pinned from actions/checkout@v6.0.3
@@ -262,6 +318,16 @@ jobs:
           max_attempts: 4
           retry_wait_seconds: 30
           command: uv sync --frozen
+
+      - name: Install system ODBC driver (SQL Server)
+        if: matrix.db.driver_install == 'mssql_odbc'
+        run: |
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev
+
+      - name: Verify Oracle Thin mode (no Oracle Client needed)
+        if: matrix.db.driver_install == 'oracle_thin'
+        run: echo "oracledb uses Thin mode; no Oracle Client required"
 
       - name: Run migrations
         run: uv run nb orm upgrade

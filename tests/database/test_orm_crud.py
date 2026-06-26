@@ -89,6 +89,7 @@ class FakeModel(Model):
     """
 
     __abstract__ = True
+    __tablename__ = "fake_table"
 
     id: Any = MagicMock()
     name: Any = MagicMock()
@@ -1450,17 +1451,131 @@ class TestUpsert:
         }
 
     @pytest.mark.asyncio
-    async def test_upsert_rejects_unsupported_dialect(
+    async def test_oracle_upsert_runs_merge_sql(
         self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
+        """Oracle upsert executes a hand-written MERGE INTO statement."""
+        self._set_dialect(mock_async_session, "oracle")
+        obj = FakeModel(id=ID_1, name="new")
+        mock_async_session.execute.side_effect = [
+            MagicMock(),  # MERGE statement result (not used)
+            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
+        ]
+
+        result = await upsert(
+            model=mock_model,
+            insert_values={"id": ID_1, "name": "new"},
+            conflict_fields=["id"],
+        )
+
+        assert result is obj
+        # First call is the MERGE statement with bind params
+        merge_call = mock_async_session.execute.call_args_list[0]
+        merge_sql_text = str(merge_call.args[0])
+        merge_params = merge_call.args[1]
+        assert "MERGE INTO" in merge_sql_text
+        assert "USING (SELECT" in merge_sql_text
+        assert "FROM DUAL" in merge_sql_text
+        assert "WHEN MATCHED THEN UPDATE SET" in merge_sql_text
+        assert "WHEN NOT MATCHED THEN INSERT" in merge_sql_text
+        assert "t.id = s.id" in merge_sql_text
+        assert merge_params == {"id": ID_1, "name": "new"}
+        # Commit is awaited exactly once after the MERGE
+        mock_async_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_mssql_upsert_runs_merge_sql(
+        self, mock_model: type[FakeModel], mock_async_session: Mock
+    ) -> None:
+        """SQL Server upsert executes a hand-written MERGE INTO statement."""
+        self._set_dialect(mock_async_session, "mssql")
+        obj = FakeModel(id=ID_1, name="new")
+        mock_async_session.execute.side_effect = [
+            MagicMock(),  # MERGE statement result (not used)
+            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
+        ]
+
+        result = await upsert(
+            model=mock_model,
+            insert_values={"id": ID_1, "name": "new"},
+            conflict_fields=["id"],
+        )
+
+        assert result is obj
+        merge_call = mock_async_session.execute.call_args_list[0]
+        merge_sql_text = str(merge_call.args[0])
+        merge_params = merge_call.args[1]
+        assert "MERGE INTO" in merge_sql_text
+        assert "USING (SELECT" in merge_sql_text
+        # SQL Server does NOT use FROM DUAL.
+        assert "FROM DUAL" not in merge_sql_text
+        assert "WHEN MATCHED THEN UPDATE SET" in merge_sql_text
+        assert "WHEN NOT MATCHED THEN INSERT" in merge_sql_text
+        assert "t.id = s.id" in merge_sql_text
+        assert merge_params == {"id": ID_1, "name": "new"}
+        mock_async_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_oracle_upsert_rejects_constraint(
+        self, mock_model: type[FakeModel], mock_async_session: Mock
+    ) -> None:
+        """Oracle upsert rejects constraint parameter."""
         self._set_dialect(mock_async_session, "oracle")
 
-        with pytest.raises(expected_exception=DatabaseError, match="not supported"):
+        with pytest.raises(expected_exception=ValueError, match="constraint"):
+            await upsert(
+                model=mock_model,
+                insert_values={"id": ID_1, "name": "new"},
+                constraint="uq_fake",
+            )
+
+    @pytest.mark.asyncio
+    async def test_mssql_upsert_rejects_constraint(
+        self, mock_model: type[FakeModel], mock_async_session: Mock
+    ) -> None:
+        """SQL Server upsert rejects constraint parameter."""
+        self._set_dialect(mock_async_session, "mssql")
+
+        with pytest.raises(expected_exception=ValueError, match="constraint"):
+            await upsert(
+                model=mock_model,
+                insert_values={"id": ID_1, "name": "new"},
+                constraint="uq_fake",
+            )
+
+    @pytest.mark.asyncio
+    async def test_oracle_upsert_db_error(
+        self, mock_model: type[FakeModel], mock_async_session: Mock
+    ) -> None:
+        """Oracle upsert rolls back and raises DatabaseError on failure."""
+        self._set_dialect(mock_async_session, "oracle")
+        mock_async_session.execute.side_effect = SQLAlchemyError()
+
+        with pytest.raises(expected_exception=DatabaseError, match="Upsert failed"):
             await upsert(
                 model=mock_model,
                 insert_values={"id": ID_1, "name": "new"},
                 conflict_fields=["id"],
             )
+
+        mock_async_session.rollback.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_mssql_upsert_db_error(
+        self, mock_model: type[FakeModel], mock_async_session: Mock
+    ) -> None:
+        """SQL Server upsert rolls back and raises DatabaseError on failure."""
+        self._set_dialect(mock_async_session, "mssql")
+        mock_async_session.execute.side_effect = SQLAlchemyError()
+
+        with pytest.raises(expected_exception=DatabaseError, match="Upsert failed"):
+            await upsert(
+                model=mock_model,
+                insert_values={"id": ID_1, "name": "new"},
+                conflict_fields=["id"],
+            )
+
+        mock_async_session.rollback.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_mysql_upsert_uses_on_duplicate_key_update(

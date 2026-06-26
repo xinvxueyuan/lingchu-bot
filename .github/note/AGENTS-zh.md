@@ -338,6 +338,22 @@ task ci
 - `ensure_json5_dict_file_async()` 只创建缺失文件；覆盖写入用 `write_json5_dict_file_async()`。
 - Runtime config defaults 必须 JSON-serializable；需要时用 Pydantic `mode="json"` dump。
 
+#### 跨数据库方言适配（随 MariaDB / Oracle / SQL Server 支持新增）
+
+- `database/_dialect_compat.py` 提供 `CompatBoolean`、`CompatDateTimeTZ`、`CompatText`、`compat_string(length)` 作为跨方言类型；ORM model MUST 使用这些 helper，禁止直接用裸的 `String` / `Text` / `Boolean` / `DateTime(timezone=True)`。
+- `CompatDateTimeTZ` 在 MySQL / MariaDB 上编译为 `DATETIME(6)` 并发出 "timezone only supported in MySQL 5.6+" 警告；写入侧统一用 `datetime.now(UTC)`（即 `database/models/message.py` 中的 `utc_now()`），实际无时区漂移。
+- `CompatBoolean` 在 Oracle pre-23c 映射 `NUMBER(1)`，23c+ 用原生 `BOOLEAN`；应用层不需要做方言分支。
+- `CompatText` 在 Oracle 映射 `CLOB`，避免 `VARCHAR2(4000)` 截断长文本。
+- `compat_string(length)` 仅在 `length > 4000` 时切换为 SQL Server 的 `NVARCHAR(MAX)`；本仓库所有 `String` 列均 ≤ 128，各方言均保持为 `VARCHAR(N)`。
+- `orm_crud/_bulk.py::upsert` 支持 6 个后端：SQLite / PostgreSQL 使用 `sqlite_insert` / `postgresql_insert` + `on_conflict_do_update`；MySQL / MariaDB 共用 `mysql_insert` + `on_duplicate_key_update`（`mariadb` 官方驱动在 SQLAlchemy 2.0.51 仍以 `mysql` dialect 路径编译，但 `dialect.name == "mariadb"`）；Oracle / SQL Server 通过私有函数 `_oracle_upsert` / `_mssql_upsert` 显式拼装 `MERGE INTO` 原始 SQL（经 `sqlalchemy.text()` + 命名绑定参数）。
+- **Oracle / SQL Server upsert 验证事实**：`from sqlalchemy.dialects.{oracle,mssql} import insert` 抛 `ImportError: cannot import name 'insert'`；通用 `from sqlalchemy import insert` 返回的 `Insert` 对象**无** `on_conflict_do_update` 方法；`oracle/base.py` 与 `mssql/base.py` 中无 `MERGE INTO` / `visit_insert` 编译逻辑。如未来升级 SQLAlchemy ≥ 2.1（已提供 `mssql.insert` / `oracle.insert`）需重新评估。
+- Oracle `MERGE INTO` 用 `USING (SELECT :p1 AS c1, :p2 AS c2 FROM DUAL) s`；SQL Server 用 `USING (SELECT :p1 AS c1, :p2 AS c2) s`（无 `FROM DUAL`）。两个后端均无 `INSERT ... RETURNING`，执行 MERGE 后通过 `SELECT ... WHERE conflict_keys` 取回最新行。
+- Oracle 最低版本 12.2（2016-12）；现有表 / 约束名均在 128 字符限制内，未做重命名。新增标识符前需核对部署目标是否兼容 30 字符限制。
+- 区分 MariaDB 与 MySQL 必须使用 `mariadb` 官方驱动；旧的 `mysql+mariadb://` URL 形式会回退到 MySQL dialect。
+- `oracledb` 2.0+ 默认 Thin 模式，CI 镜像无需安装 Oracle Instant Client。
+- `aioodbc`（含传递依赖 `pyodbc`）在 Linux CI 需要系统 ODBC Driver 18 包（`ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev`）；macOS 用同名 brew 包；Windows 自带。
+- CI 矩阵 6 个后端均启用 `fail-fast: false`；Oracle / SQL Server 启动慢（health-start-period 90-180s），单次全跑约 5-10 分钟，预算 CI 时间时需要考虑。
+
 #### Hooks, CI, And GitHub
 
 - Windows 下 Bash hooks 可能找到不可直接运行的 `.cmd` shim。Windows Node shim 通过 `cmd.exe /c` 执行。
