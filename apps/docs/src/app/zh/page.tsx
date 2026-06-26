@@ -1,13 +1,10 @@
 import Link from 'next/link';
-import type { Metadata } from 'next';
-import { appName, gitConfig } from '@/lib/shared';
+import { gitConfig } from '@/lib/shared';
+import { getHomeMetadata } from '@/lib/site-metadata';
+
+export const metadata = getHomeMetadata('zh');
 
 const githubUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
-
-export const metadata: Metadata = {
-  title: `${appName} 文档`,
-  description: 'Lingchu Bot 是基于 NoneBot2 的 QQ 群管理机器人，提供权限感知命令与面向运营的文档。',
-};
 
 const features = [
   ['权限感知命令', '菜单与处理器使用同一套 command key，只展示操作者能执行的动作。'],

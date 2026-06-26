@@ -1,14 +1,10 @@
 import Link from 'next/link';
-import type { Metadata } from 'next';
-import { appName, gitConfig } from '@/lib/shared';
+import { gitConfig } from '@/lib/shared';
+import { getHomeMetadata } from '@/lib/site-metadata';
+
+export const metadata = getHomeMetadata('en');
 
 const githubUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
-
-export const metadata: Metadata = {
-  title: appName,
-  description:
-    'Lingchu Bot is a NoneBot2-based QQ group management bot with permission-aware commands and operator-focused documentation.',
-};
 
 const features = [
   ['Permission-aware commands', 'Menus and handlers use the same command keys, so operators only see actions they can run.'],
