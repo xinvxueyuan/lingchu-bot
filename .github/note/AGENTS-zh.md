@@ -304,7 +304,7 @@ task ci
 #### Adapter And API Boundaries
 
 - 同名 adapter API 可能返回不同形状。OneBot V11 API 常返回 `dict`；写访问模式前检查已安装 adapter 源码。
-- deprecated Milky、QQ、OneBot V12 源码已移除。`tools/adapter_loader.py` 是带空 deprecated module mapping 的 stub。
+- deprecated Milky、QQ、OneBot V12 源码已从项目中彻底移除，包括所有按需加载工具。
 - OneBot V11 群 `event.get_session_id()` 可能同时包含群和用户 ID。群级历史必须用 `group_id` 作为 `conversation_id`。
 - OneBot V11 图片 API 变更前，先用当前 adapter 和 NapCat 文档确认 file field 格式。
 

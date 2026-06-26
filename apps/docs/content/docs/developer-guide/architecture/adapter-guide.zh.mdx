@@ -39,9 +39,7 @@ ONEBOT_ACCESS_TOKEN=your-token
 
 ## 停维适配器
 
-停维适配器（Milky、QQ 官方、OneBot V12）已从项目中完全移除。其源代码不再保留——`tools/adapter_loader.py` 作为 stub 存在，模块映射为空（`_DEPRECATED_ADAPTER_MODULES = {}`）。
-
-加载函数（`load_deprecated_adapter()`、`load_and_init_deprecated_adapter()`、`list_deprecated_adapters()`）仍然存在，但对任何停维适配器 ID 都会抛出 `ValueError`，因为没有注册任何 handler 模块。
+停维适配器（Milky、QQ 官方、OneBot V12）已从项目中彻底移除，包括其源代码。不再提供按需加载工具。
 
 停维适配器 ID 在 `platforms/registry.py` 的 `_DEPRECATED_ADAPTER_IDS` 中跟踪。在 `LINGCHUAdapter` 中配置其中任何一个都会以清晰的 `PlatformAdapterDeprecatedError` 退出：
 

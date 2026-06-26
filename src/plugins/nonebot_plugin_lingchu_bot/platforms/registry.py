@@ -152,9 +152,8 @@ class PlatformAdapterDeprecatedError(RuntimeError):
         adapter_list = ", ".join(sorted(adapters))
         super().__init__(
             f"LINGCHUAdapter 声明了已停维的适配器：{adapter_list}。"
-            f"\n这些适配器已从启动流程中移除，不再自动加载。"
+            f"\n这些适配器已从项目中彻底移除，不再自动加载。"
             f"\n建议使用 ~onebot.v11 适配器。"
-            f"\n如需按需加载停维适配器，请使用 tools/adapter_loader.py 工具。"
         )
 
 
