@@ -203,10 +203,10 @@ PR 描述应包含：
 ## CI 与失败处理
 
 - PR 会触发 GitHub Actions；`main` 和 `dev` 的 push 也会触发主要 CI。
-- `🧪 CI` 的 Static Analysis 运行 `task ci:static`；Tests & Type Check 运行 Pyright、ty 和 pytest；Docs Check 运行 Turbo lint/type check 和 docs test。
+- `🧪 Python CI` 的 Static Analysis 运行 `task ci:static`，Tests & Type Check 运行 Pyright、ty 和 pytest（多数据库矩阵）；`🧪 Frontend CI` 运行 Docs Check（Turbo lint、type check、link validation、docs test）。
 - `👷 CI-builds` 运行 `task ci:build`；在 `main`、`dev`、`releases/**` 的 push 上还会执行版本写入、构建产物归档、来源证明和 tag 流程。
 - `📚 Docs Deploy` 在 docs 相关路径 push 到 `main` 或 `dev` 时运行 pnpm/turbo lint、docs test 和 docs build，然后部署 GitHub Pages。
-- `main` 和 `dev` push 上的 auto-format job 会运行 `task ci:fix` 并可能自动提交格式修复。
+- `🧪 Python CI` 中 `main` 和 `dev` push 上的 auto-format job 会运行 `task ci:fix` 并可能自动提交格式修复。
 
 如果 CI 失败，先打开失败 job 的日志，定位具体命令、规则和行号。修 CI 时只改导致失败的最小范围，并重新跑对应本地命令验证。
 

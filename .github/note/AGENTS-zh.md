@@ -352,7 +352,7 @@ task ci
 - 区分 MariaDB 与 MySQL 必须使用 `mariadb` 官方驱动；旧的 `mysql+mariadb://` URL 形式会回退到 MySQL dialect。
 - `oracledb` 2.0+ 默认 Thin 模式，CI 镜像无需安装 Oracle Instant Client。
 - `aioodbc`（含传递依赖 `pyodbc`）在 Linux CI 需要系统 ODBC Driver 18 包（`ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev`）；macOS 用同名 brew 包；Windows 自带。
-- CI 矩阵 6 个后端均启用 `fail-fast: false`；Oracle / SQL Server 启动慢（health-start-period 90-180s），单次全跑约 5-10 分钟，预算 CI 时间时需要考虑。
+- CI 矩阵跨 6 个引擎跑 10 个任务，均启用 `fail-fast: false`（SQLite + PostgreSQL 16/18 + MySQL 8.4/9.7 LTS + MariaDB 11.4/11.8 LTS + Oracle 23ai + SQL Server 2022/2025）；Oracle / SQL Server 启动慢（health-start-period 90-180s），单次全跑约 8-15 分钟，预算 CI 时间时需要考虑。SQL Server 已从废弃的 `azure-sql-edge` 镜像迁移到 `mcr.microsoft.com/mssql/server:{2022,2025}-latest`（两者均自带 `mssql-tools18` 用于健康检查）。矩阵条目携带 `engine` + `image` 字段；服务容器通过 `${{ matrix.db.engine == '<engine>' && matrix.db.image || '' }}` 选择镜像，使同一引擎的多个版本可在一个矩阵中共存。
 
 #### Hooks, CI, And GitHub
 
@@ -365,6 +365,7 @@ task ci
 - Workflow 文件名使用 emoji-prefix + kebab-case，workflow `name:` 使用英文并匹配 emoji。
 - `.github` YAML 注释使用英文；移除空的/损坏的 schema comment。
 - `git push origin --delete` 前用 `git ls-remote` 检查远端分支是否存在。
+- CI 工作流按领域拆分：`🧪-python.yml`（Python 静态分析 + 多数据库测试矩阵 + auto-format）、`🧪-frontend.yml`（docs lint/type/test/links）、`📚-docs.yml`（docs 部署）。共享的变更检测位于 `.github/actions/detect-changes` 复合 action（输出 python/markdown/frontend-* 标志）。标准触发约定：PR 仅跑检查（不提交/部署）；push 到 `main`/`dev` 跑检查 + auto-format + 部署。每个工作流有独立的 concurrency group 以避免互相取消。
 
 #### Pending Rollbacks
 
