@@ -141,6 +141,18 @@ LINGCHUAdapter=~onebot.v11
 
 如果同一键同时出现在操作系统环境变量、dotenv 和 `config.json5` 中，操作系统环境变量优先。
 
+## menu.json5
+
+Lingchu Bot 也会在插件配置目录创建 `menu.json5`。这个文件只控制菜单展示。
+
+可编辑字段：
+
+- 页面 `title`
+- 功能 `summary` 和 `usage`
+- 页面、子页面和条目的顺序
+
+代码拥有的字段不能通过 JSON5 编辑。`command_key` 集合、菜单页 `command`、`platform_capability` 和实现级 `availability` 保留在代码中，避免菜单宣称不存在的命令或适配器能力。如需修改菜单页触发词，请使用 `config.json5` 中的 `menu_page_trigger_overrides`。如果 `menu.json5` 引用了未知 `command_key`，Lingchu 会拒绝该文件并保留代码默认菜单。未知页面 id 会记录警告并跳过。
+
 ## 权限和触发词自定义
 
 `permission_platform_runtime_passthrough` 控制 QQ 群主、管理员、成员等平台侧运行时角色是否可以通过运行时身份组满足 Lingchu 授权。设为 `false` 会要求显式 Lingchu 成员关系，也可以使用 `{ qq: false }` 这样的对象做平台级控制。

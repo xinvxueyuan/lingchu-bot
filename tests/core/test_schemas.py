@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -13,6 +14,8 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.schemas import (
     BOT_STATE_SCHEMA_TEXT,
     CONFIG_SCHEMA_BASENAME,
     CONFIG_SCHEMA_TEXT,
+    MENU_SCHEMA_BASENAME,
+    MENU_SCHEMA_TEXT,
     install_schemas,
 )
 
@@ -75,6 +78,19 @@ def test_install_schemas_writes_bot_state_schema_under_localstore_data_dir(
     assert data_schema_path.read_text(encoding="utf-8") == BOT_STATE_SCHEMA_TEXT
 
 
+def test_install_schemas_writes_menu_schema_under_localstore_config_dir(
+    patched_localstore: tuple[Path, Path],
+) -> None:
+    """``install_schemas`` writes the menu schema to the localstore config dir."""
+    config_dir, _ = patched_localstore
+
+    install_schemas()
+
+    menu_schema_path = config_dir / MENU_SCHEMA_BASENAME
+    assert menu_schema_path.exists()
+    assert menu_schema_path.read_text(encoding="utf-8") == MENU_SCHEMA_TEXT
+
+
 def test_install_schemas_uses_localstore_paths_only(
     patched_localstore: tuple[Path, Path],
 ) -> None:
@@ -85,13 +101,16 @@ def test_install_schemas_uses_localstore_paths_only(
 
     # Both files exist only inside the mocked localstore directories.
     expected_config = config_dir / CONFIG_SCHEMA_BASENAME
+    expected_menu = config_dir / MENU_SCHEMA_BASENAME
     expected_data = data_dir / BOT_STATE_SCHEMA_BASENAME
     assert expected_config.exists()
+    assert expected_menu.exists()
     assert expected_data.exists()
 
     # The data schema is *not* placed under the config dir, and vice versa.
     assert not (config_dir / BOT_STATE_SCHEMA_BASENAME).exists()
     assert not (data_dir / CONFIG_SCHEMA_BASENAME).exists()
+    assert not (data_dir / MENU_SCHEMA_BASENAME).exists()
 
 
 def test_install_schemas_is_idempotent(
@@ -102,6 +121,7 @@ def test_install_schemas_is_idempotent(
 
     install_schemas()
     first_config = (config_dir / CONFIG_SCHEMA_BASENAME).read_text(encoding="utf-8")
+    first_menu = (config_dir / MENU_SCHEMA_BASENAME).read_text(encoding="utf-8")
     first_data = (data_dir / BOT_STATE_SCHEMA_BASENAME).read_text(encoding="utf-8")
 
     install_schemas()
@@ -109,9 +129,16 @@ def test_install_schemas_is_idempotent(
     assert (config_dir / CONFIG_SCHEMA_BASENAME).read_text(encoding="utf-8") == (
         first_config
     )
+    assert (config_dir / MENU_SCHEMA_BASENAME).read_text(encoding="utf-8") == (
+        first_menu
+    )
     assert (data_dir / BOT_STATE_SCHEMA_BASENAME).read_text(encoding="utf-8") == (
         first_data
     )
+
+
+def test_menu_schema_text_is_valid_json() -> None:
+    assert json.loads(MENU_SCHEMA_TEXT)["title"] == "Lingchu Bot Menu Config"
 
 
 def test_install_schemas_propagates_localstore_errors() -> None:

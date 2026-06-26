@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 
 CONFIG_SCHEMA_BASENAME: Final = "config.schema.json5"
 BOT_STATE_SCHEMA_BASENAME: Final = "bot_state.schema.json5"
+MENU_SCHEMA_BASENAME: Final = "menu.schema.json5"
 
 CONFIG_SCHEMA_TEXT: Final = """{
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -182,6 +183,69 @@ BOT_STATE_SCHEMA_TEXT: Final = """{
 }
 """
 
+MENU_SCHEMA_TEXT: Final = """{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Lingchu Bot Menu Config",
+  "description": "Editable menu labels, page order, and command help text for the Lingchu Bot plugin. Runtime availability and command identity stay code-owned.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "pages"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Editor hint pointing to the sibling schema file in the same directory."
+    },
+    "version": {
+      "type": "integer",
+      "description": "Menu config format version."
+    },
+    "pages": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/page" }
+    }
+  },
+  "definitions": {
+    "localizedText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["zh_CN", "en_US"],
+      "properties": {
+        "zh_CN": { "type": "string" },
+        "en_US": { "type": "string" }
+      }
+    },
+    "menuItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_key", "summary", "usage"],
+      "properties": {
+        "command_key": { "type": "string" },
+        "summary": { "$ref": "#/definitions/localizedText" },
+        "usage": { "$ref": "#/definitions/localizedText" }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "$ref": "#/definitions/localizedText" },
+        "command": { "$ref": "#/definitions/localizedText" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/menuItem" }
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/page" }
+        }
+      }
+    }
+  }
+}
+"""
+
 
 def install_schemas() -> None:
     """Write JSON5 schema files to the localstore config / data directories.
@@ -192,15 +256,20 @@ def install_schemas() -> None:
     a real file managed by ``nonebot_plugin_localstore``. Calling this
     function multiple times is safe: the writes are idempotent.
     """
-    config_path: Path = get_plugin_config_dir() / CONFIG_SCHEMA_BASENAME
+    config_dir: Path = get_plugin_config_dir()
+    config_path: Path = config_dir / CONFIG_SCHEMA_BASENAME
+    menu_path: Path = config_dir / MENU_SCHEMA_BASENAME
     data_path: Path = get_plugin_data_dir() / BOT_STATE_SCHEMA_BASENAME
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
+    menu_path.parent.mkdir(parents=True, exist_ok=True)
     data_path.parent.mkdir(parents=True, exist_ok=True)
 
     config_path.write_text(CONFIG_SCHEMA_TEXT, encoding="utf-8")
+    menu_path.write_text(MENU_SCHEMA_TEXT, encoding="utf-8")
     data_path.write_text(BOT_STATE_SCHEMA_TEXT, encoding="utf-8")
 
     logger.debug(
-        f"Lingchu JSON5 schemas installed: config={config_path}, state={data_path}"
+        "Lingchu JSON5 schemas installed: "
+        f"config={config_path}, menu={menu_path}, state={data_path}"
     )

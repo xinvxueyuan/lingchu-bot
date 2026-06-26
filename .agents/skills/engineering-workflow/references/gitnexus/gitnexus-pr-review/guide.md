@@ -47,7 +47,7 @@ description: "Use when the user wants to review a pull request, understand what 
 | --- | --- |
 | **Correctness** | `context` shows callers — are they all compatible with the change? |
 | **Blast radius** | `impact` shows d=1/d=2/d=3 dependents — anything missed? |
-| **Completeness** | `detect_changes` shows all affected flows — are they all handled? |
+| **Completeness** | `detect_changes` shows affected flows, then manual coupling checks catch tool gaps in imports, menus, triggers, tests, docs, i18n, config, and persistence. |
 | **Test coverage** | `impact({includeTests: true})` shows which tests touch changed code |
 | **Breaking changes** | d=1 upstream items that aren't updated in the PR = potential breakage |
 
