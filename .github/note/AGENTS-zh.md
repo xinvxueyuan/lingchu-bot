@@ -351,7 +351,7 @@ task ci
 - **Oracle / SQL Server upsert 验证事实**：`from sqlalchemy.dialects.{oracle,mssql} import insert` 抛 `ImportError: cannot import name 'insert'`；通用 `from sqlalchemy import insert` 返回的 `Insert` 对象**无** `on_conflict_do_update` 方法；`oracle/base.py` 与 `mssql/base.py` 中无 `MERGE INTO` / `visit_insert` 编译逻辑。如未来升级 SQLAlchemy ≥ 2.1（已提供 `mssql.insert` / `oracle.insert`）需重新评估。
 - Oracle `MERGE INTO` 用 `USING (SELECT :p1 AS c1, :p2 AS c2 FROM DUAL) s`；SQL Server 用 `USING (SELECT :p1 AS c1, :p2 AS c2) s`（无 `FROM DUAL`）。两个后端均无 `INSERT ... RETURNING`，执行 MERGE 后通过 `SELECT ... WHERE conflict_keys` 取回最新行。
 - Oracle 最低版本 12.2（2016-12）；现有表 / 约束名均在 128 字符限制内，未做重命名。新增标识符前需核对部署目标是否兼容 30 字符限制。
-- 区分 MariaDB 与 MySQL 必须使用 `mariadb` 官方驱动；旧的 `mysql+mariadb://` URL 形式会回退到 MySQL dialect。
+- MariaDB 与 MySQL 使用统一驱动 `aiomysql`；SQLAlchemy 通过连接字符串自动检测 dialect（`mysql` vs `mariadb`），无需专用 `mariadb` Python 驱动。移除专用驱动可简化依赖并避免 CI 静态分析环境的系统库问题（`mariadb` 驱动依赖系统级 MariaDB Connector/C，在极简 CI 环境可能构建失败）。
 - `oracledb` 2.0+ 默认 Thin 模式，CI 镜像无需安装 Oracle Instant Client。
 - `aioodbc`（含传递依赖 `pyodbc`）在 Linux CI 需要系统 ODBC Driver 18 包（`ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev`）；macOS 用同名 brew 包；Windows 自带。
 - CI 矩阵跨 6 个引擎跑 10 个任务，均启用 `fail-fast: false`（SQLite + PostgreSQL 16/18 + MySQL 8.4/9.7 LTS + MariaDB 11.4/11.8 LTS + Oracle 23ai + SQL Server 2022/2025）；Oracle / SQL Server 启动慢（health-start-period 90-180s），单次全跑约 8-15 分钟，预算 CI 时间时需要考虑。SQL Server 已从废弃的 `azure-sql-edge` 镜像迁移到 `mcr.microsoft.com/mssql/server:{2022,2025}-latest`（两者均自带 `mssql-tools18` 用于健康检查）。矩阵条目携带 `engine` + `image` 字段；服务容器通过 `${{ matrix.db.engine == '<engine>' && matrix.db.image || '' }}` 选择镜像，使同一引擎的多个版本可在一个矩阵中共存。

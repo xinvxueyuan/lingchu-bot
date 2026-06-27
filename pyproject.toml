@@ -91,11 +91,10 @@ test = [
     "respx>=0.23.1",
     # Multi-database testing drivers (SQLALCHEMY_DATABASE_URL).
     # cryptography is required by pymysql/aiomysql for MySQL 8 caching_sha2_password
-    # auth, by mariadb for sha256_password, and by oracledb for TLS.
+    # auth and by oracledb for TLS.
     "psycopg[binary]>=3.2.4", # PostgreSQL
-    "aiomysql>=0.2.0", # MySQL
-    "cryptography>=43.0.0", # pymysql/aiomysql/mariadb/oracledb auth
-    "mariadb>=1.1.10", # MariaDB official async driver
+    "aiomysql>=0.2.0", # MySQL and MariaDB (SQLAlchemy auto-detects dialect)
+    "cryptography>=43.0.0", # pymysql/aiomysql/oracledb auth
     "oracledb>=2.0.0", # Oracle Thin mode (no Oracle Client required)
     "aioodbc>=0.5.0", # SQL Server async ODBC
     # aioodbc depends on pyodbc, which needs system ODBC drivers:
