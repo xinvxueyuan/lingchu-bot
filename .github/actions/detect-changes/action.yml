@@ -20,18 +20,22 @@ outputs:
   frontend-content:
     description: "true if frontend content changed (check-types+Vitest)"
     value: ${{ steps.detect.outputs.frontend-content }}
+  frontend-mdx:
+    description: "true if .mdx files changed (ESLint via eslint-plugin-mdx)"
+    value: ${{ steps.detect.outputs.frontend-mdx }}
   frontend-tsx:
     description: "true if .tsx files changed (React Doctor)"
     value: ${{ steps.detect.outputs.frontend-tsx }}
 
 runs:
   using: composite
+  # Pre-requisite: the calling workflow MUST run `actions/checkout` (with
+  # `fetch-depth: 0`) before `uses: ./.github/actions/detect-changes`.
+  # GitHub Actions resolves the local action path at step parse time —
+  # before this composite's own `runs.steps` run — so the checkout inside
+  # the composite would arrive too late and the action would fail with
+  # "Can't find 'action.yml' under .../.github/actions/detect-changes".
   steps:
-    - name: Checkout
-      # pinned from actions/checkout@v6.0.3
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-      with:
-        fetch-depth: 0
     - name: Detect changes
       id: detect
       shell: bash
@@ -52,6 +56,7 @@ runs:
         FRONTEND_CODE=false
         FRONTEND_STYLE=false
         FRONTEND_CONTENT=false
+        FRONTEND_MDX=false
         FRONTEND_TSX=false
 
         # Python: .py / pyproject.toml / uv.lock / ruff.toml / .python-version
@@ -71,6 +76,10 @@ runs:
         if echo "$FILES" | grep -qE '^apps/docs/.*\.(mdx|json)$'; then
           FRONTEND=true
           FRONTEND_CONTENT=true
+        fi
+        # Docs: MDX content files (eslint-plugin-mdx covers .mdx → trigger ESLint; .json does not)
+        if echo "$FILES" | grep -qE '^apps/docs/.*\.mdx$'; then
+          FRONTEND_MDX=true
         fi
         # Docs: style files (.css) — triggers ESLint but NOT Vitest
         if echo "$FILES" | grep -qE '^apps/docs/.*\.css$'; then
@@ -98,6 +107,7 @@ runs:
           echo "frontend-code=$FRONTEND_CODE"
           echo "frontend-style=$FRONTEND_STYLE"
           echo "frontend-content=$FRONTEND_CONTENT"
+          echo "frontend-mdx=$FRONTEND_MDX"
           echo "frontend-tsx=$FRONTEND_TSX"
         } >> "$GITHUB_OUTPUT"
 
@@ -113,5 +123,6 @@ runs:
           echo "| Frontend Code (ESLint+Vitest) | \`$FRONTEND_CODE\` |"
           echo "| Frontend Style (ESLint only) | \`$FRONTEND_STYLE\` |"
           echo "| Frontend Content (check-types+Vitest) | \`$FRONTEND_CONTENT\` |"
+          echo "| Frontend MDX (ESLint only) | \`$FRONTEND_MDX\` |"
           echo "| Frontend TSX (React Doctor) | \`$FRONTEND_TSX\` |"
         } >> "$GITHUB_STEP_SUMMARY"
