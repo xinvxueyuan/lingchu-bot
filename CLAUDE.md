@@ -368,6 +368,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - `.github` YAML comments should be English; remove broken empty schema comments.
 - Check remote branch existence with `git ls-remote` before `git push origin --delete`.
 - CI workflows are split by domain: `🧪-python.yml` (Python static analysis + multi-DB test matrix + auto-format), `🧪-frontend.yml` (docs lint/type/test/links), `📚-docs.yml` (docs deploy). Shared change detection lives in the `.github/actions/detect-changes` composite action (outputs python/markdown/frontend-* flags). Standard trigger convention: PR runs checks only (no commits/deploy); push to `main`/`dev` runs checks + auto-format + deploy. Each workflow has its own concurrency group to avoid cross-canceling.
+- Static Analysis jobs in Python CI use `uv sync --no-dev --group lint --group git --frozen` + `UV_NO_SYNC=1` to install only the minimal dependencies needed for linting/formatting (ruff, pyright, ty, prek), avoiding the test group which contains database drivers (mariadb, aioodbc) that require system-level libraries and can fail to build in minimal CI environments. Use this pattern for any CI job that doesn't need to run tests.
 
 #### Pending Rollbacks
 
