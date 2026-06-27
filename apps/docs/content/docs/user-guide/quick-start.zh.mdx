@@ -31,10 +31,38 @@ cd lingchu-bot
 </Step>
 <Step>
 
-### 安装依赖
+### 运行初始化脚本
+
+项目提供了跨平台初始化脚本，一键完成全部初始化流程：
+
+```bash
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
+
+脚本将依次执行：
+
+1. 检测操作系统类型和必需工具链
+2. 验证 Python 3.13+、Node.js 20+、pnpm 9+、Git 和 uv
+3. 安装所有 Python 和 Node.js 依赖
+4. 生成环境配置文件（`.env`、`.env.development`、`.env.test`、`.env.production`）
+5. 配置 Git 钩子（husky）
+6. 可选初始化 Git 仓库和安装 Playwright 浏览器
+
+详见 `./scripts/setup.sh --help`。
+
+</Step>
+<Step>
+
+### 手动安装依赖
+
+如果偏好手动安装而非使用初始化脚本：
 
 ```bash
 uv sync --frozen
+pnpm install
+pnpm exec husky
+cp .env.example .env
 ```
 
 </Step>

@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3885 symbols, 7584 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3864 symbols, 7555 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -332,6 +332,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - `/llms.txt` is a route handler; link internally with Next.js `Link`.
 - Docker services must not bind Playwright webServer port `3100`; use ports outside the CI range such as `6100:3000`.
 - `next typegen` may clear `apps/docs/.source/server.ts` (and `browser.ts`) to 0 bytes after the first `fumadocs-mdx` call. The `docs:check-types` script MUST run `fumadocs-mdx` a second time after `next typegen` to repopulate the collections exports, otherwise `tsc --noEmit` fails with `TS2305: Module '"collections/server"' has no exported member 'docs'`. Use `fumadocs-mdx && next typegen && fumadocs-mdx && tsc --noEmit`.
+- Pre-commit hook Phase 6d (Playwright Chromium smoke test) checks for browser binaries in `~/.cache/ms-playwright` before running. If Chromium is not installed, it skips with a warning instead of blocking the commit. Run `pnpm --filter docs exec playwright install` to install browsers.
 
 #### Database And Runtime Files
 

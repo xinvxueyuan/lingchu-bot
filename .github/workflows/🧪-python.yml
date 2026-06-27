@@ -153,11 +153,12 @@ jobs:
             driver_install: ""
             image: mariadb:11.8
           # ── Oracle 23ai Free (only freely available version; no LTS split) ──
+          # Use ghcr.io (GitHub Container Registry) to avoid Docker Hub rate limits.
           - engine: oracle
             url: oracle+oracledb://system:oracle@localhost:1521/?service_name=FREEPDB1
             label: Oracle 23ai
             driver_install: oracle_thin
-            image: gvenzl/oracle-free:23-slim
+            image: ghcr.io/gvenzl/oracle-free:23-slim
           # ── SQL Server: 2022 + 2025 (migrated off deprecated azure-sql-edge) ──
           - engine: mssql
             url: mssql+aioodbc://sa:Password!1@localhost:1433/master?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes

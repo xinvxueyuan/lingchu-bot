@@ -5,7 +5,9 @@ title: Environment Variables
 
 Lingchu Bot uses NoneBot2's environment variable system. Copy `.env.example` to `.env` and adjust values for your environment.
 
-### Server settings
+The project provides a cross-platform setup script (`./scripts/setup.sh`) that automatically generates `.env`, `.env.development`, `.env.test`, and `.env.production` from templates. You can also create these files manually.
+
+## Server settings
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -14,14 +16,14 @@ Lingchu Bot uses NoneBot2's environment variable system. Copy `.env.example` to 
 | `PORT` | `8080` | FastAPI listen port |
 | `DRIVER` | `~fastapi+~httpx+~websockets` | NoneBot driver stack; prefix `~` enables default adapter config |
 
-### Command settings
+## Command settings
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `COMMAND_START` | `["/", ""]` | Command start prefixes; empty string allows no-prefix commands |
 | `COMMAND_SEP` | `[".", " "]` | Command segment separators |
 
-### Logging and API docs
+## Logging and API docs
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -30,14 +32,14 @@ Lingchu Bot uses NoneBot2's environment variable system. Copy `.env.example` to 
 | `FASTAPI_DOCS_URL` | `/docs` | Swagger UI path; disable in production |
 | `FASTAPI_REDOC_URL` | `/redoc` | ReDoc documentation path; disable in production |
 
-### Database settings
+## Database settings
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ALEMBIC_STARTUP_CHECK` | `false` | Set to `true` in production to enforce schema migration checks on startup |
 | `SQLALCHEMY_DATABASE_URL` | (unset) | SQLAlchemy database URL for multi-database testing; supports six backends (SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server); unset uses default SQLite |
 
-### Superuser settings
+## Superuser settings
 
 | Variable | Default | Description |
 |----------|---------|-------------|

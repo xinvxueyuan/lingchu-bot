@@ -85,8 +85,12 @@ def compat_string(length: int) -> Any:
     """
     base = SAString(length)
     if length > _MSSQL_NVARCHAR_MAX:
-        return base.with_variant(MSSQL_NVARCHAR(None), "mssql")
-    return base.with_variant(ORACLE_CLOB, "oracle")
+        # For long strings: MSSQL uses NVARCHAR(MAX), Oracle uses CLOB
+        return base.with_variant(MSSQL_NVARCHAR(None), "mssql").with_variant(
+            ORACLE_CLOB, "oracle"
+        )
+    # For short strings (<=4000): use default VARCHAR for all dialects
+    return base
 
 
 __all__ = (

@@ -78,7 +78,7 @@ uv run nb orm upgrade
 
 #### System dependencies
 
-- **Oracle**: uses `gvenzl/oracle-free:23-slim`; requires Oracle 12.2+ (128-char identifiers + `MERGE INTO`).
+- **Oracle**: uses `ghcr.io/gvenzl/oracle-free:23-slim` (GitHub Container Registry to avoid Docker Hub rate limits); requires Oracle 12.2+ (128-char identifiers + `MERGE INTO`).
 - **SQL Server**: Linux needs the `msodbcsql18` system package (`ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev`); macOS uses the same name from brew; Windows is built-in.
 
 ### CI multi-database matrix
@@ -89,7 +89,7 @@ CI runs tests on 10 jobs across 6 database engines, covering both LTS and latest
 - **PostgreSQL 16** (`postgres:16-alpine`, supported until Nov 2028) and **PostgreSQL 18** (`postgres:18-alpine`, latest)
 - **MySQL 8.4 LTS** (`mysql:8.4`, until ~2032) and **MySQL 9.7 LTS** (`mysql:9.7`, until ~2034)
 - **MariaDB 11.4 LTS** (`mariadb:11.4`, until May 2029) and **MariaDB 11.8 LTS** (`mariadb:11.8`, until Jun 2028)
-- **Oracle 23ai** (`gvenzl/oracle-free:23-slim`; only freely available version, no LTS split)
+- **Oracle 23ai** (`ghcr.io/gvenzl/oracle-free:23-slim` via GitHub Container Registry; only freely available version, no LTS split)
 - **SQL Server 2022** and **SQL Server 2025** (`mcr.microsoft.com/mssql/server:2022-latest` / `2025-latest` + apt `msodbcsql18`; migrated off the deprecated `azure-sql-edge` image)
 
 Each matrix entry carries an `engine` + `image` field; service containers select their image via `${{ matrix.db.engine == '<engine>' && matrix.db.image || '' }}` so multiple versions of the same engine coexist in one matrix. The `fail-fast: false` strategy ensures all databases are tested even if one fails. Oracle / SQL Server start slowly (health-start-period 90-180s); a full matrix run takes roughly 8-15 minutes.

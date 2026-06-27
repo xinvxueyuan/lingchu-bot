@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
+# POSIX-compliant shell; invoked via .husky/_/h with `sh -e` (shebang is informational)
 
 # 发生错误时不立即退出，允许条件分支处理 fallback
 set +e
@@ -34,7 +35,7 @@ echo "🔧 正在启动 Gitmoji 交互界面..."
 # 输出 native:<path> | cmd:<path>（与 pre-commit 中的 resolve_js 保持一致）
 GITMOJI_BIN="node_modules/.bin/gitmoji"
 if [ -x "$GITMOJI_BIN" ] || [ -f "$GITMOJI_BIN.cmd" ]; then
-    if [[ "$GITMOJI_BIN" == *.cmd ]]; then
+    if printf '%s\n' "$GITMOJI_BIN" | grep -q '\.cmd$'; then
         cmd.exe /c "$GITMOJI_BIN" --hook "$COMMIT_MSG_FILE" "$COMMIT_SOURCE"
     else
         "$GITMOJI_BIN" --hook "$COMMIT_MSG_FILE" "$COMMIT_SOURCE"

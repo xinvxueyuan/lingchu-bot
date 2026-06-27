@@ -31,10 +31,38 @@ cd lingchu-bot
 </Step>
 <Step>
 
-### Install dependencies
+### Run the setup script
+
+The project provides a cross-platform setup script that automates the entire initialization process:
+
+```bash
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
+
+The script will:
+
+1. Detect your operating system and required toolchain
+2. Verify Python 3.13+, Node.js 20+, pnpm 9+, Git, and uv
+3. Install all Python and Node.js dependencies
+4. Generate environment configuration files (`.env`, `.env.development`, `.env.test`, `.env.production`)
+5. Configure Git hooks (husky)
+6. Optionally initialize a Git repository and install Playwright browsers
+
+See `./scripts/setup.sh --help` for all available options.
+
+</Step>
+<Step>
+
+### Install dependencies (manual alternative)
+
+If you prefer to install manually instead of using the setup script:
 
 ```bash
 uv sync --frozen
+pnpm install
+pnpm exec husky
+cp .env.example .env
 ```
 
 </Step>
