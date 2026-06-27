@@ -78,7 +78,7 @@ uv run nb orm upgrade
 
 #### 系统依赖说明
 
-- **Oracle**：使用 `gvenzl/oracle-free:23-slim` 镜像；需要 Oracle 12.2+（128-char 标识符 + `MERGE INTO`）。
+- **Oracle**：使用 `ghcr.io/gvenzl/oracle-free:23-slim` 镜像（GitHub Container Registry，避免 Docker Hub 速率限制）；需要 Oracle 12.2+（128-char 标识符 + `MERGE INTO`）。
 - **SQL Server**：Linux 环境需要 `msodbcsql18` 系统包（`ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev`）；macOS 同名 brew 包；Windows 自带。
 
 ### CI 多数据库矩阵
@@ -89,7 +89,7 @@ CI 跨 6 个数据库引擎跑 10 个任务，覆盖 LTS 与最新版：
 - **PostgreSQL 16**（`postgres:16-alpine`，支持至 2028-11）与 **PostgreSQL 18**（`postgres:18-alpine`，最新版）
 - **MySQL 8.4 LTS**（`mysql:8.4`，支持至约 2032）与 **MySQL 9.7 LTS**（`mysql:9.7`，支持至约 2034）
 - **MariaDB 11.4 LTS**（`mariadb:11.4`，支持至 2029-05）与 **MariaDB 11.8 LTS**（`mariadb:11.8`，支持至 2028-06）
-- **Oracle 23ai**（`gvenzl/oracle-free:23-slim`；唯一免费版本，无 LTS 拆分）
+- **Oracle 23ai**（`ghcr.io/gvenzl/oracle-free:23-slim`，来自 GitHub Container Registry；唯一免费版本，无 LTS 拆分）
 - **SQL Server 2022** 与 **SQL Server 2025**（`mcr.microsoft.com/mssql/server:2022-latest` / `2025-latest` + apt 安装 `msodbcsql18`；已从废弃的 `azure-sql-edge` 镜像迁移）
 
 每个矩阵条目携带 `engine` + `image` 字段；服务容器通过 `${{ matrix.db.engine == '<engine>' && matrix.db.image || '' }}` 选择镜像，使同一引擎的多个版本可在一个矩阵中共存。`fail-fast: false` 策略确保即使一个数据库失败，所有数据库仍会被测试。Oracle / SQL Server 启动较慢（health-start-period 90-180s），单次全跑约 8-15 分钟。

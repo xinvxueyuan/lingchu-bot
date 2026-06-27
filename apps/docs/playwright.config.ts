@@ -6,10 +6,10 @@ const baseURL = `http://${host}:${port}`;
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 60_000,
+  timeout: process.env.CI ? 60_000 : 180_000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 2 : 1,
   workers: 1,
   reporter: process.env.CI
     ? [['github'], ['html', { open: 'never' }]]

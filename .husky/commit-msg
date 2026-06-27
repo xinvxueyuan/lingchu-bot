@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
+# POSIX-compliant shell; invoked via .husky/_/h with `sh -e` (shebang is informational)
 # Commit Message 校验: gitmoji + Conventional Commits
 # 规范: https://gitmoji.dev/  |  https://www.conventionalcommits.org/
 
@@ -74,20 +75,15 @@ fi
 
 # gitmoji 官方 emoji 列表(来源: https://gitmoji.dev/)
 # 包含 variation selector(️)以与 gitmoji.dev 严格对齐
-GITMOJI=(
-    "🎨" "⚡️" "🔥" "🐛" "🚑️" "✨" "📝" "🚀" "💄" "🎉"
-    "✅" "🔒️" "🔐" "🔖" "🚨" "🚧" "💚" "⬇️" "⬆️" "📌"
-    "👷" "📈" "♻️" "➕" "➖" "🔧" "🔨" "🌐" "✏️" "💩"
-    "⏪️" "🔀" "📦️" "👽️" "🚚" "📄" "💥" "🍱" "♿️" "💡"
-    "🍻" "💬" "🗃️" "🔊" "🔇" "👥" "🚸" "🏗️" "📱" "🤡"
-    "🥚" "🙈" "📸" "⚗️" "🔍️" "🏷️" "🌱" "🚩" "🥅" "💫"
-    "🗑️" "🛂" "🩹" "🧐" "⚰️" "🧪" "👔" "🩺" "🧱" "🧑‍💻"
-    "💸" "🧵" "🦺" "✈️" "🦖"
-)
-
-# 拼接 emoji 模式: (🎨|⚡️|🔥|...)
-EMOJI_PATTERN=$(printf "%s|" "${GITMOJI[@]}")
-EMOJI_PATTERN="${EMOJI_PATTERN%|}"
+# POSIX-safe emoji pattern: directly define the alternation string (no bash arrays)
+EMOJI_PATTERN="🎨|⚡️|🔥|🐛|🚑️|✨|📝|🚀|💄|🎉|\
+✅|🔒️|🔐|🔖|🚨|🚧|💚|⬇️|⬆️|📌|\
+👷|📈|♻️|➕|➖|🔧|🔨|🌐|✏️|💩|\
+⏪️|🔀|📦️|👽️|🚚|📄|💥|🍱|♿️|💡|\
+🍻|💬|🗃️|🔊|🔇|👥|🚸|🏗️|📱|🤡|\
+🥚|🙈|📸|⚗️|🔍️|🏷️|🌱|🚩|🥅|💫|\
+🗑️|🛂|🩹|🧐|⚰️|🧪|👔|🩺|🧱|🧑‍💻|\
+💸|🧵|🦺|✈️|🦖"
 
 # Conventional Commits 允许的 type(Angular 规范)
 TYPES="feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert"
@@ -96,7 +92,7 @@ TYPES="feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert"
 # ! = 破坏性变更标记,可出现在 type 后或 scope 后
 REG_EXP="^(${EMOJI_PATTERN}) (${TYPES})(!)?(\([^\)]+\))?(!)?: .+"
 
-if [[ ! "$CLEAN_MSG" =~ $REG_EXP ]]; then
+if ! printf '%s\n' "$CLEAN_MSG" | grep -qE "$REG_EXP"; then
     echo "--------------------------------------------------------"
     echo "❌ 格式错误！不符合 gitmoji + Conventional Commits 规范。"
     echo ""
