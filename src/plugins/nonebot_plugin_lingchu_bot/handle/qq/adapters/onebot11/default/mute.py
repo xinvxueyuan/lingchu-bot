@@ -10,7 +10,7 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import At
 
-from ......core.runtime_config import runtime_config
+from ......core.runtime_config import get_handle_config_manager, runtime_config
 from ......i18n import _async as _
 from ......permissions.subject_policy import find_active_subject_policy
 from ......repositories import message_store as message_repository
@@ -216,9 +216,12 @@ async def _resolve_recall_args(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> tuple[int | None, str | None, int]:
+    # 读取配置中的默认撤回数量
+    config = get_handle_config_manager().get_config("recall_message")
+    default_count = config.defaults.get("default_count", 10)
+
     if isinstance(target, At):
         target_user_id, target_name = await resolve_user_onebot11(target, bot, event)
-        default_count = runtime_config.recall_message_default_count
         return (
             target_user_id,
             target_name,
@@ -229,7 +232,6 @@ async def _resolve_recall_args(
         return target_user_id, target_name, count
     if isinstance(target, int):
         return None, None, target
-    default_count = runtime_config.recall_message_default_count
     return None, None, count if count is not None else default_count
 
 
@@ -302,19 +304,31 @@ async def _recall_records(
 
 
 @selected_adapter_handle(member_mute_cmd, "~onebot.v11", "member_mute")
-async def onebot11_mute(  # noqa: PLR0911
+async def onebot11_mute(
     user: At | int,
     duration: int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
+    # 检查功能是否启用
+    config = get_handle_config_manager().get_config("member_mute")
+    if not config.enabled:
+        return await member_mute_cmd.finish(await _("该功能已禁用"))
+
+    # 读取配置参数
+    default_mute_duration = config.defaults.get("mute_duration", 300)
+    default_reason_text = config.defaults.get("default_reason", "管理员操作")
+
+    # 如果用户没有提供duration，使用配置中的默认值
+    actual_duration = duration if duration is not None else default_mute_duration
+
     # 1. 参数合法性检查
-    if duration < MUTE_DURATION_MIN:
+    if actual_duration < MUTE_DURATION_MIN:
         return await member_mute_cmd.finish(
             (await _("禁言时长不能小于 {min} 秒")).format(min=MUTE_DURATION_MIN)
         )
-    if duration > MUTE_DURATION_MAX:
+    if actual_duration > MUTE_DURATION_MAX:
         return await member_mute_cmd.finish(
             (await _("禁言时长不能超过 {max} 秒（30天）")).format(max=MUTE_DURATION_MAX)
         )
@@ -340,7 +354,7 @@ async def onebot11_mute(  # noqa: PLR0911
     # 5. 执行禁言操作
     try:
         await bot.set_group_ban(
-            group_id=event.group_id, user_id=target_user_id, duration=duration
+            group_id=event.group_id, user_id=target_user_id, duration=actual_duration
         )
     except OneBot11ActionFailed as e:
         logger.error(f"禁言失败，操作被拒绝: {e!r}")
@@ -353,13 +367,13 @@ async def onebot11_mute(  # noqa: PLR0911
         CommandAudit(
             action="member_mute",
             target_user_id=target_user_id,
-            duration=duration,
+            duration=actual_duration,
             reason=reason,
         ),
     )
 
     # 7. 格式化反馈消息
-    reason_text = await _("违反群规「默认」") if reason is None else reason
+    reason_text = await _(default_reason_text) if reason is None else reason
     name_display = format_user_display_name(target_user_id, target_name)
     message = await _(
         "已禁言: \n"
@@ -371,7 +385,7 @@ async def onebot11_mute(  # noqa: PLR0911
     return await member_mute_cmd.finish(
         message.format(
             name_display=name_display,
-            duration=duration,
+            duration=actual_duration,
             reason=reason_text,
             target_user_id=target_user_id,
         )
@@ -383,6 +397,11 @@ async def onebot11_whole_mute(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
+    # 检查功能是否启用（全体禁言共用member_mute配置）
+    config = get_handle_config_manager().get_config("member_mute")
+    if not config.enabled:
+        return await whole_mute_cmd.finish(await _("该功能已禁用"))
+
     # 1. 机器人权限预检
     if not await check_bot_privilege(bot, event.group_id, whole_mute_cmd):
         return None
@@ -406,6 +425,11 @@ async def onebot11_unmute(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
+    # 检查功能是否启用（解禁共用member_mute配置）
+    config = get_handle_config_manager().get_config("member_mute")
+    if not config.enabled:
+        return await member_unmute_cmd.finish(await _("该功能已禁用"))
+
     # 1. 解析用户
     try:
         target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
@@ -453,6 +477,11 @@ async def onebot11_whole_unmute(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
+    # 检查功能是否启用（全体解禁共用member_mute配置）
+    config = get_handle_config_manager().get_config("member_mute")
+    if not config.enabled:
+        return await whole_unmute_cmd.finish(await _("该功能已禁用"))
+
     try:
         await bot.set_group_whole_ban(group_id=event.group_id, enable=False)
     except OneBot11ActionFailed as e:
@@ -474,6 +503,12 @@ async def onebot11_recall_message(
 ) -> Any:
     if bot is None or event is None:
         return None
+
+    # 检查功能是否启用
+    config = get_handle_config_manager().get_config("recall_message")
+    if not config.enabled:
+        return await recall_message_cmd.finish(await _("该功能已禁用"))
+
     try:
         target_user_id, target_name, recall_count = await _resolve_recall_args(
             target,

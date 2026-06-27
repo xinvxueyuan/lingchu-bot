@@ -201,7 +201,7 @@ async def store_block_record(  # noqa: PLR0913
     )
 
 
-async def check_target_privilege(  # noqa: PLR0911
+async def check_target_privilege(
     bot: Onebot11Bot,
     event: Onebot11GroupMessageEvent,
     target_user_id: int,

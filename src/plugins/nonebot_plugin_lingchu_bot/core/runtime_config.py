@@ -30,6 +30,8 @@ from ..database.json5_store import (
     ensure_json5_dict_file_sync,
     load_json5_dict_sync,
 )
+from .handle_config_defaults import HANDLE_DEFAULTS_REGISTRY  # noqa: F401
+from .handle_config_manager import HandleConfigManager
 from .schemas import CONFIG_SCHEMA_BASENAME
 
 CONFIG_FILENAME: Final = "config.json5"
@@ -346,3 +348,78 @@ async def ensure_runtime_config_file_async(
 
 
 runtime_config: RuntimeConfig = get_runtime_config()
+
+
+# Handle configuration manager singleton and factory functions
+# Placed at the end of the file to avoid triggering initialization during module import
+
+_handle_config_manager: HandleConfigManager | None = None
+
+
+def get_handle_config_manager() -> HandleConfigManager:
+    """Get the global handle configuration manager singleton.
+
+    Uses lazy initialization: creates the HandleConfigManager instance on
+    first call and caches it for subsequent calls.
+
+    Returns:
+        HandleConfigManager: The global singleton instance for managing
+            handle-level configurations.
+
+    Note:
+        This function is safe to call multiple times; it always returns
+        the same instance after the first initialization.
+
+    Example:
+        >>> manager = get_handle_config_manager()
+        >>> config = manager.get_config("kick_member")
+    """
+    global _handle_config_manager  # noqa: PLW0603
+    if _handle_config_manager is None:
+        _handle_config_manager = HandleConfigManager()
+    return _handle_config_manager
+
+
+async def initialize_handle_config_manager() -> None:
+    """Initialize the handle configuration manager during startup.
+
+    This function ensures all handle configuration files exist and preloads
+    them into the memory cache. It should be called during the bot startup
+    phase to prepare the configuration system.
+
+    The initialization process:
+    1. Ensures configuration files exist for all registered handles
+    2. Loads all configurations into memory cache
+
+    Raises:
+        No exceptions are raised; errors are logged and non-fatal.
+
+    Note:
+        This function is non-blocking and safe to call from async context.
+        If files cannot be created or loaded, the manager falls back to
+        defaults from HANDLE_DEFAULTS_REGISTRY.
+
+    Example:
+        >>> async def startup():
+        >>>     await initialize_handle_config_manager()
+        >>>     # All handle configs are now ready
+    """
+    manager = get_handle_config_manager()
+    await manager.ensure_config_files()
+    # Preload all configs into cache
+    manager.get_all_configs()
+
+
+__all__ = [
+    "RuntimeConfig",
+    "RuntimeConfigError",
+    "ensure_runtime_config_file",
+    "ensure_runtime_config_file_async",
+    "get_handle_config_manager",
+    "get_runtime_config",
+    "get_runtime_config_file",
+    "initialize_handle_config_manager",
+    "load_runtime_json_defaults",
+    "runtime_config",
+    "runtime_config_defaults",
+]

@@ -269,8 +269,20 @@ if [ "$HAS_MARKDOWN" = true ] && [ -n "$PNPM_RUNNER" ]; then
     echo "📝 正在运行 markdownlint-cli2..."
     run_pnpm exec markdownlint-cli2
     if [ $? -ne 0 ]; then
-        echo "❌ markdownlint 检查失败，请修复后重新提交。"
-        exit 1
+        echo "ℹ️  markdownlint 发现问题，正在尝试自动修复..."
+        run_pnpm exec markdownlint-cli2 --fix
+        if [ $? -ne 0 ]; then
+            echo "❌ markdownlint 自动修复失败，请手动修复后重新提交。"
+            exit 1
+        fi
+        echo "ℹ️  markdownlint 自动修复成功，正在暂存..."
+        "$GIT_CMD" add -u
+        echo "📝 正在重新验证 markdownlint..."
+        run_pnpm exec markdownlint-cli2
+        if [ $? -ne 0 ]; then
+            echo "❌ markdownlint 验证失败，请手动修复后重新提交。"
+            exit 1
+        fi
     fi
 else
     echo "⏭️  无 Markdown 变更，跳过 markdownlint。"
@@ -281,15 +293,39 @@ if [ "$NEEDS_PYTHON_CHECK" = true ] && [ -n "$UV_CMD" ]; then
     echo "🔍 正在运行 Ruff lint..."
     "$UV_CMD" run -m ruff check . --output-format=github
     if [ $? -ne 0 ]; then
-        echo "❌ Ruff lint 检查失败，请修复后重新提交。"
-        exit 1
+        echo "ℹ️  Ruff lint 发现问题，正在尝试自动修复..."
+        "$UV_CMD" run -m ruff check --fix .
+        if [ $? -ne 0 ]; then
+            echo "❌ Ruff lint 自动修复失败，请手动修复后重新提交。"
+            exit 1
+        fi
+        echo "ℹ️  Ruff lint 自动修复成功，正在暂存..."
+        "$GIT_CMD" add -u
+        echo "🔍 正在重新验证 Ruff lint..."
+        "$UV_CMD" run -m ruff check . --output-format=github
+        if [ $? -ne 0 ]; then
+            echo "❌ Ruff lint 验证失败，请手动修复后重新提交。"
+            exit 1
+        fi
     fi
 
     echo "🔍 正在运行 Ruff format 检查..."
     "$UV_CMD" run -m ruff format --check .
     if [ $? -ne 0 ]; then
-        echo "❌ Ruff format 检查失败，请运行 'task format' 后重新提交。"
-        exit 1
+        echo "ℹ️  Ruff format 发现问题，正在自动格式化..."
+        "$UV_CMD" run -m ruff format .
+        if [ $? -ne 0 ]; then
+            echo "❌ Ruff format 自动格式化失败，请手动修复后重新提交。"
+            exit 1
+        fi
+        echo "ℹ️  Ruff format 自动格式化成功，正在暂存..."
+        "$GIT_CMD" add -u
+        echo "🔍 正在重新验证 Ruff format..."
+        "$UV_CMD" run -m ruff format --check .
+        if [ $? -ne 0 ]; then
+            echo "❌ Ruff format 验证失败，请手动修复后重新提交。"
+            exit 1
+        fi
     fi
 else
     echo "⏭️  无 Python 变更，跳过 Ruff lint/format 检查。"
@@ -331,8 +367,22 @@ if [ "$NEEDS_LINT" = true ] && [ -n "$PNPM_RUNNER" ]; then
     echo "🔍 正在运行 ESLint (all workspaces)..."
     run_pnpm turbo run lint
     if [ $? -ne 0 ]; then
-        echo "❌ ESLint 检查失败，请修复后重新提交。"
-        exit 1
+        echo "ℹ️  ESLint 发现问题，正在尝试自动修复..."
+        # ESLint --fix 需要针对各个 workspace 执行
+        if [ "$HAS_DOCS_CODE" = true ] || [ "$HAS_DOCS_MDX" = true ] || [ "$HAS_DOCS_CONFIG" = true ]; then
+            run_pnpm --filter docs exec eslint . --fix
+        fi
+        if [ "$HAS_PACKAGES_CODE" = true ]; then
+            run_pnpm --filter packages exec eslint . --fix 2>/dev/null || true
+        fi
+        echo "ℹ️  ESLint 自动修复完成，正在暂存..."
+        "$GIT_CMD" add -u
+        echo "🔍 正在重新验证 ESLint..."
+        run_pnpm turbo run lint
+        if [ $? -ne 0 ]; then
+            echo "❌ ESLint 验证失败，请手动修复后重新提交。"
+            exit 1
+        fi
     fi
 else
     echo "⏭️  无代码/样式/配置变更，跳过 ESLint。"

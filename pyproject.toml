@@ -47,6 +47,7 @@ dependencies = [
     "typer>=0.25.1",
     "nonebot-plugin-wait-a-minute>=0.5.0",
     "openai>=2.38.0",
+    "jsonschema>=4.23.0",
 ]
 
 [project.urls]
@@ -218,6 +219,30 @@ allowed-confusables = [
     "（",
     "）",
     "、",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# pytest fixtures may not be used directly in test functions but are still required for setup
+"tests/**" = [
+    "ARG002",   # unused-argument
+    "ANN201",   # missing-return-type-undocumented-public-function (tests don't need explicit return types)
+    "PLR2004",  # magic-value-comparison (tests often use magic values for assertions)
+    "E501",     # line-too-long (test assertions can be verbose)
+    "F841",     # unused-variable (fixtures may assign variables for clarity)
+    "TC005",    # empty-type-checking-block (test files may have empty TYPE_CHECKING blocks)
+]
+# utility scripts use print for diagnostic output
+"scripts/**" = [
+    "T201",     # print-found
+    "C901",     # function-is-too-complex
+    "PLR0915",  # too-many-statements
+    "BLE001",   # blind-exception
+    "E501",     # line-too-long
+    "F541",     # f-string-without-placeholders
+]
+# handle handlers may have complex logic with multiple return paths
+"src/plugins/nonebot_plugin_lingchu_bot/handle/**/adapters/onebot11/default/**.py" = [
+    "PLR0911",  # too-many-return-statements (complex permission and privilege checks)
 ]
 
 [tool.ruff.lint.pyupgrade]

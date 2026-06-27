@@ -17,7 +17,7 @@ _RECALL_MESSAGE = COMMAND_TRIGGERS["recall_message"]
 member_mute_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _MEMBER_MUTE.primary,
-        Args["user", At | int]["duration?", int, 60]["reason?", str, None],
+        Args["user", At | int]["duration?", int, None]["reason?", str, None],
     ),
     aliases=_MEMBER_MUTE.aliases,
     priority=5,

@@ -7,6 +7,7 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import At
 
+from ......core.runtime_config import get_handle_config_manager
 from ......i18n import _async as _
 from ....commands.common import selected_adapter_handle
 from ....commands.member import (
@@ -102,6 +103,11 @@ async def onebot11_set_group_member_special_title(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
+    # 检查功能是否启用
+    config = get_handle_config_manager().get_config("set_member_title")
+    if not config.enabled:
+        return await set_group_member_special_title_cmd.finish(await _("该功能已禁用"))
+
     # 1. 输入数据清洗：去除首尾空白字符
     special_title = special_title.strip()
 
@@ -229,6 +235,11 @@ async def onebot11_kick_group_member(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
+    # 检查功能是否启用（kick_member配置已在kick.py中实现，此处共用）
+    config = get_handle_config_manager().get_config("kick_member")
+    if not config.enabled:
+        return await kick_group_member_cmd.finish(await _("该功能已禁用"))
+
     # 1. 解析用户
     target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
 

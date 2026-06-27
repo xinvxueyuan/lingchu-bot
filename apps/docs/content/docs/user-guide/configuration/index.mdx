@@ -214,6 +214,87 @@ LOCALSTORE_USE_CWD=true
 
 This means localstore-related directories prefer the current working directory, which is convenient for local development and debugging.
 
+## Handle-level configuration files
+
+Lingchu Bot supports per-handle configuration files for granular control of individual command behaviors. Each handle (command) can have its own JSON5 configuration file that overrides code defaults.
+
+### File naming and location
+
+Handle configuration files follow the naming convention `<command_key>.json5` and are stored in the plugin configuration directory managed by `nonebot-plugin-localstore`. For example:
+
+- `recall_message.json5` — Configuration for the message recall command
+- `member_mute.json5` — Configuration for the member mute command
+- `kick_member.json5` — Configuration for the kick member command
+
+### Standard fields
+
+All handle configuration files share a common structure validated by `handle_config.schema.json5`:
+
+<TypeTable
+  type={{
+    enabled: {
+      type: "boolean",
+      default: "true",
+      description: "Whether this handle is enabled",
+    },
+    defaults: {
+      type: "object",
+      default: "{}",
+      description: "Handle-specific default values (e.g., default_count for recall_message)",
+    },
+    policies: {
+      type: "object",
+      default: "{}",
+      description: "Policy configuration for this handle",
+    },
+  }}
+/>
+
+The `defaults` object can contain handle-specific fields. For example, `recall_message.json5` might define a `default_count` field that sets the default number of messages to recall when the user omits the count parameter.
+
+### Configuration manager
+
+The `HandleConfigManager` class provides centralized access to handle configurations:
+
+- `get_config(command_key)` — Read configuration for a specific handle
+- `update_config(command_key, updates)` — Update configuration with partial changes
+- `get_all_configs()` — Get configurations for all registered handles
+- `ensure_config_files()` — Create missing configuration files with defaults
+
+The manager automatically:
+- Caches loaded configurations for performance
+- Falls back to registered defaults when files are missing or invalid
+- Validates configurations against JSON Schema before persisting updates
+
+### Module independence principle
+
+Each handle module must register its default configuration in `handle_config_defaults/` using `register_handle_defaults()`. This ensures:
+
+1. The handle has a canonical default configuration
+2. `HandleConfigManager` can validate the `command_key`
+3. Missing configuration files fall back to known defaults
+
+<Callout type="warn" title="Default registration required">
+
+Attempting to read or update a handle configuration without registering defaults raises `ValueError: command_key not registered`. Always register defaults before using `HandleConfigManager` with a new handle.
+
+</Callout>
+
+### Example configuration file
+
+```json5
+{
+  "$schema": "handle_config.schema.json5",
+  enabled: true,
+  defaults: {
+    default_count: 10,
+  },
+  policies: {},
+}
+```
+
+This example shows a `recall_message.json5` file with the standard structure. The `defaults.default_count` field overrides the code-defined default for the recall command.
+
 ## Related pages
 
 - [Environment Variables](/docs/user-guide/configuration/environment-variables) — .env variable reference

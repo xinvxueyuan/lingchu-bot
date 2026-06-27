@@ -7,7 +7,7 @@ import pytest
 from nonebot.adapters.onebot.v11.exception import ActionFailed as Onebot11ActionFailed
 
 from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import DatabaseError
-from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common import (  # noqa: E501
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common import (
     CommandAudit,
     check_bot_privilege,
     check_target_privilege,

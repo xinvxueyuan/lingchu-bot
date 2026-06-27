@@ -215,6 +215,87 @@ LOCALSTORE_USE_CWD=true
 
 这意味着 localstore 相关目录优先使用当前工作目录，便于本地开发和调试。
 
+## Handle级配置文件
+
+Lingchu Bot 支持每个 handle 的独立配置文件，实现对单个命令行为的精细控制。每个 handle（命令）都可以有自己的 JSON5 配置文件，覆盖代码默认值。
+
+### 文件命名与位置
+
+Handle 配置文件遵循 `<command_key>.json5` 的命名规范，存储在由 `nonebot-plugin-localstore` 管理的插件配置目录中。例如：
+
+- `recall_message.json5` — 消息撤回命令的配置
+- `member_mute.json5` — 成员禁言命令的配置
+- `kick_member.json5` — 成员踢出命令的配置
+
+### 标准字段
+
+所有 handle 配置文件共享由 `handle_config.schema.json5` 验证的通用结构：
+
+<TypeTable
+  type={{
+    enabled: {
+      type: "boolean",
+      default: "true",
+      description: "是否启用该 handle",
+    },
+    defaults: {
+      type: "object",
+      default: "{}",
+      description: "Handle 专用默认值（如 recall_message 的 default_count）",
+    },
+    policies: {
+      type: "object",
+      default: "{}",
+      description: "该 handle 的策略配置",
+    },
+  }}
+/>
+
+`defaults` 对象可以包含 handle 专用字段。例如，`recall_message.json5` 可能定义 `default_count` 字段，设置用户省略数量参数时的默认撤回条数。
+
+### 配置管理器
+
+`HandleConfigManager` 类提供对 handle 配置的集中访问：
+
+- `get_config(command_key)` — 读取特定 handle 的配置
+- `update_config(command_key, updates)` — 用部分变更更新配置
+- `get_all_configs()` — 获取所有已注册 handle 的配置
+- `ensure_config_files()` — 用默认值创建缺失的配置文件
+
+管理器会自动：
+- 缓存已加载的配置以提升性能
+- 文件缺失或无效时回退到已注册的默认值
+- 持久化更新前根据 JSON Schema 验证配置
+
+### 模块独立原则
+
+每个 handle 模块必须在 `handle_config_defaults/` 中使用 `register_handle_defaults()` 注册其默认配置。这确保了：
+
+1. Handle 有规范的默认配置
+2. `HandleConfigManager` 能验证 `command_key`
+3. 缺失的配置文件能回退到已知默认值
+
+<Callout type="warn" title="必须注册默认配置">
+
+尝试读取或更新未注册默认值的 handle 配置会抛出 `ValueError: command_key not registered`。在使用 `HandleConfigManager` 访问新 handle 前，务必注册默认配置。
+
+</Callout>
+
+### 配置文件示例
+
+```json5
+{
+  "$schema": "handle_config.schema.json5",
+  enabled: true,
+  defaults: {
+    default_count: 10,
+  },
+  policies: {},
+}
+```
+
+此示例展示了 `recall_message.json5` 文件的标准结构。`defaults.default_count` 字段覆盖了撤回命令的代码定义默认值。
+
 ## 相关页面
 
 - [环境变量](/docs/user-guide/configuration/environment-variables) — .env 变量参考

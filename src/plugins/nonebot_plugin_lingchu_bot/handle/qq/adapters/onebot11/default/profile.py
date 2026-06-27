@@ -9,6 +9,7 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 from nonebot_plugin_alconna.uniseg import Image as UniImage
 from packaging.version import InvalidVersion, parse
 
+from ......core.runtime_config import get_handle_config_manager
 from ......i18n import _async as _
 from ....commands.common import selected_adapter_handle
 from ....commands.profile import (
@@ -28,6 +29,11 @@ async def onebot11_set_group_name(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
+    # 检查功能是否启用
+    config = get_handle_config_manager().get_config("set_group_name")
+    if not config.enabled:
+        return await set_group_name_cmd.finish(await _("该功能已禁用"))
+
     # 1. 输入数据清洗：去除首尾空白字符
     new_group_name = new_group_name.strip()
 
@@ -62,6 +68,11 @@ async def onebot11_set_group_avatar(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
+    # 检查功能是否启用
+    config = get_handle_config_manager().get_config("set_group_avatar")
+    if not config.enabled:
+        return await set_group_avatar_cmd.finish(await _("该功能已禁用"))
+
     # 1. 解析图片路径
     image_path = await _resolve_image_path(image)
     if image_path is None:

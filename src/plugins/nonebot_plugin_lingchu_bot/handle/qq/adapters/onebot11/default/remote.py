@@ -11,6 +11,7 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 from nonebot_plugin_alconna.uniseg import At
 from nonebot_plugin_alconna.uniseg import Image as UniImage
 
+from ......core.runtime_config import get_handle_config_manager
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......repositories.blocklist import (
@@ -48,7 +49,7 @@ from .common import (
 )
 
 
-async def _resolve_group_id(  # noqa: PLR0911
+async def _resolve_group_id(
     bot: OneBot11Bot,
     group_id: int | str,
     cmd_matcher: Any,
@@ -176,7 +177,7 @@ async def _resolve_and_validate_user(
 
 
 @selected_adapter_handle(remote_mute_cmd, "~onebot.v11", "remote_mute")
-async def onebot11_remote_mute(  # noqa: PLR0911, PLR0913
+async def onebot11_remote_mute(  # noqa: PLR0913
     group_id: int | str,
     user: At | int,
     duration: int,
@@ -388,6 +389,11 @@ async def onebot11_remote_whole_unmute(
     event: OneBot11GroupMessageEvent,
 ) -> Any:
     """远程全体解禁处理器"""
+    # 检查功能是否启用（全体解禁共用remote_mute配置）
+    config = get_handle_config_manager().get_config("remote_mute")
+    if not config.enabled:
+        return await remote_whole_unmute_cmd.finish(await _("该功能已禁用"))
+
     # 1. 解析群聊标识符
     resolved_group_id = await _resolve_group_id(bot, group_id, remote_whole_unmute_cmd)
     if resolved_group_id is None:
@@ -420,7 +426,7 @@ async def onebot11_remote_whole_unmute(
 
 
 @selected_adapter_handle(remote_kick_cmd, "~onebot.v11", "remote_kick")
-async def onebot11_remote_kick(  # noqa: PLR0911
+async def onebot11_remote_kick(
     group_id: int | str,
     user: At | int,
     bot: OneBot11Bot,
@@ -673,6 +679,11 @@ async def onebot11_remote_announcement(
     image: UniImage | None = None,
 ) -> Any:
     """远程公告处理器"""
+    # 检查功能是否启用
+    config = get_handle_config_manager().get_config("remote_announcement")
+    if not config.enabled:
+        return await remote_announcement_cmd.finish(await _("该功能已禁用"))
+
     # 1. 解析群聊标识符
     resolved_group_id = await _resolve_group_id(bot, group_id, remote_announcement_cmd)
     if resolved_group_id is None:

@@ -22,7 +22,8 @@ indirection is used.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Final
+import json
+from typing import TYPE_CHECKING, Any, Final
 
 from nonebot import logger
 from nonebot_plugin_localstore import get_plugin_config_dir, get_plugin_data_dir
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
 CONFIG_SCHEMA_BASENAME: Final = "config.schema.json5"
 BOT_STATE_SCHEMA_BASENAME: Final = "bot_state.schema.json5"
 MENU_SCHEMA_BASENAME: Final = "menu.schema.json5"
+HANDLE_CONFIG_SCHEMA_BASENAME: Final = "handle_config.schema.json5"
 
 CONFIG_SCHEMA_TEXT: Final = """{
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -246,30 +248,96 @@ MENU_SCHEMA_TEXT: Final = """{
 }
 """
 
+HANDLE_CONFIG_SCHEMA_TEXT: Final = """{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Lingchu Bot Handle Config",
+  "description": "Standard handle-level configuration schema",
+  "type": "object",
+  "required": ["$schema", "enabled"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Editor hint pointing to the sibling schema file in the same directory."
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this handle is enabled."
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Default values for handle-specific configuration fields."
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Policy configuration for this handle."
+    }
+  }
+}
+"""
+
+
+def generate_handle_schema(command_key: str, defaults_fields: dict[str, Any]) -> str:
+    """Generate a specialized handle configuration schema based on the generic template.
+
+    This function creates a JSON Schema for a specific handle by extending the
+    base ``HANDLE_CONFIG_SCHEMA_TEXT`` with custom fields in the ``defaults`` object.
+
+    Args:
+        command_key: The unique identifier for the command/handle.
+        defaults_fields: A dictionary mapping field names to their JSON Schema definitions.
+            Each entry will be added as a property in the ``defaults`` object.
+
+    Returns:
+        A JSON string representing the specialized schema for this handle.
+
+    Example:
+        >>> schema = generate_handle_schema("recall", {
+        ...     "count": {"type": "integer", "minimum": 1, "maximum": 100},
+        ...     "silent": {"type": "boolean", "default": false}
+        ... })
+    """
+    schema_obj = json.loads(HANDLE_CONFIG_SCHEMA_TEXT)
+
+    # Update title to reflect the specific handle
+    schema_obj["title"] = f"Lingchu Bot Handle Config - {command_key}"
+    schema_obj["description"] = f"Configuration schema for the {command_key} handle"
+
+    # Add custom fields to defaults properties
+    if defaults_fields:
+        schema_obj["properties"]["defaults"]["properties"] = defaults_fields
+
+    return json.dumps(schema_obj, indent=2, ensure_ascii=False)
+
 
 def install_schemas() -> None:
     """Write JSON5 schema files to the localstore config / data directories.
 
-    The two schemas are placed as siblings of ``config.json5`` and
+    The schemas are placed as siblings of ``config.json5``, ``menu.json5``, and
     ``bot_state.json5`` respectively, so the ``$schema`` basename injected
-    by :mod:`core.runtime_config` and :mod:`core.bot_state` resolves to
-    a real file managed by ``nonebot_plugin_localstore``. Calling this
-    function multiple times is safe: the writes are idempotent.
+    by :mod:`core.runtime_config`, :mod:`core.bot_state`, and handle modules
+    resolves to a real file managed by ``nonebot_plugin_localstore``. Calling
+    this function multiple times is safe: the writes are idempotent.
     """
     config_dir: Path = get_plugin_config_dir()
     config_path: Path = config_dir / CONFIG_SCHEMA_BASENAME
     menu_path: Path = config_dir / MENU_SCHEMA_BASENAME
+    handle_config_path: Path = config_dir / HANDLE_CONFIG_SCHEMA_BASENAME
     data_path: Path = get_plugin_data_dir() / BOT_STATE_SCHEMA_BASENAME
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
     menu_path.parent.mkdir(parents=True, exist_ok=True)
+    handle_config_path.parent.mkdir(parents=True, exist_ok=True)
     data_path.parent.mkdir(parents=True, exist_ok=True)
 
     config_path.write_text(CONFIG_SCHEMA_TEXT, encoding="utf-8")
     menu_path.write_text(MENU_SCHEMA_TEXT, encoding="utf-8")
+    handle_config_path.write_text(HANDLE_CONFIG_SCHEMA_TEXT, encoding="utf-8")
     data_path.write_text(BOT_STATE_SCHEMA_TEXT, encoding="utf-8")
 
     logger.debug(
         "Lingchu JSON5 schemas installed: "
-        f"config={config_path}, menu={menu_path}, state={data_path}"
+        f"config={config_path}, menu={menu_path}, handle={handle_config_path}, state={data_path}"
     )

@@ -61,7 +61,7 @@ async def test_onebot11_block_member_stores_record_and_kicks(
 
     upsert_mock.assert_awaited_once()
     assert upsert_mock.call_args.kwargs["scope"] == "group"
-    assert upsert_mock.call_args.kwargs["reason"] == "违反群规「默认」"
+    assert upsert_mock.call_args.kwargs["reason"] == "违反群规"
     assert upsert_mock.call_args.kwargs["duration"] is None
     mock_onebot11_bot.set_group_kick.assert_awaited_once_with(
         group_id=mock_onebot11_event.group_id,
