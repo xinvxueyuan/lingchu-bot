@@ -672,19 +672,6 @@ wheels = [
 ]
 
 [[package]]
-name = "mariadb"
-version = "1.1.14"
-source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
-dependencies = [
-    { name = "packaging" },
-]
-sdist = { url = "https://mirrors.aliyun.com/pypi/packages/c4/ba/cedef19833be88e07bfff11964441cda8a998f1628dd3b2fa3e7751d36e0/mariadb-1.1.14.tar.gz", hash = "sha256:e6d702a53eccf20922e47f2f45cfb5c7a0c2c6c0a46e4ee2d8a80d0ff4a52f34" }
-wheels = [
-    { url = "https://mirrors.aliyun.com/pypi/packages/f3/42/51130048bcce038bb859978250515f1aad90e9c4d273630a704e0a8b1ae1/mariadb-1.1.14-cp313-cp313-win32.whl", hash = "sha256:3d2c795cde606f4e12c0d73282b062433f414cae035675b0d81f2d65c9b79ac5" },
-    { url = "https://mirrors.aliyun.com/pypi/packages/af/23/e952a7e442913abd8079cd27b80b69474895c93b3727fad41c7642a80c62/mariadb-1.1.14-cp313-cp313-win_amd64.whl", hash = "sha256:7fd603c5cf23c47ef0d28fdc2b4b79919ee7f75d00ed070d3cd1054dcf816aeb" },
-]
-
-[[package]]
 name = "markdown"
 version = "3.10.2"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
@@ -1000,7 +987,6 @@ dev = [
     { name = "aiomysql" },
     { name = "aioodbc" },
     { name = "cryptography" },
-    { name = "mariadb" },
     { name = "nb-cli" },
     { name = "nonebug" },
     { name = "oracledb" },
@@ -1043,7 +1029,6 @@ test = [
     { name = "aiomysql" },
     { name = "aioodbc" },
     { name = "cryptography" },
-    { name = "mariadb" },
     { name = "nb-cli" },
     { name = "nonebug" },
     { name = "oracledb" },
@@ -1097,7 +1082,6 @@ dev = [
     { name = "aiomysql", specifier = ">=0.2.0" },
     { name = "aioodbc", specifier = ">=0.5.0" },
     { name = "cryptography", specifier = ">=43.0.0" },
-    { name = "mariadb", specifier = ">=1.1.10" },
     { name = "nb-cli", specifier = ">=1.4.0" },
     { name = "nonebug", specifier = ">=0.4.3" },
     { name = "oracledb", specifier = ">=2.0.0" },
@@ -1136,7 +1120,6 @@ test = [
     { name = "aiomysql", specifier = ">=0.2.0" },
     { name = "aioodbc", specifier = ">=0.5.0" },
     { name = "cryptography", specifier = ">=43.0.0" },
-    { name = "mariadb", specifier = ">=1.1.10" },
     { name = "nb-cli", specifier = ">=1.4.0" },
     { name = "nonebug", specifier = ">=0.4.3" },
     { name = "oracledb", specifier = ">=2.0.0" },

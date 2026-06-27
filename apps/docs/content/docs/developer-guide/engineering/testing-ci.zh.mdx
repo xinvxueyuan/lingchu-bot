@@ -57,8 +57,8 @@ uv run -m pytest
 export SQLALCHEMY_DATABASE_URL="mysql+aiomysql://mysql:mysql@localhost:3306/mymysql"
 uv run -m pytest
 
-# MariaDB（需要 mariadb 官方驱动）
-export SQLALCHEMY_DATABASE_URL="mariadb+mariadb://mariadb:mariadb@localhost:3306/mymariadb"
+# MariaDB（使用 mysql+aiomysql，SQLAlchemy 通过 VERSION() 自动检测 MariaDB）
+export SQLALCHEMY_DATABASE_URL="mysql+aiomysql://mariadb:mariadb@localhost:3306/mymariadb"
 uv run -m pytest
 
 # Oracle（oracledb 2.0+ 默认 Thin 模式，无需 Oracle Client）

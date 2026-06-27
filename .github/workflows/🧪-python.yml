@@ -143,12 +143,12 @@ jobs:
             image: mysql:9.7
           # ── MariaDB: 11.4 LTS (until May 2029) + 11.8 LTS (until Jun 2028) ──
           - engine: mariadb
-            url: mariadb+mariadb://mariadb:mariadb@localhost:3306/mymariadb
+            url: mysql+aiomysql://mariadb:mariadb@localhost:3306/mymariadb
             label: MariaDB 11.4 LTS
             driver_install: ""
             image: mariadb:11.4
           - engine: mariadb
-            url: mariadb+mariadb://mariadb:mariadb@localhost:3306/mymariadb
+            url: mysql+aiomysql://mariadb:mariadb@localhost:3306/mymariadb
             label: MariaDB 11.8 LTS
             driver_install: ""
             image: mariadb:11.8
