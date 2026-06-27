@@ -11,6 +11,7 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import At
 
+from ......core.runtime_config import get_handle_config_manager
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......repositories.blocklist import (
@@ -36,7 +37,6 @@ from .common import (
     check_bot_privilege,
     check_target_privilege,
     default_admin_reason,
-    default_block_reason,
     finish_action_error_onebot11,
     format_user_display_name,
     record_audit_fire_and_forget,
@@ -82,6 +82,15 @@ async def _block_member(  # noqa: PLR0913
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
+    # 检查功能是否启用
+    config = get_handle_config_manager().get_config("block_member")
+    if not config.enabled:
+        return await command.finish(await _("该功能已禁用"))
+
+    # 读取配置参数
+    default_block_duration = config.defaults.get("block_duration")
+    default_reason_text = config.defaults.get("default_reason", "违反群规")
+
     target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
 
     # 目标用户权限预检
@@ -92,14 +101,19 @@ async def _block_member(  # noqa: PLR0913
     if not await check_bot_privilege(bot, event.group_id, command):
         return None
 
-    reason_text = await default_block_reason(reason)
+    # 使用配置中的默认值
+    # 如果用户没有提供duration，使用配置中的block_duration
+    # 如果用户没有提供reason，使用配置中的default_reason（需要国际化）
+    actual_duration = duration if duration is not None else default_block_duration
+    reason_text = reason if reason is not None else await _(default_reason_text)
+
     try:
         await store_block_record(
             scope=scope,
             group_id=event.group_id,
             user_id=target_user_id,
             operator_id=event.user_id,
-            duration=duration,
+            duration=actual_duration,
             reason=reason_text,
             bot=bot,
         )
@@ -116,13 +130,15 @@ async def _block_member(  # noqa: PLR0913
         CommandAudit(
             action="block_member",
             target_user_id=target_user_id,
-            duration=duration,
+            duration=actual_duration,
             reason=reason_text,
         ),
     )
 
     scope_text = await _("全局") if scope == "global" else await _("本群")
-    duration_text = await _("永久") if duration is None else f"{duration} 秒"
+    duration_text = (
+        await _("永久") if actual_duration is None else f"{actual_duration} 秒"
+    )
     name_display = format_user_display_name(target_user_id, target_name)
     message = (
         await _(
@@ -378,6 +394,11 @@ async def onebot11_reject_blocklisted_group_request(
 ) -> None:
     if event.sub_type != "add":
         return
+
+    # 读取配置中的default_reason
+    config = get_handle_config_manager().get_config("block_member")
+    default_reason_text = config.defaults.get("default_reason", "违反群规")
+
     try:
         entry = await find_active_block(
             platform_id=QQ_PLATFORM_ID,
@@ -388,7 +409,8 @@ async def onebot11_reject_blocklisted_group_request(
         )
         if entry is None:
             return
-        reason = entry.reason or await default_block_reason(None)
+        # 使用配置中的默认reason或黑名单记录中的reason
+        reason = entry.reason or await _(default_reason_text)
         await bot.set_group_add_request(
             flag=event.flag,
             sub_type=event.sub_type,

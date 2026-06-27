@@ -54,8 +54,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.database.json5_store import (
     WatchAlreadyRunningError,
 )
 
-# ruff: noqa: PLR2004
-
 # ---------------------------------------------------------------------------
 # Constants (to avoid magic number warnings)
 # ---------------------------------------------------------------------------

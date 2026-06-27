@@ -7,6 +7,7 @@ from nonebot.adapters.onebot.v11.event import (
 )
 from nonebot_plugin_alconna.uniseg import At
 
+from ......core.runtime_config import get_handle_config_manager
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......permissions.subject_policy import (
@@ -122,9 +123,17 @@ async def onebot11_protect_member(
     event: OneBot11GroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
+    # 检查功能是否启用
+    config = get_handle_config_manager().get_config("protect_member")
+    if not config.enabled:
+        return await protect_member_cmd.finish(await _("该功能已禁用"))
+
+    # 读取配置中的默认scope
+    whitelist_scope = config.defaults.get("whitelist_scope", "group")
+
     return await _protect_member(
         command=protect_member_cmd,
-        scope="group",
+        scope=whitelist_scope,
         user=user,
         reason=reason,
         bot=bot,
@@ -143,6 +152,11 @@ async def onebot11_global_protect_member(
     event: OneBot11GroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
+    # 检查功能是否启用（global版本共用protect_member配置）
+    config = get_handle_config_manager().get_config("protect_member")
+    if not config.enabled:
+        return await global_protect_member_cmd.finish(await _("该功能已禁用"))
+
     return await _protect_member(
         command=global_protect_member_cmd,
         scope="global",
@@ -219,6 +233,11 @@ async def onebot11_unprotect_member(
     event: OneBot11GroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
+    # 检查功能是否启用（取消保护共用protect_member配置）
+    config = get_handle_config_manager().get_config("protect_member")
+    if not config.enabled:
+        return await unprotect_member_cmd.finish(await _("该功能已禁用"))
+
     return await _unprotect_member(
         command=unprotect_member_cmd,
         scope="group",
@@ -240,6 +259,11 @@ async def onebot11_global_unprotect_member(
     event: OneBot11GroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
+    # 检查功能是否启用（取消保护共用protect_member配置）
+    config = get_handle_config_manager().get_config("protect_member")
+    if not config.enabled:
+        return await global_unprotect_member_cmd.finish(await _("该功能已禁用"))
+
     return await _unprotect_member(
         command=global_unprotect_member_cmd,
         scope="global",

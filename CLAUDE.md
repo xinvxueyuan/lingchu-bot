@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3725 symbols, 7247 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3885 symbols, 7584 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -141,6 +141,7 @@ This sync rule starts after `<!-- gitnexus:end -->`. GitNexus marker blocks are 
 - **Localstore path ownership**: All mutable data, config, cache, resource, and schema files MUST be resolved through `nonebot_plugin_localstore` helpers such as `get_plugin_data_dir()`, `get_plugin_config_dir()`, `get_plugin_cache_dir()`, `get_plugin_data_file()`, `get_plugin_config_file()`, or `get_plugin_cache_file()`.
 - **No hard-coded mutable paths**: `Path("...")` for mutable runtime files is forbidden.
 - **No packaged schema resources**: Do not use `importlib.resources` or wheel data for JSON schemas. Schema text lives in `src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py` and is installed by `install_schemas()`.
+- **Handle default registration**: Handle-level defaults MUST be registered in `handle_config_defaults/` using `register_handle_defaults()` before `HandleConfigManager` can read or update `<command_key>.json5` files.
 - **Prek is hook source of truth**: `prek.toml` is the only pre-commit hook configuration. Do not reintroduce `.pre-commit-config.yaml`.
 - **Version sync**: Use `Taskfile.yml` task `ci:version:write-config` to write both `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` and root `package.json`.
 - **Skills exclusion sync**: When changing skills exclusion patterns in `pyproject.toml`, sync the corresponding `prek.toml` comments/patterns.
@@ -178,6 +179,7 @@ When modifying business logic, especially adapter-layer code, check all relevant
 | Docs | `apps/docs/content/docs/` |
 | Menu | `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py` |
 | Runtime config | `config.json5`, `bot_state.json5`, `menu.json5`, schema text in `core/schemas.py` |
+| Handle config files | `handle_config_defaults/`, `<command_key>.json5` in localstore config_dir |
 | Triggers | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` |
 | Agent context | `AGENTS.md`, `CLAUDE.md`, `.github/note/AGENTS-zh.md` |
 

@@ -1,0 +1,540 @@
+"""Test handle configuration manager functionality.
+
+This test module covers the core functionality of HandleConfigManager,
+including configuration loading, updating, validation, and persistence.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+from unittest.mock import patch
+
+import pytest
+
+from src.plugins.nonebot_plugin_lingchu_bot.core import (
+    handle_config_manager as manager_module,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.core import schemas as schemas_module
+from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_defaults import (
+    HANDLE_DEFAULTS_REGISTRY,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_manager import (
+    HandleConfig,
+    HandleConfigManager,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.core.schemas import install_schemas
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
+
+
+@pytest.fixture
+def patched_localstore(
+    tmp_path: Path,
+) -> Iterator[Path]:
+    """Redirect ``get_plugin_config_file`` to ``tmp_path``.
+
+    Returns the config_dir so individual tests can assert the precise target paths.
+    """
+    config_dir = tmp_path / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    def mock_get_plugin_config_file(filename: str) -> Path:
+        """Mock get_plugin_config_file to return path in tmp_path."""
+        return config_dir / filename
+
+    with (
+        patch.object(
+            schemas_module,
+            "get_plugin_config_dir",
+            return_value=config_dir,
+        ),
+        patch.object(
+            schemas_module,
+            "get_plugin_data_dir",
+            return_value=tmp_path / "data",
+        ),
+        patch.object(
+            manager_module,
+            "get_plugin_config_file",
+            side_effect=mock_get_plugin_config_file,
+        ),
+    ):
+        yield config_dir
+
+
+@pytest.fixture
+def config_manager() -> HandleConfigManager:
+    """Create a HandleConfigManager instance."""
+    return HandleConfigManager()
+
+
+# SubTask 8.1: HandleConfig dataclass 字段结构测试
+class TestHandleConfigDataclass:
+    """Test HandleConfig dataclass field structure."""
+
+    def test_handle_config_creation(self) -> None:
+        """Test that HandleConfig objects can be created with all required fields."""
+        enabled = True
+        defaults = {"require_reason": False, "audit_level": "low"}
+        policies: dict[str, Any] = {}
+
+        config = HandleConfig(enabled=enabled, defaults=defaults, policies=policies)
+
+        assert config.enabled == enabled
+        assert config.defaults == defaults
+        assert config.policies == policies
+
+    def test_handle_config_field_types(self) -> None:
+        """Test that HandleConfig fields have correct types."""
+        config = HandleConfig(
+            enabled=True,
+            defaults={"test_key": "test_value"},
+            policies={"policy_key": "policy_value"},
+        )
+
+        assert isinstance(config.enabled, bool)
+        assert isinstance(config.defaults, dict)
+        assert isinstance(config.policies, dict)
+
+    def test_handle_config_frozen(self) -> None:
+        """Test that HandleConfig is frozen (immutable)."""
+        config = HandleConfig(enabled=True, defaults={}, policies={})
+
+        # Should raise AttributeError when trying to modify
+        with pytest.raises(AttributeError):
+            config.enabled = False  # type: ignore[misc]  # ty: ignore[invalid-assignment]
+
+    def test_handle_config_empty_defaults_and_policies(self) -> None:
+        """Test that HandleConfig allows empty defaults and policies."""
+        config = HandleConfig(enabled=False, defaults={}, policies={})
+
+        assert config.enabled is False
+        assert config.defaults == {}
+        assert config.policies == {}
+
+
+# SubTask 8.2: get_config 回退默认值测试
+class TestGetConfigFallback:
+    """Test get_config fallback to defaults."""
+
+    def test_get_config_returns_defaults_when_file_missing(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that get_config returns code defaults when config file is missing."""
+        # Install schemas first
+        install_schemas()
+
+        # Don't create config files, test fallback
+        command_key = "kick_member"
+        config = config_manager.get_config(command_key)
+
+        # Verify returned config matches defaults
+        assert config.enabled is True
+        assert "require_reason" in config.defaults
+        assert config.defaults["require_reason"] is False
+        assert "audit_level" in config.defaults
+        assert config.defaults["audit_level"] == "low"
+        assert config.policies == {}
+
+    def test_get_config_no_exception_when_file_missing(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that get_config does not throw exception when file is missing."""
+        install_schemas()
+
+        # Should not raise any exception
+        for command_key in HANDLE_DEFAULTS_REGISTRY:
+            config = config_manager.get_config(command_key)
+            assert isinstance(config, HandleConfig)
+
+    def test_get_config_unregistered_command_key_raises_error(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that get_config raises ValueError for unregistered command_key."""
+        with pytest.raises(ValueError, match="command_key not registered"):
+            config_manager.get_config("nonexistent_command")
+
+
+# SubTask 8.3: update_config 持久化测试
+@pytest.mark.asyncio
+class TestUpdateConfigPersistence:
+    """Test update_config persistence."""
+
+    async def test_update_config_persists_to_file(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that update_config writes changes to disk."""
+        install_schemas()
+
+        command_key = "kick_member"
+        file_path = patched_localstore / f"{command_key}.json5"
+
+        # Update configuration
+        updates = {"enabled": False, "defaults": {"require_reason": True}}
+        await config_manager.update_config(command_key, updates)
+
+        # Verify file was created
+        assert file_path.exists()
+
+        # Read file content
+        import json5
+
+        content = file_path.read_text(encoding="utf-8")
+        config_dict = json5.loads(content)
+
+        # Verify updates were persisted
+        assert config_dict["enabled"] is False
+        assert config_dict["defaults"]["require_reason"] is True
+
+    async def test_update_config_reflected_in_memory(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that update_config updates in-memory cache."""
+        install_schemas()
+
+        command_key = "kick_member"
+
+        # Update configuration
+        updates = {"enabled": False}
+        await config_manager.update_config(command_key, updates)
+
+        # Verify cache reflects update
+        config = config_manager.get_config(command_key)
+        assert config.enabled is False
+
+    async def test_update_config_partial_update(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that update_config supports partial updates."""
+        install_schemas()
+
+        command_key = "kick_member"
+
+        # First update: set enabled to False
+        await config_manager.update_config(command_key, {"enabled": False})
+
+        # Second update: only change defaults
+        await config_manager.update_config(
+            command_key, {"defaults": {"require_reason": True, "audit_level": "high"}}
+        )
+
+        # Verify enabled is still False
+        config = config_manager.get_config(command_key)
+        assert config.enabled is False
+        assert config.defaults["require_reason"] is True
+        assert config.defaults["audit_level"] == "high"
+
+
+# SubTask 8.4: ensure_config_files 创建缺失文件测试
+@pytest.mark.asyncio
+class TestEnsureConfigFiles:
+    """Test ensure_config_files creates missing files."""
+
+    async def test_creates_all_missing_config_files(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that ensure_config_files creates files for all registered handles."""
+        install_schemas()
+
+        # Ensure no config files exist
+        for command_key in HANDLE_DEFAULTS_REGISTRY:
+            file_path = patched_localstore / f"{command_key}.json5"
+            assert not file_path.exists()
+
+        # Run ensure_config_files
+        await config_manager.ensure_config_files()
+
+        # Verify all files were created
+        for command_key in HANDLE_DEFAULTS_REGISTRY:
+            file_path = patched_localstore / f"{command_key}.json5"
+            assert file_path.exists(), f"Config file for {command_key} should exist"
+
+    async def test_creates_files_with_correct_content(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that ensure_config_files creates files with correct default content."""
+        install_schemas()
+
+        await config_manager.ensure_config_files()
+
+        import json5
+
+        for command_key, expected_defaults in HANDLE_DEFAULTS_REGISTRY.items():
+            file_path = patched_localstore / f"{command_key}.json5"
+            content = file_path.read_text(encoding="utf-8")
+            config_dict = json5.loads(content)
+
+            # Verify content matches defaults
+            assert config_dict["$schema"] == "handle_config.schema.json5"
+            assert config_dict["enabled"] == expected_defaults["enabled"]
+            assert config_dict["defaults"] == expected_defaults["defaults"]
+            assert config_dict["policies"] == expected_defaults["policies"]
+
+    async def test_does_not_modify_existing_files(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that ensure_config_files does not modify existing files."""
+        install_schemas()
+
+        command_key = "kick_member"
+        file_path = patched_localstore / f"{command_key}.json5"
+
+        # Create a file with custom content
+        import json5
+
+        custom_content = {
+            "$schema": "handle_config.schema.json5",
+            "enabled": False,
+            "defaults": {"require_reason": True, "audit_level": "high"},
+            "policies": {"custom_policy": "value"},
+        }
+        file_path.write_text(json5.dumps(custom_content, indent=2), encoding="utf-8")
+
+        # Run ensure_config_files
+        await config_manager.ensure_config_files()
+
+        # Verify file was not modified
+        content = file_path.read_text(encoding="utf-8")
+        config_dict = json5.loads(content)
+
+        assert config_dict["enabled"] is False
+        assert config_dict["defaults"]["require_reason"] is True
+        assert config_dict["policies"]["custom_policy"] == "value"
+
+
+# SubTask 8.5: validate_config schema 校验测试
+class TestValidateConfig:
+    """Test validate_config schema validation."""
+
+    def test_validate_config_accepts_valid_config(
+        self,
+        config_manager: HandleConfigManager,
+    ) -> None:
+        """Test that validate_config accepts valid configuration dictionaries."""
+        install_schemas()
+
+        command_key = "kick_member"
+        valid_config = {
+            "$schema": "handle_config.schema.json5",
+            "enabled": True,
+            "defaults": {"require_reason": False, "audit_level": "low"},
+            "policies": {},
+        }
+
+        is_valid = config_manager.validate_config(command_key, valid_config)
+        assert is_valid is True
+
+    def test_validate_config_rejects_missing_enabled_field(
+        self,
+        config_manager: HandleConfigManager,
+    ) -> None:
+        """Test that validate_config rejects config missing 'enabled' field."""
+        install_schemas()
+
+        command_key = "kick_member"
+        invalid_config = {
+            "$schema": "handle_config.schema.json5",
+            "defaults": {"require_reason": False, "audit_level": "low"},
+            "policies": {},
+        }
+
+        is_valid = config_manager.validate_config(command_key, invalid_config)
+        assert is_valid is False
+
+    def test_validate_config_rejects_wrong_type_enabled(
+        self,
+        config_manager: HandleConfigManager,
+    ) -> None:
+        """Test that validate_config rejects config with wrong type for 'enabled'."""
+        install_schemas()
+
+        command_key = "kick_member"
+        invalid_config = {
+            "$schema": "handle_config.schema.json5",
+            "enabled": "true",  # Should be bool, not string
+            "defaults": {"require_reason": False, "audit_level": "low"},
+            "policies": {},
+        }
+
+        is_valid = config_manager.validate_config(command_key, invalid_config)
+        assert is_valid is False
+
+    def test_validate_config_accepts_missing_defaults_field(
+        self,
+        config_manager: HandleConfigManager,
+    ) -> None:
+        """Test that validate_config accepts config missing optional 'defaults'."""
+        install_schemas()
+
+        command_key = "kick_member"
+        # defaults is optional in schema (only $schema and enabled are required)
+        valid_config = {
+            "$schema": "handle_config.schema.json5",
+            "enabled": True,
+            "policies": {},
+        }
+
+        is_valid = config_manager.validate_config(command_key, valid_config)
+        assert is_valid is True
+
+    def test_validate_config_accepts_missing_policies_field(
+        self,
+        config_manager: HandleConfigManager,
+    ) -> None:
+        """Test that validate_config accepts config missing optional 'policies'."""
+        install_schemas()
+
+        command_key = "kick_member"
+        # policies is optional in schema (only $schema and enabled are required)
+        valid_config = {
+            "$schema": "handle_config.schema.json5",
+            "enabled": True,
+            "defaults": {"require_reason": False, "audit_level": "low"},
+        }
+
+        is_valid = config_manager.validate_config(command_key, valid_config)
+        assert is_valid is True
+
+
+# SubTask 8.6: 配置更新不影响其他模块测试
+@pytest.mark.asyncio
+class TestConfigIsolation:
+    """Test that updating one config does not affect other configs."""
+
+    async def test_update_kick_member_does_not_affect_block_member(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that updating kick_member config does not change block_member config."""
+        install_schemas()
+
+        # Ensure all config files exist
+        await config_manager.ensure_config_files()
+
+        # Update kick_member config
+        await config_manager.update_config("kick_member", {"enabled": False})
+
+        # Verify block_member config is unchanged
+        block_config = config_manager.get_config("block_member")
+        assert block_config.enabled is True
+        assert block_config.defaults["block_duration"] is None
+        assert block_config.defaults["default_reason"] == "违反群规"
+
+    async def test_update_one_command_does_not_affect_others(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that updating one command config does not affect other configs."""
+        install_schemas()
+
+        # Ensure all config files exist
+        await config_manager.ensure_config_files()
+
+        # Get initial configs
+        initial_configs = config_manager.get_all_configs()
+
+        # Update one config
+        await config_manager.update_config("member_mute", {"enabled": False})
+
+        # Verify other configs are unchanged
+        for command_key in HANDLE_DEFAULTS_REGISTRY:
+            if command_key == "member_mute":
+                continue
+
+            current_config = config_manager.get_config(command_key)
+            initial_config = initial_configs[command_key]
+
+            assert current_config.enabled == initial_config.enabled
+            assert current_config.defaults == initial_config.defaults
+            assert current_config.policies == initial_config.policies
+
+
+# SubTask 8.7: enabled=False 拒绝执行测试
+class TestEnabledFalseBehavior:
+    """Test behavior when enabled=False."""
+
+    def test_get_config_returns_disabled_state(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that get_config correctly returns disabled state."""
+        install_schemas()
+
+        import asyncio
+
+        # Create config file with enabled=False
+        async def setup_disabled_config() -> None:
+            await config_manager.ensure_config_files()
+            await config_manager.update_config("kick_member", {"enabled": False})
+
+        asyncio.run(setup_disabled_config())
+
+        # Verify get_config returns disabled state
+        config = config_manager.get_config("kick_member")
+        assert config.enabled is False
+
+    def test_can_check_enabled_state_before_execution(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that callers can check enabled state before executing handle logic."""
+        install_schemas()
+
+        import asyncio
+
+        async def setup_and_test() -> bool:
+            # Create config with enabled=False
+            await config_manager.ensure_config_files()
+            await config_manager.update_config("kick_member", {"enabled": False})
+
+            # Simulate handle logic checking enabled state
+            config = config_manager.get_config("kick_member")
+            # Return False when disabled (reject execution), True otherwise
+            return config.enabled
+
+        result = asyncio.run(setup_and_test())
+        assert result is False, "Handle should be rejected when enabled=False"
+
+    @pytest.mark.asyncio
+    async def test_enabled_state_persists_across_cache_clear(
+        self,
+        config_manager: HandleConfigManager,
+        patched_localstore: Path,
+    ) -> None:
+        """Test that enabled state persists after cache clear."""
+        install_schemas()
+
+        # Set enabled=False
+        await config_manager.ensure_config_files()
+        await config_manager.update_config("kick_member", {"enabled": False})
+
+        # Clear cache
+        config_manager.clear_cache()
+
+        # Verify enabled state persists
+        config = config_manager.get_config("kick_member")
+        assert config.enabled is False

@@ -8,6 +8,7 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import At
 
+from ......core.runtime_config import get_handle_config_manager
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......repositories.blocklist import find_active_block
@@ -27,7 +28,7 @@ from .common import (
 )
 
 
-async def _kick_member(  # noqa: PLR0911
+async def _kick_member(
     *,
     command: type[Any],
     user: At | int,
@@ -105,6 +106,14 @@ async def onebot11_kick_member(
     reason: str | None = None,
 ) -> Any:
     """OneBot V11 踢出群成员处理器"""
+    # 检查功能是否启用
+    config = get_handle_config_manager().get_config("kick_member")
+    if not config.enabled:
+        return await kick_member_cmd.finish(await _("该功能已禁用"))
+
+    # 读取配置参数（当前kick_member逻辑不需要require_reason强制检查）
+    # require_reason = config.defaults.get("require_reason", False)
+
     return await _kick_member(
         command=kick_member_cmd,
         user=user,

@@ -7,6 +7,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OB11ActionFailed
 
+from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_manager import (
+    HandleConfig,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     member as onebot11_member_module,
 )
@@ -29,6 +32,23 @@ def _mock_record_audit_fire_and_forget():
     """避免审计记录触发后台任务和数据库调用。"""
     with patch.object(
         onebot11_member_module, "record_audit_fire_and_forget", new=AsyncMock()
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _mock_handle_config_manager():
+    """Mock get_handle_config_manager 返回启用的配置。"""
+    enabled_config = HandleConfig(enabled=True, defaults={}, policies={})
+
+    class MockManager:
+        def get_config(self, command_key: str) -> HandleConfig:
+            return enabled_config
+
+    with patch.object(
+        onebot11_member_module,
+        "get_handle_config_manager",
+        return_value=MockManager(),
     ):
         yield
 

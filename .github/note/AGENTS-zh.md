@@ -177,6 +177,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 | Docs | `apps/docs/content/docs/` |
 | Menu | `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py` |
 | Runtime config | `config.json5`、`bot_state.json5`、`menu.json5`、`core/schemas.py` schema 文本 |
+| Handle config files | `handle_config_defaults/`、localstore config_dir 中的 `<command_key>.json5` |
 | Triggers | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` |
 | Agent context | `AGENTS.md`、`CLAUDE.md`、`.github/note/AGENTS-zh.md` |
 

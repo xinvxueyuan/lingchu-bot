@@ -9,6 +9,7 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 from nonebot_plugin_alconna.uniseg import Image as UniImage
 from packaging.version import InvalidVersion, parse
 
+from ......core.runtime_config import get_handle_config_manager
 from ......i18n import _async as _
 from ....commands.announcement import (
     AnnouncementImagePath,
@@ -77,6 +78,12 @@ async def onebot_v11_send_group_announcement(
     bot: OneBot11,
     event: OneBBot11_GroupMessageEvent,
 ) -> None:
+    # 检查功能是否启用
+    config = get_handle_config_manager().get_config("send_announcement")
+    if not config.enabled:
+        await send_group_announcement_cmd.finish(await _("该功能已禁用"))
+        return
+
     # 1. 输入数据清洗：去除首尾空白字符
     content = content.strip()
 

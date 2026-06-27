@@ -5,7 +5,11 @@ from nonebot.internal.driver.abstract import Driver
 from ..core.async_utils import fire_and_forget
 from ..core.bot_state import load_bot_state
 from ..core.menu_config import ensure_menu_config_file_async, load_menu_config
-from ..core.runtime_config import ensure_runtime_config_file_async
+from ..core.runtime_config import (
+    ensure_runtime_config_file_async,
+    get_handle_config_manager,
+    initialize_handle_config_manager,
+)
 from ..core.schemas import install_schemas
 from ..handle import menu as menu_module
 from ..handle.menu import import_handle as menu_import_handle
@@ -42,6 +46,10 @@ async def startup() -> None:
         await ensure_menu_config_file_async()
     except Exception:  # noqa: BLE001
         logger.exception("Failed to ensure menu config file")
+    try:
+        await get_handle_config_manager().ensure_config_files()
+    except Exception:  # noqa: BLE001
+        logger.exception("Failed to ensure handle config files")
     load_bot_state()
     try:
         menu_pages, menu_features = load_menu_config()
@@ -49,6 +57,10 @@ async def startup() -> None:
         menu_module.set_menu_features(menu_features)
     except Exception:  # noqa: BLE001
         logger.exception("Failed to load menu config")
+    try:
+        await initialize_handle_config_manager()
+    except Exception:  # noqa: BLE001
+        logger.exception("Failed to initialize handle config manager")
     registered_adapter_names = tuple(
         str(adapter_name) for adapter_name in get_adapters()
     )
