@@ -265,7 +265,7 @@ task ci
 | Changed | Minimum checks before commit |
 | --- | --- |
 | Python source only | Ruff check + Ruff format check + Pyright + ty + relevant pytest |
-| Docs site only | `pnpm --filter docs lint` + docs tests + Playwright hook smoke + docs type check + link lint when content changes |
+| Docs site only | `pnpm --filter docs lint` (covers `.ts/.tsx/.mdx` via ESLint flat config + eslint-plugin-mdx) + docs tests + Playwright hook smoke + docs type check + link lint when content changes |
 | Markdown only | `pnpm exec markdownlint-cli2` |
 | i18n strings | `task i18n` + relevant pytest |
 | Mixed / uncertain | `task check && task test` |
@@ -321,6 +321,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 #### Docs Site And Frontend
 
 - `eslint-plugin-react@7.x` is incompatible with ESLint 10; pin ESLint 9 or migrate to `@eslint-react/eslint-plugin`.
+- `eslint-plugin-mdx@3.8.1` integrates MDX lint into `apps/docs/eslint.config.mjs` with three layers: `mdx.flat` (parser + `mdx/*` rules), `mdx.createRemarkProcessor({ lintCodeBlocks: true })` (code-block lint), and `mdx.flatCodeBlocks` (code-block rules). `peerDependencies: { eslint: ">=8.0.0" }` is compatible with ESLint 10. Code-block rules MUST turn off all `react/*` and `@next/*` rules (scoped via `files: ['**/*.{md,mdx}/**']`) to avoid `vercel/next.js#89764` `TypeError: contextOrFilename.getFilename is not a function` crashes on virtual files. `.remarkrc.json` MUST list `remark-frontmatter` BEFORE lint presets, otherwise frontmatter `---` delimiters are misparsed as setext H2 underlines, producing `remark-lint-heading-style` false positives (306 baseline warnings, all resolved by adding `remark-frontmatter`). Dual markdown linter policy: `markdownlint-cli2` covers `.md`; `eslint-plugin-mdx` covers `.mdx` (no overlap). Pre-commit hook uses a dedicated `HAS_DOCS_MDX` flag (matched via `^apps/docs/.*\.mdx$`) and CI uses a dedicated `frontend-mdx` output flag, both scoped to avoid spurious ESLint triggers on `.json` content changes.
 - MDX table cells cannot contain raw `|` inside inline code like `<群号|群名称>`; use wording such as `<群号或群名称>`.
 - Fumadocs link validation needs absolute URLs from root index pages.
 - Mock `collections/server` in Vitest tests that import `src/lib/source.ts`.

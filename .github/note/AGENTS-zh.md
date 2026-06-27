@@ -264,7 +264,7 @@ task ci
 | 变更 | 提交前最低检查 |
 | --- | --- |
 | 仅 Python source | Ruff check + Ruff format check + Pyright + ty + relevant pytest |
-| 仅 docs site | `pnpm --filter docs lint` + docs tests + Playwright hook smoke + docs type check + content 变更时 link lint |
+| 仅 docs site | `pnpm --filter docs lint`（通过 ESLint flat config + eslint-plugin-mdx 覆盖 `.ts/.tsx/.mdx`）+ docs tests + Playwright hook smoke + docs type check + content 变更时 link lint |
 | 仅 Markdown | `pnpm exec markdownlint-cli2` |
 | i18n strings | `task i18n` + relevant pytest |
 | 混合 / 不确定 | `task check && task test` |
@@ -320,6 +320,7 @@ task ci
 #### Docs Site And Frontend
 
 - `eslint-plugin-react@7.x` 与 ESLint 10 不兼容；pin ESLint 9 或迁移到 `@eslint-react/eslint-plugin`。
+- `eslint-plugin-mdx@3.8.1` 通过三层配置集成 MDX lint 到 `apps/docs/eslint.config.mjs`：`mdx.flat`（解析器 + `mdx/*` 规则）、`mdx.createRemarkProcessor({ lintCodeBlocks: true })`（代码块 lint）、`mdx.flatCodeBlocks`（代码块规则）。`peerDependencies: { eslint: ">=8.0.0" }` 与 ESLint 10 兼容。代码块规则 MUST 关闭所有 `react/*` 与 `@next/*` 规则（通过 `files: ['**/*.{md,mdx}/**']` 收窄范围），避免 `vercel/next.js#89764` 的 `TypeError: contextOrFilename.getFilename is not a function` 在虚拟文件上崩溃。`.remarkrc.json` MUST 将 `remark-frontmatter` 排在 lint 预设之前，否则 frontmatter 的 `---` 分隔符会被误判为 setext H2 下划线，产生 `remark-lint-heading-style` 假阳性（基线 306 条 warning，添加 `remark-frontmatter` 后全部消除）。双 markdown linter 政策：`markdownlint-cli2` 覆盖 `.md`；`eslint-plugin-mdx` 覆盖 `.mdx`（无重叠）。pre-commit hook 使用独立 `HAS_DOCS_MDX` flag（通过 `^apps/docs/.*\.mdx$` 匹配），CI 使用独立 `frontend-mdx` 输出 flag，均收窄范围以避免 `.json` 内容变更误触发 ESLint。
 - MDX 表格 cell 不能在 inline code 中包含裸 `|`，例如 `<群号|群名称>`；改用 `<群号或群名称>`。
 - Fumadocs link validation 中，root index pages 的相对链接需要改为 absolute URLs。
 - 导入 `src/lib/source.ts` 的 Vitest 测试需要 mock `collections/server`。

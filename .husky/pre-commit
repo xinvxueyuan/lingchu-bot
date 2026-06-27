@@ -149,6 +149,7 @@ HAS_MARKDOWN=false    # .md 文件变更
 HAS_DOCS_CODE=false     # .ts/.tsx/.mjs/.mts — 代码文件，触发 ESLint + check-types + Vitest
 HAS_DOCS_TSX=false      # .tsx — React 组件，触发 React Doctor（CODE 的子集）
 HAS_DOCS_CONTENT=false  # .mdx/.json — 内容文件，触发 check-types + Vitest（fumadocs-mdx 重新生成类型）
+HAS_DOCS_MDX=false      # .mdx — MDX 内容文件，触发 ESLint（eslint-plugin-mdx 覆盖 .mdx）
 HAS_DOCS_STYLE=false    # .css — 样式文件，触发 ESLint（CSS Modules 可能影响类型）
 HAS_DOCS_CONFIG=false   # 配置文件（next.config.mjs/tsconfig.json 等），触发 ESLint + check-types + Vitest
 
@@ -177,6 +178,10 @@ fi
 # Docs: 内容文件（.mdx/.json，fumadocs-mdx 据此生成类型）
 if has_pattern '^apps/docs/.*\.(mdx|json)$'; then
     HAS_DOCS_CONTENT=true
+fi
+# Docs: MDX 文件（eslint-plugin-mdx 覆盖 .mdx，需触发 ESLint；.json 不触发）
+if has_pattern '^apps/docs/.*\.mdx$'; then
+    HAS_DOCS_MDX=true
 fi
 # Docs: 样式文件（.css）
 if has_pattern '^apps/docs/.*\.css$'; then
@@ -221,9 +226,9 @@ if [ "$HAS_DOCS" = true ] || [ "$HAS_PACKAGES" = true ]; then
     HAS_FRONTEND=true
 fi
 
-# NEEDS_LINT: 代码/样式/文档配置变更触发 ESLint（纯内容 .mdx/.json 跳过）
+# NEEDS_LINT: 代码/样式/文档配置/MDX 内容变更触发 ESLint（纯 .json 内容跳过）
 NEEDS_LINT=false
-if [ "$HAS_DOCS_CODE" = true ] || [ "$HAS_DOCS_STYLE" = true ] || [ "$HAS_DOCS_CONFIG" = true ] || [ "$HAS_PACKAGES_CODE" = true ]; then
+if [ "$HAS_DOCS_CODE" = true ] || [ "$HAS_DOCS_STYLE" = true ] || [ "$HAS_DOCS_CONFIG" = true ] || [ "$HAS_DOCS_MDX" = true ] || [ "$HAS_PACKAGES_CODE" = true ]; then
     NEEDS_LINT=true
 fi
 

@@ -54,8 +54,16 @@ jobs:
       frontend-code: ${{ steps.detect.outputs.frontend-code }}
       frontend-style: ${{ steps.detect.outputs.frontend-style }}
       frontend-content: ${{ steps.detect.outputs.frontend-content }}
+      frontend-mdx: ${{ steps.detect.outputs.frontend-mdx }}
       frontend-tsx: ${{ steps.detect.outputs.frontend-tsx }}
     steps:
+      - name: Checkout
+        # 本地 composite action (`./.github/actions/detect-changes`) 在
+        # `uses:` 解析时就需要 action.yml，必须先 checkout。
+        # pinned from actions/checkout@v6.0.3
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
       - id: detect
         uses: ./.github/actions/detect-changes
 
@@ -77,8 +85,8 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
       - name: ESLint
-        # 对齐 pre-commit v3 NEEDS_LINT：代码/样式/配置变更触发（纯 .mdx/.json 内容跳过）
-        if: needs.changes.outputs.frontend-code == 'true' || needs.changes.outputs.frontend-style == 'true'
+        # 对齐 pre-commit v3 NEEDS_LINT：代码/样式/配置/MDX 内容变更触发（纯 .json 内容跳过）
+        if: needs.changes.outputs.frontend-code == 'true' || needs.changes.outputs.frontend-style == 'true' || needs.changes.outputs.frontend-mdx == 'true'
         run: pnpm turbo run lint
       - name: Type Check
         # 对齐 pre-commit v3 NEEDS_TYPE_CHECK：任意前端变更触发（fumadocs-mdx 重新生成类型，CSS Modules 可能影响类型）
