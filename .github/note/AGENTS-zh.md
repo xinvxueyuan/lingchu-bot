@@ -367,6 +367,7 @@ task ci
 - `.github` YAML 注释使用英文；移除空的/损坏的 schema comment。
 - `git push origin --delete` 前用 `git ls-remote` 检查远端分支是否存在。
 - CI 工作流按领域拆分：`🧪-python.yml`（Python 静态分析 + 多数据库测试矩阵 + auto-format）、`🧪-frontend.yml`（docs lint/type/test/links）、`📚-docs.yml`（docs 部署）。共享的变更检测位于 `.github/actions/detect-changes` 复合 action（输出 python/markdown/frontend-* 标志）。标准触发约定：PR 仅跑检查（不提交/部署）；push 到 `main`/`dev` 跑检查 + auto-format + 部署。每个工作流有独立的 concurrency group 以避免互相取消。
+- Python CI 的 Static Analysis job 使用 `uv sync --no-dev --group lint --group git --frozen` + `UV_NO_SYNC=1` 来只安装 lint/format 所需的最小依赖集（ruff、pyright、ty、prek），避免安装 test 组中包含的数据库驱动（mariadb、aioodbc）——这些驱动需要系统级库，在极简 CI 环境中可能构建失败。任何不需要运行测试的 CI job 都可使用此模式。
 
 #### Pending Rollbacks
 
