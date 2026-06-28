@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import aiofiles
 import json5
 import pytest
 
@@ -30,20 +31,23 @@ async def test_ensure_async_creates_file_when_missing(tmp_path: Path) -> None:
 
     assert created == config_file
     assert config_file.exists()
-    loaded = json5.loads(config_file.read_text(encoding="utf-8"))
+    async with aiofiles.open(config_file, encoding="utf-8") as f:
+        loaded = json5.loads(await f.read())
     assert loaded == DEFAULT_PAYLOAD
 
 
 @pytest.mark.asyncio
 async def test_ensure_async_preserves_existing_file(tmp_path: Path) -> None:
     config_file = tmp_path / "config.json5"
-    config_file.write_text("{message_store_retention_days: 7}", encoding="utf-8")
+    async with aiofiles.open(config_file, "w", encoding="utf-8") as f:
+        await f.write("{message_store_retention_days: 7}")
     original_mtime = config_file.stat().st_mtime_ns
 
     created = await ensure_json5_dict_file_async(config_file, DEFAULT_PAYLOAD)
 
     assert created == config_file
-    assert "7" in config_file.read_text(encoding="utf-8")
+    async with aiofiles.open(config_file, encoding="utf-8") as f:
+        assert "7" in await f.read()
     assert config_file.stat().st_mtime_ns == original_mtime
 
 
@@ -53,7 +57,8 @@ async def test_ensure_async_writes_valid_json5(tmp_path: Path) -> None:
 
     await ensure_json5_dict_file_async(config_file, DEFAULT_PAYLOAD)
 
-    content = config_file.read_text(encoding="utf-8")
+    async with aiofiles.open(config_file, encoding="utf-8") as f:
+        content = await f.read()
     parsed = json5.loads(content)
     assert parsed == DEFAULT_PAYLOAD
     assert isinstance(parsed, dict)

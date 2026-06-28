@@ -37,7 +37,7 @@ async def startup() -> None:
     依次执行：预热翻译缓存、导入并注册 group 命令处理器（含所有子模块）。
     """
     try:
-        install_schemas()
+        await install_schemas()
     except Exception:  # noqa: BLE001
         # Schema files are editor hints; missing them does not prevent startup.
         logger.exception("Failed to install JSON5 schemas")
@@ -50,9 +50,9 @@ async def startup() -> None:
         await get_handle_config_manager().ensure_config_files()
     except Exception:  # noqa: BLE001
         logger.exception("Failed to ensure handle config files")
-    load_bot_state()
+    await load_bot_state()
     try:
-        menu_pages, menu_features = load_menu_config()
+        menu_pages, menu_features = await load_menu_config()
         menu_module.set_menu_pages(menu_pages)
         menu_module.set_menu_features(menu_features)
     except Exception:  # noqa: BLE001

@@ -6,6 +6,7 @@ import json
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
+import aiofiles
 import json5
 import pytest
 
@@ -85,14 +86,14 @@ def test_get_menu_config_file_falls_back_when_localstore_has_no_plugin(
     assert get_menu_config_file().name == MENU_FILENAME
 
 
-def test_load_menu_config_falls_back_when_file_missing(tmp_path: Path) -> None:
-    pages, features = load_menu_config(tmp_path / "missing.json5")
+async def test_load_menu_config_falls_back_when_file_missing(tmp_path: Path) -> None:
+    pages, features = await load_menu_config(tmp_path / "missing.json5")
 
     assert pages == menu_module._DEFAULT_MENU_PAGES
     assert features == menu_module._DEFAULT_MENU_FEATURES
 
 
-def test_load_menu_config_overrides_summary(tmp_path: Path) -> None:
+async def test_load_menu_config_overrides_summary(tmp_path: Path) -> None:
     config_file = tmp_path / "menu.json5"
     payload = menu_config_defaults()
     payload["pages"][0]["items"] = [
@@ -102,9 +103,10 @@ def test_load_menu_config_overrides_summary(tmp_path: Path) -> None:
             "usage": {"zh_CN": "@用户", "en_US": "@user"},
         }
     ]
-    config_file.write_text(json5.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    async with aiofiles.open(config_file, "w", encoding="utf-8") as f:
+        await f.write(json5.dumps(payload, ensure_ascii=False))
 
-    _, features = load_menu_config(config_file)
+    _, features = await load_menu_config(config_file)
     loaded = _feature_by_key(features, "kick_member")
     default = _feature_by_key(menu_module._DEFAULT_MENU_FEATURES, "kick_member")
 
@@ -113,16 +115,17 @@ def test_load_menu_config_overrides_summary(tmp_path: Path) -> None:
     assert loaded.availability == default.availability
 
 
-def test_load_menu_config_preserves_json5_item_order(tmp_path: Path) -> None:
+async def test_load_menu_config_preserves_json5_item_order(tmp_path: Path) -> None:
     config_file = tmp_path / "menu.json5"
     payload = menu_config_defaults()
     payload["pages"][0]["items"] = [
         _menu_item("set_member_card"),
         _menu_item("kick_member"),
     ]
-    config_file.write_text(json5.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    async with aiofiles.open(config_file, "w", encoding="utf-8") as f:
+        await f.write(json5.dumps(payload, ensure_ascii=False))
 
-    _, features = load_menu_config(config_file)
+    _, features = await load_menu_config(config_file)
 
     assert [feature.command_key for feature in features[:2]] == [
         "set_member_card",
@@ -130,18 +133,19 @@ def test_load_menu_config_preserves_json5_item_order(tmp_path: Path) -> None:
     ]
 
 
-def test_load_menu_config_does_not_override_page_command(tmp_path: Path) -> None:
+async def test_load_menu_config_does_not_override_page_command(tmp_path: Path) -> None:
     config_file = tmp_path / "menu.json5"
     payload = menu_config_defaults()
     payload["pages"][0]["command"] = {"zh_CN": "成员", "en_US": "members"}
-    config_file.write_text(json5.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    async with aiofiles.open(config_file, "w", encoding="utf-8") as f:
+        await f.write(json5.dumps(payload, ensure_ascii=False))
 
-    pages, _ = load_menu_config(config_file)
+    pages, _ = await load_menu_config(config_file)
 
     assert pages[0].command == menu_module._DEFAULT_MENU_PAGES[0].command
 
 
-def test_load_menu_config_rejects_unknown_command_key(tmp_path: Path) -> None:
+async def test_load_menu_config_rejects_unknown_command_key(tmp_path: Path) -> None:
     config_file = tmp_path / "menu.json5"
     payload = menu_config_defaults()
     payload["pages"][0]["items"] = [
@@ -151,39 +155,42 @@ def test_load_menu_config_rejects_unknown_command_key(tmp_path: Path) -> None:
             "usage": {"zh_CN": "", "en_US": ""},
         }
     ]
-    config_file.write_text(json5.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    async with aiofiles.open(config_file, "w", encoding="utf-8") as f:
+        await f.write(json5.dumps(payload, ensure_ascii=False))
 
     with pytest.raises(MenuConfigError) as exc_info:
-        load_menu_config(config_file)
+        await load_menu_config(config_file)
 
     message = str(exc_info.value)
     assert "nonexistent_cmd" in message
     assert str(config_file) in message
 
 
-def test_load_menu_config_rejects_unsupported_version(tmp_path: Path) -> None:
+async def test_load_menu_config_rejects_unsupported_version(tmp_path: Path) -> None:
     config_file = tmp_path / "menu.json5"
     payload = menu_config_defaults()
     payload["version"] = 999
-    config_file.write_text(json5.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    async with aiofiles.open(config_file, "w", encoding="utf-8") as f:
+        await f.write(json5.dumps(payload, ensure_ascii=False))
 
     with pytest.raises(MenuConfigError, match="unsupported menu config version"):
-        load_menu_config(config_file)
+        await load_menu_config(config_file)
 
 
-def test_load_menu_config_warns_unknown_page_id(tmp_path: Path) -> None:
+async def test_load_menu_config_warns_unknown_page_id(tmp_path: Path) -> None:
     config_file = tmp_path / "menu.json5"
     payload = menu_config_defaults()
     payload["pages"].insert(
         0,
         {"id": "unknown-page", "title": {"zh_CN": "未知", "en_US": "Unknown"}},
     )
-    config_file.write_text(json5.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    async with aiofiles.open(config_file, "w", encoding="utf-8") as f:
+        await f.write(json5.dumps(payload, ensure_ascii=False))
 
     with patch(
         "src.plugins.nonebot_plugin_lingchu_bot.core.menu_config.logger.warning"
     ) as mock_warning:
-        pages, _ = load_menu_config(config_file)
+        pages, _ = await load_menu_config(config_file)
 
     assert "unknown-page" not in {page.id for page in pages}
     assert {page.id for page in pages} >= {"member-management", "system-management"}
@@ -198,14 +205,17 @@ async def test_ensure_menu_config_file_async_creates_then_idempotent(
     config_file = tmp_path / "menu.json5"
 
     created = await ensure_menu_config_file_async(config_file)
-    first_content = config_file.read_text(encoding="utf-8")
-    config_file.write_text("{version: 2, pages: []}", encoding="utf-8")
+    async with aiofiles.open(config_file, encoding="utf-8") as f:
+        first_content = await f.read()
+    async with aiofiles.open(config_file, "w", encoding="utf-8") as f:
+        await f.write("{version: 2, pages: []}")
     second = await ensure_menu_config_file_async(config_file)
 
     assert created == config_file
     assert second == config_file
     assert MENU_SCHEMA_BASENAME in first_content
-    assert config_file.read_text(encoding="utf-8") == "{version: 2, pages: []}"
+    async with aiofiles.open(config_file, encoding="utf-8") as f:
+        assert await f.read() == "{version: 2, pages: []}"
 
 
 def _feature_by_key(

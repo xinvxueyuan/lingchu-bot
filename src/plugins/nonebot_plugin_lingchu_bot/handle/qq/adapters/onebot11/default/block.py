@@ -83,7 +83,7 @@ async def _block_member(  # noqa: PLR0913
     event: OneBot11GroupMessageEvent,
 ) -> Any:
     # 检查功能是否启用
-    config = get_handle_config_manager().get_config("block_member")
+    config = await get_handle_config_manager().get_config("block_member")
     if not config.enabled:
         return await command.finish(await _("该功能已禁用"))
 
@@ -396,7 +396,7 @@ async def onebot11_reject_blocklisted_group_request(
         return
 
     # 读取配置中的default_reason
-    config = get_handle_config_manager().get_config("block_member")
+    config = await get_handle_config_manager().get_config("block_member")
     default_reason_text = config.defaults.get("default_reason", "违反群规")
 
     try:

@@ -42,7 +42,7 @@ def _mock_handle_config_manager():
     enabled_config = HandleConfig(enabled=True, defaults={}, policies={})
 
     class MockManager:
-        def get_config(self, command_key: str) -> HandleConfig:
+        async def get_config(self, command_key: str) -> HandleConfig:
             return enabled_config
 
     with patch.object(

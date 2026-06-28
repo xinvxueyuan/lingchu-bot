@@ -7,6 +7,7 @@ import hashlib
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiofiles
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import profile
@@ -60,7 +61,8 @@ async def test_onebot11_set_group_avatar_calls_napcat_api(
     )
     mock_onebot11_bot.call_api = AsyncMock()
     image_path = tmp_path / "test.png"
-    image_path.write_bytes(b"fake-image-bytes")
+    async with aiofiles.open(image_path, "wb") as f:
+        await f.write(b"fake-image-bytes")
     resolve_path = (
         "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11"
         ".default.profile._resolve_image_path"
@@ -141,4 +143,5 @@ async def test_resolve_image_path_caches_raw_bytes(
     expected_path = tmp_path / "announcement_images" / f"{expected_md5}.png"
     assert result == expected_path
     assert result is not None
-    assert result.read_bytes() == raw_bytes
+    async with aiofiles.open(result, "rb") as f:
+        assert await f.read() == raw_bytes

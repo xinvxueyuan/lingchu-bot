@@ -124,7 +124,7 @@ async def onebot11_protect_member(
     reason: str | None = None,
 ) -> Any:
     # 检查功能是否启用
-    config = get_handle_config_manager().get_config("protect_member")
+    config = await get_handle_config_manager().get_config("protect_member")
     if not config.enabled:
         return await protect_member_cmd.finish(await _("该功能已禁用"))
 
@@ -153,7 +153,7 @@ async def onebot11_global_protect_member(
     reason: str | None = None,
 ) -> Any:
     # 检查功能是否启用（global版本共用protect_member配置）
-    config = get_handle_config_manager().get_config("protect_member")
+    config = await get_handle_config_manager().get_config("protect_member")
     if not config.enabled:
         return await global_protect_member_cmd.finish(await _("该功能已禁用"))
 
@@ -234,7 +234,7 @@ async def onebot11_unprotect_member(
     reason: str | None = None,
 ) -> Any:
     # 检查功能是否启用（取消保护共用protect_member配置）
-    config = get_handle_config_manager().get_config("protect_member")
+    config = await get_handle_config_manager().get_config("protect_member")
     if not config.enabled:
         return await unprotect_member_cmd.finish(await _("该功能已禁用"))
 
@@ -260,7 +260,7 @@ async def onebot11_global_unprotect_member(
     reason: str | None = None,
 ) -> Any:
     # 检查功能是否启用（取消保护共用protect_member配置）
-    config = get_handle_config_manager().get_config("protect_member")
+    config = await get_handle_config_manager().get_config("protect_member")
     if not config.enabled:
         return await global_unprotect_member_cmd.finish(await _("该功能已禁用"))
 

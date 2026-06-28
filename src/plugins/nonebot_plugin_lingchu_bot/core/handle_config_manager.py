@@ -16,7 +16,7 @@ from nonebot_plugin_localstore import get_plugin_config_file
 
 from ..database.json5_store import (
     ensure_json5_dict_file_async,
-    load_json5_dict_sync,
+    load_json5_dict_async,
     write_json5_dict_file_async,
 )
 from .handle_config_defaults import HANDLE_DEFAULTS_REGISTRY
@@ -50,7 +50,7 @@ class HandleConfigManager:
     _cache: ClassVar[dict[str, HandleConfig]] = {}
     _SCHEMA_REF: Final[str] = HANDLE_CONFIG_SCHEMA_BASENAME
 
-    def get_config(self, command_key: str) -> HandleConfig:
+    async def get_config(self, command_key: str) -> HandleConfig:
         """Get handle configuration for a specific command.
 
         Loads configuration from the JSON5 file managed by localstore.
@@ -77,7 +77,7 @@ class HandleConfigManager:
 
         try:
             # Try to load existing file
-            config_dict = load_json5_dict_sync(file_path)
+            config_dict = await load_json5_dict_async(file_path)
             # Ensure $schema field is present
             if "$schema" not in config_dict:
                 config_dict["$schema"] = self._SCHEMA_REF
@@ -121,7 +121,7 @@ class HandleConfigManager:
 
         # Load existing config or use defaults
         try:
-            config_dict = load_json5_dict_sync(file_path)
+            config_dict = await load_json5_dict_async(file_path)
             if "$schema" not in config_dict:
                 config_dict["$schema"] = self._SCHEMA_REF
         except Exception:  # noqa: BLE001
@@ -152,14 +152,14 @@ class HandleConfigManager:
 
         logger.info(f"Handle config updated and persisted for {command_key}")
 
-    def get_all_configs(self) -> dict[str, HandleConfig]:
+    async def get_all_configs(self) -> dict[str, HandleConfig]:
         """Get configurations for all registered handle commands.
 
         Returns:
             Dictionary mapping command_key to HandleConfig instances.
         """
         return {
-            command_key: self.get_config(command_key)
+            command_key: await self.get_config(command_key)
             for command_key in HANDLE_DEFAULTS_REGISTRY
         }
 

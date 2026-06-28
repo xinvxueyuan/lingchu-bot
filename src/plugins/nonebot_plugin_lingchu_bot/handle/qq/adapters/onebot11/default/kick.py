@@ -107,7 +107,7 @@ async def onebot11_kick_member(
 ) -> Any:
     """OneBot V11 踢出群成员处理器"""
     # 检查功能是否启用
-    config = get_handle_config_manager().get_config("kick_member")
+    config = await get_handle_config_manager().get_config("kick_member")
     if not config.enabled:
         return await kick_member_cmd.finish(await _("该功能已禁用"))
 

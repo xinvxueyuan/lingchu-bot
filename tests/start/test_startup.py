@@ -17,18 +17,18 @@ async def test_startup_imports_group_and_menu_handlers(
     group_import = AsyncMock()
     menu_import = AsyncMock(side_effect=lambda: calls.append("menu_import"))
 
-    monkeypatch.setattr(startup_module, "install_schemas", MagicMock())
+    monkeypatch.setattr(startup_module, "install_schemas", AsyncMock())
     monkeypatch.setattr(startup_module, "ensure_runtime_config_file_async", AsyncMock())
     monkeypatch.setattr(
         startup_module,
         "ensure_menu_config_file_async",
         AsyncMock(side_effect=lambda: calls.append("ensure_menu_config")),
     )
-    monkeypatch.setattr(startup_module, "load_bot_state", MagicMock())
+    monkeypatch.setattr(startup_module, "load_bot_state", AsyncMock())
     monkeypatch.setattr(
         startup_module,
         "load_menu_config",
-        MagicMock(
+        AsyncMock(
             side_effect=lambda: (
                 startup_module.menu_module.MENU_PAGES,
                 startup_module.menu_module.MENU_FEATURES,

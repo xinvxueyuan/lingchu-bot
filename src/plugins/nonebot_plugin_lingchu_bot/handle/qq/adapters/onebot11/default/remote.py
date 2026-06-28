@@ -390,7 +390,7 @@ async def onebot11_remote_whole_unmute(
 ) -> Any:
     """远程全体解禁处理器"""
     # 检查功能是否启用（全体解禁共用remote_mute配置）
-    config = get_handle_config_manager().get_config("remote_mute")
+    config = await get_handle_config_manager().get_config("remote_mute")
     if not config.enabled:
         return await remote_whole_unmute_cmd.finish(await _("该功能已禁用"))
 
@@ -680,7 +680,7 @@ async def onebot11_remote_announcement(
 ) -> Any:
     """远程公告处理器"""
     # 检查功能是否启用
-    config = get_handle_config_manager().get_config("remote_announcement")
+    config = await get_handle_config_manager().get_config("remote_announcement")
     if not config.enabled:
         return await remote_announcement_cmd.finish(await _("该功能已禁用"))
 

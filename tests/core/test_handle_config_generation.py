@@ -9,6 +9,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
+import aiofiles
 import json5
 import pytest
 
@@ -77,7 +78,7 @@ async def test_ensure_config_files_creates_all_handles(
 ):
     """Test that ensure_config_files creates configuration files for all registered handles."""
     # Install schemas first
-    install_schemas()
+    await install_schemas()
 
     # Ensure config files are created
     await config_manager.ensure_config_files()
@@ -94,7 +95,7 @@ async def test_ensure_config_files_creates_all_handles(
 async def test_kick_member_config_content(patched_localstore: Path):
     """Test that kick_member.json5 has the expected content."""
     # Install schemas first
-    install_schemas()
+    await install_schemas()
 
     # Ensure file exists
     config_manager = HandleConfigManager()
@@ -103,7 +104,8 @@ async def test_kick_member_config_content(patched_localstore: Path):
     file_path = patched_localstore / "kick_member.json5"
 
     # Load and verify content
-    content = file_path.read_text(encoding="utf-8")
+    async with aiofiles.open(file_path, encoding="utf-8") as f:
+        content = await f.read()
     config_dict = json5.loads(content)
 
     # Verify schema reference
@@ -131,7 +133,7 @@ async def test_kick_member_config_content(patched_localstore: Path):
 async def test_protect_member_config_content(patched_localstore: Path):
     """Test that protect_member.json5 has the expected content."""
     # Install schemas first
-    install_schemas()
+    await install_schemas()
 
     # Ensure file exists
     config_manager = HandleConfigManager()
@@ -140,7 +142,8 @@ async def test_protect_member_config_content(patched_localstore: Path):
     file_path = patched_localstore / "protect_member.json5"
 
     # Load and verify content
-    content = file_path.read_text(encoding="utf-8")
+    async with aiofiles.open(file_path, encoding="utf-8") as f:
+        content = await f.read()
     config_dict = json5.loads(content)
 
     # Verify schema reference
@@ -162,7 +165,7 @@ async def test_protect_member_config_content(patched_localstore: Path):
 async def test_block_member_config_content(patched_localstore: Path):
     """Test that block_member.json5 has the expected content."""
     # Install schemas first
-    install_schemas()
+    await install_schemas()
 
     # Ensure file exists
     config_manager = HandleConfigManager()
@@ -171,7 +174,8 @@ async def test_block_member_config_content(patched_localstore: Path):
     file_path = patched_localstore / "block_member.json5"
 
     # Load and verify content
-    content = file_path.read_text(encoding="utf-8")
+    async with aiofiles.open(file_path, encoding="utf-8") as f:
+        content = await f.read()
     config_dict = json5.loads(content)
 
     # Verify schema reference
@@ -195,7 +199,7 @@ async def test_block_member_config_content(patched_localstore: Path):
 async def test_member_mute_config_content(patched_localstore: Path):
     """Test that member_mute.json5 has the expected content."""
     # Install schemas first
-    install_schemas()
+    await install_schemas()
 
     # Ensure file exists
     config_manager = HandleConfigManager()
@@ -204,7 +208,8 @@ async def test_member_mute_config_content(patched_localstore: Path):
     file_path = patched_localstore / "member_mute.json5"
 
     # Load and verify content
-    content = file_path.read_text(encoding="utf-8")
+    async with aiofiles.open(file_path, encoding="utf-8") as f:
+        content = await f.read()
     config_dict = json5.loads(content)
 
     # Verify schema reference
@@ -228,7 +233,7 @@ async def test_member_mute_config_content(patched_localstore: Path):
 async def test_recall_message_config_content(patched_localstore: Path):
     """Test that recall_message.json5 has the expected content."""
     # Install schemas first
-    install_schemas()
+    await install_schemas()
 
     # Ensure file exists
     config_manager = HandleConfigManager()
@@ -237,7 +242,8 @@ async def test_recall_message_config_content(patched_localstore: Path):
     file_path = patched_localstore / "recall_message.json5"
 
     # Load and verify content
-    content = file_path.read_text(encoding="utf-8")
+    async with aiofiles.open(file_path, encoding="utf-8") as f:
+        content = await f.read()
     config_dict = json5.loads(content)
 
     # Verify schema reference
@@ -255,22 +261,21 @@ async def test_recall_message_config_content(patched_localstore: Path):
     assert defaults["default_count"] == 10
 
 
-def test_schema_validation_for_all_handles(
+async def test_schema_validation_for_all_handles(
     config_manager: HandleConfigManager,
     patched_localstore: Path,
 ):
     """Test that all generated configurations pass JSON Schema validation."""
-    import asyncio
-
     # Install schemas and ensure config files exist
-    install_schemas()
-    asyncio.run(config_manager.ensure_config_files())
+    await install_schemas()
+    await config_manager.ensure_config_files()
 
     schema = json.loads(HANDLE_CONFIG_SCHEMA_TEXT)
 
     for command_key in HANDLE_DEFAULTS_REGISTRY:
         file_path = patched_localstore / f"{command_key}.json5"
-        content = file_path.read_text(encoding="utf-8")
+        async with aiofiles.open(file_path, encoding="utf-8") as f:
+            content = await f.read()
         config_dict = json5.loads(content)
 
         # Validate using manager method
@@ -278,38 +283,36 @@ def test_schema_validation_for_all_handles(
         assert is_valid, f"Config for {command_key} should pass schema validation"
 
 
-def test_json5_format_is_parseable(patched_localstore: Path):
+async def test_json5_format_is_parseable(patched_localstore: Path):
     """Test that generated JSON5 files can be parsed by json5 library."""
-    import asyncio
-
     # Install schemas
-    install_schemas()
+    await install_schemas()
 
     config_manager = HandleConfigManager()
-    asyncio.run(config_manager.ensure_config_files())
+    await config_manager.ensure_config_files()
 
     for command_key in HANDLE_DEFAULTS_REGISTRY:
         file_path = patched_localstore / f"{command_key}.json5"
-        content = file_path.read_text(encoding="utf-8")
+        async with aiofiles.open(file_path, encoding="utf-8") as f:
+            content = await f.read()
 
         # Should parse without error
         config_dict = json5.loads(content)
         assert isinstance(config_dict, dict)
 
 
-def test_config_matches_defaults(patched_localstore: Path):
+async def test_config_matches_defaults(patched_localstore: Path):
     """Test that generated configurations match registered defaults."""
-    import asyncio
-
     # Install schemas
-    install_schemas()
+    await install_schemas()
 
     config_manager = HandleConfigManager()
-    asyncio.run(config_manager.ensure_config_files())
+    await config_manager.ensure_config_files()
 
     for command_key, expected_defaults in HANDLE_DEFAULTS_REGISTRY.items():
         file_path = patched_localstore / f"{command_key}.json5"
-        content = file_path.read_text(encoding="utf-8")
+        async with aiofiles.open(file_path, encoding="utf-8") as f:
+            content = await f.read()
         config_dict = json5.loads(content)
 
         # Check that defaults match
