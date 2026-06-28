@@ -8,7 +8,7 @@ from nonebot import require
 
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import Model
-from sqlalchemy import Integer, UniqueConstraint
+from sqlalchemy import Identity, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .._dialect_compat import CompatDateTimeTZ, CompatText, compat_string
@@ -35,7 +35,7 @@ class MessageRecord(Model):
         ),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     protocol_id: Mapped[str | None] = mapped_column(compat_string(64), index=True)
@@ -76,7 +76,7 @@ class AuditRecord(Model):
 
     __tablename__ = "lingchu_audit_records"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     protocol_id: Mapped[str | None] = mapped_column(compat_string(64), index=True)
@@ -112,7 +112,7 @@ class QQOneBotV11NoneBotEventRecord(Model):
         ),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     protocol_id: Mapped[str | None] = mapped_column(compat_string(64), index=True)
@@ -153,7 +153,7 @@ class QQOneBotV11NoneBotAuditRecord(Model):
 
     __tablename__ = "lingchu_qq_onebot_v11_nonebot_audit_records"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     protocol_id: Mapped[str | None] = mapped_column(compat_string(64), index=True)
