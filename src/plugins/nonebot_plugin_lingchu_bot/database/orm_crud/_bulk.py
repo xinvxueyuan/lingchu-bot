@@ -198,6 +198,52 @@ def _mysql_upsert_set_values(
     return {key: getattr(stmt.inserted, key) for key in update_keys}
 
 
+_MISSING_DEFAULT = object()
+
+
+def _evaluate_python_column_default(default: Any) -> Any:
+    """Return a Python-side SQLAlchemy column default, if it can be evaluated."""
+    if default is None:
+        return _MISSING_DEFAULT
+    if getattr(default, "is_scalar", False):
+        return default.arg
+    if getattr(default, "is_callable", False):
+        try:
+            return default.arg(None)
+        except TypeError:
+            return default.arg()
+    return _MISSING_DEFAULT
+
+
+def _prepare_merge_insert_values[T: Model](
+    model: type[T],
+    insert_values: dict[str, Any],
+) -> dict[str, Any]:
+    """Fill raw MERGE insert values with Python-side defaults.
+
+    SQLAlchemy applies ``Column.default`` when it builds INSERT constructs. The
+    Oracle and SQL Server upsert path uses raw text MERGE, so those defaults must
+    be evaluated before rendering the INSERT branch.
+    """
+    prepared = dict(insert_values)
+    table = getattr(model, "__table__", None)
+    if table is None:
+        return prepared
+
+    for column in table.columns:
+        key = column.key
+        if key in prepared:
+            continue
+        if column.primary_key and column.identity is not None:
+            continue
+
+        default_value = _evaluate_python_column_default(column.default)
+        if default_value is not _MISSING_DEFAULT:
+            prepared[key] = default_value
+
+    return prepared
+
+
 def _build_merge_sql(  # noqa: PLR0913
     table: str,
     insert_values: dict[str, Any],
@@ -249,7 +295,7 @@ def _build_merge_sql(  # noqa: PLR0913
         f"ON ({on_predicates}) "
         f"WHEN MATCHED THEN UPDATE SET {set_clause} "
         f"WHEN NOT MATCHED THEN INSERT ({insert_cols}) "
-        f"VALUES ({insert_values_clause})"
+        f"VALUES ({insert_values_clause});"
     )
 
     params: dict[str, Any] = dict(insert_values)
@@ -442,6 +488,7 @@ async def _oracle_upsert[T: Model](  # noqa: PLR0913
         raise ValueError("Oracle upsert requires conflict_fields for MERGE ON clause")
 
     table = model.__tablename__
+    insert_values = _prepare_merge_insert_values(model, insert_values)
     merge_sql, params = _build_merge_sql(
         table,
         insert_values,
@@ -502,6 +549,7 @@ async def _mssql_upsert[T: Model](  # noqa: PLR0913
         )
 
     table = model.__tablename__
+    insert_values = _prepare_merge_insert_values(model, insert_values)
     merge_sql, params = _build_merge_sql(
         table,
         insert_values,
