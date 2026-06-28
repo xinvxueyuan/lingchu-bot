@@ -279,20 +279,14 @@ pnpm exec markdownlint-cli2 README.md README-zh.md
 
 ## 致谢
 
-感谢 [NoneBot](https://nonebot.dev/) 项目和社区生态提供的基础能力。本项目也依赖并感谢这些工具与插件：
+Lingchu Bot 建立在许多优秀开源项目之上。特别感谢这些上游项目与社区：
 
-- [nonebot-plugin-alconna](https://github.com/nonebot/plugin-alconna)
-- [nonebot-plugin-localstore](https://github.com/nonebot/plugin-localstore)
-- [nonebot-plugin-orm](https://github.com/nonebot/plugin-orm)
-- [nonebot-plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler)
-- [Fumadocs](https://fumadocs.dev/)
-- [Next.js](https://nextjs.org/)
-- [Vitest](https://vitest.dev/)
-- [Ruff](https://docs.astral.sh/ruff/)
-- [Pyright](https://microsoft.github.io/pyright/)
-- [ty](https://docs.astral.sh/ty/)
+- **机器人运行时与适配器生态**：[NoneBot2](https://nonebot.dev/)、[nonebot-adapter-onebot](https://github.com/nonebot/adapter-onebot)、`nonebot-plugin-alconna`、`nonebot-plugin-localstore`、`nonebot-plugin-orm`、`nonebot-plugin-apscheduler`、`nonebot-plugin-htmlkit`、`nonebot-plugin-docs` 和 `nonebot-plugin-wait-a-minute`。
+- **Python 配置、存储与服务工具**：`aiofiles`、`json5`、`rtoml`、`jsonschema`、[Babel](https://babel.pocoo.org/)、[Jinja](https://jinja.palletsprojects.com/)、[Typer](https://typer.tiangolo.com/)、[Arrow](https://arrow.readthedocs.io/)、`psutil` 和 [OpenAI Python SDK](https://github.com/openai/openai-python)。
+- **文档站与前端栈**：[Fumadocs](https://fumadocs.dev/)、[Next.js](https://nextjs.org/)、[React](https://react.dev/)、[Mermaid](https://mermaid.js.org/)、[Twoslash](https://twoslash.netlify.app/)、[FlexSearch](https://github.com/nextapps-de/flexsearch)、[D3](https://d3js.org/)、[DOMPurify](https://github.com/cure53/DOMPurify)、[Feed](https://github.com/jpmonette/feed) 和 [Tailwind CSS](https://tailwindcss.com/)。
+- **工程质量、测试与仓库工作流**：[uv](https://docs.astral.sh/uv/)、[pnpm](https://pnpm.io/)、[Turborepo](https://turbo.build/repo)、[Ruff](https://docs.astral.sh/ruff/)、[Pyright](https://microsoft.github.io/pyright/)、[ty](https://docs.astral.sh/ty/)、[pytest](https://docs.pytest.org/)、[Vitest](https://vitest.dev/)、[Playwright](https://playwright.dev/)、[markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2)、[Prettier](https://prettier.io/)、[ESLint](https://eslint.org/)、[Husky](https://typicode.github.io/husky/)、[Gitmoji](https://gitmoji.dev/)、[GitNexus](https://github.com/xinxingji/gitnexus) 和 [FOSSA](https://fossa.com/)。
 
-完整依赖列表请以 [pyproject.toml](pyproject.toml) 和 [uv.lock](uv.lock) 为准。
+完整依赖列表请以 [pyproject.toml](pyproject.toml)、[package.json](package.json)、[apps/docs/package.json](apps/docs/package.json) 和 [uv.lock](uv.lock) 为准。
 
 ## 许可证合规
 
