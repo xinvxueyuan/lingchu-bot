@@ -25,6 +25,8 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, Final
 
+import aiofiles
+import aiofiles.os
 from nonebot import logger
 from nonebot_plugin_localstore import get_plugin_config_dir, get_plugin_data_dir
 
@@ -312,30 +314,25 @@ def generate_handle_schema(command_key: str, defaults_fields: dict[str, Any]) ->
     return json.dumps(schema_obj, indent=2, ensure_ascii=False)
 
 
-def install_schemas() -> None:
-    """Write JSON5 schema files to the localstore config / data directories.
-
-    The schemas are placed as siblings of ``config.json5``, ``menu.json5``, and
-    ``bot_state.json5`` respectively, so the ``$schema`` basename injected
-    by :mod:`core.runtime_config`, :mod:`core.bot_state`, and handle modules
-    resolves to a real file managed by ``nonebot_plugin_localstore``. Calling
-    this function multiple times is safe: the writes are idempotent.
-    """
+async def install_schemas() -> None:
+    """Write JSON5 schema files to localstore dirs; idempotent, propagates I/O errors."""
     config_dir: Path = get_plugin_config_dir()
     config_path: Path = config_dir / CONFIG_SCHEMA_BASENAME
     menu_path: Path = config_dir / MENU_SCHEMA_BASENAME
     handle_config_path: Path = config_dir / HANDLE_CONFIG_SCHEMA_BASENAME
     data_path: Path = get_plugin_data_dir() / BOT_STATE_SCHEMA_BASENAME
 
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    menu_path.parent.mkdir(parents=True, exist_ok=True)
-    handle_config_path.parent.mkdir(parents=True, exist_ok=True)
-    data_path.parent.mkdir(parents=True, exist_ok=True)
+    await aiofiles.os.makedirs(config_path.parent, exist_ok=True)
+    await aiofiles.os.makedirs(data_path.parent, exist_ok=True)
 
-    config_path.write_text(CONFIG_SCHEMA_TEXT, encoding="utf-8")
-    menu_path.write_text(MENU_SCHEMA_TEXT, encoding="utf-8")
-    handle_config_path.write_text(HANDLE_CONFIG_SCHEMA_TEXT, encoding="utf-8")
-    data_path.write_text(BOT_STATE_SCHEMA_TEXT, encoding="utf-8")
+    async with aiofiles.open(config_path, "w", encoding="utf-8") as f:
+        await f.write(CONFIG_SCHEMA_TEXT)
+    async with aiofiles.open(menu_path, "w", encoding="utf-8") as f:
+        await f.write(MENU_SCHEMA_TEXT)
+    async with aiofiles.open(handle_config_path, "w", encoding="utf-8") as f:
+        await f.write(HANDLE_CONFIG_SCHEMA_TEXT)
+    async with aiofiles.open(data_path, "w", encoding="utf-8") as f:
+        await f.write(BOT_STATE_SCHEMA_TEXT)
 
     logger.debug(
         "Lingchu JSON5 schemas installed: "

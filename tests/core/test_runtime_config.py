@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import aiofiles
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.core import runtime_config as runtime_module
@@ -195,11 +196,13 @@ async def test_ensure_runtime_config_file_async_does_not_overwrite_existing(
     tmp_path: Path,
 ) -> None:
     config_file = tmp_path / "config.json5"
-    config_file.write_text("{message_store_retention_days: 7}", encoding="utf-8")
+    async with aiofiles.open(config_file, "w", encoding="utf-8") as f:
+        await f.write("{message_store_retention_days: 7}")
 
     await ensure_runtime_config_file_async(config_file)
 
-    assert "7" in config_file.read_text(encoding="utf-8")
+    async with aiofiles.open(config_file, encoding="utf-8") as f:
+        assert "7" in await f.read()
 
 
 def test_runtime_config_invalid_json5_includes_path(tmp_path: Path) -> None:

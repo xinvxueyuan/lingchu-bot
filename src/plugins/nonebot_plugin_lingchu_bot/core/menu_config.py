@@ -14,7 +14,7 @@ from nonebot_plugin_localstore import get_plugin_config_file
 from ..database.json5_store import (
     DatabaseError,
     ensure_json5_dict_file_async,
-    load_json5_dict_sync,
+    load_json5_dict_async,
 )
 from ..handle import menu as menu_module
 from ..handle.menu import LocalizedText, MenuFeature, MenuPage
@@ -59,13 +59,13 @@ def menu_config_defaults() -> dict[str, Any]:
     }
 
 
-def load_menu_config(
+async def load_menu_config(
     config_file: str | Path | None = None,
 ) -> tuple[tuple[MenuPage, ...], tuple[MenuFeature, ...]]:
     """Load menu pages and features from JSON5, merged onto code defaults."""
     path = Path(config_file) if config_file is not None else get_menu_config_file()
     try:
-        raw_config = load_json5_dict_sync(
+        raw_config = await load_json5_dict_async(
             path,
             default=menu_config_defaults(),
             merge_default=False,

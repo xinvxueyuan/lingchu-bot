@@ -176,6 +176,7 @@ def load_runtime_json_defaults(
     """Load low-priority runtime defaults from JSON5."""
     path = Path(config_file) if config_file is not None else get_runtime_config_file()
     try:
+        # Import-time sync I/O: no event loop exists yet at module load.
         return load_json5_dict_sync(path, default={}, merge_default=False)
     except DatabaseError as exc:
         raise RuntimeConfigError(path, exc) from exc
@@ -327,6 +328,7 @@ def ensure_runtime_config_file(
     """Create the default JSON5 runtime config file on first startup."""
     path = Path(config_file) if config_file is not None else get_runtime_config_file()
     try:
+        # Sync I/O: import-time API; runtime uses ensure_runtime_config_file_async.
         return ensure_json5_dict_file_sync(path, runtime_config_defaults())
     except DatabaseError as exc:
         raise RuntimeConfigError(path, exc) from exc
@@ -372,7 +374,7 @@ def get_handle_config_manager() -> HandleConfigManager:
 
     Example:
         >>> manager = get_handle_config_manager()
-        >>> config = manager.get_config("kick_member")
+        >>> config = await manager.get_config("kick_member")
     """
     global _handle_config_manager  # noqa: PLW0603
     if _handle_config_manager is None:
@@ -407,7 +409,7 @@ async def initialize_handle_config_manager() -> None:
     manager = get_handle_config_manager()
     await manager.ensure_config_files()
     # Preload all configs into cache
-    manager.get_all_configs()
+    await manager.get_all_configs()
 
 
 __all__ = [

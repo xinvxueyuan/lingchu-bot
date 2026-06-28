@@ -16,6 +16,7 @@ import aiofiles
 import aiofiles.os
 import json5
 
+from ._helpers import _deepcopy_async, _json5_loads_async
 from .exceptions import InvalidJSON5RootTypeError, JSON5FileReadError
 
 
@@ -25,11 +26,7 @@ def load_json5_dict_sync(
     default: dict[str, Any] | None = None,
     merge_default: bool = False,
 ) -> dict[str, Any]:
-    """同步读取 JSON5 字典文件。
-
-    该 helper 面向插件导入期等不能 await 的轻量配置场景。文件不存在或
-    内容为空时返回 default 的深拷贝；文件存在但解析失败时抛出明确错误。
-    """
+    """Import-time-only sync read; runtime callers must use load_json5_dict_async."""
     path = Path(file_path)
     default_copy: dict[str, Any] = deepcopy(default) if default is not None else {}
     if not path.exists():
@@ -49,6 +46,35 @@ def load_json5_dict_sync(
     return default_copy | loaded
 
 
+async def load_json5_dict_async(
+    file_path: str | Path,
+    *,
+    default: dict[str, Any] | None = None,
+    merge_default: bool = False,
+) -> dict[str, Any]:
+    """异步读取 JSON5 字典文件，镜像 ``load_json5_dict_sync`` 的语义。"""
+    path = Path(file_path)
+    default_copy: dict[str, Any] = await _deepcopy_async(
+        default if default is not None else {}
+    )
+    if not await aiofiles.os.path.exists(path):
+        return default_copy
+
+    try:
+        async with aiofiles.open(path, encoding="utf-8") as f:
+            content = await f.read()
+        loaded = await _json5_loads_async(content) if content.strip() else default_copy
+    except (OSError, ValueError) as exc:
+        raise JSON5FileReadError(path, exc) from exc
+
+    if not isinstance(loaded, dict):
+        raise InvalidJSON5RootTypeError(path, type(loaded))
+
+    if not merge_default:
+        return loaded
+    return default_copy | loaded
+
+
 def ensure_json5_dict_file_sync(
     file_path: str | Path,
     default: dict[str, Any],
@@ -56,7 +82,7 @@ def ensure_json5_dict_file_sync(
     indent: int = 2,
     ensure_ascii: bool = False,
 ) -> Path:
-    """确保 JSON5 字典文件存在，已存在时不覆盖。"""
+    """Import-time-only sync ensure; use ensure_json5_dict_file_async at runtime."""
     path = Path(file_path)
     if path.exists():
         return path

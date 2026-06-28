@@ -16,8 +16,8 @@ from nonebot import logger
 from nonebot_plugin_localstore import get_plugin_data_file
 
 from ..database.json5_store import (
-    ensure_json5_dict_file_sync,
-    load_json5_dict_sync,
+    ensure_json5_dict_file_async,
+    load_json5_dict_async,
     write_json5_dict_file_async,
 )
 from .async_utils import fire_and_forget
@@ -52,11 +52,11 @@ def _get_state_file_path() -> Path:
     return get_plugin_data_file(_BOT_STATE_FILENAME)
 
 
-def load_bot_state() -> None:
+async def load_bot_state() -> None:
     """Load bot state from JSON5 file into memory. Called at startup."""
     path = _get_state_file_path()
-    ensure_json5_dict_file_sync(path, _DEFAULT_STATE)
-    data = load_json5_dict_sync(path, default=_DEFAULT_STATE, merge_default=True)
+    await ensure_json5_dict_file_async(path, _DEFAULT_STATE)
+    data = await load_json5_dict_async(path, default=_DEFAULT_STATE, merge_default=True)
 
     global_state = data.get("global", {})
     _state["global_handle_active"] = global_state.get("handle_active", True)

@@ -6,6 +6,7 @@ import hashlib
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiofiles
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import announcement
@@ -155,7 +156,8 @@ async def test_resolve_image_path_caches_raw_bytes(
     assert result is not None
     assert result.local_path == expected_path
     assert result.protocol_path is None
-    assert result.local_path.read_bytes() == raw_bytes
+    async with aiofiles.open(result.local_path, "rb") as f:
+        assert await f.read() == raw_bytes
 
 
 @pytest.mark.asyncio
@@ -179,7 +181,8 @@ async def test_resolve_image_path_uses_announcement_cache_bridge(
     assert result is not None
     assert result.local_path == host_cache_dir / f"{expected_md5}.png"
     assert result.protocol_path == f"/lingchu/announcement-images/{expected_md5}.png"
-    assert result.local_path.read_bytes() == raw_bytes
+    async with aiofiles.open(result.local_path, "rb") as f:
+        assert await f.read() == raw_bytes
 
 
 @pytest.mark.asyncio

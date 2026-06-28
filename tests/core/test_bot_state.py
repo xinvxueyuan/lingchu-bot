@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+import aiofiles
 import json5
 import pytest
 
@@ -36,42 +37,43 @@ def patched_state_dir(tmp_path: Path) -> Iterator[Path]:
         yield target
 
 
-def test_bot_state_default_contains_schema(
+async def test_bot_state_default_contains_schema(
     patched_state_dir: Path,  # type: ignore[ANN001]
 ) -> None:  # type: ignore[ANN001]
     """First-time load writes a default file with a ``$schema`` basename."""
     bot_state_module._reset_state_for_testing()
-    load_bot_state()
+    await load_bot_state()
 
     state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
     assert state_file.exists()
-    payload = json5.loads(state_file.read_text(encoding="utf-8"))
+    async with aiofiles.open(state_file, encoding="utf-8") as f:
+        payload = json5.loads(await f.read())
     assert payload["$schema"] == bot_state_module.BOT_STATE_SCHEMA_BASENAME
     assert payload["global"]["handle_active"] is True
     assert payload["global"]["silent_mode"] is False
     assert payload["platforms"] == {}
 
 
-def test_bot_state_existing_file_preserves_user_state(
+async def test_bot_state_existing_file_preserves_user_state(
     patched_state_dir: Path,  # type: ignore[ANN001]
-) -> None:
+) -> None:  # type: ignore[ANN001]
     """An existing ``bot_state.json5`` without ``$schema`` still loads."""
     bot_state_module._reset_state_for_testing()
     state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
-    state_file.write_text(
-        json5.dumps(
-            {
-                "global": {
-                    "handle_active": False,
-                    "silent_mode": True,
-                },
-                "platforms": {"qq": {"handle_active": False}},
-            }
-        ),
-        encoding="utf-8",
-    )
+    async with aiofiles.open(state_file, "w", encoding="utf-8") as f:
+        await f.write(
+            json5.dumps(
+                {
+                    "global": {
+                        "handle_active": False,
+                        "silent_mode": True,
+                    },
+                    "platforms": {"qq": {"handle_active": False}},
+                }
+            )
+        )
 
-    load_bot_state()
+    await load_bot_state()
 
     assert bot_state_module.get_global_handle_active() is False
     assert bot_state_module.get_global_silent_mode() is True
@@ -82,7 +84,7 @@ def test_bot_state_existing_file_preserves_user_state(
 @pytest.mark.asyncio
 async def test_bot_state_save_preserves_user_schema(
     patched_state_dir: Path,  # type: ignore[ANN001]
-) -> None:
+) -> None:  # type: ignore[ANN001]
     """Saving a state with a custom ``$schema`` keeps the user value."""
     bot_state_module._reset_state_for_testing()
     bot_state_module._state["$schema"] = "custom-bot-state.schema.json5"
@@ -90,7 +92,8 @@ async def test_bot_state_save_preserves_user_schema(
     await _save_bot_state()
 
     state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
-    payload = json5.loads(state_file.read_text(encoding="utf-8"))
+    async with aiofiles.open(state_file, encoding="utf-8") as f:
+        payload = json5.loads(await f.read())
     assert payload["$schema"] == "custom-bot-state.schema.json5"
 
 
@@ -105,5 +108,6 @@ async def test_bot_state_save_falls_back_to_default_basename(
     await _save_bot_state()
 
     state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
-    payload = json5.loads(state_file.read_text(encoding="utf-8"))
+    async with aiofiles.open(state_file, encoding="utf-8") as f:
+        payload = json5.loads(await f.read())
     assert payload["$schema"] == bot_state_module.BOT_STATE_SCHEMA_BASENAME

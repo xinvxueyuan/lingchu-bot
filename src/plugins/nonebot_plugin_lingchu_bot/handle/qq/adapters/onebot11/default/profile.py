@@ -30,7 +30,7 @@ async def onebot11_set_group_name(
     event: OneBot11GroupMessageEvent,
 ) -> Any:
     # 检查功能是否启用
-    config = get_handle_config_manager().get_config("set_group_name")
+    config = await get_handle_config_manager().get_config("set_group_name")
     if not config.enabled:
         return await set_group_name_cmd.finish(await _("该功能已禁用"))
 
@@ -69,7 +69,7 @@ async def onebot11_set_group_avatar(
     event: OneBot11GroupMessageEvent,
 ) -> Any:
     # 检查功能是否启用
-    config = get_handle_config_manager().get_config("set_group_avatar")
+    config = await get_handle_config_manager().get_config("set_group_avatar")
     if not config.enabled:
         return await set_group_avatar_cmd.finish(await _("该功能已禁用"))
 

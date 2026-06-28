@@ -18,6 +18,7 @@ from ._async_db import RobustAsyncJSON5DB
 from ._sync import (
     ensure_json5_dict_file_async,
     ensure_json5_dict_file_sync,
+    load_json5_dict_async,
     load_json5_dict_sync,
     write_json5_dict_file_async,
 )
@@ -58,6 +59,7 @@ __all__ = [
     "WatchAlreadyRunningError",
     "ensure_json5_dict_file_async",
     "ensure_json5_dict_file_sync",
+    "load_json5_dict_async",
     "load_json5_dict_sync",
     "write_json5_dict_file_async",
 ]

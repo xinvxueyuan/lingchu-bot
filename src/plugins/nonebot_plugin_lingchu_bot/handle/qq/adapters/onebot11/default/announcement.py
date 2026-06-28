@@ -79,7 +79,7 @@ async def onebot_v11_send_group_announcement(
     event: OneBBot11_GroupMessageEvent,
 ) -> None:
     # 检查功能是否启用
-    config = get_handle_config_manager().get_config("send_announcement")
+    config = await get_handle_config_manager().get_config("send_announcement")
     if not config.enabled:
         await send_group_announcement_cmd.finish(await _("该功能已禁用"))
         return

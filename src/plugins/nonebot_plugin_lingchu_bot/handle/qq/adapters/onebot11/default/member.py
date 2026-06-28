@@ -104,7 +104,7 @@ async def onebot11_set_group_member_special_title(
     event: OneBot11GroupMessageEvent,
 ) -> Any:
     # 检查功能是否启用
-    config = get_handle_config_manager().get_config("set_member_title")
+    config = await get_handle_config_manager().get_config("set_member_title")
     if not config.enabled:
         return await set_group_member_special_title_cmd.finish(await _("该功能已禁用"))
 
@@ -236,7 +236,7 @@ async def onebot11_kick_group_member(
     event: OneBot11GroupMessageEvent,
 ) -> Any:
     # 检查功能是否启用（kick_member配置已在kick.py中实现，此处共用）
-    config = get_handle_config_manager().get_config("kick_member")
+    config = await get_handle_config_manager().get_config("kick_member")
     if not config.enabled:
         return await kick_group_member_cmd.finish(await _("该功能已禁用"))
 

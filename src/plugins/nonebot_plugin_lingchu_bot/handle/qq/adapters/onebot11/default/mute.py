@@ -217,7 +217,7 @@ async def _resolve_recall_args(
     event: OneBot11GroupMessageEvent,
 ) -> tuple[int | None, str | None, int]:
     # 读取配置中的默认撤回数量
-    config = get_handle_config_manager().get_config("recall_message")
+    config = await get_handle_config_manager().get_config("recall_message")
     default_count = config.defaults.get("default_count", 10)
 
     if isinstance(target, At):
@@ -312,7 +312,7 @@ async def onebot11_mute(
     reason: str | None = None,
 ) -> Any:
     # 检查功能是否启用
-    config = get_handle_config_manager().get_config("member_mute")
+    config = await get_handle_config_manager().get_config("member_mute")
     if not config.enabled:
         return await member_mute_cmd.finish(await _("该功能已禁用"))
 
@@ -398,7 +398,7 @@ async def onebot11_whole_mute(
     event: OneBot11GroupMessageEvent,
 ) -> Any:
     # 检查功能是否启用（全体禁言共用member_mute配置）
-    config = get_handle_config_manager().get_config("member_mute")
+    config = await get_handle_config_manager().get_config("member_mute")
     if not config.enabled:
         return await whole_mute_cmd.finish(await _("该功能已禁用"))
 
@@ -426,7 +426,7 @@ async def onebot11_unmute(
     event: OneBot11GroupMessageEvent,
 ) -> Any:
     # 检查功能是否启用（解禁共用member_mute配置）
-    config = get_handle_config_manager().get_config("member_mute")
+    config = await get_handle_config_manager().get_config("member_mute")
     if not config.enabled:
         return await member_unmute_cmd.finish(await _("该功能已禁用"))
 
@@ -478,7 +478,7 @@ async def onebot11_whole_unmute(
     event: OneBot11GroupMessageEvent,
 ) -> Any:
     # 检查功能是否启用（全体解禁共用member_mute配置）
-    config = get_handle_config_manager().get_config("member_mute")
+    config = await get_handle_config_manager().get_config("member_mute")
     if not config.enabled:
         return await whole_unmute_cmd.finish(await _("该功能已禁用"))
 
@@ -505,7 +505,7 @@ async def onebot11_recall_message(
         return None
 
     # 检查功能是否启用
-    config = get_handle_config_manager().get_config("recall_message")
+    config = await get_handle_config_manager().get_config("recall_message")
     if not config.enabled:
         return await recall_message_cmd.finish(await _("该功能已禁用"))
 
