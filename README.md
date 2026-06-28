@@ -279,20 +279,14 @@ This project uses a composite license:
 
 ## Acknowledgments
 
-Thanks to the [NoneBot](https://nonebot.dev/) project and community ecosystem for providing foundational capabilities. This project also depends on and thanks these tools and plugins:
+Lingchu Bot stands on a lot of good open-source shoulders. Thanks especially to these upstream projects and communities:
 
-- [nonebot-plugin-alconna](https://github.com/nonebot/plugin-alconna)
-- [nonebot-plugin-localstore](https://github.com/nonebot/plugin-localstore)
-- [nonebot-plugin-orm](https://github.com/nonebot/plugin-orm)
-- [nonebot-plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler)
-- [Fumadocs](https://fumadocs.dev/)
-- [Next.js](https://nextjs.org/)
-- [Vitest](https://vitest.dev/)
-- [Ruff](https://docs.astral.sh/ruff/)
-- [Pyright](https://microsoft.github.io/pyright/)
-- [ty](https://docs.astral.sh/ty/)
+- **Bot runtime and adapter ecosystem**: [NoneBot2](https://nonebot.dev/), [nonebot-adapter-onebot](https://github.com/nonebot/adapter-onebot), `nonebot-plugin-alconna`, `nonebot-plugin-localstore`, `nonebot-plugin-orm`, `nonebot-plugin-apscheduler`, `nonebot-plugin-htmlkit`, `nonebot-plugin-docs`, and `nonebot-plugin-wait-a-minute`.
+- **Python configuration, storage, and service utilities**: `aiofiles`, `json5`, `rtoml`, `jsonschema`, [Babel](https://babel.pocoo.org/), [Jinja](https://jinja.palletsprojects.com/), [Typer](https://typer.tiangolo.com/), [Arrow](https://arrow.readthedocs.io/), `psutil`, and the [OpenAI Python SDK](https://github.com/openai/openai-python).
+- **Documentation and frontend stack**: [Fumadocs](https://fumadocs.dev/), [Next.js](https://nextjs.org/), [React](https://react.dev/), [Mermaid](https://mermaid.js.org/), [Twoslash](https://twoslash.netlify.app/), [FlexSearch](https://github.com/nextapps-de/flexsearch), [D3](https://d3js.org/), [DOMPurify](https://github.com/cure53/DOMPurify), [Feed](https://github.com/jpmonette/feed), and [Tailwind CSS](https://tailwindcss.com/).
+- **Engineering, testing, and repository workflow**: [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io/), [Turborepo](https://turbo.build/repo), [Ruff](https://docs.astral.sh/ruff/), [Pyright](https://microsoft.github.io/pyright/), [ty](https://docs.astral.sh/ty/), [pytest](https://docs.pytest.org/), [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/), [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2), [Prettier](https://prettier.io/), [ESLint](https://eslint.org/), [Husky](https://typicode.github.io/husky/), [Gitmoji](https://gitmoji.dev/), [GitNexus](https://github.com/xinxingji/gitnexus), and [FOSSA](https://fossa.com/).
 
-For the complete dependency list, please refer to [pyproject.toml](pyproject.toml) and [uv.lock](uv.lock).
+For complete dependency lists, please refer to [pyproject.toml](pyproject.toml), [package.json](package.json), [apps/docs/package.json](apps/docs/package.json), and [uv.lock](uv.lock).
 
 ## License compliance
 
