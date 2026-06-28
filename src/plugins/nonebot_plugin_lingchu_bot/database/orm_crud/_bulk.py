@@ -198,8 +198,76 @@ def _mysql_upsert_set_values(
     return {key: getattr(stmt.inserted, key) for key in update_keys}
 
 
+_MISSING_DEFAULT = object()
+
+
+def _evaluate_python_column_default(default: Any) -> Any:
+    """Return a Python-side SQLAlchemy column default, if it can be evaluated."""
+    if default is None:
+        return _MISSING_DEFAULT
+    if getattr(default, "is_scalar", False):
+        return default.arg
+    if getattr(default, "is_callable", False):
+        try:
+            return default.arg(None)
+        except TypeError:
+            return default.arg()
+    return _MISSING_DEFAULT
+
+
+def _prepare_merge_insert_values[T: Model](
+    model: type[T],
+    insert_values: dict[str, Any],
+) -> dict[str, Any]:
+    """Fill raw MERGE insert values with Python-side defaults.
+
+    SQLAlchemy applies ``Column.default`` when it builds INSERT constructs. The
+    Oracle and SQL Server upsert path uses raw text MERGE, so those defaults must
+    be evaluated before rendering the INSERT branch.
+    """
+    prepared = dict(insert_values)
+    table = getattr(model, "__table__", None)
+    if table is None:
+        return prepared
+
+    for column in table.columns:
+        key = column.key
+        if key in prepared:
+            continue
+        if column.primary_key and column.identity is not None:
+            continue
+
+        default_value = _evaluate_python_column_default(column.default)
+        if default_value is not _MISSING_DEFAULT:
+            prepared[key] = default_value
+
+    return prepared
+
+
+def _merge_target_identifiers[T: Model](
+    s: AsyncSession,
+    model: type[T],
+    keys: Sequence[str],
+) -> tuple[str, dict[str, str]]:
+    """Return dialect-formatted target table and column identifiers for MERGE."""
+    dialect = s.get_bind().dialect
+    preparer = dialect.identifier_preparer
+    table = getattr(model, "__table__", None)
+    if table is None:
+        return model.__tablename__, {key: key for key in keys}
+
+    target_table = preparer.format_table(table)
+    target_columns = {
+        key: preparer.format_column(table.columns[key])
+        for key in keys
+        if key in table.columns
+    }
+    return target_table, target_columns
+
+
 def _build_merge_sql(  # noqa: PLR0913
-    table: str,
+    target_clause: str,
+    target_columns: dict[str, str],
     insert_values: dict[str, Any],
     conflict_keys: list[str],
     update_keys: list[str],
@@ -213,7 +281,8 @@ def _build_merge_sql(  # noqa: PLR0913
     故 Oracle / SQL Server 的 upsert 走显式 ``MERGE INTO``。
 
     Args:
-        table: 目标表名。
+        target_clause: 方言格式化后的目标表名与别名 / 锁提示子句。
+        target_columns: 方言格式化后的目标列名。
         insert_values: 完整插入字段；也作为基础绑定参数。
         conflict_keys: ``ON`` 子句的关联列。
         update_keys: 隐式模式下要更新的列（不在显式覆盖时使用）。
@@ -228,33 +297,66 @@ def _build_merge_sql(  # noqa: PLR0913
     Raises:
         无 / None.
     """
-    insert_cols = ", ".join(insert_values)
-    src_select = ", ".join(f":{k} AS {k}" for k in insert_values)
-    on_predicates = " AND ".join(f"t.{k} = s.{k}" for k in conflict_keys)
+    insert_param_names = {
+        key: f"p{idx}" for idx, key in enumerate(insert_values, start=1)
+    }
+    source_column_names = {
+        key: f"c{idx}" for idx, key in enumerate(insert_values, start=1)
+    }
+    update_param_names = (
+        {key: f"u{idx}" for idx, key in enumerate(explicit_update_values, start=1)}
+        if explicit_update_values is not None
+        else {}
+    )
+
+    insert_cols = ", ".join(target_columns[key] for key in insert_values)
+    src_select = ", ".join(
+        f":{insert_param_names[key]} AS {source_column_names[key]}"
+        for key in insert_values
+    )
+    on_predicates = " AND ".join(
+        f"t.{target_columns[key]} = s.{source_column_names[key]}"
+        for key in conflict_keys
+    )
 
     if explicit_update_values is not None:
-        set_parts = [f"t.{k} = :{k}" for k in explicit_update_values]
+        set_parts = [
+            f"t.{target_columns[key]} = :{update_param_names[key]}"
+            for key in explicit_update_values
+        ]
     else:
-        set_parts = [f"t.{k} = s.{k}" for k in update_keys]
+        set_parts = [
+            f"t.{target_columns[key]} = s.{source_column_names[key]}"
+            for key in update_keys
+        ]
     set_clause = ", ".join(set_parts)
-    insert_values_clause = ", ".join(f"s.{k}" for k in insert_values)
+    insert_values_clause = ", ".join(
+        f"s.{source_column_names[key]}" for key in insert_values
+    )
 
     source = (
         f"(SELECT {src_select} FROM DUAL) s" if use_dual else f"(SELECT {src_select}) s"
     )
 
     merge_sql = (
-        f"MERGE INTO {table} t "
+        f"MERGE INTO {target_clause} "
         f"USING {source} "
         f"ON ({on_predicates}) "
         f"WHEN MATCHED THEN UPDATE SET {set_clause} "
         f"WHEN NOT MATCHED THEN INSERT ({insert_cols}) "
-        f"VALUES ({insert_values_clause})"
+        f"VALUES ({insert_values_clause});"
     )
 
-    params: dict[str, Any] = dict(insert_values)
+    params: dict[str, Any] = {
+        insert_param_names[key]: value for key, value in insert_values.items()
+    }
     if explicit_update_values is not None:
-        params.update(explicit_update_values)
+        params.update(
+            {
+                update_param_names[key]: value
+                for key, value in explicit_update_values.items()
+            }
+        )
     return merge_sql, params
 
 
@@ -441,9 +543,16 @@ async def _oracle_upsert[T: Model](  # noqa: PLR0913
     if not conflict_keys:
         raise ValueError("Oracle upsert requires conflict_fields for MERGE ON clause")
 
-    table = model.__tablename__
+    insert_values = _prepare_merge_insert_values(model, insert_values)
+    target_keys = list(insert_values)
+    if explicit_update_values is not None:
+        target_keys.extend(
+            key for key in explicit_update_values if key not in insert_values
+        )
+    target_table, target_columns = _merge_target_identifiers(s, model, target_keys)
     merge_sql, params = _build_merge_sql(
-        table,
+        f"{target_table} t",
+        target_columns,
         insert_values,
         conflict_keys,
         update_keys,
@@ -501,9 +610,16 @@ async def _mssql_upsert[T: Model](  # noqa: PLR0913
             "SQL Server upsert requires conflict_fields for MERGE ON clause"
         )
 
-    table = model.__tablename__
+    insert_values = _prepare_merge_insert_values(model, insert_values)
+    target_keys = list(insert_values)
+    if explicit_update_values is not None:
+        target_keys.extend(
+            key for key in explicit_update_values if key not in insert_values
+        )
+    target_table, target_columns = _merge_target_identifiers(s, model, target_keys)
     merge_sql, params = _build_merge_sql(
-        table,
+        f"{target_table} WITH (HOLDLOCK) AS t",
+        target_columns,
         insert_values,
         conflict_keys,
         update_keys,

@@ -8,7 +8,7 @@ from nonebot import require
 
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import Model
-from sqlalchemy import Integer, UniqueConstraint
+from sqlalchemy import Identity, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .._dialect_compat import CompatBoolean, CompatDateTimeTZ, CompatText, compat_string
@@ -20,8 +20,8 @@ class Platform(Model):
 
     __tablename__ = "lingchu_platforms"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    platform_id: Mapped[str] = mapped_column(compat_string(64), unique=True, index=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
+    platform_id: Mapped[str] = mapped_column(compat_string(64), unique=True)
     display_name: Mapped[str] = mapped_column(compat_string(64))
     # JSON array of capability strings.
     capabilities: Mapped[str] = mapped_column(CompatText)
@@ -44,8 +44,8 @@ class Adapter(Model):
 
     __tablename__ = "lingchu_adapters"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    adapter_id: Mapped[str] = mapped_column(compat_string(64), unique=True, index=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
+    adapter_id: Mapped[str] = mapped_column(compat_string(64), unique=True)
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     display_name: Mapped[str] = mapped_column(compat_string(64))
     nonebot_adapter_id: Mapped[str] = mapped_column(compat_string(64))
@@ -74,7 +74,7 @@ class ProtocolImplementation(Model):
         ),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     protocol_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     display_name: Mapped[str] = mapped_column(compat_string(64))

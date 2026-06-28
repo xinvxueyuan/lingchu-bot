@@ -28,7 +28,7 @@ def upgrade(name: str = "") -> None:
 
     op.create_table(
         "lingchu_identity_users",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("id", sa.Integer(), sa.Identity(), nullable=False),
         sa.Column("uid", sa.String(length=64), nullable=False),
         sa.Column("nickname", sa.String(length=128), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
@@ -36,12 +36,6 @@ def upgrade(name: str = "") -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_lingchu_identity_users")),
         sa.UniqueConstraint("uid", name=op.f("uq_lingchu_identity_users_uid")),
         info={"bind_key": "nonebot_plugin_lingchu_bot"},
-    )
-    op.create_index(
-        op.f("ix_lingchu_identity_users_uid"),
-        "lingchu_identity_users",
-        ["uid"],
-        unique=True,
     )
     op.create_index(
         op.f("ix_lingchu_identity_users_created_at"),
@@ -58,7 +52,7 @@ def upgrade(name: str = "") -> None:
 
     op.create_table(
         "lingchu_platform_accounts",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("id", sa.Integer(), sa.Identity(), nullable=False),
         sa.Column("uid", sa.String(length=64), nullable=False),
         sa.Column("platform_id", sa.String(length=64), nullable=False),
         sa.Column("account_id", sa.String(length=128), nullable=False),
@@ -91,7 +85,7 @@ def upgrade(name: str = "") -> None:
 
     op.create_table(
         "lingchu_platform_identity_groups",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("id", sa.Integer(), sa.Identity(), nullable=False),
         sa.Column("group_id", sa.String(length=128), nullable=False),
         sa.Column("platform_id", sa.String(length=64), nullable=False),
         sa.Column("parent_group_id", sa.String(length=128), nullable=True),
@@ -111,7 +105,6 @@ def upgrade(name: str = "") -> None:
         info={"bind_key": "nonebot_plugin_lingchu_bot"},
     )
     for column in (
-        "group_id",
         "platform_id",
         "parent_group_id",
         "builtin",
@@ -123,12 +116,12 @@ def upgrade(name: str = "") -> None:
             op.f(f"ix_lingchu_platform_identity_groups_{column}"),
             "lingchu_platform_identity_groups",
             [column],
-            unique=column == "group_id",
+            unique=False,
         )
 
     op.create_table(
         "lingchu_identity_memberships",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("id", sa.Integer(), sa.Identity(), nullable=False),
         sa.Column("uid", sa.String(length=64), nullable=False),
         sa.Column("group_id", sa.String(length=128), nullable=False),
         sa.Column("scope_type", sa.String(length=64), nullable=False),
@@ -164,7 +157,7 @@ def upgrade(name: str = "") -> None:
 
     op.create_table(
         "lingchu_permission_grants",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("id", sa.Integer(), sa.Identity(), nullable=False),
         sa.Column("group_id", sa.String(length=128), nullable=False),
         sa.Column("command_key", sa.String(length=128), nullable=False),
         sa.Column("effect", sa.String(length=16), nullable=False),
@@ -232,7 +225,6 @@ def downgrade(name: str = "") -> None:
         "builtin",
         "parent_group_id",
         "platform_id",
-        "group_id",
     ):
         op.drop_index(
             op.f(f"ix_lingchu_platform_identity_groups_{column}"),
@@ -260,10 +252,6 @@ def downgrade(name: str = "") -> None:
     )
     op.drop_index(
         op.f("ix_lingchu_identity_users_created_at"),
-        table_name="lingchu_identity_users",
-    )
-    op.drop_index(
-        op.f("ix_lingchu_identity_users_uid"),
         table_name="lingchu_identity_users",
     )
     op.drop_table("lingchu_identity_users")

@@ -8,7 +8,7 @@ from nonebot import require
 
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import Model
-from sqlalchemy import Integer, UniqueConstraint
+from sqlalchemy import Identity, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .._dialect_compat import CompatDateTimeTZ, CompatText, compat_string
@@ -33,7 +33,7 @@ class SubjectPolicyEntry(Model):
         ),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     policy_type: Mapped[str] = mapped_column(compat_string(32), index=True)
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)

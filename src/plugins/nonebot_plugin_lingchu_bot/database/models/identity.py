@@ -8,7 +8,7 @@ from nonebot import require
 
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import Model
-from sqlalchemy import Integer, UniqueConstraint
+from sqlalchemy import Identity, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .._dialect_compat import CompatBoolean, CompatDateTimeTZ, compat_string
@@ -20,8 +20,8 @@ class IdentityUser(Model):
 
     __tablename__ = "lingchu_identity_users"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    uid: Mapped[str] = mapped_column(compat_string(64), unique=True, index=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
+    uid: Mapped[str] = mapped_column(compat_string(64), unique=True)
     nickname: Mapped[str] = mapped_column(compat_string(128))
     created_at: Mapped[datetime] = mapped_column(
         CompatDateTimeTZ,
@@ -48,7 +48,7 @@ class PlatformAccount(Model):
         ),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     uid: Mapped[str] = mapped_column(compat_string(64), index=True)
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     account_id: Mapped[str] = mapped_column(compat_string(128), index=True)
@@ -74,8 +74,8 @@ class PlatformIdentityGroup(Model):
 
     __tablename__ = "lingchu_platform_identity_groups"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    group_id: Mapped[str] = mapped_column(compat_string(128), unique=True, index=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
+    group_id: Mapped[str] = mapped_column(compat_string(128), unique=True)
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     parent_group_id: Mapped[str | None] = mapped_column(compat_string(128), index=True)
     display_name: Mapped[str] = mapped_column(compat_string(128))
@@ -108,7 +108,7 @@ class IdentityMembership(Model):
         ),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     uid: Mapped[str] = mapped_column(compat_string(64), index=True)
     group_id: Mapped[str] = mapped_column(compat_string(128), index=True)
     scope_type: Mapped[str] = mapped_column(
@@ -141,7 +141,7 @@ class PermissionGrant(Model):
         ),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     group_id: Mapped[str] = mapped_column(compat_string(128), index=True)
     command_key: Mapped[str] = mapped_column(compat_string(128), index=True)
     effect: Mapped[str] = mapped_column(compat_string(16), default="allow", index=True)
