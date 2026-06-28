@@ -629,6 +629,9 @@ async def _mssql_upsert[T: Model](  # noqa: PLR0913
     stmt = text(merge_sql)
 
     try:
+        # Set a 5-second lock timeout so MERGE fails fast instead of
+        # hanging forever when HOLDLOCK range locks conflict.
+        await s.execute(text("SET LOCK_TIMEOUT 5000"))
         await s.execute(stmt, params)
         await s.commit()
     except SQLAlchemyError as e:

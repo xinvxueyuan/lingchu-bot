@@ -287,6 +287,8 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 pythonpath = ["src"]
 addopts = "--import-mode=importlib"
+timeout = 300
+timeout_method = "thread"
 filterwarnings = [
     "ignore:No path_separator found in configuration:DeprecationWarning:alembic.config",
     "ignore:The version_path_separator configuration parameter is deprecated:DeprecationWarning:alembic.config",
