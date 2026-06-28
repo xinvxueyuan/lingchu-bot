@@ -70,6 +70,7 @@ async def test_startup_imports_group_and_menu_handlers(
         AsyncMock(),
     )
     monkeypatch.setattr(startup_module, "initialize_message_store", AsyncMock())
+    monkeypatch.setattr(startup_module, "seed_registry_tables", AsyncMock())
 
     await startup_module.startup()
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from ..database.models import Adapter, Platform, ProtocolImplementation
@@ -16,9 +15,9 @@ async def seed_registry_tables() -> None:
     """Sync platform/adapter/protocol metadata from registry.py to database."""
     data = export_registry_for_seeding()
 
-    platform_results = await asyncio.gather(
-        *(
-            upsert(
+    for platform_data in data["platforms"]:
+        try:
+            await upsert(
                 Platform,
                 {
                     "platform_id": platform_data["platform_id"],
@@ -28,21 +27,15 @@ async def seed_registry_tables() -> None:
                 },
                 conflict_fields=["platform_id"],
             )
-            for platform_data in data["platforms"]
-        ),
-        return_exceptions=True,
-    )
-    for platform_data, result in zip(data["platforms"], platform_results, strict=True):
-        if isinstance(result, Exception):
-            logger.error(
+        except Exception:
+            logger.exception(
                 "Failed to seed platform: %s",
                 platform_data.get("platform_id", "unknown"),
-                exc_info=result,
             )
 
-    adapter_results = await asyncio.gather(
-        *(
-            upsert(
+    for adapter_data in data["adapters"]:
+        try:
+            await upsert(
                 Adapter,
                 {
                     "adapter_id": adapter_data["adapter_id"],
@@ -52,21 +45,15 @@ async def seed_registry_tables() -> None:
                 },
                 conflict_fields=["adapter_id"],
             )
-            for adapter_data in data["adapters"]
-        ),
-        return_exceptions=True,
-    )
-    for adapter_data, result in zip(data["adapters"], adapter_results, strict=True):
-        if isinstance(result, Exception):
-            logger.error(
+        except Exception:
+            logger.exception(
                 "Failed to seed adapter: %s",
                 adapter_data.get("adapter_id", "unknown"),
-                exc_info=result,
             )
 
-    protocol_results = await asyncio.gather(
-        *(
-            upsert(
+    for impl_data in data["protocol_implementations"]:
+        try:
+            await upsert(
                 ProtocolImplementation,
                 {
                     "protocol_id": impl_data["protocol_id"],
@@ -76,19 +63,11 @@ async def seed_registry_tables() -> None:
                 },
                 conflict_fields=["adapter_id", "protocol_id"],
             )
-            for impl_data in data["protocol_implementations"]
-        ),
-        return_exceptions=True,
-    )
-    for impl_data, result in zip(
-        data["protocol_implementations"], protocol_results, strict=True
-    ):
-        if isinstance(result, Exception):
-            logger.error(
+        except Exception:
+            logger.exception(
                 "Failed to seed protocol implementation: %s/%s",
                 impl_data.get("adapter_id", "unknown"),
                 impl_data.get("protocol_id", "unknown"),
-                exc_info=result,
             )
 
     logger.debug(

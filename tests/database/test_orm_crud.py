@@ -1504,6 +1504,7 @@ class TestUpsert:
         self._set_dialect(mock_async_session, "mssql")
         obj = FakeModel(id=ID_1, name="new")
         mock_async_session.execute.side_effect = [
+            MagicMock(),  # SET LOCK_TIMEOUT result (not used)
             MagicMock(),  # MERGE statement result (not used)
             MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
         ]
@@ -1515,7 +1516,7 @@ class TestUpsert:
         )
 
         assert result is obj
-        merge_call = mock_async_session.execute.call_args_list[0]
+        merge_call = mock_async_session.execute.call_args_list[1]
         merge_sql_text = str(merge_call.args[0])
         merge_params = merge_call.args[1]
         assert "MERGE INTO" in merge_sql_text
@@ -1590,7 +1591,8 @@ class TestUpsert:
             builtin=True,
         )
         mock_async_session.execute.side_effect = [
-            MagicMock(),
+            MagicMock(),  # SET LOCK_TIMEOUT result (not used)
+            MagicMock(),  # MERGE statement result (not used)
             MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
         ]
 
@@ -1615,7 +1617,7 @@ class TestUpsert:
         )
 
         assert result is obj
-        merge_call = mock_async_session.execute.call_args_list[0]
+        merge_call = mock_async_session.execute.call_args_list[1]
         merge_sql_text = str(merge_call.args[0])
         merge_params = merge_call.args[1]
         assert "created_at" in merge_sql_text
@@ -1665,7 +1667,8 @@ class TestUpsert:
         self._set_dialect(mock_async_session, "mssql")
         obj = IdentityUser(uid="user1", nickname="user1")
         mock_async_session.execute.side_effect = [
-            MagicMock(),
+            MagicMock(),  # SET LOCK_TIMEOUT result (not used)
+            MagicMock(),  # MERGE statement result (not used)
             MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
         ]
 
@@ -1677,7 +1680,7 @@ class TestUpsert:
         )
 
         assert result is obj
-        merge_call = mock_async_session.execute.call_args_list[0]
+        merge_call = mock_async_session.execute.call_args_list[1]
         merge_sql_text = str(merge_call.args[0])
         merge_params = merge_call.args[1]
         assert ':"uid"' not in merge_sql_text
