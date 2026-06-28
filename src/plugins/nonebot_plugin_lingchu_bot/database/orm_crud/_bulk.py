@@ -249,7 +249,7 @@ def _build_merge_sql(  # noqa: PLR0913
         f"ON ({on_predicates}) "
         f"WHEN MATCHED THEN UPDATE SET {set_clause} "
         f"WHEN NOT MATCHED THEN INSERT ({insert_cols}) "
-        f"VALUES ({insert_values_clause})"
+        f"VALUES ({insert_values_clause});"
     )
 
     params: dict[str, Any] = dict(insert_values)

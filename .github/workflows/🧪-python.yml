@@ -221,7 +221,6 @@ jobs:
         image: ${{ matrix.db.engine == 'oracle' && matrix.db.image || '' }}
         env:
           ORACLE_PASSWORD: oracle
-          ORACLE_DATABASE: FREEPDB1
         ports:
           - 1521:1521
         options: >-
