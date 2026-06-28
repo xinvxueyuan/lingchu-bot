@@ -24,7 +24,7 @@ depends_on: str | Sequence[str] | None = None
 
 def _event_columns() -> list[sa.Column]:
     return [
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("id", sa.Integer(), sa.Identity(), nullable=False),
         sa.Column("platform_id", sa.String(length=64), nullable=False),
         sa.Column("adapter_id", sa.String(length=64), nullable=False),
         sa.Column("protocol_id", sa.String(length=64), nullable=True),
@@ -48,7 +48,7 @@ def _event_columns() -> list[sa.Column]:
 
 def _audit_columns() -> list[sa.Column]:
     return [
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("id", sa.Integer(), sa.Identity(), nullable=False),
         sa.Column("platform_id", sa.String(length=64), nullable=False),
         sa.Column("adapter_id", sa.String(length=64), nullable=False),
         sa.Column("protocol_id", sa.String(length=64), nullable=True),
@@ -163,7 +163,7 @@ def upgrade(name: str = "") -> None:
 
     op.create_table(
         "lingchu_subject_policy_entries",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("id", sa.Integer(), sa.Identity(), nullable=False),
         sa.Column("policy_type", sa.String(length=32), nullable=False),
         sa.Column("platform_id", sa.String(length=64), nullable=False),
         sa.Column("adapter_id", sa.String(length=64), nullable=False),

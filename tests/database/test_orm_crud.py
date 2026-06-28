@@ -15,13 +15,19 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from nonebot_plugin_orm import Model
+from sqlalchemy.dialects import mssql, mysql, oracle, postgresql, sqlite
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+from src.plugins.nonebot_plugin_lingchu_bot.database.models import (
+    IdentityUser,
+    PlatformIdentityGroup,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import (
     ROWCOUNT_UNKNOWN,
     DatabaseError,
@@ -1389,8 +1395,15 @@ class TestUpsert:
 
     @staticmethod
     def _set_dialect(mock_async_session: Mock, name: str) -> None:
+        dialects = {
+            "mssql": mssql.dialect(),
+            "mysql": mysql.dialect(),
+            "oracle": oracle.dialect(),
+            "postgresql": postgresql.dialect(),
+            "sqlite": sqlite.dialect(),
+        }
         bind = MagicMock()
-        bind.dialect.name = name
+        bind.dialect = dialects[name]
         mock_async_session.get_bind = MagicMock(return_value=bind)
 
     @pytest.mark.asyncio
@@ -1478,8 +1491,8 @@ class TestUpsert:
         assert "FROM DUAL" in merge_sql_text
         assert "WHEN MATCHED THEN UPDATE SET" in merge_sql_text
         assert "WHEN NOT MATCHED THEN INSERT" in merge_sql_text
-        assert "t.id = s.id" in merge_sql_text
-        assert merge_params == {"id": ID_1, "name": "new"}
+        assert "t.id = s.c1" in merge_sql_text
+        assert merge_params == {"p1": ID_1, "p2": "new"}
         # Commit is awaited exactly once after the MERGE
         mock_async_session.commit.assert_awaited_once()
 
@@ -1506,14 +1519,174 @@ class TestUpsert:
         merge_sql_text = str(merge_call.args[0])
         merge_params = merge_call.args[1]
         assert "MERGE INTO" in merge_sql_text
+        assert "WITH (HOLDLOCK) AS t" in merge_sql_text
         assert "USING (SELECT" in merge_sql_text
         # SQL Server does NOT use FROM DUAL.
         assert "FROM DUAL" not in merge_sql_text
         assert "WHEN MATCHED THEN UPDATE SET" in merge_sql_text
         assert "WHEN NOT MATCHED THEN INSERT" in merge_sql_text
-        assert "t.id = s.id" in merge_sql_text
-        assert merge_params == {"id": ID_1, "name": "new"}
+        assert "t.id = s.c1" in merge_sql_text
+        assert merge_params == {"p1": ID_1, "p2": "new"}
         mock_async_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_oracle_upsert_merge_insert_includes_python_defaults(
+        self, mock_async_session: Mock
+    ) -> None:
+        """Oracle raw MERGE inserts include Python defaults and omit identity id."""
+        self._set_dialect(mock_async_session, "oracle")
+        obj = PlatformIdentityGroup(
+            group_id="system.superusers",
+            platform_id="system",
+            display_name="SUPERUSERS",
+            builtin=True,
+        )
+        mock_async_session.execute.side_effect = [
+            MagicMock(),
+            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
+        ]
+
+        result = await upsert(
+            model=PlatformIdentityGroup,
+            insert_values={
+                "group_id": "system.superusers",
+                "platform_id": "system",
+                "parent_group_id": None,
+                "display_name": "SUPERUSERS",
+                "builtin": True,
+                "managed_by": None,
+            },
+            conflict_fields=["group_id"],
+            update_values={
+                "platform_id": "system",
+                "parent_group_id": None,
+                "display_name": "SUPERUSERS",
+                "builtin": True,
+                "managed_by": None,
+            },
+        )
+
+        assert result is obj
+        merge_call = mock_async_session.execute.call_args_list[0]
+        merge_sql_text = str(merge_call.args[0])
+        merge_params = merge_call.args[1]
+        assert "created_at" in merge_sql_text
+        assert "updated_at" in merge_sql_text
+        assert "INSERT (id" not in merge_sql_text
+        assert isinstance(merge_params["p7"], datetime)
+        assert isinstance(merge_params["p8"], datetime)
+        assert "id" not in merge_params
+
+    @pytest.mark.asyncio
+    async def test_mssql_upsert_merge_insert_includes_python_defaults(
+        self, mock_async_session: Mock
+    ) -> None:
+        """SQL Server raw MERGE inserts include Python defaults and omit identity id."""
+        self._set_dialect(mock_async_session, "mssql")
+        obj = PlatformIdentityGroup(
+            group_id="system.superusers",
+            platform_id="system",
+            display_name="SUPERUSERS",
+            builtin=True,
+        )
+        mock_async_session.execute.side_effect = [
+            MagicMock(),
+            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
+        ]
+
+        result = await upsert(
+            model=PlatformIdentityGroup,
+            insert_values={
+                "group_id": "system.superusers",
+                "platform_id": "system",
+                "parent_group_id": None,
+                "display_name": "SUPERUSERS",
+                "builtin": True,
+                "managed_by": None,
+            },
+            conflict_fields=["group_id"],
+            update_values={
+                "platform_id": "system",
+                "parent_group_id": None,
+                "display_name": "SUPERUSERS",
+                "builtin": True,
+                "managed_by": None,
+            },
+        )
+
+        assert result is obj
+        merge_call = mock_async_session.execute.call_args_list[0]
+        merge_sql_text = str(merge_call.args[0])
+        merge_params = merge_call.args[1]
+        assert "created_at" in merge_sql_text
+        assert "updated_at" in merge_sql_text
+        assert "INSERT (id" not in merge_sql_text
+        assert isinstance(merge_params["p7"], datetime)
+        assert isinstance(merge_params["p8"], datetime)
+        assert "id" not in merge_params
+
+    @pytest.mark.asyncio
+    async def test_oracle_upsert_merge_uses_safe_bind_names_for_uid(
+        self, mock_async_session: Mock
+    ) -> None:
+        """Oracle MERGE avoids raw bind names such as :uid that SQLAlchemy quotes."""
+        self._set_dialect(mock_async_session, "oracle")
+        obj = IdentityUser(uid="user1", nickname="user1")
+        mock_async_session.execute.side_effect = [
+            MagicMock(),
+            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
+        ]
+
+        result = await upsert(
+            model=IdentityUser,
+            insert_values={"uid": "user1", "nickname": "user1"},
+            conflict_fields=["uid"],
+            update_values={"nickname": "user1"},
+        )
+
+        assert result is obj
+        merge_call = mock_async_session.execute.call_args_list[0]
+        merge_sql_text = str(merge_call.args[0])
+        merge_params = merge_call.args[1]
+        assert ':"uid"' not in merge_sql_text
+        assert ":uid" not in merge_sql_text
+        assert " AS uid" not in merge_sql_text
+        assert 't."uid" = s.c1' in merge_sql_text
+        assert '"uid"' in merge_sql_text
+        assert "p1" in merge_params
+        assert merge_params["p1"] == "user1"
+        assert merge_params["u1"] == "user1"
+
+    @pytest.mark.asyncio
+    async def test_mssql_upsert_merge_uses_safe_bind_names_for_uid(
+        self, mock_async_session: Mock
+    ) -> None:
+        """SQL Server MERGE uses generated bind names for keyword-like fields."""
+        self._set_dialect(mock_async_session, "mssql")
+        obj = IdentityUser(uid="user1", nickname="user1")
+        mock_async_session.execute.side_effect = [
+            MagicMock(),
+            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
+        ]
+
+        result = await upsert(
+            model=IdentityUser,
+            insert_values={"uid": "user1", "nickname": "user1"},
+            conflict_fields=["uid"],
+            update_values={"nickname": "user1"},
+        )
+
+        assert result is obj
+        merge_call = mock_async_session.execute.call_args_list[0]
+        merge_sql_text = str(merge_call.args[0])
+        merge_params = merge_call.args[1]
+        assert ':"uid"' not in merge_sql_text
+        assert ":uid" not in merge_sql_text
+        assert " AS uid" not in merge_sql_text
+        assert "t.uid = s.c1" in merge_sql_text
+        assert "p1" in merge_params
+        assert merge_params["p1"] == "user1"
+        assert merge_params["u1"] == "user1"
 
     @pytest.mark.asyncio
     async def test_oracle_upsert_rejects_constraint(
