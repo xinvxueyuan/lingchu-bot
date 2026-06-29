@@ -271,11 +271,24 @@ pnpm exec markdownlint-cli2 README.md README-zh.md
 
 ## 许可
 
-本项目使用复合许可证：
+本项目采用**分阶段开源许可证栈**（切换规则与触发日详见
+[Repository-Policy.md](Repository-Policy.md)）：
 
-- 软件代码：LGPL-3.0-or-later，详见 [LICENSE-code](LICENSE-code)。
-- 文档内容：GNU FDL-1.3-or-later，详见 [LICENSE-docs](LICENSE-docs)。
-- 许可证、媒体文件和脱敏要求：详见 [Repository-Policy.md](Repository-Policy.md)。
+- **当前阶段** — 代码：[LGPL-3.0-or-later](LICENSE-code)。文档：
+  [GNU FDL-1.3-or-later](LICENSE-docs)。视觉：
+  [CC0-1.0](LICENSE-cc0)。
+- **未来阶段**（在首次公开发行后一年 或 首次主版本变更中较早发生者
+  自动触发）— 代码：[MIT-or-later](LICENSE-mit) 或
+  [Apache-2.0-or-later](LICENSE-apache)（用户自选双许可证）。文档与
+  视觉：[CC-BY-SA-4.0-or-later](LICENSE-cc-by-sa)。
+
+提交贡献即表示您接受 [CLA.md](CLA.md) 的条款，该协议授予本项目执行
+上述切换所需的权利。切换仅作用于触发日（含）之后提交的贡献；触发日
+之前提交的贡献继续适用其提交当时生效的许可证。
+
+媒体文件处理、脱敏要求以及官方许可证文本，请参见
+[Repository-Policy.md](Repository-Policy.md) 与仓库根目录下的
+[`LICENSE-*`](LICENSE-mit) 系列文件。
 
 ## 致谢
 

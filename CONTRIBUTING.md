@@ -238,6 +238,19 @@ For feature requests, describe the use case, expected behavior, and acceptable t
 
 ## License and Code of Conduct
 
-By submitting contributions, you agree to publish them under this repository's license. License requirements for code, documentation, and media files are in [Repository-Policy.md](Repository-Policy.md) and related license files.
+The Project uses a **phased open-source license stack** described in
+[Repository-Policy.md](Repository-Policy.md). The current phase covers
+LGPL-3.0-or-later (code), FDL-1.3-or-later (documentation), and CC0-1.0
+(visual elements); the future phase — triggered automatically on the
+earlier of one year after the first public release or the first major
+version bump — covers MIT-or-later or Apache-2.0-or-later (code) and
+CC-BY-SA-4.0-or-later (documentation and visual elements). The transition only applies to
+contributions submitted on or after the trigger date.
 
-When participating in discussions and reviews, follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Being specific, respectful, and verifiable is the best way to keep collaboration smooth.
+By submitting a contribution, you accept the terms of
+[CLA.md](CLA.md), which grants the Project the rights it needs to
+execute the transition described above.
+
+When participating in discussions and reviews, follow
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Being specific, respectful,
+and verifiable is the best way to keep collaboration smooth.
