@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (3901 symbols, 7620 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (3949 symbols, 7679 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -310,6 +310,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - Deprecated Milky, QQ, and OneBot V12 source has been fully removed from the project, including any on-demand loading utility.
 - OneBot V11 group `event.get_session_id()` can include both group and user IDs. Group-scoped history must use `group_id` as `conversation_id`.
 - For OneBot V11 image APIs, verify file field format against current adapter and NapCat docs before changing calls.
+- WSL2 + Docker Desktop bind mount requires the WSL distro root to be in Docker Desktop's File Sharing allow-list. When it is missing, the container sees an empty directory at the bind target while `docker inspect` still reports the source path. Detect with `docker exec <ctr> mount | grep <src>`: a `fuse.bind` or plain `bind` line is correct; `overlay` (lower=`/tmp/docker-desktop-root-ro`) means the bridge returned an empty view. Fix by adding `\\wsl.localhost\<distro>\` (or `\\wsl$\<distro>\` on older WSL) under Docker Desktop → Settings → Resources → File sharing, then **Apply & restart** and recreate the container. The Windows-side `docker` daemon does not see WSL paths through plain bind; do not assume the integration is "already on" — WSL Integration and File Sharing are two distinct settings.
 
 #### Testing And Typing
 

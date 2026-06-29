@@ -102,6 +102,15 @@ OneBot V11 group announcements use implementation-specific APIs. For NapCat, `_s
 
 For Windows plus Docker Desktop, configure the path bridge described in [NapCat Docker](../platforms/qq/frameworks/napcat-docker), then verify that a file written under `ANNOUNCEMENT_IMAGE_CACHE_DIR` is visible inside the container at `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR`.
 
+Additional checks for WSL2 (Debian / Ubuntu) deployments:
+
+- **Docker Desktop File Sharing allow-list** (this is the most common WSL2 + Docker Desktop pitfall and must be done first). Open Docker Desktop → Settings → Resources → File sharing and confirm `\\wsl.localhost\Debian\` is in the list (replace `Debian` with your distro name; older WSL uses `\\wsl$\Debian\`, the trailing `\` is required). When this is missing, the container's `/lingchu-bot` will be an empty directory; `docker inspect` will not flag the problem, but `docker exec napcat mount | grep lingchu` shows `type overlay` (correct state is `fuse.bind`). After editing, click **Apply & restart** so Docker Desktop rebuilds the WSL integration index.
+- Is `ANNOUNCEMENT_IMAGE_CACHE_DIR` still a Windows-style drive-letter path (e.g. `C:/dev/lingchu-bot/...`)? On WSL2 `pathlib` treats it as a relative path, the startup log emits a `Announcement image cache dir ... is incompatible with the current system Linux` WARNING, and NapCat returns `retcode=1200, image field format may be incorrect` when sending the announcement. Change it to a POSIX path inside WSL2 (e.g. `/home/xinvdev/lingchu-bot/.local/napcat-announcement-images`) and recreate the NapCat container.
+- Is the WSL2 integration enabled in Docker Desktop → Settings → Resources → WSL Integration? (default is on, but some distros must be toggled individually).
+- After recreating the container, run `docker exec napcat ls -la /lingchu-bot/.local/napcat-announcement-images/` to verify the bind mount is actually live. `docker inspect` alone is not enough — when File Sharing is missing the WSL2 integration layer returns an empty directory without raising an error.
+
+For complete WSL2 deployment examples (Docker Desktop + WSL integration as the recommended default, UNC path as the locked-down fallback, and a native dockerd-in-WSL2 alternative), see the [NapCat Docker WSL2 deployment section](../platforms/qq/frameworks/napcat-docker#wsl2-deployment).
+
   </Accordion>
 </Accordions>
 

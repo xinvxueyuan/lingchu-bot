@@ -308,6 +308,7 @@ task ci
 - deprecated Milky、QQ、OneBot V12 源码已从项目中彻底移除，包括所有按需加载工具。
 - OneBot V11 群 `event.get_session_id()` 可能同时包含群和用户 ID。群级历史必须用 `group_id` 作为 `conversation_id`。
 - OneBot V11 图片 API 变更前，先用当前 adapter 和 NapCat 文档确认 file field 格式。
+- WSL2 + Docker Desktop bind mount 要求 WSL 发行版根目录必须加入 Docker Desktop File Sharing 白名单。漏配时容器内 bind 目标是空目录，但 `docker inspect` 仍报源路径正确。判断方法：`docker exec <ctr> mount | grep <src>`，出现 `fuse.bind` 或纯 `bind` 是正常；`overlay`（lower=`/tmp/docker-desktop-root-ro`）说明桥接层返回了空视图。修法：在 Docker Desktop → Settings → Resources → File sharing 加 `\\wsl.localhost\<distro>\`（旧版 WSL 写 `\\wsl$\<distro>\`），点 **Apply & restart** 后重建容器。Windows 侧 docker daemon 不会通过普通 bind 看到 WSL 路径；WSL Integration 与 File Sharing 是两个独立开关，不能假设"已经开了"。
 
 #### Testing And Typing
 

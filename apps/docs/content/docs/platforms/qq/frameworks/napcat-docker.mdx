@@ -92,6 +92,127 @@ ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu/announcement-images
 
 After changing `.env`, restart Lingchu Bot so NoneBot reloads the new path settings. After changing Docker mounts, recreate the NapCat container because Docker cannot add bind mounts to an already running container.
 
+## WSL2 deployment
+
+After moving development from a Windows host to WSL2 (Debian / Ubuntu), path semantics, container mount points, and Docker integration all change. The most common topology is **Docker Desktop on the Windows host with WSL2 integration enabled, and Lingchu Bot running inside WSL2**. A minority of users install a native `dockerd` directly inside WSL2.
+
+### Topology A: Docker Desktop on Windows host with WSL2 integration enabled (recommended, default case)
+
+Lingchu Bot runs inside WSL2; the NapCat container is managed by Docker Desktop on the Windows host and reaches the WSL2 filesystem through WSL integration. Run `docker run` from a WSL2 terminal — the `docker` binary there is a forwarding shim and the real daemon still lives on the Windows side.
+
+**Step 1 (mandatory)**: add the WSL distro root to Docker Desktop's File Sharing allow-list. Without it, the WSL→Windows bridge silently returns an empty directory for any mount source under that path. Open Docker Desktop → **Settings** → **Resources** → **File sharing** and add:
+
+```text
+\\wsl.localhost\Debian\
+```
+
+(`\\wsl.localhost\` is the modern Windows 11 / recent WSL form; older WSL uses `\\wsl$\Debian\`. Replace `Debian` with your distro name — check with `wsl -l -v` in PowerShell. The trailing `\` is required.)
+
+Click **Apply & restart** so Docker Desktop rebuilds its WSL integration index.
+
+**Step 2**: from the WSL2 terminal run `docker run` with a POSIX mount source (do **not** use `\\wsl$\...` UNC form on this topology):
+
+```bash
+docker run -d \
+  --name napcat \
+  --restart always \
+  -p 3000:3000 \
+  -p 3001:3001 \
+  -p 6099:6099 \
+  -v /home/xinvdev/lingchu-bot:/lingchu-bot:ro \
+  mlikiowa/napcat-docker:latest
+```
+
+Matching `.env`:
+
+```dotenv
+ANNOUNCEMENT_IMAGE_CACHE_DIR=/home/xinvdev/lingchu-bot/.local/napcat-announcement-images
+ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu-bot/.local/napcat-announcement-images
+```
+
+**Step 3 (verification, mandatory)**: confirm the bind mount is actually live. `docker inspect` is not enough on its own — the integration layer can claim success while returning an empty directory.
+
+```bash
+# Host side: confirm Lingchu Bot has written the file
+ls -la /home/xinvdev/lingchu-bot/.local/napcat-announcement-images/
+
+# Container side: should list the same file; an empty directory means File Sharing is missing
+docker exec napcat ls -la /lingchu-bot/.local/napcat-announcement-images/
+
+# Container side: mount type should be fuse.bind or plain bind, NOT overlay
+docker exec napcat mount | grep lingchu
+```
+
+**Step 4**: run the Lingchu Bot process inside WSL2 (so its view matches the bind source) and restart it so the new `.env` is picked up.
+
+To rename the user or move the project, replace all three occurrences of `/home/xinvdev/lingchu-bot` together.
+
+### Topology B: UNC path workaround (only when Docker Desktop settings are unreachable)
+
+If you cannot open Docker Desktop settings (locked-down corporate machine, no GUI, remote dev host), you can skip the File Sharing allow-list and use `\\wsl$\...` UNC paths as the mount source instead:
+
+```powershell
+docker run -d `
+  --name napcat `
+  --restart always `
+  -p 3000:3000 -p 3001:3001 -p 6099:6099 `
+  -v \\wsl$\Debian\home\xinvdev\lingchu-bot:C:\lingchu-bot:ro `
+  mlikiowa/napcat-docker:latest
+```
+
+Matching `.env` (`ANNOUNCEMENT_IMAGE_CACHE_DIR` follows Lingchu Bot's WSL2 view and stays POSIX; `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` aligns with the in-container mount):
+
+```dotenv
+ANNOUNCEMENT_IMAGE_CACHE_DIR=/home/xinvdev/lingchu-bot/.local/napcat-announcement-images
+ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=C:/lingchu-bot/.local/napcat-announcement-images
+```
+
+Note that `\\wsl$\` UNC paths are case-sensitive in Windows Explorer but case-insensitive inside WSL2; if the NapCat container logs `No such file or directory` while the file clearly exists, double-check that the casing matches exactly on both sides.
+
+To minimise the directory surface visible to the container, mount only the dedicated cache directory:
+
+```powershell
+docker run -d `
+  --name napcat `
+  --restart always `
+  -p 3000:3000 -p 3001:3001 -p 6099:6099 `
+  -v \\wsl$\Debian\home\xinvdev\lingchu-bot\.local\napcat-announcement-images:C:\lingchu\announcement-images:ro `
+  mlikiowa/napcat-docker:latest
+```
+
+```dotenv
+ANNOUNCEMENT_IMAGE_CACHE_DIR=/home/xinvdev/lingchu-bot/.local/napcat-announcement-images
+ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=C:/lingchu/announcement-images
+```
+
+### Topology C: native dockerd inside WSL2
+
+Install a standalone Docker engine inside WSL2 (`sudo apt install docker.io`) and step away from Docker Desktop entirely. **File Sharing is not involved** because there is no Windows-side daemon to bridge through.
+
+```bash
+docker run -d \
+  --name napcat \
+  --restart always \
+  -p 3000:3000 -p 3001:3001 -p 6099:6099 \
+  -v /home/xinvdev/lingchu-bot:/lingchu-bot:ro \
+  mlikiowa/napcat-docker:latest
+```
+
+`.env` is identical to Topology A:
+
+```dotenv
+ANNOUNCEMENT_IMAGE_CACHE_DIR=/home/xinvdev/lingchu-bot/.local/napcat-announcement-images
+ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu-bot/.local/napcat-announcement-images
+```
+
+### Migrating an old Windows-style path
+
+<Callout type="warn">
+
+After migrating to WSL2, an old Windows-style `ANNOUNCEMENT_IMAGE_CACHE_DIR` (for example `C:/dev/lingchu-bot/...`) is silently treated as a relative path by `pathlib.Path`, so files are written under the WSL2 current working directory and lose their correspondence with the container bind mount. The startup log emits a `Announcement image cache dir ... is incompatible with the current system Linux` WARNING, and NapCat returns `retcode=1200, image field format may be incorrect` when sending the announcement. Update `ANNOUNCEMENT_IMAGE_CACHE_DIR` to a POSIX path inside WSL2 as shown in this section, complete Topology A Step 1 (add the WSL distro to Docker Desktop File Sharing), then recreate the NapCat container.
+
+</Callout>
+
 ## Next steps
 
 - [OneBot V11 Protocol](../onebot-v11/overview)

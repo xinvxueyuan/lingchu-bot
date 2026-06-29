@@ -35,7 +35,9 @@ send-announcement <content> [image]
 
 The image argument accepts `UniImage` from `nonebot-plugin-alconna`. The implementation resolves raw bytes, local paths, or downloadable URLs into cached files before passing a filesystem path to the API.
 
-NapCat currently expects the announcement `image` field to be readable from the NapCat side. If Lingchu Bot and NapCat run in different filesystems, configure the announcement image path bridge in the user configuration guide.
+NapCat currently requires the announcement `image` field to be readable from the NapCat side. If Lingchu Bot and NapCat run in different filesystems, configure the announcement image path bridge as described in the user configuration guide.
+
+For WSL2 (Debian / Ubuntu) deployments, or when migrating to WSL2 and seeing `retcode=1200, image field format may be incorrect`, see the [NapCat Docker WSL2 deployment section](../frameworks/napcat-docker#wsl2-deployment). **The most common root cause is that `\\wsl.localhost\Debian\` (use your distro name) is not in Docker Desktop Settings → Resources → File sharing**; adding it, clicking Apply & restart, and recreating the NapCat container fixes the issue.
 
 ## Group avatar
 
