@@ -238,6 +238,16 @@ PR 描述应包含：
 
 ## 许可与行为准则
 
-提交贡献即表示同意按本仓库许可发布。代码、文档和媒体文件的许可要求见 [Repository-Policy.md](../../Repository-Policy.md) 和相关许可证文件。
+本项目采用**分阶段开源许可证栈**，详见
+[Repository-Policy.md](../../Repository-Policy.md)。当前阶段覆盖
+LGPL-3.0-or-later（代码）、FDL-1.3-or-later（文档）和 CC0-1.0
+（视觉元素）；未来阶段在首次公开发行后一年 或 首次主版本变更
+（取较早者）自动触发，覆盖 MIT 或 Apache-2.0-or-later（代码）以及
+CC-BY-SA-4.0（文档和视觉元素）。切换仅作用于触发日（含）之后
+提交的贡献。
 
-参与讨论和审查时请遵守 [CODE_OF_CONDUCT.md](../../CODE_OF_CONDUCT.md)。保持具体、尊重和可验证，是让协作顺滑的最好方式。
+提交贡献即表示您接受 [CLA.md](../../CLA.md) 的条款，该协议授予本项目
+执行上述切换所需的权利。
+
+参与讨论和审查时请遵守 [CODE_OF_CONDUCT.md](../../CODE_OF_CONDUCT.md)。
+保持具体、尊重和可验证，是让协作顺滑的最好方式。

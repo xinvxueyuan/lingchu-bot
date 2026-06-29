@@ -271,11 +271,29 @@ When participating in discussions and reviews, please follow [CODE_OF_CONDUCT.md
 
 ## License
 
-This project uses a composite license:
+This project uses a **phased open-source license stack** (see
+[Repository-Policy.md](Repository-Policy.md) for the transition rules
+and trigger date):
 
-- Software code: LGPL-3.0-or-later, see [LICENSE-code](LICENSE-code).
-- Documentation content: GNU FDL-1.3-or-later, see [LICENSE-docs](LICENSE-docs).
-- License, media files, and sanitization requirements: see [Repository-Policy.md](Repository-Policy.md).
+- **Current phase** — Software: [LGPL-3.0-or-later](LICENSE-code).
+  Documentation: [GNU FDL-1.3-or-later](LICENSE-docs). Visual:
+  [CC0-1.0](LICENSE-cc0).
+- **Future phase** (triggered automatically on the earlier of one year
+  after the first public release or the first major version bump) —
+  Software: [MIT](LICENSE-mit) or [Apache-2.0-or-later](LICENSE-apache)
+  (dual, user-elected). Documentation and visual:
+  [CC-BY-SA-4.0](LICENSE-cc-by-sa).
+
+By submitting a contribution, you accept the terms of
+[CLA.md](CLA.md), which grants the Project the rights it needs to
+execute the transition described above. The transition only applies to
+contributions submitted on or after the trigger date; contributions made
+before the trigger date remain under the license that was in effect at
+the time of submission.
+
+For media file handling, sanitization requirements, and the official
+license texts, see [Repository-Policy.md](Repository-Policy.md) and the
+[`LICENSE-*`](LICENSE-mit) files in the repository root.
 
 ## Acknowledgments
 
