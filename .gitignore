@@ -167,6 +167,7 @@ dmypy.json
 
 # UV
 .uv-python
+uv.toml
 
 # ruff
 .ruff_cache/
