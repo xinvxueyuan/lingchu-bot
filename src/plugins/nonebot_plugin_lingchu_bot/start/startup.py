@@ -4,6 +4,7 @@ from nonebot.internal.driver.abstract import Driver
 
 from ..core.async_utils import fire_and_forget
 from ..core.bot_state import load_bot_state
+from ..core.config import plugin_config
 from ..core.menu_config import ensure_menu_config_file_async, load_menu_config
 from ..core.runtime_config import (
     ensure_runtime_config_file_async,
@@ -30,6 +31,45 @@ from ..services.message_store import (
 )
 
 
+async def _check_announcement_image_path_bridge() -> None:
+    """Validate that ANNOUNCEMENT_IMAGE_* path bridge configuration matches
+    the current host platform.
+
+    Path bridge misconfiguration is the most common cause of
+    ``_send_group_notice`` failing with ``retcode=1200`` when a user
+    migrates between Windows and WSL2, so we surface a single WARNING at
+    startup instead of waiting for the next announcement to fail.
+    """
+    # Late import: importing the module also registers the
+    # ``send_group_announcement`` matcher via ``on_alconna``. We do not
+    # want that side effect earlier than necessary, so import inside the
+    # function and rely on the same registration that
+    # ``group_import_handle`` triggers later.
+    from ..handle.qq.commands.announcement import _detect_cache_path_style_mismatch
+
+    mismatch = _detect_cache_path_style_mismatch(
+        plugin_config.announcement_image_cache_dir,
+        plugin_config.announcement_image_protocol_dir,
+        plugin_config.system_type,
+    )
+    if mismatch is None:
+        return
+    template = await _(
+        "公告图片缓存目录 {cache_dir} 与当前系统 {system_type} 不兼容：\n"
+        "当前进程在 {system_type} 上运行，但 ANNOUNCEMENT_IMAGE_CACHE_DIR 的值带有"
+        "另一操作系统（{detected_style}）的路径风格，会被 pathlib 解析为相对路径。\n"
+        "请按目标部署环境更新 .env 中的 ANNOUNCEMENT_IMAGE_CACHE_DIR 与"
+        " ANNOUNCEMENT_IMAGE_PROTOCOL_DIR，并重建 NapCat 容器使 bind mount 生效。"
+    )
+    logger.warning(
+        template.format(
+            cache_dir=mismatch.cache_dir,
+            system_type=mismatch.system_type,
+            detected_style=mismatch.detected_style,
+        )
+    )
+
+
 async def startup() -> None:
     """
     在应用启动时预热翻译缓存并注册命令处理器。
@@ -41,6 +81,13 @@ async def startup() -> None:
     except Exception:  # noqa: BLE001
         # Schema files are editor hints; missing them does not prevent startup.
         logger.exception("Failed to install JSON5 schemas")
+    try:
+        await _check_announcement_image_path_bridge()
+    except Exception:  # noqa: BLE001
+        # Self-check failures must never block startup; the failure case
+        # is also reported later via the runtime warning on the actual
+        # _send_group_notice call.
+        logger.exception("Failed to run announcement image path bridge self-check")
     await ensure_runtime_config_file_async()
     try:
         await ensure_menu_config_file_async()

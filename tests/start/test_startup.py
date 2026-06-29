@@ -79,3 +79,57 @@ async def test_startup_imports_group_and_menu_handlers(
     assert calls.index("ensure_menu_config") < calls.index("menu_import")
     assert calls.index("set_menu_pages") < calls.index("menu_import")
     assert calls.index("set_menu_features") < calls.index("menu_import")
+
+
+@pytest.mark.asyncio
+async def test_check_announcement_image_path_bridge_emits_warning_on_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Startup self-check warns when ANNOUNCEMENT_IMAGE_CACHE_DIR uses a
+    Windows-style drive letter on a Linux / WSL2 host."""
+    from unittest.mock import patch
+
+    fake_config = MagicMock()
+    fake_config.announcement_image_cache_dir = MagicMock()
+    fake_config.announcement_image_cache_dir.__str__ = lambda _: (
+        "C:/dev/lingchu-bot/.local/napcat-announcement-images"
+    )
+    fake_config.announcement_image_protocol_dir = (
+        "/lingchu-bot/.local/napcat-announcement-images"
+    )
+    fake_config.system_type = "Linux"
+
+    monkeypatch.setattr(startup_module, "plugin_config", fake_config)
+
+    with patch.object(startup_module.logger, "warning") as mock_warning:
+        await startup_module._check_announcement_image_path_bridge()
+
+    mock_warning.assert_called_once()
+    message = mock_warning.call_args.args[0]
+    assert "C:/dev/lingchu-bot/.local/napcat-announcement-images" in message
+    assert "ANNOUNCEMENT_IMAGE_CACHE_DIR" in message
+
+
+@pytest.mark.asyncio
+async def test_check_announcement_image_path_bridge_silent_when_consistent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Startup self-check stays silent when paths match the host platform."""
+    from pathlib import Path
+    from unittest.mock import patch
+
+    fake_config = MagicMock()
+    fake_config.announcement_image_cache_dir = Path(
+        "/home/xinvdev/lingchu-bot/.local/napcat-announcement-images"
+    )
+    fake_config.announcement_image_protocol_dir = (
+        "/lingchu-bot/.local/napcat-announcement-images"
+    )
+    fake_config.system_type = "Linux"
+
+    monkeypatch.setattr(startup_module, "plugin_config", fake_config)
+
+    with patch.object(startup_module.logger, "warning") as mock_warning:
+        await startup_module._check_announcement_image_path_bridge()
+
+    mock_warning.assert_not_called()

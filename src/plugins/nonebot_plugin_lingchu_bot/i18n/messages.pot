@@ -591,3 +591,23 @@ msgstr ""
 #, python-brace-format
 msgid "Lingchu 忽略未选中的已注册适配器: {adapters}"
 msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/announcement.py:53
+#, python-brace-format
+msgid ""
+"公告图片缓存目录 {cache_dir} 与当前系统 {system_type} 不兼容：\n"
+"当前进程在 {system_type} 上运行，但 ANNOUNCEMENT_IMAGE_CACHE_DIR 的值带有"
+"另一操作系统（{detected_style}）的路径风格，会被 pathlib 解析为相对路径。\n"
+"请按目标部署环境更新 .env 中的 ANNOUNCEMENT_IMAGE_CACHE_DIR 与"
+" ANNOUNCEMENT_IMAGE_PROTOCOL_DIR，并重建 NapCat 容器使 bind mount 生效。"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/napcat/announcement.py:36
+#, python-brace-format
+msgid ""
+"NapCat 拒绝公告图片：已发送的 image 字段为 {protocol_path}，本地缓存为"
+" {local_path}。请检查 ANNOUNCEMENT_IMAGE_CACHE_DIR 与"
+" ANNOUNCEMENT_IMAGE_PROTOCOL_DIR 是否一致，并确认 NapCat 容器"
+" bind mount 已挂载到该路径（Windows / WSL2 部署请参考 NapCat"
+" Docker 文档）。"
+msgstr ""

@@ -1,9 +1,10 @@
 import hashlib
+import re
 from dataclasses import dataclass
 from importlib import import_module
 from io import BytesIO
 from pathlib import Path
-from typing import Any
+from typing import Any, Final, NamedTuple
 
 import aiofiles
 import aiofiles.os
@@ -17,6 +18,21 @@ from ....core.config import plugin_config
 from .triggers import COMMAND_TRIGGERS
 
 _SEND_ANNOUNCEMENT = COMMAND_TRIGGERS["send_announcement"]
+
+
+# Matches Windows drive letter prefixes such as `C:` or `C:/`. On a POSIX
+# process `Path("C:/foo")` is a relative path; this regex lets us warn
+# before that silent reinterpretation corrupts the cache layout.
+_WINDOWS_DRIVE_PATTERN: Final = re.compile(r"^[A-Za-z]:[\\/]")
+
+
+class CachePathStyleMismatch(NamedTuple):
+    """Result of a path-style mismatch check."""
+
+    cache_dir: str
+    protocol_dir: str
+    system_type: str
+    detected_style: str
 
 
 @dataclass(frozen=True)
@@ -49,6 +65,59 @@ def _to_protocol_path(local_path: Path) -> str | None:
     except ValueError:
         return None
     return _join_protocol_path(protocol_dir, relative_path)
+
+
+def _detect_cache_path_style_mismatch(
+    cache_dir: Path,
+    protocol_dir: str | None,
+    system_type: str,
+) -> CachePathStyleMismatch | None:
+    """Detect when ANNOUNCEMENT_IMAGE_CACHE_DIR uses a path style that does
+    not match the current platform.
+
+    ``pathlib.Path("C:/dev/lingchu-bot")`` is a relative path on POSIX and an
+    absolute path on Windows. When a user copy-pastes a Windows path into a
+    Linux ``.env`` (for example after migrating from Windows to WSL2) the
+    cache files silently land under the project working directory and the
+    NapCat container can no longer read them. This helper flags that
+    condition so startup can emit a clear warning.
+
+    Returns a :class:`CachePathStyleMismatch` describing the values that
+    triggered the check, or ``None`` when the configuration is consistent.
+    Never raises.
+    """
+    if protocol_dir is None:
+        return None
+
+    cache_text = str(cache_dir)
+    protocol_text = protocol_dir
+
+    if system_type == "Linux" and (
+        _WINDOWS_DRIVE_PATTERN.match(cache_text)
+        or _WINDOWS_DRIVE_PATTERN.match(protocol_text)
+    ):
+        return CachePathStyleMismatch(
+            cache_dir=cache_text,
+            protocol_dir=protocol_text,
+            system_type=system_type,
+            detected_style="Windows",
+        )
+    if system_type == "Windows" and (
+        (cache_text.startswith("/") and not cache_text.startswith("//"))
+        or (protocol_text.startswith("/") and not protocol_text.startswith("//"))
+    ):
+        # POSIX absolute path on Windows (e.g. `/home/<user>/...`).
+        # A single leading `/` is a strong signal because Windows absolute
+        # paths always start with a drive letter; `\\...` UNC paths are
+        # intentionally excluded so we do not flag WSL2 UNC mounts.
+        return CachePathStyleMismatch(
+            cache_dir=cache_text,
+            protocol_dir=protocol_text,
+            system_type=system_type,
+            detected_style="POSIX",
+        )
+
+    return None
 
 
 async def _cache_image_bytes(raw_bytes: bytes) -> AnnouncementImagePath:
