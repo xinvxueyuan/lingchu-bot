@@ -11,141 +11,213 @@
 [![Gitmoji](https://img.shields.io/badge/gitmoji-%20%F0%9F%98%9C%20%F0%9F%98%8D-FFDD67.svg?style=flat-square)](https://gitmoji.dev/)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fxinvxueyuan%2Flingchu-bot.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fxinvxueyuan%2Flingchu-bot?ref=badge_shield)
 
-Lingchu Bot is an application-side management bot project built on NoneBot2. It organizes core capabilities as plugins, targeting group management, command processing, configuration management, local storage, and async data access.
-
-## Project Status
-
-This project is still in the pre-alpha / development stage. Current code, configuration, command behavior, and documentation may continue to change; please do not treat existing interfaces as stable production interfaces.
-
-If you want to follow the design and usage instructions, please read these first:
-
-- [Online Documentation](https://lingchu.zone.id/)
-- [User Guide](apps/docs/content/docs/user-guide/overview.mdx)
-- [Developer Guide](apps/docs/content/docs/developer-guide/architecture/introduction.mdx)
-- [Contributing Guide](CONTRIBUTING.md)
+Lingchu Bot is an application-side management bot project powered by NoneBot2. It currently focuses on QQ group management through OneBot V11 while keeping a plugin, platform registry, configuration, storage, permission, and documentation structure that can grow toward broader cross-platform workflows.
 
 [![Zread Q&A][zread-shield]][zread-link]
 
 [![DeepWiki Q&A][deepwiki-shield]][deepwiki-link]
 
-## Project Positioning
+## Project status
 
-The current repository contains these actual entry points:
+Lingchu Bot is still in **pre-alpha / development**. Code, configuration, command behavior, storage schema, and documentation can still change. Treat this README as an orientation map, and treat the source code plus docs as the source of truth for current behavior.
 
-- `nonebot-plugin-lingchu-bot`: Core NoneBot plugin, responsible for configuration, startup flow, sub-plugin loading, and shared utility capabilities.
-- `[tool.nonebot]`: NoneBot configuration in `pyproject.toml`, declaring this repository's plugin directory, installed adapters, and dependency plugins.
-- `Dockerfile` / `docker-compose.yml`: Container runtime entry; the image build stage generates a runtime `/tmp/bot.py` via `nb-cli`.
+Useful entry points:
 
-Plugins organize adapters by platform capabilities, with only one adapter's business code enabled by default per platform. The QQ platform priority is `~onebot.v11` > `~milky` > `~qq` > `~onebot.v12`, so OneBot V11 is selected by default; to switch to Milky or another QQ adapter, specify it explicitly via `LINGCHUAdapter` and ensure NoneBot has loaded the corresponding adapter. Implemented business handlers with test coverage are based on current source code and tests.
+- [Online documentation](https://lingchu.zone.id/)
+- [User guide overview](apps/docs/content/docs/user-guide/overview.mdx)
+- [Quick start](apps/docs/content/docs/user-guide/quick-start.mdx)
+- [QQ command reference](apps/docs/content/docs/platforms/qq/command-reference.mdx)
+- [Architecture guide](apps/docs/content/docs/developer-guide/architecture/introduction.mdx)
+- [Contributing guide](CONTRIBUTING.md)
 
-## Feature Overview
+## What is in this repository
 
-- Command processing: Organized via `nonebot-plugin-alconna` for command parsing.
-- Currently implemented capabilities: QQ group management handlers, including member muting, unmuting,全员 muting/unmuting, group profile settings, member card/title/admin settings, group announcements, kicking, and leaving groups. OneBot V11 is selected by default; the Milky path has test coverage but requires explicit adapter configuration.
-- Future directions: The project structure preserves extensibility for multi-adapter and non-group-management features, and can continue to evolve toward service integration, scheduled tasks, Web/API capabilities, and storage-driven workflows.
-- Configuration management: Lightweight runtime configuration is written to `config.json5` in the plugin configuration directory, and can be overridden by NoneBot global configuration.
-- Local storage: Uses `nonebot-plugin-localstore` to manage data, configuration, and cache directories.
-- Data access: Provides JSON5 storage utilities and async CRUD helpers based on `nonebot-plugin-orm`.
-- Message storage: Can record event reception, processing status, bot lifecycle, and platform API call summaries; adapters not enabled for the same platform are treated as disabled and do not enter message storage.
-- Sub-plugin loading: The core plugin discovers and loads project sub-plugins, facilitating future feature splitting.
+- `nonebot-plugin-lingchu-bot`: the Python package declared in `pyproject.toml`.
+- `src/plugins/nonebot_plugin_lingchu_bot`: the core NoneBot plugin, including metadata, startup hooks, platform registry, command handlers, permissions, i18n, repositories, and storage helpers.
+- `[tool.nonebot]` in `pyproject.toml`: local plugin loading configuration, installed adapter declarations, and dependency plugin declarations.
+- `apps/docs`: the Next.js / Fumadocs documentation site, with Chinese and English content.
+- `Dockerfile` / `docker-compose.yml`: container runtime flow. The image generates `/tmp/bot.py` during build through `nb-cli`; the repository root does not ship a committed local `bot.py`.
+- `scripts/setup.sh`: cross-platform initialization script for local development.
 
-## Quick Start
+## Current capabilities
 
-### Prerequisites
+Current user-facing capabilities are concentrated in QQ group management commands:
 
-- Python 3.13
-- uv
-- A working NoneBot runtime environment
-- Connection and account configuration for the currently enabled QQ platform adapter; OneBot V11 by default, set `LINGCHUAdapter` explicitly for Milky
+- **Member moderation**: mute, unmute, kick, block, unblock, clear blocklist, protect, and unprotect.
+- **Speech management**: member mute/unmute, whole-group mute/unmute, and recent message recall.
+- **Group operations**: set group name, set group avatar when supported, set member card/title/admin, send announcements when supported, and leave the current group.
+- **Remote management**: operate on another group by group ID or fuzzy group name matching, including remote mute/unmute, whole-group mute/unmute, kick, block/unblock, and announcement.
+- **Bot control**: `silence` / `speak` suppress or resume response messages while still allowing commands to execute; `boot` / `shutdown` enable or disable command handlers.
+- **Menu system**: the `菜单` / `menu` command lists platform-, protocol-, and implementation-filtered submenu entries.
+- **Runtime configuration**: plugin-owned JSON5 files under the localstore configuration directory, plus higher-priority NoneBot/global environment overrides.
+- **Permissions and protection**: UID-based superusers, platform account mapping, command grants, platform runtime role passthrough, blocklist, and protected-subject safeguards.
+- **Message storage and API audit**: optional recording of events, processing status, bot lifecycle events, and platform API call summaries.
+- **Runtime i18n**: gettext/Babel catalogs for Simplified Chinese and English feedback text, selected by `LINGCHU_LOCALE`, `lc_locale`, or `locale`.
 
-### Install Dependencies
+Future cross-platform and non-group-management features depend on later implementation and tests.
+
+## Adapter support
+
+The currently implemented platform profile is **QQ**, and the only active adapter is **OneBot V11**:
+
+```dotenv
+LINGCHUAdapter=~onebot.v11
+```
+
+When `LINGCHUAdapter` is unset, Lingchu selects `~onebot.v11` by default. The selected adapter must also be loaded and registered by NoneBot; otherwise startup fails with a clear adapter-not-loaded error.
+
+Deprecated adapters have been removed from the startup flow:
+
+- `~milky`
+- `~qq`
+- `~onebot.v12`
+
+Configuring any removed adapter fails fast with `PlatformAdapterDeprecatedError`. Configuring multiple known adapters for the same platform fails with `PlatformAdapterConflictError`. Configuring an unknown adapter fails startup as an unsupported Lingchu adapter.
+
+OneBot V11 currently has `default` and `NapCat` implementation paths. Some features are implementation-gated: for example, group announcement and group avatar entries are shown only when the selected implementation supports them, and remote announcement requires `NapCat.Onebot >= 4.18.0`.
+
+## Quick start
+
+### Requirements
+
+- Python 3.13 (`pyproject.toml` requires `>=3.13, <3.14`)
+- `uv`
+- Git
+- A usable NoneBot runtime and OneBot V11 connection/account setup
+- Node.js 20+ and pnpm 9+ for the docs/frontend workspace and the full setup script
+
+### Clone and initialize
+
+```bash
+git clone https://github.com/xinvxueyuan/lingchu-bot.git
+cd lingchu-bot
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
+
+The setup script checks the operating system and toolchain, installs Python and Node.js dependencies, creates environment files, configures Git hooks, and can optionally install Playwright browsers.
+
+Manual alternative:
 
 ```bash
 uv sync --frozen
+pnpm install
+pnpm exec husky
+cp .env.example .env
 ```
 
-### Running
+### Choose a runtime mode
 
-The current working tree does not commit a root `bot.py`. This repository is primarily a plugin package and NoneBot configuration:
+Use Lingchu Bot as a local plugin directory from an existing NoneBot project:
 
-- If integrating into an existing NoneBot project, load the local plugin directory per `plugin_dirs = ["src/plugins"]` in `[tool.nonebot]`.
-- If using container runtime, use the Docker build process; the image generates a runtime `/tmp/bot.py` via `nb-cli`.
-- Common local development path configuration is in [.env.example](.env.example), where `LOCALSTORE_USE_CWD=true` makes localstore data prefer the project directory.
+```toml
+# In the target NoneBot project's pyproject.toml
+[tool.nonebot]
+plugin_dirs = ["path/to/lingchu-bot/src/plugins"]
+```
 
-For actual connection parameters, bot accounts, and platform-side configuration, please refer to the NoneBot, OneBot V11, Milky, or target adapter documentation.
+Or use the container runtime:
 
-### Runtime Configuration
+```bash
+# docker-compose.yml currently reads .env.prod; create it from your deployment settings.
+cp .env.example .env.prod
+docker compose up --build
+```
 
-Lingchu Bot generates a plugin configuration file `config.json5` on first startup. This file is located in the plugin configuration directory provided by `nonebot-plugin-localstore`; during local development, if `LOCALSTORE_USE_CWD=true` is enabled, it typically lands in the localstore configuration path under the current working directory.
+Before connecting to a real platform, prepare the account, network, reverse WebSocket/HTTP settings, and permissions required by NoneBot and the OneBot V11 implementation you use.
 
-The priority of lightweight runtime configuration is:
+## Essential configuration
+
+Lingchu creates `config.json5` on first startup in the plugin configuration directory provided by `nonebot-plugin-localstore`. Runtime configuration priority is:
 
 1. OS environment variables
 2. NoneBot dotenv / global configuration
 3. `config.json5`
 4. Code defaults
 
-OS environment variable and dotenv parsing reuse NoneBot2's own configuration mechanism, so case sensitivity, path types, JSON-style boolean values, and env file selection all follow NoneBot behavior. It is recommended to write stable plugin runtime items into `config.json5`, and place deployment-environment-related or sensitive override items in environment variables or NoneBot env files.
+Important settings:
 
-The default `config.json5` content is equivalent to:
+| Setting | Purpose |
+| --- | --- |
+| `LINGCHUAdapter` / `LINGCHU_ADAPTER` | Select the active adapter; current supported value is `~onebot.v11`. |
+| `LINGCHU_SUPERUSERS` | UID-to-platform account mapping for Lingchu superusers. |
+| `SUPERUSERS` | Fallback QQ account list when `LINGCHU_SUPERUSERS` is absent or null. |
+| `LINGCHU_LOCALE` | Runtime locale; available catalogs currently include `zh_CN` and `en_US`. |
+| `LOCALSTORE_USE_CWD` | Store localstore data/config/cache under the project directory when true. |
+| `MESSAGE_STORE_ENABLED` | Enable message-store runtime hooks. |
+| `MESSAGE_STORE_RETENTION_DAYS` | Retention window for message records; `0` disables day-based expiry. |
+| `MESSAGE_STORE_SUMMARY_LIMIT` | Maximum summary length for text/data/result payloads. |
+| `MESSAGE_STORE_RECORD_API_CALLS` | Record platform API call summaries. |
+| `RECALL_MESSAGE_DEFAULT_COUNT` | Default count for the message recall command. |
+| `PERMISSION_PLATFORM_RUNTIME_PASSTHROUGH` | Allow platform roles such as QQ owner/admin/member to satisfy Lingchu permission grants. |
+| `COMMAND_TRIGGER_OVERRIDES` | Override primary command triggers and aliases by command key. |
+| `MENU_PAGE_TRIGGER_OVERRIDES` | Override menu page triggers by menu page id. |
+| `PROTECTED_SUBJECT_FEATURE_KEYS` | Side-effect command keys blocked when their target user is protected. |
+
+Example `config.json5`:
 
 ```json5
 {
+  "$schema": "config.schema.json5",
   superuser_key: "123456789abcdef",
   message_store_enabled: true,
   message_store_retention_days: 30,
   message_store_summary_limit: 500,
   message_store_record_api_calls: true,
   message_store_cleanup_enabled: true,
-  lingchu_adapter: null,
+  recall_message_default_count: 10,
+  permission_platform_runtime_passthrough: true,
+  command_trigger_overrides: {},
+  menu_page_trigger_overrides: {},
+  protected_subject_feature_keys: ["kick_member", "member_mute", "recall_message", "block_member"],
+  lingchu_adapter: "~onebot.v11",
   lingchu_superusers: null,
 }
 ```
 
-It can still be overridden in NoneBot global configuration, for example:
+Boolean values in NoneBot `.env` files must use JSON-style lowercase `true` / `false`, not Python-style `True` / `False`.
 
-```toml
-LINGCHUAdapter = "~onebot.v11"
+## Commands at a glance
+
+Main menu:
+
+```text
+菜单
+menu
 ```
 
-`LINGCHU_SUPERUSERS` defines Lingchu's UID-based superuser accounts and is parsed
-as JSON5:
+Default submenu pages:
 
-```dotenv
-LINGCHU_SUPERUSERS='{"userA":{"qq":123,"telegram":"tg-id","discord":"discord-id"}}'
+- `成员管理` / `member-management`
+- `发言管理` / `speech-management`
+- `群聊管理` / `group-chat-management`
+- `远程管理` / `remote-management`
+- `系统管理` / `system-management`
+
+Examples:
+
+```text
+禁言 @用户 [时长秒数] [原因]
+mute @user [duration seconds] [reason]
+
+撤回 [@用户] [数量]
+recall [@user] [count]
+
+远程禁言 <群号或群名称> @用户 [时长秒数] [原因]
+remote-mute <group_id_or_group_name> @user [duration seconds] [reason]
+
+闭嘴 / 说话
+silence / speak
+
+开机 / 关机
+boot / shutdown
 ```
 
-When `LINGCHU_SUPERUSERS` is absent, Lingchu imports NoneBot's native
-`SUPERUSERS` as QQ accounts and assigns generated UIDs in order from `user1` to
-`user999`. Startup fails if neither source is present, if the value is not a
-mapping of UID to platform account IDs, or if the same platform account is bound
-to more than one UID.
+Command trigger language is locale-exclusive. Chinese locales enable Chinese triggers; English locales enable short hyphenated English triggers. They are not enabled at the same time. Full command behavior, permission pre-checks, implementation filters, and remote management details are documented in [QQ Commands](apps/docs/content/docs/platforms/qq/command-reference.mdx).
 
-### Adapter Selection
+## Development and verification
 
-Lingchu Bot maps multiple concrete adapters to the same platform capability. Currently known QQ platform adapters include `~onebot.v11`, `~milky`, `~qq`, and `~onebot.v12`, with only the highest-priority `~onebot.v11` enabled by default.
-
-To specify a QQ platform adapter, write in NoneBot global configuration:
-
-```toml
-LINGCHUAdapter = "~onebot.v11"
-```
-
-In the above example, the QQ platform selects `~onebot.v11`. If set to `LINGCHUAdapter = "~milky"`, the QQ platform selects Milky. Explicitly declaring an adapter in `LINGCHUAdapter` that Lingchu has not implemented or cannot recognize will cause startup failure; unknown adapters registered at runtime are still ignored.
-
-Explicitly configuring multiple adapters for the same platform will cause startup failure, for example:
-
-```toml
-LINGCHUAdapter = "~milky+~onebot.v11"
-```
-
-Lingchu Bot does not control which adapters NoneBot actually imports or registers; it only selects business code per `LINGCHUAdapter`. When not explicitly configured, `~onebot.v11` is selected by default, so OneBot V11 must already be loaded/registered by NoneBot. The same applies when explicitly selecting other adapters: if `LINGCHUAdapter = "~milky"` but NoneBot has not loaded Milky, startup will fail. Additional adapters imported or registered for the same platform are treated as disabled by Lingchu Bot and their messages, lifecycle, or API calls are not recorded.
-
-## Development and Verification
-
-CI checks Ruff, Markdown, Pyright, ty, pytest (on SQLite, PostgreSQL, and MySQL), and documentation site lint/test. Before committing, it is recommended to run at least the checks relevant to your changes.
-
-This repository also contains a Turborepo workspace for developing the Next.js documentation site and frontend packages. The documentation site source is in [apps/docs](apps/docs/), built with [Fumadocs](https://fumadocs.dev/), supporting bilingual Chinese/English, RSS feeds, Mermaid diagrams, Twoslash code hover, EPUB export, LLM-friendly text (`/llms.txt`, `/llms-full.txt`), and documentation relationship graphs.
+CI checks Ruff, Markdown, Pyright, ty, pytest on multiple database backends, and docs site lint/test. Run the checks relevant to your change before committing.
 
 Ruff:
 
@@ -166,33 +238,34 @@ Python tests:
 ```bash
 uv run -m pytest
 
-# Multi-database testing (optional, requires database server):
+# Optional multi-database testing:
 # SQLALCHEMY_DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/postgres" uv run -m pytest
 # SQLALCHEMY_DATABASE_URL="mysql+aiomysql://mysql:mysql@localhost:3306/mymysql" uv run -m pytest
 ```
 
-Documentation site lint and test:
+Documentation site:
 
 ```bash
 pnpm --filter docs lint
 pnpm --filter docs test
-```
-
-Documentation build:
-
-```bash
 pnpm turbo run build --filter=docs
 ```
 
-Markdown check:
+Runtime i18n catalogs:
 
 ```bash
-pnpm exec markdownlint-cli2 README.md
+task i18n
+```
+
+Markdown:
+
+```bash
+pnpm exec markdownlint-cli2 README.md README-zh.md
 ```
 
 ## Contributing
 
-Issues, tests, documentation, and code improvements are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before starting, which includes the current collaboration workflow, GitNexus impact analysis requirements, and PR checklist.
+Issues, tests, documentation, and code improvements are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before starting; it describes the current collaboration workflow, GitNexus impact analysis requirements, and PR checklist.
 
 When participating in discussions and reviews, please follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). For security-related issues, please refer to [SECURITY.md](SECURITY.md).
 
@@ -206,22 +279,16 @@ This project uses a composite license:
 
 ## Acknowledgments
 
-Thanks to the [NoneBot](https://nonebot.dev/) project and community ecosystem for providing foundational capabilities. This project also depends on and thanks these tools and plugins:
+Lingchu Bot stands on a lot of good open-source shoulders. Thanks especially to these upstream projects and communities:
 
-- [nonebot-plugin-alconna](https://github.com/nonebot/plugin-alconna)
-- [nonebot-plugin-localstore](https://github.com/nonebot/plugin-localstore)
-- [nonebot-plugin-orm](https://github.com/nonebot/plugin-orm)
-- [nonebot-plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler)
-- [Fumadocs](https://fumadocs.dev/)
-- [Next.js](https://nextjs.org/)
-- [Vitest](https://vitest.dev/)
-- [Ruff](https://docs.astral.sh/ruff/)
-- [Pyright](https://microsoft.github.io/pyright/)
-- [ty](https://docs.astral.sh/ty/)
+- **Bot runtime and adapter ecosystem**: [NoneBot2](https://nonebot.dev/), [nonebot-adapter-onebot](https://github.com/nonebot/adapter-onebot), `nonebot-plugin-alconna`, `nonebot-plugin-localstore`, `nonebot-plugin-orm`, `nonebot-plugin-apscheduler`, `nonebot-plugin-htmlkit`, `nonebot-plugin-docs`, and `nonebot-plugin-wait-a-minute`.
+- **Python configuration, storage, and service utilities**: `aiofiles`, `json5`, `rtoml`, `jsonschema`, [Babel](https://babel.pocoo.org/), [Jinja](https://jinja.palletsprojects.com/), [Typer](https://typer.tiangolo.com/), [Arrow](https://arrow.readthedocs.io/), `psutil`, and the [OpenAI Python SDK](https://github.com/openai/openai-python).
+- **Documentation and frontend stack**: [Fumadocs](https://fumadocs.dev/), [Next.js](https://nextjs.org/), [React](https://react.dev/), [Mermaid](https://mermaid.js.org/), [Twoslash](https://twoslash.netlify.app/), `flexsearch`, `d3-force`, `dompurify`, `feed`, and [Tailwind CSS](https://tailwindcss.com/).
+- **Engineering, testing, and repository workflow**: [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io/), [Turborepo](https://turbo.build/repo), [Ruff](https://docs.astral.sh/ruff/), [Pyright](https://microsoft.github.io/pyright/), [ty](https://docs.astral.sh/ty/), [pytest](https://docs.pytest.org/), [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/), [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2), [Prettier](https://prettier.io/), [ESLint](https://eslint.org/), [Husky](https://typicode.github.io/husky/), [Gitmoji](https://gitmoji.dev/), `gitnexus`, and [FOSSA](https://fossa.com/).
 
-For the complete dependency list, please refer to [pyproject.toml](pyproject.toml) and [uv.lock](uv.lock).
+For complete dependency lists, please refer to [pyproject.toml](pyproject.toml), [package.json](package.json), [apps/docs/package.json](apps/docs/package.json), and [uv.lock](uv.lock).
 
-## License Compliance
+## License compliance
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fxinvxueyuan%2Flingchu-bot.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fxinvxueyuan%2Flingchu-bot?ref=badge_large)
 
