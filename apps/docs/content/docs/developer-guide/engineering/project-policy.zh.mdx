@@ -33,11 +33,53 @@ title: 项目政策
 
 ## 许可
 
-项目使用复合许可证：
+本项目采用**分阶段开源许可证栈**，在两个阶段之间设有自动切换。权威定义、切换触发点与 SPDX 标识符见 [Repository-Policy.md](https://github.com/xinvxueyuan/lingchu-bot/blob/main/Repository-Policy.md)。以下摘要与该文件保持一致。
 
-- 代码：LGPL-3.0-or-later，见 [https://github.com/xinvxueyuan/lingchu-bot/blob/main/LICENSE-code](https://github.com/xinvxueyuan/lingchu-bot/blob/main/LICENSE-code)。
-- 文档：GNU FDL-1.3-or-later，见 [https://github.com/xinvxueyuan/lingchu-bot/blob/main/LICENSE-docs](https://github.com/xinvxueyuan/lingchu-bot/blob/main/LICENSE-docs)。
-- 详细策略：见 [https://github.com/xinvxueyuan/lingchu-bot/blob/main/Repository-Policy.md](https://github.com/xinvxueyuan/lingchu-bot/blob/main/Repository-Policy.md)。
+### 当前阶段（自项目创立起生效）
+
+| 标的 | 许可证 | SPDX 标识符 |
+| --- | --- | --- |
+| 软件代码 | GNU Lesser General Public License v3.0 或后续版本 | `LGPL-3.0-or-later` |
+| 文档 | GNU Free Documentation License v1.3 或后续版本 | `GFDL-1.3-or-later` |
+| 视觉元素 | CC0 1.0 通用公共领域贡献许可证 | `CC0-1.0` |
+
+### 未来阶段（自动触发）
+
+| 标的 | 许可证 | SPDX 标识符 |
+| --- | --- | --- |
+| 软件代码 | MIT 许可证或后续版本，**或** Apache 许可证 2.0 或后续版本（用户自选双许可证） | `MIT-or-later OR Apache-2.0-or-later` |
+| 文档 | Creative Commons Attribution-ShareAlike 4.0 国际 或后续版本 | `CC-BY-SA-4.0-or-later` |
+| 视觉元素 | Creative Commons Attribution-ShareAlike 4.0 国际 或后续版本 | `CC-BY-SA-4.0-or-later` |
+
+> 注：`pyproject.toml` 使用规范 SPDX 形式（`MIT OR Apache-2.0`、`CC-BY-SA-4.0`）以满足 PEP 639 / `uv build` 校验；上表的 `-or-later` 形式表达项目"或后续版本"的意图。
+
+切换触发点为以下两者中的较早者：（a）首次公开发行后一年；或（b）首次主版本变更。切换仅作用于触发日（含）之后提交的贡献；触发日之前提交的贡献继续适用其提交当时生效的许可证。
+
+完整许可证文本位于仓库根目录：
+
+- [`LICENSE-code`](https://github.com/xinvxueyuan/lingchu-bot/blob/main/LICENSE-code) — LGPL-3.0-or-later
+- [`LICENSE-docs`](https://github.com/xinvxueyuan/lingchu-bot/blob/main/LICENSE-docs) — FDL-1.3-or-later
+- [`LICENSE-cc0`](https://github.com/xinvxueyuan/lingchu-bot/blob/main/LICENSE-cc0) — CC0 1.0 Universal
+- [`LICENSE-mit`](https://github.com/xinvxueyuan/lingchu-bot/blob/main/LICENSE-mit) — MIT 或后续版本
+- [`LICENSE-apache`](https://github.com/xinvxueyuan/lingchu-bot/blob/main/LICENSE-apache) — Apache License 2.0 或后续版本
+- [`LICENSE-cc-by-sa`](https://github.com/xinvxueyuan/lingchu-bot/blob/main/LICENSE-cc-by-sa) — CC BY-SA 4.0 或后续版本
+
+## 许可与 CLA
+
+提交贡献——包括 PR、Issue 补丁、翻译、视觉素材或任何其他材料——即表示您接受 [贡献者许可协议（CLA.md）](https://github.com/xinvxueyuan/lingchu-bot/blob/main/CLA.md)。中文镜像位于 [`.github/note/CLA-zh.md`](https://github.com/xinvxueyuan/lingchu-bot/blob/main/.github/note/CLA-zh.md)。
+
+CLA 是未来阶段切换在法律上可执行的基础。它授予本项目对您的贡献**永久、全球、非独占、免特许权使用费、不可撤销**的版权与专利许可，并明确授予本项目在切换触发点到来时，作为本项目的一部分对您的贡献进行**再许可**的权利。触发点为以下两者中的较早者：
+
+- 本项目首次公开发行（非预发布）后一年（首个 `1.0.0` 或之后的版本，不含 `0.x` 或 `rc` / `alpha` / `beta`）；或
+- 本项目首次主版本变更（SemVer `x.0.0` 发布）。
+
+切换是单向的，且仅作用于触发日（含）之后提交的贡献。触发日之前提交的贡献保留原许可证。您通过以下任一行为即视为接受 CLA：
+
+- 在您提交的提交中加入 `Signed-off-by:` 尾注（开发者原创证书 DCO 格式）。
+- 在 [PR 模板](https://github.com/xinvxueyuan/lingchu-bot/blob/main/.github/PULL_REQUEST_TEMPLATE.md)中的 CLA 确认复选框内勾选。
+- 通过将您的 Git 身份与本协议相关联的任何基于 Git 的机制提交贡献。
+
+若本项目后续发布更详细或经签署的 CLA 表格，并明确取代当前协议，则新表格自其生效日（含）起提交的贡献适用新表格。日常贡献流程见 [开发者工作流指南](/docs/developer-guide/engineering/workflow)。
 
 ## 媒体文件脱敏
 
