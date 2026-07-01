@@ -37,7 +37,7 @@ menu
 - `发言管理` / `speech-management`
 - `群聊管理` / `group-chat-management`
 - `远程管理` / `remote-management`
-- `机器人控制` / `bot-control`
+- `系统管理` / `system-management` — 机器人状态与应用运行命令，包括支持时的协议端重启
 
 ## 平台专属命令参考
 
@@ -54,7 +54,11 @@ menu
 - OneBot V11 未知实现会隐藏群公告和群头像。
 - `NapCat.Onebot >= 4.18.0` 显示群公告和群头像。
 - 远程管理命令仅 OneBot V11 可用。
-- 远程公告要求 `NapCat.Onebot >= 4.18.0`。
+- 远程公告和群发公告要求 `NapCat.Onebot >= 4.18.0`。
+
+群发公告的命令键 / 功能名是 `mass announcement` / `群发公告`。语法为 `群发公告 <内容> [群号或群名称列表或全部群] [图片]`；英文 locale 使用 `mass-announcement <content> [group_ids_or_group_names_or_all] [image]`。省略目标时，机器人会发送到已加入的全部群。多个目标群用 `,`、`，`、`、`、`;` 或 `；` 分隔。
+
+`重启协议端` 省略平台参数时重启当前 QQ OneBot V11 协议端。协议端重新连接后，Lingchu 会向发起命令的群发送确认反馈。
 
 ## 错误反馈
 

@@ -28,8 +28,8 @@ menu
 - `成员管理` / `member-management`：踢出、拉黑/删黑、拉白/删白、设置群名片、设置群头衔、设置/取消管理员。
 - `发言管理` / `speech-management`：禁言/解禁群成员、开启/关闭全体禁言、撤回最近消息。
 - `群聊管理` / `group-chat-management`：设置群名称、设置群头像（实现支持时）、发送群公告（实现支持时）、退出当前群。
-- `远程管理` / `remote-management`：跨群禁言/解禁、全体禁言/解禁、踢出、拉黑/删黑、发送公告。
-- `系统管理` / `system-management`：闭嘴/说话（静默模式）、开机/关机（处理器门禁）。
+- `远程管理` / `remote-management`：跨群禁言/解禁、全体禁言/解禁、踢出、拉黑/删黑、发送公告、群发公告。
+- `系统管理` / `system-management`：闭嘴/说话（静默模式）、开机/关机（处理器门禁）、重启协议端等应用运行命令。
 
 <Callout type="info" title="远程管理">
 
@@ -147,10 +147,13 @@ recall [@user] [count]
 | 远程拉黑 | `远程拉黑 <群号或群名称> @用户 [时长秒数] [原因]` | `remote-block <group_id_or_group_name> @user [duration seconds] [reason]` |
 | 远程删黑 | `远程删黑 <群号或群名称> @用户 [原因]` | `remote-unblock <group_id_or_group_name> @user [reason]` |
 | 远程公告 | `远程公告 <群号或群名称> <内容> [图片]` | `remote-announcement <group_id_or_group_name> <content> [image]` |
+| 群发公告 | `群发公告 <内容> [群号或群名称列表或全部群] [图片]` | `mass-announcement <content> [group_ids_or_group_names_or_all] [image]` |
 
-<Callout type="warn" title="远程公告可用性">
+群发公告使用命令键 / 功能名 `mass announcement` / `群发公告`。内容参数在前。省略目标列表时，机器人会发送到已加入的全部群。指定多个目标群时，用 `,`、`，`、`、`、`;` 或 `；` 分隔群号或群名称。也可以用 `全部群` 或 `all` 明确指定全部已加入群。
 
-远程公告要求 `NapCat.Onebot >= 4.18.0`。其他 OneBot V11 实现无法发送群公告。实现不支持时，远程公告菜单项会被隐藏。
+<Callout type="warn" title="公告可用性">
+
+远程公告和群发公告要求 `NapCat.Onebot >= 4.18.0`。其他 OneBot V11 实现无法发送群公告。实现不支持时，公告菜单项会被隐藏。
 
 </Callout>
 
@@ -166,7 +169,13 @@ recall [@user] [count]
 
 反馈文本和命令触发词语言会使用当前 NoneBot 配置中的 `LINGCHU_LOCALE`、`lc_locale` 或 `locale`。详见[国际化](../../developer-guide/engineering/i18n)。
 
-## 机器人控制
+## 系统管理
+
+| 能力 | 中文命令 | 英文命令 |
+| --- | --- | --- |
+| 重启协议端 | `重启协议端 [平台]` | `restart-protocol-endpoint [platform]` |
+
+`重启协议端` 省略平台参数时重启当前 QQ OneBot V11 协议端。协议端重新连接后，Lingchu 会向发起命令的群发送确认反馈。
 
 ```text
 闭嘴

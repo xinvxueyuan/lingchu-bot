@@ -120,6 +120,10 @@ _DEFAULT_MENU_PAGES: Final[tuple[MenuPage, ...]] = (
         children=(
             MenuPage("silent-mode", LocalizedText("静默模式", "Silent Mode")),
             MenuPage("handle-gate", LocalizedText("开关机", "Handle Gate")),
+            MenuPage(
+                "application-operation",
+                LocalizedText("应用端操作", "Application Operation"),
+            ),
         ),
         command=LocalizedText("系统管理", "system-management"),
     ),
@@ -498,6 +502,18 @@ _DEFAULT_MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         (*_ONEBOT_ANNOUNCEMENT,),
     ),
     MenuFeature(
+        "mass-announcement",
+        "mass_announcement",
+        "remote-management",
+        LocalizedText("群发公告", "Mass announcement"),
+        LocalizedText(
+            "<内容> [群号|群名称列表|全部群] [图片]",
+            "<content> [group_ids|group_names|all] [image]",
+        ),
+        PlatformCapability.ANNOUNCEMENT,
+        (*_ONEBOT_ANNOUNCEMENT,),
+    ),
+    MenuFeature(
         "bot-silence",
         "bot_silence",
         "silent-mode",
@@ -531,6 +547,15 @@ _DEFAULT_MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         LocalizedText("关机", "Shutdown"),
         LocalizedText("", ""),
         PlatformCapability.GROUP_MANAGEMENT,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
+        "restart-protocol-endpoint",
+        "restart_protocol_endpoint",
+        "application-operation",
+        LocalizedText("重启协议端", "Restart protocol endpoint"),
+        LocalizedText("[平台]", "[platform]"),
+        PlatformCapability.APPLICATION_OPERATION,
         (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
     ),
 )

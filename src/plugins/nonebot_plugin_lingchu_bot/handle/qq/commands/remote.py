@@ -18,6 +18,7 @@ _REMOTE_KICK = COMMAND_TRIGGERS["remote_kick"]
 _REMOTE_BLOCK = COMMAND_TRIGGERS["remote_block"]
 _REMOTE_UNBLOCK = COMMAND_TRIGGERS["remote_unblock"]
 _REMOTE_ANNOUNCEMENT = COMMAND_TRIGGERS["remote_announcement"]
+_MASS_ANNOUNCEMENT = COMMAND_TRIGGERS["mass_announcement"]
 
 # 远程禁言命令
 remote_mute_cmd: type[AlconnaMatcher] = on_alconna(
@@ -127,6 +128,19 @@ remote_announcement_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_start=True,
 )
 
+# 群发公告命令；目标列表可选，省略时由处理器默认解析为全部群
+mass_announcement_cmd: type[AlconnaMatcher] = on_alconna(
+    command=Alconna(
+        _MASS_ANNOUNCEMENT.primary,
+        Args["content", str]["targets?", str, None]["image?", UniImage, None],
+    ),
+    aliases=_MASS_ANNOUNCEMENT.aliases,
+    priority=5,
+    block=True,
+    use_cmd_sep=True,
+    use_cmd_start=True,
+)
+
 _LAZY_EXPORTS = {
     "onebot11_remote_mute": "..adapters.onebot11.default.remote",
     "onebot11_remote_unmute": "..adapters.onebot11.default.remote",
@@ -136,6 +150,7 @@ _LAZY_EXPORTS = {
     "onebot11_remote_block": "..adapters.onebot11.default.remote",
     "onebot11_remote_unblock": "..adapters.onebot11.default.remote",
     "onebot11_remote_announcement": "..adapters.onebot11.default.remote",
+    "onebot11_mass_announcement": "..adapters.onebot11.default.remote",
 }
 
 

@@ -2,7 +2,7 @@
 
 import hashlib
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
@@ -19,6 +19,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import (
     announcement as announcement_module,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.remote import (
+    mass_announcement_cmd,
     remote_announcement_cmd,
     remote_block_cmd,
     remote_kick_cmd,
@@ -37,6 +38,7 @@ _TARGET_USER_ID = 555555555
 
 # 通过对象引用访问远程处理器，避免硬编码模块路径
 _resolve_group_id = remote_module._resolve_group_id
+onebot11_mass_announcement = remote_module.onebot11_mass_announcement
 onebot11_remote_announcement = remote_module.onebot11_remote_announcement
 onebot11_remote_block = remote_module.onebot11_remote_block
 onebot11_remote_kick = remote_module.onebot11_remote_kick
@@ -171,6 +173,52 @@ class TestResolveGroupId:
             with pytest.raises(Exception, match="finish called"):
                 await _resolve_group_id(mock_bot, "任意群名", remote_mute_cmd)
             mock_finish.assert_called_once()
+
+
+class TestResolveMassAnnouncementTargets:
+    """测试群发公告目标解析。"""
+
+    @pytest.mark.asyncio
+    async def test_resolve_blank_targets_defaults_to_all_groups(
+        self, mock_bot: MagicMock, mock_group_list: list[dict]
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+
+        result = await remote_module._resolve_mass_announcement_targets(
+            mock_bot,
+            None,
+            mass_announcement_cmd,
+        )
+
+        assert result == [_GROUP_ID_1, _GROUP_ID_2, 333333333]
+
+    @pytest.mark.asyncio
+    async def test_resolve_target_list_deduplicates_in_order(
+        self, mock_bot: MagicMock, mock_group_list: list[dict]
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+
+        result = await remote_module._resolve_mass_announcement_targets(
+            mock_bot,
+            "111111111，测试群2、111111111",
+            mass_announcement_cmd,
+        )
+
+        assert result == [_GROUP_ID_1, _GROUP_ID_2]
+
+    @pytest.mark.asyncio
+    async def test_resolve_all_targets_from_group_list(
+        self, mock_bot: MagicMock, mock_group_list: list[dict]
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+
+        result = await remote_module._resolve_mass_announcement_targets(
+            mock_bot,
+            "全部群",
+            mass_announcement_cmd,
+        )
+
+        assert result == [_GROUP_ID_1, _GROUP_ID_2, 333333333]
 
 
 class TestRemoteMute:
@@ -624,3 +672,196 @@ class TestRemoteAnnouncement:
             content="测试公告内容",
             image=f"/lingchu/announcement-images/{expected_md5}.png",
         )
+
+
+class TestMassAnnouncement:
+    """测试群发公告命令。"""
+
+    @pytest.mark.asyncio
+    async def test_mass_announcement_defaults_to_all_groups(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        """未传目标时默认群发到机器人加入的全部群。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_version_info.return_value = {
+            "data": {
+                "protocol_version": "v11",
+                "app_version": "4.18.0",
+                "app_name": "NapCat.Onebot",
+            }
+        }
+        mock_bot.call_api.return_value = {}
+
+        with patch.object(
+            mass_announcement_cmd, "finish", new_callable=AsyncMock
+        ) as mock_finish:
+            await onebot11_mass_announcement(
+                content="测试公告内容",
+                bot=mock_bot,
+                event=mock_event,
+                targets=None,
+                image=None,
+            )
+
+        assert mock_bot.call_api.call_args_list == [
+            call("_send_group_notice", group_id=_GROUP_ID_1, content="测试公告内容"),
+            call("_send_group_notice", group_id=_GROUP_ID_2, content="测试公告内容"),
+            call("_send_group_notice", group_id=333333333, content="测试公告内容"),
+        ]
+        assert "成功 3 个，失败 0 个" in str(mock_finish.call_args.args[0])
+
+    @pytest.mark.asyncio
+    async def test_mass_announcement_sends_to_each_target(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        """显式传多个目标时逐群发送。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_version_info.return_value = {
+            "data": {
+                "protocol_version": "v11",
+                "app_version": "4.18.0",
+                "app_name": "NapCat.Onebot",
+            }
+        }
+        mock_bot.call_api.return_value = {}
+
+        with patch.object(
+            mass_announcement_cmd, "finish", new_callable=AsyncMock
+        ) as mock_finish:
+            await onebot11_mass_announcement(
+                content="测试公告内容",
+                bot=mock_bot,
+                event=mock_event,
+                targets="111111111,222222222",
+                image=None,
+            )
+
+        assert mock_bot.call_api.call_args_list == [
+            call("_send_group_notice", group_id=_GROUP_ID_1, content="测试公告内容"),
+            call("_send_group_notice", group_id=_GROUP_ID_2, content="测试公告内容"),
+        ]
+        assert "成功 2 个，失败 0 个" in str(mock_finish.call_args.args[0])
+
+    @pytest.mark.asyncio
+    async def test_mass_announcement_continues_after_target_failure(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        """单个目标发送失败时继续发送后续目标并汇总失败。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_version_info.return_value = {
+            "data": {
+                "protocol_version": "v11",
+                "app_version": "4.18.0",
+                "app_name": "NapCat.Onebot",
+            }
+        }
+        mock_bot.call_api.side_effect = [OneBot11ActionFailed(), {}]
+
+        with patch.object(
+            mass_announcement_cmd, "finish", new_callable=AsyncMock
+        ) as mock_finish:
+            await onebot11_mass_announcement(
+                content="测试公告内容",
+                bot=mock_bot,
+                event=mock_event,
+                targets="111111111,222222222",
+                image=None,
+            )
+
+        assert mock_bot.call_api.call_count == 2
+        result_text = str(mock_finish.call_args.args[0])
+        assert "成功 1 个，失败 1 个" in result_text
+        assert "111111111" in result_text
+        assert "222222222" in result_text
+
+    @pytest.mark.asyncio
+    async def test_mass_announcement_rejects_empty_content(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        """公告内容为空时直接拒绝。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+
+        with patch.object(
+            mass_announcement_cmd, "finish", new_callable=AsyncMock
+        ) as mock_finish:
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_mass_announcement(
+                    content="   ",
+                    bot=mock_bot,
+                    event=mock_event,
+                    targets="111111111",
+                    image=None,
+                )
+
+        assert "群公告内容不能为空" in str(mock_finish.call_args.args[0])
+
+    @pytest.mark.asyncio
+    async def test_mass_announcement_uses_one_cached_protocol_image_for_each_group(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """群发公告图片复用公告路径桥接，向每个目标传协议端路径。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_version_info.return_value = {
+            "data": {
+                "protocol_version": "v11",
+                "app_version": "4.18.0",
+                "app_name": "NapCat.Onebot",
+            }
+        }
+        mock_bot.call_api.return_value = {}
+
+        host_cache_dir = tmp_path / "napcat-announcement-images"
+        fake_config = MagicMock()
+        fake_config.cache_dir = tmp_path / "default-cache"
+        fake_config.announcement_image_cache_dir = host_cache_dir
+        fake_config.announcement_image_protocol_dir = "/lingchu/announcement-images"
+        monkeypatch.setattr(announcement_module, "plugin_config", fake_config)
+
+        raw_bytes = b"mass-announcement-image"
+        image = MagicMock()
+        image.raw = raw_bytes
+        image.path = None
+        image.url = None
+
+        with patch.object(mass_announcement_cmd, "finish", new_callable=AsyncMock):
+            await onebot11_mass_announcement(
+                content="测试公告内容",
+                bot=mock_bot,
+                event=mock_event,
+                targets="111111111,222222222",
+                image=image,
+            )
+
+        expected_md5 = hashlib.md5(raw_bytes).hexdigest()
+        assert mock_bot.call_api.call_args_list == [
+            call(
+                "_send_group_notice",
+                group_id=_GROUP_ID_1,
+                content="测试公告内容",
+                image=f"/lingchu/announcement-images/{expected_md5}.png",
+            ),
+            call(
+                "_send_group_notice",
+                group_id=_GROUP_ID_2,
+                content="测试公告内容",
+                image=f"/lingchu/announcement-images/{expected_md5}.png",
+            ),
+        ]

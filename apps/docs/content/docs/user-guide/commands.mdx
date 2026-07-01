@@ -37,7 +37,7 @@ Default submenu commands:
 - `发言管理` / `speech-management`
 - `群聊管理` / `group-chat-management`
 - `远程管理` / `remote-management`
-- `机器人控制` / `bot-control`
+- `系统管理` / `system-management` — bot state and application operation commands, including protocol endpoint restart where supported
 
 ## Platform-specific command references
 
@@ -54,7 +54,11 @@ Commands unsupported by the selected platform, protocol, or implementation are h
 - OneBot V11 with unknown implementation hides group announcement and group avatar.
 - `NapCat.Onebot >= 4.18.0` shows group announcement and group avatar.
 - Remote management commands are OneBot V11 only.
-- Remote announcement requires `NapCat.Onebot >= 4.18.0`.
+- Remote announcement and mass announcement require `NapCat.Onebot >= 4.18.0`.
+
+The mass announcement command key / feature name is `mass announcement` / `群发公告`. Its syntax is `mass-announcement <content> [group_ids_or_group_names_or_all] [image]`; Chinese locale uses `群发公告 <内容> [群号或群名称列表或全部群] [图片]`. If the target is omitted, the bot sends to all groups it has joined. Multiple target groups are separated with `,`, `，`, `、`, `;`, or `；`.
+
+`重启协议端` restarts the current QQ OneBot V11 protocol endpoint when the platform argument is omitted. After the protocol endpoint reconnects, Lingchu sends a confirmation message to the group where the command was issued.
 
 ## Error feedback
 

@@ -71,6 +71,22 @@ def config_manager() -> HandleConfigManager:
     return HandleConfigManager()
 
 
+def test_mass_announcement_defaults_are_registered() -> None:
+    assert HANDLE_DEFAULTS_REGISTRY["mass_announcement"] == {
+        "enabled": True,
+        "defaults": {},
+        "policies": {},
+    }
+
+
+def test_restart_protocol_endpoint_defaults_are_registered() -> None:
+    assert HANDLE_DEFAULTS_REGISTRY["restart_protocol_endpoint"] == {
+        "enabled": True,
+        "defaults": {},
+        "policies": {},
+    }
+
+
 # SubTask 8.1: HandleConfig dataclass 字段结构测试
 class TestHandleConfigDataclass:
     """Test HandleConfig dataclass field structure."""

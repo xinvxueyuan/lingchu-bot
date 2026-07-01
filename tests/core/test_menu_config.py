@@ -66,6 +66,32 @@ def test_menu_config_defaults_excludes_runtime_fields() -> None:
         assert "section_id" not in entry
 
 
+def test_mass_announcement_menu_feature_is_remote_announcement_capability() -> None:
+    feature = _feature_by_key(menu_module._DEFAULT_MENU_FEATURES, "mass_announcement")
+
+    assert feature.section_id == "remote-management"
+    assert feature.platform_capability == menu_module.PlatformCapability.ANNOUNCEMENT
+    assert feature.availability == menu_module._ONEBOT_ANNOUNCEMENT
+
+
+def test_restart_protocol_endpoint_menu_feature_is_application_operation() -> None:
+    page = next(
+        page
+        for page in menu_module._DEFAULT_MENU_PAGES
+        if page.id == "system-management"
+    )
+    assert any(child.id == "application-operation" for child in page.children)
+
+    feature = _feature_by_key(
+        menu_module._DEFAULT_MENU_FEATURES, "restart_protocol_endpoint"
+    )
+    assert feature.section_id == "application-operation"
+    assert (
+        feature.platform_capability
+        == menu_module.PlatformCapability.APPLICATION_OPERATION
+    )
+
+
 def test_menu_config_defaults_have_schema_compatible_shape() -> None:
     schema = json.loads(MENU_SCHEMA_TEXT)
     defaults = menu_config_defaults()

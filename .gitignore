@@ -45,6 +45,7 @@ MANIFEST
 pip-wheel-metadata/
 share/python-wheels/
 /public
+/docs
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

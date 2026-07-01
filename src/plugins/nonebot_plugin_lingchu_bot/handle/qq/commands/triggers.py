@@ -417,6 +417,20 @@ _DEFAULT_COMMAND_TRIGGERS = {
         chinese_aliases=frozenset({"跨群公告", "远程群公告", "远程发公告"}),
         english_aliases=frozenset({"remote-notice", "cross-group-announcement"}),
     ),
+    "mass_announcement": CommandTrigger(
+        chinese="群发公告",
+        english="mass-announcement",
+        chinese_aliases=frozenset({"批量公告", "多群公告"}),
+        english_aliases=frozenset(
+            {"broadcast-announcement", "multi-group-announcement"}
+        ),
+    ),
+    "restart_protocol_endpoint": CommandTrigger(
+        chinese="重启协议端",
+        english="restart-protocol-endpoint",
+        chinese_aliases=frozenset({"重启协议", "重启应用端"}),
+        english_aliases=frozenset({"restart-protocol", "restart-endpoint"}),
+    ),
     "bot_silence": CommandTrigger(
         chinese="闭嘴",
         english="silence",
