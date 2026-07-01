@@ -29,6 +29,7 @@ def register_handle_defaults(command_key: str, defaults: dict[str, Any]) -> None
 # Import and register default configurations
 from .block_member import BLOCK_MEMBER_DEFAULTS
 from .kick_member import KICK_MEMBER_DEFAULTS
+from .mass_announcement import MASS_ANNOUNCEMENT_DEFAULTS
 from .member_mute import MEMBER_MUTE_DEFAULTS
 from .protect_member import PROTECT_MEMBER_DEFAULTS
 from .recall_message import RECALL_MESSAGE_DEFAULTS
@@ -36,6 +37,7 @@ from .remote_announcement import REMOTE_ANNOUNCEMENT_DEFAULTS
 from .remote_block import REMOTE_BLOCK_DEFAULTS
 from .remote_kick import REMOTE_KICK_DEFAULTS
 from .remote_mute import REMOTE_MUTE_DEFAULTS
+from .restart_protocol_endpoint import RESTART_PROTOCOL_ENDPOINT_DEFAULTS
 from .send_announcement import SEND_ANNOUNCEMENT_DEFAULTS
 from .set_group_avatar import SET_GROUP_AVATAR_DEFAULTS
 from .set_group_name import SET_GROUP_NAME_DEFAULTS
@@ -53,6 +55,10 @@ register_handle_defaults("remote_mute", REMOTE_MUTE_DEFAULTS)
 register_handle_defaults("remote_kick", REMOTE_KICK_DEFAULTS)
 register_handle_defaults("remote_block", REMOTE_BLOCK_DEFAULTS)
 register_handle_defaults("remote_announcement", REMOTE_ANNOUNCEMENT_DEFAULTS)
+register_handle_defaults("mass_announcement", MASS_ANNOUNCEMENT_DEFAULTS)
+register_handle_defaults(
+    "restart_protocol_endpoint", RESTART_PROTOCOL_ENDPOINT_DEFAULTS
+)
 register_handle_defaults("send_announcement", SEND_ANNOUNCEMENT_DEFAULTS)
 register_handle_defaults("set_member_card", SET_MEMBER_CARD_DEFAULTS)
 register_handle_defaults("set_member_title", SET_MEMBER_TITLE_DEFAULTS)

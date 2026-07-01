@@ -1,5 +1,7 @@
 """Remote management handlers for OneBot V11 adapter."""
 
+import re
+from dataclasses import dataclass
 from typing import Any
 
 from nonebot import logger
@@ -21,6 +23,7 @@ from ......repositories.blocklist import (
 from ....commands.announcement import _resolve_image_path
 from ....commands.common import selected_adapter_handle
 from ....commands.remote import (
+    mass_announcement_cmd,
     remote_announcement_cmd,
     remote_block_cmd,
     remote_kick_cmd,
@@ -47,6 +50,18 @@ from .common import (
     resolve_user_onebot11,
     store_block_record,
 )
+
+_MASS_TARGET_SEPARATOR = re.compile(r"[,，、;；]")
+_MASS_ALL_TARGETS = frozenset({"全部群", "所有群", "all", "*"})
+
+
+@dataclass(frozen=True)
+class MassAnnouncementResult:
+    """Result for one target group in a mass announcement send."""
+
+    group_id: int
+    ok: bool
+    error: str | None = None
 
 
 async def _resolve_group_id(
@@ -729,4 +744,188 @@ async def onebot11_remote_announcement(
     # 8. 反馈结果
     return await remote_announcement_cmd.finish(
         (await _("远程公告已发送: 目标群 {group_id}")).format(group_id=group_id_int)
+    )
+
+
+def _split_mass_announcement_targets(raw_targets: str) -> list[str]:
+    return [
+        target.strip()
+        for target in _MASS_TARGET_SEPARATOR.split(raw_targets)
+        if target.strip()
+    ]
+
+
+def _dedupe_group_ids(group_ids: list[int]) -> list[int]:
+    seen: set[int] = set()
+    result: list[int] = []
+    for group_id in group_ids:
+        if group_id in seen:
+            continue
+        seen.add(group_id)
+        result.append(group_id)
+    return result
+
+
+async def _resolve_all_group_ids(
+    bot: OneBot11Bot,
+    cmd_matcher: Any,
+) -> list[int] | None:
+    try:
+        group_list = await bot.get_group_list()
+    except OneBot11ActionFailed:
+        await cmd_matcher.finish(await _("获取群列表失败"))
+        return None
+
+    try:
+        return _dedupe_group_ids([int(group["group_id"]) for group in group_list])
+    except (KeyError, TypeError, ValueError):
+        await cmd_matcher.finish(await _("获取群列表失败"))
+        return None
+
+
+async def _resolve_mass_announcement_targets(
+    bot: OneBot11Bot,
+    targets: str | None,
+    cmd_matcher: Any,
+) -> list[int] | None:
+    normalized_targets = targets.strip() if targets is not None else ""
+    if not normalized_targets or normalized_targets.lower() in _MASS_ALL_TARGETS:
+        return await _resolve_all_group_ids(bot, cmd_matcher)
+
+    resolved_group_ids: list[int] = []
+    for target in _split_mass_announcement_targets(normalized_targets):
+        resolved_group_id = await _resolve_group_id(bot, target, cmd_matcher)
+        if resolved_group_id is None:
+            return None
+        resolved_group_ids.append(resolved_group_id)
+
+    if not resolved_group_ids:
+        return await _resolve_all_group_ids(bot, cmd_matcher)
+
+    return _dedupe_group_ids(resolved_group_ids)
+
+
+def _format_group_id_list(group_ids: list[int]) -> str:
+    return ", ".join(str(group_id) for group_id in group_ids) if group_ids else "-"
+
+
+async def _format_mass_announcement_summary(
+    results: list[MassAnnouncementResult],
+) -> str:
+    success_groups = [result.group_id for result in results if result.ok]
+    failed_groups = [result.group_id for result in results if not result.ok]
+    message = await _(
+        "群发公告完成：成功 {success_count} 个，失败 {failure_count} 个。"
+        "成功群：{success_groups}；失败群：{failed_groups}"
+    )
+    return message.format(
+        success_count=len(success_groups),
+        failure_count=len(failed_groups),
+        success_groups=_format_group_id_list(success_groups),
+        failed_groups=_format_group_id_list(failed_groups),
+    )
+
+
+async def _check_mass_announcement_target_context(
+    bot: OneBot11Bot,
+    group_id: int,
+) -> str | None:
+    if not await _check_bot_in_group(bot, group_id):
+        return await _("机器人不在目标群聊中")
+
+    try:
+        bot_info = await bot.get_group_member_info(
+            group_id=group_id,
+            user_id=int(bot.self_id),
+            no_cache=True,
+        )
+    except (OneBot11ActionFailed, ValueError, TypeError):
+        return await _("机器人缺少管理员权限")
+
+    role = bot_info.get("role", "member")
+    if role not in ("admin", "owner"):
+        return await _("机器人缺少管理员权限")
+
+    return None
+
+
+@selected_adapter_handle(
+    mass_announcement_cmd,
+    "~onebot.v11",
+    "mass_announcement",
+)
+async def onebot11_mass_announcement(
+    content: str,
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
+    targets: str | None = None,
+    image: UniImage | None = None,
+) -> Any:
+    """群发公告处理器。"""
+    config = await get_handle_config_manager().get_config("mass_announcement")
+    if not config.enabled:
+        return await mass_announcement_cmd.finish(await _("该功能已禁用"))
+
+    content = content.strip()
+    if not content:
+        return await mass_announcement_cmd.finish(await _("群公告内容不能为空"))
+
+    group_ids = await _resolve_mass_announcement_targets(
+        bot,
+        targets,
+        mass_announcement_cmd,
+    )
+    if group_ids is None:
+        return None
+
+    image_path = await _resolve_image_path(image) if image is not None else None
+    results: list[MassAnnouncementResult] = []
+
+    for group_id in group_ids:
+        context_error = await _check_mass_announcement_target_context(bot, group_id)
+        if context_error is not None:
+            results.append(
+                MassAnnouncementResult(
+                    group_id=group_id,
+                    ok=False,
+                    error=context_error,
+                )
+            )
+            continue
+
+        try:
+            error_msg = await send_onebot11_group_announcement_notice(
+                bot=bot,
+                event=event,
+                group_id=group_id,
+                content=content,
+                image_path=image_path,
+            )
+        except OneBot11ActionFailed as error:
+            logger.error(f"群发公告失败，目标群 {group_id} 操作被拒绝: {error!r}")
+            results.append(
+                MassAnnouncementResult(
+                    group_id=group_id,
+                    ok=False,
+                    error=await _("操作被拒绝"),
+                )
+            )
+            continue
+
+        if error_msg is not None:
+            results.append(
+                MassAnnouncementResult(group_id=group_id, ok=False, error=error_msg)
+            )
+            continue
+
+        results.append(MassAnnouncementResult(group_id=group_id, ok=True))
+
+    await record_audit_fire_and_forget(
+        bot,
+        event,
+        CommandAudit(action="mass_announcement", group_id=event.group_id),
+    )
+
+    return await mass_announcement_cmd.finish(
+        await _format_mass_announcement_summary(results)
     )

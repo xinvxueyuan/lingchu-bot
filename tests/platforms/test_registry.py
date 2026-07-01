@@ -23,6 +23,13 @@ def test_default_qq_profile_uses_onebot_v11() -> None:
     assert get_platform_profile("Milky") is None
 
 
+def test_qq_profile_supports_application_operation() -> None:
+    profile = get_platform_profile("OneBot V11")
+
+    assert profile is not None
+    assert PlatformCapability.APPLICATION_OPERATION in profile.capabilities
+
+
 def test_supported_adapters_are_declared_from_profiles() -> None:
     assert get_supported_adapters() == {"~onebot.v11"}
 

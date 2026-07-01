@@ -25,6 +25,7 @@ class PlatformCapability(StrEnum):
     MEMBER_PROFILE = "member_profile"
     GROUP_PROFILE = "group_profile"
     ANNOUNCEMENT = "announcement"
+    APPLICATION_OPERATION = "application_operation"
     MESSAGE_STORE = "message_store"
     API_AUDIT = "api_audit"
 
@@ -166,6 +167,7 @@ QQ_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset(
         PlatformCapability.MEMBER_PROFILE,
         PlatformCapability.GROUP_PROFILE,
         PlatformCapability.ANNOUNCEMENT,
+        PlatformCapability.APPLICATION_OPERATION,
         PlatformCapability.MESSAGE_STORE,
         PlatformCapability.API_AUDIT,
     }

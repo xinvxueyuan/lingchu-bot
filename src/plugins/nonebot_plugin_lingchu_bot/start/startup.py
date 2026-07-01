@@ -29,6 +29,7 @@ from ..services.message_store import (
     record_bot_lifecycle,
     shutdown_message_store,
 )
+from ..services.protocol_restart_feedback import send_pending_restart_feedback
 
 
 async def _check_announcement_image_path_bridge() -> None:
@@ -151,6 +152,9 @@ async def shutdown_runtime_services() -> None:
 async def record_bot_connected(bot: Bot) -> None:
     fire_and_forget(
         record_bot_lifecycle(bot, "bot_connected"), name="record_bot_lifecycle"
+    )
+    fire_and_forget(
+        send_pending_restart_feedback(bot), name="send_protocol_restart_feedback"
     )
 
 

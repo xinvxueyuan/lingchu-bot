@@ -25,9 +25,13 @@ All commands listed in [QQ Commands](../command-reference) are available in the 
 | `protect.py` | `拉白`, `全局拉白`, `删白`, `全局删白` |
 | `profile.py` | `设置群名称`, `设置群头像` (NapCat only) |
 | `announcement.py` | `发送群公告` (version-gated) |
-| `lifecycle.py` | Bot lifecycle hooks (no user-facing command) |
+| `lifecycle.py` | Bot lifecycle hooks; `重启协议端` / `restart-protocol-endpoint` |
 | `remote.py` | 8 remote management commands (see below) |
 | `menu.py` | Menu page handler |
+
+## Lifecycle operations
+
+- `重启协议端` / `restart-protocol-endpoint` — requests protocol-side restart and confirms after reconnect.
 
 ## Remote management
 
@@ -44,7 +48,7 @@ The `remote.py` module implements 8 cross-group commands unique to OneBot V11:
 
 ### Group ID resolution
 
-All remote commands accept `<群号|群名称>` which can be:
+All remote commands accept a group ID or group name, which can be:
 
 - An `int` group ID — used directly.
 - A `str` that parses as `int` — converted and used.
