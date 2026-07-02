@@ -44,18 +44,50 @@ async def test_onebot11_restart_protocol_endpoint_calls_set_restart(
     mock_onebot11_bot.self_id = "12345"
     mock_onebot11_bot.call_api = AsyncMock(return_value={})
 
-    with patch.object(restart_protocol_endpoint_cmd, "finish") as mock_finish:
+    with (
+        patch.object(restart_protocol_endpoint_cmd, "finish") as mock_finish,
+        patch.object(
+            restart_protocol_endpoint_cmd, "send", new_callable=AsyncMock
+        ) as mock_send,
+    ):
         await onebot11_restart_protocol_endpoint(
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
             platform=None,
         )
 
+    mock_send.assert_awaited_once_with("已请求重启协议端，重新连接后会发送反馈")
     mock_onebot11_bot.call_api.assert_awaited_once_with("set_restart")
-    assert finish_text(mock_finish) == "已请求重启协议端，重新连接后会发送反馈"
+    mock_finish.assert_not_called()
     pending = protocol_restart_feedback.list_pending_restart_feedback()
     assert len(pending) == 1
     assert pending[0].conversation_id == str(mock_onebot11_event.group_id)
+
+
+@pytest.mark.asyncio
+async def test_onebot11_restart_protocol_endpoint_does_not_restart_when_send_fails(
+    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+) -> None:
+    mock_onebot11_bot.self_id = "12345"
+    mock_onebot11_bot.call_api = AsyncMock(return_value={})
+
+    with (
+        patch.object(
+            restart_protocol_endpoint_cmd,
+            "send",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("send failed"),
+        ),
+        pytest.raises(RuntimeError, match="send failed"),
+    ):
+        await onebot11_restart_protocol_endpoint(
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+            platform=None,
+        )
+
+    mock_onebot11_bot.call_api.assert_not_called()
+    assert protocol_restart_feedback.list_pending_restart_feedback() == ()
 
 
 @pytest.mark.asyncio
@@ -65,7 +97,10 @@ async def test_onebot11_restart_protocol_endpoint_accepts_current_platform_alias
     mock_onebot11_bot.self_id = "12345"
     mock_onebot11_bot.call_api = AsyncMock(return_value={})
 
-    with patch.object(restart_protocol_endpoint_cmd, "finish"):
+    with (
+        patch.object(restart_protocol_endpoint_cmd, "finish"),
+        patch.object(restart_protocol_endpoint_cmd, "send", new_callable=AsyncMock),
+    ):
         await onebot11_restart_protocol_endpoint(
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
@@ -81,7 +116,10 @@ async def test_onebot11_restart_protocol_endpoint_rejects_other_platform(
 ) -> None:
     mock_onebot11_bot.call_api = AsyncMock()
 
-    with patch.object(restart_protocol_endpoint_cmd, "finish") as mock_finish:
+    with (
+        patch.object(restart_protocol_endpoint_cmd, "finish") as mock_finish,
+        patch.object(restart_protocol_endpoint_cmd, "send", new_callable=AsyncMock),
+    ):
         await onebot11_restart_protocol_endpoint(
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
@@ -99,7 +137,10 @@ async def test_onebot11_restart_protocol_endpoint_reports_action_failed(
     mock_onebot11_bot.self_id = "12345"
     mock_onebot11_bot.call_api = AsyncMock(side_effect=OneBot11ActionFailed())
 
-    with patch.object(restart_protocol_endpoint_cmd, "finish") as mock_finish:
+    with (
+        patch.object(restart_protocol_endpoint_cmd, "finish") as mock_finish,
+        patch.object(restart_protocol_endpoint_cmd, "send", new_callable=AsyncMock),
+    ):
         await onebot11_restart_protocol_endpoint(
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
@@ -124,7 +165,10 @@ async def test_onebot11_restart_protocol_endpoint_failed_bot_keeps_other_pending
     mock_onebot11_bot.self_id = "bot-b"
     mock_onebot11_bot.call_api = AsyncMock(side_effect=OneBot11ActionFailed())
 
-    with patch.object(restart_protocol_endpoint_cmd, "finish"):
+    with (
+        patch.object(restart_protocol_endpoint_cmd, "finish"),
+        patch.object(restart_protocol_endpoint_cmd, "send", new_callable=AsyncMock),
+    ):
         await onebot11_restart_protocol_endpoint(
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,

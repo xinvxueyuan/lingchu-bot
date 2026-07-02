@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nonebot-plugin-lingchu-bot 0.0.0.dev8\n"
 "Report-Msgid-Bugs-To: xinvxueyuan@yeah.net\n"
-"POT-Creation-Date: 2026-07-01 18:20+0800\n"
+"POT-Creation-Date: 2026-07-02 16:35+0800\n"
 "PO-Revision-Date: 2026-05-20 00:00+0800\n"
 "Last-Translator: xinvxueyuan <xinvxueyuan@yeah.net>\n"
 "Language: en_US\n"
@@ -291,13 +291,13 @@ msgstr "Leave current group"
 msgid "当前仅支持重启当前 QQ OneBot V11 协议端"
 msgstr "Only restarting the current QQ OneBot V11 protocol endpoint is supported"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:82
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:68
+msgid "已请求重启协议端，重新连接后会发送反馈"
+msgstr ""
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:85
 msgid "重启协议端失败，操作被拒绝"
 msgstr "Failed to restart protocol endpoint: operation rejected"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:86
-msgid "已请求重启协议端，重新连接后会发送反馈"
-msgstr "Protocol endpoint restart requested. A confirmation will be sent after reconnect"
 
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:50
 #, python-brace-format
@@ -724,11 +724,11 @@ msgstr ""
 "consistent and that the NapCat container bind mount exposes that path "
 "(for Windows / WSL2 deployments, see the NapCat Docker docs)."
 
-#: src/plugins/nonebot_plugin_lingchu_bot/services/protocol_restart_feedback.py:81
+#: src/plugins/nonebot_plugin_lingchu_bot/services/protocol_restart_feedback.py:85
 msgid "协议端已重启并重新连接"
 msgstr "Protocol endpoint restarted and reconnected"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:59
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:66
 #, python-brace-format
 msgid ""
 "公告图片缓存目录 {cache_dir} 与当前系统 {system_type} 不兼容：\n"
@@ -746,12 +746,12 @@ msgstr ""
 "in .env for your deployment, and recreate the NapCat container so its "
 "bind mount takes effect."
 
-#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:120
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:127
 #, python-brace-format
 msgid "Lingchu 启用适配器: {adapters}"
 msgstr "Lingchu enabled adapters: {adapters}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:126
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:133
 #, python-brace-format
 msgid "Lingchu 忽略未选中的已注册适配器: {adapters}"
 msgstr "Lingchu ignored unselected registered adapters: {adapters}"

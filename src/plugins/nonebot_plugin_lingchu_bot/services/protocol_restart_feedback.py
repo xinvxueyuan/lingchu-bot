@@ -74,17 +74,45 @@ async def send_pending_restart_feedback(bot: Any) -> bool:
     if pending is None:
         return False
 
+    if pending.conversation_type != "group":
+        return False
+    if not await _is_reconnected_onebot11_ready(bot, expected_bot_id=pending.bot_id):
+        return False
+
     try:
-        if pending.conversation_type == "group":
-            await bot.send_group_msg(
-                group_id=int(pending.conversation_id),
-                message=await _("协议端已重启并重新连接"),
-            )
-            _pending_feedback.pop(key, None)
-            return True
+        await bot.send_group_msg(
+            group_id=int(pending.conversation_id),
+            message=await _("协议端已重启并重新连接"),
+        )
     except Exception:  # noqa: BLE001
         logger.exception("Failed to send protocol restart feedback")
-    return False
+        return False
+    else:
+        _pending_feedback.pop(key, None)
+        return True
+
+
+async def _is_reconnected_onebot11_ready(bot: Any, *, expected_bot_id: str) -> bool:
+    try:
+        login_info = await bot.get_login_info()
+    except Exception:  # noqa: BLE001
+        logger.exception("Failed to verify protocol restart login account")
+        return False
+
+    if not isinstance(login_info, dict):
+        return False
+    if str(login_info.get("user_id", "")) != expected_bot_id:
+        return False
+
+    try:
+        status = await bot.get_status()
+    except Exception:  # noqa: BLE001
+        logger.exception("Failed to verify protocol restart status")
+        return False
+
+    if not isinstance(status, dict):
+        return False
+    return status.get("good") is True and status.get("online") is not False
 
 
 def _adapter_name(bot: Any) -> str | None:
