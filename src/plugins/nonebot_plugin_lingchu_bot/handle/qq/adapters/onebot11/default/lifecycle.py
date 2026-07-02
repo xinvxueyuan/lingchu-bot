@@ -64,6 +64,9 @@ async def onebot11_restart_protocol_endpoint(
         )
 
     bot_id = str(getattr(bot, "self_id", ""))
+    await restart_protocol_endpoint_cmd.send(
+        await _("已请求重启协议端，重新连接后会发送反馈")
+    )
     register_pending_restart_feedback(
         platform_id="qq",
         adapter_id="~onebot.v11",
@@ -82,6 +85,4 @@ async def onebot11_restart_protocol_endpoint(
             await _("重启协议端失败，操作被拒绝")
         )
 
-    return await restart_protocol_endpoint_cmd.finish(
-        await _("已请求重启协议端，重新连接后会发送反馈")
-    )
+    return None

@@ -43,6 +43,8 @@ async def test_send_pending_restart_feedback_sends_group_message() -> None:
     bot = MagicMock()
     bot.self_id = "123"
     bot.adapter.get_name.return_value = "OneBot V11"
+    bot.get_login_info = AsyncMock(return_value={"user_id": 123, "nickname": "bot"})
+    bot.get_status = AsyncMock(return_value={"online": True, "good": True})
     bot.send_group_msg = AsyncMock()
     protocol_restart_feedback.register_pending_restart_feedback(
         platform_id="qq",
@@ -55,6 +57,8 @@ async def test_send_pending_restart_feedback_sends_group_message() -> None:
     sent = await protocol_restart_feedback.send_pending_restart_feedback(bot)
 
     assert sent is True
+    bot.get_login_info.assert_awaited_once_with()
+    bot.get_status.assert_awaited_once_with()
     bot.send_group_msg.assert_awaited_once_with(
         group_id=456,
         message="协议端已重启并重新连接",
@@ -67,6 +71,8 @@ async def test_send_pending_restart_feedback_ignores_other_bot() -> None:
     bot = MagicMock()
     bot.self_id = "999"
     bot.adapter.get_name.return_value = "OneBot V11"
+    bot.get_login_info = AsyncMock(return_value={"user_id": 999, "nickname": "bot"})
+    bot.get_status = AsyncMock(return_value={"online": True, "good": True})
     bot.send_group_msg = AsyncMock()
     protocol_restart_feedback.register_pending_restart_feedback(
         platform_id="qq",
@@ -79,8 +85,161 @@ async def test_send_pending_restart_feedback_ignores_other_bot() -> None:
     sent = await protocol_restart_feedback.send_pending_restart_feedback(bot)
 
     assert sent is False
+    bot.get_login_info.assert_not_called()
+    bot.get_status.assert_not_called()
     bot.send_group_msg.assert_not_called()
     assert len(protocol_restart_feedback.list_pending_restart_feedback()) == 1
+
+
+@pytest.mark.asyncio
+async def test_send_pending_restart_feedback_retains_pending_when_status_bad() -> None:
+    bot = MagicMock()
+    bot.self_id = "123"
+    bot.adapter.get_name.return_value = "OneBot V11"
+    bot.get_login_info = AsyncMock(return_value={"user_id": 123, "nickname": "bot"})
+    bot.get_status = AsyncMock(return_value={"online": True, "good": False})
+    bot.send_group_msg = AsyncMock()
+    protocol_restart_feedback.register_pending_restart_feedback(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        bot_id="123",
+        conversation_type="group",
+        conversation_id="456",
+    )
+
+    sent = await protocol_restart_feedback.send_pending_restart_feedback(bot)
+
+    assert sent is False
+    bot.get_login_info.assert_awaited_once_with()
+    bot.get_status.assert_awaited_once_with()
+    bot.send_group_msg.assert_not_called()
+    pending = protocol_restart_feedback.list_pending_restart_feedback()
+    assert len(pending) == 1
+    assert pending[0].conversation_id == "456"
+
+
+@pytest.mark.asyncio
+async def test_send_pending_restart_feedback_retains_pending_when_status_offline() -> (
+    None
+):
+    bot = MagicMock()
+    bot.self_id = "123"
+    bot.adapter.get_name.return_value = "OneBot V11"
+    bot.get_login_info = AsyncMock(return_value={"user_id": 123, "nickname": "bot"})
+    bot.get_status = AsyncMock(return_value={"online": False, "good": True})
+    bot.send_group_msg = AsyncMock()
+    protocol_restart_feedback.register_pending_restart_feedback(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        bot_id="123",
+        conversation_type="group",
+        conversation_id="456",
+    )
+
+    sent = await protocol_restart_feedback.send_pending_restart_feedback(bot)
+
+    assert sent is False
+    bot.get_login_info.assert_awaited_once_with()
+    bot.get_status.assert_awaited_once_with()
+    bot.send_group_msg.assert_not_called()
+    pending = protocol_restart_feedback.list_pending_restart_feedback()
+    assert len(pending) == 1
+    assert pending[0].conversation_id == "456"
+
+
+@pytest.mark.asyncio
+async def test_send_pending_restart_feedback_retains_pending_on_login_mismatch() -> (
+    None
+):
+    bot = MagicMock()
+    bot.self_id = "123"
+    bot.adapter.get_name.return_value = "OneBot V11"
+    bot.get_login_info = AsyncMock(return_value={"user_id": 999, "nickname": "other"})
+    bot.get_status = AsyncMock(return_value={"online": True, "good": True})
+    bot.send_group_msg = AsyncMock()
+    protocol_restart_feedback.register_pending_restart_feedback(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        bot_id="123",
+        conversation_type="group",
+        conversation_id="456",
+    )
+
+    sent = await protocol_restart_feedback.send_pending_restart_feedback(bot)
+
+    assert sent is False
+    bot.get_login_info.assert_awaited_once_with()
+    bot.get_status.assert_not_called()
+    bot.send_group_msg.assert_not_called()
+    pending = protocol_restart_feedback.list_pending_restart_feedback()
+    assert len(pending) == 1
+    assert pending[0].conversation_id == "456"
+
+
+@pytest.mark.asyncio
+async def test_send_pending_restart_feedback_retains_pending_on_login_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bot = MagicMock()
+    bot.self_id = "123"
+    bot.adapter.get_name.return_value = "OneBot V11"
+    bot.get_login_info = AsyncMock(side_effect=RuntimeError("temporary failure"))
+    bot.get_status = AsyncMock(return_value={"online": True, "good": True})
+    bot.send_group_msg = AsyncMock()
+    logger_exception = MagicMock()
+    monkeypatch.setattr(protocol_restart_feedback.logger, "exception", logger_exception)
+    protocol_restart_feedback.register_pending_restart_feedback(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        bot_id="123",
+        conversation_type="group",
+        conversation_id="456",
+    )
+
+    sent = await protocol_restart_feedback.send_pending_restart_feedback(bot)
+
+    assert sent is False
+    bot.get_login_info.assert_awaited_once_with()
+    bot.get_status.assert_not_called()
+    bot.send_group_msg.assert_not_called()
+    pending = protocol_restart_feedback.list_pending_restart_feedback()
+    assert len(pending) == 1
+    assert pending[0].conversation_id == "456"
+    logger_exception.assert_called_once_with(
+        "Failed to verify protocol restart login account"
+    )
+
+
+@pytest.mark.asyncio
+async def test_send_pending_restart_feedback_retains_pending_on_status_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bot = MagicMock()
+    bot.self_id = "123"
+    bot.adapter.get_name.return_value = "OneBot V11"
+    bot.get_login_info = AsyncMock(return_value={"user_id": 123, "nickname": "bot"})
+    bot.get_status = AsyncMock(side_effect=RuntimeError("temporary failure"))
+    bot.send_group_msg = AsyncMock()
+    logger_exception = MagicMock()
+    monkeypatch.setattr(protocol_restart_feedback.logger, "exception", logger_exception)
+    protocol_restart_feedback.register_pending_restart_feedback(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        bot_id="123",
+        conversation_type="group",
+        conversation_id="456",
+    )
+
+    sent = await protocol_restart_feedback.send_pending_restart_feedback(bot)
+
+    assert sent is False
+    bot.get_login_info.assert_awaited_once_with()
+    bot.get_status.assert_awaited_once_with()
+    bot.send_group_msg.assert_not_called()
+    pending = protocol_restart_feedback.list_pending_restart_feedback()
+    assert len(pending) == 1
+    assert pending[0].conversation_id == "456"
+    logger_exception.assert_called_once_with("Failed to verify protocol restart status")
 
 
 @pytest.mark.asyncio
@@ -90,6 +249,8 @@ async def test_send_pending_restart_feedback_retains_pending_on_send_failure(
     bot = MagicMock()
     bot.self_id = "123"
     bot.adapter.get_name.return_value = "OneBot V11"
+    bot.get_login_info = AsyncMock(return_value={"user_id": 123, "nickname": "bot"})
+    bot.get_status = AsyncMock(return_value={"online": True, "good": True})
     bot.send_group_msg = AsyncMock(side_effect=RuntimeError("temporary failure"))
     logger_exception = MagicMock()
     monkeypatch.setattr(protocol_restart_feedback.logger, "exception", logger_exception)
@@ -104,6 +265,8 @@ async def test_send_pending_restart_feedback_retains_pending_on_send_failure(
     sent = await protocol_restart_feedback.send_pending_restart_feedback(bot)
 
     assert sent is False
+    bot.get_login_info.assert_awaited_once_with()
+    bot.get_status.assert_awaited_once_with()
     bot.send_group_msg.assert_awaited_once_with(
         group_id=456,
         message="协议端已重启并重新连接",
@@ -121,6 +284,8 @@ async def test_send_pending_restart_feedback_retains_pending_for_wrong_adapter()
     bot = MagicMock()
     bot.self_id = "123"
     bot.adapter.get_name.return_value = "Other"
+    bot.get_login_info = AsyncMock(return_value={"user_id": 123, "nickname": "bot"})
+    bot.get_status = AsyncMock(return_value={"online": True, "good": True})
     bot.send_group_msg = AsyncMock()
     protocol_restart_feedback.register_pending_restart_feedback(
         platform_id="qq",
@@ -133,6 +298,8 @@ async def test_send_pending_restart_feedback_retains_pending_for_wrong_adapter()
     sent = await protocol_restart_feedback.send_pending_restart_feedback(bot)
 
     assert sent is False
+    bot.get_login_info.assert_not_called()
+    bot.get_status.assert_not_called()
     bot.send_group_msg.assert_not_called()
     assert len(protocol_restart_feedback.list_pending_restart_feedback()) == 1
 
@@ -144,6 +311,8 @@ async def test_send_pending_restart_feedback_retains_unsupported_conversation_ty
     bot = MagicMock()
     bot.self_id = "123"
     bot.adapter.get_name.return_value = "OneBot V11"
+    bot.get_login_info = AsyncMock(return_value={"user_id": 123, "nickname": "bot"})
+    bot.get_status = AsyncMock(return_value={"online": True, "good": True})
     bot.send_group_msg = AsyncMock()
     protocol_restart_feedback.register_pending_restart_feedback(
         platform_id="qq",
@@ -156,6 +325,8 @@ async def test_send_pending_restart_feedback_retains_unsupported_conversation_ty
     sent = await protocol_restart_feedback.send_pending_restart_feedback(bot)
 
     assert sent is False
+    bot.get_login_info.assert_not_called()
+    bot.get_status.assert_not_called()
     bot.send_group_msg.assert_not_called()
     pending = protocol_restart_feedback.list_pending_restart_feedback()
     assert len(pending) == 1
