@@ -24,6 +24,7 @@ from ..platforms import get_platform_profile, resolve_adapter_id
 from ..repositories import message_store as repository
 
 logger = logging.getLogger(__name__)
+SCHEDULER_CLEANUP_HANDLER_KEY = "message_store.cleanup_expired_messages"
 STATE_KEY = "_lingchu_message_record_identity"
 SUMMARY_LIMIT = 500
 RAW_PAYLOAD_MAX_DEPTH = 8

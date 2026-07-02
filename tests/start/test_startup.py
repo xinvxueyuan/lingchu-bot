@@ -70,15 +70,54 @@ async def test_startup_imports_group_and_menu_handlers(
         AsyncMock(),
     )
     monkeypatch.setattr(startup_module, "initialize_message_store", AsyncMock())
+    monkeypatch.setattr(startup_module, "cleanup_expired_messages", AsyncMock())
+    register_scheduler_handler = MagicMock()
+    monkeypatch.setattr(
+        startup_module,
+        "register_scheduler_handler",
+        register_scheduler_handler,
+    )
+    initialize_scheduler_service = AsyncMock()
+    monkeypatch.setattr(
+        startup_module,
+        "initialize_scheduler_service",
+        initialize_scheduler_service,
+    )
     monkeypatch.setattr(startup_module, "seed_registry_tables", AsyncMock())
 
     await startup_module.startup()
 
     group_import.assert_awaited_once()
     menu_import.assert_awaited_once()
+    register_scheduler_handler.assert_called_once_with(
+        startup_module.SCHEDULER_CLEANUP_HANDLER_KEY,
+        startup_module.cleanup_expired_messages,
+    )
+    initialize_scheduler_service.assert_awaited_once()
     assert calls.index("ensure_menu_config") < calls.index("menu_import")
     assert calls.index("set_menu_pages") < calls.index("menu_import")
     assert calls.index("set_menu_features") < calls.index("menu_import")
+
+
+@pytest.mark.asyncio
+async def test_shutdown_runtime_services_shuts_down_scheduler_and_message_store(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shutdown_message_store = AsyncMock()
+    shutdown_scheduler_service = AsyncMock()
+    monkeypatch.setattr(
+        startup_module, "shutdown_message_store", shutdown_message_store
+    )
+    monkeypatch.setattr(
+        startup_module,
+        "shutdown_scheduler_service",
+        shutdown_scheduler_service,
+    )
+
+    await startup_module.shutdown_runtime_services()
+
+    shutdown_scheduler_service.assert_awaited_once()
+    shutdown_message_store.assert_awaited_once()
 
 
 @pytest.mark.asyncio
