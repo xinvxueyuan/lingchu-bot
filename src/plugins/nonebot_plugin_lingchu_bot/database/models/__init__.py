@@ -18,6 +18,7 @@ from .message import (
     utc_now,
 )
 from .registry import Adapter, Platform, ProtocolImplementation
+from .scheduler import ScheduledJob
 from .subject_policy import SubjectPolicyEntry
 
 __all__ = (
@@ -34,6 +35,7 @@ __all__ = (
     "ProtocolImplementation",
     "QQOneBotV11NoneBotAuditRecord",
     "QQOneBotV11NoneBotEventRecord",
+    "ScheduledJob",
     "SubjectPolicyEntry",
     "utc_now",
 )

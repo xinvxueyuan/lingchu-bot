@@ -25,11 +25,18 @@ from ..platforms import (
 )
 from ..repositories.registry import seed_registry_tables
 from ..services.message_store import (
+    SCHEDULER_CLEANUP_HANDLER_KEY,
+    cleanup_expired_messages,
     initialize_message_store,
     record_bot_lifecycle,
     shutdown_message_store,
 )
 from ..services.protocol_restart_feedback import send_pending_restart_feedback
+from ..services.scheduler import (
+    initialize_scheduler_service,
+    register_scheduler_handler,
+    shutdown_scheduler_service,
+)
 
 
 async def _check_announcement_image_path_bridge() -> None:
@@ -133,6 +140,11 @@ async def startup() -> None:
     await group_import_handle()
     await menu_import_handle()
     await initialize_message_store()
+    register_scheduler_handler(
+        SCHEDULER_CLEANUP_HANDLER_KEY,
+        cleanup_expired_messages,
+    )
+    await initialize_scheduler_service()
 
 
 driver: Driver = get_driver()
@@ -145,6 +157,7 @@ async def initialize_runtime_services() -> None:
 
 @driver.on_shutdown
 async def shutdown_runtime_services() -> None:
+    await shutdown_scheduler_service()
     await shutdown_message_store()
 
 
