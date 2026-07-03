@@ -15,3 +15,30 @@ services:
       HOST: *config-host
       PORT: *config-port
     restart: always
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - >
+          python -c "import socket, os;
+          p=int(os.getenv('PORT','8080'));
+          s=socket.socket();
+          s.connect(('localhost', p));
+          s.close()"
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+
+  smoke-test:
+    build:
+      context: .
+      args:
+        SMOKE_TEST: "true"
+    env_file:
+      - .env.prod
+    environment:
+      ENVIRONMENT: prod
+      SMOKE_TEST: "true"
+    command: python /app/docker/smoke-test.py
+    profiles:
+      - smoke

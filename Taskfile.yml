@@ -110,6 +110,17 @@ tasks:
       - pnpm --filter docs test
       - pnpm turbo run build
 
+  smoke:
+    desc: Run the smoke test suite locally with Docker Compose
+    cmds:
+      - docker compose --profile smoke up --build --abort-on-container-exit smoke-test
+
+  ci:smoke:
+    desc: "[CI] Run smoke tests and emit a JUnit XML report"
+    cmds:
+      - mkdir -p test-results/smoke
+      - docker compose --profile smoke run --rm --build --user root -v ./test-results/smoke:/reports -e SMOKE_TEST_RESULTS_XML=/reports/smoke-test-results.xml smoke-test
+
   ci:version:bump:
     desc: "[CI] Bump development version and emit GitHub Actions outputs"
     cmds:

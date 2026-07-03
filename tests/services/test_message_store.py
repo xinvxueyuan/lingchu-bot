@@ -6,6 +6,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import DatabaseError
+from src.plugins.nonebot_plugin_lingchu_bot.hooks import adapters
+from src.plugins.nonebot_plugin_lingchu_bot.hooks.adapters import MessageIdentity
 from src.plugins.nonebot_plugin_lingchu_bot.services import message_store
 
 
@@ -46,191 +49,83 @@ def enabled_config() -> SimpleNamespace:
     )
 
 
-def install_fire_and_forget_spy(
-    monkeypatch: pytest.MonkeyPatch,
-) -> list[tuple[Any, str]]:
-    """Patch ``fire_and_forget`` on the message_store module to capture coroutines.
-
-    Returns a list of ``(coroutine, name)`` tuples so tests can assert that
-    background scheduling happened (and optionally await the coroutine to
-    verify the repository call behaviour).
-    """
-    captured: list[tuple[Any, str]] = []
-
-    def _spy(coro: Any, *, name: str = "fire_and_forget") -> Any:
-        captured.append((coro, name))
-        return MagicMock()
-
-    monkeypatch.setattr(message_store, "fire_and_forget", _spy)
-    return captured
-
-
-def test_normalize_message_event_truncates_text(
-    monkeypatch: pytest.MonkeyPatch,
-    enabled_config: SimpleNamespace,
-) -> None:
+@pytest.fixture
+def patched_runtime_config(
+    monkeypatch: pytest.MonkeyPatch, enabled_config: SimpleNamespace
+):
+    """Patch ``runtime_config`` in all modules that imported the name."""
     monkeypatch.setattr(message_store, "runtime_config", enabled_config)
-    event = make_event()
-    event.get_plaintext.return_value = "hello world"
-
-    normalized = message_store.normalize_message_event(make_bot(), event)
-
-    assert normalized is not None
-    assert normalized.identity.platform_id == "qq"
-    assert normalized.identity.adapter_id == "~onebot.v11"
-    assert normalized.identity.protocol_id is None
-    assert normalized.identity.bot_id == "bot-1"
-    assert normalized.identity.conversation_id == "group-1"
-    assert normalized.identity.message_id == "msg-1"
-    assert normalized.user_id == "user-1"
-    assert normalized.text_summary == "hello worl..."
-    assert normalized.raw_message == '"hello"'
-    assert '"peer_id": "group-1"' in (normalized.raw_event or "")
+    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    return enabled_config
 
 
-def test_normalize_message_event_handles_missing_message_id(
+async def test_handle_event_received_records_event(
     monkeypatch: pytest.MonkeyPatch,
-    enabled_config: SimpleNamespace,
+    patched_runtime_config: SimpleNamespace,
 ) -> None:
-    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
-    event = make_event(message_id=None)
-    event.data = SimpleNamespace(peer_id="group-1", segments=[])
-
-    normalized = message_store.normalize_message_event(make_bot(), event)
-
-    assert normalized is not None
-    assert normalized.identity.message_id is None
-    assert normalized.identity.conversation_id == "group-1"
-
-
-def test_normalize_message_event_prefers_group_id_over_session_id(
-    monkeypatch: pytest.MonkeyPatch,
-    enabled_config: SimpleNamespace,
-) -> None:
-    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
-    event = make_event(group_id=868258211)
-    event.get_session_id.return_value = "group_868258211_3128682634"
-
-    normalized = message_store.normalize_message_event(make_bot(), event)
-
-    assert normalized is not None
-    assert normalized.identity.conversation_id == "868258211"
-
-
-async def test_message_store_preprocessor_records_event(
-    monkeypatch: pytest.MonkeyPatch,
-    enabled_config: SimpleNamespace,
-) -> None:
-    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
+    _ = patched_runtime_config
     record_event = AsyncMock()
     monkeypatch.setattr(message_store.repository, "record_event_received", record_event)
-    state: dict[str, Any] = {}
-    captured = install_fire_and_forget_spy(monkeypatch)
+    normalized = adapters.normalize_message_event(make_bot(), make_event())
+    assert normalized is not None
 
-    await message_store.message_store_preprocessor(make_bot(), make_event(), state)
+    await message_store.handle_event_received(normalized)
 
-    assert len(captured) == 1
-    coro, name = captured[0]
-    assert name == "record_event_received"
-    await coro
     record_event.assert_awaited_once()
-    assert isinstance(state[message_store.STATE_KEY], message_store.MessageIdentity)
+    assert record_event.await_args is not None
+    record_kwargs = record_event.await_args.kwargs
+    assert record_kwargs["platform_id"] == "qq"
+    assert record_kwargs["adapter_id"] == "~onebot.v11"
+    assert record_kwargs["bot_id"] == "bot-1"
+    assert record_kwargs["conversation_id"] == "group-1"
+    assert record_kwargs["message_id"] == "msg-1"
+    assert record_kwargs["event_type"] == "message.group"
+    assert record_kwargs["event_category"] == "message"
 
 
-async def test_message_store_preprocessor_skips_disabled_known_adapter(
+async def test_handle_event_received_skips_when_disabled(
     monkeypatch: pytest.MonkeyPatch,
-    enabled_config: SimpleNamespace,
+    patched_runtime_config: SimpleNamespace,
 ) -> None:
-    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
+    _ = patched_runtime_config
+    patched_runtime_config.message_store_enabled = False
     record_event = AsyncMock()
     monkeypatch.setattr(message_store.repository, "record_event_received", record_event)
-    state: dict[str, Any] = {}
-    captured = install_fire_and_forget_spy(monkeypatch)
+    normalized = adapters.normalize_message_event(make_bot(), make_event())
+    assert normalized is not None
 
-    await message_store.message_store_preprocessor(
-        make_bot("Milky"),
-        make_event(),
-        state,
-    )
+    await message_store.handle_event_received(normalized)
 
-    assert captured == []
-    assert message_store.STATE_KEY not in state
+    record_event.assert_not_awaited()
 
 
-async def test_message_store_preprocessor_skips_unknown_adapter(
+async def test_handle_event_received_swallows_database_errors(
     monkeypatch: pytest.MonkeyPatch,
-    enabled_config: SimpleNamespace,
+    patched_runtime_config: SimpleNamespace,
 ) -> None:
-    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
-    record_event = AsyncMock()
+    _ = patched_runtime_config
+    record_event = AsyncMock(side_effect=DatabaseError("boom"))
     monkeypatch.setattr(message_store.repository, "record_event_received", record_event)
-    captured = install_fire_and_forget_spy(monkeypatch)
+    normalized = adapters.normalize_message_event(make_bot(), make_event())
+    assert normalized is not None
 
-    await message_store.message_store_preprocessor(
-        make_bot("Custom"),
-        make_event(),
-        {},
-    )
+    await message_store.handle_event_received(normalized)
 
-    assert captured == []
-
-
-async def test_message_store_preprocessor_records_meta_event(
-    monkeypatch: pytest.MonkeyPatch,
-    enabled_config: SimpleNamespace,
-) -> None:
-    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
-    record_event = AsyncMock()
-    monkeypatch.setattr(message_store.repository, "record_event_received", record_event)
-    captured = install_fire_and_forget_spy(monkeypatch)
-    event = make_event()
-    event.get_type.return_value = "meta_event"
-    event.get_event_name.return_value = "meta_event.heartbeat"
-
-    await message_store.message_store_preprocessor(make_bot(), event, {})
-
-    assert len(captured) == 1
-    coro, name = captured[0]
-    assert name == "record_event_received"
-    await coro
-    record_event.assert_awaited_once()
-    record_args = record_event.await_args
-    assert record_args is not None
-    record_kwargs = record_args.kwargs
-    assert record_kwargs["event_type"] == "meta_event.heartbeat"
-    assert record_kwargs["event_category"] == "meta_event"
-
-
-async def test_message_store_preprocessor_swallows_database_errors(
-    monkeypatch: pytest.MonkeyPatch,
-    enabled_config: SimpleNamespace,
-) -> None:
-    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
-    record_event = AsyncMock(side_effect=message_store.DatabaseError("boom"))
-    monkeypatch.setattr(message_store.repository, "record_event_received", record_event)
-    captured = install_fire_and_forget_spy(monkeypatch)
-
-    await message_store.message_store_preprocessor(make_bot(), make_event(), {})
-
-    assert len(captured) == 1
-    coro, name = captured[0]
-    assert name == "record_event_received"
-    await coro  # DatabaseError is swallowed inside the scheduled coroutine
     record_event.assert_awaited_once()
 
 
-async def test_run_postprocessor_updates_status(
+async def test_handle_matcher_result_records_handled(
     monkeypatch: pytest.MonkeyPatch,
-    enabled_config: SimpleNamespace,
+    patched_runtime_config: SimpleNamespace,
 ) -> None:
-    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
-    record_result = AsyncMock()
+    _ = patched_runtime_config
+    record_result = AsyncMock(return_value=True)
     monkeypatch.setattr(
         message_store.repository, "record_matcher_result", record_result
     )
-    identity = message_store.MessageIdentity(
+    identity = MessageIdentity(
         platform_id="qq",
-        adapter_id="~milky",
+        adapter_id="~onebot.v11",
         protocol_id=None,
         framework_id="nonebot",
         bot_id="bot-1",
@@ -239,76 +134,246 @@ async def test_run_postprocessor_updates_status(
     )
     matcher = MagicMock()
     matcher.block = False
-    captured = install_fire_and_forget_spy(monkeypatch)
 
-    await message_store.message_store_run_postprocessor(
-        matcher,
-        None,
-        {message_store.STATE_KEY: identity},
+    result = await message_store.handle_matcher_result(identity, matcher, None)
+
+    assert result is True
+    record_result.assert_awaited_once()
+    assert record_result.await_args is not None
+    record_kwargs = record_result.await_args.kwargs
+    assert record_kwargs["process_status"] == "handled"
+    assert record_kwargs["adapter_id"] == "~onebot.v11"
+
+
+async def test_handle_matcher_result_records_blocked_and_failed(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    record_result = AsyncMock(return_value=True)
+    monkeypatch.setattr(
+        message_store.repository, "record_matcher_result", record_result
+    )
+    identity = MessageIdentity(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        protocol_id=None,
+        framework_id="nonebot",
+        bot_id="bot-1",
+        conversation_id="group-1",
+        message_id="msg-1",
+    )
+    matcher = MagicMock()
+    matcher.block = True
+
+    await message_store.handle_matcher_result(identity, matcher, ValueError("oops"))
+
+    assert record_result.await_args is not None
+    assert record_result.await_args.kwargs["process_status"] == "failed:blocked"
+
+
+async def test_handle_matcher_result_skips_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    patched_runtime_config.message_store_enabled = False
+    record_result = AsyncMock()
+    monkeypatch.setattr(
+        message_store.repository, "record_matcher_result", record_result
+    )
+    identity = MessageIdentity(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        protocol_id=None,
+        framework_id="nonebot",
+        bot_id="bot-1",
+        conversation_id="group-1",
+        message_id="msg-1",
     )
 
-    assert len(captured) == 1
-    coro, name = captured[0]
-    assert name == "record_matcher_result"
-    await coro
-    record_result.assert_awaited_once()
-    record_result_args = record_result.await_args
-    assert record_result_args is not None
-    assert record_result_args.kwargs["adapter_id"] == "~milky"
-    assert record_result_args.kwargs["process_status"] == "handled"
+    result = await message_store.handle_matcher_result(identity, MagicMock(), None)
+
+    assert result is False
+    record_result.assert_not_awaited()
 
 
-async def test_on_called_api_records_result(
+async def test_handle_matcher_result_swallows_database_errors(
     monkeypatch: pytest.MonkeyPatch,
-    enabled_config: SimpleNamespace,
+    patched_runtime_config: SimpleNamespace,
 ) -> None:
-    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
+    _ = patched_runtime_config
+    record_result = AsyncMock(side_effect=DatabaseError("boom"))
+    monkeypatch.setattr(
+        message_store.repository, "record_matcher_result", record_result
+    )
+    identity = MessageIdentity(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        protocol_id=None,
+        framework_id="nonebot",
+        bot_id="bot-1",
+        conversation_id="group-1",
+        message_id="msg-1",
+    )
+
+    result = await message_store.handle_matcher_result(identity, MagicMock(), None)
+
+    assert result is False
+    record_result.assert_awaited_once()
+
+
+async def test_handle_api_called_records_result(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
     record_api = AsyncMock()
     monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
-    captured = install_fire_and_forget_spy(monkeypatch)
+    platform_context = adapters.resolve_platform_context(make_bot())
+    assert platform_context is not None
 
-    await message_store.message_store_on_called_api(
-        make_bot(),
+    await message_store.handle_api_called(
+        platform_context,
         None,
         "send_message",
         {"message": "hello"},
         {"message_id": "out-1"},
     )
 
-    assert len(captured) == 1
-    coro, name = captured[0]
-    assert name == "record_api_call"
-    await coro
     record_api.assert_awaited_once()
-    record_api_args = record_api.await_args
-    assert record_api_args is not None
-    audit_event = record_api_args.args[0]
+    assert record_api.await_args is not None
+    audit_event = record_api.await_args.args[0]
     assert audit_event.api_name == "send_message"
     assert audit_event.adapter_id == "~onebot.v11"
     assert audit_event.data_summary == "{'message': 'hello'}"
     assert audit_event.result_summary == "{'message_id': 'out-1'}"
 
 
-async def test_lifecycle_and_api_recording_skip_disabled_known_adapter(
+async def test_handle_api_called_skips_when_disabled(
     monkeypatch: pytest.MonkeyPatch,
-    enabled_config: SimpleNamespace,
+    patched_runtime_config: SimpleNamespace,
 ) -> None:
-    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
+    _ = patched_runtime_config
+    patched_runtime_config.message_store_enabled = False
     record_api = AsyncMock()
     monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
-    captured = install_fire_and_forget_spy(monkeypatch)
+    platform_context = adapters.resolve_platform_context(make_bot())
+    assert platform_context is not None
 
-    lifecycle_recorded = await message_store.record_bot_lifecycle(
-        make_bot("Milky"),
-        "bot_connected",
-    )
-    await message_store.message_store_on_called_api(
-        make_bot("Milky"),
+    await message_store.handle_api_called(
+        platform_context,
         None,
         "send_message",
-        {"message": "hello"},
-        {"message_id": "out-1"},
+        {},
+        {},
     )
 
-    assert not lifecycle_recorded
-    assert captured == []
+    record_api.assert_not_awaited()
+
+
+async def test_handle_api_called_skips_when_api_calls_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    patched_runtime_config.message_store_record_api_calls = False
+    record_api = AsyncMock()
+    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
+    platform_context = adapters.resolve_platform_context(make_bot())
+    assert platform_context is not None
+
+    await message_store.handle_api_called(
+        platform_context,
+        None,
+        "send_message",
+        {},
+        {},
+    )
+
+    record_api.assert_not_awaited()
+
+
+async def test_handle_api_called_swallows_database_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    record_api = AsyncMock(side_effect=DatabaseError("boom"))
+    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
+    platform_context = adapters.resolve_platform_context(make_bot())
+    assert platform_context is not None
+
+    await message_store.handle_api_called(
+        platform_context,
+        None,
+        "send_message",
+        {},
+        {},
+    )
+
+    record_api.assert_awaited_once()
+
+
+async def test_record_bot_lifecycle_records_connected(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    record_api = AsyncMock()
+    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
+
+    result = await message_store.record_bot_lifecycle(make_bot(), "bot_connected")
+
+    assert result is True
+    record_api.assert_awaited_once()
+    assert record_api.await_args is not None
+    audit_event = record_api.await_args.args[0]
+    assert audit_event.api_name == "bot_connected"
+    assert audit_event.audit_type == "lifecycle"
+    assert audit_event.adapter_id == "~onebot.v11"
+
+
+async def test_record_bot_lifecycle_skips_unknown_adapter(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    record_api = AsyncMock()
+    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
+
+    result = await message_store.record_bot_lifecycle(
+        make_bot("Custom"), "bot_connected"
+    )
+
+    assert result is False
+    record_api.assert_not_awaited()
+
+
+async def test_record_bot_lifecycle_skips_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    patched_runtime_config.message_store_enabled = False
+    record_api = AsyncMock()
+    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
+
+    result = await message_store.record_bot_lifecycle(make_bot(), "bot_connected")
+
+    assert result is False
+    record_api.assert_not_awaited()
+
+
+async def test_record_bot_lifecycle_swallows_database_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    record_api = AsyncMock(side_effect=DatabaseError("boom"))
+    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
+
+    result = await message_store.record_bot_lifecycle(make_bot(), "bot_connected")
+
+    assert result is False
+    record_api.assert_awaited_once()

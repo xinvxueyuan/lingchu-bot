@@ -1,8 +1,5 @@
-from nonebot import get_adapters, get_driver, logger
-from nonebot.adapters import Bot
-from nonebot.internal.driver.abstract import Driver
+from nonebot import get_adapters, logger
 
-from ..core.async_utils import fire_and_forget
 from ..core.bot_state import load_bot_state
 from ..core.config import plugin_config
 from ..core.menu_config import ensure_menu_config_file_async, load_menu_config
@@ -28,14 +25,10 @@ from ..services.message_store import (
     SCHEDULER_CLEANUP_HANDLER_KEY,
     cleanup_expired_messages,
     initialize_message_store,
-    record_bot_lifecycle,
-    shutdown_message_store,
 )
-from ..services.protocol_restart_feedback import send_pending_restart_feedback
 from ..services.scheduler import (
     initialize_scheduler_service,
     register_scheduler_handler,
-    shutdown_scheduler_service,
 )
 
 
@@ -145,34 +138,3 @@ async def startup() -> None:
         cleanup_expired_messages,
     )
     await initialize_scheduler_service()
-
-
-driver: Driver = get_driver()
-
-
-@driver.on_startup
-async def initialize_runtime_services() -> None:
-    await startup()
-
-
-@driver.on_shutdown
-async def shutdown_runtime_services() -> None:
-    await shutdown_scheduler_service()
-    await shutdown_message_store()
-
-
-@driver.on_bot_connect
-async def record_bot_connected(bot: Bot) -> None:
-    fire_and_forget(
-        record_bot_lifecycle(bot, "bot_connected"), name="record_bot_lifecycle"
-    )
-    fire_and_forget(
-        send_pending_restart_feedback(bot), name="send_protocol_restart_feedback"
-    )
-
-
-@driver.on_bot_disconnect
-async def record_bot_disconnected(bot: Bot) -> None:
-    fire_and_forget(
-        record_bot_lifecycle(bot, "bot_disconnected"), name="record_bot_lifecycle"
-    )

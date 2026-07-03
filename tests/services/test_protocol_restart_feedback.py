@@ -354,7 +354,9 @@ def test_list_pending_restart_feedback_removes_expired_pending(
 async def test_record_bot_connected_schedules_restart_feedback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from src.plugins.nonebot_plugin_lingchu_bot.start import startup as startup_module
+    from src.plugins.nonebot_plugin_lingchu_bot.hooks.handlers import (
+        bot_connection as bot_connection_module,
+    )
 
     scheduled: list[tuple[str, Coroutine[Any, Any, Any]]] = []
 
@@ -370,13 +372,17 @@ async def test_record_bot_connected_schedules_restart_feedback(
         scheduled.append((name, coro))
         coro.close()
 
-    monkeypatch.setattr(startup_module, "record_bot_lifecycle", _record_bot_lifecycle)
     monkeypatch.setattr(
-        startup_module, "send_pending_restart_feedback", _send_pending_restart_feedback
+        bot_connection_module, "record_bot_lifecycle", _record_bot_lifecycle
     )
-    monkeypatch.setattr(startup_module, "fire_and_forget", _fire_and_forget)
+    monkeypatch.setattr(
+        bot_connection_module,
+        "send_pending_restart_feedback",
+        _send_pending_restart_feedback,
+    )
+    monkeypatch.setattr(bot_connection_module, "fire_and_forget", _fire_and_forget)
 
-    await startup_module.record_bot_connected(MagicMock())
+    await bot_connection_module.on_bot_connect(MagicMock())
 
     assert [name for name, _ in scheduled] == [
         "record_bot_lifecycle",

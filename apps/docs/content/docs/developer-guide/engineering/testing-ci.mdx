@@ -30,6 +30,44 @@ uv run -m pytest
 
 If only one module changed, run the related test file first, then broaden the scope as needed.
 
+## Runtime smoke test
+
+After hook, adapter, or startup-flow changes, static checks are not enough. Run a short live startup to catch forward-reference signature errors and import-order issues:
+
+```bash
+timeout 10s nb run -r
+```
+
+Adjust the timeout based on the output. Wait until you see `Application startup complete.` and at least one event cycle. If the process exits before startup finishes, increase the timeout. The command exits with code 124 when the timeout kills the process, which is expected for a smoke test.
+
+## CI/CD smoke test
+
+In addition to the manual runtime smoke test, CI/CD runs an automated smoke test stage after the build job and before deployment. This verifies that the built container can start NoneBot, register runtime hooks, initialize core services, and produce a JUnit report.
+
+### Stage position and dependencies
+
+- `smoke-test` runs after the `build` job in `👷 CI-builds` and only starts when the build succeeds.
+- `docs-smoke` runs after the docs build job in `📚 Docs Deploy` and only starts when the docs build succeeds.
+
+### Failure handling
+
+If any smoke check fails, the workflow stops immediately and does not deploy. The job uploads `smoke-test-results.xml` as an artifact so you can inspect the failing assertion and traceback.
+
+### Local debugging
+
+You can run the same smoke checks locally:
+
+```bash
+# Build and run the smoke test container with Docker Compose
+task smoke
+
+# Run in CI mode and emit the JUnit XML report
+task ci:smoke
+
+# Equivalent raw Docker Compose command
+docker compose --profile smoke up --build --abort-on-container-exit smoke-test
+```
+
 ## Database testing
 
 The project supports six database backends for testing via the `SQLALCHEMY_DATABASE_URL` environment variable, following [NoneBot database testing best practices](https://nonebot.dev/docs/best-practice/database/developer/test).

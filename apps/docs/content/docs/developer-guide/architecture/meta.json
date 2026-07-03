@@ -6,6 +6,7 @@
   "pages": [
     "introduction",
     "adapter-guide",
-    "message-store"
+    "message-store",
+    "runtime-hooks"
   ]
 }

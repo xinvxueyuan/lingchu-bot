@@ -113,6 +113,51 @@ jobs:
           path: dist
           if-no-files-found: error
 
+  # ── Smoke Test ──
+  # Runs the containerized smoke test suite against the freshly built
+  # distribution artifacts. This validates startup, hook registration and
+  # core service initialization without requiring a real OneBot connection.
+  smoke-test:
+    name: 🚬 Smoke test
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ needs.build.result == 'success' }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: 📥 Checkout
+        # pinned from actions/checkout@v6.0.3
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: 📦 Download build artifacts
+        # pinned from actions/download-artifact@v7.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: assets-${{ github.sha }}
+          path: dist
+
+      - name: 🐳 Build smoke image
+        run: docker build --build-arg SMOKE_TEST=true -t lingchu-bot:smoke .
+
+      - name: 🚬 Run smoke tests
+        run: |
+          mkdir -p test-results/smoke
+          docker run --rm --user root \
+            -e SMOKE_TEST=true \
+            -e SMOKE_TEST_RESULTS_XML=/reports/smoke-test-results.xml \
+            -v "$PWD/test-results/smoke:/reports" \
+            lingchu-bot:smoke
+
+      - name: 📤 Upload smoke test report on failure
+        if: failure()
+        # pinned from actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: smoke-test-results-${{ github.sha }}
+          path: test-results/smoke/smoke-test-results.xml
+          if-no-files-found: ignore
+
   versioned-build:
     name: 🔖 Versioned build
     runs-on: ubuntu-latest
@@ -121,6 +166,8 @@ jobs:
       (startsWith(github.ref, 'refs/heads/main') ||
        startsWith(github.ref, 'refs/heads/dev') ||
        startsWith(github.ref, 'refs/heads/releases/'))
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
     permissions:
       contents: write
       id-token: write
@@ -196,3 +243,45 @@ jobs:
       - name: 🏷️ Create version tag
         shell: bash
         run: task ci:version:tag-only VERSION="${{ steps.bump.outputs.new_version }}"
+
+  # ── Smoke Test (Versioned) ──
+  smoke-test-versioned:
+    name: 🚬 Smoke test (versioned)
+    runs-on: ubuntu-latest
+    needs: versioned-build
+    if: ${{ needs.versioned-build.result == 'success' }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: 📥 Checkout
+        # pinned from actions/checkout@v6.0.3
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: 📦 Download versioned build artifacts
+        # pinned from actions/download-artifact@v7.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: assets-${{ needs.versioned-build.outputs.new_version }}
+          path: dist
+
+      - name: 🐳 Build smoke image
+        run: docker build --build-arg SMOKE_TEST=true -t lingchu-bot:smoke-versioned .
+
+      - name: 🚬 Run smoke tests
+        run: |
+          mkdir -p test-results/smoke
+          docker run --rm --user root \
+            -e SMOKE_TEST=true \
+            -e SMOKE_TEST_RESULTS_XML=/reports/smoke-test-results.xml \
+            -v "$PWD/test-results/smoke:/reports" \
+            lingchu-bot:smoke-versioned
+
+      - name: 📤 Upload smoke test report on failure
+        if: failure()
+        # pinned from actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: smoke-test-results-versioned-${{ github.sha }}
+          path: test-results/smoke/smoke-test-results.xml
+          if-no-files-found: ignore

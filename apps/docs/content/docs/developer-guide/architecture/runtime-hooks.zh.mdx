@@ -1,0 +1,130 @@
+---
+icon: Webhook
+title: 运行时钩子
+---
+
+## 运行时钩子
+
+Lingchu Bot 通过统一的 `hooks/` 包注册全部 NoneBot 运行时钩子。导入该包会解析平台适配层、暴露共享钩子接口，并触发各个 handler 模块的注册。业务逻辑与 NoneBot 装饰器分离，便于单独测试 handler。
+
+<Callout title="统一入口">
+
+核心插件在 `__init__.py` 中通过 `from . import hooks` 加载钩子。你不需要直接导入单个 handler 模块。
+
+</Callout>
+
+## 钩子分类
+
+运行时钩子按能力分组，每个分类对应 `hooks/handlers/` 下的一个模块。
+
+| 分类 | 模块 | NoneBot 钩子 |
+| --- | --- | --- |
+| 生命周期 | `hooks/handlers/lifecycle.py` | `driver.on_startup`、`driver.on_shutdown` |
+| Bot 连接 | `hooks/handlers/bot_connection.py` | `driver.on_bot_connect`、`driver.on_bot_disconnect` |
+| 消息存储 | `hooks/handlers/message_store.py` | `event_preprocessor`、`event_postprocessor`、`run_preprocessor`、`run_postprocessor` |
+| API 审计 | `hooks/handlers/api_audit.py` | `Bot.on_calling_api`、`Bot.on_called_api` |
+
+### 生命周期
+
+生命周期钩子在 NoneBot 驱动器启动时初始化 Lingchu 运行时服务，在驱动器停止时关闭服务。
+
+- `on_startup` 调用 `start.startup.startup()`，加载配置、菜单、权限和调度器。
+- `on_shutdown` 依次调用 `shutdown_scheduler_service()` 和 `shutdown_message_store()`。
+
+### Bot 连接
+
+Bot 连接钩子记录生命周期事件并发送待处理的重启反馈。
+
+- `on_bot_connect` 记录 `bot_connected` 并触发 `send_pending_restart_feedback(bot)`。
+- `on_bot_disconnect` 记录 `bot_disconnected`。
+
+### 消息存储
+
+消息存储钩子记录事件接收与匹配器执行结果。它使用 `hooks/adapters.normalize_message_event` 将适配器事件转换为稳定的 `NormalizedMessageEvent`，并把生成的 `MessageIdentity` 存入 `state`，供下游钩子关联记录。
+
+- `event_preprocessor` 归一化事件并 fire-and-forget 调用 `services.message_store.handle_event_received`。
+- `run_postprocessor` 从 `state` 读取 identity 并 fire-and-forget 调用 `services.message_store.handle_matcher_result`。
+- `event_postprocessor` 与 `run_preprocessor` 为预留占位符，当前无操作。
+
+### API 审计
+
+API 审计钩子记录平台 API 调用完成后的摘要。
+
+- `on_called_api` 解析平台上下文，并在消息存储与 API 调用记录均启用时 fire-and-forget 调用 `services.message_store.handle_api_called`。
+- `on_calling_api` 为预留占位符，当前无操作。
+
+## 平台适配层
+
+`hooks/adapters.py` 承载运行时钩子所需的全部平台相关逻辑。
+
+| 导出 | 用途 |
+| --- | --- |
+| `resolve_platform_context(bot)` | 将 `Bot` 实例映射为 `PlatformContext(platform_id, adapter_id, bot_id, protocol_id)`；未知适配器返回 `None`。 |
+| `normalize_message_event(bot, event)` | 返回包含 identity、事件类型、消息类型、文本摘要和原始 payload 的 `NormalizedMessageEvent`。 |
+| `MessageIdentity` / `NormalizedMessageEvent` | 被 `services.message_store` 消费的稳定 dataclass。 |
+
+字段提取辅助函数（如 `_conversation_id`、`_user_id`、`_message_id`、`_plain_text`）也集中在此模块，避免 handler 重复编写适配器专属逻辑。
+
+## Handler 注册表
+
+`hooks/registry.py` 提供类型化的内存 handler 注册表。
+
+<TypeTable
+  type={{
+    register_handler: {
+      type: "(hook_type, handler, *, enabled=True) -> handler",
+      description: "按能力分类注册 handler。禁用的 handler 会被记录，但不会被迭代器产出。",
+    },
+    iter_handlers: {
+      type: "(hook_type=None) -> Iterator[HookHandler]",
+      description: "产出已启用的 handler，可按分类过滤。",
+    },
+    get_handlers_by_type: {
+      type: "(hook_type) -> tuple[HookHandler, ...]",
+      description: "返回某一分类下已启用的 handler。",
+    },
+  }}
+/>
+
+注册表类型基于 `hooks/interfaces.py` 中定义的 `HookContext`、`EventContext` 和 `HookHandler` 协议。
+
+## 新增钩子处理器
+
+新增运行时钩子处理器的步骤如下：
+
+1. **从 `hooks/interfaces.py` 选择上下文类型**：
+   - `PlatformContext`：用于 Bot 级别身份。
+   - `HookContext`：用于通用处理器。
+   - `EventContext`：用于事件驱动处理器。
+
+2. **实现 handler**：实现为符合 `HookHandler[T_contra]` 的异步可调用对象：
+
+   ```python
+   from hooks.interfaces import EventContext, HookHandler
+
+   async def my_handler(context: EventContext) -> None:
+       ...
+   ```
+
+3. **在 `hooks/handlers/` 下创建模块**，例如 `hooks/handlers/my_feature.py`。在该模块中注册 NoneBot 装饰器，业务调用保留在 `services/` 或 `repositories/` 中。
+
+4. **在 `hooks/handlers/__init__.py` 导出模块**，确保 `from . import hooks` 能加载它：
+
+   ```python
+   from . import my_feature as my_feature
+   ```
+
+5. **如需按能力发现，向注册表登记**：
+
+   ```python
+   from hooks.interfaces import HookType
+   from hooks.registry import register_handler
+
+   register_handler(HookType.MESSAGE_STORE, my_handler)
+   ```
+
+<Callout title="避免副作用导入">
+
+不要依赖导入 `services.message_store` 或 `start.startup` 来注册钩子。所有注册副作用都归属于 `hooks/`，并通过唯一的 `from . import hooks` 入口触发。
+
+</Callout>
