@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (4204 symbols, 8017 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (4435 symbols, 8435 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -315,6 +315,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 #### Testing And Typing
 
 - When changing function signatures, grep all callers, update fixtures, and run Ruff, Pyright, ty, and pytest.
+- After hook, adapter, or startup-flow changes, run a short live smoke test with `timeout 10s nb run -r` (adjust the timeout based on startup output; wait until `Application startup complete.` and at least one event cycle are observed). This catches forward-reference signature errors and import-order issues that static analysis misses.
 - Do not shadow gettext helper `_` with throwaway locals in gettext-heavy handlers.
 - In tests, side-effect exceptions must match the production `except` clause.
 - Use `isinstance(event, GroupMessageEvent)` for NoneBot event narrowing.

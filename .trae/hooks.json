@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": {
+    "Stop": [
+      {
+        "loop_limit": 3,
+        "hooks": [
+          {
+            "command": "timeout 18s nb run -r",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

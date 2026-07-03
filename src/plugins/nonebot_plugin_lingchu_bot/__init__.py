@@ -43,10 +43,16 @@ __plugin_meta__ = PluginMetadata(
     },
 )
 
+# isort: off
 from .database import json5_store as json5_store
 from .database import models as models
 from .database import orm_crud as orm_crud
 from .services import message_store as message_store
 from .start.startup import startup as startup
+
+# Register runtime hooks after business modules because handlers depend on
+# services.message_store and start.startup.
+from . import hooks as hooks
+# isort: on
 
 config: Config = get_plugin_config(config=Config)

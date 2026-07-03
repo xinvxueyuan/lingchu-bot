@@ -2,6 +2,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.plugins.nonebot_plugin_lingchu_bot.hooks.handlers import (
+    lifecycle as lifecycle_module,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.start import startup as startup_module
 
 
@@ -100,24 +103,39 @@ async def test_startup_imports_group_and_menu_handlers(
 
 
 @pytest.mark.asyncio
-async def test_shutdown_runtime_services_shuts_down_scheduler_and_message_store(
+async def test_lifecycle_on_startup_calls_startup(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    shutdown_message_store = AsyncMock()
-    shutdown_scheduler_service = AsyncMock()
+    startup = AsyncMock()
+    monkeypatch.setattr(lifecycle_module, "startup", startup)
+
+    await lifecycle_module.on_startup()
+
+    startup.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_lifecycle_on_shutdown_calls_scheduler_and_message_store_in_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call_order: list[str] = []
+
+    async def _shutdown_scheduler_service() -> None:
+        call_order.append("scheduler")
+
+    async def _shutdown_message_store() -> None:
+        call_order.append("message_store")
+
     monkeypatch.setattr(
-        startup_module, "shutdown_message_store", shutdown_message_store
+        lifecycle_module, "shutdown_scheduler_service", _shutdown_scheduler_service
     )
     monkeypatch.setattr(
-        startup_module,
-        "shutdown_scheduler_service",
-        shutdown_scheduler_service,
+        lifecycle_module, "shutdown_message_store", _shutdown_message_store
     )
 
-    await startup_module.shutdown_runtime_services()
+    await lifecycle_module.on_shutdown()
 
-    shutdown_scheduler_service.assert_awaited_once()
-    shutdown_message_store.assert_awaited_once()
+    assert call_order == ["scheduler", "message_store"]
 
 
 @pytest.mark.asyncio

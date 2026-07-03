@@ -313,6 +313,7 @@ task ci
 #### Testing And Typing
 
 - 修改函数签名时，grep 所有调用方，更新 fixtures，并运行 Ruff、Pyright、ty、pytest。
+- 修改钩子、适配器或启动流程后，用 `timeout 10s nb run -r` 做一次短时真实启动冒烟测试（根据启动输出调整等待时间，需观察到 `Application startup complete.` 并至少完成一个事件周期）。这能捕获静态分析无法发现的前向引用签名错误与导入顺序问题。
 - gettext-heavy handler 中不要用 `_` 当临时变量覆盖 gettext helper。
 - 测试中的 side-effect exception 必须匹配生产代码 `except` 分支。
 - NoneBot event narrowing 使用 `isinstance(event, GroupMessageEvent)`。

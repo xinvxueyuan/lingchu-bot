@@ -30,6 +30,44 @@ uv run -m pytest
 
 如果只改了某个模块，可以先跑相关测试文件，再按需要扩大范围。
 
+## 运行时冒烟测试
+
+修改钩子、适配器或启动流程后，仅静态检查不够。应执行一次短时的真实启动，以捕获前向引用签名错误和导入顺序问题：
+
+```bash
+timeout 10s nb run -r
+```
+
+根据输出调整等待时间。需观察到 `Application startup complete.` 并至少完成一个事件周期。若进程在启动完成前退出，请增加超时时间。该命令在超时结束时返回退出码 124，这对冒烟测试来说是预期的。
+
+## CI/CD 冒烟测试
+
+除手动的运行时冒烟测试外，CI/CD 在 `build` job 之后、部署之前运行自动化的冒烟测试阶段，验证构建产物镜像能够启动 NoneBot、注册运行时钩子、初始化核心服务并生成 JUnit 报告。
+
+### 阶段位置与依赖关系
+
+- `smoke-test` 在 `👷 CI-builds` 的 `build` job 之后运行，仅在构建成功时触发。
+- `docs-smoke` 在 `📚 Docs Deploy` 的 docs build 之后运行，仅在文档构建成功时触发。
+
+### 失败处理
+
+任意冒烟检查失败时，工作流会立即终止，不会进入部署环节。job 会上传产物 `smoke-test-results.xml`，方便查看失败断言与 traceback。
+
+### 本地调试
+
+可以使用以下命令在本地执行同样的冒烟检查：
+
+```bash
+# 使用 Docker Compose 构建并运行冒烟测试容器
+task smoke
+
+# 以 CI 模式运行并输出 JUnit XML 报告
+task ci:smoke
+
+# 等效的原始 Docker Compose 命令
+docker compose --profile smoke up --build --abort-on-container-exit smoke-test
+```
+
 ## 数据库测试
 
 项目通过 `SQLALCHEMY_DATABASE_URL` 环境变量支持 6 个数据库后端测试，遵循 [NoneBot 数据库测试最佳实践](https://nonebot.dev/docs/best-practice/database/developer/test)。

@@ -1,0 +1,130 @@
+---
+icon: Webhook
+title: Runtime Hooks
+---
+
+## Runtime Hooks
+
+Lingchu Bot registers all NoneBot runtime hooks through a single `hooks/` package. Importing this package resolves the platform adapter layer, exposes shared hook interfaces, and triggers registration of every handler module. Business logic is kept separate from NoneBot decorators so handlers can be tested independently.
+
+<Callout title="Unified entrypoint">
+
+The core plugin loads hooks by importing `from . import hooks` in its `__init__.py`. You do not need to import individual handler modules directly.
+
+</Callout>
+
+## Hook categories
+
+Runtime hooks are grouped by capability. Each category lives in its own module under `hooks/handlers/`.
+
+| Category | Module | NoneBot hooks |
+| --- | --- | --- |
+| Lifecycle | `hooks/handlers/lifecycle.py` | `driver.on_startup`, `driver.on_shutdown` |
+| Bot connection | `hooks/handlers/bot_connection.py` | `driver.on_bot_connect`, `driver.on_bot_disconnect` |
+| Message store | `hooks/handlers/message_store.py` | `event_preprocessor`, `event_postprocessor`, `run_preprocessor`, `run_postprocessor` |
+| API audit | `hooks/handlers/api_audit.py` | `Bot.on_calling_api`, `Bot.on_called_api` |
+
+### Lifecycle
+
+The lifecycle handler initializes Lingchu runtime services when the NoneBot driver starts and shuts them down when the driver stops.
+
+- `on_startup` calls `start.startup.startup()` to load configuration, menus, permissions, and the scheduler.
+- `on_shutdown` calls `shutdown_scheduler_service()` followed by `shutdown_message_store()`.
+
+### Bot connection
+
+The bot connection handler records lifecycle events and delivers pending restart feedback.
+
+- `on_bot_connect` records `bot_connected` and triggers `send_pending_restart_feedback(bot)`.
+- `on_bot_disconnect` records `bot_disconnected`.
+
+### Message store
+
+The message store handler records event receipts and matcher results. It uses `hooks/adapters.normalize_message_event` to convert adapter events into a stable `NormalizedMessageEvent` and stores the resulting `MessageIdentity` in `state` so downstream hooks can correlate records.
+
+- `event_preprocessor` normalizes the event and fire-and-forget calls `services.message_store.handle_event_received`.
+- `run_postprocessor` reads the identity from `state` and fire-and-forget calls `services.message_store.handle_matcher_result`.
+- `event_postprocessor` and `run_preprocessor` are reserved no-op placeholders.
+
+### API audit
+
+The API audit handler records platform API calls after they complete.
+
+- `on_called_api` resolves the platform context and fire-and-forget calls `services.message_store.handle_api_called` when message storage and API call recording are enabled.
+- `on_calling_api` is a reserved no-op placeholder.
+
+## Platform adapter layer
+
+`hooks/adapters.py` owns all platform-specific knowledge used by runtime hooks.
+
+| Export | Purpose |
+| --- | --- |
+| `resolve_platform_context(bot)` | Maps a `Bot` instance to `PlatformContext(platform_id, adapter_id, bot_id, protocol_id)`. Returns `None` for unknown adapters. |
+| `normalize_message_event(bot, event)` | Returns a `NormalizedMessageEvent` containing identity, event type, message type, text summary, and raw payloads. |
+| `MessageIdentity` / `NormalizedMessageEvent` | Stable dataclasses consumed by `services.message_store`. |
+
+All field extraction helpers, such as `_conversation_id`, `_user_id`, `_message_id`, and `_plain_text`, live in this module so handlers do not duplicate adapter-specific logic.
+
+## Handler registry
+
+`hooks/registry.py` provides an in-memory registry for typed hook handlers.
+
+<TypeTable
+  type={{
+    register_handler: {
+      type: "(hook_type, handler, *, enabled=True) -> handler",
+      description: "Register a handler for a capability category. Disabled handlers are tracked but not yielded by iterators.",
+    },
+    iter_handlers: {
+      type: "(hook_type=None) -> Iterator[HookHandler]",
+      description: "Yield enabled handlers, optionally filtered by category.",
+    },
+    get_handlers_by_type: {
+      type: "(hook_type) -> tuple[HookHandler, ...]",
+      description: "Return enabled handlers for a specific category.",
+    },
+  }}
+/>
+
+The registry is typed against `HookContext`, `EventContext`, and the `HookHandler` protocol defined in `hooks/interfaces.py`.
+
+## Adding a new hook handler
+
+To add a new runtime hook handler:
+
+1. **Choose a context type** from `hooks/interfaces.py`:
+   - `PlatformContext` for bot-level identity.
+   - `HookContext` for generic handlers.
+   - `EventContext` for event-driven handlers.
+
+2. **Implement the handler** as an async callable matching `HookHandler[T_contra]`:
+
+   ```python
+   from hooks.interfaces import EventContext, HookHandler
+
+   async def my_handler(context: EventContext) -> None:
+       ...
+   ```
+
+3. **Create a module** under `hooks/handlers/`, for example `hooks/handlers/my_feature.py`. Register NoneBot decorators in that module and keep business calls in `services/` or `repositories/`.
+
+4. **Export the module** from `hooks/handlers/__init__.py` so `from . import hooks` loads it:
+
+   ```python
+   from . import my_feature as my_feature
+   ```
+
+5. **Add a registry entry** if the handler should be discoverable by capability:
+
+   ```python
+   from hooks.interfaces import HookType
+   from hooks.registry import register_handler
+
+   register_handler(HookType.MESSAGE_STORE, my_handler)
+   ```
+
+<Callout title="Avoid side-effect imports">
+
+Do not rely on importing `services.message_store` or `start.startup` to register hooks. All registration side effects belong in `hooks/` and are triggered by the single `from . import hooks` entrypoint.
+
+</Callout>
