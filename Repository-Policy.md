@@ -52,6 +52,10 @@ made legally executable by the relicensing grant in
 Users must comply with the terms and conditions of the license that is
 in effect for the relevant contribution at the time of its submission.
 
+## Release Records
+
+- `0.0.1` (2026-07-06): first formal 0.x release for the current LGPL/GFDL/CC0 phase. This release does not trigger the future phase because the transition rule treats the first public release example as `1.0.0` and excludes `0.x`.
+
 ## Media File Anonymization Requirements
 
 For media files in this project (including but not limited to images, audio, video, etc.) that are not explicitly marked as licensed under CC0 1.0 Universal Public Domain Dedication, anonymization (desensitization) processing is required before use.

@@ -152,7 +152,6 @@ tasks:
 
         python - <<'PY'
         from pathlib import Path
-        import os
         import re
 
         version = os.environ["VERSION"]
@@ -220,7 +219,6 @@ tasks:
         export VERSION="$version" CONFIG_PATH="{{.CONFIG_PATH}}"
         python - <<'PY'
         from pathlib import Path
-        import os
         import re
 
         version = os.environ["VERSION"]
@@ -240,6 +238,57 @@ tasks:
         path.write_text(new_text, encoding="utf-8")
         print(f"Restored version {version} into {path}")
         PY
+
+  release:verify-version:
+    desc: Verify release version is synchronized across package files
+    requires:
+      vars: [VERSION]
+    cmds:
+      - |
+        set -euo pipefail
+        python - <<'PY'
+        import json
+        import re
+        import tomllib
+        from pathlib import Path
+
+        expected = "{{.VERSION}}"
+        pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+        package = json.loads(Path("package.json").read_text(encoding="utf-8"))
+        config_text = Path("src/plugins/nonebot_plugin_lingchu_bot/core/config.py").read_text(encoding="utf-8")
+        match = re.search(r'core_version:\s*str\s*=\s*"([^"]+)"', config_text)
+        actual = {
+            "pyproject.toml": pyproject["project"]["version"],
+            "package.json": package["version"],
+            "core/config.py": match.group(1) if match else None,
+        }
+        bad = {path: value for path, value in actual.items() if value != expected}
+        if bad:
+            raise SystemExit(f"Version mismatch: expected {expected}, got {bad}")
+        print(f"Version {expected} is synchronized.")
+        PY
+
+  release:prepare:
+    desc: Prepare a release branch and synchronize version files
+    requires:
+      vars: [VERSION]
+    cmds:
+      - |
+        set -euo pipefail
+        version="{{.VERSION}}"
+        branch="releases/${version}"
+        git switch -c "$branch"
+        uv version "$version" --frozen
+        VERSION="$version" CONFIG_PATH="src/plugins/nonebot_plugin_lingchu_bot/core/config.py" task ci:version:write-config
+        task release:verify-version VERSION="$version"
+        echo "Prepared ${branch}. Review docs/changelog, then push to publish."
+
+  release:publish:
+    desc: Push a prepared releases/<version> branch to trigger release workflow
+    requires:
+      vars: [VERSION]
+    cmds:
+      - git push origin "releases/{{.VERSION}}"
 
   i18n:
     desc: Extract, update and compile i18n messages

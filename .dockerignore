@@ -173,7 +173,12 @@ lerna-debug.log*
 
 # Repository and local workspace state
 .git
+.agents
+.claude
+.github
 .gitnexus
+.superpowers
+.trae
 .worktrees
 .cache
 .turbo

@@ -210,6 +210,19 @@ PR 描述应包含：
 
 如果 CI 失败，先打开失败 job 的日志，定位具体命令、规则和行号。修 CI 时只改导致失败的最小范围，并重新跑对应本地命令验证。
 
+## 发布流程
+
+正式版本使用 `releases/<version>` 分支。
+
+1. 运行 `task release:prepare VERSION=0.0.1`。
+2. 更新 `CHANGELOG.md`、`.github/releases/0.0.1.md`、README 状态说明和策略记录。
+3. 运行 `task check && task test && task ci:build && task smoke`。
+4. 通过 `task release:publish VERSION=0.0.1` 推送发布分支。
+5. 验证 PyPI、GHCR 和 GitHub Release 产物。
+
+发布工作流会在构建产物前运行 `scripts/clean-release-infra.sh`，避免 agent、CI 和本地工作区基础设施被复制进分发输出。
+GitHub Release 正文来自 `.github/releases/<version>.md`；推送发行分支前应与 changelog 一起审阅该文件。
+
 ## 代码审查流程
 
 1. **自审**：请求审查前，重新阅读你的 diff，确认每处改动都是有意的。

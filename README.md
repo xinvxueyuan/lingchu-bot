@@ -19,7 +19,7 @@ Lingchu Bot is an application-side management bot project powered by NoneBot2. I
 
 ## Project status
 
-Lingchu Bot is still in **pre-alpha / development**. Code, configuration, command behavior, storage schema, and documentation can still change. Treat this README as an orientation map, and treat the source code plus docs as the source of truth for current behavior.
+Lingchu Bot has published its first `0.0.1` formal release. The project is still early and may make breaking changes before `1.0.0`, but the current release is intended to be installable, documented, and reproducible through the release workflow.
 
 Useful entry points:
 
