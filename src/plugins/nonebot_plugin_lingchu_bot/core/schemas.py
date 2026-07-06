@@ -75,6 +75,34 @@ CONFIG_SCHEMA_TEXT: Final = """{
       "type": "boolean",
       "description": "Run periodic cleanup against the message store."
     },
+    "ai_provider": {
+      "type": "string",
+      "enum": ["litellm", "openai"],
+      "description": "LLM SDK backend. Use litellm by default; switch to openai as a direct SDK fallback."
+    },
+    "ai_model": {
+      "type": "string",
+      "description": "Default chat completion model passed to the selected LLM provider."
+    },
+    "ai_base_url": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string" }
+      ],
+      "description": "Optional OpenAI-compatible API base URL passed to the selected LLM provider."
+    },
+    "ai_timeout": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "LLM request timeout in seconds."
+    },
+    "ai_api_key": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string" }
+      ],
+      "description": "LLM provider API key. Prefer setting via the AI_API_KEY environment variable over writing it into the JSON5 config file."
+    },
     "recall_message_default_count": {
       "type": "integer",
       "minimum": 1,

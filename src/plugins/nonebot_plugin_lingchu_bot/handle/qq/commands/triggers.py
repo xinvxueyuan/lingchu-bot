@@ -455,6 +455,12 @@ _DEFAULT_COMMAND_TRIGGERS = {
         chinese_aliases=frozenset(),
         english_aliases=frozenset(),
     ),
+    "chat": CommandTrigger(
+        chinese="聊天",
+        english="chat",
+        chinese_aliases=frozenset(),
+        english_aliases=frozenset(),
+    ),
 }
 
 COMMAND_TRIGGERS = build_command_triggers(
