@@ -142,6 +142,9 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 - **禁止打包 schema resource**：不要用 `importlib.resources` 或 wheel data 提供 JSON schema。Schema 文本位于 `src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py`，由 `install_schemas()` 安装。
 - **Prek 是 hook 唯一来源**：`prek.toml` 是唯一 pre-commit hook 配置，不要重新引入 `.pre-commit-config.yaml`。
 - **版本同步**：使用 `Taskfile.yml` 的 `ci:version:write-config` 同步写入 `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` 和根 `package.json`。
+- **发布分支**：正式版本使用 `releases/<version>` 分支，发布前必须保持 `pyproject.toml`、`package.json` 和 `core/config.py` 中的版本一致。
+- **发布说明**：每个正式版本都要更新 `CHANGELOG.md` 和发布策略记录。
+- **发布凭据**：PyPI 使用 Trusted Publishing / OIDC；GHCR 使用带 `packages: write` 权限的 `GITHUB_TOKEN`；不要新增长期有效的包仓库 token。
 - **Skills 排除列表同步**：修改 `pyproject.toml` 中 skills exclusion pattern 时，同步 `prek.toml` 对应注释/模式。
 
 ### Architecture Decisions

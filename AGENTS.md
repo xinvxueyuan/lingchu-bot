@@ -144,6 +144,9 @@ This sync rule starts after `<!-- gitnexus:end -->`. GitNexus marker blocks are 
 - **Handle default registration**: Handle-level defaults MUST be registered in `handle_config_defaults/` using `register_handle_defaults()` before `HandleConfigManager` can read or update `<command_key>.json5` files.
 - **Prek is hook source of truth**: `prek.toml` is the only pre-commit hook configuration. Do not reintroduce `.pre-commit-config.yaml`.
 - **Version sync**: Use `Taskfile.yml` task `ci:version:write-config` to write both `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` and root `package.json`.
+- **Release branches**: Formal releases use `releases/<version>` branches and must keep `pyproject.toml`, `package.json`, and `core/config.py` versions synchronized before publishing.
+- **Release notes**: Every formal release updates `CHANGELOG.md` and the release policy record.
+- **Release publishing**: PyPI uses Trusted Publishing / OIDC; GHCR uses `GITHUB_TOKEN` with `packages: write`; do not add long-lived package tokens.
 - **Skills exclusion sync**: When changing skills exclusion patterns in `pyproject.toml`, sync the corresponding `prek.toml` comments/patterns.
 
 ### Architecture Decisions

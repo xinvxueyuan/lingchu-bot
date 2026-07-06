@@ -23,6 +23,17 @@ FROM python:3.13-slim@sha256:7ba5f5888fbe0014ab9edb2278922995c2201fc3752c46b0be2
 
 WORKDIR /app
 
+ARG VERSION=unknown
+ARG VCS_REF=unknown
+
+LABEL org.opencontainers.image.title="Lingchu Bot" \
+  org.opencontainers.image.description="NoneBot2-powered application-side group management bot" \
+  org.opencontainers.image.version="${VERSION}" \
+  org.opencontainers.image.revision="${VCS_REF}" \
+  org.opencontainers.image.source="https://github.com/xinvxueyuan/lingchu-bot" \
+  org.opencontainers.image.url="https://lingchu.zone.id/" \
+  org.opencontainers.image.licenses="LGPL-3.0-or-later"
+
 ENV TZ=Asia/Shanghai
 ENV PYTHONPATH=/app
 

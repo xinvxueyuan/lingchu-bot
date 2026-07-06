@@ -210,6 +210,19 @@ PR descriptions should include:
 
 If CI fails, open the failed job's logs first and locate the specific command, rule, and line number. When fixing CI, only change the minimal scope that caused the failure, and re-run the corresponding local command to verify.
 
+## Release Process
+
+Formal releases use `releases/<version>` branches.
+
+1. Run `task release:prepare VERSION=0.0.1`.
+2. Update `CHANGELOG.md`, `.github/releases/0.0.1.md`, README status text, and policy records.
+3. Run `task check && task test && task ci:build && task smoke`.
+4. Push with `task release:publish VERSION=0.0.1`.
+5. Verify PyPI, GHCR, and GitHub Release artifacts.
+
+The release workflow runs `scripts/clean-release-infra.sh` before building artifacts so agent, CI, and local workspace infrastructure is not copied into distribution outputs.
+GitHub Release body text comes from `.github/releases/<version>.md`; keep that file reviewed with the changelog before pushing a release branch.
+
 ## Code Review Process
 
 1. **Self-review**: Before requesting review, re-read your diff and verify that every change is intentional.
