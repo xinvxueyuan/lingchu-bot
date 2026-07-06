@@ -151,6 +151,7 @@ tasks:
         set -euo pipefail
 
         python - <<'PY'
+        import os
         from pathlib import Path
         import re
 
