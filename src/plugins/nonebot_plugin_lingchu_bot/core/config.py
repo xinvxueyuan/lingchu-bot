@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 import nonebot
-from nonebot import get_driver, get_plugin_config
+from nonebot import get_driver, get_plugin_config, require
+
+require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import (
     get_plugin_cache_dir,
     get_plugin_config_dir,

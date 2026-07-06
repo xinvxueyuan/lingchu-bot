@@ -7,6 +7,9 @@ import time
 from collections.abc import Sequence  # noqa: TC003
 from typing import TYPE_CHECKING, Any
 
+from nonebot import require
+
+require("nonebot_plugin_orm")
 from nonebot_plugin_orm import Model, get_session
 from sqlalchemy import Select, func, select
 from sqlalchemy import delete as sqlalchemy_delete

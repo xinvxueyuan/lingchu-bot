@@ -9,8 +9,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal
 
 import json5
-from nonebot import get_driver
+from nonebot import get_driver, require
 from nonebot.compat import type_validate_python
+
+require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
 from pydantic import (
     AliasChoices,

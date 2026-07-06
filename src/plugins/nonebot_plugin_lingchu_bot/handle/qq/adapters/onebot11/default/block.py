@@ -1,6 +1,6 @@
 from typing import Any
 
-from nonebot import logger, on_message, on_request
+from nonebot import logger, on_message, on_request, require
 from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
 from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent as OneBot11GroupMessageEvent,
@@ -9,6 +9,8 @@ from nonebot.adapters.onebot.v11.event import (
     GroupRequestEvent as OneBot11GroupRequestEvent,
 )
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
+
+require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At
 
 from ......core.runtime_config import get_handle_config_manager

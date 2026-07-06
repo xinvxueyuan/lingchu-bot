@@ -27,7 +27,9 @@ from typing import TYPE_CHECKING, Any, Final
 
 import aiofiles
 import aiofiles.os
-from nonebot import logger
+from nonebot import logger, require
+
+require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_dir, get_plugin_data_dir
 
 if TYPE_CHECKING:

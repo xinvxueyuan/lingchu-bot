@@ -4,6 +4,9 @@ from importlib import import_module
 from typing import Any
 
 from arclet.alconna import Alconna, Args
+from nonebot import require
+
+require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import At
 from nonebot_plugin_alconna.uniseg import Image as UniImage

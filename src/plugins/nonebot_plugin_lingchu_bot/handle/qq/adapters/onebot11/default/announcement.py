@@ -1,11 +1,13 @@
 from typing import Any
 
-from nonebot import logger
+from nonebot import logger, require
 from nonebot.adapters.onebot.v11 import Bot as OneBot11
 from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent as OneBBot11_GroupMessageEvent,
 )
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
+
+require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import Image as UniImage
 from packaging.version import InvalidVersion, parse
 

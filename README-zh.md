@@ -106,6 +106,14 @@ pnpm exec husky
 cp .env.example .env
 ```
 
+### 通过 NB-CLI 安装（推荐）
+
+```bash
+nb plugin install nonebot-plugin-lingchu-bot
+```
+
+这会从 PyPI 安装已发布的包并注册到 NoneBot。安装后，将 `nonebot_plugin_lingchu_bot` 添加到 NoneBot 插件列表，或让 NB-CLI 自动管理。
+
 ### 选择运行方式
 
 把 Lingchu Bot 作为本地插件目录加载到已有 NoneBot 项目：

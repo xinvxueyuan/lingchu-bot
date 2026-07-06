@@ -2,7 +2,10 @@ from importlib import import_module
 from typing import Any
 
 from arclet.alconna import Alconna, Args
+from nonebot import require
 from nonebot.internal.matcher.matcher import Matcher
+
+require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna import on_alconna
 
 from .triggers import COMMAND_TRIGGERS
