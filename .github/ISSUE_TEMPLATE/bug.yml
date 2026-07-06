@@ -1,0 +1,166 @@
+name: 🐛 Bug Report
+description: Something not working or behaving unexpectedly in Lingchu Bot
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report!
+        Please fill in the required fields so we can reproduce and fix the issue quickly.
+        For Chinese-language reports, you may write inside any field in Chinese.
+
+  - type: input
+    id: title
+    attributes:
+      label: Short title
+      description: A concise summary of the bug (1-2 sentences).
+      placeholder: "e.g. Group mute command silently fails on OneBot V11"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How much does this bug affect your usage?
+      options:
+        - Blocker — bot cannot start or core flow is broken
+        - Major — feature broken, no workaround
+        - Minor — feature broken, workaround available
+        - Cosmetic — visual / logging issue, no functional impact
+      default: 1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      description: Pick the closest match. Use "Other" if nothing fits.
+      options:
+        - Core / bot state
+        - Group management (member / mute / kick)
+        - Speech management (silent / shutdown)
+        - Remote management
+        - Menu system
+        - Permissions / identity groups
+        - Message store / recall
+        - i18n
+        - LLM service
+        - Scheduler
+        - Database / ORM
+        - Adapter — OneBot V11
+        - Adapter — other
+        - Documentation site
+        - CI / build / release
+        - Docker
+        - Other
+      default: 16
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: What happened? What did you expect?
+      placeholder: "A clear description of what the bug is."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Step-by-step instructions to reproduce the behavior.
+      placeholder: |
+        1. Send command '...'
+        2. Bot replies with '...'
+        3. Observe error '...'
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened. Include tracebacks, error messages, or screenshots if possible.
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "e.g. Ubuntu 24.04, Windows 11, macOS 14"
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "e.g. 3.13.1"
+    validations:
+      required: true
+
+  - type: input
+    id: nonebot-version
+    attributes:
+      label: NoneBot2 version
+      placeholder: "e.g. 2.4.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: adapter
+    attributes:
+      label: Adapter / protocol
+      options:
+        - OneBot V11 (NapCat)
+        - OneBot V11 (Lagrange)
+        - OneBot V11 (other)
+        - Other
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: lingchu-version
+    attributes:
+      label: Lingchu Bot version
+      description: Output of `pip show nonebot-plugin-lingchu-bot` or the version in `core/config.py`.
+      placeholder: "e.g. 0.0.1"
+    validations:
+      required: true
+
+  - type: input
+    id: database
+    attributes:
+      label: Database backend
+      description: If applicable. Leave blank if not using a database.
+      placeholder: "SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant log output. Paste as-is — GitHub will format it as a code block. Redact secrets, tokens, and personal identifiers.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else reviewers should know — workaround attempts, related issues, screenshots.

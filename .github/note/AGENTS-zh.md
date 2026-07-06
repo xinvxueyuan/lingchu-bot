@@ -145,7 +145,10 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 - **发布分支**：正式版本使用 `releases/<version>` 分支，发布前必须保持 `pyproject.toml`、`package.json` 和 `core/config.py` 中的版本一致。
 - **发布说明**：每个正式版本都要更新 `CHANGELOG.md` 和发布策略记录。
 - **发布凭据**：PyPI 使用 Trusted Publishing / OIDC；GHCR 使用带 `packages: write` 权限的 `GITHUB_TOKEN`；不要新增长期有效的包仓库 token。
-- **Skills 排除列表同步**：修改 `pyproject.toml` 中 skills exclusion pattern 时，同步 `prek.toml` 对应注释/模式。
+- **Skills exclusion sync**：修改 `pyproject.toml` 中 skills exclusion pattern 时，同步 `prek.toml` 对应注释/模式。
+- **REUSE compliance**：所有文件 MUST 通过 `REUSE.toml` 声明 SPDX 许可；提交前 `reuse lint` MUST 通过。新文件 MUST 被 `REUSE.toml` glob 覆盖，或带有内联 `SPDX-License-Identifier` 头。
+- **Docker build context**：`docker build` 前，`.dockerignore` MUST 排除 `.git`、`.venv`、`node_modules`、`.env*`（保留 `.env.example`/`.env.prod.example`）、`tests/`、`.github/`、`.trae/`、`.gitnexus/`、`.turbo/` 及缓存目录。
+- **CODEOWNERS**：`.github/CODEOWNERS` 将 `src/`、`apps/docs/`、`.github/`、`Dockerfile`、`docker-compose.yml`、`Taskfile.yml`、`pyproject.toml`、`package.json`、`REUSE.toml`、`LICENSE-*` 路由给 `@xinvxueyuan` 用于 auto-review。
 
 ### Architecture Decisions
 
@@ -301,6 +304,7 @@ task ci
 #### Documentation And Mirror Sync
 
 - 更新仓库 guidance 时，保持 `AGENTS.md`、`CLAUDE.md`、`.github/note/AGENTS-zh.md` 结构一致。
+- 三个 agent context 文件（`AGENTS.md`、`CLAUDE.md`、`.github/note/AGENTS-zh.md`）MUST 结构对齐。向其中之一新增教训或约束时，同一 PR 内必须镜像到另外两个文件。
 - 结构一致不包括 GitNexus marker 块；该块由 `gitnexus analyze` 生成。保持 marker comments 和其他尖括号定位标签原样，确保 CLI 能找到受管范围。
 - 不在 agent context 嵌入大型生成清单。链接 canonical docs 或检查实时文件。
 - 结构性源码变化后，更新 developer docs 并搜索 stale references。
@@ -312,6 +316,17 @@ task ci
 - OneBot V11 群 `event.get_session_id()` 可能同时包含群和用户 ID。群级历史必须用 `group_id` 作为 `conversation_id`。
 - OneBot V11 图片 API 变更前，先用当前 adapter 和 NapCat 文档确认 file field 格式。
 - WSL2 + Docker Desktop bind mount 要求 WSL 发行版根目录必须加入 Docker Desktop File Sharing 白名单。漏配时容器内 bind 目标是空目录，但 `docker inspect` 仍报源路径正确。判断方法：`docker exec <ctr> mount | grep <src>`，出现 `fuse.bind` 或纯 `bind` 是正常；`overlay`（lower=`/tmp/docker-desktop-root-ro`）说明桥接层返回了空视图。修法：在 Docker Desktop → Settings → Resources → File sharing 加 `\\wsl.localhost\<distro>\`（旧版 WSL 写 `\\wsl$\<distro>\`），点 **Apply & restart** 后重建容器。Windows 侧 docker daemon 不会通过普通 bind 看到 WSL 路径；WSL Integration 与 File Sharing 是两个独立开关，不能假设"已经开了"。
+
+#### Supply Chain
+
+- `.github/workflows/*.yml` 中所有第三方 GitHub Actions 都按 40 字符 commit SHA 锁定并附 `# vX.Y.Z` 注释（非可变 tag）。`👷-ci-builds.yml` 与 `🚀-release.yml` 均使用 `actions/attest-build-provenance@v4.1.0`（SHA `a2bbfa2…`）生成 SLSA Build L3 provenance。用 `gh attestation verify <artifact> --repository xinvxueyuan/lingchu-bot` 验证。
+- 版本验证系统：分支名约定（`dev-minor-*`/`dev-major-*`/`dev-alpha-*`/`dev-beta-*`/`dev-rc-*`/`dev-stable-*`）驱动 `ci:version:bump` 中的 `BUMP_LEVEL`/`BUMP_PRERELEASE`。`ci:version:precheck` 校验 PEP 440 + 大于所有 tag + 源一致性 + 无重复 tag。`ci:version:postcheck` 调用 `release:verify-version` + dev release 语义。智能 bump 策略处理 stable vs pre-release tag：stable tag 需要 level+prerelease，同类 pre-release tag 仅 bump prerelease，`stable` 清除 prerelease。
+- `.github/ISSUE_TEMPLATE/` 使用 YAML 表单模板（`bug.yml`、`feature.yml`、`docs.yml`、`config.yml`）；`blank_issues_enabled: false` 带 contact_links 指向 docs 站和安全策略。不要重新引入 Markdown issue 模板。
+- `CHANGELOG.md` 遵循 Keep a Changelog 1.1.0 格式，包含 `## [Unreleased]` 节和底部 compare 链接。
+
+#### Docker And Runtime
+
+- `Dockerfile` 使用多阶段构建与 `# syntax=docker/dockerfile:1.7` BuildKit pragma、非 root `app` 用户、完整 OCI labels、`SMOKE_TEST` build arg 用于条件 smoke-test。`docker-compose.yml` 使用 named volumes（`lingchu-config`/`lingchu-data`/`lingchu-cache`）与 `env_file: .env.prod`。
 
 #### Testing And Typing
 

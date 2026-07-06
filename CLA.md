@@ -27,6 +27,10 @@ any other material — you accept the terms of this Agreement.
   Contribution to the Project.
 - **"You"** (or **"Your"**) means the individual or Legal Entity that
   submits a Contribution.
+- **"Legal Entity"** means a corporation, organization, or other legal
+  entity that can enter into binding agreements. Where the rights or
+  obligations in this Agreement apply to a Legal Entity, they bind both
+  the individual signing on its behalf and the Legal Entity itself.
 
 ## 2. Grant of Copyright License
 
@@ -98,8 +102,9 @@ out of this Agreement or the use of any Contribution.
 
 You accept this Agreement by any of the following acts:
 
-- Adding a `Signed-off-by:` trailer (Developer Certificate of Origin
-  format) to a commit that You submit to the Project.
+- Adding a `Signed-off-by:` trailer (Developer Certificate of Origin 1.1,
+  see <https://developercertificate.org/>) to a commit that You submit to
+  the Project.
 - Marking the CLA acknowledgment checkbox in the Project's pull request
   template.
 - Submitting a contribution through any Git-based mechanism that links

@@ -1,0 +1,55 @@
+name: 📚 Docs Issue
+description: Report a problem with the documentation site or suggest an improvement
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the Lingchu Bot documentation!
+        Please point us to the affected page so we can find it quickly.
+        For Chinese-language reports, you may write inside any field in Chinese.
+
+  - type: input
+    id: url
+    attributes:
+      label: Affected doc URL
+      description: Link to the page (or section) with the issue. If it's not yet published, describe where it should live.
+      placeholder: "https://lingchu.zone.id/docs/..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: language
+    attributes:
+      label: Page language
+      description: Which language version of the page has the issue?
+      options:
+        - English
+        - Chinese (中文)
+        - Both
+      default: 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's wrong?
+      description: Describe the issue — outdated info, broken link, typo, missing section, incorrect example, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: fix
+    attributes:
+      label: Suggested fix
+      description: What should the docs say instead? Sketch the corrected text or steps if possible.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, related issues, or anything else reviewers should know.

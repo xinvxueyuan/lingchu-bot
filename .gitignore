@@ -10,8 +10,13 @@
 .gitnexus/
 # git worktree 检出目录
 .worktrees/
-# fumadocs 生成的 source 目录
+# fumadocs 生成的 source 目录（generic + apps/docs 兜底）
 .source/
+apps/docs/.source/
+# Next.js / Fumadocs 静态导出产物
+apps/docs/out/
+# uv 缓存目录（uv sync / uv tool 默认位置）
+.uv-cache/
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
@@ -139,6 +144,7 @@ celerybeat.pid
 .env.prod
 .env.dev
 !.env.example
+!.env.prod.example
 .venv
 env/
 venv/

@@ -108,3 +108,27 @@
 - 在生产环境中禁用 `FASTAPI_DOCS_URL` 和 `FASTAPI_REDOC_URL`，避免暴露 API 文档。
 - 在容器中运行机器人，并赋予最小文件系统权限。
 - 定期更新 Python 和 Node.js 依赖（`uv sync --upgrade` 和 `pnpm update`）。
+
+## 供应链来源证明
+
+本仓库发布的构建产物附带 **SLSA Build L3** 来源证明。`👷-ci-builds.yml` 的 `versioned-build` job 使用 [`actions/attest-build-provenance@v4.1.0`](https://github.com/actions/attest-build-provenance)（SHA 锁定）为 `dist/*` 产物生成来源证明。该证明将每个产物绑定到生成它的确切工作流运行、源代码提交和构建环境。
+
+消费者和运维人员在信任已下载的产物（wheel、sdist 或容器镜像）前，可使用 GitHub CLI 验证来源证明：
+
+```bash
+# 验证已下载的 wheel 或 sdist
+gh attestation verify ./nonebot_plugin_lingchu_bot-0.0.1-py3-none-any.whl \
+  --repository xinvxueyuan/lingchu-bot
+
+# 验证从 GHCR 拉取的容器镜像
+gh attestation verify oci://ghcr.io/xinvxueyuan/lingchu-bot:0.0.1 \
+  --repository xinvxueyuan/lingchu-bot
+```
+
+验证成功会打印来源信息（`👷-ci-builds.yml` 工作流在 `releases/**` ref 上的运行）并确认产物由所声明的提交构建。若验证失败，请勿安装或运行该产物——通过上方私密漏洞报告渠道报告。
+
+补充供应链说明：
+
+- 所有第三方 GitHub Actions 均按 40 字符提交 SHA 锁定并附 `# vX.Y.Z` 注释；不使用 tag 锁定引用。
+- PyPI 发布使用 OIDC Trusted Publishing（仓库密钥中不存储长期 API 令牌）。
+- GHCR 推送使用临时 `GITHUB_TOKEN`，权限为 `packages: write`。

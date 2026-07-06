@@ -1,0 +1,65 @@
+name: ✨ Feature Request
+description: Propose a new capability or improvement for Lingchu Bot
+title: "[Feature]: "
+labels: ["feature request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a feature!
+        Please describe the use case and the behavior you want — code can follow once reviewers understand the problem.
+        For Chinese-language requests, you may write inside any field in Chinese.
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case / problem
+      description: What problem are you trying to solve? What's frustrating about the current behavior?
+      placeholder: "I'm trying to ... but Lingchu Bot currently ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed behavior
+      description: What do you want Lingchu Bot to do? Be as specific as possible — command syntax, expected output, edge cases.
+      placeholder: "When I send `...`, Lingchu Bot should ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds or other designs have you considered? Why are they insufficient?
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Pick the closest match.
+      options:
+        - Group management
+        - Speech / bot state
+        - Remote management
+        - Menu system
+        - Permissions / identity groups
+        - Message store / recall
+        - i18n
+        - LLM service
+        - Scheduler
+        - Database / ORM
+        - Adapter — OneBot V11
+        - Documentation site
+        - CI / build / release
+        - Other
+      default: 13
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, mockups, links to related issues, or prior art.

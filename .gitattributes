@@ -25,3 +25,19 @@
 *.po  text eol=lf
 *.pot text eol=lf
 *.mo  binary
+
+# JSON5 config files — enforce LF line endings for cross-platform consistency
+*.json5 text eol=lf
+
+# Lock files — generated, exclude from language statistics
+uv.lock          linguist-generated=true
+pnpm-lock.yaml   linguist-generated=true
+# Fumadocs generated source-of-truth collections
+apps/docs/.source/ linguist-generated=true
+
+# Exclude non-essential paths from release archives (git archive / dist tarball)
+/.github/   export-ignore
+/tests/     export-ignore
+/.trae/     export-ignore
+/.gitnexus/ export-ignore
+/.turbo/    export-ignore

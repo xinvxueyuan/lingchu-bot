@@ -1,62 +1,80 @@
-FROM python:3.13@sha256:37c657465be8871dba2b5f1e32c6664f9862c7573de45c0be92f26bda170770e AS requirements_stage
+# syntax=docker/dockerfile:1.7
+
+# ── Builder stage ────────────────────────────────────────────────────────────
+# Uses slim image + build tools for wheel compilation. The builder is discarded
+# in the final image, so build tools do not affect the runtime image size.
+FROM python:3.13-slim@sha256:7ba5f5888fbe0014ab9edb2278922995c2201fc3752c46b0be24763eb46fa9f3 AS requirements_stage
+
+# Install build tools for any C-extension dependencies that lack pre-built
+# wheels for this platform. The builder stage is discarded, so these do not
+# bloat the runtime image.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      gcc python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /wheel
 
 RUN python -m pip install --user uv
 
-COPY ./pyproject.toml \
-  ./uv.lock \
-  /wheel/
+COPY ./pyproject.toml ./uv.lock /wheel/
 
-# Export only third-party dependencies. The project source is copied into the
-# image later and loaded by NoneBot via ``load_from_toml``, so emitting the
-# local ``-e .`` entry would require README.md / license files in this stage
-# and is unnecessary.
-RUN python -m uv export --format requirements.txt --output-file requirements.txt --no-hashes --no-emit-project
+# Export only third-party runtime dependencies (no dev group). --no-emit-project
+# excludes the local ``-e .`` entry so the builder does not need README/license
+# files; the source is copied into the runtime stage directly.
+RUN python -m uv export --frozen --no-dev --no-emit-project --no-hashes \
+      --output-file requirements.txt
 
-RUN python -m pip wheel --wheel-dir=/wheel --no-cache-dir --requirement ./requirements.txt
+# Build wheels for offline installation in the runtime stage.
+RUN python -m pip wheel --wheel-dir=/wheels --no-cache-dir --requirement ./requirements.txt
 
+# Generate bot.py via nb-cli (used by ``nb run`` in the smoke-test path).
 RUN python -m uv tool run --no-cache --from nb-cli nb generate -f /tmp/bot.py
 
 
+# ── Runtime stage ────────────────────────────────────────────────────────────
 FROM python:3.13-slim@sha256:7ba5f5888fbe0014ab9edb2278922995c2201fc3752c46b0be24763eb46fa9f3
 
 WORKDIR /app
 
+# ── OCI labels ──
+# Build args are passed by CI (👷-ci-builds.yml, 🚀-release.yml).
+# VCS_REF is mapped to org.opencontainers.image.revision because release.yml
+# passes VCS_REF=${{ github.sha }} as a build-arg.
 ARG VERSION=unknown
 ARG VCS_REF=unknown
-
+ARG CREATED=unknown
+ARG REVISION=unknown
 LABEL org.opencontainers.image.title="Lingchu Bot" \
   org.opencontainers.image.description="NoneBot2-powered application-side group management bot" \
   org.opencontainers.image.version="${VERSION}" \
   org.opencontainers.image.revision="${VCS_REF}" \
   org.opencontainers.image.source="https://github.com/xinvxueyuan/lingchu-bot" \
   org.opencontainers.image.url="https://lingchu.zone.id/" \
-  org.opencontainers.image.licenses="LGPL-3.0-or-later"
+  org.opencontainers.image.licenses="LGPL-3.0-or-later" \
+  org.opencontainers.image.documentation="https://lingchu.zone.id/" \
+  org.opencontainers.image.created="${CREATED}"
 
 ENV TZ=Asia/Shanghai
 ENV PYTHONPATH=/app
 
-COPY ./docker/gunicorn_conf.py ./docker/start.sh /
-RUN chmod +x /start.sh
-
-ENV APP_MODULE=_main:app
-ENV MAX_WORKERS=1
-
-COPY --from=requirements_stage /tmp/bot.py /app
-COPY ./docker/_main.py /app
-COPY --from=requirements_stage /wheel /wheel
-
-RUN pip install --no-cache-dir gunicorn uvicorn[standard] nonebot2 \
-  && pip install --no-cache-dir --no-index --force-reinstall --find-links=/wheel -r /wheel/requirements.txt && rm -rf /wheel
+# ── Non-root user ──
 RUN groupadd --system app \
   && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app \
   && chown -R app:app /app
-COPY --chown=app:app . /app/
 
-# Smoke-test mode: expose a build-time flag, copy the entrypoint script and
-# install nb-cli only when smoke tests are requested so the production image
-# stays unchanged by default.
+# ── Install dependencies from pre-built wheels ──
+COPY --from=requirements_stage /wheels /wheels
+COPY --from=requirements_stage /wheel/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir --no-index --find-links=/wheels -r /tmp/requirements.txt \
+  && rm -rf /wheels /tmp/requirements.txt
+
+# ── Copy source ──
+COPY --chown=app:app . /app/
+COPY --from=requirements_stage --chown=app:app /tmp/bot.py /app/bot.py
+
+# ── Smoke-test support ──
+# Expose a build-time flag, copy the entrypoint script and install nb-cli
+# only when smoke tests are requested so the production image stays unchanged.
 ARG SMOKE_TEST=false
 ENV SMOKE_TEST=${SMOKE_TEST}
 COPY --chown=app:app ./docker/smoke-test.py /app/docker/smoke-test.py
@@ -64,7 +82,16 @@ RUN if [ "${SMOKE_TEST}" = "true" ]; then pip install --no-cache-dir nb-cli; fi
 
 USER app
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+# ── Healthcheck ──
+# Verifies the FastAPI server is accepting TCP connections on PORT (default 8080).
+# start-period gives NoneBot time to run migrations and load plugins before
+# the healthcheck starts counting failures.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD python -c "import socket, os; p=int(os.getenv('PORT','8080')); s=socket.socket(); s.connect(('localhost', p)); s.close()"
 
-CMD if [ "${SMOKE_TEST}" = "true" ]; then exec python /app/docker/smoke-test.py; else exec /start.sh; fi
+# ── Entrypoint ──
+# A conditional CMD is required because the CI smoke-test job (👷-ci-builds.yml)
+# invokes the image without a command override and selects the branch via
+# SMOKE_TEST=true. The production branch uses ``exec`` so NoneBot receives
+# process signals directly (equivalent to exec-form ENTRYPOINT).
+CMD if [ "${SMOKE_TEST}" = "true" ]; then exec python /app/docker/smoke-test.py; else exec python -m nonebot; fi

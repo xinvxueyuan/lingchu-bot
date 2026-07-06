@@ -4,7 +4,7 @@
 
 ## 我们的承诺
 
-我们作为成员、贡献者和领导者承诺，让参与我们的社区成为对每个人都无骚扰的体验，无论年龄、体型、可见或不可见的残疾、种族、性别特征、性别认同和表达、经验水平、教育程度、社会经济地位、国籍、个人外貌、种族、宗教或性认同和取向。
+我们作为成员、贡献者和领导者承诺，让参与我们的社区成为对每个人都无骚扰的体验，无论年龄、体型、可见或不可见的残疾、种族、性别特征、性别认同和表达、经验水平、教育程度、社会经济地位、国籍、个人外貌、种族、种姓、肤色、宗教或性认同和取向。
 
 我们承诺以有助于建立一个开放、热情、多元、包容和健康的社区的方式行事和互动。
 
@@ -73,10 +73,10 @@
 
 ## 归属
 
-本行为准则改编自[贡献者公约][homepage]，版本2.0，可在<https://www.contributor-covenant.org/version/2/0/code_of_conduct.html获取。>
+本行为准则改编自[贡献者公约][homepage]，版本2.1，可在<https://www.contributor-covenant.org/version/2/1/code_of_conduct.html>获取。
 
 社区影响指南受到[Mozilla的行为准则执行阶梯](https://github.com/mozilla/diversity)的启发。
 
 [homepage]: https://www.contributor-covenant.org
 
-有关本行为准则常见问题的答案，请参阅FAQ：<https://www.contributor-covenant.org/faq。翻译可在https://www.contributor-covenant.org/translations获取。>
+有关本行为准则常见问题的答案，请参阅FAQ：<https://www.contributor-covenant.org/faq>。翻译可在<https://www.contributor-covenant.org/translations>获取。

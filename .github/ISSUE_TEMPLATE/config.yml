@@ -1,0 +1,12 @@
+# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository#configuring-the-template-chooser
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Lingchu Bot documentation
+    url: https://lingchu.zone.id/
+    about: Search the documentation site before opening an issue — the answer may already be there.
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/xinvxueyuan/lingchu-bot/security/advisories/new
+    about: Please report security vulnerabilities via GitHub Private Vulnerability Reporting instead of public issues. See SECURITY.md for the SLA and scope.
+  - name: 💬 Contact the maintainer privately
+    url: https://afdian.com/a/xinvxueyuan
+    about: For sponsorships, partnerships, or private messages. Public project questions should use issues.
