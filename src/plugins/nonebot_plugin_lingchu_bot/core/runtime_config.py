@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any, Final, Literal
 
 import json5
 from nonebot import get_driver
@@ -59,6 +59,11 @@ class RuntimeConfig(BaseModel):
     message_store_summary_limit: int = Field(default=500, ge=0)
     message_store_record_api_calls: bool = True
     message_store_cleanup_enabled: bool = True
+    ai_provider: Literal["litellm", "openai"] = "litellm"
+    ai_model: str = "gpt-4o-mini"
+    ai_base_url: str | None = None
+    ai_timeout: float = Field(default=60.0, gt=0)
+    ai_api_key: str | None = None
     recall_message_default_count: int = Field(default=10, ge=1, le=100)
     permission_platform_runtime_passthrough: bool | dict[str, bool] = True
     command_trigger_overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nonebot-plugin-lingchu-bot 0.0.0.dev8\n"
 "Report-Msgid-Bugs-To: xinvxueyuan@yeah.net\n"
-"POT-Creation-Date: 2026-07-02 16:35+0800\n"
+"POT-Creation-Date: 2026-07-05 19:30+0800\n"
 "PO-Revision-Date: 2026-05-20 00:00+0800\n"
 "Last-Translator: xinvxueyuan <xinvxueyuan@yeah.net>\n"
 "Language: zh_CN\n"
@@ -44,16 +44,16 @@ msgstr ""
 "期望布尔值，但收到 {value_type}: {value!r}\n"
 "请检查 NoneBot2 配置文件。"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:598
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:612
 msgid "灵初功能菜单"
 msgstr "灵初功能菜单"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:847
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:861
 #, python-brace-format
 msgid "Lingchu 未为适配器 {adapter_id} 声明 menu 处理器"
 msgstr "Lingchu 未为适配器 {adapter_id} 声明 menu 处理器"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:853
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:867
 #, python-brace-format
 msgid "Lingchu 为适配器 {adapter_id} 导入 menu 处理器"
 msgstr "Lingchu 为适配器 {adapter_id} 导入 menu 处理器"
@@ -79,6 +79,7 @@ msgstr "不支持的 OneBot 版本"
 
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:84
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:88
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/chat.py:22
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/kick.py:112
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:109
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:241
@@ -215,6 +216,10 @@ msgstr "已开机"
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/bot_state.py:62
 msgid "已关机"
 msgstr "已关机"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/chat.py:35
+msgid "LLM 服务暂时不可用，请稍后再试"
+msgstr ""
 
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:113
 #, python-brace-format
@@ -721,7 +726,7 @@ msgstr ""
 msgid "协议端已重启并重新连接"
 msgstr "协议端已重启并重新连接"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:66
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:59
 #, python-brace-format
 msgid ""
 "公告图片缓存目录 {cache_dir} 与当前系统 {system_type} 不兼容：\n"
@@ -736,12 +741,12 @@ msgstr ""
 "请按目标部署环境更新 .env 中的 ANNOUNCEMENT_IMAGE_CACHE_DIR 与 "
 "ANNOUNCEMENT_IMAGE_PROTOCOL_DIR，并重建 NapCat 容器使 bind mount 生效。"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:127
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:120
 #, python-brace-format
 msgid "Lingchu 启用适配器: {adapters}"
 msgstr "Lingchu 启用适配器: {adapters}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:133
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:126
 #, python-brace-format
 msgid "Lingchu 忽略未选中的已注册适配器: {adapters}"
 msgstr "Lingchu 忽略未选中的已注册适配器: {adapters}"

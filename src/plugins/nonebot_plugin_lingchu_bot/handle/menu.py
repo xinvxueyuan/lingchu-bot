@@ -127,6 +127,11 @@ _DEFAULT_MENU_PAGES: Final[tuple[MenuPage, ...]] = (
         ),
         command=LocalizedText("系统管理", "system-management"),
     ),
+    MenuPage(
+        "entertainment",
+        LocalizedText("娱乐功能", "Entertainment"),
+        command=LocalizedText("娱乐功能", "entertainment"),
+    ),
 )
 MENU_PAGES: tuple[MenuPage, ...] = _DEFAULT_MENU_PAGES
 
@@ -557,6 +562,15 @@ _DEFAULT_MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         LocalizedText("[平台]", "[platform]"),
         PlatformCapability.APPLICATION_OPERATION,
         (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
+        "chat",
+        "chat",
+        "entertainment",
+        LocalizedText("与 AI 聊天", "Chat with AI"),
+        LocalizedText("<文本>", "<text>"),
+        PlatformCapability.LLM_CHAT,
+        _QQ_BOTH,
     ),
 )
 MENU_FEATURES: tuple[MenuFeature, ...] = _DEFAULT_MENU_FEATURES

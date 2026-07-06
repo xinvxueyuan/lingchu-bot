@@ -56,6 +56,26 @@ OS environment variable and dotenv loading, case handling, Boolean parsing, path
       default: "true",
       description: "Whether to clean expired message records during shutdown",
     },
+    ai_provider: {
+      type: '"litellm" | "openai"',
+      default: '"litellm"',
+      description: "LLM SDK backend; OpenAI is kept as the direct SDK fallback",
+    },
+    ai_model: {
+      type: "string",
+      default: '"gpt-4o-mini"',
+      description: "Default chat completion model for the selected AI provider",
+    },
+    ai_base_url: {
+      type: "string | null",
+      default: "null",
+      description: "Optional OpenAI-compatible API base URL",
+    },
+    ai_timeout: {
+      type: "number",
+      default: "60",
+      description: "AI request timeout in seconds",
+    },
     recall_message_default_count: {
       type: "number",
       default: "10",
@@ -104,6 +124,10 @@ Example `config.json5`:
   message_store_summary_limit: 500,
   message_store_record_api_calls: true,
   message_store_cleanup_enabled: true,
+  ai_provider: "litellm",
+  ai_model: "gpt-4o-mini",
+  ai_base_url: null,
+  ai_timeout: 60,
   recall_message_default_count: 10,
   permission_platform_runtime_passthrough: true,
   command_trigger_overrides: {

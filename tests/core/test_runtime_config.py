@@ -27,6 +27,7 @@ JSON_SUMMARY_LIMIT = 12
 ENV_SUMMARY_LIMIT = 42
 DOTENV_SUMMARY_LIMIT = 64
 OS_SUMMARY_LIMIT = 88
+DEFAULT_AI_TIMEOUT = 60.0
 
 
 def test_runtime_config_uses_code_defaults_without_json(
@@ -41,6 +42,10 @@ def test_runtime_config_uses_code_defaults_without_json(
     assert config.message_store_retention_days == DEFAULT_RETENTION_DAYS
     assert config.message_store_summary_limit == DEFAULT_SUMMARY_LIMIT
     assert config.recall_message_default_count == DEFAULT_RECALL_COUNT
+    assert config.ai_provider == "litellm"
+    assert config.ai_model == "gpt-4o-mini"
+    assert config.ai_base_url is None
+    assert config.ai_timeout == DEFAULT_AI_TIMEOUT
     assert "recall_message" in config.protected_subject_feature_keys
     assert config.lingchu_adapter is None
 
@@ -56,6 +61,10 @@ def test_runtime_config_reads_json5_defaults(
         {
           message_store_enabled: false,
           message_store_summary_limit: 12,
+          ai_provider: "openai",
+          ai_model: "gpt-4.1-mini",
+          ai_base_url: "https://example.test/v1",
+          ai_timeout: 9.5,
           lingchu_adapter: "~milky",
           future_field: "ignored",
         }
@@ -67,6 +76,10 @@ def test_runtime_config_reads_json5_defaults(
 
     assert config.message_store_enabled is False
     assert config.message_store_summary_limit == JSON_SUMMARY_LIMIT
+    assert config.ai_provider == "openai"
+    assert config.ai_model == "gpt-4.1-mini"
+    assert config.ai_base_url == "https://example.test/v1"
+    assert config.ai_timeout == 9.5
     assert config.lingchu_adapter == "~milky"
 
 
@@ -109,6 +122,26 @@ def test_runtime_config_nonebot_env_overrides_json5(
     config = get_runtime_config(config_file)
 
     assert config.message_store_summary_limit == ENV_SUMMARY_LIMIT
+
+
+def test_runtime_config_ai_env_overrides_json5(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_file = tmp_path / "config.json5"
+    config_file.write_text(
+        '{ai_provider: "litellm", ai_model: "json-model", ai_timeout: 12}',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AI_PROVIDER", "openai")
+    monkeypatch.setenv("AI_MODEL", "env-model")
+    monkeypatch.setenv("AI_TIMEOUT", "7.5")
+
+    config = get_runtime_config(config_file)
+
+    assert config.ai_provider == "openai"
+    assert config.ai_model == "env-model"
+    assert config.ai_timeout == 7.5
 
 
 def test_runtime_config_dotenv_overrides_json5(
@@ -225,6 +258,34 @@ def test_runtime_config_rejects_invalid_field_type(tmp_path: Path) -> None:
     assert str(config_file) in str(exc_info.value)
 
 
+def test_runtime_config_rejects_invalid_ai_provider(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(runtime_module, "_nonebot_runtime_overrides", dict)
+    config_file = tmp_path / "config.json5"
+    config_file.write_text('{ai_provider: "unsupported"}', encoding="utf-8")
+
+    with pytest.raises(RuntimeConfigError) as exc_info:
+        get_runtime_config(config_file)
+
+    assert str(config_file) in str(exc_info.value)
+
+
+def test_runtime_config_rejects_invalid_ai_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(runtime_module, "_nonebot_runtime_overrides", dict)
+    config_file = tmp_path / "config.json5"
+    config_file.write_text("{ai_timeout: 0}", encoding="utf-8")
+
+    with pytest.raises(RuntimeConfigError) as exc_info:
+        get_runtime_config(config_file)
+
+    assert str(config_file) in str(exc_info.value)
+
+
 def test_runtime_config_defaults_contain_schema_basename() -> None:
     """Default payloads embed the schema reference as a bare basename."""
     defaults = runtime_config_defaults()
@@ -252,6 +313,14 @@ def test_runtime_config_defaults_contain_whitelist_gate_keys() -> None:
 def test_runtime_config_schema_documents_whitelist_gate() -> None:
     assert "protected_subject_feature_keys" in CONFIG_SCHEMA_TEXT
     assert "handle whitelist gate" in CONFIG_SCHEMA_TEXT
+
+
+def test_runtime_config_schema_documents_ai_fields() -> None:
+    assert "ai_provider" in CONFIG_SCHEMA_TEXT
+    assert "litellm" in CONFIG_SCHEMA_TEXT
+    assert "ai_model" in CONFIG_SCHEMA_TEXT
+    assert "ai_base_url" in CONFIG_SCHEMA_TEXT
+    assert "ai_timeout" in CONFIG_SCHEMA_TEXT
 
 
 def test_runtime_config_user_schema_overrides_default(

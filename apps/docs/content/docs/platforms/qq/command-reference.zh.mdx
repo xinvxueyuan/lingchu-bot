@@ -30,6 +30,7 @@ menu
 - `群聊管理` / `group-chat-management`：设置群名称、设置群头像（实现支持时）、发送群公告（实现支持时）、退出当前群。
 - `远程管理` / `remote-management`：跨群禁言/解禁、全体禁言/解禁、踢出、拉黑/删黑、发送公告、群发公告。
 - `系统管理` / `system-management`：闭嘴/说话（静默模式）、开机/关机（处理器门禁）、重启协议端等应用运行命令。
+- `娱乐功能` / `entertainment`：与 AI 聊天。
 
 <Callout type="info" title="远程管理">
 
@@ -208,5 +209,29 @@ shutdown
 <Callout type="warning" title="关机影响范围">
 
 关机后所有群管理命令（禁言、踢出、拉黑等）均停止响应，仅开机命令可恢复。静默模式下命令仍会执行，仅反馈消息被抑制。
+
+</Callout>
+
+## 聊天
+
+```text
+聊天 <文本>
+chat <text>
+```
+
+与 AI 聊天。机器人调用配置的 LLM 服务（`ai_provider` / `ai_model` / `ai_base_url` / `ai_api_key`）生成回复。
+
+- 系统提示词：默认 `"你是一个友好的群聊助手。"`，可通过 `chat.json5` 的 `defaults.system_prompt` 自定义。
+- 功能开关：`chat.json5` 的 `enabled` 字段控制启用/禁用。
+
+<Callout type="info" title="LLM 配置">
+
+聊天命令依赖运行时 LLM 配置。在 `config.json5` 或环境变量中设置：
+
+- `ai_provider`：`litellm`（默认）或 `openai`
+- `ai_model`：模型名称（默认 `gpt-4o-mini`）
+- `ai_base_url`：OpenAI 兼容端点 URL（可选）
+- `ai_api_key`：API 密钥（建议通过 `AI_API_KEY` 环境变量设置）
+- `ai_timeout`：请求超时秒数（默认 `60`）
 
 </Callout>
