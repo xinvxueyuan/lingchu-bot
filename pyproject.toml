@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-lingchu-bot"
-version = "0.0.0.dev40"
+version = "0.0.1"
 # dynamic = ["version"]
 description = "由NoneBot2驱动，面向多平台的管理机器人"
 keywords = ["nonebot2", "nonebot", "bot", "cross-platform", "group-management"]
