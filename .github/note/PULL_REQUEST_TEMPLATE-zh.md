@@ -36,6 +36,11 @@
 - [ ] 我同意 [CLA.md](../../CLA.md) 的条款；本贡献可依据
       [Repository-Policy.md](../../Repository-Policy.md) 中的分阶段
       许可证栈规则被再许可。
+- [ ] 我的提交携带 `Signed-off-by:` 行（DCO 1.1）——使用
+      `git commit -s`，或手动追加 `Signed-off-by: 姓名 <邮箱>`。
+- [ ] 对于用户可见或行为变更，我已在 `CHANGELOG.md` 的
+      `## [Unreleased]` 节下按子节（Added / Changed / Deprecated /
+      Removed / Fixed / Security）添加条目。
 - [ ] 对于代码改动，我已运行 `gitnexus_impact`（或等效分析）并在下方
       记录影响范围。
 - [ ] 对于代码改动，我已在本地运行 `uv run -m ruff check .`、
@@ -45,6 +50,29 @@
       `pnpm --filter docs test`。
 - [ ] 我已添加或更新覆盖本改动的测试。
 - [ ] 我已按需更新相关文档、i18n 文案、运行时配置与 handle 默认值。
+
+### Release PR 自检（仅适用于 `releases/**` 分支）
+
+<!-- 若本 PR 指向 `releases/<version>` 分支，请确认供应链证明流程；
+否则删除本小节。 -->
+
+- [ ] 版本号由 `dev-minor*` / `dev-major*` / `dev-alpha*` /
+      `dev-beta*` / `dev-rc*` / `dev-stable*` 分支名驱动，
+      `ci:version:precheck` 通过（PEP 440、大于所有现有 tag、无重复
+      tag、源文件一致）。
+- [ ] `ci:version:write-config` 之后 `ci:version:postcheck` 通过
+      （调用 `release:verify-version`、三源文件同步、dev release
+      语义有效）。
+- [ ] `pyproject.toml`、`package.json` 与
+      `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` 版本
+      完全一致，且由 `task ci:version:write-config` 写入。
+- [ ] `dist/*` 中的构建产物携带来自
+      `actions/attest-build-provenance@v4.1.0` 的 SLSA Build L3 证明；
+      下游消费者可用
+      `gh attestation verify <产物> --repository xinvxueyuan/lingchu-bot`
+      验证。
+- [ ] `CHANGELOG.md` 有 `## [<版本>] - <日期>` 节，条目从
+      `## [Unreleased]` 迁入，并在底部补充 compare 链接。
 
 ## 影响分析（GitNexus / codegraph）
 

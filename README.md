@@ -1,17 +1,19 @@
-<!-- markdownlint-disable MD033 MD013 -->
 # Lingchu Bot
 
 > English | [中文](README-zh.md)
 
+[![CI](https://github.com/xinvxueyuan/lingchu-bot/actions/workflows/%F0%9F%A7%AA-python.yml/badge.svg)](https://github.com/xinvxueyuan/lingchu-bot/actions/workflows/%F0%9F%A7%AA-python.yml)
+[![PyPI](https://img.shields.io/pypi/v/nonebot-plugin-lingchu-bot)](https://pypi.org/project/nonebot-plugin-lingchu-bot/)
+[![Downloads](https://img.shields.io/pypi/dm/nonebot-plugin-lingchu-bot)](https://pypi.org/project/nonebot-plugin-lingchu-bot/)
+[![Image size](https://ghcr-badge.deta.dev/xinvxueyuan/lingchu-bot/size)](https://github.com/xinvxueyuan/lingchu-bot/pkgs/container/lingchu-bot)
 [![License](https://img.shields.io/github/license/xinvxueyuan/lingchu-bot)](LICENSE-code)
-[![Release](https://img.shields.io/github/v/release/xinvxueyuan/lingchu-bot)](https://github.com/xinvxueyuan/lingchu-bot/releases)
 [![Python](https://img.shields.io/badge/python-3.13-blue)](pyproject.toml)
 [![NoneBot2](https://img.shields.io/badge/NoneBot2-2.x-orange)](https://nonebot.dev/)
 [![Docs](https://img.shields.io/badge/docs-lingchu.zone.id-brightgreen)](https://lingchu.zone.id/)
 [![Gitmoji](https://img.shields.io/badge/gitmoji-%20%F0%9F%98%9C%20%F0%9F%98%8D-FFDD67.svg?style=flat-square)](https://gitmoji.dev/)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fxinvxueyuan%2Flingchu-bot.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fxinvxueyuan%2Flingchu-bot?ref=badge_shield)
 
-Lingchu Bot is an application-side management bot project powered by NoneBot2. It currently focuses on QQ group management through OneBot V11 while keeping a plugin, platform registry, configuration, storage, permission, and documentation structure that can grow toward broader cross-platform workflows.
+**Lingchu Bot** is an application-side group management bot powered by NoneBot2. It currently focuses on QQ group management through the OneBot V11 adapter while keeping a plugin, platform registry, configuration, storage, permission, and documentation structure that can grow toward broader cross-platform workflows.
 
 [![Zread Q&A][zread-shield]][zread-link]
 
@@ -39,20 +41,22 @@ Useful entry points:
 - `Dockerfile` / `docker-compose.yml`: container runtime flow. The image generates `/tmp/bot.py` during build through `nb-cli`; the repository root does not ship a committed local `bot.py`.
 - `scripts/setup.sh`: cross-platform initialization script for local development.
 
-## Current capabilities
+## Capabilities
 
-Current user-facing capabilities are concentrated in QQ group management commands:
-
-- **Member moderation**: mute, unmute, kick, block, unblock, clear blocklist, protect, and unprotect.
-- **Speech management**: member mute/unmute, whole-group mute/unmute, and recent message recall.
-- **Group operations**: set group name, set group avatar when supported, set member card/title/admin, send announcements when supported, and leave the current group.
-- **Remote management**: operate on another group by group ID or fuzzy group name matching, including remote mute/unmute, whole-group mute/unmute, kick, block/unblock, and announcement.
-- **Bot control**: `silence` / `speak` suppress or resume response messages while still allowing commands to execute; `boot` / `shutdown` enable or disable command handlers.
-- **Menu system**: the `菜单` / `menu` command lists platform-, protocol-, and implementation-filtered submenu entries.
-- **Runtime configuration**: plugin-owned JSON5 files under the localstore configuration directory, plus higher-priority NoneBot/global environment overrides.
-- **Permissions and protection**: UID-based superusers, platform account mapping, command grants, platform runtime role passthrough, blocklist, and protected-subject safeguards.
-- **Message storage and API audit**: optional recording of events, processing status, bot lifecycle events, and platform API call summaries.
-- **Runtime i18n**: gettext/Babel catalogs for Simplified Chinese and English feedback text, selected by `LINGCHU_LOCALE`, `lc_locale`, or `locale`.
+| Capability | Description |
+| --- | --- |
+| Member moderation | Mute, unmute, kick, block, unblock, clear blocklist, protect, and unprotect. |
+| Speech management | Member mute/unmute, whole-group mute/unmute, and recent message recall. |
+| Group operations | Set group name, set group avatar when supported, set member card/title/admin, send announcements when supported, and leave the current group. |
+| Remote management | Operate on another group by group ID or fuzzy group name matching, including remote mute/unmute, whole-group mute/unmute, kick, block/unblock, and announcement. |
+| Bot control | `silence` / `speak` suppress or resume response messages while still allowing commands to execute; `boot` / `shutdown` enable or disable command handlers. |
+| Menu system | The `菜单` / `menu` command lists platform-, protocol-, and implementation-filtered submenu entries. |
+| Runtime configuration | Plugin-owned JSON5 files under the localstore configuration directory, plus higher-priority NoneBot / environment overrides. |
+| Permissions and protection | UID-based superusers, platform account mapping, command grants, platform runtime role passthrough, blocklist, and protected-subject safeguards. |
+| Message store and API audit | Optional recording of events, processing status, bot lifecycle events, and platform API call summaries. |
+| Runtime i18n | gettext / Babel catalogs for Simplified Chinese and English feedback text. |
+| LLM service | Optional OpenAI / LiteLLM-backed chat command through `AI_*` settings. |
+| Scheduler | Periodic tasks and cleanup through `nonebot-plugin-apscheduler`. |
 
 Future cross-platform and non-group-management features depend on later implementation and tests.
 
@@ -80,13 +84,23 @@ OneBot V11 currently has `default` and `NapCat` implementation paths. Some featu
 
 ### Requirements
 
-- Python 3.13 (`pyproject.toml` requires `>=3.13, <3.14`)
+- Python 3.13 (`pyproject.toml` requires `>=3.12, <4.0`; targets 3.13)
 - `uv`
 - Git
-- A usable NoneBot runtime and OneBot V11 connection/account setup
-- Node.js 20+ and pnpm 9+ for the docs/frontend workspace and the full setup script
+- A usable NoneBot runtime and OneBot V11 connection / account setup
+- Node.js 22+ and pnpm for the docs / frontend workspace and the full setup script
 
-### Clone and initialize
+### Option A — Install via NB-CLI (recommended)
+
+```bash
+nb plugin install nonebot-plugin-lingchu-bot
+```
+
+This installs the published package from PyPI and registers it with NoneBot. After installation, add `nonebot_plugin_lingchu_bot` to your NoneBot plugin list or let NB-CLI manage it automatically.
+
+### Option B — Use as a local plugin directory
+
+Clone the repository and initialize:
 
 ```bash
 git clone https://github.com/xinvxueyuan/lingchu-bot.git
@@ -106,17 +120,7 @@ pnpm exec husky
 cp .env.example .env
 ```
 
-### Install via NB-CLI (recommended)
-
-```bash
-nb plugin install nonebot-plugin-lingchu-bot
-```
-
-This installs the published package from PyPI and registers it with NoneBot. After installation, add `nonebot_plugin_lingchu_bot` to your NoneBot plugin list or let NB-CLI manage it automatically.
-
-### Choose a runtime mode
-
-Use Lingchu Bot as a local plugin directory from an existing NoneBot project:
+To load Lingchu Bot from an existing NoneBot project, point `plugin_dirs` at the cloned `src/plugins` directory:
 
 ```toml
 # In the target NoneBot project's pyproject.toml
@@ -124,17 +128,17 @@ Use Lingchu Bot as a local plugin directory from an existing NoneBot project:
 plugin_dirs = ["path/to/lingchu-bot/src/plugins"]
 ```
 
-Or use the container runtime:
+### Option C — Run in Docker
 
 ```bash
-# docker-compose.yml currently reads .env.prod; create it from your deployment settings.
+# docker-compose.yml reads .env.prod; create it from your deployment settings.
 cp .env.example .env.prod
 docker compose up --build
 ```
 
-Before connecting to a real platform, prepare the account, network, reverse WebSocket/HTTP settings, and permissions required by NoneBot and the OneBot V11 implementation you use.
+Before connecting to a real platform, prepare the account, network, reverse WebSocket / HTTP settings, and permissions required by NoneBot and the OneBot V11 implementation you use.
 
-## Essential configuration
+## Configuration
 
 Lingchu creates `config.json5` on first startup in the plugin configuration directory provided by `nonebot-plugin-localstore`. Runtime configuration priority is:
 
@@ -143,24 +147,41 @@ Lingchu creates `config.json5` on first startup in the plugin configuration dire
 3. `config.json5`
 4. Code defaults
 
-Important settings:
+The table below enumerates the environment variables actually read by `core/config.py` and `core/runtime_config.py`. Boolean values in NoneBot `.env` files must use JSON-style lowercase `true` / `false`, not Python-style `True` / `False`.
 
-| Setting | Purpose |
-| --- | --- |
-| `LINGCHUAdapter` / `LINGCHU_ADAPTER` | Select the active adapter; current supported value is `~onebot.v11`. |
-| `LINGCHU_SUPERUSERS` | UID-to-platform account mapping for Lingchu superusers. |
-| `SUPERUSERS` | Fallback QQ account list when `LINGCHU_SUPERUSERS` is absent or null. |
-| `LINGCHU_LOCALE` | Runtime locale; available catalogs currently include `zh_CN` and `en_US`. |
-| `LOCALSTORE_USE_CWD` | Store localstore data/config/cache under the project directory when true. |
-| `MESSAGE_STORE_ENABLED` | Enable message-store runtime hooks. |
-| `MESSAGE_STORE_RETENTION_DAYS` | Retention window for message records; `0` disables day-based expiry. |
-| `MESSAGE_STORE_SUMMARY_LIMIT` | Maximum summary length for text/data/result payloads. |
-| `MESSAGE_STORE_RECORD_API_CALLS` | Record platform API call summaries. |
-| `RECALL_MESSAGE_DEFAULT_COUNT` | Default count for the message recall command. |
-| `PERMISSION_PLATFORM_RUNTIME_PASSTHROUGH` | Allow platform roles such as QQ owner/admin/member to satisfy Lingchu permission grants. |
-| `COMMAND_TRIGGER_OVERRIDES` | Override primary command triggers and aliases by command key. |
-| `MENU_PAGE_TRIGGER_OVERRIDES` | Override menu page triggers by menu page id. |
-| `PROTECTED_SUBJECT_FEATURE_KEYS` | Side-effect command keys blocked when their target user is protected. |
+| Group | Setting | Purpose |
+| --- | --- | --- |
+| NoneBot Core | `HOST`, `PORT` | NoneBot server host and port. |
+| NoneBot Core | `NICKNAME` | Bot nickname(s). |
+| NoneBot Core | `SUPERUSERS` | Fallback QQ account list when `LINGCHU_SUPERUSERS` is absent or null. |
+| NoneBot Core | `LOG_LEVEL` | NoneBot log level. |
+| NoneBot Core | `COMMAND_START`, `COMMAND_SEP` | NoneBot command parsing tokens. |
+| NoneBot Core | `FASTAPI_DOCS_URL`, `FASTAPI_REDOC_URL` | FastAPI docs endpoints; disable in production. |
+| Container Detection | `IN_CONTAINERS` | Whether the bot runs inside a container (`config.in_containers`). |
+| Lingchu Runtime | `LINGCHUAdapter` / `LINGCHU_ADAPTER` | Select the active adapter; current supported value is `~onebot.v11`. |
+| Lingchu Runtime | `LINGCHU_SUPERUSERS` | UID-to-platform account mapping for Lingchu superusers. |
+| Lingchu Runtime | `LINGCHU_LOCALE` / `LC_LOCALE` / `LOCALE` | Runtime locale; available catalogs are `zh_CN` and `en_US`. |
+| Lingchu Runtime | `SUPERUSER_KEY` | Superuser key string (`superuser_key`). |
+| Localstore | `LOCALSTORE_USE_CWD` | Store localstore data / config / cache under the project directory when true. |
+| Message Store | `MESSAGE_STORE_ENABLED` | Enable message-store runtime hooks. |
+| Message Store | `MESSAGE_STORE_RETENTION_DAYS` | Retention window for message records; `0` disables day-based expiry. |
+| Message Store | `MESSAGE_STORE_SUMMARY_LIMIT` | Maximum summary length for text / data / result payloads. |
+| Message Store | `MESSAGE_STORE_RECORD_API_CALLS` | Record platform API call summaries. |
+| Message Store | `MESSAGE_STORE_CLEANUP_ENABLED` | Enable expired message cleanup. |
+| Recall | `RECALL_MESSAGE_DEFAULT_COUNT` | Default count for the message recall command (`1`–`100`). |
+| Permissions | `PERMISSION_PLATFORM_RUNTIME_PASSTHROUGH` | Allow platform roles such as QQ owner / admin / member to satisfy Lingchu permission grants. |
+| Trigger Overrides | `COMMAND_TRIGGER_OVERRIDES` | Override primary command triggers and aliases by command key. |
+| Trigger Overrides | `MENU_PAGE_TRIGGER_OVERRIDES` | Override menu page triggers by menu page id. |
+| Protected Subjects | `PROTECTED_SUBJECT_FEATURE_KEYS` | Side-effect command keys blocked when their target user is protected. |
+| Database | `SQLALCHEMY_DATABASE_URL` | SQLAlchemy database URL; supports SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server. Unset uses default SQLite. |
+| Database | `ALEMBIC_STARTUP_CHECK` | Set to `true` in production to enforce schema migration checks on startup. |
+| LLM Service | `AI_PROVIDER` | LLM backend: `litellm` or `openai`. |
+| LLM Service | `AI_MODEL` | Model id (default `gpt-4o-mini`). |
+| LLM Service | `AI_BASE_URL` | Optional OpenAI-compatible base URL. |
+| LLM Service | `AI_TIMEOUT` | Request timeout in seconds. |
+| LLM Service | `AI_API_KEY` | API key; required for the chat command. |
+| Announcement Images | `ANNOUNCEMENT_IMAGE_CACHE_DIR` | Host-side cache directory for announcement images (defaults to localstore cache). |
+| Announcement Images | `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` | Protocol-side directory NapCat sees inside the container. |
 
 Example `config.json5`:
 
@@ -173,17 +194,24 @@ Example `config.json5`:
   message_store_summary_limit: 500,
   message_store_record_api_calls: true,
   message_store_cleanup_enabled: true,
+  ai_provider: "litellm",
+  ai_model: "gpt-4o-mini",
+  ai_timeout: 60.0,
+  ai_api_key: null,
   recall_message_default_count: 10,
   permission_platform_runtime_passthrough: true,
   command_trigger_overrides: {},
   menu_page_trigger_overrides: {},
-  protected_subject_feature_keys: ["kick_member", "member_mute", "recall_message", "block_member"],
+  protected_subject_feature_keys: [
+    "kick_member",
+    "member_mute",
+    "recall_message",
+    "block_member",
+  ],
   lingchu_adapter: "~onebot.v11",
   lingchu_superusers: null,
 }
 ```
-
-Boolean values in NoneBot `.env` files must use JSON-style lowercase `true` / `false`, not Python-style `True` / `False`.
 
 ## Commands at a glance
 
@@ -225,7 +253,7 @@ Command trigger language is locale-exclusive. Chinese locales enable Chinese tri
 
 ## Development and verification
 
-CI checks Ruff, Markdown, Pyright, ty, pytest on multiple database backends, and docs site lint/test. Run the checks relevant to your change before committing.
+CI checks Ruff, Markdown, Pyright, ty, pytest on multiple database backends, and docs site lint / test. Run the checks relevant to your change before committing.
 
 Ruff:
 
@@ -273,7 +301,7 @@ pnpm exec markdownlint-cli2 README.md README-zh.md
 
 ## Contributing
 
-Issues, tests, documentation, and code improvements are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before starting; it describes the current collaboration workflow, GitNexus impact analysis requirements, and PR checklist.
+Issues, tests, documentation, and code improvements are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before starting; it describes the current collaboration workflow, GitNexus impact analysis requirements, version validation system, and PR checklist.
 
 When participating in discussions and reviews, please follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). For security-related issues, please refer to [SECURITY.md](SECURITY.md).
 
@@ -283,14 +311,16 @@ This project uses a **phased open-source license stack** (see
 [Repository-Policy.md](Repository-Policy.md) for the transition rules
 and trigger date):
 
-- **Current phase** — Software: [LGPL-3.0-or-later](LICENSE-code).
-  Documentation: [GNU FDL-1.3-or-later](LICENSE-docs). Visual:
-  [CC0-1.0](LICENSE-cc0).
+- **Current phase** — Software: `LGPL-3.0-or-later`
+  ([`LICENSE-code`](LICENSE-code)). Documentation: `GFDL-1.3-or-later`
+  ([`LICENSE-docs`](LICENSE-docs)). Visual elements: `CC0-1.0`
+  ([`LICENSE-cc0`](LICENSE-cc0)).
 - **Future phase** (triggered automatically on the earlier of one year
   after the first public release or the first major version bump) —
-  Software: [MIT-or-later](LICENSE-mit) or
-  [Apache-2.0-or-later](LICENSE-apache) (dual, user-elected).
-  Documentation and visual: [CC-BY-SA-4.0-or-later](LICENSE-cc-by-sa).
+  Software: `MIT OR Apache-2.0` (dual, user-elected; see
+  [`LICENSE-mit`](LICENSE-mit) and [`LICENSE-apache`](LICENSE-apache)).
+  Documentation and visual elements: `CC-BY-SA-4.0-or-later`
+  ([`LICENSE-cc-by-sa`](LICENSE-cc-by-sa)).
 
 By submitting a contribution, you accept the terms of
 [CLA.md](CLA.md), which grants the Project the rights it needs to
@@ -299,16 +329,16 @@ contributions submitted on or after the trigger date; contributions made
 before the trigger date remain under the license that was in effect at
 the time of submission.
 
-For media file handling, sanitization requirements, and the official
-license texts, see [Repository-Policy.md](Repository-Policy.md) and the
-[`LICENSE-*`](LICENSE-mit) files in the repository root.
+For media file handling, sanitization requirements, REUSE compliance,
+and the official license texts, see [Repository-Policy.md](Repository-Policy.md)
+and the [`LICENSE-*`](LICENSE-code) files in the repository root.
 
 ## Acknowledgments
 
 Lingchu Bot stands on a lot of good open-source shoulders. Thanks especially to these upstream projects and communities:
 
 - **Bot runtime and adapter ecosystem**: [NoneBot2](https://nonebot.dev/), [nonebot-adapter-onebot](https://github.com/nonebot/adapter-onebot), `nonebot-plugin-alconna`, `nonebot-plugin-localstore`, `nonebot-plugin-orm`, `nonebot-plugin-apscheduler`, `nonebot-plugin-htmlkit`, `nonebot-plugin-docs`, and `nonebot-plugin-wait-a-minute`.
-- **Python configuration, storage, and service utilities**: `aiofiles`, `json5`, `rtoml`, `jsonschema`, [Babel](https://babel.pocoo.org/), [Jinja](https://jinja.palletsprojects.com/), [Typer](https://typer.tiangolo.com/), [Arrow](https://arrow.readthedocs.io/), `psutil`, and the [OpenAI Python SDK](https://github.com/openai/openai-python).
+- **Python configuration, storage, and service utilities**: `aiofiles`, `json5`, `rtoml`, `jsonschema`, [Babel](https://babel.pocoo.org/), [Jinja](https://jinja.palletsprojects.com/), [Typer](https://typer.tiangolo.com/), [Arrow](https://arrow.readthedocs.io/), `psutil`, [OpenAI Python SDK](https://github.com/openai/openai-python), and [LiteLLM](https://github.com/BerriAI/litellm).
 - **Documentation and frontend stack**: [Fumadocs](https://fumadocs.dev/), [Next.js](https://nextjs.org/), [React](https://react.dev/), [Mermaid](https://mermaid.js.org/), [Twoslash](https://twoslash.netlify.app/), `flexsearch`, `d3-force`, `dompurify`, `feed`, and [Tailwind CSS](https://tailwindcss.com/).
 - **Engineering, testing, and repository workflow**: [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io/), [Turborepo](https://turbo.build/repo), [Ruff](https://docs.astral.sh/ruff/), [Pyright](https://microsoft.github.io/pyright/), [ty](https://docs.astral.sh/ty/), [pytest](https://docs.pytest.org/), [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/), [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2), [Prettier](https://prettier.io/), [ESLint](https://eslint.org/), [Husky](https://typicode.github.io/husky/), [Gitmoji](https://gitmoji.dev/), `gitnexus`, and [FOSSA](https://fossa.com/).
 

@@ -108,3 +108,27 @@ When deploying Lingchu Bot in production:
 - Disable `FASTAPI_DOCS_URL` and `FASTAPI_REDOC_URL` in production to avoid exposing API documentation.
 - Run the bot in a container with minimal filesystem permissions.
 - Regularly update Python and Node.js dependencies (`uv sync --upgrade` and `pnpm update`).
+
+## Supply Chain Attestation
+
+Build artifacts published from this repository carry **SLSA Build L3** provenance. The `versioned-build` job in `👷-ci-builds.yml` generates build provenance for `dist/*` artifacts using [`actions/attest-build-provenance@v4.1.0`](https://github.com/actions/attest-build-provenance) (SHA-pinned). Provenance binds each artifact to the exact workflow run, source commit, and build environment that produced it.
+
+Consumers and operators can verify the attestation before trusting a downloaded artifact (wheel, sdist, or container image) with the GitHub CLI:
+
+```bash
+# Verify a downloaded wheel or sdist
+gh attestation verify ./nonebot_plugin_lingchu_bot-0.0.1-py3-none-any.whl \
+  --repository xinvxueyuan/lingchu-bot
+
+# Verify a container image pulled from GHCR
+gh attestation verify oci://ghcr.io/xinvxueyuan/lingchu-bot:0.0.1 \
+  --repository xinvxueyuan/lingchu-bot
+```
+
+A successful verification prints the attestation source (the `👷-ci-builds.yml` workflow run on the `releases/**` ref) and confirms the artifact was built from the claimed commit. If verification fails, do not install or run the artifact — report it through the private vulnerability reporting channel above.
+
+Additional supply chain notes:
+
+- All third-party GitHub Actions are pinned by 40-character commit SHA with a `# vX.Y.Z` comment; no tag-pinned references are used.
+- PyPI publishing uses OIDC Trusted Publishing (no long-lived API tokens in repository secrets).
+- GHCR pushes use the ephemeral `GITHUB_TOKEN` scoped to `packages: write`.

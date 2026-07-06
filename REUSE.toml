@@ -1,0 +1,106 @@
+# REUSE.toml — FSFE REUSE 3.0 compliant license declarations
+#
+# This file declares the SPDX license and copyright for groups of files by glob.
+# It complements the human-readable `Repository-Policy.md` phased dual-license
+# stack. Current-phase assignment:
+#   - software code               -> LGPL-3.0-or-later
+#   - documentation (.md / .mdx)  -> GFDL-1.3-or-later
+#   - visual elements             -> CC0-1.0
+#   - infrastructure & config     -> CC0-1.0
+#
+# The `apps/docs/**` (non-mdx) = CC0-1.0 intent from the spec is satisfied by
+# the recursive extension globs below (`**/*.ts`, `**/*.tsx`, `**/*.mjs`,
+# `**/*.css`, `**/*.json`, `**/*.yml`, ...) which license every non-mdx file in
+# `apps/docs/` as CC0-1.0 without a broad catch-all that would conflict with
+# the GFDL `.md`/`.mdx` annotations.
+#
+# Run `reuse lint` to verify compliance.
+
+version = 3
+
+# ---------------------------------------------------------------------------
+# Software code — GNU Lesser General Public License v3.0 or later
+# ---------------------------------------------------------------------------
+[[annotations]]
+path = ["**/*.py"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 lingchu-bot contributors <support@xinvstar.xyz>"
+SPDX-License-Identifier = "LGPL-3.0-or-later"
+
+# ---------------------------------------------------------------------------
+# Documentation — GNU Free Documentation License v1.3 or later
+# ---------------------------------------------------------------------------
+[[annotations]]
+path = ["**/*.md", "**/*.mdx"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 lingchu-bot contributors <support@xinvstar.xyz>"
+SPDX-License-Identifier = "GFDL-1.3-or-later"
+
+# ---------------------------------------------------------------------------
+# Visual elements — CC0 1.0 Universal Public Domain Dedication
+# ---------------------------------------------------------------------------
+[[annotations]]
+path = [
+  "**/*.png",
+  "**/*.jpg",
+  "**/*.jpeg",
+  "**/*.webp",
+  "**/*.gif",
+  "**/*.ico",
+  "**/*.svg",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 lingchu-bot contributors <support@xinvstar.xyz>"
+SPDX-License-Identifier = "CC0-1.0"
+
+# ---------------------------------------------------------------------------
+# Infrastructure, configuration & build files — CC0 1.0
+# ---------------------------------------------------------------------------
+[[annotations]]
+path = [
+  # config & data formats
+  "**/*.yml",
+  "**/*.yaml",
+  "**/*.json",
+  "**/*.json5",
+  "**/*.jsonc",
+  "**/*.toml",
+  "**/*.lock",
+  "**/*.cfg",
+  "**/*.xml",
+  "**/*.ini",
+  # docs-site source & tooling (non-mdx; mdx is documentation -> GFDL above)
+  "**/*.ts",
+  "**/*.tsx",
+  "**/*.mjs",
+  "**/*.mts",
+  "**/*.js",
+  "**/*.cjs",
+  "**/*.css",
+  # shell & scripts
+  "**/*.sh",
+  "**/*.bash",
+  # i18n translation catalogs (data)
+  "**/*.po",
+  "**/*.pot",
+  "**/*.mo",
+  # docker / compose
+  "Dockerfile",
+  "docker-compose.yml",
+  # github ownership routing (extensionless)
+  "**/CODEOWNERS",
+  # husky hooks (extensionless shell scripts)
+  ".husky/*",
+  # dotfiles & env examples (recursive)
+  "**/.gitignore",
+  "**/.gitattributes",
+  "**/.dockerignore",
+  ".env*",
+  # explicit root dotfiles (belt-and-suspenders for `**/` matching)
+  ".gitignore",
+  ".gitattributes",
+  ".dockerignore",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 lingchu-bot contributors <support@xinvstar.xyz>"
+SPDX-License-Identifier = "CC0-1.0"

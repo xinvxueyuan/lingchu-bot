@@ -38,6 +38,12 @@ and verification.
 - [ ] I agree to the terms of [CLA.md](../CLA.md); this contribution
       may be relicensed as part of the phased license stack described
       in [Repository-Policy.md](../Repository-Policy.md).
+- [ ] My commits carry a `Signed-off-by:` line (DCO 1.1) — use
+      `git commit -s` or append `Signed-off-by: Name <email>` manually.
+- [ ] For user-facing or behavior changes, I have added a
+      `CHANGELOG.md` entry under `## [Unreleased]` in the appropriate
+      subsection (Added / Changed / Deprecated / Removed / Fixed /
+      Security).
 - [ ] For code changes, I ran `gitnexus_impact` (or the equivalent
       analysis) and recorded the blast radius below.
 - [ ] For code changes, I have run `uv run -m ruff check .`,
@@ -48,6 +54,29 @@ and verification.
 - [ ] I have added or updated tests covering the change.
 - [ ] I have updated relevant documentation, i18n strings, runtime
       config, and handle defaults as needed.
+
+### Release PR Checklist (only for `releases/**` branches)
+
+<!-- If this PR targets a `releases/<version>` branch, confirm the
+supply chain attestation flow. Otherwise delete this subsection. -->
+
+- [ ] Version bump was driven by a `dev-minor*` / `dev-major*` /
+      `dev-alpha*` / `dev-beta*` / `dev-rc*` / `dev-stable*` branch
+      name and `ci:version:precheck` passed (PEP 440, greater than all
+      existing tags, no duplicate tag, source files consistent).
+- [ ] `ci:version:postcheck` passed after `ci:version:write-config`
+      (calls `release:verify-version`, three source files in sync,
+      dev release semantics valid).
+- [ ] `pyproject.toml`, `package.json`, and
+      `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` versions
+      are identical and were written by
+      `task ci:version:write-config`.
+- [ ] Build artifacts in `dist/*` carry SLSA Build L3 provenance from
+      `actions/attest-build-provenance@v4.1.0`; downstream consumers
+      can verify with
+      `gh attestation verify <artifact> --repository xinvxueyuan/lingchu-bot`.
+- [ ] `CHANGELOG.md` has a `## [<version>] - <date>` section with
+      entries moved from `## [Unreleased]` and a bottom compare link.
 
 ## Impact Analysis (GitNexus / codegraph)
 

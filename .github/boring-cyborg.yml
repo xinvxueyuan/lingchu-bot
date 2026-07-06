@@ -61,12 +61,19 @@ labelerFlags:
 
 ##### Title Validator ##################################################################################################
 
-# Verify PR titles match gitmoji + conventional commits format
+# Verify PR titles match gitmoji + conventional commits format.
+# Pattern mirrors `.trae/rules/git-commit-message.md` and `.husky/commit-msg`:
+#   ^(<gitmoji>) (<type>)(!)?(\(<scope>\))?(!)?: <subject>
+# - <gitmoji>:  any single non-whitespace token (variation selector allowed)
+# - <type>:     feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert
+# - <scope>:    optional, lowercase kebab-case (a-z0-9_-), no spaces
+# - <subject>:  1-50 characters, no trailing newline
+# Breaking change marker `!` may appear after <type> or after `(<scope>)`.
 verifyTitles:
-  # Matches: ✨ feat: ... / 🐛 fix(scope): ... / 💥 feat!(api): ...
-  titleRegexp: '^\S+ (feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(!)?(\(.+\))?: .+'
+  # Matches: ✨ feat: ... / 🐛 fix(db): ... / ♻️ refactor!(api): ... / 🐛 fix(db)!: ...
+  titleRegexp: '^\S+ (feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(!)?(\([a-z0-9_-]+\))?(!)?: .{1,50}$'
   alwaysUsePrTitle: true
   validateEitherPrOrSingleCommitTitle: true
   statusTitle: "Commit Style"
   successMessage: "Title follows gitmoji + conventional commits format"
-  failureMessage: "Title must follow: <gitmoji> <type>[!(<scope>)]: <subject> — see .trae/rules/git-commit-message.md"
+  failureMessage: "Title must follow: <gitmoji> <type>[!](<scope>)?[!]: <subject> (≤50 chars, lowercase scope) — see .trae/rules/git-commit-message.md"

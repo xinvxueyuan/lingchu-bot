@@ -99,4 +99,8 @@ root and at the canonical upstream URLs:
 
 - [`CLA.md`](CLA.md) (Chinese mirror: [`.github/note/CLA-zh.md`](.github/note/CLA-zh.md))
 
+### REUSE compliance
+
+The repository root contains a [`REUSE.toml`](REUSE.toml) file declaring FSFE REUSE 3.0 license annotations for every file class (source code, documentation, visual elements, configuration, and scripts). The annotations map each glob to the SPDX identifier of its current-phase license and attach a copyright line. Run `uv tool run reuse lint` (or `pipx run reuse lint`) to verify compliance locally before submitting a contribution that adds or moves files.
+
 This anonymization statement is intended to ensure that users respect privacy rights and applicable laws when using media files from this project. For any questions, please contact the project maintainers for more information.

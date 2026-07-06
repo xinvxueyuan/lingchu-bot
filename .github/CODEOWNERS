@@ -1,0 +1,34 @@
+# CODEOWNERS — routes pull request review requests by path.
+# Format: <path-pattern> @<owner> [@<another-owner> ...]
+# See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Source code (Python backend plugin)
+/src/                                 @xinvxueyuan
+
+# Documentation site (Next.js + Fumadocs)
+/apps/docs/                           @xinvxueyuan
+
+# GitHub configuration, workflows, issue & PR templates
+/.github/                             @xinvxueyuan
+
+# Container build definitions
+/Dockerfile                           @xinvxueyuan
+/docker-compose.yml                   @xinvxueyuan
+
+# Build & task runner
+/Taskfile.yml                         @xinvxueyuan
+
+# Project manifests & lockfiles
+/pyproject.toml                       @xinvxueyuan
+/package.json                         @xinvxueyuan
+/uv.lock                              @xinvxueyuan
+/pnpm-lock.yaml                       @xinvxueyuan
+
+# License & policy files
+/Repository-Policy.md                @xinvxueyuan
+/CLA.md                               @xinvxueyuan
+/REUSE.toml                           @xinvxueyuan
+/LICENSE-*                            @xinvxueyuan
+
+# Fallback — every other path falls back to the maintainer
+*                                     @xinvxueyuan

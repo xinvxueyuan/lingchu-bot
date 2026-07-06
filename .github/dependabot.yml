@@ -7,6 +7,11 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - dependencies
+      - area/deps
 
   # pnpm monorepo — root + apps/* + packages/*
   - package-ecosystem: "npm"
@@ -18,6 +23,11 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - dependencies
+      - area/deps
     groups:
       # Merge the same dependency across multiple workspace directories into a
       # single PR to reduce CI and review burden.
@@ -31,9 +41,28 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - dependencies
+      - area/ci
     groups:
       # Group minor and patch updates into a single PR; major versions get
       # separate PRs for easier review.
       actions:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+
+  # Docker — Dockerfile + docker-compose.yml base images
+  - package-ecosystem: "docker"
+    target-branch: develop
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - dependencies
+      - area/docker

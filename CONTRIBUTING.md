@@ -181,6 +181,38 @@ Commit messages must conform to gitmoji + Conventional Commits. The first line i
 
 Run `task gitmoji` for a quick reference. During interactive commits, `.husky/prepare-commit-msg` will attempt to launch `node_modules/.bin/gitmoji --hook` directly (falls back to `npx gitmoji` or a global `gitmoji` install when the local devDep is missing); in non-interactive environments, you can skip the interactive hook but must still ensure the first line format is correct.
 
+## Version Validation System
+
+Lingchu Bot automates version bumps through the CI build workflow. The `versioned-build` job in `👷-ci-builds.yml` derives the bump level and pre-release segment from the **branch name**, so naming the release branch correctly is part of the contribution workflow.
+
+### Branch name conventions
+
+| Branch prefix | `BUMP_LEVEL` | `BUMP_PRERELEASE` | Resulting version semantics |
+| --- | --- | --- | --- |
+| `dev-major-*` | `major` | (see pre-release column) | Breaking version bump, e.g. `1.0.0` |
+| `dev-minor-*` | `minor` | (see pre-release column) | Feature bump, e.g. `0.1.0` |
+| any other `dev-*` | `patch` | (see pre-release column) | Patch bump, e.g. `0.0.2` |
+
+The pre-release segment is derived independently:
+
+| Branch prefix | `BUMP_PRERELEASE` | Example tag |
+| --- | --- | --- |
+| `dev-alpha-*` | `alpha` | `0.1.0a1` |
+| `dev-beta-*` | `beta` | `0.1.0b1` |
+| `dev-rc-*` | `rc` | `0.1.0rc1` |
+| `dev-stable-*` | `stable` (clears the pre-release segment) | `0.1.0` |
+| any other `dev-*` | `dev` | `0.1.0.dev1` |
+
+### Validation tasks
+
+Version changes run through three guarded tasks defined in `Taskfile.yml`:
+
+- `task ci:version:bump` — accepts `BUMP_LEVEL` (default `patch`) and `BUMP_PRERELEASE` (default `dev`). It handles stable vs. pre-release tags intelligently: stable labels require both a level and a pre-release segment, same-class pre-release labels only bump the pre-release counter, and `stable` clears the pre-release segment.
+- `task ci:version:precheck` — runs before the version is written. It validates PEP 440 compliance, ensures the candidate version is greater than every existing tag, checks source-file consistency (advisory), and rejects duplicate tags.
+- `task ci:version:postcheck` — runs after `ci:version:write-config`. It calls `release:verify-version` and validates dev-release semantics so a broken version never reaches the build artifacts.
+
+When you open a release PR, name the branch with the prefix that matches the intended bump and pre-release semantics above. CI does the rest; do not hand-edit `core/config.py` or `package.json` versions on a release branch.
+
 ## Pull Request Requirements
 
 PR descriptions should include:
@@ -199,6 +231,16 @@ PR descriptions should include:
 - Use lowercase scope names: `auth`, `db`, `api`, `i18n`, `docs`, `frontend`, `core`, `handle`, `platforms`, `permissions`, `repositories`, `services`, `tests`.
 - Link the PR to the related issue using `Closes #123` or `Fixes #123` in the PR description.
 - For breaking changes, add `!` after the type/scope and describe the breaking change in the PR body.
+
+### PR checklist
+
+Before requesting review, confirm each item:
+
+- Commits carry a `Signed-off-by:` trailer (Developer Certificate of Origin 1.1, see <https://developercertificate.org/>). The `.husky/commit-msg` flow auto-appends it; verify it is present if you amend or rebase.
+- User-visible behavior, configuration, or compatibility changes have a matching `CHANGELOG.md` entry under `## [Unreleased]`.
+- Code changes include a GitNexus impact analysis result (or a note that no code symbols were modified).
+- The relevant checks from the quick verification matrix were run and pass.
+- Release PRs (branch `releases/**`) additionally confirm: the version was written by `task ci:version:write-config`, `ci:version:precheck` and `ci:version:postcheck` both pass, and the build artifacts carry SLSA Build L3 provenance (see [SECURITY.md](SECURITY.md) for the `gh attestation verify` command).
 
 ## CI and Failure Handling
 
@@ -222,6 +264,12 @@ Formal releases use `releases/<version>` branches.
 
 The release workflow runs `scripts/clean-release-infra.sh` before building artifacts so agent, CI, and local workspace infrastructure is not copied into distribution outputs.
 GitHub Release body text comes from `.github/releases/<version>.md`; keep that file reviewed with the changelog before pushing a release branch.
+
+Publishing uses short-lived, OIDC-based credentials — no long-lived package tokens are stored in the repository:
+
+- **PyPI** publishes through Trusted Publishing / OIDC. The PyPI project is configured to trust this repository's `🚀-release.yml` workflow on the `releases/**` branch ref.
+- **GHCR** (`ghcr.io/xinvxueyuan/lingchu-bot`) pushes with the ephemeral `GITHUB_TOKEN` scoped to `packages: write`.
+- Build artifacts (`dist/*`) are attested with SLSA Build L3 provenance via `actions/attest-build-provenance@v4.1.0`. See [SECURITY.md](SECURITY.md) for the `gh attestation verify` command consumers can run.
 
 ## Code Review Process
 

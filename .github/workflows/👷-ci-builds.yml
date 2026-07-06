@@ -212,7 +212,40 @@ jobs:
       - name: 🔖 Bump development version
         id: bump
         shell: bash
-        run: task ci:version:bump
+        run: |
+          # Derive bump level and prerelease type from branch name:
+          #
+          #   Level (BUMP_LEVEL):
+          #     main / dev* (no suffix) → patch
+          #     dev-minor*              → minor
+          #     dev-major*              → major
+          #
+          #   Prerelease (BUMP_PRERELEASE):
+          #     dev-alpha*   → alpha   (0.0.1 → 0.0.2a1)
+          #     dev-beta*    → beta    (0.0.1 → 0.0.2b1)
+          #     dev-rc*      → rc      (0.0.1 → 0.0.2rc1)
+          #     dev-stable*  → stable  (0.0.1.dev1 → 0.0.1)
+          #     dev* / main  → dev     (0.0.1 → 0.0.2.dev1, default)
+          branch="${GITHUB_REF_NAME}"
+          case "$branch" in
+            dev-major*)   bump_level=major ;;
+            dev-minor*)   bump_level=minor ;;
+            *)            bump_level=patch ;;
+          esac
+          case "$branch" in
+            dev-alpha* | dev-minor-alpha* | dev-major-alpha*)  bump_prerelease=alpha ;;
+            dev-beta*  | dev-minor-beta*  | dev-major-beta*)   bump_prerelease=beta ;;
+            dev-rc*    | dev-minor-rc*    | dev-major-rc*)     bump_prerelease=rc ;;
+            dev-stable*| dev-minor-stable*| dev-major-stable*) bump_prerelease=stable ;;
+            *)                                                 bump_prerelease=dev ;;
+          esac
+          echo "bump_level=$bump_level" >> "$GITHUB_OUTPUT"
+          echo "bump_prerelease=$bump_prerelease" >> "$GITHUB_OUTPUT"
+          task ci:version:bump BUMP_LEVEL="$bump_level" BUMP_PRERELEASE="$bump_prerelease"
+
+      - name: ✅ Pre-check version
+        shell: bash
+        run: task ci:version:precheck NEW_VERSION="${{ steps.bump.outputs.new_version }}"
 
       - name: 🏷️ Write version to config.py
         shell: bash
@@ -220,6 +253,10 @@ jobs:
         env:
           VERSION: ${{ steps.bump.outputs.new_version }}
           CONFIG_PATH: src/plugins/nonebot_plugin_lingchu_bot/core/config.py
+
+      - name: ✅ Post-check version
+        shell: bash
+        run: task ci:version:postcheck VERSION="${{ steps.bump.outputs.new_version }}"
 
       - name: 📦 Build
         run: task ci:build

@@ -171,7 +171,7 @@ uv run -m ruff check --fix path/to/file.py
 
 ## 提交规范
 
-提交信息必须符合 gitmoji + Conventional Commits。首行由 `.husky/commit-msg` 强制校验，详细规则见 [.trae/rules/git-commit-message.md](../.trae/rules/git-commit-message.md)。
+提交信息必须符合 gitmoji + Conventional Commits。首行由 `.husky/commit-msg` 强制校验，详细规则见 [.trae/rules/git-commit-message.md](../../.trae/rules/git-commit-message.md)。
 
 ```text
 📝 docs: 重写贡献指南
@@ -180,6 +180,38 @@ uv run -m ruff check --fix path/to/file.py
 ```
 
 可运行 `task gitmoji` 查看中文速查表。交互式提交时，`.husky/prepare-commit-msg` 会尽量启动 `pnpm exec gitmoji --hook`；非交互环境可跳过交互钩子，但仍必须自行保证首行格式正确。
+
+## 版本验证系统
+
+Lingchu Bot 通过 CI 构建工作流自动化版本 bump。`👷-ci-builds.yml` 的 `versioned-build` job 从**分支名**推导 bump 级别与预发布段，因此正确命名 release 分支是贡献流程的一部分。
+
+### 分支名约定
+
+| 分支前缀 | `BUMP_LEVEL` | `BUMP_PRERELEASE` | 版本语义 |
+| --- | --- | --- | --- |
+| `dev-major-*` | `major` | （见预发布列） | 破坏性版本 bump，如 `1.0.0` |
+| `dev-minor-*` | `minor` | （见预发布列） | 功能 bump，如 `0.1.0` |
+| 其他 `dev-*` | `patch` | （见预发布列） | 补丁 bump，如 `0.0.2` |
+
+预发布段独立推导：
+
+| 分支前缀 | `BUMP_PRERELEASE` | 示例 tag |
+| --- | --- | --- |
+| `dev-alpha-*` | `alpha` | `0.1.0a1` |
+| `dev-beta-*` | `beta` | `0.1.0b1` |
+| `dev-rc-*` | `rc` | `0.1.0rc1` |
+| `dev-stable-*` | `stable`（清除预发布段） | `0.1.0` |
+| 其他 `dev-*` | `dev` | `0.1.0.dev1` |
+
+### 校验任务
+
+版本变更通过 `Taskfile.yml` 中三个受保护任务：
+
+- `task ci:version:bump` — 接受 `BUMP_LEVEL`（默认 `patch`）与 `BUMP_PRERELEASE`（默认 `dev`）。智能处理 stable 与 pre-release tag：stable 标签需同时提供 level 与预发布段，同类 pre-release 标签仅 bump 预发布计数，`stable` 清除预发布段。
+- `task ci:version:precheck` — 在版本写入前运行。校验 PEP 440 合规、候选版本大于所有现有 tag、源文件一致性（advisory）、拒绝重复 tag。
+- `task ci:version:postcheck` — 在 `ci:version:write-config` 后运行。调用 `release:verify-version` 并校验 dev release 语义，确保损坏的版本不会进入构建产物。
+
+提 release PR 时，请按上述前缀命名分支以匹配预期的 bump 与预发布语义。其余由 CI 完成；不要在 release 分支上手编辑 `core/config.py` 或 `package.json` 版本。
 
 ## Pull Request 要求
 
@@ -199,6 +231,16 @@ PR 描述应包含：
 - 使用小写 scope 名称：`auth`、`db`、`api`、`i18n`、`docs`、`frontend`、`core`、`handle`、`platforms`、`permissions`、`repositories`、`services`、`tests`。
 - 在 PR 描述中使用 `Closes #123` 或 `Fixes #123` 关联相关 Issue。
 - 破坏性变更在 type/scope 后加 `!`，并在 PR 正文中说明破坏性变更内容。
+
+### PR 检查清单
+
+请求审查前，逐项确认：
+
+- 提交带 `Signed-off-by:` 尾注（开发者原创证书 DCO 1.1，见 <https://developercertificate.org/>）。`.husky/commit-msg` 流程会自动追加；若你 amend 或 rebase，请确认它仍存在。
+- 用户可见行为、配置或兼容性变更在 `CHANGELOG.md` 的 `## [Unreleased]` 下有对应条目。
+- 代码改动包含 GitNexus 影响分析结果（或说明未修改代码符号）。
+- 已运行快速验证矩阵中相关检查并通过。
+- Release PR（分支 `releases/**`）额外确认：版本由 `task ci:version:write-config` 写入、`ci:version:precheck` 与 `ci:version:postcheck` 均通过、构建产物带 SLSA Build L3 来源证明（`gh attestation verify` 命令见 [SECURITY.md](../../SECURITY.md)）。
 
 ## CI 与失败处理
 
@@ -222,6 +264,12 @@ PR 描述应包含：
 
 发布工作流会在构建产物前运行 `scripts/clean-release-infra.sh`，避免 agent、CI 和本地工作区基础设施被复制进分发输出。
 GitHub Release 正文来自 `.github/releases/<version>.md`；推送发行分支前应与 changelog 一起审阅该文件。
+
+发布使用短期 OIDC 凭据，仓库中不存储长期包令牌：
+
+- **PyPI** 通过 Trusted Publishing / OIDC 发布。PyPI 项目已配置信任本仓库 `🚀-release.yml` 工作流在 `releases/**` 分支 ref 上的发布。
+- **GHCR**（`ghcr.io/xinvxueyuan/lingchu-bot`）使用临时 `GITHUB_TOKEN` 推送，权限为 `packages: write`。
+- 构建产物（`dist/*`）通过 `actions/attest-build-provenance@v4.1.0` 生成 SLSA Build L3 来源证明。消费者可运行的 `gh attestation verify` 命令见 [SECURITY.md](../../SECURITY.md)。
 
 ## 代码审查流程
 
