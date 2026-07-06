@@ -11,7 +11,9 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, Final, cast
 
 import jsonschema
-from nonebot import logger
+from nonebot import logger, require
+
+require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
 
 from ..database.json5_store import (

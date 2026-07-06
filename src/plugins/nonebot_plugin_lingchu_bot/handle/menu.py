@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final
 
 from arclet.alconna import Alconna
-from nonebot import logger
+from nonebot import logger, require
+
+require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from packaging.version import InvalidVersion, Version, parse
 

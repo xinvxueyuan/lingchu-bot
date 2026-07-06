@@ -6,6 +6,9 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Sequence  # noqa: TC003
 from typing import TYPE_CHECKING, Any
 
+from nonebot import require
+
+require("nonebot_plugin_orm")
 from nonebot_plugin_orm import Model, get_session
 from sqlalchemy import select, text
 from sqlalchemy.dialects.mysql import insert as mysql_insert

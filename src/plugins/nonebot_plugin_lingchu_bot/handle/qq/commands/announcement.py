@@ -9,8 +9,10 @@ from typing import Any, Final, NamedTuple
 import aiofiles
 import aiofiles.os
 from arclet.alconna import Alconna, Args
-from nonebot import get_driver
+from nonebot import get_driver, require
 from nonebot.drivers import Request
+
+require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import Image as UniImage
 

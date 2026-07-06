@@ -2,8 +2,11 @@ from collections.abc import Awaitable, Callable
 from functools import wraps
 from typing import Any, cast
 
+from nonebot import require
 from nonebot.exception import FinishedException
 from nonebot.internal.matcher.matcher import Matcher
+
+require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna import AlconnaMatcher
 
 from ....core.bot_state import is_handle_active, is_silent_mode

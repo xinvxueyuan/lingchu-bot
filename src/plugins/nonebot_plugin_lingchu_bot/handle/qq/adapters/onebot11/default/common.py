@@ -2,7 +2,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Final
 
-from nonebot import logger
+from nonebot import logger, require
 from nonebot.adapters.onebot.v11 import Bot as Onebot11Bot
 from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent as Onebot11GroupMessageEvent,
@@ -10,6 +10,8 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import (
     ActionFailed as Onebot11ActionFailed,
 )
+
+require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At
 
 from ......core.runtime_config import runtime_config

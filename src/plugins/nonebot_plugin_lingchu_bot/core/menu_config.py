@@ -8,7 +8,9 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Final
 
-from nonebot import logger
+from nonebot import logger, require
+
+require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
 
 from ..database.json5_store import (

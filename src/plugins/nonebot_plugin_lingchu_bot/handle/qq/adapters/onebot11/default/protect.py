@@ -1,10 +1,12 @@
 from typing import Any
 
-from nonebot import logger
+from nonebot import logger, require
 from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
 from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent as OneBot11GroupMessageEvent,
 )
+
+require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At
 
 from ......core.runtime_config import get_handle_config_manager

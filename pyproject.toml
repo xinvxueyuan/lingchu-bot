@@ -16,7 +16,7 @@ license-files = [
     "CLA.md",
     "Repository-Policy.md",
 ]
-requires-python = ">=3.13, <3.14"
+requires-python = ">=3.12, <4.0"
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Environment :: Plugins",
@@ -54,8 +54,8 @@ dependencies = [
     "rtoml>=0.13.0",
     "arrow>=1.4.0",
     "typer>=0.25.1",
-    "nonebot-plugin-wait-a-minute>=0.5.0",
     "openai>=2.38.0",
+    "packaging>=24.2",
     "jsonschema>=4.23.0",
     "litellm>=1.83.3",
 ]
@@ -63,7 +63,7 @@ dependencies = [
 [project.urls]
 Homepage = "https://lingchu.zone.id/"
 Documentation = "https://lingchu.zone.id/"
-Repository = "https://github.com/xinvxueyuan/lingchu-bot.git"
+Repository = "https://github.com/xinvxueyuan/lingchu-bot"
 Issues = "https://github.com/xinvxueyuan/lingchu-bot/issues"
 
 [dependency-groups]
@@ -103,10 +103,10 @@ test = [
     # cryptography is required by pymysql/aiomysql for MySQL 8 caching_sha2_password
     # auth and by oracledb for TLS.
     "psycopg[binary]>=3.2.4", # PostgreSQL
-    "aiomysql>=0.2.0", # MySQL and MariaDB (SQLAlchemy auto-detects dialect)
-    "cryptography>=43.0.0", # pymysql/aiomysql/oracledb auth
-    "oracledb>=2.0.0", # Oracle Thin mode (no Oracle Client required)
-    "aioodbc>=0.5.0", # SQL Server async ODBC
+    "aiomysql>=0.2.0",        # MySQL and MariaDB (SQLAlchemy auto-detects dialect)
+    "cryptography>=43.0.0",   # pymysql/aiomysql/oracledb auth
+    "oracledb>=2.0.0",        # Oracle Thin mode (no Oracle Client required)
+    "aioodbc>=0.5.0",         # SQL Server async ODBC
     # aioodbc depends on pyodbc, which needs system ODBC drivers:
     # - Linux: msodbcsql18 (apt; CI installs via ACCEPT_EULA=Y)
     # - macOS: msodbcsql18 (brew)
@@ -233,25 +233,25 @@ allowed-confusables = [
 [tool.ruff.lint.per-file-ignores]
 # pytest fixtures may not be used directly in test functions but are still required for setup
 "tests/**" = [
-    "ARG002",   # unused-argument
-    "ANN201",   # missing-return-type-undocumented-public-function (tests don't need explicit return types)
-    "PLR2004",  # magic-value-comparison (tests often use magic values for assertions)
-    "E501",     # line-too-long (test assertions can be verbose)
-    "F841",     # unused-variable (fixtures may assign variables for clarity)
-    "TC005",    # empty-type-checking-block (test files may have empty TYPE_CHECKING blocks)
+    "ARG002",  # unused-argument
+    "ANN201",  # missing-return-type-undocumented-public-function (tests don't need explicit return types)
+    "PLR2004", # magic-value-comparison (tests often use magic values for assertions)
+    "E501",    # line-too-long (test assertions can be verbose)
+    "F841",    # unused-variable (fixtures may assign variables for clarity)
+    "TC005",   # empty-type-checking-block (test files may have empty TYPE_CHECKING blocks)
 ]
 # utility scripts use print for diagnostic output
 "scripts/**" = [
-    "T201",     # print-found
-    "C901",     # function-is-too-complex
-    "PLR0915",  # too-many-statements
-    "BLE001",   # blind-exception
-    "E501",     # line-too-long
-    "F541",     # f-string-without-placeholders
+    "T201",    # print-found
+    "C901",    # function-is-too-complex
+    "PLR0915", # too-many-statements
+    "BLE001",  # blind-exception
+    "E501",    # line-too-long
+    "F541",    # f-string-without-placeholders
 ]
 # handle handlers may have complex logic with multiple return paths
 "src/plugins/nonebot_plugin_lingchu_bot/handle/**/adapters/onebot11/default/**.py" = [
-    "PLR0911",  # too-many-return-statements (complex permission and privilege checks)
+    "PLR0911", # too-many-return-statements (complex permission and privilege checks)
 ]
 
 [tool.ruff.lint.pyupgrade]
@@ -264,32 +264,32 @@ pythonPlatform = "All"
 typeCheckingMode = "standard"
 # skills 排除列表同步至 prek.toml
 exclude = [
-  "skills",
-  ".agents/skills",
-  ".claude/skills",
-  ".trae/skills",
-  "apps",
-  "packages",
-  "docker",
-  ".venv",
-  "node_modules",
-  ".cache",
-  "__pycache__",
-  ".mypy_cache",
-  ".ruff_cache",
-  ".pyright",
+    "skills",
+    ".agents/skills",
+    ".claude/skills",
+    ".trae/skills",
+    "apps",
+    "packages",
+    "docker",
+    ".venv",
+    "node_modules",
+    ".cache",
+    "__pycache__",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".pyright",
 ]
 
 [tool.ty.src]
 # skills 排除列表同步至 prek.toml
 exclude = [
-  "skills/",
-  ".agents/skills/",
-  ".claude/skills/",
-  ".trae/skills/",
-  "apps/",
-  "packages/",
-  "docker/",
+    "skills/",
+    ".agents/skills/",
+    ".claude/skills/",
+    ".trae/skills/",
+    "apps/",
+    "packages/",
+    "docker/",
 ]
 
 [tool.pytest.ini_options]

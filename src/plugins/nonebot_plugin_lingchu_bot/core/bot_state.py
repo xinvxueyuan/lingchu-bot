@@ -12,7 +12,9 @@ Resolution semantics:
 from pathlib import Path
 from typing import Any
 
-from nonebot import logger
+from nonebot import logger, require
+
+require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_data_file
 
 from ..database.json5_store import (
