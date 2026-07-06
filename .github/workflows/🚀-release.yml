@@ -100,7 +100,7 @@ jobs:
         uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa
 
       - name: 🧹 Remove non-distribution infrastructure
-        run: scripts/clean-release-infra.sh
+        run: bash scripts/clean-release-infra.sh
 
       - name: 📦 Build
         run: task ci:build
@@ -154,7 +154,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: 🧹 Remove non-distribution infrastructure
-        run: scripts/clean-release-infra.sh
+        run: bash scripts/clean-release-infra.sh
 
       - name: 🔧 Setup Docker buildx
         # pinned from docker/setup-buildx-action@v3.12.0
