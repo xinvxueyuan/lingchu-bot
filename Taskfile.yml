@@ -207,6 +207,8 @@ tasks:
     desc: "[CI] Pre-bump validation: verify new version is valid and greater than all existing tags"
     requires:
       vars: [NEW_VERSION]
+    env:
+      NEW_VERSION: "{{.NEW_VERSION}}"
     cmds:
       - |
         set -euo pipefail
@@ -275,6 +277,8 @@ tasks:
     desc: "[CI] Post-bump validation: verify version is synchronized and valid"
     requires:
       vars: [VERSION]
+    env:
+      VERSION: "{{.VERSION}}"
     cmds:
       - task: release:verify-version
         vars:
@@ -299,6 +303,9 @@ tasks:
     desc: "[CI] Write version into config.py and package.json"
     requires:
       vars: [VERSION, CONFIG_PATH]
+    env:
+      VERSION: "{{.VERSION}}"
+      CONFIG_PATH: "{{.CONFIG_PATH}}"
     cmds:
       - |
         set -euo pipefail
