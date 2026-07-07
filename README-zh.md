@@ -5,7 +5,7 @@
 [![CI](https://github.com/xinvxueyuan/lingchu-bot/actions/workflows/%F0%9F%A7%AA-python.yml/badge.svg)](https://github.com/xinvxueyuan/lingchu-bot/actions/workflows/%F0%9F%A7%AA-python.yml)
 [![PyPI](https://img.shields.io/pypi/v/nonebot-plugin-lingchu-bot)](https://pypi.org/project/nonebot-plugin-lingchu-bot/)
 [![Downloads](https://img.shields.io/pypi/dm/nonebot-plugin-lingchu-bot)](https://pypi.org/project/nonebot-plugin-lingchu-bot/)
-[![Image size](https://ghcr-badge.deta.dev/xinvxueyuan/lingchu-bot/size)](https://github.com/xinvxueyuan/lingchu-bot/pkgs/container/lingchu-bot)
+[![Image size](https://ghcr-badge.egpl.dev/xinvxueyuan/lingchu-bot/size)](https://github.com/xinvxueyuan/lingchu-bot/pkgs/container/lingchu-bot)
 [![License](https://img.shields.io/github/license/xinvxueyuan/lingchu-bot)](LICENSE-code)
 [![Python](https://img.shields.io/badge/python-3.13-blue)](pyproject.toml)
 [![NoneBot2](https://img.shields.io/badge/NoneBot2-2.x-orange)](https://nonebot.dev/)
@@ -332,7 +332,7 @@ pnpm exec markdownlint-cli2 README.md README-zh.md
 
 Lingchu Bot 建立在许多优秀开源项目之上。特别感谢这些上游项目与社区：
 
-- **机器人运行时与适配器生态**：[NoneBot2](https://nonebot.dev/)、[nonebot-adapter-onebot](https://github.com/nonebot/adapter-onebot)、`nonebot-plugin-alconna`、`nonebot-plugin-localstore`、`nonebot-plugin-orm`、`nonebot-plugin-apscheduler`、`nonebot-plugin-htmlkit`、`nonebot-plugin-docs` 和 `nonebot-plugin-wait-a-minute`。
+- **机器人运行时与适配器生态**：[NoneBot2](https://nonebot.dev/)、[nonebot-adapter-onebot](https://github.com/nonebot/adapter-onebot)、`nonebot-plugin-alconna`、`nonebot-plugin-localstore`、`nonebot-plugin-orm`、`nonebot-plugin-apscheduler`、`nonebot-plugin-htmlkit` 和 `nonebot-plugin-docs`。
 - **Python 配置、存储与服务工具**：`aiofiles`、`json5`、`rtoml`、`jsonschema`、[Babel](https://babel.pocoo.org/)、[Jinja](https://jinja.palletsprojects.com/)、[Typer](https://typer.tiangolo.com/)、[Arrow](https://arrow.readthedocs.io/)、`psutil`、[OpenAI Python SDK](https://github.com/openai/openai-python) 和 [LiteLLM](https://github.com/BerriAI/litellm)。
 - **文档站与前端栈**：[Fumadocs](https://fumadocs.dev/)、[Next.js](https://nextjs.org/)、[React](https://react.dev/)、[Mermaid](https://mermaid.js.org/)、[Twoslash](https://twoslash.netlify.app/)、`flexsearch`、`d3-force`、`dompurify`、`feed` 和 [Tailwind CSS](https://tailwindcss.com/)。
 - **工程质量、测试与仓库工作流**：[uv](https://docs.astral.sh/uv/)、[pnpm](https://pnpm.io/)、[Turborepo](https://turbo.build/repo)、[Ruff](https://docs.astral.sh/ruff/)、[Pyright](https://microsoft.github.io/pyright/)、[ty](https://docs.astral.sh/ty/)、[pytest](https://docs.pytest.org/)、[Vitest](https://vitest.dev/)、[Playwright](https://playwright.dev/)、[markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2)、[Prettier](https://prettier.io/)、[ESLint](https://eslint.org/)、[Husky](https://typicode.github.io/husky/)、[Gitmoji](https://gitmoji.dev/)、`gitnexus` 和 [FOSSA](https://fossa.com/)。
