@@ -117,7 +117,7 @@ def test_runtime_config_nonebot_env_overrides_json5(
 ) -> None:
     config_file = tmp_path / "config.json5"
     config_file.write_text("{message_store_summary_limit: 12}", encoding="utf-8")
-    monkeypatch.setenv("MESSAGE_STORE_SUMMARY_LIMIT", str(ENV_SUMMARY_LIMIT))
+    monkeypatch.setenv("LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT", str(ENV_SUMMARY_LIMIT))
 
     config = get_runtime_config(config_file)
 
@@ -133,9 +133,9 @@ def test_runtime_config_ai_env_overrides_json5(
         '{ai_provider: "litellm", ai_model: "json-model", ai_timeout: 12}',
         encoding="utf-8",
     )
-    monkeypatch.setenv("AI_PROVIDER", "openai")
-    monkeypatch.setenv("AI_MODEL", "env-model")
-    monkeypatch.setenv("AI_TIMEOUT", "7.5")
+    monkeypatch.setenv("LINGCHU_AI_PROVIDER", "openai")
+    monkeypatch.setenv("LINGCHU_AI_MODEL", "env-model")
+    monkeypatch.setenv("LINGCHU_AI_TIMEOUT", "7.5")
 
     config = get_runtime_config(config_file)
 
@@ -152,12 +152,12 @@ def test_runtime_config_dotenv_overrides_json5(
     config_file.write_text("{message_store_summary_limit: 12}", encoding="utf-8")
     dotenv_file = tmp_path / ".env"
     dotenv_file.write_text(
-        f"MESSAGE_STORE_SUMMARY_LIMIT={DOTENV_SUMMARY_LIMIT}\n",
+        f"LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT={DOTENV_SUMMARY_LIMIT}\n",
         encoding="utf-8",
     )
     driver_config = runtime_module.get_driver().config
     monkeypatch.setattr(driver_config, "_env_file", dotenv_file)
-    monkeypatch.delenv("MESSAGE_STORE_SUMMARY_LIMIT", raising=False)
+    monkeypatch.delenv("LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT", raising=False)
 
     config = get_runtime_config(config_file)
 
@@ -172,12 +172,12 @@ def test_runtime_config_os_env_overrides_dotenv_and_json5(
     config_file.write_text("{message_store_summary_limit: 12}", encoding="utf-8")
     dotenv_file = tmp_path / ".env"
     dotenv_file.write_text(
-        f"MESSAGE_STORE_SUMMARY_LIMIT={DOTENV_SUMMARY_LIMIT}\n",
+        f"LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT={DOTENV_SUMMARY_LIMIT}\n",
         encoding="utf-8",
     )
     driver_config = runtime_module.get_driver().config
     monkeypatch.setattr(driver_config, "_env_file", dotenv_file)
-    monkeypatch.setenv("MESSAGE_STORE_SUMMARY_LIMIT", str(OS_SUMMARY_LIMIT))
+    monkeypatch.setenv("LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT", str(OS_SUMMARY_LIMIT))
 
     config = get_runtime_config(config_file)
 
@@ -339,3 +339,33 @@ def test_runtime_config_user_schema_overrides_default(
 
     assert raw["$schema"] == "custom.schema.json5"
     assert raw["message_store_enabled"] is False
+
+
+def test_env_overrides_prefixed_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """LINGCHU_-prefixed env keys are read correctly."""
+    monkeypatch.setenv("LINGCHU_MESSAGE_STORE_ENABLED", "false")
+    config = get_runtime_config()
+    assert config.message_store_enabled is False
+    monkeypatch.delenv("LINGCHU_MESSAGE_STORE_ENABLED", raising=False)
+
+
+def test_env_overrides_legacy_key_deprecation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Legacy unprefixed env keys still work but emit a deprecation warning."""
+    monkeypatch.delenv("LINGCHU_MESSAGE_STORE_ENABLED", raising=False)
+    monkeypatch.setenv("MESSAGE_STORE_ENABLED", "false")
+    config = get_runtime_config()
+    # The legacy key should still work
+    assert config.message_store_enabled is False
+    # Deprecation is logged via logger.warning(), not Python's warnings module,
+    # so it is tested separately via log capture rather than pytest.warns.
+    monkeypatch.delenv("MESSAGE_STORE_ENABLED", raising=False)
+
+
+def test_env_overrides_prefixed_key_priority(monkeypatch: pytest.MonkeyPatch) -> None:
+    """LINGCHU_-prefixed key takes priority over legacy key."""
+    monkeypatch.setenv("LINGCHU_MESSAGE_STORE_ENABLED", "false")
+    monkeypatch.setenv("MESSAGE_STORE_ENABLED", "true")
+    config = get_runtime_config()
+    assert config.message_store_enabled is False  # LINGCHU_ prefix wins
+    monkeypatch.delenv("LINGCHU_MESSAGE_STORE_ENABLED", raising=False)
+    monkeypatch.delenv("MESSAGE_STORE_ENABLED", raising=False)

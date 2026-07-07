@@ -33,13 +33,13 @@ uv sync --frozen
 正确写法：
 
 ```dotenv
-IN_CONTAINERS=true
+LINGCHU_IN_CONTAINERS=true
 ```
 
 错误写法：
 
 ```dotenv
-IN_CONTAINERS=True
+LINGCHU_IN_CONTAINERS=True
 ```
 
 NoneBot 配置文件只接受标准 JSON 小写 `true` / `false`。
@@ -95,17 +95,17 @@ NoneBot 配置文件只接受标准 JSON 小写 `true` / `false`。
 OneBot V11 群公告使用实现专属 API。对 NapCat 来说，`_send_group_notice` 的 `image` 值必须是 NapCat 侧可读取的文件系统路径。常见原因：
 
 - Lingchu Bot 在 Windows 写入了缓存图片，但 NapCat Docker 容器无法读取这个路径。
-- `ANNOUNCEMENT_IMAGE_CACHE_DIR` 与 `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` 未设置，或没有指向同一个挂载目录。
+- `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` 与 `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` 未设置，或没有指向同一个挂载目录。
 - 修改了 Docker bind mount，但没有重建 NapCat 容器。
 - 修改 `.env` 后没有重启 Lingchu Bot。
 - NapCat 版本低于支持范围，或当前实现未被识别为 `NapCat.Onebot`。
 
-Windows 加 Docker Desktop 场景请按[NapCat Docker](../platforms/qq/frameworks/napcat-docker)配置路径穿透，并验证写入 `ANNOUNCEMENT_IMAGE_CACHE_DIR` 的文件能在容器内通过 `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` 读取。
+Windows 加 Docker Desktop 场景请按[NapCat Docker](../platforms/qq/frameworks/napcat-docker)配置路径穿透，并验证写入 `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` 的文件能在容器内通过 `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` 读取。
 
 WSL2（Debian / Ubuntu）部署的额外检查项：
 
 - **Docker Desktop File Sharing 白名单**（这是 WSL2 + Docker Desktop 集成最常见的坑，必须**先**做这一步）。打开 Docker Desktop → Settings → Resources → File sharing，确认 `\\wsl.localhost\Debian\` 已加入白名单（distro 名要换成你自己的，旧版 WSL 写 `\\wsl$\Debian\`，**`\` 结尾不能漏**）。漏配时容器内 `/lingchu-bot` 会是个空目录，`docker inspect` 看不出问题，但 `docker exec napcat mount | grep lingchu` 会显示 `type overlay`（正常应是 `fuse.bind`）。修改后必须点 **Apply & restart** 让 Docker Desktop 重建 WSL 集成索引。
-- `ANNOUNCEMENT_IMAGE_CACHE_DIR` 是否仍是 Windows 风格盘符路径（如 `C:/dev/lingchu-bot/...`）。在 WSL2 上 `pathlib` 会把它当相对路径，启动日志会输出 `公告图片缓存目录 ... 与当前系统 Linux 不兼容` 的 WARNING，发送公告图片时 NapCat 会返回 `retcode=1200, image 字段可能格式不正确`。请改成 WSL2 内的 POSIX 路径（例如 `/home/xinvdev/lingchu-bot/.local/napcat-announcement-images`），并重建 NapCat 容器。
+- `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` 是否仍是 Windows 风格盘符路径（如 `C:/dev/lingchu-bot/...`）。在 WSL2 上 `pathlib` 会把它当相对路径，启动日志会输出 `公告图片缓存目录 ... 与当前系统 Linux 不兼容` 的 WARNING，发送公告图片时 NapCat 会返回 `retcode=1200, image 字段可能格式不正确`。请改成 WSL2 内的 POSIX 路径（例如 `/home/xinvdev/lingchu-bot/.local/napcat-announcement-images`），并重建 NapCat 容器。
 - Docker Desktop 与 WSL2 集成是否在 Docker Desktop → Settings → Resources → WSL Integration 中开启（默认开启，但有的发行版需要单独勾选）。
 - 重建容器后必须做一次 `docker exec napcat ls -la /lingchu-bot/.local/napcat-announcement-images/` 验证 bind mount 真的有效；只看 `docker inspect` 不够，WSL2 集成层可能在 File Sharing 缺失时返回一个空目录而 `inspect` 不报错。
 

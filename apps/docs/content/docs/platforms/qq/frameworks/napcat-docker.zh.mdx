@@ -62,8 +62,8 @@ volumes:
 NapCat 的 `_send_group_notice` 图片字段依赖文件路径：这个路径必须能被 NapCat 容器读取，而不只是 Lingchu Bot 能读取。请让 Lingchu Bot 将公告图片缓存写入已挂载到容器的宿主机路径：
 
 ```dotenv
-ANNOUNCEMENT_IMAGE_CACHE_DIR=C:/dev/lingchu-bot/.local/napcat-announcement-images
-ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu-bot/.local/napcat-announcement-images
+LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR=C:/dev/lingchu-bot/.local/napcat-announcement-images
+LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu-bot/.local/napcat-announcement-images
 ```
 
 在上面的挂载下，Lingchu Bot 写入：
@@ -86,8 +86,8 @@ volumes:
 ```
 
 ```dotenv
-ANNOUNCEMENT_IMAGE_CACHE_DIR=C:/dev/lingchu-bot/.local/napcat-announcement-images
-ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu/announcement-images
+LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR=C:/dev/lingchu-bot/.local/napcat-announcement-images
+LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu/announcement-images
 ```
 
 修改 `.env` 后需要重启 Lingchu Bot，让 NoneBot 重新读取路径配置。修改 Docker 挂载后需要重建 NapCat 容器，因为 Docker 不能给已运行容器追加 bind mount。
@@ -126,8 +126,8 @@ docker run -d \
 对应的 `.env`：
 
 ```dotenv
-ANNOUNCEMENT_IMAGE_CACHE_DIR=/home/xinvdev/lingchu-bot/.local/napcat-announcement-images
-ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu-bot/.local/napcat-announcement-images
+LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR=/home/xinvdev/lingchu-bot/.local/napcat-announcement-images
+LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu-bot/.local/napcat-announcement-images
 ```
 
 **关键步骤 3**：在 WSL2 终端验证 bind mount 真的生效（这是必做步骤，只看 `docker inspect` 不够）：
@@ -160,11 +160,11 @@ docker run -d `
   mlikiowa/napcat-docker:latest
 ```
 
-对应的 `.env`（`ANNOUNCEMENT_IMAGE_CACHE_DIR` 保持 POSIX 风格跟随 Lingchu Bot 的视角；`ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` 与容器内挂载点对齐）：
+对应的 `.env`（`LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` 保持 POSIX 风格跟随 Lingchu Bot 的视角；`LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` 与容器内挂载点对齐）：
 
 ```dotenv
-ANNOUNCEMENT_IMAGE_CACHE_DIR=/home/xinvdev/lingchu-bot/.local/napcat-announcement-images
-ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=C:/lingchu-bot/.local/napcat-announcement-images
+LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR=/home/xinvdev/lingchu-bot/.local/napcat-announcement-images
+LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=C:/lingchu-bot/.local/napcat-announcement-images
 ```
 
 注意 `\\wsl$\` UNC 路径在 Windows 资源管理器里区分大小写，而 WSL2 内部不区分；如果 NapCat 容器内日志出现 `No such file or directory` 但宿主文件确实存在，先确认两边的大小写完全一致。
@@ -181,8 +181,8 @@ docker run -d `
 ```
 
 ```dotenv
-ANNOUNCEMENT_IMAGE_CACHE_DIR=/home/xinvdev/lingchu-bot/.local/napcat-announcement-images
-ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=C:/lingchu/announcement-images
+LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR=/home/xinvdev/lingchu-bot/.local/napcat-announcement-images
+LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=C:/lingchu/announcement-images
 ```
 
 ### 拓扑 C：dockerd 原生装在 WSL2 内
@@ -201,15 +201,15 @@ docker run -d \
 `.env` 与拓扑 A 完全一致：
 
 ```dotenv
-ANNOUNCEMENT_IMAGE_CACHE_DIR=/home/xinvdev/lingchu-bot/.local/napcat-announcement-images
-ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu-bot/.local/napcat-announcement-images
+LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR=/home/xinvdev/lingchu-bot/.local/napcat-announcement-images
+LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR=/lingchu-bot/.local/napcat-announcement-images
 ```
 
 ### 旧 Windows 风格路径迁移提示
 
 <Callout type="warn">
 
-迁移到 WSL2 后，旧的 Windows 风格 `ANNOUNCEMENT_IMAGE_CACHE_DIR`（例如 `C:/dev/lingchu-bot/...`）会被 `pathlib.Path` 当作相对路径，写入到 WSL2 当前工作目录下，与容器 bind mount 失去对应；启动日志会输出 `公告图片缓存目录 ... 与当前系统 Linux 不兼容` 的 WARNING，发送公告图片时 NapCat 会返回 `retcode=1200, image 字段可能格式不正确`。请按本节示例把 `ANNOUNCEMENT_IMAGE_CACHE_DIR` 改成 WSL2 内的 POSIX 路径，并按拓扑 A 步骤 1 把 WSL 发行版加入 Docker Desktop File Sharing 后再重建 NapCat 容器。
+迁移到 WSL2 后，旧的 Windows 风格 `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR`（例如 `C:/dev/lingchu-bot/...`）会被 `pathlib.Path` 当作相对路径，写入到 WSL2 当前工作目录下，与容器 bind mount 失去对应；启动日志会输出 `公告图片缓存目录 ... 与当前系统 Linux 不兼容` 的 WARNING，发送公告图片时 NapCat 会返回 `retcode=1200, image 字段可能格式不正确`。请按本节示例把 `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` 改成 WSL2 内的 POSIX 路径，并按拓扑 A 步骤 1 把 WSL 发行版加入 Docker Desktop File Sharing 后再重建 NapCat 容器。
 
 </Callout>
 

@@ -103,7 +103,7 @@ CONFIG_SCHEMA_TEXT: Final = """{
         { "type": "null" },
         { "type": "string" }
       ],
-      "description": "LLM provider API key. Prefer setting via the AI_API_KEY environment variable over writing it into the JSON5 config file."
+      "description": "LLM provider API key. Prefer setting via the LINGCHU_AI_API_KEY environment variable over writing it into the JSON5 config file."
     },
     "recall_message_default_count": {
       "type": "integer",

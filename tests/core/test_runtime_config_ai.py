@@ -32,24 +32,24 @@ def test_ai_api_key_loaded_from_dict() -> None:
 
 
 def test_ai_api_key_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    """``_env_overrides`` reads ``AI_API_KEY`` from the OS environment."""
-    monkeypatch.setenv("AI_API_KEY", "sk-env456")
+    """``_env_overrides`` reads ``LINGCHU_AI_API_KEY`` from the OS environment."""
+    monkeypatch.setenv("LINGCHU_AI_API_KEY", "sk-env456")
     try:
         overrides = _env_overrides({})
     finally:
-        monkeypatch.delenv("AI_API_KEY", raising=False)
+        monkeypatch.delenv("LINGCHU_AI_API_KEY", raising=False)
 
     assert overrides == {"ai_api_key": "sk-env456"}
 
 
 def test_ai_api_key_env_overrides_json5(monkeypatch: pytest.MonkeyPatch) -> None:
     """OS env var wins over a JSON5 dict value when both are present."""
-    monkeypatch.setenv("AI_API_KEY", "sk-env456")
+    monkeypatch.setenv("LINGCHU_AI_API_KEY", "sk-env456")
     try:
         json5_dict = {"ai_api_key": "sk-json5-losing"}
         merged = json5_dict | _env_overrides({})
     finally:
-        monkeypatch.delenv("AI_API_KEY", raising=False)
+        monkeypatch.delenv("LINGCHU_AI_API_KEY", raising=False)
 
     config = type_validate_python(RuntimeConfig, merged)
     assert config.ai_api_key == "sk-env456"

@@ -58,8 +58,8 @@ async def send_group_notice_napcat(
         if image_path is not None and _is_napcat_image_format_error(e):
             template = await _(
                 "NapCat 拒绝公告图片：已发送的 image 字段为 {protocol_path}，本地缓存为"
-                " {local_path}。请检查 ANNOUNCEMENT_IMAGE_CACHE_DIR 与"
-                " ANNOUNCEMENT_IMAGE_PROTOCOL_DIR 是否一致，并确认 NapCat 容器"
+                " {local_path}。请检查 LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR 与"
+                " LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR 是否一致，并确认 NapCat 容器"
                 " bind mount 已挂载到该路径（Windows / WSL2 部署请参考 NapCat"
                 " Docker 文档）。"
             )

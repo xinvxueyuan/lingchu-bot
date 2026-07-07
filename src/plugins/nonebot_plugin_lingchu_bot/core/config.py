@@ -13,7 +13,6 @@ import platform
 from pathlib import Path
 from typing import Any, Literal, cast
 
-import nonebot
 from nonebot import get_driver, get_plugin_config, require
 
 require("nonebot_plugin_localstore")
@@ -22,7 +21,7 @@ from nonebot_plugin_localstore import (
     get_plugin_config_dir,
     get_plugin_data_dir,
 )
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 from ..i18n import _
 
@@ -59,7 +58,8 @@ class InvalidInContainersError(ConfigError):
                 "in_containers 配置错误：\n"
                 "收到字符串值: {value!r}\n"
                 "NoneBot2 的 .env 配置文件只接受小写的 true 或 false 作为 bool 值\n"
-                "请将配置改为: IN_CONTAINERS=true 或 IN_CONTAINERS=false\n"
+                "请将配置改为: LINGCHU_IN_CONTAINERS=true 或"
+                " LINGCHU_IN_CONTAINERS=false\n"
                 "不要使用大写的 True/False 或其他格式。"
             ).format(value=value)
         )
@@ -112,18 +112,35 @@ class Config(BaseModel):
     data_dir: Path = Field(default_factory=get_plugin_data_dir)
     config_dir: Path = Field(default_factory=get_plugin_config_dir)
     cache_dir: Path = Field(default_factory=get_plugin_cache_dir)
-    # 公告图片缓存目录：默认由 localstore 派生
-    # （``get_plugin_cache_dir() / "announcement_images"``），
-    # 符合 Hard Constraints 章节"可变路径必须由 localstore 统一管理"规则。
-    # `.env` 中 ``ANNOUNCEMENT_IMAGE_CACHE_DIR`` 可显式覆盖
-    # （NoneBot Config 字段优先级高于 Pydantic 默认值），
-    # 用于跨容器文件共享（如 NapCat 容器挂载同一目录）。
     announcement_image_cache_dir: Path = Field(
-        default_factory=lambda: get_plugin_cache_dir() / "announcement_images"
+        default_factory=lambda: get_plugin_cache_dir() / "announcement_images",
+        validation_alias=AliasChoices(
+            "LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR",
+            "ANNOUNCEMENT_IMAGE_CACHE_DIR",
+        ),
     )
-    # 协议侧路径：容器内 NapCat 看到的目录路径。属于"协议侧"而非"宿主侧"，
-    # **不**通过 localstore 管理；由 `.env` 显式提供。
-    announcement_image_protocol_dir: str | None = None
+    announcement_image_protocol_dir: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR",
+            "ANNOUNCEMENT_IMAGE_PROTOCOL_DIR",
+        ),
+    )
+    in_containers: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("LINGCHU_IN_CONTAINERS", "IN_CONTAINERS"),
+    )
+
+    @field_validator("in_containers", mode="before")
+    @classmethod
+    def _validate_in_containers(cls, value: Any) -> bool:
+        if value is None:
+            return False
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            raise InvalidInContainersError(value)
+        raise UnexpectedInContainersTypeError(value, type(value))
 
     @property
     def superuser_key(self) -> str:
@@ -180,34 +197,6 @@ class Config(BaseModel):
         from .runtime_config import get_runtime_config
 
         return get_runtime_config().lingchu_adapter
-
-    @property
-    def in_containers(self) -> bool:
-        """获取是否在容器环境中运行。
-
-        严格要求配置值为布尔类型。NoneBot2只接受JSON标准的小写true/false
-        并自动解析为bool，任何其他格式（如大写True/False、字符串"true"等）
-        都会被视为str传入，此时将抛出错误而非尝试转换。
-        如果配置缺失（None），默认返回False。
-
-        Returns:
-            bool: 是否在容器环境中运行。若未配置则返回False。
-
-        Raises:
-            InvalidInContainersError: 配置值为字符串时抛出。
-            UnexpectedInContainersTypeError: 配置值类型既不是bool也不是str时抛出。
-
-        """
-        raw_value = nonebot.get_driver().config.in_containers
-        if raw_value is None:
-            return False
-        if isinstance(raw_value, bool):
-            return raw_value
-
-        if isinstance(raw_value, str):
-            raise InvalidInContainersError(raw_value)
-
-        raise UnexpectedInContainersTypeError(raw_value, type(raw_value))
 
     @property
     def system_type(self) -> Literal["Windows", "Linux", "Darwin", "Other"]:

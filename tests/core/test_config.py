@@ -3,9 +3,7 @@ from __future__ import annotations
 import platform
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
-import nonebot
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.core.config import (
@@ -34,11 +32,14 @@ def config(tmp_path: Path) -> Config:
     )
 
 
-def _mock_driver(in_containers: Any = None) -> MagicMock:
-    """Build a mock driver whose config exposes the given in_containers value."""
-    driver = MagicMock()
-    driver.config.in_containers = in_containers
-    return driver
+def _config_with(tmp_path: Path, **alias_kwargs: Any) -> Config:
+    """Build a Config using validation-alias kwargs that pyright cannot resolve."""
+    return Config(  # type: ignore[call-arg]
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        cache_dir=tmp_path / "cache",
+        **alias_kwargs,
+    )
 
 
 def test_config_has_core_version_default(config: Config) -> None:
@@ -49,21 +50,16 @@ def test_config_has_path_fields(config: Config) -> None:
     assert isinstance(config.data_dir, Path)
     assert isinstance(config.config_dir, Path)
     assert isinstance(config.cache_dir, Path)
-    # 公告图片缓存目录默认由 localstore 派生
-    # （`get_plugin_cache_dir() / "announcement_images"`），
-    # 不再为 None；协议侧目录保持可选（仅当 .env 显式提供）。
     assert config.announcement_image_cache_dir is not None
     assert isinstance(config.announcement_image_cache_dir, Path)
     assert config.announcement_image_protocol_dir is None
 
 
 def test_config_accepts_announcement_image_path_bridge(tmp_path: Path) -> None:
-    config = Config(
-        data_dir=tmp_path / "data",
-        config_dir=tmp_path / "config",
-        cache_dir=tmp_path / "cache",
-        announcement_image_cache_dir=tmp_path / "announcement-images",
-        announcement_image_protocol_dir="/lingchu/announcement-images",
+    config = _config_with(
+        tmp_path,
+        LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR=tmp_path / "announcement-images",
+        LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR="/lingchu/announcement-images",
     )
 
     assert config.announcement_image_cache_dir == tmp_path / "announcement-images"
@@ -128,44 +124,32 @@ def test_get_platform_info_returns_expected_keys(
     config: Config,
 ) -> None:
     monkeypatch.setattr(platform, "system", lambda: "Linux")
-    with patch.object(nonebot, "get_driver", return_value=_mock_driver(None)):
-        info = config.get_platform_info()
+    info = config.get_platform_info()
     assert isinstance(info, dict)
     assert set(info) == EXPECTED_PLATFORM_INFO_KEYS
     assert info["system"] == "Linux"
     assert info["in_containers"] is False
 
 
-def test_in_containers_returns_false_when_not_configured(config: Config) -> None:
-    with patch.object(nonebot, "get_driver", return_value=_mock_driver(None)):
-        assert config.in_containers is False
+def test_in_containers_defaults_to_false_when_not_configured(config: Config) -> None:
+    assert config.in_containers is False
 
 
-def test_in_containers_returns_true_when_configured(config: Config) -> None:
-    with patch.object(
-        nonebot, "get_driver", return_value=_mock_driver(in_containers=True)
-    ):
-        assert config.in_containers is True
+def test_in_containers_returns_true_when_configured(tmp_path: Path) -> None:
+    config = _config_with(tmp_path, LINGCHU_IN_CONTAINERS=True)
+    assert config.in_containers is True
 
 
-def test_in_containers_returns_false_when_explicitly_false(config: Config) -> None:
-    with patch.object(
-        nonebot, "get_driver", return_value=_mock_driver(in_containers=False)
-    ):
-        assert config.in_containers is False
+def test_in_containers_returns_false_when_explicitly_false(tmp_path: Path) -> None:
+    config = _config_with(tmp_path, LINGCHU_IN_CONTAINERS=False)
+    assert config.in_containers is False
 
 
-def test_in_containers_raises_for_string_value(config: Config) -> None:
-    with (
-        patch.object(nonebot, "get_driver", return_value=_mock_driver("true")),
-        pytest.raises(InvalidInContainersError),
-    ):
-        _ = config.in_containers
+def test_in_containers_raises_for_string_value(tmp_path: Path) -> None:
+    with pytest.raises(InvalidInContainersError):
+        _config_with(tmp_path, LINGCHU_IN_CONTAINERS="true")
 
 
-def test_in_containers_raises_for_unexpected_type(config: Config) -> None:
-    with (
-        patch.object(nonebot, "get_driver", return_value=_mock_driver(123)),
-        pytest.raises(UnexpectedInContainersTypeError),
-    ):
-        _ = config.in_containers
+def test_in_containers_raises_for_unexpected_type(tmp_path: Path) -> None:
+    with pytest.raises(UnexpectedInContainersTypeError):
+        _config_with(tmp_path, LINGCHU_IN_CONTAINERS=123)
