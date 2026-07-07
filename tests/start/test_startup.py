@@ -142,7 +142,7 @@ async def test_lifecycle_on_shutdown_calls_scheduler_and_message_store_in_order(
 async def test_check_announcement_image_path_bridge_emits_warning_on_mismatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Startup self-check warns when ANNOUNCEMENT_IMAGE_CACHE_DIR uses a
+    """Startup self-check warns when LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR uses a
     Windows-style drive letter on a Linux / WSL2 host."""
     from unittest.mock import patch
 
@@ -164,7 +164,7 @@ async def test_check_announcement_image_path_bridge_emits_warning_on_mismatch(
     mock_warning.assert_called_once()
     message = mock_warning.call_args.args[0]
     assert "C:/dev/lingchu-bot/.local/napcat-announcement-images" in message
-    assert "ANNOUNCEMENT_IMAGE_CACHE_DIR" in message
+    assert "LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR" in message
 
 
 @pytest.mark.asyncio

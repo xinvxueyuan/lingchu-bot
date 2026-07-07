@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal
 
 import json5
-from nonebot import get_driver, require
+from nonebot import get_driver, logger, require
 from nonebot.compat import type_validate_python
 
 require("nonebot_plugin_localstore")
@@ -55,21 +55,113 @@ class RuntimeConfig(BaseModel):
     settings parser.
     """
 
-    superuser_key: str = "123456789abcdef"
-    message_store_enabled: bool = True
-    message_store_retention_days: int = Field(default=30, ge=0)
-    message_store_summary_limit: int = Field(default=500, ge=0)
-    message_store_record_api_calls: bool = True
-    message_store_cleanup_enabled: bool = True
-    ai_provider: Literal["litellm", "openai"] = "litellm"
-    ai_model: str = "gpt-4o-mini"
-    ai_base_url: str | None = None
-    ai_timeout: float = Field(default=60.0, gt=0)
-    ai_api_key: str | None = None
-    recall_message_default_count: int = Field(default=10, ge=1, le=100)
-    permission_platform_runtime_passthrough: bool | dict[str, bool] = True
-    command_trigger_overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
-    menu_page_trigger_overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    superuser_key: str = Field(
+        default="123456789abcdef",
+        validation_alias=AliasChoices(
+            "LINGCHU_SUPERUSER_KEY", "SUPERUSER_KEY", "superuser_key"
+        ),
+    )
+    message_store_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "LINGCHU_MESSAGE_STORE_ENABLED",
+            "MESSAGE_STORE_ENABLED",
+            "message_store_enabled",
+        ),
+    )
+    message_store_retention_days: int = Field(
+        default=30,
+        ge=0,
+        validation_alias=AliasChoices(
+            "LINGCHU_MESSAGE_STORE_RETENTION_DAYS",
+            "MESSAGE_STORE_RETENTION_DAYS",
+            "message_store_retention_days",
+        ),
+    )
+    message_store_summary_limit: int = Field(
+        default=500,
+        ge=0,
+        validation_alias=AliasChoices(
+            "LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT",
+            "MESSAGE_STORE_SUMMARY_LIMIT",
+            "message_store_summary_limit",
+        ),
+    )
+    message_store_record_api_calls: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "LINGCHU_MESSAGE_STORE_RECORD_API_CALLS",
+            "MESSAGE_STORE_RECORD_API_CALLS",
+            "message_store_record_api_calls",
+        ),
+    )
+    message_store_cleanup_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED",
+            "MESSAGE_STORE_CLEANUP_ENABLED",
+            "message_store_cleanup_enabled",
+        ),
+    )
+    ai_provider: Literal["litellm", "openai"] = Field(
+        default="litellm",
+        validation_alias=AliasChoices(
+            "LINGCHU_AI_PROVIDER", "AI_PROVIDER", "ai_provider"
+        ),
+    )
+    ai_model: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices("LINGCHU_AI_MODEL", "AI_MODEL", "ai_model"),
+    )
+    ai_base_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "LINGCHU_AI_BASE_URL", "AI_BASE_URL", "ai_base_url"
+        ),
+    )
+    ai_timeout: float = Field(
+        default=60.0,
+        gt=0,
+        validation_alias=AliasChoices("LINGCHU_AI_TIMEOUT", "AI_TIMEOUT", "ai_timeout"),
+    )
+    ai_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("LINGCHU_AI_API_KEY", "AI_API_KEY", "ai_api_key"),
+    )
+    recall_message_default_count: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        validation_alias=AliasChoices(
+            "LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT",
+            "RECALL_MESSAGE_DEFAULT_COUNT",
+            "recall_message_default_count",
+        ),
+    )
+    permission_platform_runtime_passthrough: bool | dict[str, bool] = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "LINGCHU_PERMISSION_PLATFORM_RUNTIME_PASSTHROUGH",
+            "PERMISSION_PLATFORM_RUNTIME_PASSTHROUGH",
+            "permission_platform_runtime_passthrough",
+        ),
+    )
+    command_trigger_overrides: dict[str, dict[str, Any]] = Field(
+        default_factory=dict,
+        validation_alias=AliasChoices(
+            "LINGCHU_COMMAND_TRIGGER_OVERRIDES",
+            "COMMAND_TRIGGER_OVERRIDES",
+            "command_trigger_overrides",
+        ),
+    )
+    menu_page_trigger_overrides: dict[str, dict[str, Any]] = Field(
+        default_factory=dict,
+        validation_alias=AliasChoices(
+            "LINGCHU_MENU_PAGE_TRIGGER_OVERRIDES",
+            "MENU_PAGE_TRIGGER_OVERRIDES",
+            "menu_page_trigger_overrides",
+        ),
+    )
     protected_subject_feature_keys: frozenset[str] = Field(
         default_factory=lambda: frozenset(
             {
@@ -86,7 +178,12 @@ class RuntimeConfig(BaseModel):
                 "remote_block",
                 "remote_mute",
             }
-        )
+        ),
+        validation_alias=AliasChoices(
+            "LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS",
+            "PROTECTED_SUBJECT_FEATURE_KEYS",
+            "protected_subject_feature_keys",
+        ),
     )
     lingchu_superusers: dict[str, dict[str, str | int]] | None = Field(
         default=None,
@@ -267,12 +364,31 @@ def _coerce_env_value(raw: str, annotation: Any) -> Any:
 
 
 def _env_overrides(dotenv_values: dict[str, str]) -> dict[str, Any]:
-    """Collect env/dotenv overrides for all RuntimeConfig fields."""
+    """Collect env/dotenv overrides for all RuntimeConfig fields.
+
+    For each field the ``LINGCHU_``-prefixed env key is checked first; if
+    absent the legacy (un-prefixed) key is used and a deprecation warning
+    is emitted.
+    """
     result: dict[str, Any] = {}
     for field_name, field_info in RuntimeConfig.model_fields.items():
-        env_key = field_name.upper()
-        raw = os.environ.get(env_key) or dotenv_values.get(env_key)
+        upper = field_name.upper()
+        prefixed_key = f"LINGCHU_{upper}"
+        legacy_key = upper
+
+        raw = os.environ.get(prefixed_key) or dotenv_values.get(prefixed_key)
+        used_legacy = False
+        if raw is None:
+            raw = os.environ.get(legacy_key) or dotenv_values.get(legacy_key)
+            used_legacy = True
+
         if raw is not None:
+            if used_legacy:
+                logger.warning(
+                    "Environment variable %s is deprecated, use %s instead",
+                    legacy_key,
+                    prefixed_key,
+                )
             coerced = _coerce_env_value(raw, field_info.annotation)
             if coerced is not None:
                 result[field_name] = coerced

@@ -349,7 +349,7 @@ class TestSendGroupNoticeNapcatImageError:
         message = mock_warning.call_args.args[0]
         assert "/lingchu-bot/.local/napcat-announcement-images/" in message
         assert "/home/xinvdev/lingchu-bot/.local/napcat-announcement-images/" in message
-        assert "ANNOUNCEMENT_IMAGE_CACHE_DIR" in message
+        assert "LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR" in message
 
     @pytest.mark.asyncio
     async def test_non_image_error_does_not_emit_extra_warning(

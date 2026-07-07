@@ -57,10 +57,13 @@ async def _check_announcement_image_path_bridge() -> None:
         return
     template = await _(
         "公告图片缓存目录 {cache_dir} 与当前系统 {system_type} 不兼容：\n"
-        "当前进程在 {system_type} 上运行，但 ANNOUNCEMENT_IMAGE_CACHE_DIR 的值带有"
+        "当前进程在 {system_type} 上运行，但"
+        " LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR 的值带有"
         "另一操作系统（{detected_style}）的路径风格，会被 pathlib 解析为相对路径。\n"
-        "请按目标部署环境更新 .env 中的 ANNOUNCEMENT_IMAGE_CACHE_DIR 与"
-        " ANNOUNCEMENT_IMAGE_PROTOCOL_DIR，并重建 NapCat 容器使 bind mount 生效。"
+        "请按目标部署环境更新 .env 中的"
+        " LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR 与"
+        " LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR，"
+        "并重建 NapCat 容器使 bind mount 生效。"
     )
     logger.warning(
         template.format(

@@ -33,13 +33,13 @@ If you see an `in_containers 配置错误` error, check `.env` or the NoneBot co
 Correct:
 
 ```dotenv
-IN_CONTAINERS=true
+LINGCHU_IN_CONTAINERS=true
 ```
 
 Incorrect:
 
 ```dotenv
-IN_CONTAINERS=True
+LINGCHU_IN_CONTAINERS=True
 ```
 
 NoneBot configuration files only accept standard JSON lowercase `true` / `false`.
@@ -95,17 +95,17 @@ Check whether `LINGCHU_LOCALE`, `lc_locale`, or `locale` is set to a supported c
 OneBot V11 group announcements use implementation-specific APIs. For NapCat, `_send_group_notice` expects the `image` value to be a filesystem path readable by the NapCat side. Common causes:
 
 - Lingchu Bot wrote the cached image on Windows, but the NapCat Docker container cannot read that path.
-- `ANNOUNCEMENT_IMAGE_CACHE_DIR` and `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` are unset or point to different directories.
+- `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` and `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` are unset or point to different directories.
 - The Docker bind mount was changed without recreating the NapCat container.
 - Lingchu Bot was not restarted after changing `.env`.
 - NapCat is below the supported version or the current implementation is not detected as `NapCat.Onebot`.
 
-For Windows plus Docker Desktop, configure the path bridge described in [NapCat Docker](../platforms/qq/frameworks/napcat-docker), then verify that a file written under `ANNOUNCEMENT_IMAGE_CACHE_DIR` is visible inside the container at `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR`.
+For Windows plus Docker Desktop, configure the path bridge described in [NapCat Docker](../platforms/qq/frameworks/napcat-docker), then verify that a file written under `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` is visible inside the container at `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR`.
 
 Additional checks for WSL2 (Debian / Ubuntu) deployments:
 
 - **Docker Desktop File Sharing allow-list** (this is the most common WSL2 + Docker Desktop pitfall and must be done first). Open Docker Desktop → Settings → Resources → File sharing and confirm `\\wsl.localhost\Debian\` is in the list (replace `Debian` with your distro name; older WSL uses `\\wsl$\Debian\`, the trailing `\` is required). When this is missing, the container's `/lingchu-bot` will be an empty directory; `docker inspect` will not flag the problem, but `docker exec napcat mount | grep lingchu` shows `type overlay` (correct state is `fuse.bind`). After editing, click **Apply & restart** so Docker Desktop rebuilds the WSL integration index.
-- Is `ANNOUNCEMENT_IMAGE_CACHE_DIR` still a Windows-style drive-letter path (e.g. `C:/dev/lingchu-bot/...`)? On WSL2 `pathlib` treats it as a relative path, the startup log emits a `Announcement image cache dir ... is incompatible with the current system Linux` WARNING, and NapCat returns `retcode=1200, image field format may be incorrect` when sending the announcement. Change it to a POSIX path inside WSL2 (e.g. `/home/xinvdev/lingchu-bot/.local/napcat-announcement-images`) and recreate the NapCat container.
+- Is `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` still a Windows-style drive-letter path (e.g. `C:/dev/lingchu-bot/...`)? On WSL2 `pathlib` treats it as a relative path, the startup log emits a `Announcement image cache dir ... is incompatible with the current system Linux` WARNING, and NapCat returns `retcode=1200, image field format may be incorrect` when sending the announcement. Change it to a POSIX path inside WSL2 (e.g. `/home/xinvdev/lingchu-bot/.local/napcat-announcement-images`) and recreate the NapCat container.
 - Is the WSL2 integration enabled in Docker Desktop → Settings → Resources → WSL Integration? (default is on, but some distros must be toggled individually).
 - After recreating the container, run `docker exec napcat ls -la /lingchu-bot/.local/napcat-announcement-images/` to verify the bind mount is actually live. `docker inspect` alone is not enough — when File Sharing is missing the WSL2 integration layer returns an empty directory without raising an error.
 
