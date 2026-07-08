@@ -11,7 +11,7 @@ LINGCHU_SUPERUSERS='{"userA":{"qq":123,"telegram":"tg-id","discord":"discord-id"
 
 对象键是 Lingchu UID；每个值将 `qq`、`telegram`、`discord` 等平台 ID 映射到该用户在对应平台的账号 ID。
 
-如果未设置 `LINGCHU_SUPERUSERS`，Lingchu 会兼容导入 NoneBot 原生 `SUPERUSERS`，将其作为 QQ 平台账号并按顺序生成 `user1` 到 `user999`。当两个来源都不存在、值不是 UID 到平台账号的映射，或同一平台账号绑定到多个 UID 时，启动会失败。
+`LINGCHU_SUPERUSERS` 为必填项。当其缺失或为空、值不是 UID 到平台账号的映射、同一平台账号绑定到多个 UID，或使用了未知平台 ID 时，启动会失败。
 
 SUPERUSERS 始终通过 Lingchu 命令权限检查，但平台 API 限制和命令自身的业务防呆仍然生效。
 

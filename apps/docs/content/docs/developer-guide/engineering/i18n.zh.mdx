@@ -9,13 +9,7 @@ Lingchu Bot 使用 Python gettext 和 Babel 管理运行时反馈文本。当前
 
 ## 运行时 locale
 
-i18n 辅助函数位于 `src/plugins/nonebot_plugin_lingchu_bot/i18n`。运行时会按顺序读取 NoneBot 配置：
-
-1. `lingchu_locale`
-2. `lc_locale`
-3. `locale`
-
-如果没有可用配置，默认使用 `zh_CN`。locale 会在读取后规范化：
+i18n 辅助函数位于 `src/plugins/nonebot_plugin_lingchu_bot/i18n`。运行时读取 `lingchu_locale` NoneBot 配置键。如果未设置或为空，默认使用 `zh_CN`。locale 会在读取后规范化：
 
 - `en-US` 会转换为 `en_US`。
 - `en_US.UTF-8` 会转换为 `en_US`。

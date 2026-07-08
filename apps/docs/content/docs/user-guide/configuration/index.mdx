@@ -200,13 +200,7 @@ For NapCat Docker announcement image path bridging, see [NapCat Docker](/docs/pl
 
 ## Internationalization settings
 
-Runtime translation reads these NoneBot configuration keys in order:
-
-1. `lingchu_locale`
-2. `lc_locale`
-3. `locale`
-
-The recommended project-specific key in `.env` is:
+Runtime translation reads the `lingchu_locale` NoneBot configuration key. The recommended project-specific key in `.env` is:
 
 ```dotenv
 LINGCHU_LOCALE=zh_CN

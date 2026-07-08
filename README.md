@@ -70,13 +70,7 @@ LINGCHUAdapter=~onebot.v11
 
 When `LINGCHUAdapter` is unset, Lingchu selects `~onebot.v11` by default. The selected adapter must also be loaded and registered by NoneBot; otherwise startup fails with a clear adapter-not-loaded error.
 
-Deprecated adapters have been removed from the startup flow:
-
-- `~milky`
-- `~qq`
-- `~onebot.v12`
-
-Configuring any removed adapter fails fast with `PlatformAdapterDeprecatedError`. Configuring multiple known adapters for the same platform fails with `PlatformAdapterConflictError`. Configuring an unknown adapter fails startup as an unsupported Lingchu adapter.
+Only OneBot V11 is implemented. Configuring any other adapter ID (such as `~milky`, `~qq`, or `~onebot.v12`) fails startup with `PlatformAdapterUnknownError`. Configuring multiple known adapters for the same platform fails with `PlatformAdapterConflictError`.
 
 OneBot V11 currently has `default` and `NapCat` implementation paths. Some features are implementation-gated: for example, group announcement and group avatar entries are shown only when the selected implementation supports them, and remote announcement requires `NapCat.Onebot >= 4.18.0`.
 
@@ -153,14 +147,13 @@ The table below enumerates the environment variables actually read by `core/conf
 | --- | --- | --- |
 | NoneBot Core | `HOST`, `PORT` | NoneBot server host and port. |
 | NoneBot Core | `NICKNAME` | Bot nickname(s). |
-| NoneBot Core | `SUPERUSERS` | Fallback QQ account list when `LINGCHU_SUPERUSERS` is absent or null. |
 | NoneBot Core | `LOG_LEVEL` | NoneBot log level. |
 | NoneBot Core | `COMMAND_START`, `COMMAND_SEP` | NoneBot command parsing tokens. |
 | NoneBot Core | `FASTAPI_DOCS_URL`, `FASTAPI_REDOC_URL` | FastAPI docs endpoints; disable in production. |
 | Container Detection | `IN_CONTAINERS` | Whether the bot runs inside a container (`config.in_containers`). |
 | Lingchu Runtime | `LINGCHUAdapter` / `LINGCHU_ADAPTER` | Select the active adapter; current supported value is `~onebot.v11`. |
 | Lingchu Runtime | `LINGCHU_SUPERUSERS` | UID-to-platform account mapping for Lingchu superusers. |
-| Lingchu Runtime | `LINGCHU_LOCALE` / `LC_LOCALE` / `LOCALE` | Runtime locale; available catalogs are `zh_CN` and `en_US`. |
+| Lingchu Runtime | `LINGCHU_LOCALE` | Runtime locale; available catalogs are `zh_CN` and `en_US`. |
 | Lingchu Runtime | `SUPERUSER_KEY` | Superuser key string (`superuser_key`). |
 | Localstore | `LOCALSTORE_USE_CWD` | Store localstore data / config / cache under the project directory when true. |
 | Message Store | `MESSAGE_STORE_ENABLED` | Enable message-store runtime hooks. |

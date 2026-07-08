@@ -9,8 +9,6 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
-from nonebot import get_driver
-
 from ..core.runtime_config import get_runtime_config
 from ..handle.menu import MENU_FEATURES
 from ..platforms import iter_platform_profiles
@@ -18,8 +16,6 @@ from ..repositories import permissions as repo
 from .platforms import iter_default_identity_groups
 
 logger = logging.getLogger(__name__)
-
-MAX_COMPAT_SUPERUSERS = 999
 
 
 class PermissionConfigError(RuntimeError):
@@ -36,38 +32,9 @@ async def validate_and_seed_permission_system() -> None:
 
 def _resolve_superusers_config() -> dict[str, dict[str, str]]:
     configured = get_runtime_config().lingchu_superusers
-    if configured is not None:
-        return _normalize_superusers_mapping(configured)
-
-    native_superusers = _native_nonebot_superusers()
-    if native_superusers is None:
-        raise PermissionConfigError(
-            "LINGCHU_SUPERUSERS is required when NoneBot SUPERUSERS is absent"
-        )
-    return {
-        f"user{index}": {"qq": str(account_id)}
-        for index, account_id in enumerate(native_superusers, start=1)
-    }
-
-
-def _native_nonebot_superusers() -> tuple[str, ...] | None:
-    try:
-        raw = get_driver().config.superusers
-    except (AttributeError, ValueError) as exc:
-        raise PermissionConfigError("NoneBot SUPERUSERS cannot be read") from exc
-
-    if raw is None:
-        return None
-    if not isinstance(raw, (set, list, tuple)):
-        raise PermissionConfigError("NoneBot SUPERUSERS must be a set/list/tuple")
-    values = tuple(str(value) for value in raw if str(value).strip())
-    if not values:
-        return None
-    if len(values) > MAX_COMPAT_SUPERUSERS:
-        raise PermissionConfigError(
-            "NoneBot SUPERUSERS compatibility supports user1-user999"
-        )
-    return values
+    if configured is None:
+        raise PermissionConfigError("LINGCHU_SUPERUSERS is required")
+    return _normalize_superusers_mapping(configured)
 
 
 def _normalize_superusers_mapping(

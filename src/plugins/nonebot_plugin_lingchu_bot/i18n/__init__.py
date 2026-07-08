@@ -34,10 +34,9 @@ def _read_configured_locale() -> str:
 
     config = get_driver().config
 
-    for key in ("lingchu_locale", "lc_locale", "locale"):
-        value = getattr(config, key, None)
-        if isinstance(value, str) and value.strip():
-            return normalize_locale(value)
+    value = getattr(config, "lingchu_locale", None)
+    if isinstance(value, str) and value.strip():
+        return normalize_locale(value)
 
     return DEFAULT_LOCALE
 

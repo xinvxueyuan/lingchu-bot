@@ -349,23 +349,10 @@ def test_env_overrides_prefixed_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("LINGCHU_MESSAGE_STORE_ENABLED", raising=False)
 
 
-def test_env_overrides_legacy_key_deprecation(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Legacy unprefixed env keys still work but emit a deprecation warning."""
+def test_env_overrides_ignores_legacy_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Legacy unprefixed env keys are ignored; only LINGCHU_ prefix is read."""
     monkeypatch.delenv("LINGCHU_MESSAGE_STORE_ENABLED", raising=False)
     monkeypatch.setenv("MESSAGE_STORE_ENABLED", "false")
     config = get_runtime_config()
-    # The legacy key should still work
-    assert config.message_store_enabled is False
-    # Deprecation is logged via logger.warning(), not Python's warnings module,
-    # so it is tested separately via log capture rather than pytest.warns.
-    monkeypatch.delenv("MESSAGE_STORE_ENABLED", raising=False)
-
-
-def test_env_overrides_prefixed_key_priority(monkeypatch: pytest.MonkeyPatch) -> None:
-    """LINGCHU_-prefixed key takes priority over legacy key."""
-    monkeypatch.setenv("LINGCHU_MESSAGE_STORE_ENABLED", "false")
-    monkeypatch.setenv("MESSAGE_STORE_ENABLED", "true")
-    config = get_runtime_config()
-    assert config.message_store_enabled is False  # LINGCHU_ prefix wins
-    monkeypatch.delenv("LINGCHU_MESSAGE_STORE_ENABLED", raising=False)
+    assert config.message_store_enabled is True  # code default, legacy key ignored
     monkeypatch.delenv("MESSAGE_STORE_ENABLED", raising=False)

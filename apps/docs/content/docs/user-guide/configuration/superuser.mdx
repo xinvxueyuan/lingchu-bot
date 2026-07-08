@@ -11,7 +11,7 @@ LINGCHU_SUPERUSERS='{"userA":{"qq":123,"telegram":"tg-id","discord":"discord-id"
 
 The object key is the Lingchu UID. Each value maps platform IDs, such as `qq`, `telegram`, or `discord`, to that user's account ID on the platform.
 
-If `LINGCHU_SUPERUSERS` is missing, Lingchu imports NoneBot's native `SUPERUSERS` as QQ platform accounts and assigns generated UIDs from `user1` to `user999` in order. Startup fails when neither source is present, the value is not a UID-to-platform mapping, or a platform account is bound to multiple UIDs.
+`LINGCHU_SUPERUSERS` is required. Startup fails when it is missing or empty, the value is not a UID-to-platform mapping, a platform account is bound to multiple UIDs, or an unknown platform ID is used.
 
 SUPERUSERS always pass Lingchu command permission checks, but platform API restrictions and command-level safety checks still apply.
 
