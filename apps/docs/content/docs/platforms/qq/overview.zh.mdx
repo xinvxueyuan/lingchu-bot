@@ -12,10 +12,8 @@ QQ 是当前唯一实现的平台 profile。插件启动时通过 `LINGCHUAdapte
 | 优先级 | 协议 | 适配器 ID | NoneBot 包 | 状态 |
 | --- | --- | --- | --- | --- |
 | 1（默认） | OneBot V11 | `~onebot.v11` | `nonebot-adapter-onebot` | 启用 |
-| 2 | QQ 官方 | `~qq` | `nonebot-adapter-qq` | 已停维 |
-| 3 | OneBot V12 | `~onebot.v12` | `nonebot-adapter-onebot` | 已停维 |
 
-同一时间只有一个 QQ 适配器被视为已启用。NoneBot 加载的其他适配器被视为未启用，不参与平台识别、消息存储或 API 调用记录。QQ 官方和 OneBot V12 已停维并从项目中彻底移除，包括其源代码。
+同一时间只有一个 QQ 适配器被视为已启用。NoneBot 加载的其他适配器被视为未启用，不参与平台识别、消息存储或 API 调用记录。
 
 ## 切换协议
 
@@ -26,9 +24,9 @@ DRIVER=~fastapi+~httpx+~websockets
 ONEBOT_ACCESS_TOKEN=your-token
 ```
 
-<Callout type="warn" title="已停维适配器">
+<Callout type="warn" title="不支持的适配器">
 
-QQ 官方（`~qq`）和 OneBot V12（`~onebot.v12`）已停维并从项目中彻底移除，包括其源代码。将 `LINGCHUAdapter` 设为停维适配器 ID 不再受支持。
+当前仅实现 OneBot V11。将 `LINGCHUAdapter` 设为任何其他适配器 ID（如 `~qq`、`~onebot.v12`、`~milky`）会在启动时抛出 `PlatformAdapterUnknownError`。
 
 </Callout>
 

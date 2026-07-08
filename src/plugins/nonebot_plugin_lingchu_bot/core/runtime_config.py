@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal
 
 import json5
-from nonebot import get_driver, logger, require
+from nonebot import get_driver, require
 from nonebot.compat import type_validate_python
 
 require("nonebot_plugin_localstore")
@@ -57,15 +57,12 @@ class RuntimeConfig(BaseModel):
 
     superuser_key: str = Field(
         default="123456789abcdef",
-        validation_alias=AliasChoices(
-            "LINGCHU_SUPERUSER_KEY", "SUPERUSER_KEY", "superuser_key"
-        ),
+        validation_alias=AliasChoices("LINGCHU_SUPERUSER_KEY", "superuser_key"),
     )
     message_store_enabled: bool = Field(
         default=True,
         validation_alias=AliasChoices(
             "LINGCHU_MESSAGE_STORE_ENABLED",
-            "MESSAGE_STORE_ENABLED",
             "message_store_enabled",
         ),
     )
@@ -74,7 +71,6 @@ class RuntimeConfig(BaseModel):
         ge=0,
         validation_alias=AliasChoices(
             "LINGCHU_MESSAGE_STORE_RETENTION_DAYS",
-            "MESSAGE_STORE_RETENTION_DAYS",
             "message_store_retention_days",
         ),
     )
@@ -83,7 +79,6 @@ class RuntimeConfig(BaseModel):
         ge=0,
         validation_alias=AliasChoices(
             "LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT",
-            "MESSAGE_STORE_SUMMARY_LIMIT",
             "message_store_summary_limit",
         ),
     )
@@ -91,7 +86,6 @@ class RuntimeConfig(BaseModel):
         default=True,
         validation_alias=AliasChoices(
             "LINGCHU_MESSAGE_STORE_RECORD_API_CALLS",
-            "MESSAGE_STORE_RECORD_API_CALLS",
             "message_store_record_api_calls",
         ),
     )
@@ -99,34 +93,29 @@ class RuntimeConfig(BaseModel):
         default=True,
         validation_alias=AliasChoices(
             "LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED",
-            "MESSAGE_STORE_CLEANUP_ENABLED",
             "message_store_cleanup_enabled",
         ),
     )
     ai_provider: Literal["litellm", "openai"] = Field(
         default="litellm",
-        validation_alias=AliasChoices(
-            "LINGCHU_AI_PROVIDER", "AI_PROVIDER", "ai_provider"
-        ),
+        validation_alias=AliasChoices("LINGCHU_AI_PROVIDER", "ai_provider"),
     )
     ai_model: str = Field(
         default="gpt-4o-mini",
-        validation_alias=AliasChoices("LINGCHU_AI_MODEL", "AI_MODEL", "ai_model"),
+        validation_alias=AliasChoices("LINGCHU_AI_MODEL", "ai_model"),
     )
     ai_base_url: str | None = Field(
         default=None,
-        validation_alias=AliasChoices(
-            "LINGCHU_AI_BASE_URL", "AI_BASE_URL", "ai_base_url"
-        ),
+        validation_alias=AliasChoices("LINGCHU_AI_BASE_URL", "ai_base_url"),
     )
     ai_timeout: float = Field(
         default=60.0,
         gt=0,
-        validation_alias=AliasChoices("LINGCHU_AI_TIMEOUT", "AI_TIMEOUT", "ai_timeout"),
+        validation_alias=AliasChoices("LINGCHU_AI_TIMEOUT", "ai_timeout"),
     )
     ai_api_key: str | None = Field(
         default=None,
-        validation_alias=AliasChoices("LINGCHU_AI_API_KEY", "AI_API_KEY", "ai_api_key"),
+        validation_alias=AliasChoices("LINGCHU_AI_API_KEY", "ai_api_key"),
     )
     recall_message_default_count: int = Field(
         default=10,
@@ -134,7 +123,6 @@ class RuntimeConfig(BaseModel):
         le=100,
         validation_alias=AliasChoices(
             "LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT",
-            "RECALL_MESSAGE_DEFAULT_COUNT",
             "recall_message_default_count",
         ),
     )
@@ -142,7 +130,6 @@ class RuntimeConfig(BaseModel):
         default=True,
         validation_alias=AliasChoices(
             "LINGCHU_PERMISSION_PLATFORM_RUNTIME_PASSTHROUGH",
-            "PERMISSION_PLATFORM_RUNTIME_PASSTHROUGH",
             "permission_platform_runtime_passthrough",
         ),
     )
@@ -150,7 +137,6 @@ class RuntimeConfig(BaseModel):
         default_factory=dict,
         validation_alias=AliasChoices(
             "LINGCHU_COMMAND_TRIGGER_OVERRIDES",
-            "COMMAND_TRIGGER_OVERRIDES",
             "command_trigger_overrides",
         ),
     )
@@ -158,7 +144,6 @@ class RuntimeConfig(BaseModel):
         default_factory=dict,
         validation_alias=AliasChoices(
             "LINGCHU_MENU_PAGE_TRIGGER_OVERRIDES",
-            "MENU_PAGE_TRIGGER_OVERRIDES",
             "menu_page_trigger_overrides",
         ),
     )
@@ -181,7 +166,6 @@ class RuntimeConfig(BaseModel):
         ),
         validation_alias=AliasChoices(
             "LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS",
-            "PROTECTED_SUBJECT_FEATURE_KEYS",
             "protected_subject_feature_keys",
         ),
     )
@@ -366,29 +350,20 @@ def _coerce_env_value(raw: str, annotation: Any) -> Any:
 def _env_overrides(dotenv_values: dict[str, str]) -> dict[str, Any]:
     """Collect env/dotenv overrides for all RuntimeConfig fields.
 
-    For each field the ``LINGCHU_``-prefixed env key is checked first; if
-    absent the legacy (un-prefixed) key is used and a deprecation warning
-    is emitted.
+    Only ``LINGCHU_``-prefixed env keys are read. Fields whose name already
+    starts with ``lingchu_`` (e.g. ``lingchu_superusers``) use the field name
+    uppercased as the env key (``LINGCHU_SUPERUSERS``) without an extra
+    ``LINGCHU_`` prefix so no ``LINGCHU_LINGCHU_*`` doubling occurs.
     """
     result: dict[str, Any] = {}
     for field_name, field_info in RuntimeConfig.model_fields.items():
-        upper = field_name.upper()
-        prefixed_key = f"LINGCHU_{upper}"
-        legacy_key = upper
+        if field_name.startswith("lingchu_"):
+            env_key = field_name.upper()
+        else:
+            env_key = f"LINGCHU_{field_name.upper()}"
 
-        raw = os.environ.get(prefixed_key) or dotenv_values.get(prefixed_key)
-        used_legacy = False
-        if raw is None:
-            raw = os.environ.get(legacy_key) or dotenv_values.get(legacy_key)
-            used_legacy = True
-
+        raw = os.environ.get(env_key) or dotenv_values.get(env_key)
         if raw is not None:
-            if used_legacy:
-                logger.warning(
-                    "Environment variable %s is deprecated, use %s instead",
-                    legacy_key,
-                    prefixed_key,
-                )
             coerced = _coerce_env_value(raw, field_info.annotation)
             if coerced is not None:
                 result[field_name] = coerced
@@ -401,7 +376,7 @@ def _nonebot_runtime_overrides() -> dict[str, Any]:
     NoneBot's ``global_config`` contains values parsed from .env files and
     its own settings.  However, NoneBot only exposes fields it knows about
     (driver, superusers, plugin-declared configs, etc.).  Arbitrary
-    environment variables like ``MESSAGE_STORE_SUMMARY_LIMIT`` are **not**
+    environment variables like ``LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT`` are **not**
     reflected in ``global_config.model_dump()``.
 
     Priority (highest first):
@@ -426,11 +401,6 @@ def _nonebot_runtime_overrides() -> dict[str, Any]:
     return result
 
 
-def _normalize_runtime_aliases(values: dict[str, Any]) -> dict[str, Any]:
-    """Normalize legacy alias keys to canonical field names."""
-    return values
-
-
 def get_runtime_config(
     config_file: str | Path | None = None,
 ) -> RuntimeConfig:
@@ -438,7 +408,6 @@ def get_runtime_config(
     path = Path(config_file) if config_file is not None else get_runtime_config_file()
     raw_config = runtime_config_defaults() | load_runtime_json_defaults(path)
     raw_config |= _nonebot_runtime_overrides()
-    raw_config = _normalize_runtime_aliases(raw_config)
     try:
         return type_validate_python(RuntimeConfig, raw_config)
     except ValidationError as exc:

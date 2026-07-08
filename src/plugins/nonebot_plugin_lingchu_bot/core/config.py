@@ -114,21 +114,15 @@ class Config(BaseModel):
     cache_dir: Path = Field(default_factory=get_plugin_cache_dir)
     announcement_image_cache_dir: Path = Field(
         default_factory=lambda: get_plugin_cache_dir() / "announcement_images",
-        validation_alias=AliasChoices(
-            "LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR",
-            "ANNOUNCEMENT_IMAGE_CACHE_DIR",
-        ),
+        validation_alias=AliasChoices("LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR"),
     )
     announcement_image_protocol_dir: str | None = Field(
         default=None,
-        validation_alias=AliasChoices(
-            "LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR",
-            "ANNOUNCEMENT_IMAGE_PROTOCOL_DIR",
-        ),
+        validation_alias=AliasChoices("LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR"),
     )
     in_containers: bool = Field(
         default=False,
-        validation_alias=AliasChoices("LINGCHU_IN_CONTAINERS", "IN_CONTAINERS"),
+        validation_alias=AliasChoices("LINGCHU_IN_CONTAINERS"),
     )
 
     @field_validator("in_containers", mode="before")

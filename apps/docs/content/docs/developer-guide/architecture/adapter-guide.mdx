@@ -24,9 +24,6 @@ The QQ platform is the only currently implemented profile. Its known adapter pri
 | Priority | Adapter | NoneBot package | Status |
 | --- | --- | --- | --- |
 | 1 (default) | `~onebot.v11` | `nonebot-adapter-onebot` | Active |
-| 2 | `~milky` | `nonebot-adapter-milky` | Deprecated (source removed) |
-| 3 | `~qq` | `nonebot-adapter-qq` | Deprecated (source removed) |
-| 4 | `~onebot.v12` | `nonebot-adapter-onebot` | Deprecated (source removed) |
 
 The default adapter. Requires a running OneBot V11 implementation (such as NapCat or Lagrange) connected to NoneBot via WebSocket or HTTP.
 
@@ -37,19 +34,6 @@ DRIVER=~fastapi+~httpx+~websockets
 ONEBOT_ACCESS_TOKEN=your-token
 ```
 
-## Deprecated adapters
-
-Deprecated adapters (Milky, QQ Official, OneBot V12) have been fully removed from the project, including their source code. No on-demand loading utility is provided.
-
-Deprecated adapter IDs are tracked in `_DEPRECATED_ADAPTER_IDS` in `platforms/registry.py`. Configuring any of them in `LINGCHUAdapter` exits with a clear `PlatformAdapterDeprecatedError`:
-
-```python
-from nonebot import get_driver
-from src.plugins.nonebot_plugin_lingchu_bot.platforms.registry import _DEPRECATED_ADAPTER_IDS
-
-print(_DEPRECATED_ADAPTER_IDS)  # frozenset({'~milky', '~qq', '~onebot.v12'})
-```
-
 ## Error handling
 
 The adapter registry raises specific exceptions when configuration is invalid:
@@ -58,15 +42,13 @@ The adapter registry raises specific exceptions when configuration is invalid:
 | --- | --- |
 | `PlatformAdapterConflictError` | Multiple known adapters explicitly configured for the same platform |
 | `PlatformAdapterNotLoadedError` | The selected adapter was not loaded or registered by NoneBot |
-| `PlatformAdapterDeprecatedError` | A deprecated adapter (`~milky`, `~qq`, `~onebot.v12`) is specified in `LINGCHUAdapter`. Source code for these adapters has been fully removed. |
+| `PlatformAdapterUnknownError` | An adapter ID that Lingchu has not implemented or cannot recognize is specified in `LINGCHUAdapter` |
 
 <Callout type="warn" title="Startup failure">
 
 Explicitly declaring an adapter that Lingchu has not implemented or cannot recognize in `LINGCHUAdapter` fails startup. Extra unknown adapters registered at runtime are ignored.
 
 </Callout>
-
-When a deprecated adapter is specified in `LINGCHUAdapter`, the bot exits with `PlatformAdapterDeprecatedError` providing a clear deprecation message and suggesting `~onebot.v11`. Deprecated adapters are distinguished from unknown adapters so that operators can tell whether the configured ID was once supported.
 
 ## Permission API integration
 

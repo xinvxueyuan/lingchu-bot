@@ -24,9 +24,6 @@ QQ 平台是当前唯一实现的 profile。其已知适配器优先级为：
 | 优先级 | 适配器 | NoneBot 包 | 状态 |
 | --- | --- | --- | --- |
 | 1（默认） | `~onebot.v11` | `nonebot-adapter-onebot` | 启用 |
-| 2 | `~milky` | `nonebot-adapter-milky` | 已停维（源码已移除） |
-| 3 | `~qq` | `nonebot-adapter-qq` | 已停维（源码已移除） |
-| 4 | `~onebot.v12` | `nonebot-adapter-onebot` | 已停维（源码已移除） |
 
 默认适配器。需要运行中的 OneBot V11 实现（如 NapCat 或 Lagrange）通过 WebSocket 或 HTTP 连接到 NoneBot。
 
@@ -37,19 +34,6 @@ DRIVER=~fastapi+~httpx+~websockets
 ONEBOT_ACCESS_TOKEN=your-token
 ```
 
-## 停维适配器
-
-停维适配器（Milky、QQ 官方、OneBot V12）已从项目中彻底移除，包括其源代码。不再提供按需加载工具。
-
-停维适配器 ID 在 `platforms/registry.py` 的 `_DEPRECATED_ADAPTER_IDS` 中跟踪。在 `LINGCHUAdapter` 中配置其中任何一个都会以清晰的 `PlatformAdapterDeprecatedError` 退出：
-
-```python
-from nonebot import get_driver
-from src.plugins.nonebot_plugin_lingchu_bot.platforms.registry import _DEPRECATED_ADAPTER_IDS
-
-print(_DEPRECATED_ADAPTER_IDS)  # frozenset({'~milky', '~qq', '~onebot.v12'})
-```
-
 ## 错误处理
 
 适配器注册表在配置无效时抛出特定异常：
@@ -58,15 +42,13 @@ print(_DEPRECATED_ADAPTER_IDS)  # frozenset({'~milky', '~qq', '~onebot.v12'})
 | --- | --- |
 | `PlatformAdapterConflictError` | 为同一平台显式配置了多个已知适配器 |
 | `PlatformAdapterNotLoadedError` | 选中的适配器未被 NoneBot 加载或注册 |
-| `PlatformAdapterDeprecatedError` | 在 `LINGCHUAdapter` 中指定了停维适配器（`~milky`、`~qq`、`~onebot.v12`）。这些适配器的源代码已被完全移除。 |
+| `PlatformAdapterUnknownError` | 在 `LINGCHUAdapter` 中指定了 Lingchu 未实现或无法识别的适配器 ID |
 
 <Callout type="warn" title="启动失败">
 
 在 `LINGCHUAdapter` 中显式声明 Lingchu 未实现或无法识别的适配器会导致启动失败。运行时额外出现的未知适配器会被忽略。
 
 </Callout>
-
-当 `LINGCHUAdapter` 配置了停维适配器时，机器人会以 `PlatformAdapterDeprecatedError` 退出，提供清晰的停维提示并建议使用 `~onebot.v11`。停维适配器与未知适配器区分对待，以便运维人员判断所配置的 ID 是否曾经受支持。
 
 ## 权限 API 集成
 

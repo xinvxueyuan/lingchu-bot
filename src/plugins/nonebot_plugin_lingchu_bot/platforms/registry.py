@@ -146,19 +146,6 @@ class PlatformAdapterUnknownError(RuntimeError):
         )
 
 
-class PlatformAdapterDeprecatedError(RuntimeError):
-    """Lingchu adapter configuration contains deprecated adapter ids."""
-
-    def __init__(self, adapters: frozenset[str]) -> None:
-        self.adapters = adapters
-        adapter_list = ", ".join(sorted(adapters))
-        super().__init__(
-            f"LINGCHUAdapter 声明了已停维的适配器：{adapter_list}。"
-            f"\n这些适配器已从项目中彻底移除，不再自动加载。"
-            f"\n建议使用 ~onebot.v11 适配器。"
-        )
-
-
 UNKNOWN_PLATFORM_ID: Final[str] = "unknown"
 
 QQ_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset(
@@ -234,10 +221,6 @@ _ADAPTER_ID_INDEX: Final[dict[str, str]] = {
     for profile in PLATFORM_PROFILES
     for adapter_name, adapter_id in profile.adapter_name_map
 }
-
-_DEPRECATED_ADAPTER_IDS: Final[frozenset[str]] = frozenset(
-    {"~milky", "~qq", "~onebot.v12"}
-)
 
 
 def iter_platform_profiles(
@@ -343,12 +326,6 @@ def resolve_enabled_adapters(
         else cast("AdapterConfig", configured)
     )
     configured_adapters = parse_configured_adapters(raw_config)
-    # Check for deprecated adapters before unknown check
-    deprecated_configured = frozenset(
-        adapter for adapter in configured_adapters if adapter in _DEPRECATED_ADAPTER_IDS
-    )
-    if deprecated_configured:
-        raise PlatformAdapterDeprecatedError(deprecated_configured)
     unknown_adapters = _unknown_configured_adapters(configured_adapters)
     if unknown_adapters:
         raise PlatformAdapterUnknownError(unknown_adapters)

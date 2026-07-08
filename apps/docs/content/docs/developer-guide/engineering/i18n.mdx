@@ -9,13 +9,7 @@ Lingchu Bot uses Python gettext and Babel to manage runtime feedback text. Curre
 
 ## Runtime locale
 
-i18n helpers live in `src/plugins/nonebot_plugin_lingchu_bot/i18n`. Runtime code reads NoneBot configuration in this order:
-
-1. `lingchu_locale`
-2. `lc_locale`
-3. `locale`
-
-If no usable configuration is found, the default is `zh_CN`. Locale values are normalized after reading:
+i18n helpers live in `src/plugins/nonebot_plugin_lingchu_bot/i18n`. Runtime code reads the `lingchu_locale` NoneBot configuration key. If it is unset or empty, the default is `zh_CN`. Locale values are normalized after reading:
 
 - `en-US` becomes `en_US`.
 - `en_US.UTF-8` becomes `en_US`.

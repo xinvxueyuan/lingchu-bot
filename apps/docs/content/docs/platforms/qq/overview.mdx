@@ -12,10 +12,8 @@ QQ is the only currently implemented platform profile. The plugin selects one QQ
 | Priority | Protocol | Adapter ID | NoneBot package | Status |
 | --- | --- | --- | --- | --- |
 | 1 (default) | OneBot V11 | `~onebot.v11` | `nonebot-adapter-onebot` | Active |
-| 2 | QQ Official | `~qq` | `nonebot-adapter-qq` | Deprecated |
-| 3 | OneBot V12 | `~onebot.v12` | `nonebot-adapter-onebot` | Deprecated |
 
-Only one QQ adapter is considered enabled at a time. Other adapters that NoneBot loads are treated as disabled and excluded from platform resolution, message storage, and API call recording. QQ Official and OneBot V12 have been deprecated and removed from the project, including their source code.
+Only one QQ adapter is considered enabled at a time. Other adapters that NoneBot loads are treated as disabled and excluded from platform resolution, message storage, and API call recording.
 
 ## Switching protocols
 
@@ -26,9 +24,9 @@ DRIVER=~fastapi+~httpx+~websockets
 ONEBOT_ACCESS_TOKEN=your-token
 ```
 
-<Callout type="warn" title="Deprecated adapters">
+<Callout type="warn" title="Unsupported adapters">
 
-QQ Official (`~qq`) and OneBot V12 (`~onebot.v12`) have been deprecated and removed from the project, including their source code. Setting `LINGCHUAdapter` to a deprecated adapter ID is no longer supported.
+Only OneBot V11 is implemented. Setting `LINGCHUAdapter` to any other adapter ID (such as `~qq`, `~onebot.v12`, or `~milky`) raises `PlatformAdapterUnknownError` at startup.
 
 </Callout>
 
