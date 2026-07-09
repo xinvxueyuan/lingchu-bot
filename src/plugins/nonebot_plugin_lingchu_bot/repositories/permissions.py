@@ -13,7 +13,7 @@ from ..database.models import (
     PlatformAccount,
     PlatformIdentityGroup,
 )
-from ..database.orm_crud import create, delete, get_one, list_items, update, upsert
+from ..database.orm_crud import delete, get_one, list_items, update, upsert
 from ..permissions.types import PlatformIdentityGroupSeed
 
 SUPERUSERS_GROUP_ID = "system.superusers"
@@ -163,26 +163,17 @@ async def upsert_membership(
     scope_id: str | None = None,
     source: str = MANUAL_SOURCE,
 ) -> IdentityMembership:
-    filters = {
-        "uid": uid,
-        "group_id": group_id,
-        "scope_type": scope_type,
-        "scope_id": scope_id,
-    }
-    existing = await get_one(IdentityMembership, filters)
-    if existing is not None:
-        await update(IdentityMembership, filters, {"source": source})
-        updated = await get_one(IdentityMembership, filters)
-        if updated is not None:
-            return updated
-
-    return await create(
+    return await upsert(
         IdentityMembership,
-        uid=uid,
-        group_id=group_id,
-        scope_type=scope_type,
-        scope_id=scope_id,
-        source=source,
+        {
+            "uid": uid,
+            "group_id": group_id,
+            "scope_type": scope_type,
+            "scope_id": scope_id,
+            "source": source,
+        },
+        conflict_fields=["uid", "group_id", "scope_type", "scope_id"],
+        update_values={"source": source},
     )
 
 

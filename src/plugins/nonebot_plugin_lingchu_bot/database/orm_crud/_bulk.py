@@ -318,7 +318,9 @@ def _build_merge_sql(  # noqa: PLR0913
         for key in insert_values
     )
     on_predicates = " AND ".join(
-        f"t.{target_columns[key]} = s.{source_column_names[key]}"
+        f"(t.{target_columns[key]} = s.{source_column_names[key]}"
+        f" OR (t.{target_columns[key]} IS NULL"
+        f" AND s.{source_column_names[key]} IS NULL))"
         for key in conflict_keys
     )
 
