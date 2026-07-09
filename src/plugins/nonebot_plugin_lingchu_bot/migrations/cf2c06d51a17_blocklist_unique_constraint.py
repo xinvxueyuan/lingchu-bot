@@ -33,23 +33,26 @@ _OLD_COLUMNS = [
     "user_id",
 ]
 
-# MySQL / MariaDB / SQL Server reflect table-level UniqueConstraint as a
-# unique **index**. On these dialects, ``DROP INDEX`` is the correct way
-# to remove it; ``ALTER TABLE DROP CONSTRAINT`` is unsupported or also
-# removes the backing index in a way that ``batch_alter_table`` mishandles.
+# MySQL / MariaDB reflect table-level UniqueConstraint as a unique **index**.
+# On these dialects, ``DROP INDEX`` is the correct way to remove it.
+# SQL Server also reflects it as an index, but ``DROP INDEX`` fails with
+# error 3723 ("An explicit DROP INDEX is not allowed on index '...'. It is
+# being used for UNIQUE KEY constraint enforcement.") — ``DROP CONSTRAINT``
+# is required instead.
 # Oracle reflects it as an index too, but ``DROP INDEX`` fails with
 # ORA-02429 (index enforces unique key) — ``DROP CONSTRAINT`` works.
 # PostgreSQL / SQLite reflect it as a named constraint.
-_INDEX_DIALECTS = frozenset({"mysql", "mariadb", "mssql"})
+_INDEX_DIALECTS = frozenset({"mysql", "mariadb"})
 
 
 def _replace_unique(columns: list[str]) -> None:
     """Drop and recreate the blocklist unique constraint cross-database.
 
     - SQLite: requires ``batch_alter_table`` for constraint changes.
-    - MySQL / MariaDB / SQL Server: unique constraint stored as index;
-      ``batch_alter_table(recreate="always")`` causes PK name conflicts on
-      SQL Server, so use direct ``DROP INDEX`` + ``ADD CONSTRAINT``.
+    - MySQL / MariaDB: unique constraint stored as index; ``DROP INDEX`` +
+      ``ADD CONSTRAINT`` works directly.
+    - SQL Server: ``DROP INDEX`` fails (error 3723, index enforces UNIQUE
+      KEY); ``DROP CONSTRAINT`` + ``ADD CONSTRAINT`` is required.
     - PostgreSQL / Oracle: direct ``ALTER TABLE DROP CONSTRAINT`` works.
     """
     bind = op.get_bind()
