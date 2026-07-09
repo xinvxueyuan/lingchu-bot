@@ -58,9 +58,14 @@ def pytest_configure(config: pytest.Config) -> None:
         return
 
     _ = config
+    sqlalchemy_url = os.environ.get("SQLALCHEMY_DATABASE_URL")
     init_config: dict[str, Any] = {
         "DRIVER": "~fastapi+~httpx+~websockets",
-        "alembic_startup_check": False,
+        # Shared DB (CI): migrations are pre-applied by `nb orm upgrade`.
+        # Use check (read-only) to avoid concurrent sync conflicts on
+        # MariaDB/Oracle/SQL Server with pytest-xdist.
+        # SQLite (local): sync creates the schema for each worker's fresh file.
+        "alembic_startup_check": bool(sqlalchemy_url),
         "localstore_cache_dir": _LOCALSTORE_ROOT / "cache",
         "localstore_config_dir": _LOCALSTORE_ROOT / "config",
         "localstore_data_dir": _LOCALSTORE_ROOT / "data",
@@ -69,10 +74,6 @@ def pytest_configure(config: pytest.Config) -> None:
         "LINGCHU_SUPERUSERS": {"user1": {"qq": "42"}},
         "lingchu_locale": "zh_CN",
     }
-    # Support multi-database testing via SQLALCHEMY_DATABASE_URL env var.
-    # When set, tests use the specified database backend (PostgreSQL/MySQL)
-    # instead of the default SQLite.
-    sqlalchemy_url = os.environ.get("SQLALCHEMY_DATABASE_URL")
     if sqlalchemy_url:
         init_config["SQLALCHEMY_DATABASE_URL"] = sqlalchemy_url
     nonebot.init(**init_config)
