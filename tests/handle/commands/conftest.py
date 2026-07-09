@@ -5,7 +5,6 @@ from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
 from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent as OneBot11GroupMessageEvent,
 )
-from nonebot_plugin_alconna.uniseg import At
 
 
 def finish_text(mock_finish: MagicMock) -> str:
@@ -55,6 +54,8 @@ def mock_at() -> MagicMock:
         MagicMock: 一个模拟的 `At` 对象，包含属性 `target`
             （"987654321"）和 `display`（"测试用户"）。
     """
+    from nonebot_plugin_alconna.uniseg import At
+
     at = MagicMock(spec=At)
     at.target = "987654321"
     at.display = "测试用户"

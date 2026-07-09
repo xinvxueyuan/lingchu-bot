@@ -341,18 +341,22 @@ def test_runtime_config_user_schema_overrides_default(
     assert raw["message_store_enabled"] is False
 
 
-def test_env_overrides_prefixed_key(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_env_overrides_prefixed_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """LINGCHU_-prefixed env keys are read correctly."""
     monkeypatch.setenv("LINGCHU_MESSAGE_STORE_ENABLED", "false")
-    config = get_runtime_config()
+    config = get_runtime_config(tmp_path / "missing.json5")
     assert config.message_store_enabled is False
     monkeypatch.delenv("LINGCHU_MESSAGE_STORE_ENABLED", raising=False)
 
 
-def test_env_overrides_ignores_legacy_key(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_env_overrides_ignores_legacy_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Legacy unprefixed env keys are ignored; only LINGCHU_ prefix is read."""
     monkeypatch.delenv("LINGCHU_MESSAGE_STORE_ENABLED", raising=False)
     monkeypatch.setenv("MESSAGE_STORE_ENABLED", "false")
-    config = get_runtime_config()
+    config = get_runtime_config(tmp_path / "missing.json5")
     assert config.message_store_enabled is True  # code default, legacy key ignored
     monkeypatch.delenv("MESSAGE_STORE_ENABLED", raising=False)

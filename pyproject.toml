@@ -298,6 +298,7 @@ exclude = [
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 pythonpath = ["src"]
+testpaths = ["tests"]
 addopts = "--import-mode=importlib"
 timeout = 300
 timeout_method = "thread"
