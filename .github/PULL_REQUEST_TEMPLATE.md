@@ -47,7 +47,7 @@ and verification.
 - [ ] For code changes, I ran `gitnexus_impact` (or the equivalent
       analysis) and recorded the blast radius below.
 - [ ] For code changes, I have run `uv run -m ruff check .`,
-      `uv run -m ruff format --check .`, `uv run -m pyright .`, and
+      `uv run -m ruff format --check .`, `uv run -m pyright`, and
       `uv run -m ty check .` locally.
 - [ ] For docs site changes, I have run `pnpm --filter docs lint` and
       `pnpm --filter docs test` locally.

@@ -44,7 +44,7 @@
 - [ ] 对于代码改动，我已运行 `gitnexus_impact`（或等效分析）并在下方
       记录影响范围。
 - [ ] 对于代码改动，我已在本地运行 `uv run -m ruff check .`、
-      `uv run -m ruff format --check .`、`uv run -m pyright .` 和
+      `uv run -m ruff format --check .`、`uv run -m pyright` 和
       `uv run -m ty check .`。
 - [ ] 对于文档站改动，我已在本地运行 `pnpm --filter docs lint` 与
       `pnpm --filter docs test`。

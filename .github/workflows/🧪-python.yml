@@ -278,7 +278,7 @@ jobs:
         run: uv run nb orm upgrade
 
       - name: Type Check (Pyright)
-        run: uv run -m pyright .
+        run: uv run -m pyright
 
       - name: Type Check (ty)
         run: uv run -m ty check --output-format github

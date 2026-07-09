@@ -258,7 +258,7 @@ uv run -m ruff format --check .
 Type checking:
 
 ```bash
-uv run -m pyright .
+uv run -m pyright
 uv run -m ty check --output-format github
 ```
 
