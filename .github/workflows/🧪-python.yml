@@ -224,7 +224,7 @@ jobs:
         ports:
           - 1521:1521
         options: >-
-          --health-cmd "bash -c 'echo > /dev/tcp/localhost/1521'"
+          --health-cmd "healthcheck.sh"
           --health-interval 15s
           --health-timeout 10s
           --health-retries 40
@@ -275,7 +275,25 @@ jobs:
         run: echo "oracledb uses Thin mode; no Oracle Client required"
 
       - name: Run migrations
-        run: uv run nb orm upgrade
+        run: |
+          uv run nb orm upgrade
+          # nb orm upgrade may exit 0 even when migrations fail (Click/anyio
+          # exception swallowing). Verify tables actually exist.
+          uv run python -c "
+          import asyncio, os
+          from sqlalchemy import inspect
+          from sqlalchemy.ext.asyncio import create_async_engine
+          async def check():
+              engine = create_async_engine(os.environ['SQLALCHEMY_DATABASE_URL'])
+              async with engine.connect() as conn:
+                  tables = await conn.run_sync(lambda c: inspect(c).get_table_names())
+              await engine.dispose()
+              missing = [t for t in ['lingchu_adapters', 'lingchu_message_records'] if t not in tables]
+              if missing:
+                  raise SystemExit(f'Migration verification failed: missing tables {missing} (found {len(tables)} tables)')
+              print(f'Migration OK: {len(tables)} tables found')
+          asyncio.run(check())
+          "
 
       - name: Type Check (Pyright)
         run: uv run -m pyright
