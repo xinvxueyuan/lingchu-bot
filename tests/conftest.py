@@ -22,12 +22,10 @@ from pytest_asyncio import is_async_test
 
 sys.path.insert(0, str(object=Path(__file__).parent))
 
-# ========== 环境自动检测 ==========
-if Path(".env.dev").exists():
-    os.environ["ENVIRONMENT"] = "dev"
-else:
-    os.environ["ENVIRONMENT"] = "test"
-# =================================
+os.environ.setdefault("ENVIRONMENT", "test")
+
+_WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "master")
+_LOCALSTORE_ROOT = Path(".pytest-localstore") / _WORKER_ID
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -61,8 +59,12 @@ def pytest_configure(config: pytest.Config) -> None:
 
     _ = config
     init_config: dict[str, Any] = {
-        "LOCALSTORE_USE_CWD": "True",
         "DRIVER": "~fastapi+~httpx+~websockets",
+        "alembic_startup_check": False,
+        "localstore_cache_dir": _LOCALSTORE_ROOT / "cache",
+        "localstore_config_dir": _LOCALSTORE_ROOT / "config",
+        "localstore_data_dir": _LOCALSTORE_ROOT / "data",
+        "localstore_use_cwd": False,
         "lingchu_adapter": "~onebot.v11",
         "LINGCHU_SUPERUSERS": {"user1": {"qq": "42"}},
         "lingchu_locale": "zh_CN",
@@ -115,32 +117,3 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     session_scope_marker: MarkDecorator = pytest.mark.asyncio(loop_scope="session")
     for async_test in pytest_asyncio_tests:
         async_test.add_marker(marker=session_scope_marker, append=False)
-
-
-# ========== i18n 多语言测试夹具 ==========
-
-
-@pytest.fixture(params=["zh_CN", "en_US"])
-def locale(request: pytest.FixtureRequest) -> str:
-    """提供 zh_CN 与 en_US 两种 locale，不修改全局状态。
-
-    适用于在调用时显式传入 locale 的测试（例如 gettext(msg, locale=locale)）。
-    """
-    return request.param
-
-
-@pytest.fixture(params=["zh_CN", "en_US"])
-def configured_locale(
-    request: pytest.FixtureRequest,
-    monkeypatch: pytest.MonkeyPatch,
-) -> str:
-    """提供 zh_CN 与 en_US 两种 locale，并 patch 全局配置的 locale。
-
-    通过清空 _read_configured_locale 的 lru_cache 并替换其返回值，
-    使所有调用 get_configured_locale() 或 _() 的代码自动使用参数化的 locale。
-    """
-    from src.plugins.nonebot_plugin_lingchu_bot import i18n
-
-    i18n._read_configured_locale.cache_clear()
-    monkeypatch.setattr(i18n, "_read_configured_locale", lambda: request.param)
-    return request.param

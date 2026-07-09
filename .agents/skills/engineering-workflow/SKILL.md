@@ -9,13 +9,8 @@ description: 统筹 Lingchu Bot 的代码理解、GitNexus 影响分析、调试
 
 ## 路由
 
-- 代码理解、架构解释、onboarding、知识图谱：读 `references/gitnexus/gitnexus-exploring/guide.md`，或按下面 GitNexus 路由选择更细 guide。
-- 改动前影响分析、blast radius、风险评估：读 `references/gitnexus/gitnexus-impact-analysis/guide.md`。
-- GitNexus CLI、索引、status、clean、wiki：读 `references/gitnexus/gitnexus-cli/guide.md`。
-- GitNexus 工具、schema、资源说明：读 `references/gitnexus/gitnexus-guide/guide.md`。
-- GitNexus 辅助调试：读 `references/gitnexus/gitnexus-debugging/guide.md`。
-- GitNexus 辅助重构：读 `references/gitnexus/gitnexus-refactoring/guide.md`。
-- PR 或 diff review：优先读 `references/gitnexus/gitnexus-pr-review/guide.md`；需要一般审查循环时再读 `references/delivery-loop/delivery-loop-skill.md`。
+- GitNexus 代码理解、影响分析、调试、重构、PR review、CLI 和工具 schema：优先读工具同步的顶层入口 `../gitnexus/<skill-name>/SKILL.md`。这些文件由 GitNexus 机械同步，不在 `engineering-workflow/references/` 保留归档副本，避免工具能力变化后加载旧指南。
+- PR 或 diff review：优先读工具同步的 `../gitnexus/gitnexus-pr-review/SKILL.md`；需要一般审查循环时再读 `references/delivery-loop/delivery-loop-skill.md`。
 - Bug、失败追踪、性能或 flaky、TDD、实现后验证：读 `references/delivery-loop/delivery-loop-skill.md`。
 - 新增、修改、删除或重构 `handle`、QQ command、adapter handler、matcher、`command_key`、菜单/触发词/权限/配置耦合面：读 `references/delivery-loop/references/handle-feature-workflow.md`，再读 `references/delivery-loop/delivery-loop-skill.md` 执行和验证。
 - NapCat/QQ UI/实机才失败的 handle 问题：读 `../interactive-runtime-debugging/SKILL.md`，用现场证据定位后再回到 handle 变更路线补齐联动面。

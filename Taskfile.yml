@@ -79,7 +79,7 @@ tasks:
   test:
     desc: Run all tests (Python + Docs)
     cmds:
-      - uv run -m pytest {{.CLI_ARGS}}
+      - uv run -m pytest -n auto --dist=worksteal {{.CLI_ARGS}}
       - pnpm --filter docs test
 
   format:
@@ -126,7 +126,7 @@ tasks:
   ci:test:
     desc: "[CI] Tests with report output"
     cmds:
-      - uv run -m pytest --junitxml=test-results/pytest.xml
+      - uv run -m pytest -n auto --dist=worksteal --junitxml=test-results/pytest.xml
       - pnpm --filter docs test
 
   ci:fix:

@@ -13,7 +13,7 @@ description: Lingchu Bot 项目本地 skill 与外部插件的紧凑路由索引
 
 ## 项目本地入口
 
-- `engineering-workflow`：工程类统一入口。覆盖 GitNexus 代码理解/影响分析/调试/重构/PR review、delivery loop、handle 变更跨面检查、设计原型、前端质量和 issue/PRD/QA 拆解。
+- `engineering-workflow`：工程类统一入口。覆盖 delivery loop、handle 变更跨面检查、设计原型、前端质量、issue/PRD/QA 拆解，并路由到工具同步的顶层 GitNexus skills。
 - `tool-workflows`：工具类统一入口。覆盖 Context7 文档查询、prek/Husky/hooks、skill 管理与合并汉化。
 - `interactive-runtime-debugging`：交互式运行时调试入口。覆盖 Lingchu/NapCat/QQ 实机复现、handle 命令现场故障、实时日志、数据库证据、跨边界追踪和复测。
 - `available-skills`：只在需要选择技能或更新项目 skill 索引时读取。

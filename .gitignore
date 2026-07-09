@@ -8,6 +8,11 @@
 .turbo/
 # GitNexus 本地知识图谱索引（由 `npx gitnexus analyze` 重建）
 .gitnexus/
+# GitNexus-managed Claude skill copies are synchronized by the tool.
+.claude/skills/gitnexus/
+# GitNexus-managed Codex skill copies are synchronized by the tool.
+.agents/skills/gitnexus/
+.agents/skills/engineering-workflow/references/gitnexus/
 # git worktree 检出目录
 .worktrees/
 # fumadocs 生成的 source 目录（generic + apps/docs 兜底）
