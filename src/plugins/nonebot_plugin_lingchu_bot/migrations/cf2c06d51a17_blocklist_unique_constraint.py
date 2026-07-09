@@ -15,8 +15,6 @@ from alembic import op
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from alembic.operations.base import BatchOperations
-
 revision: str = "cf2c06d51a17"
 down_revision: str | Sequence[str] | None = "c3d4e5f6a7b8"
 branch_labels: str | Sequence[str] | None = None
@@ -36,34 +34,48 @@ _OLD_COLUMNS = [
 ]
 
 # MySQL / MariaDB / SQL Server reflect table-level UniqueConstraint as a
-# unique **index**; PostgreSQL / SQLite / Oracle reflect it as a named
-# **constraint**. batch_alter_table's drop_constraint looks up the name in
-# the reflected Table.constraints, so it raises KeyError on dialects where
-# the unique constraint lives in Table.indexes instead.
+# unique **index**. On these dialects, ``DROP INDEX`` is the correct way
+# to remove it; ``ALTER TABLE DROP CONSTRAINT`` is unsupported or also
+# removes the backing index in a way that ``batch_alter_table`` mishandles.
+# Oracle reflects it as an index too, but ``DROP INDEX`` fails with
+# ORA-02429 (index enforces unique key) — ``DROP CONSTRAINT`` works.
+# PostgreSQL / SQLite reflect it as a named constraint.
 _INDEX_DIALECTS = frozenset({"mysql", "mariadb", "mssql"})
 
 
-def _drop_unique_in_batch(batch_op: BatchOperations, name: str) -> None:
+def _replace_unique(columns: list[str]) -> None:
+    """Drop and recreate the blocklist unique constraint cross-database.
+
+    - SQLite: requires ``batch_alter_table`` for constraint changes.
+    - MySQL / MariaDB / SQL Server: unique constraint stored as index;
+      ``batch_alter_table(recreate="always")`` causes PK name conflicts on
+      SQL Server, so use direct ``DROP INDEX`` + ``ADD CONSTRAINT``.
+    - PostgreSQL / Oracle: direct ``ALTER TABLE DROP CONSTRAINT`` works.
+    """
     bind = op.get_bind()
-    if bind.dialect.name in _INDEX_DIALECTS:
-        batch_op.drop_index(name)
+    dialect = bind.dialect.name
+
+    if dialect == "sqlite":
+        with op.batch_alter_table(_TABLE, recreate="always") as batch_op:
+            batch_op.drop_constraint(_CONSTRAINT_NAME, type_="unique")
+            batch_op.create_unique_constraint(_CONSTRAINT_NAME, columns)
+    elif dialect in _INDEX_DIALECTS:
+        op.drop_index(_CONSTRAINT_NAME, table_name=_TABLE)
+        op.create_unique_constraint(_CONSTRAINT_NAME, _TABLE, columns)
     else:
-        batch_op.drop_constraint(name, type_="unique")
+        op.drop_constraint(_CONSTRAINT_NAME, _TABLE, type_="unique")
+        op.create_unique_constraint(_CONSTRAINT_NAME, _TABLE, columns)
 
 
 def upgrade(name: str = "") -> None:
     if name:
         return
 
-    with op.batch_alter_table(_TABLE, recreate="always") as batch_op:
-        _drop_unique_in_batch(batch_op, _CONSTRAINT_NAME)
-        batch_op.create_unique_constraint(_CONSTRAINT_NAME, _NEW_COLUMNS)
+    _replace_unique(_NEW_COLUMNS)
 
 
 def downgrade(name: str = "") -> None:
     if name:
         return
 
-    with op.batch_alter_table(_TABLE, recreate="always") as batch_op:
-        _drop_unique_in_batch(batch_op, _CONSTRAINT_NAME)
-        batch_op.create_unique_constraint(_CONSTRAINT_NAME, _OLD_COLUMNS)
+    _replace_unique(_OLD_COLUMNS)
