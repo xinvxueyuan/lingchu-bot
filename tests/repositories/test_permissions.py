@@ -325,13 +325,9 @@ async def test_list_identity_groups_with_platform_filter() -> None:
 @pytest.mark.asyncio
 async def test_upsert_membership_creates_new_when_not_existing() -> None:
     membership = _membership()
-    get_one_mock = AsyncMock(return_value=None)
-    create_mock = AsyncMock(return_value=membership)
+    upsert_mock = AsyncMock(return_value=membership)
 
-    with (
-        patch.object(repo, "get_one", get_one_mock),
-        patch.object(repo, "create", create_mock),
-    ):
+    with patch.object(repo, "upsert", upsert_mock):
         result = await repo.upsert_membership(
             uid="u1",
             group_id="g1",
@@ -339,42 +335,39 @@ async def test_upsert_membership_creates_new_when_not_existing() -> None:
         )
 
     assert result is membership
-    get_one_mock.assert_awaited_once()
-    assert get_one_mock.call_args.args[0] is IdentityMembership
-    create_mock.assert_awaited_once()
-    assert create_mock.call_args.kwargs == {
+    upsert_mock.assert_awaited_once()
+    assert upsert_mock.call_args.args[0] is IdentityMembership
+    assert upsert_mock.call_args.args[1] == {
         "uid": "u1",
         "group_id": "g1",
         "scope_type": "global",
         "scope_id": None,
         "source": "manual",
     }
+    assert upsert_mock.call_args.kwargs == {
+        "conflict_fields": ["uid", "group_id", "scope_type", "scope_id"],
+        "update_values": {"source": "manual"},
+    }
 
 
 @pytest.mark.asyncio
 async def test_upsert_membership_updates_source_when_existing() -> None:
-    existing = _membership(source="old")
-    updated = _membership(source="new")
-    get_one_mock = AsyncMock(side_effect=[existing, updated])
-    update_mock = AsyncMock(return_value=(1, True))
-    create_mock = AsyncMock()
+    membership = _membership(source="new")
+    upsert_mock = AsyncMock(return_value=membership)
 
-    with (
-        patch.object(repo, "get_one", get_one_mock),
-        patch.object(repo, "update", update_mock),
-        patch.object(repo, "create", create_mock),
-    ):
+    with patch.object(repo, "upsert", upsert_mock):
         result = await repo.upsert_membership(
             uid="u1",
             group_id="g1",
             source="new",
         )
 
-    assert result is updated
-    update_mock.assert_awaited_once()
-    assert update_mock.call_args.args[0] is IdentityMembership
-    assert update_mock.call_args.args[2] == {"source": "new"}
-    create_mock.assert_not_awaited()
+    assert result is membership
+    upsert_mock.assert_awaited_once()
+    assert upsert_mock.call_args.kwargs == {
+        "conflict_fields": ["uid", "group_id", "scope_type", "scope_id"],
+        "update_values": {"source": "new"},
+    }
 
 
 @pytest.mark.asyncio

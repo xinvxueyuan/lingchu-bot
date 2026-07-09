@@ -275,22 +275,53 @@ jobs:
         run: echo "oracledb uses Thin mode; no Oracle Client required"
 
       - name: Run migrations
+        env:
+          NB_LOG_LEVEL: DEBUG
         run: |
-          uv run nb orm upgrade
-          # nb orm upgrade may exit 0 even when migrations fail (Click/anyio
-          # exception swallowing). Verify tables actually exist.
+          set -x
+          # Connection test: verify the database is reachable before
+          # attempting migrations. This catches connection issues that
+          # nb orm upgrade would otherwise swallow silently.
           uv run python -c "
           import asyncio, os
-          from sqlalchemy import inspect
+          from sqlalchemy import text
+          from sqlalchemy.ext.asyncio import create_async_engine
+          async def test():
+              url = os.environ['SQLALCHEMY_DATABASE_URL']
+              engine = create_async_engine(url, echo=True)
+              async with engine.connect() as conn:
+                  result = await conn.execute(text('SELECT 1'))
+                  print(f'Connection OK: {result.scalar()}')
+              await engine.dispose()
+          asyncio.run(test())
+          " 2>&1
+
+          # Run migrations with DEBUG logging. nb orm upgrade may exit 0
+          # even when migrations fail (Click/anyio exception swallowing).
+          uv run nb orm upgrade 2>&1
+
+          # Verify tables actually exist.
+          uv run python -c "
+          import asyncio, os
+          from sqlalchemy import inspect, text
           from sqlalchemy.ext.asyncio import create_async_engine
           async def check():
               engine = create_async_engine(os.environ['SQLALCHEMY_DATABASE_URL'])
               async with engine.connect() as conn:
                   tables = await conn.run_sync(lambda c: inspect(c).get_table_names())
+                  # Check alembic version table for migration status
+                  try:
+                      result = await conn.execute(
+                          text('SELECT version_num FROM nonebot_plugin_orm_alembic_version')
+                      )
+                      versions = result.fetchall()
+                      print(f'Alembic versions: {versions}')
+                  except Exception as e:
+                      print(f'Alembic version check failed: {e}')
               await engine.dispose()
               missing = [t for t in ['lingchu_adapters', 'lingchu_message_records'] if t not in tables]
               if missing:
-                  raise SystemExit(f'Migration verification failed: missing tables {missing} (found {len(tables)} tables)')
+                  raise SystemExit(f'Migration verification failed: missing tables {missing} (found {len(tables)} tables: {tables})')
               print(f'Migration OK: {len(tables)} tables found')
           asyncio.run(check())
           "
