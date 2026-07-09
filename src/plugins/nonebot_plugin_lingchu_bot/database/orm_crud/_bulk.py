@@ -508,6 +508,7 @@ async def _mysql_upsert[T: Model](  # noqa: PLR0913
         raise DatabaseError("Upsert failed") from e
 
     # MySQL 不支持 RETURNING，通过 conflict_keys 做一次 SELECT 取回最新行。
+    # LIMIT 1 防止 MySQL/MariaDB 允许 UNIQUE 列多个 NULL 时返回多行。
     where_clauses = [
         columns[key].is_(insert_values[key])
         if insert_values[key] is None
@@ -515,7 +516,7 @@ async def _mysql_upsert[T: Model](  # noqa: PLR0913
         for key in conflict_keys
     ]
     try:
-        result = await s.execute(select(model).where(*where_clauses))
+        result = await s.execute(select(model).where(*where_clauses).limit(1))
         obj = result.scalar_one_or_none()
     except SQLAlchemyError as e:
         raise DatabaseError("Upsert failed to fetch row") from e
@@ -580,7 +581,7 @@ async def _oracle_upsert[T: Model](  # noqa: PLR0913
         for key in conflict_keys
     ]
     try:
-        result = await s.execute(select(model).where(*where_clauses))
+        result = await s.execute(select(model).where(*where_clauses).limit(1))
         obj = result.scalar_one_or_none()
     except SQLAlchemyError as e:
         raise DatabaseError("Upsert failed to fetch row") from e
@@ -650,7 +651,7 @@ async def _mssql_upsert[T: Model](  # noqa: PLR0913
         for key in conflict_keys
     ]
     try:
-        result = await s.execute(select(model).where(*where_clauses))
+        result = await s.execute(select(model).where(*where_clauses).limit(1))
         obj = result.scalar_one_or_none()
     except SQLAlchemyError as e:
         raise DatabaseError("Upsert failed to fetch row") from e
