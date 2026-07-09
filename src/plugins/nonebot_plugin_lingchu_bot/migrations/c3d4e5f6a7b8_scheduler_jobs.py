@@ -60,8 +60,11 @@ def upgrade(name: str = "") -> None:
         ),
         info={"bind_key": "nonebot_plugin_lingchu_bot"},
     )
+    # Note: job_id is intentionally absent from the index list below.
+    # The UniqueConstraint on job_id already creates an implicit unique
+    # index; adding a second non-unique index on the same column fails
+    # on Oracle with ORA-01408 ("such column list already indexed").
     for column in (
-        "job_id",
         "handler_key",
         "enabled",
         "created_at",
@@ -84,7 +87,6 @@ def downgrade(name: str = "") -> None:
         "created_at",
         "enabled",
         "handler_key",
-        "job_id",
     ):
         op.drop_index(
             op.f(f"ix_lingchu_scheduled_jobs_{column}"),

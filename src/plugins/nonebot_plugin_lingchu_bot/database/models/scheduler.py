@@ -27,7 +27,7 @@ class ScheduledJob(Model):
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
-    job_id: Mapped[str] = mapped_column(compat_string(128), index=True)
+    job_id: Mapped[str] = mapped_column(compat_string(128))
     handler_key: Mapped[str] = mapped_column(compat_string(128), index=True)
     trigger_type: Mapped[str] = mapped_column(compat_string(32))
     trigger_kwargs: Mapped[str] = mapped_column(CompatText)
