@@ -239,7 +239,7 @@ uv run -m ruff check . --output-format=github
 uv run -m ruff check --fix .
 uv run -m ruff format --check .
 uv run -m ruff format .
-uv run -m pyright .
+uv run -m pyright
 uv run -m ty check --output-format github
 uv run -m pytest
 ```

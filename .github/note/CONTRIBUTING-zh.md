@@ -128,7 +128,7 @@ task i18n       # 提取、更新并编译 gettext catalog
 ```bash
 uv run -m ruff check . --output-format=github
 uv run -m ruff format --check .
-uv run -m pyright .
+uv run -m pyright
 uv run -m ty check --output-format github
 uv run -m pytest
 ```

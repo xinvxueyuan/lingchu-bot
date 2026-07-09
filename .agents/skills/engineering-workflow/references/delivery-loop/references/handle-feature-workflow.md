@@ -130,7 +130,7 @@ packaging rules.
 - Static checks for Python changes:
   `uv run -m ruff check . --output-format=github`
   `uv run -m ruff format --check .`
-  `uv run -m pyright .`
+  `uv run -m pyright`
   `uv run -m ty check --output-format github`
 - i18n string changes: `task i18n`
 - Docs changes:
