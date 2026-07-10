@@ -35,6 +35,14 @@ if TYPE_CHECKING:
     from pytest_asyncio.plugin import PytestAsyncioFunction
 
 
+def _should_check_alembic_on_startup(
+    sqlalchemy_url: str | None,
+    worker_id: str,
+) -> bool:
+    """Avoid schema sync races when xdist workers share an external database."""
+    return bool(sqlalchemy_url and worker_id != "master")
+
+
 def pytest_configure(config: pytest.Config) -> None:
     """在收集测试之前初始化NoneBot驱动。
 
@@ -58,9 +66,17 @@ def pytest_configure(config: pytest.Config) -> None:
         return
 
     _ = config
+    # Support multi-database testing via SQLALCHEMY_DATABASE_URL env var.
+    # When xdist workers share that external database, startup schema sync
+    # races on Alembic's version table. CI runs migrations before pytest, so
+    # workers should only check that the schema is current.
+    sqlalchemy_url = os.environ.get("SQLALCHEMY_DATABASE_URL")
     init_config: dict[str, Any] = {
         "DRIVER": "~fastapi+~httpx+~websockets",
-        "alembic_startup_check": False,
+        "alembic_startup_check": _should_check_alembic_on_startup(
+            sqlalchemy_url,
+            _WORKER_ID,
+        ),
         "localstore_cache_dir": _LOCALSTORE_ROOT / "cache",
         "localstore_config_dir": _LOCALSTORE_ROOT / "config",
         "localstore_data_dir": _LOCALSTORE_ROOT / "data",
@@ -69,10 +85,6 @@ def pytest_configure(config: pytest.Config) -> None:
         "LINGCHU_SUPERUSERS": {"user1": {"qq": "42"}},
         "lingchu_locale": "zh_CN",
     }
-    # Support multi-database testing via SQLALCHEMY_DATABASE_URL env var.
-    # When set, tests use the specified database backend (PostgreSQL/MySQL)
-    # instead of the default SQLite.
-    sqlalchemy_url = os.environ.get("SQLALCHEMY_DATABASE_URL")
     if sqlalchemy_url:
         init_config["SQLALCHEMY_DATABASE_URL"] = sqlalchemy_url
     nonebot.init(**init_config)
