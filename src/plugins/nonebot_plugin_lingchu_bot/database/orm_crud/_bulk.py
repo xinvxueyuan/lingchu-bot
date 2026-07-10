@@ -522,6 +522,27 @@ async def _mysql_upsert[T: Model](  # noqa: PLR0913
     return obj
 
 
+def _is_oracle_unique_constraint_violation(error: SQLAlchemyError) -> bool:
+    """Return whether an Oracle DBAPI error reports ORA-00001."""
+    visited: set[int] = set()
+    stack: list[BaseException | None] = [error]
+    while stack:
+        current = stack.pop()
+        if current is None or id(current) in visited:
+            continue
+        visited.add(id(current))
+        if "ORA-00001" in str(current):
+            return True
+        stack.extend(
+            [
+                getattr(current, "orig", None),
+                current.__cause__,
+                current.__context__,
+            ]
+        )
+    return False
+
+
 async def _oracle_upsert[T: Model](  # noqa: PLR0913
     s: AsyncSession,
     model: type[T],
@@ -563,13 +584,16 @@ async def _oracle_upsert[T: Model](  # noqa: PLR0913
         use_dual=True,
     )
     stmt = text(merge_sql)
+    unique_conflict_error: SQLAlchemyError | None = None
 
     try:
         await s.execute(stmt, params)
         await s.commit()
     except SQLAlchemyError as e:
         await s.rollback()
-        raise DatabaseError("Upsert failed") from e
+        if not _is_oracle_unique_constraint_violation(e):
+            raise DatabaseError("Upsert failed") from e
+        unique_conflict_error = e
 
     where_clauses = [
         columns[key].is_(insert_values[key])
@@ -581,8 +605,12 @@ async def _oracle_upsert[T: Model](  # noqa: PLR0913
         result = await s.execute(select(model).where(*where_clauses))
         obj = result.scalar_one_or_none()
     except SQLAlchemyError as e:
+        if unique_conflict_error is not None:
+            raise DatabaseError("Upsert failed") from unique_conflict_error
         raise DatabaseError("Upsert failed to fetch row") from e
     if obj is None:
+        if unique_conflict_error is not None:
+            raise DatabaseError("Upsert failed") from unique_conflict_error
         raise DatabaseError("Upsert succeeded but row not found")
     return obj
 

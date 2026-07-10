@@ -1737,6 +1737,60 @@ class TestUpsert:
         mock_async_session.rollback.assert_awaited_once()
 
     @pytest.mark.asyncio
+    async def test_oracle_upsert_unique_conflict_fetches_existing_row(
+        self, mock_model: type[FakeModel], mock_async_session: Mock
+    ) -> None:
+        """Oracle upsert treats ORA-00001 MERGE races as an existing row."""
+        self._set_dialect(mock_async_session, "oracle")
+        obj = FakeModel(id=ID_1, name="new")
+        unique_error = IntegrityError(
+            "MERGE INTO fake_table ...",
+            {"p1": ID_1, "p2": "new"},
+            Exception("ORA-00001: unique constraint violated"),
+        )
+        mock_async_session.execute.side_effect = [
+            unique_error,
+            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
+        ]
+
+        result = await upsert(
+            model=mock_model,
+            insert_values={"id": ID_1, "name": "new"},
+            conflict_fields=["id"],
+        )
+
+        assert result is obj
+        mock_async_session.rollback.assert_awaited_once()
+        mock_async_session.commit.assert_not_awaited()
+        assert mock_async_session.execute.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_oracle_upsert_unique_conflict_without_row_raises(
+        self, mock_model: type[FakeModel], mock_async_session: Mock
+    ) -> None:
+        """Oracle upsert does not hide ORA-00001 if the row cannot be read."""
+        self._set_dialect(mock_async_session, "oracle")
+        unique_error = IntegrityError(
+            "MERGE INTO fake_table ...",
+            {"p1": ID_1, "p2": "new"},
+            Exception("ORA-00001: unique constraint violated"),
+        )
+        mock_async_session.execute.side_effect = [
+            unique_error,
+            MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+        ]
+
+        with pytest.raises(expected_exception=DatabaseError, match="Upsert failed"):
+            await upsert(
+                model=mock_model,
+                insert_values={"id": ID_1, "name": "new"},
+                conflict_fields=["id"],
+            )
+
+        mock_async_session.rollback.assert_awaited_once()
+        mock_async_session.commit.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_mssql_upsert_db_error(
         self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
