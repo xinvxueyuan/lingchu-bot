@@ -15,6 +15,7 @@ import inspect
 import os
 import sys
 from pathlib import Path
+from types import MethodType
 from typing import TYPE_CHECKING, Any
 
 import nonebot
@@ -64,32 +65,31 @@ def _release_shared_startup_lock(lock_file: Any) -> None:
         lock_file.close()
 
 
-async def _run_startup_func(func: Callable[[], object]) -> None:
-    result = func()
-    if inspect.isawaitable(result):
-        await result
-
-
 def _serialize_startup_for_shared_database(driver: object) -> int:
     lifespan = getattr(driver, "_lifespan", None)
     startup_funcs = getattr(lifespan, "_startup_funcs", None)
-    if not isinstance(startup_funcs, list):
+    startup = getattr(lifespan, "startup", None)
+    if not isinstance(startup_funcs, list) or not callable(startup):
         return 0
 
-    original_startup_funcs = startup_funcs.copy()
-    if not original_startup_funcs:
+    if not startup_funcs:
         return 0
 
-    async def locked_startup() -> None:
+    original_startup: Callable[[], object] = startup
+
+    async def locked_startup(self: object) -> None:
+        _ = self
         lock_file = await asyncio.to_thread(_acquire_shared_startup_lock)
         try:
-            for func in original_startup_funcs:
-                await _run_startup_func(func)
+            result = original_startup()
+            if inspect.isawaitable(result):
+                await result
         finally:
             await asyncio.to_thread(_release_shared_startup_lock, lock_file)
 
-    startup_funcs[:] = [locked_startup]
-    return len(original_startup_funcs)
+    lifespan_obj: Any = lifespan
+    lifespan_obj.startup = MethodType(locked_startup, lifespan)
+    return len(startup_funcs)
 
 
 def pytest_configure(config: pytest.Config) -> None:
