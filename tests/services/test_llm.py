@@ -78,6 +78,36 @@ async def test_complete_chat_uses_openai_provider(
     )
 
 
+async def test_complete_chat_uses_explicit_options(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    call_openai = AsyncMock(return_value=make_response("child"))
+    monkeypatch.setattr(llm, "_call_openai", call_openai)
+    options = llm.LLMOptions(
+        provider="openai",
+        model="child-model",
+        base_url="https://child.example/v1",
+        api_key="child-key",
+        timeout=7.0,
+    )
+
+    result = await llm.complete_chat(
+        [{"role": "user", "content": "hi"}],
+        options=options,
+    )
+
+    assert result == "child"
+    assert patched_runtime_config.ai_provider == "litellm"
+    call_openai.assert_awaited_once_with(
+        model="child-model",
+        messages=[{"role": "user", "content": "hi"}],
+        base_url="https://child.example/v1",
+        api_key="child-key",
+        request_timeout=7.0,
+    )
+
+
 async def test_complete_chat_model_argument_overrides_default(
     monkeypatch: pytest.MonkeyPatch,
     patched_runtime_config: SimpleNamespace,

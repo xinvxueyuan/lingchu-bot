@@ -58,6 +58,7 @@ dependencies = [
     "packaging>=24.2",
     "jsonschema>=4.23.0",
     "litellm>=1.83.3",
+    "msgpack>=1.1.1",
 ]
 
 [project.urls]
