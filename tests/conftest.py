@@ -35,12 +35,32 @@ if TYPE_CHECKING:
     from pytest_asyncio.plugin import PytestAsyncioFunction
 
 
-def _should_check_alembic_on_startup(
+def _should_skip_orm_startup_schema_management(
     sqlalchemy_url: str | None,
     worker_id: str,
 ) -> bool:
     """Avoid schema sync races when xdist workers share an external database."""
     return bool(sqlalchemy_url and worker_id != "master")
+
+
+def _is_orm_startup_schema_management(func: object) -> bool:
+    return (
+        getattr(func, "__module__", "") == "nonebot_plugin_orm"
+        and getattr(func, "__name__", "") == "init_orm"
+    )
+
+
+def _remove_orm_startup_schema_management(driver: object) -> int:
+    lifespan = getattr(driver, "_lifespan", None)
+    startup_funcs = getattr(lifespan, "_startup_funcs", None)
+    if not isinstance(startup_funcs, list):
+        return 0
+
+    original_count = len(startup_funcs)
+    startup_funcs[:] = [
+        func for func in startup_funcs if not _is_orm_startup_schema_management(func)
+    ]
+    return original_count - len(startup_funcs)
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -67,16 +87,10 @@ def pytest_configure(config: pytest.Config) -> None:
 
     _ = config
     # Support multi-database testing via SQLALCHEMY_DATABASE_URL env var.
-    # When xdist workers share that external database, startup schema sync
-    # races on Alembic's version table. CI runs migrations before pytest, so
-    # workers should only check that the schema is current.
     sqlalchemy_url = os.environ.get("SQLALCHEMY_DATABASE_URL")
     init_config: dict[str, Any] = {
         "DRIVER": "~fastapi+~httpx+~websockets",
-        "alembic_startup_check": _should_check_alembic_on_startup(
-            sqlalchemy_url,
-            _WORKER_ID,
-        ),
+        "alembic_startup_check": False,
         "localstore_cache_dir": _LOCALSTORE_ROOT / "cache",
         "localstore_config_dir": _LOCALSTORE_ROOT / "config",
         "localstore_data_dir": _LOCALSTORE_ROOT / "data",
@@ -93,6 +107,13 @@ def pytest_configure(config: pytest.Config) -> None:
     driver.register_adapter(adapter=ONEBOT_V11Adapter)
 
     nonebot.load_from_toml(file_path="pyproject.toml")
+
+    # CI upgrades external databases before pytest. xdist workers share that
+    # database, so they must not all run ORM startup schema sync against the
+    # same Alembic version table. Session/engine setup remains lazy through
+    # nonebot_plugin_orm.get_session().
+    if _should_skip_orm_startup_schema_management(sqlalchemy_url, _WORKER_ID):
+        _remove_orm_startup_schema_management(driver)
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:
