@@ -235,3 +235,14 @@ chat <text>
 - `ai_timeout`：请求超时秒数（默认 `60`）
 
 </Callout>
+
+## NovelAI 生图
+
+```text
+生图 <描述>
+```
+
+可移除的 `core/subplugins/novelai_image` 子插件会先通过专用 LLM 将用户描述
+转换为英文场景描述和 NovelAI 标签，再生成一张 V4.5 图片。英文 locale 使用
+`novelai-image <description>`。加入或删除子插件目录后重启即可生效，父插件不
+维护 NovelAI 专用注册表。

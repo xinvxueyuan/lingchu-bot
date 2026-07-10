@@ -176,6 +176,19 @@ Editable fields:
 
 Code-owned fields are not editable from JSON5. The `command_key` set, menu page `command`, `platform_capability`, and implementation `availability` stay in code so the menu cannot claim a command or adapter capability that does not exist. Use `menu_page_trigger_overrides` in `config.json5` to change menu page triggers. If `menu.json5` references an unknown `command_key`, Lingchu rejects the file and keeps the code defaults. Unknown page ids are skipped with a warning.
 
+## novelai_image.json5
+
+The optional nested NovelAI subplugin owns this file and its sibling
+`novelai_image.schema.json5`. Defaults are model `nai-diffusion-4-5-full`, size
+`832x1216`, 28 steps, scale 5, sampler `k_euler_ancestral`, and a 120-second
+timeout. Set `token` with `LINGCHU_NOVELAI_TOKEN` in preference to storing it in
+JSON5.
+
+The nullable `prompt_llm_provider`, `prompt_llm_model`,
+`prompt_llm_base_url`, `prompt_llm_api_key`, and `prompt_llm_timeout` settings
+fall back independently to the matching parent `ai_*` setting. Their environment
+names use the `LINGCHU_NOVELAI_` prefix.
+
 ## Permission and trigger customization
 
 `permission_platform_runtime_passthrough` controls whether platform-side roles such as QQ group owner/admin/member can satisfy Lingchu permission grants through runtime identity groups. Set it to `false` to require explicit Lingchu memberships, or to an object such as `{ qq: false }` for platform-specific behavior.

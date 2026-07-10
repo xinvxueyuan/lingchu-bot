@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any, cast
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from openai import AsyncOpenAI
 
@@ -13,6 +14,17 @@ if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionMessageParam
 
 ChatMessage = Mapping[str, str]
+
+
+@dataclass(frozen=True, slots=True)
+class LLMOptions:
+    """Explicit provider settings for one completion call."""
+
+    provider: Literal["litellm", "openai"]
+    model: str
+    base_url: str | None
+    api_key: str | None
+    timeout: float
 
 
 class LLMError(RuntimeError):
@@ -88,25 +100,33 @@ async def complete_chat(
     messages: Sequence[ChatMessage],
     *,
     model: str | None = None,
+    options: LLMOptions | None = None,
 ) -> str:
     """Return text from the configured LLM chat provider."""
-    selected_model = model or runtime_config.ai_model
+    selected = options or LLMOptions(
+        provider=runtime_config.ai_provider,
+        model=runtime_config.ai_model,
+        base_url=runtime_config.ai_base_url,
+        api_key=runtime_config.ai_api_key,
+        timeout=runtime_config.ai_timeout,
+    )
+    selected_model = model or selected.model
     try:
-        if runtime_config.ai_provider == "openai":
+        if selected.provider == "openai":
             response = await _call_openai(
                 model=selected_model,
                 messages=messages,
-                base_url=runtime_config.ai_base_url,
-                api_key=runtime_config.ai_api_key,
-                request_timeout=runtime_config.ai_timeout,
+                base_url=selected.base_url,
+                api_key=selected.api_key,
+                request_timeout=selected.timeout,
             )
         else:
             response = await _call_litellm(
                 model=selected_model,
                 messages=messages,
-                api_base=runtime_config.ai_base_url,
-                api_key=runtime_config.ai_api_key,
-                request_timeout=runtime_config.ai_timeout,
+                api_base=selected.base_url,
+                api_key=selected.api_key,
+                request_timeout=selected.timeout,
             )
     except LLMError:
         raise

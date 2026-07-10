@@ -235,3 +235,15 @@ The chat command requires runtime LLM configuration. Set the following in `confi
 - `ai_timeout`: request timeout in seconds (default `60`)
 
 </Callout>
+
+## NovelAI image generation
+
+```text
+novelai-image <description>
+```
+
+The removable `core/subplugins/novelai_image` child plugin first converts the
+user description into an English scene description and NovelAI tags through its
+dedicated LLM settings, then generates one V4.5 image. Chinese locales use
+`生图 <描述>` instead. Installing or removing the child directory takes effect
+after restarting the bot; the parent plugin has no NovelAI-specific registry.
