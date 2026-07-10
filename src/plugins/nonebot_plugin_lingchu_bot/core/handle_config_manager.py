@@ -76,10 +76,14 @@ class HandleConfigManager:
 
         file_path = get_plugin_config_file(f"{command_key}.json5")
         schema_ref = {"$schema": self._SCHEMA_REF}
+        default_config = {**schema_ref, **HANDLE_DEFAULTS_REGISTRY[command_key]}
 
         try:
-            # Try to load existing file
-            config_dict = await load_json5_dict_async(file_path)
+            config_dict = await load_json5_dict_async(
+                file_path,
+                default=default_config,
+                merge_default=True,
+            )
             # Ensure $schema field is present
             if "$schema" not in config_dict:
                 config_dict["$schema"] = self._SCHEMA_REF
@@ -89,8 +93,7 @@ class HandleConfigManager:
                 f"falling back to defaults. Path: {file_path}"
             )
             # Fallback to defaults
-            defaults = HANDLE_DEFAULTS_REGISTRY[command_key]
-            config_dict = {**schema_ref, **defaults}
+            config_dict = default_config
 
         # Extract fields with safe defaults and proper typing
         enabled = cast("bool", config_dict.get("enabled", True))
@@ -120,10 +123,15 @@ class HandleConfigManager:
 
         file_path = get_plugin_config_file(f"{command_key}.json5")
         schema_ref = {"$schema": self._SCHEMA_REF}
+        default_config = {**schema_ref, **HANDLE_DEFAULTS_REGISTRY[command_key]}
 
         # Load existing config or use defaults
         try:
-            config_dict = await load_json5_dict_async(file_path)
+            config_dict = await load_json5_dict_async(
+                file_path,
+                default=default_config,
+                merge_default=True,
+            )
             if "$schema" not in config_dict:
                 config_dict["$schema"] = self._SCHEMA_REF
         except Exception:  # noqa: BLE001
@@ -131,8 +139,7 @@ class HandleConfigManager:
                 f"Failed to load handle config for {command_key} during update, "
                 f"using defaults. Path: {file_path}"
             )
-            defaults = HANDLE_DEFAULTS_REGISTRY[command_key]
-            config_dict = {**schema_ref, **defaults}
+            config_dict = default_config
 
         # Apply updates
         config_dict.update(updates)
