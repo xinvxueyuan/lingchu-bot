@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import os
 import sys
 from pathlib import Path
@@ -28,39 +30,66 @@ _WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "master")
 _LOCALSTORE_ROOT = Path(".pytest-localstore") / _WORKER_ID
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
 
     from _pytest.mark.structures import MarkDecorator
     from nonebot.drivers import Driver
     from pytest_asyncio.plugin import PytestAsyncioFunction
 
 
-def _should_skip_orm_startup_schema_management(
+def _should_serialize_startup_for_shared_database(
     sqlalchemy_url: str | None,
     worker_id: str,
 ) -> bool:
-    """Avoid schema sync races when xdist workers share an external database."""
+    """Avoid startup DB write races when xdist workers share an external database."""
     return bool(sqlalchemy_url and worker_id != "master")
 
 
-def _is_orm_startup_schema_management(func: object) -> bool:
-    return (
-        getattr(func, "__module__", "") == "nonebot_plugin_orm"
-        and getattr(func, "__name__", "") == "init_orm"
-    )
+def _acquire_shared_startup_lock() -> Any:
+    import fcntl
+
+    lock_path = Path(".pytest-localstore") / "shared-db-startup.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_file = lock_path.open("w", encoding="utf-8")
+    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+    return lock_file
 
 
-def _remove_orm_startup_schema_management(driver: object) -> int:
+def _release_shared_startup_lock(lock_file: Any) -> None:
+    import fcntl
+
+    try:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+    finally:
+        lock_file.close()
+
+
+async def _run_startup_func(func: Callable[[], object]) -> None:
+    result = func()
+    if inspect.isawaitable(result):
+        await result
+
+
+def _serialize_startup_for_shared_database(driver: object) -> int:
     lifespan = getattr(driver, "_lifespan", None)
     startup_funcs = getattr(lifespan, "_startup_funcs", None)
     if not isinstance(startup_funcs, list):
         return 0
 
-    original_count = len(startup_funcs)
-    startup_funcs[:] = [
-        func for func in startup_funcs if not _is_orm_startup_schema_management(func)
-    ]
-    return original_count - len(startup_funcs)
+    original_startup_funcs = startup_funcs.copy()
+    if not original_startup_funcs:
+        return 0
+
+    async def locked_startup() -> None:
+        lock_file = await asyncio.to_thread(_acquire_shared_startup_lock)
+        try:
+            for func in original_startup_funcs:
+                await _run_startup_func(func)
+        finally:
+            await asyncio.to_thread(_release_shared_startup_lock, lock_file)
+
+    startup_funcs[:] = [locked_startup]
+    return len(original_startup_funcs)
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -108,12 +137,10 @@ def pytest_configure(config: pytest.Config) -> None:
 
     nonebot.load_from_toml(file_path="pyproject.toml")
 
-    # CI upgrades external databases before pytest. xdist workers share that
-    # database, so they must not all run ORM startup schema sync against the
-    # same Alembic version table. Session/engine setup remains lazy through
-    # nonebot_plugin_orm.get_session().
-    if _should_skip_orm_startup_schema_management(sqlalchemy_url, _WORKER_ID):
-        _remove_orm_startup_schema_management(driver)
+    # xdist workers share each external CI database. Serialize startup DB writes
+    # so ORM schema sync and project seed logic cannot race on shared tables.
+    if _should_serialize_startup_for_shared_database(sqlalchemy_url, _WORKER_ID):
+        _serialize_startup_for_shared_database(driver)
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:
