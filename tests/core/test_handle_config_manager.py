@@ -66,9 +66,14 @@ def patched_localstore(
 
 
 @pytest.fixture
-def config_manager() -> HandleConfigManager:
+def config_manager() -> Iterator[HandleConfigManager]:
     """Create a HandleConfigManager instance."""
-    return HandleConfigManager()
+    manager = HandleConfigManager()
+    manager.clear_cache()
+    try:
+        yield manager
+    finally:
+        manager.clear_cache()
 
 
 def test_mass_announcement_defaults_are_registered() -> None:
