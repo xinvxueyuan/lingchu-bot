@@ -53,14 +53,23 @@ def test_serialize_startup_for_shared_database_wraps_startup_hooks(
     async def second_startup() -> None:
         calls.append("second")
 
+    async def startup() -> None:
+        for func in driver._lifespan._startup_funcs:
+            result = func()
+            if asyncio.iscoroutine(result):
+                await result
+
     monkeypatch.chdir(tmp_path)
     driver = SimpleNamespace(
-        _lifespan=SimpleNamespace(_startup_funcs=[first_startup, second_startup])
+        _lifespan=SimpleNamespace(
+            _startup_funcs=[first_startup, second_startup],
+            startup=startup,
+        )
     )
 
     assert _serialize_startup_for_shared_database(driver) == 2
-    assert len(driver._lifespan._startup_funcs) == 1
+    assert driver._lifespan._startup_funcs == [first_startup, second_startup]
 
-    asyncio.run(driver._lifespan._startup_funcs[0]())
+    asyncio.run(driver._lifespan.startup())
 
     assert calls == ["first", "second"]
