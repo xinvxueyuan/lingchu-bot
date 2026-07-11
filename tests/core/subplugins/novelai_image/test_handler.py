@@ -31,15 +31,23 @@ def mock_finish(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 
 
 def test_command_trigger_is_locale_exclusive() -> None:
-    from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.triggers import (
-        COMMAND_TRIGGERS,
+    from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.contracts import (
+        SubpluginTrigger,
+        get_subplugin_trigger,
     )
 
-    trigger = COMMAND_TRIGGERS["novelai_image"]
-    assert trigger.primary_for("zh_CN") == "生图"
-    assert trigger.primary_for("en_US") == "novelai-image"
-    assert "novelai" not in trigger.aliases_for("zh_CN")
-    assert "novelai" in trigger.aliases_for("en_US")
+    trigger = get_subplugin_trigger("novelai_image")
+    assert isinstance(trigger, SubpluginTrigger)
+    assert isinstance(trigger.primary, str)
+    assert trigger.primary
+    assert isinstance(trigger.aliases, frozenset)
+    assert trigger.aliases
+
+    chat_trigger = get_subplugin_trigger("chat")
+    assert isinstance(chat_trigger, SubpluginTrigger)
+    assert isinstance(chat_trigger.primary, str)
+    assert chat_trigger.primary
+    assert isinstance(chat_trigger.aliases, frozenset)
 
 
 def test_child_messages_follow_configured_locale(

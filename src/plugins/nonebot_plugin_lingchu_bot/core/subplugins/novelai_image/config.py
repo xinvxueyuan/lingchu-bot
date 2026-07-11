@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
-from typing import Any, Final, Literal
+from typing import TYPE_CHECKING, Any, Final, Literal
 
 from nonebot import get_driver, require
 from nonebot.compat import type_validate_python
@@ -14,12 +13,15 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
 
-from ....database.toml_store import (
-    ensure_toml_dict_file_sync,
-    load_toml_dict_sync,
+from ..contracts import (
+    LLMOptions,
+    ensure_subplugin_config_file,
+    load_subplugin_config,
+    resolve_default_llm_options,
 )
-from ...runtime_config import runtime_config
-from ..contracts import LLMOptions
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 CONFIG_FILENAME: Final = "novelai_image.toml"
 SCHEMA_FILENAME: Final = "novelai_image.schema.json"
@@ -100,8 +102,8 @@ def _config_file(name: str) -> Path:
 
 
 def ensure_novelai_config_files() -> None:
-    ensure_toml_dict_file_sync(
-        _config_file(CONFIG_FILENAME),
+    ensure_subplugin_config_file(
+        CONFIG_FILENAME,
         novelai_config_defaults(),
         schema_basename=SCHEMA_FILENAME,
     )
@@ -120,11 +122,8 @@ def ensure_novelai_config_files() -> None:
         temp_path.replace(schema_path)
 
 
-def get_novelai_config(config_file: str | Path | None = None) -> NovelAIConfig:
-    path = (
-        Path(config_file) if config_file is not None else _config_file(CONFIG_FILENAME)
-    )
-    raw = novelai_config_defaults() | load_toml_dict_sync(path)
+def get_novelai_config() -> NovelAIConfig:
+    raw = novelai_config_defaults() | load_subplugin_config(CONFIG_FILENAME)
     try:
         global_config = get_driver().config
     except ValueError:
@@ -140,10 +139,11 @@ def get_novelai_config(config_file: str | Path | None = None) -> NovelAIConfig:
 
 
 def resolve_prompt_llm_options(config: NovelAIConfig) -> LLMOptions:
+    defaults = resolve_default_llm_options()
     return LLMOptions(
-        provider=config.prompt_llm_provider or runtime_config.ai_provider,
-        model=config.prompt_llm_model or runtime_config.ai_model,
-        base_url=config.prompt_llm_base_url or runtime_config.ai_base_url,
-        api_key=config.prompt_llm_api_key or runtime_config.ai_api_key,
-        timeout=config.prompt_llm_timeout or runtime_config.ai_timeout,
+        provider=config.prompt_llm_provider or defaults.provider,
+        model=config.prompt_llm_model or defaults.model,
+        base_url=config.prompt_llm_base_url or defaults.base_url,
+        api_key=config.prompt_llm_api_key or defaults.api_key,
+        timeout=config.prompt_llm_timeout or defaults.timeout,
     )

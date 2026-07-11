@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from nonebot import require
 from nonebot.compat import type_validate_python
@@ -13,7 +15,7 @@ from pydantic import BaseModel, ConfigDict
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
 
-from ....database.toml_store import ensure_toml_dict_file_sync, load_toml_dict_sync
+from ..contracts import ensure_subplugin_config_file, load_subplugin_config
 
 CONFIG_FILENAME: Final = "llm_chat.toml"
 SCHEMA_FILENAME: Final = "llm_chat.schema.json"
@@ -39,8 +41,8 @@ def _config_file(name: str) -> Path:
 
 
 def ensure_chat_config_files() -> None:
-    ensure_toml_dict_file_sync(
-        _config_file(CONFIG_FILENAME),
+    ensure_subplugin_config_file(
+        CONFIG_FILENAME,
         chat_config_defaults(),
         schema_basename=SCHEMA_FILENAME,
     )
@@ -59,9 +61,6 @@ def ensure_chat_config_files() -> None:
         temp_path.replace(schema_path)
 
 
-def get_chat_config(config_file: str | Path | None = None) -> ChatConfig:
-    path = (
-        Path(config_file) if config_file is not None else _config_file(CONFIG_FILENAME)
-    )
-    raw = chat_config_defaults() | load_toml_dict_sync(path)
+def get_chat_config() -> ChatConfig:
+    raw = chat_config_defaults() | load_subplugin_config(CONFIG_FILENAME)
     return type_validate_python(ChatConfig, raw)

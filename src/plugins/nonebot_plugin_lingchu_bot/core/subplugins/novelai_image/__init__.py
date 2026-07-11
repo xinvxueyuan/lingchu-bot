@@ -2,7 +2,13 @@
 
 from nonebot.plugin import PluginMetadata
 
-from ..contracts import register_subplugin_menu_feature
+from ..contracts import (
+    LocalizedText,
+    MenuAvailability,
+    MenuFeature,
+    PlatformCapability,
+    register_subplugin_menu_feature,
+)
 from .config import ensure_novelai_config_files
 
 __plugin_meta__ = PluginMetadata(
@@ -15,8 +21,6 @@ __plugin_meta__ = PluginMetadata(
 
 ensure_novelai_config_files()
 
-from ....handle.menu import LocalizedText, MenuAvailability, MenuFeature
-from ....platforms import PlatformCapability
 from . import handler as handler
 
 register_subplugin_menu_feature(
