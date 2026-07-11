@@ -1,6 +1,4 @@
-"""
-测试禁言命令 - 边界行为覆盖
-"""
+"""测试禁言命令 - 边界行为覆盖"""
 
 import json
 from unittest.mock import AsyncMock, MagicMock, patch

@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (4886 symbols, 9138 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (4868 symbols, 9115 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -151,6 +151,22 @@ This sync rule starts after `<!-- gitnexus:end -->`. GitNexus marker blocks are 
 - **REUSE compliance**: All files MUST have SPDX license declarations via `REUSE.toml`; `reuse lint` MUST pass before commit. New files MUST be covered by `REUSE.toml` globs or have inline `SPDX-License-Identifier` headers.
 - **Docker build context**: `.dockerignore` MUST exclude `.git`, `.venv`, `node_modules`, `.env*` (except `.env.example`/`.env.prod.example`), `tests/`, `.github/`, `.trae/`, `.gitnexus/`, `.turbo/`, and cache directories before `docker build`.
 - **CODEOWNERS**: `.github/CODEOWNERS` routes `src/`, `apps/docs/`, `.github/`, `Dockerfile`, `docker-compose.yml`, `Taskfile.yml`, `pyproject.toml`, `package.json`, `REUSE.toml`, `LICENSE-*` to `@xinvxueyuan` for auto-review.
+
+### Code Style
+
+The project enforces a unified code style across Python and frontend workspaces:
+
+- **`.editorconfig`**: Root-level editor baseline. Python uses 4-space indent; JS/TS/CSS/MD/YAML/TOML/JSON use 2-space. LF line endings, UTF-8, final newline, trimmed trailing whitespace for all text files.
+- **Python formatting**: `ruff format` (line-length 88, LF, double quotes). No Black or isort — Ruff replaces both.
+- **Python docstrings**: Ruff `D` (pydocstyle) rule family with `convention = "google"`. Missing-docstring rules (`D100`–`D103`) are globally ignored due to the existing codebase size; D rules still enforce style on EXISTING docstrings. Tests have per-file D ignores.
+- **Python linting**: Ruff with rule families F, W, E, I, C90, N, PL, UP, YTT, ANN, ASYNC, BLE, FBT, B, A, COM, C4, D, DTZ, T10, ICN, PIE, T20, PYI, Q, RSE, RET, SIM, SLOT, TID, TC, ARG, PTH, FAST, PERF, PGH, FURB, TRY, RUF.
+- **Python type checking**: Pyright `standard` mode + ty (Astral, fast feedback). Both run in CI.
+- **Frontend formatting**: Prettier (`.prettierrc.json`) for JS/TS/TSX/CSS/JSON. Markdown files are excluded — `markdownlint-cli2` owns `.md`, `eslint-plugin-mdx` owns `.mdx` (dual-linter policy).
+- **Frontend linting**: ESLint 10 flat config. `apps/docs` uses `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript` + `eslint-plugin-mdx`. `eslint-config-prettier` is appended last to disable formatting rules that conflict with Prettier.
+- **TypeScript**: TS 6 with `strict: true`, `target: ES2025`, `module: ESNext`, `moduleResolution: Bundler` (in `packages/typescript-config/base.json`).
+- **Tool versions**: ruff>=0.15.21, pyright>=1.1.410, ty>=0.0.58, prek>=0.4.4, ESLint 10.x, TypeScript 6.x.
+- **Format workflow**: `task format` runs Ruff format → Prettier → markdownlint --fix. `task fix` runs Ruff check --fix → Ruff format → Prettier → ty check --fix → markdownlint --fix.
+- **Dead scaffolding removed**: `packages/eslint-config/` and `packages/ui/` (Turborepo template leftovers, not consumed by any app). `apps/docs` has its own `eslint.config.mjs`.
 
 ### Architecture Decisions
 

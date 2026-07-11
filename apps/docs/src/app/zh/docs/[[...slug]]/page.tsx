@@ -1,4 +1,4 @@
-import { getPageImage, getPageMarkdownUrl, source } from '@/lib/source';
+import { getPageImage, getPageMarkdownUrl, source } from "@/lib/source";
 import {
   DocsBody,
   DocsDescription,
@@ -7,17 +7,17 @@ import {
   MarkdownCopyButton,
   ViewOptionsPopover,
   PageLastUpdate,
-} from 'fumadocs-ui/layouts/docs/page';
-import { notFound } from 'next/navigation';
-import { getMDXComponents } from '@/components/mdx';
-import { createRelativeLink } from 'fumadocs-ui/mdx';
-import { gitConfig } from '@/lib/shared';
-import { LLMBadge } from '@/components/llm-badge';
-import { getDocsPageMetadata } from '@/lib/site-metadata';
+} from "fumadocs-ui/layouts/docs/page";
+import { notFound } from "next/navigation";
+import { getMDXComponents } from "@/components/mdx";
+import { createRelativeLink } from "fumadocs-ui/mdx";
+import { gitConfig } from "@/lib/shared";
+import { LLMBadge } from "@/components/llm-badge";
+import { getDocsPageMetadata } from "@/lib/site-metadata";
 
-export default async function Page(props: PageProps<'/zh/docs/[[...slug]]'>) {
+export default async function Page(props: PageProps<"/zh/docs/[[...slug]]">) {
   const params = await props.params;
-  const page = source.getPage(params.slug, 'zh');
+  const page = source.getPage(params.slug, "zh");
   if (!page) notFound();
 
   const MDX = page.data.body;
@@ -26,7 +26,9 @@ export default async function Page(props: PageProps<'/zh/docs/[[...slug]]'>) {
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
       <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
+      <DocsDescription className="mb-0">
+        {page.data.description}
+      </DocsDescription>
       <div className="flex flex-row gap-2 items-center border-b pb-6">
         <LLMBadge locale="zh" />
         <MarkdownCopyButton markdownUrl={markdownUrl} />
@@ -42,26 +44,28 @@ export default async function Page(props: PageProps<'/zh/docs/[[...slug]]'>) {
           })}
         />
       </DocsBody>
-      {page.data.lastModified && <PageLastUpdate date={page.data.lastModified} />}
+      {page.data.lastModified && (
+        <PageLastUpdate date={page.data.lastModified} />
+      )}
     </DocsPage>
   );
 }
 
 export async function generateStaticParams() {
-  return source.getPages('zh').map((page) => ({
+  return source.getPages("zh").map((page) => ({
     slug: page.slugs,
   }));
 }
 
 export async function generateMetadata(
-  props: PageProps<'/zh/docs/[[...slug]]'>,
+  props: PageProps<"/zh/docs/[[...slug]]">,
 ) {
   const params = await props.params;
-  const page = source.getPage(params.slug, 'zh');
+  const page = source.getPage(params.slug, "zh");
   if (!page) notFound();
 
   // Look up the en equivalent for cross-locale `alternates.languages`.
-  const enPage = source.getPage(params.slug, 'en');
+  const enPage = source.getPage(params.slug, "en");
   const alternateUrl = enPage ? enPage.url : undefined;
 
   return getDocsPageMetadata(page, getPageImage(page).url, alternateUrl);

@@ -24,5 +24,5 @@ async def check_core_services() -> None:
 
 
 async def test_core_services() -> None:
-    """pytest entry point for ``check_core_services``."""
+    """Pytest entry point for ``check_core_services``."""
     await check_core_services()

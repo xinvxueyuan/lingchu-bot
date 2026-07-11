@@ -700,6 +700,7 @@ async def list_items[T: Model](  # noqa: PLR0913
         model: ORM 模型类 / ORM model class.
         filters: 筛选条件 / Filter conditions.
         order_by: 排序字段 / Sort fields.
+        conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
         offset: 偏移量 / Result offset.
         limit: 限制数量 / Maximum number of rows.
 
@@ -748,6 +749,7 @@ async def async_iterate_safe[T: Model](  # noqa: PLR0913
     Args:
         model: ORM 模型类 / ORM model class.
         filters: 筛选条件 / Filter conditions.
+        conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
         order_by: 排序字段列表 / Sort field list.
         batch_size: 每批加载的记录数 / Rows fetched per batch.
         callback: 对每条记录调用的异步回调 / Async callback per item.

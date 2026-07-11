@@ -319,7 +319,7 @@ async def test_config_matches_defaults(patched_localstore: Path):
 
 
 def test_chat_is_not_in_handle_defaults_registry() -> None:
-    """chat command was extracted to llm_chat subplugin; it must not be in handle defaults."""
+    """Chat command was extracted to llm_chat subplugin; it must not be in handle defaults."""
     assert "chat" not in HANDLE_DEFAULTS_REGISTRY
 
 

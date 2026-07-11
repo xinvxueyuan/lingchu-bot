@@ -188,7 +188,6 @@ async def test_seed_registry_tables_continues_after_platform_error() -> None:
 @pytest.mark.asyncio
 async def test_seed_registry_tables_continues_after_one_item_fails_in_batch() -> None:
     """Within a single category, one failure must not abort the remaining items."""
-
     seed_data = _seed_data()
     seed_data["platforms"] = [
         {

@@ -1,6 +1,4 @@
-"""
-测试群公告命令 - OneBot11 群 API 映射覆盖
-"""
+"""测试群公告命令 - OneBot11 群 API 映射覆盖"""
 
 import hashlib
 from pathlib import Path
@@ -190,7 +188,7 @@ async def test_resolve_image_path_returns_path_attribute(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """raw 为空但 path 存在时，直接返回该路径。"""
+    """Raw 为空但 path 存在时，直接返回该路径。"""
     fake_config = MagicMock()
     # 模拟"未配置路径桥接"的默认场景：announcement_image_cache_dir 派生自
     # cache_dir（与新类型 `Path` 下的 localstore 默认行为一致），protocol_dir 留空
@@ -285,8 +283,11 @@ class TestDetectCachePathStyleMismatch:
 
 
 class TestSendGroupNoticeNapcatImageError:
-    """Tests for the actionable warning emitted by send_group_notice_napcat
-    when NapCat rejects the announcement image format (retcode=1200)."""
+    """Tests for send_group_notice_napcat image format errors.
+
+    Covers the actionable warning emitted when NapCat rejects the announcement
+    image format (retcode=1200).
+    """
 
     @pytest.mark.asyncio
     async def test_image_format_error_emits_warning_and_reraises(

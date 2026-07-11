@@ -1,13 +1,20 @@
-'use client';
-import { lazy, type RefObject, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+"use client";
+import {
+  lazy,
+  type RefObject,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type {
   ForceGraphMethods,
   ForceGraphProps,
   LinkObject,
   NodeObject,
-} from 'react-force-graph-2d';
-import { forceCollide, forceLink, forceManyBody } from 'd3-force';
-import { useRouter } from 'fumadocs-core/framework';
+} from "react-force-graph-2d";
+import { forceCollide, forceLink, forceManyBody } from "d3-force";
+import { useRouter } from "fumadocs-core/framework";
 
 export interface Graph {
   links: Link[];
@@ -31,10 +38,10 @@ export interface GraphViewProps {
 }
 
 const ForceGraph2D = lazy(
-  () => import('react-force-graph-2d'),
-) as typeof import('react-force-graph-2d').default;
+  () => import("react-force-graph-2d"),
+) as typeof import("react-force-graph-2d").default;
 
-const emptySubscribe = () => () => { };
+const emptySubscribe = () => () => {};
 
 export function GraphView(props: GraphViewProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -77,14 +84,14 @@ function ClientOnly({
       setTooltip({
         x: coords.x + 4,
         y: coords.y + 4,
-        content: node.description ?? 'No description',
+        content: node.description ?? "No description",
       });
     } else {
       setTooltip(null);
     }
   };
 
-  const nodeCanvasObject: ForceGraphProps['nodeCanvasObject'] = (node, ctx) => {
+  const nodeCanvasObject: ForceGraphProps["nodeCanvasObject"] = (node, ctx) => {
     const container = containerRef.current;
     if (!container) return;
     const style = getComputedStyle(container);
@@ -95,36 +102,38 @@ function ClientOnly({
     ctx.arc(node.x!, node.y!, radius, 0, 2 * Math.PI, false);
 
     const hoverNode = hoveredRef.current;
-    const isActive = hoverNode?.id === node.id || hoverNode?.neighbors?.includes(node.id as string);
+    const isActive =
+      hoverNode?.id === node.id ||
+      hoverNode?.neighbors?.includes(node.id as string);
 
     ctx.fillStyle = isActive
-      ? style.getPropertyValue('--color-fd-primary')
-      : style.getPropertyValue('--color-purple-300');
+      ? style.getPropertyValue("--color-fd-primary")
+      : style.getPropertyValue("--color-purple-300");
     ctx.fill();
 
     ctx.font = `${fontSize}px Sans-Serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = getComputedStyle(container).getPropertyValue('color');
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = getComputedStyle(container).getPropertyValue("color");
     ctx.fillText(node.text, node.x!, node.y! + radius + fontSize);
   };
 
   const linkColor = (link: Link) => {
     const container = containerRef.current;
-    if (!container) return '#999';
+    if (!container) return "#999";
     const style = getComputedStyle(container);
     const hoverNode = hoveredRef.current;
 
     if (
       hoverNode &&
-      typeof link.source === 'object' &&
-      typeof link.target === 'object' &&
+      typeof link.source === "object" &&
+      typeof link.target === "object" &&
       (hoverNode.id === link.source.id || hoverNode.id === link.target.id)
     ) {
-      return style.getPropertyValue('--color-fd-primary');
+      return style.getPropertyValue("--color-fd-primary");
     }
 
-    return `color-mix(in oklab, ${style.getPropertyValue('--color-fd-muted-foreground')} 50%, transparent)`;
+    return `color-mix(in oklab, ${style.getPropertyValue("--color-fd-muted-foreground")} 50%, transparent)`;
   };
 
   const enrichedNodes = useMemo(() => {
@@ -153,9 +162,9 @@ function ClientOnly({
           set current(fg) {
             graphRef.current = fg;
             if (fg) {
-              fg.d3Force('link', forceLink().distance(200));
-              fg.d3Force('charge', forceManyBody().strength(10));
-              fg.d3Force('collision', forceCollide(60));
+              fg.d3Force("link", forceLink().distance(200));
+              fg.d3Force("charge", forceManyBody().strength(10));
+              fg.d3Force("collision", forceCollide(60));
             }
           },
         }}

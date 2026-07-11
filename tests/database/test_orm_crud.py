@@ -389,6 +389,7 @@ class TestConds:
 
         Args:
             mock_model (type[FakeModel]): The mock model fixture.
+
         Raises:
             pytest.raises.Exception: If ValueError is not raised.
         """
@@ -1026,6 +1027,7 @@ class TestUpdate:
         Args:
             mock_model (type[FakeModel]): The mock model fixture.
             mock_async_session (Mock): The mock AsyncSession fixture.
+
         Raises:
             pytest.raises.Exception: If ValueError is not raised.
         """

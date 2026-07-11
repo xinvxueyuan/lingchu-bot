@@ -16,5 +16,5 @@ async def check_bot_startup() -> None:
 
 
 async def test_bot_startup() -> None:
-    """pytest entry point for ``check_bot_startup``."""
+    """Pytest entry point for ``check_bot_startup``."""
     await check_bot_startup()

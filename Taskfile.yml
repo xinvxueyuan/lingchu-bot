@@ -6,14 +6,14 @@
 #   up                            → uv sync --upgrade, pnpm update
 #   check                         → ruff check, ruff format check, markdownlint, turbo lint, pyright, ty, turbo check-types
 #   test                          → pytest, docs test
-#   format                        → ruff format, markdownlint --fix
-#   fix                           → ruff check --fix, ruff format, ty --fix, markdownlint --fix
+#   format                        → ruff format, prettier, markdownlint --fix
+#   fix                           → ruff check --fix, ruff format, prettier, ty --fix, markdownlint --fix
 #   build                         → turbo build
 #   ci                            → check → test → build
 #   ci:static                     → ruff check, ruff format check, markdownlint, turbo lint          [CI: 🧪-python.yml]
 #   ci:typecheck                  → pyright, ty, turbo check-types                                 [local-only; CI runs pyright/ty inline]
 #   ci:test                       → pytest --junitxml, docs test                                    [local-only; CI runs pytest inline]
-#   ci:fix                        → ruff check --fix, ruff format, ty --fix, markdownlint --fix     [CI: 🧪-python.yml]
+#   ci:fix                        → ruff check --fix, ruff format, prettier, ty --fix, markdownlint --fix     [CI: 🧪-python.yml]
 #   ci:build                      → uv build, turbo build                                          [CI: 👷-ci-builds.yml, 🚀-release.yml]
 #   ci:docs                       → turbo lint check-types, docs lint:links, docs test, turbo build [local-only; CI runs turbo inline]
 #   smoke                         → docker compose --profile smoke up                               [docs: CONTRIBUTING.md]
@@ -86,6 +86,7 @@ tasks:
     desc: Format all code
     cmds:
       - uv run -m ruff format .
+      - pnpm exec prettier --write "apps/docs/src/**/*.{ts,tsx,css,json}"
       - pnpm exec markdownlint-cli2 --fix
 
   fix:
@@ -93,6 +94,7 @@ tasks:
     cmds:
       - uv run -m ruff check --fix .
       - uv run -m ruff format .
+      - pnpm exec prettier --write "apps/docs/src/**/*.{ts,tsx,css,json}"
       - uv run -m ty check --fix . || true
       - pnpm exec markdownlint-cli2 --fix
 
@@ -134,6 +136,7 @@ tasks:
     cmds:
       - uv run -m ruff check --fix .
       - uv run -m ruff format .
+      - pnpm exec prettier --write "apps/docs/src/**/*.{ts,tsx,css,json}"
       - uv run -m ty check --fix . || true
       - pnpm exec markdownlint-cli2 --fix
 

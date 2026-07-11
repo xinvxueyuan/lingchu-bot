@@ -1,19 +1,19 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from "vitest";
 
-vi.mock('fumadocs-ui/components/image-zoom', () => ({
+vi.mock("fumadocs-ui/components/image-zoom", () => ({
   ImageZoom: () => null,
 }));
 
-vi.mock('fumadocs-ui/components/accordion', () => ({
+vi.mock("fumadocs-ui/components/accordion", () => ({
   Accordion: () => null,
   Accordions: () => null,
 }));
 
-vi.mock('fumadocs-ui/components/type-table', () => ({
+vi.mock("fumadocs-ui/components/type-table", () => ({
   TypeTable: () => null,
 }));
 
-vi.mock('fumadocs-ui/components/tabs', () => ({
+vi.mock("fumadocs-ui/components/tabs", () => ({
   Tabs: () => null,
   Tab: () => null,
   TabsList: () => null,
@@ -21,87 +21,89 @@ vi.mock('fumadocs-ui/components/tabs', () => ({
   TabsContent: () => null,
 }));
 
-vi.mock('fumadocs-ui/components/steps', () => ({
+vi.mock("fumadocs-ui/components/steps", () => ({
   Step: () => null,
   Steps: () => null,
 }));
 
-vi.mock('fumadocs-ui/components/inline-toc', () => ({
+vi.mock("fumadocs-ui/components/inline-toc", () => ({
   InlineTOC: () => null,
 }));
 
-vi.mock('fumadocs-ui/components/files', () => ({
+vi.mock("fumadocs-ui/components/files", () => ({
   File: () => null,
   Folder: () => null,
   Files: () => null,
 }));
 
-vi.mock('fumadocs-typescript/ui', () => ({
+vi.mock("fumadocs-typescript/ui", () => ({
   AutoTypeTable: () => null,
 }));
 
-vi.mock('fumadocs-typescript', () => ({
+vi.mock("fumadocs-typescript", () => ({
   createGenerator: () => ({}),
   createFileSystemGeneratorCache: () => ({}),
 }));
 
-vi.mock('@/components/mdx/mermaid', () => ({
+vi.mock("@/components/mdx/mermaid", () => ({
   Mermaid: () => null,
 }));
 
-vi.mock('fumadocs-twoslash/ui', () => ({
+vi.mock("fumadocs-twoslash/ui", () => ({
   Twoslash: () => null,
   TwoslashPopover: () => null,
   TwoslashCopy: () => null,
 }));
 
-import { getMDXComponents } from '@/components/mdx';
+import { getMDXComponents } from "@/components/mdx";
 
-describe('getMDXComponents', () => {
-  it('should return an object with all required components', () => {
+describe("getMDXComponents", () => {
+  it("should return an object with all required components", () => {
     const components = getMDXComponents();
-    expect(components).toHaveProperty('img');
-    expect(components).toHaveProperty('Accordion');
-    expect(components).toHaveProperty('Accordions');
-    expect(components).toHaveProperty('AutoTypeTable');
-    expect(components).toHaveProperty('TypeTable');
-    expect(components).toHaveProperty('Tabs');
-    expect(components).toHaveProperty('Tab');
-    expect(components).toHaveProperty('Step');
-    expect(components).toHaveProperty('Steps');
-    expect(components).toHaveProperty('InlineTOC');
-    expect(components).toHaveProperty('File');
-    expect(components).toHaveProperty('Folder');
-    expect(components).toHaveProperty('Files');
-    expect(components).toHaveProperty('a');
+    expect(components).toHaveProperty("img");
+    expect(components).toHaveProperty("Accordion");
+    expect(components).toHaveProperty("Accordions");
+    expect(components).toHaveProperty("AutoTypeTable");
+    expect(components).toHaveProperty("TypeTable");
+    expect(components).toHaveProperty("Tabs");
+    expect(components).toHaveProperty("Tab");
+    expect(components).toHaveProperty("Step");
+    expect(components).toHaveProperty("Steps");
+    expect(components).toHaveProperty("InlineTOC");
+    expect(components).toHaveProperty("File");
+    expect(components).toHaveProperty("Folder");
+    expect(components).toHaveProperty("Files");
+    expect(components).toHaveProperty("a");
   });
 
-  it('should merge custom components', () => {
+  it("should merge custom components", () => {
     const CustomComponent = () => null;
     const components = getMDXComponents({ Custom: CustomComponent });
-    expect((components as Record<string, unknown>).Custom).toBe(CustomComponent);
+    expect((components as Record<string, unknown>).Custom).toBe(
+      CustomComponent,
+    );
   });
 
-  it('should allow custom components to override defaults', () => {
+  it("should allow custom components to override defaults", () => {
     const CustomImg = () => null;
     const components = getMDXComponents({ img: CustomImg });
     expect(components.img).toBe(CustomImg);
   });
 
-  it('should include default MDX components', () => {
+  it("should include default MDX components", () => {
     const components = getMDXComponents();
-    expect(components).toHaveProperty('pre');
+    expect(components).toHaveProperty("pre");
   });
 
-  it('should include Mermaid component', () => {
+  it("should include Mermaid component", () => {
     const components = getMDXComponents();
-    expect(components).toHaveProperty('Mermaid');
+    expect(components).toHaveProperty("Mermaid");
   });
 
-  it('should include Twoslash components', () => {
+  it("should include Twoslash components", () => {
     const components = getMDXComponents();
-    expect(components).toHaveProperty('Twoslash');
-    expect(components).toHaveProperty('TwoslashPopover');
-    expect(components).toHaveProperty('TwoslashCopy');
+    expect(components).toHaveProperty("Twoslash");
+    expect(components).toHaveProperty("TwoslashPopover");
+    expect(components).toHaveProperty("TwoslashCopy");
   });
 });

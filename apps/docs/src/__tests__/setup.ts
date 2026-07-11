@@ -1,5 +1,5 @@
-import '@testing-library/jest-dom/vitest';
-import { beforeEach, vi } from 'vitest';
+import "@testing-library/jest-dom/vitest";
+import { beforeEach, vi } from "vitest";
 
 // The developer's shell may export `NEXT_PUBLIC_SITE_URL` (e.g. when running
 // docs against a custom domain). That bleeds into the default-branch tests
@@ -9,5 +9,5 @@ import { beforeEach, vi } from 'vitest';
 // `vi.stubEnv('NEXT_PUBLIC_SITE_URL', ...)` and `vi.unstubAllEnvs()` in
 // `afterEach` reverts the stub.
 beforeEach(() => {
-  vi.stubEnv('NEXT_PUBLIC_SITE_URL', '');
+  vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
 });

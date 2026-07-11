@@ -9,7 +9,9 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from ..core.runtime_config import runtime_config
 
 if TYPE_CHECKING:
-    from openai.types.chat import ChatCompletionMessageParam
+    from openai.types.chat import (
+        ChatCompletionMessageParam,  # pyright: ignore[reportMissingImports]
+    )
 
 ChatMessage = Mapping[str, str]
 
@@ -58,7 +60,7 @@ async def _call_litellm(
     api_key: str | None,
     request_timeout: float,
 ) -> Any:
-    from litellm import acompletion
+    from litellm import acompletion  # pyright: ignore[reportAttributeAccessIssue]
 
     return await acompletion(
         model=model,
@@ -77,7 +79,7 @@ async def _call_openai(
     api_key: str | None,
     request_timeout: float,
 ) -> Any:
-    from openai import AsyncOpenAI
+    from openai import AsyncOpenAI  # pyright: ignore[reportMissingImports]
 
     client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=request_timeout)
     return await client.chat.completions.create(

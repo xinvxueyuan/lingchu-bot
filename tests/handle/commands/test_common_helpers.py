@@ -316,22 +316,22 @@ class TestFormatUserDisplayName:
     """format_user_display_name 用户显示名称格式化测试。"""
 
     def test_at_style_with_name(self) -> None:
-        """at 样式带名称时输出 @名称。"""
+        """At 样式带名称时输出 @名称。"""
         assert format_user_display_name(123, "测试用户") == "@测试用户"
 
     def test_at_style_without_name_falls_back_to_id(self) -> None:
-        """at 样式无名称时回退到 ID。"""
+        """At 样式无名称时回退到 ID。"""
         assert format_user_display_name(123, None) == "123"
         assert format_user_display_name(123, "") == "123"
 
     def test_detail_style_with_name(self) -> None:
-        """detail 样式带名称时输出 名称(ID)。"""
+        """Detail 样式带名称时输出 名称(ID)。"""
         assert (
             format_user_display_name(123, "测试用户", style="detail") == "测试用户(123)"
         )
 
     def test_detail_style_without_name_falls_back_to_id(self) -> None:
-        """detail 样式无名称时回退到 ID。"""
+        """Detail 样式无名称时回退到 ID。"""
         assert format_user_display_name(123, None, style="detail") == "123"
         assert format_user_display_name(123, "", style="detail") == "123"
 

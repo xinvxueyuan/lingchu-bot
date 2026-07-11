@@ -99,6 +99,8 @@ path = [
   ".gitignore",
   ".gitattributes",
   ".dockerignore",
+  ".editorconfig",
+  ".prettierignore",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 lingchu-bot contributors <support@xinvstar.xyz>"

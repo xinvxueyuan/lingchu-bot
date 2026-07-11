@@ -150,6 +150,22 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 - **Docker build context**：`docker build` 前，`.dockerignore` MUST 排除 `.git`、`.venv`、`node_modules`、`.env*`（保留 `.env.example`/`.env.prod.example`）、`tests/`、`.github/`、`.trae/`、`.gitnexus/`、`.turbo/` 及缓存目录。
 - **CODEOWNERS**：`.github/CODEOWNERS` 将 `src/`、`apps/docs/`、`.github/`、`Dockerfile`、`docker-compose.yml`、`Taskfile.yml`、`pyproject.toml`、`package.json`、`REUSE.toml`、`LICENSE-*` 路由给 `@xinvxueyuan` 用于 auto-review。
 
+### 代码风格
+
+项目在 Python 和前端工作空间统一执行以下代码风格：
+
+- **`.editorconfig`**：根目录编辑器基线。Python 使用 4 空格缩进；JS/TS/CSS/MD/YAML/TOML/JSON 使用 2 空格。所有文本文件使用 LF 换行、UTF-8 编码、末尾换行、去除行尾空格。
+- **Python 格式化**：`ruff format`（行宽 88，LF，双引号）。不使用 Black 或 isort — Ruff 替代两者。
+- **Python 文档字符串**：Ruff `D`（pydocstyle）规则族，`convention = "google"`。缺失文档字符串规则（`D100`–`D103`）全局忽略（现有代码库规模太大无法一次性补全）；D 规则仍对已有文档字符串执行风格检查。测试文件有独立的 D 忽略。
+- **Python 静态检查**：Ruff 规则族包括 F, W, E, I, C90, N, PL, UP, YTT, ANN, ASYNC, BLE, FBT, B, A, COM, C4, D, DTZ, T10, ICN, PIE, T20, PYI, Q, RSE, RET, SIM, SLOT, TID, TC, ARG, PTH, FAST, PERF, PGH, FURB, TRY, RUF。
+- **Python 类型检查**：Pyright `standard` 模式 + ty（Astral，快速反馈）。两者均在 CI 中运行。
+- **前端格式化**：Prettier（`.prettierrc.json`）用于 JS/TS/TSX/CSS/JSON。Markdown 文件被排除 — `markdownlint-cli2` 负责 `.md`，`eslint-plugin-mdx` 负责 `.mdx`（双 linter 策略）。
+- **前端检查**：ESLint 10 flat config。`apps/docs` 使用 `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript` + `eslint-plugin-mdx`。`eslint-config-prettier` 作为最后一项追加，禁用与 Prettier 冲突的格式化规则。
+- **TypeScript**：TS 6，`strict: true`，`target: ES2025`，`module: ESNext`，`moduleResolution: Bundler`（在 `packages/typescript-config/base.json` 中）。
+- **工具版本**：ruff>=0.15.21, pyright>=1.1.410, ty>=0.0.58, prek>=0.4.4, ESLint 10.x, TypeScript 6.x。
+- **格式化工作流**：`task format` 运行 Ruff format → Prettier → markdownlint --fix。`task fix` 运行 Ruff check --fix → Ruff format → Prettier → ty check --fix → markdownlint --fix。
+- **已移除的无用脚手架**：`packages/eslint-config/` 和 `packages/ui/`（Turborepo 模板残留，未被任何 app 引用）。`apps/docs` 有自己的 `eslint.config.mjs`。
+
 ### Architecture Decisions
 
 - Docs route handlers、server components、`baseOptions()`、`buildGraph()`、`getRSS()` 返回 Promise。
