@@ -4,26 +4,26 @@ import secrets
 
 from arclet.alconna import Alconna, Args, Nargs
 from nonebot import logger, require
-from nonebot.adapters.onebot.v11 import Bot as OneBot11
-from nonebot.adapters.onebot.v11 import MessageSegment
-from nonebot.adapters.onebot.v11.event import GroupMessageEvent
 
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 
-from ....handle.qq.commands.triggers import COMMAND_TRIGGERS
-from ..contracts import selected_adapter_handle
+from ..contracts import (
+    get_subplugin_trigger,
+    image_message,
+    register_subplugin_handler,
+)
 from .client import MissingNovelAITokenError, NovelAIError, generate_image
 from .config import NovelAIConfig, get_novelai_config
 from .i18n import translate
 from .payload import NovelAIImageRequest
 from .prompt import PromptConversionError, compose_prompts, convert_prompt
 
-_NOVELAI_IMAGE = COMMAND_TRIGGERS["novelai_image"]
+_novelai_trigger = get_subplugin_trigger("novelai_image")
 
 novelai_image_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna(_NOVELAI_IMAGE.primary, Args["prompt", Nargs(str)]),
-    aliases=_NOVELAI_IMAGE.aliases,
+    command=Alconna(_novelai_trigger.primary, Args["prompt", Nargs(str)]),
+    aliases=set(_novelai_trigger.aliases),
     priority=5,
     block=True,
     use_cmd_sep=True,
@@ -78,13 +78,9 @@ async def run_novelai_image(
         logger.error(f"NovelAI image generation failed: {exc!r}")
         await novelai_image_cmd.finish(translate("generation_failed"))
         return
-    await novelai_image_cmd.finish(MessageSegment.image(image))
+    await novelai_image_cmd.finish(image_message(image))
 
 
-@selected_adapter_handle(novelai_image_cmd, "~onebot.v11", "novelai_image")
-async def onebot11_novelai_image(
-    prompt: list[str],
-    bot: OneBot11,  # noqa: ARG001
-    event: GroupMessageEvent,  # noqa: ARG001
-) -> None:
+@register_subplugin_handler(novelai_image_cmd, "novelai_image", "~onebot.v11")
+async def novelai_image_handler(prompt: list[str]) -> None:
     await run_novelai_image(prompt)

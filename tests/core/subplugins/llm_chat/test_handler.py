@@ -5,6 +5,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from nonebot.exception import FinishedException
 
+from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.contracts import (
+    SubpluginLLMError,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.llm_chat import handler
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.llm_chat.config import (
     ChatConfig,
@@ -12,7 +15,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.llm_chat.config impo
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.llm_chat.handler import (
     chat_cmd,
 )
-from src.plugins.nonebot_plugin_lingchu_bot.services.llm import LLMProviderError
 
 
 def _make_config(
@@ -48,13 +50,17 @@ async def test_chat_success(
     """LLM returns text; finish receives the response."""
     config = _make_config()
     monkeypatch.setattr(handler, "get_chat_config", lambda: config)
-    complete_chat = AsyncMock(return_value="你好！有什么可以帮你的吗？")
-    monkeypatch.setattr(handler, "complete_chat", complete_chat)
+    complete_subplugin_chat_default = AsyncMock(
+        return_value="你好！有什么可以帮你的吗？"
+    )
+    monkeypatch.setattr(
+        handler, "complete_subplugin_chat_default", complete_subplugin_chat_default
+    )
 
     with pytest.raises(FinishedException):
-        await handler.onebot11_chat(text=["你好"], bot=MagicMock(), event=MagicMock())
+        await handler.chat_handler(text=["你好"], bot=MagicMock(), event=MagicMock())
 
-    complete_chat.assert_awaited_once()
+    complete_subplugin_chat_default.assert_awaited_once()
     assert finish_text(mock_finish) == "你好！有什么可以帮你的吗？"
 
 
@@ -62,15 +68,17 @@ async def test_chat_llm_error(
     monkeypatch: pytest.MonkeyPatch,
     mock_finish: AsyncMock,
 ) -> None:
-    """complete_chat raises LLMProviderError; finish receives localized error."""
+    """complete_subplugin_chat_default raises SubpluginLLMError; finish receives localized error."""
     config = _make_config()
     monkeypatch.setattr(handler, "get_chat_config", lambda: config)
     monkeypatch.setattr(
-        handler, "complete_chat", AsyncMock(side_effect=LLMProviderError())
+        handler,
+        "complete_subplugin_chat_default",
+        AsyncMock(side_effect=SubpluginLLMError()),
     )
 
     with pytest.raises(FinishedException):
-        await handler.onebot11_chat(text=["你好"], bot=MagicMock(), event=MagicMock())
+        await handler.chat_handler(text=["你好"], bot=MagicMock(), event=MagicMock())
 
     assert finish_text(mock_finish) == "LLM 服务暂时不可用，请稍后再试"
 
@@ -82,13 +90,15 @@ async def test_chat_disabled(
     """config.enabled=False; finish receives disabled message, LLM not called."""
     config = _make_config(enabled=False)
     monkeypatch.setattr(handler, "get_chat_config", lambda: config)
-    complete_chat = AsyncMock()
-    monkeypatch.setattr(handler, "complete_chat", complete_chat)
+    complete_subplugin_chat_default = AsyncMock()
+    monkeypatch.setattr(
+        handler, "complete_subplugin_chat_default", complete_subplugin_chat_default
+    )
 
     with pytest.raises(FinishedException):
-        await handler.onebot11_chat(text=["你好"], bot=MagicMock(), event=MagicMock())
+        await handler.chat_handler(text=["你好"], bot=MagicMock(), event=MagicMock())
 
-    complete_chat.assert_not_awaited()
+    complete_subplugin_chat_default.assert_not_awaited()
     assert finish_text(mock_finish) == "该功能已禁用"
 
 
@@ -96,15 +106,17 @@ async def test_chat_system_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
     """system_prompt is prepended as a system message before the user message."""
     config = _make_config(system_prompt="你是一个毒舌助手")
     monkeypatch.setattr(handler, "get_chat_config", lambda: config)
-    complete_chat = AsyncMock(return_value="ok")
-    monkeypatch.setattr(handler, "complete_chat", complete_chat)
+    complete_subplugin_chat_default = AsyncMock(return_value="ok")
+    monkeypatch.setattr(
+        handler, "complete_subplugin_chat_default", complete_subplugin_chat_default
+    )
 
     with pytest.raises(FinishedException):
-        await handler.onebot11_chat(
+        await handler.chat_handler(
             text=["你好", "世界"], bot=MagicMock(), event=MagicMock()
         )
 
-    call_kwargs = complete_chat.call_args
+    call_kwargs = complete_subplugin_chat_default.call_args
     messages = (
         call_kwargs.args[0] if call_kwargs.args else call_kwargs.kwargs["messages"]
     )

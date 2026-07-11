@@ -1,4 +1,3 @@
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -20,13 +19,13 @@ def test_prompt_llm_options_fall_back_per_field(
 ) -> None:
     monkeypatch.setattr(
         config,
-        "runtime_config",
-        SimpleNamespace(
-            ai_provider="litellm",
-            ai_model="parent-model",
-            ai_base_url="https://parent.test/v1",
-            ai_api_key="parent-key",
-            ai_timeout=60.0,
+        "resolve_default_llm_options",
+        lambda: config.LLMOptions(
+            provider="litellm",
+            model="parent-model",
+            base_url="https://parent.test/v1",
+            api_key="parent-key",
+            timeout=60.0,
         ),
     )
     value = config.NovelAIConfig(
@@ -56,23 +55,23 @@ def test_novelai_config_rejects_invalid_values(kwargs: dict[str, object]) -> Non
 
 
 def test_novelai_environment_overrides_json_defaults(
-    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("LINGCHU_NOVELAI_WIDTH", "1024")
     monkeypatch.setenv("LINGCHU_NOVELAI_TOKEN", "env-token")
+    monkeypatch.setattr(config, "load_subplugin_config", lambda _: {})
 
-    value = config.get_novelai_config(tmp_path / "missing.toml")
+    value = config.get_novelai_config()
 
     assert value.width == 1024
     assert value.token == "env-token"
 
 
 def test_novelai_config_reads_nonebot_dotenv_values(
-    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("LINGCHU_NOVELAI_TOKEN", raising=False)
+    monkeypatch.setattr(config, "load_subplugin_config", lambda _: {})
     monkeypatch.setattr(
         config,
         "get_driver",
@@ -84,7 +83,7 @@ def test_novelai_config_reads_nonebot_dotenv_values(
         ),
     )
 
-    value = config.get_novelai_config(tmp_path / "missing.toml")
+    value = config.get_novelai_config()
 
     assert value.token == "dotenv-token"
     assert value.width == 1024
