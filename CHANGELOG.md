@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Changed
 
+- **Breaking:** replaced all Lingchu-owned JSON5 configuration and state files
+  with TOML backed by `rtoml`. Legacy `.json5` files are not read, migrated, or
+  backed up; recreate configuration as `.toml`. Optional `None` values are
+  represented by omitted keys, and programmatic writes do not preserve custom
+  comments or formatting.
+
 ### Deprecated
 
 ### Removed

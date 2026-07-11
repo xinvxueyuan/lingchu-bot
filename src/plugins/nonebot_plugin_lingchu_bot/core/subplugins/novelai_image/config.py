@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any, Final, Literal
@@ -13,15 +14,15 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
 
-from ....database.json5_store import (
-    ensure_json5_dict_file_sync,
-    load_json5_dict_sync,
+from ....database.toml_store import (
+    ensure_toml_dict_file_sync,
+    load_toml_dict_sync,
 )
 from ...runtime_config import runtime_config
 from ..contracts import LLMOptions
 
-CONFIG_FILENAME: Final = "novelai_image.json5"
-SCHEMA_FILENAME: Final = "novelai_image.schema.json5"
+CONFIG_FILENAME: Final = "novelai_image.toml"
+SCHEMA_FILENAME: Final = "novelai_image.schema.json"
 
 
 class NovelAIConfig(BaseModel):
@@ -62,10 +63,36 @@ class NovelAIConfig(BaseModel):
 
 
 def novelai_config_defaults() -> dict[str, Any]:
-    return {
-        "$schema": SCHEMA_FILENAME,
-        **NovelAIConfig().model_dump(mode="json"),
-    }
+    return NovelAIConfig().model_dump(mode="json")
+
+
+def novelai_config_schema() -> dict[str, Any]:
+    """Return a JSON Schema that only advertises TOML-representable values."""
+
+    def remove_null_branches(value: Any) -> Any:
+        if isinstance(value, dict):
+            cleaned = {key: remove_null_branches(item) for key, item in value.items()}
+            for keyword in ("anyOf", "oneOf"):
+                branches = cleaned.get(keyword)
+                if not isinstance(branches, list):
+                    continue
+                non_null = [
+                    branch
+                    for branch in branches
+                    if not (isinstance(branch, dict) and branch.get("type") == "null")
+                ]
+                if len(non_null) == 1:
+                    cleaned.pop(keyword)
+                    cleaned.update(non_null[0])
+                else:
+                    cleaned[keyword] = non_null
+            return cleaned
+        if isinstance(value, list):
+            return [remove_null_branches(item) for item in value]
+        return value
+
+    schema = NovelAIConfig.model_json_schema(mode="serialization")
+    return remove_null_branches(schema)
 
 
 def _config_file(name: str) -> Path:
@@ -73,21 +100,31 @@ def _config_file(name: str) -> Path:
 
 
 def ensure_novelai_config_files() -> None:
-    ensure_json5_dict_file_sync(
+    ensure_toml_dict_file_sync(
         _config_file(CONFIG_FILENAME),
         novelai_config_defaults(),
+        schema_basename=SCHEMA_FILENAME,
     )
-    ensure_json5_dict_file_sync(
-        _config_file(SCHEMA_FILENAME),
-        NovelAIConfig.model_json_schema(mode="serialization"),
-    )
+    schema_path = _config_file(SCHEMA_FILENAME)
+    if not schema_path.exists():
+        schema_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = schema_path.with_suffix(".tmp.json")
+        temp_path.write_text(
+            json.dumps(
+                novelai_config_schema(),
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        temp_path.replace(schema_path)
 
 
 def get_novelai_config(config_file: str | Path | None = None) -> NovelAIConfig:
     path = (
         Path(config_file) if config_file is not None else _config_file(CONFIG_FILENAME)
     )
-    raw = novelai_config_defaults() | load_json5_dict_sync(path)
+    raw = novelai_config_defaults() | load_toml_dict_sync(path)
     try:
         global_config = get_driver().config
     except ValueError:

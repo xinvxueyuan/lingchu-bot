@@ -1,21 +1,23 @@
-"""异步 JSON5 数据库客户端。
+"""异步 TOML 数据库客户端。
 
-提供基于 JSON5 文件的异步数据存取、原子写入、嵌套键路径访问和文件监听。
-支持 dict/list 路径导航、可选自动保存以及显式关闭；仅适合存放 JSON5 兼容
-对象，包括 dict、list、str、int、float、bool 和 None。
+提供基于 TOML 文件的异步数据存取、原子写入、嵌套键路径访问和文件监听。
+支持 dict/list 路径导航、可选自动保存以及显式关闭；仅适合存放 TOML 兼容
+对象。字典中的 None 表示缺少键，列表中的 None 不受支持。
 
-Asynchronous JSON5 database client.
+Asynchronous TOML database client.
 
-This module provides asynchronous JSON5-backed storage with atomic writes,
+This module provides asynchronous TOML-backed storage with atomic writes,
 nested-key navigation, optional file watching, and explicit close semantics.
 It supports dict/list path navigation, optional auto-save, and only stores
-JSON5-compatible objects: dict, list, str, int, float, bool, and None.
+TOML-compatible objects. None omits a mapping key and is invalid in lists.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
+import tempfile
 from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
@@ -25,8 +27,8 @@ import aiofiles.os
 
 from ._helpers import (
     _deepcopy_async,
-    _json5_dumps_async,
-    _json5_loads_async,
+    _toml_dumps_async,
+    _toml_loads_async,
     logger,
 )
 from .exceptions import (
@@ -41,6 +43,7 @@ from .exceptions import (
     LoadTaskCancelledError,
     ParentPathResolutionError,
     TerminalPathResolutionError,
+    TOMLSerializationError,
     WatchAlreadyRunningError,
 )
 
@@ -49,17 +52,17 @@ if TYPE_CHECKING:
     from types import TracebackType
 
 
-class RobustAsyncJSON5DB:
-    """异步 JSON5 文件数据库。
+class RobustAsyncTOMLDB:
+    """异步 TOML 文件数据库。
 
-    该类以 JSON5 文件为持久化后端，支持嵌套路径读写、原子保存、
-    可选自动保存和文件变化监听。数据模型仅接受 JSON5 兼容对象；
+    该类以 TOML 文件为持久化后端，支持嵌套路径读写、原子保存、
+    可选自动保存和文件变化监听。数据模型仅接受 TOML 兼容对象；
     数值路径片段在非负时才会被解释为列表索引，删除列表索引会让
     后续元素左移。
 
-    This class uses a JSON5 file as its persistence backend and supports nested
+    This class uses a TOML file as its persistence backend and supports nested
     path access, atomic saves, optional auto-save, and file-change watching.
-    It only accepts JSON5-compatible objects. Numeric path segments are treated
+    It only accepts TOML-compatible objects. Numeric path segments are treated
     as list indices only when non-negative, and deleting a list index shifts
     subsequent items.
     """
@@ -75,9 +78,8 @@ class RobustAsyncJSON5DB:
         "_watch_mtime",
         "_watch_task",
         "auto_save",
-        "ensure_ascii",
         "file_path",
-        "indent",
+        "schema_basename",
         "temp_file_path",
     )
 
@@ -86,9 +88,8 @@ class RobustAsyncJSON5DB:
         file_path: str | Path,
         *,
         auto_save: bool = True,
-        indent: int = 2,
-        ensure_ascii: bool = False,
         default: dict[str, Any] | None = None,
+        schema_basename: str | None = None,
     ) -> None:
         """初始化数据库实例。
 
@@ -96,19 +97,16 @@ class RobustAsyncJSON5DB:
             file_path: 数据文件路径 / Path to the data file.
             auto_save: 是否每次修改后自动落盘。
                 Whether to persist changes immediately.
-            indent: JSON5 输出缩进 / Indentation used for serialization.
-            ensure_ascii: 是否转义非 ASCII 字符。
-                Whether to escape non-ASCII characters.
             default: 默认数据模板 / Default data template.
+            schema_basename: Optional sibling JSON Schema filename.
 
         Raises:
             InvalidDefaultTypeError: default 不是字典时。
         """
         self.file_path = Path(file_path)
-        self.temp_file_path = self.file_path.with_suffix(".tmp.json5")
+        self.temp_file_path = self.file_path.with_suffix(".tmp.toml")
         self.auto_save = auto_save
-        self.indent = indent
-        self.ensure_ascii = ensure_ascii
+        self.schema_basename = schema_basename
 
         if default is not None and not isinstance(default, dict):
             raise InvalidDefaultTypeError(type(default))
@@ -147,7 +145,7 @@ class RobustAsyncJSON5DB:
         status = (
             "closed" if self._closed else ("loaded" if self._loaded else "not loaded")
         )
-        return f"<RobustAsyncJSON5DB path={self.file_path!r} status={status}>"
+        return f"<RobustAsyncTOMLDB path={self.file_path!r} status={status}>"
 
     # ------------------------------------------------------------------
     # Lifecycle helpers
@@ -247,7 +245,7 @@ class RobustAsyncJSON5DB:
                 async with aiofiles.open(self.file_path, encoding="utf-8") as f:
                     content = await f.read()
                 if content.strip():
-                    loaded_data = await _json5_loads_async(content)
+                    loaded_data = await _toml_loads_async(content)
                 else:
                     loaded_data = default_copy
 
@@ -376,28 +374,43 @@ class RobustAsyncJSON5DB:
         await aiofiles.os.makedirs(self.file_path.parent, exist_ok=True)
 
         try:
-            content = await _json5_dumps_async(
-                data, indent=self.indent, ensure_ascii=self.ensure_ascii
+            content = await _toml_dumps_async(
+                data, schema_basename=self.schema_basename
             )
         except TypeError as e:
             msg = (
                 "Serialization failure: data contains "
-                f"non-JSON5-serializable objects: {e}"
+                f"non-TOML-serializable objects: {e}"
             )
             logger.exception(msg)
             raise RuntimeError(msg) from e
 
-        async with aiofiles.open(self.temp_file_path, "w", encoding="utf-8") as f:
-            await f.write(content)
+        fd, temp_name = await asyncio.to_thread(
+            tempfile.mkstemp,
+            prefix=f".{self.file_path.name}.",
+            suffix=".tmp",
+            dir=self.file_path.parent,
+        )
+        temp_path = Path(os.fsdecode(temp_name))
+        try:
+            async with aiofiles.open(fd, "w", encoding="utf-8") as f:
+                await f.write(content)
+        except Exception:
+            with contextlib.suppress(OSError):
+                await asyncio.to_thread(os.close, fd)
+            with contextlib.suppress(OSError):
+                await aiofiles.os.remove(temp_path)
+            raise
 
         try:
-            await aiofiles.os.replace(self.temp_file_path, self.file_path)
+            await aiofiles.os.replace(temp_path, self.file_path)
         except OSError as exc:
             logger.exception(
                 "Atomic replace failed. Original file is unchanged. "
-                f"Temporary file may remain at {self.temp_file_path}"
+                f"Temporary file may remain at {temp_path}"
             )
-            await self._cleanup_temp_file_async()
+            with contextlib.suppress(OSError):
+                await aiofiles.os.remove(temp_path)
             raise AtomicReplacementError from exc
 
         try:
@@ -518,6 +531,18 @@ class RobustAsyncJSON5DB:
         async with self._lock:
             data_copy = await _deepcopy_async(self._data)
             segments = self._validate_path(key_path)
+            if value is None:
+                if mode == "create":
+                    return False
+                parent, key, exists = self._navigate_to_parent(
+                    segments, create_missing=False, root=data_copy
+                )
+                if not exists:
+                    return False
+                if isinstance(parent, dict):
+                    del parent[key]
+                    await self._commit_data_copy(data_copy)
+                    return True
             create_missing = mode != "update"
             parent, key, exists = self._navigate_to_parent(
                 segments, create_missing=create_missing, root=data_copy
@@ -549,6 +574,18 @@ class RobustAsyncJSON5DB:
 
             for path, val in updates.items():
                 segments = self._validate_path(path)
+                if val is None:
+                    parent, key, exists = self._navigate_to_parent(
+                        segments, create_missing=False, root=data_copy
+                    )
+                    if not exists:
+                        continue
+                    if isinstance(parent, dict):
+                        del parent[key]
+                        continue
+                    raise TOMLSerializationError(  # noqa: TRY003
+                        "None inside a list is not supported"
+                    )
                 parent, key, _ = self._navigate_to_parent(
                     segments, create_missing=True, root=data_copy
                 )

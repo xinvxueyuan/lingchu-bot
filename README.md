@@ -51,7 +51,7 @@ Useful entry points:
 | Remote management | Operate on another group by group ID or fuzzy group name matching, including remote mute/unmute, whole-group mute/unmute, kick, block/unblock, and announcement. |
 | Bot control | `silence` / `speak` suppress or resume response messages while still allowing commands to execute; `boot` / `shutdown` enable or disable command handlers. |
 | Menu system | The `菜单` / `menu` command lists platform-, protocol-, and implementation-filtered submenu entries. |
-| Runtime configuration | Plugin-owned JSON5 files under the localstore configuration directory, plus higher-priority NoneBot / environment overrides. |
+| Runtime configuration | Plugin-owned TOML files under the localstore configuration directory, plus higher-priority NoneBot / environment overrides. |
 | Permissions and protection | UID-based superusers, platform account mapping, command grants, platform runtime role passthrough, blocklist, and protected-subject safeguards. |
 | Message store and API audit | Optional recording of events, processing status, bot lifecycle events, and platform API call summaries. |
 | Runtime i18n | gettext / Babel catalogs for Simplified Chinese and English feedback text. |
@@ -134,11 +134,11 @@ Before connecting to a real platform, prepare the account, network, reverse WebS
 
 ## Configuration
 
-Lingchu creates `config.json5` on first startup in the plugin configuration directory provided by `nonebot-plugin-localstore`. Runtime configuration priority is:
+Lingchu creates `config.toml` on first startup in the plugin configuration directory provided by `nonebot-plugin-localstore`. Runtime configuration priority is:
 
 1. OS environment variables
 2. NoneBot dotenv / global configuration
-3. `config.json5`
+3. `config.toml`
 4. Code defaults
 
 The table below enumerates the environment variables actually read by `core/config.py` and `core/runtime_config.py`. Boolean values in NoneBot `.env` files must use JSON-style lowercase `true` / `false`, not Python-style `True` / `False`.
@@ -176,35 +176,27 @@ The table below enumerates the environment variables actually read by `core/conf
 | Announcement Images | `ANNOUNCEMENT_IMAGE_CACHE_DIR` | Host-side cache directory for announcement images (defaults to localstore cache). |
 | Announcement Images | `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` | Protocol-side directory NapCat sees inside the container. |
 
-Example `config.json5`:
+Example `config.toml`:
 
-```json5
-{
-  "$schema": "config.schema.json5",
-  superuser_key: "123456789abcdef",
-  message_store_enabled: true,
-  message_store_retention_days: 30,
-  message_store_summary_limit: 500,
-  message_store_record_api_calls: true,
-  message_store_cleanup_enabled: true,
-  ai_provider: "litellm",
-  ai_model: "gpt-4o-mini",
-  ai_timeout: 60.0,
-  ai_api_key: null,
-  recall_message_default_count: 10,
-  permission_platform_runtime_passthrough: true,
-  command_trigger_overrides: {},
-  menu_page_trigger_overrides: {},
-  protected_subject_feature_keys: [
-    "kick_member",
-    "member_mute",
-    "recall_message",
-    "block_member",
-  ],
-  lingchu_adapter: "~onebot.v11",
-  lingchu_superusers: null,
-}
+```toml
+#:schema ./config.schema.json
+superuser_key = "123456789abcdef"
+message_store_enabled = true
+message_store_retention_days = 30
+message_store_summary_limit = 500
+message_store_record_api_calls = true
+message_store_cleanup_enabled = true
+ai_provider = "litellm"
+ai_model = "gpt-4o-mini"
+ai_timeout = 60.0
+recall_message_default_count = 10
+permission_platform_runtime_passthrough = true
+protected_subject_feature_keys = ["kick_member", "member_mute", "recall_message", "block_member"]
+lingchu_adapter = "~onebot.v11"
 ```
+
+TOML has no `null`; omit optional keys to use their `None` defaults. Legacy
+`.json5` files are not read or migrated.
 
 ## Commands at a glance
 
@@ -331,7 +323,7 @@ and the [`LICENSE-*`](LICENSE-code) files in the repository root.
 Lingchu Bot stands on a lot of good open-source shoulders. Thanks especially to these upstream projects and communities:
 
 - **Bot runtime and adapter ecosystem**: [NoneBot2](https://nonebot.dev/), [nonebot-adapter-onebot](https://github.com/nonebot/adapter-onebot), `nonebot-plugin-alconna`, `nonebot-plugin-localstore`, `nonebot-plugin-orm`, `nonebot-plugin-apscheduler`, `nonebot-plugin-htmlkit`, and `nonebot-plugin-docs`.
-- **Python configuration, storage, and service utilities**: `aiofiles`, `json5`, `rtoml`, `jsonschema`, [Babel](https://babel.pocoo.org/), [Jinja](https://jinja.palletsprojects.com/), [Typer](https://typer.tiangolo.com/), [Arrow](https://arrow.readthedocs.io/), `psutil`, [OpenAI Python SDK](https://github.com/openai/openai-python), and [LiteLLM](https://github.com/BerriAI/litellm).
+- **Python configuration, storage, and service utilities**: `aiofiles`, `toml`, `rtoml`, `jsonschema`, [Babel](https://babel.pocoo.org/), [Jinja](https://jinja.palletsprojects.com/), [Typer](https://typer.tiangolo.com/), [Arrow](https://arrow.readthedocs.io/), `psutil`, [OpenAI Python SDK](https://github.com/openai/openai-python), and [LiteLLM](https://github.com/BerriAI/litellm).
 - **Documentation and frontend stack**: [Fumadocs](https://fumadocs.dev/), [Next.js](https://nextjs.org/), [React](https://react.dev/), [Mermaid](https://mermaid.js.org/), [Twoslash](https://twoslash.netlify.app/), `flexsearch`, `d3-force`, `dompurify`, `feed`, and [Tailwind CSS](https://tailwindcss.com/).
 - **Engineering, testing, and repository workflow**: [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io/), [Turborepo](https://turbo.build/repo), [Ruff](https://docs.astral.sh/ruff/), [Pyright](https://microsoft.github.io/pyright/), [ty](https://docs.astral.sh/ty/), [pytest](https://docs.pytest.org/), [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/), [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2), [Prettier](https://prettier.io/), [ESLint](https://eslint.org/), [Husky](https://typicode.github.io/husky/), [Gitmoji](https://gitmoji.dev/), `gitnexus`, and [FOSSA](https://fossa.com/).
 

@@ -1,11 +1,11 @@
-"""JSON5 Schema resources for runtime JSON5 files.
+"""JSON Schema resources for runtime TOML files.
 
 This module is the single source of truth for the JSON Schema definitions
-that describe ``config.json5`` and ``bot_state.json5``. The schema texts
+that describe ``config.toml`` and ``bot_state.toml``. The schema texts
 are stored as plain Python string literals and written to the
 ``nonebot_plugin_localstore``-managed ``config_dir`` and ``data_dir`` at
 startup by :func:`install_schemas`, so that the schema files live next
-to the runtime JSON5 files they describe. Editors that resolve
+to the runtime TOML files they describe. Editors that resolve
 ``$schema`` basenames will then locate the sibling schema in the same
 localstore directory.
 
@@ -35,10 +35,10 @@ from nonebot_plugin_localstore import get_plugin_config_dir, get_plugin_data_dir
 if TYPE_CHECKING:
     from pathlib import Path
 
-CONFIG_SCHEMA_BASENAME: Final = "config.schema.json5"
-BOT_STATE_SCHEMA_BASENAME: Final = "bot_state.schema.json5"
-MENU_SCHEMA_BASENAME: Final = "menu.schema.json5"
-HANDLE_CONFIG_SCHEMA_BASENAME: Final = "handle_config.schema.json5"
+CONFIG_SCHEMA_BASENAME: Final = "config.schema.json"
+BOT_STATE_SCHEMA_BASENAME: Final = "bot_state.schema.json"
+MENU_SCHEMA_BASENAME: Final = "menu.schema.json"
+HANDLE_CONFIG_SCHEMA_BASENAME: Final = "handle_config.schema.json"
 
 CONFIG_SCHEMA_TEXT: Final = """{
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -47,10 +47,6 @@ CONFIG_SCHEMA_TEXT: Final = """{
   "type": "object",
   "additionalProperties": true,
   "properties": {
-    "$schema": {
-      "type": "string",
-      "description": "Editor hint pointing to the sibling schema file in the same directory."
-    },
     "superuser_key": {
       "type": "string",
       "description": "Runtime superuser key used by permission checks."
@@ -87,10 +83,7 @@ CONFIG_SCHEMA_TEXT: Final = """{
       "description": "Default chat completion model passed to the selected LLM provider."
     },
     "ai_base_url": {
-      "oneOf": [
-        { "type": "null" },
-        { "type": "string" }
-      ],
+      "type": "string",
       "description": "Optional OpenAI-compatible API base URL passed to the selected LLM provider."
     },
     "ai_timeout": {
@@ -99,11 +92,8 @@ CONFIG_SCHEMA_TEXT: Final = """{
       "description": "LLM request timeout in seconds."
     },
     "ai_api_key": {
-      "oneOf": [
-        { "type": "null" },
-        { "type": "string" }
-      ],
-      "description": "LLM provider API key. Prefer setting via the LINGCHU_AI_API_KEY environment variable over writing it into the JSON5 config file."
+      "type": "string",
+      "description": "LLM provider API key. Prefer setting via the LINGCHU_AI_API_KEY environment variable over writing it into the TOML config file."
     },
     "recall_message_default_count": {
       "type": "integer",
@@ -143,33 +133,27 @@ CONFIG_SCHEMA_TEXT: Final = """{
       "description": "Command feature keys covered by the handle whitelist gate. Targets in protected subject policy cannot be managed by these commands unless the operator is in the repository-backed SUPERUSERS group."
     },
     "lingchu_superusers": {
-      "oneOf": [
-        { "type": "null" },
-        {
-          "type": "object",
-          "additionalProperties": {
-            "type": "object",
-            "additionalProperties": {
-              "oneOf": [
-                { "type": "string" },
-                { "type": "integer" }
-              ]
-            }
-          }
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "integer" }
+          ]
         }
-      ],
+      },
       "description": "Mapping of logical lingchu user id to per-platform account id (string or integer)."
     },
     "lingchu_adapter": {
       "oneOf": [
-        { "type": "null" },
         { "type": "string" },
         {
           "type": "array",
           "items": { "type": "string" }
         }
       ],
-      "description": "Adapter selector for the lingchu ecosystem. Accepts a single id, a list of ids, or null to fall back to all registered adapters."
+      "description": "Adapter selector for the lingchu ecosystem. Accepts a single id or a list of ids; omit the key to fall back to all registered adapters."
     }
   }
 }
@@ -182,10 +166,6 @@ BOT_STATE_SCHEMA_TEXT: Final = """{
   "type": "object",
   "additionalProperties": true,
   "properties": {
-    "$schema": {
-      "type": "string",
-      "description": "Editor hint pointing to the sibling schema file in the same directory."
-    },
     "global": {
       "type": "object",
       "description": "Global state shared by every platform.",
@@ -225,10 +205,6 @@ MENU_SCHEMA_TEXT: Final = """{
   "additionalProperties": false,
   "required": ["version", "pages"],
   "properties": {
-    "$schema": {
-      "type": "string",
-      "description": "Editor hint pointing to the sibling schema file in the same directory."
-    },
     "version": {
       "type": "integer",
       "description": "Menu config format version."
@@ -285,12 +261,8 @@ HANDLE_CONFIG_SCHEMA_TEXT: Final = """{
   "title": "Lingchu Bot Handle Config",
   "description": "Standard handle-level configuration schema",
   "type": "object",
-  "required": ["$schema", "enabled"],
+  "required": ["enabled"],
   "properties": {
-    "$schema": {
-      "type": "string",
-      "description": "Editor hint pointing to the sibling schema file in the same directory."
-    },
     "enabled": {
       "type": "boolean",
       "default": true,
@@ -345,7 +317,7 @@ def generate_handle_schema(command_key: str, defaults_fields: dict[str, Any]) ->
 
 
 async def install_schemas() -> None:
-    """Write JSON5 schema files to localstore dirs; idempotent, propagates I/O errors."""
+    """Write JSON Schema files to localstore dirs; idempotent, propagates I/O errors."""
     config_dir: Path = get_plugin_config_dir()
     config_path: Path = config_dir / CONFIG_SCHEMA_BASENAME
     menu_path: Path = config_dir / MENU_SCHEMA_BASENAME
@@ -365,6 +337,6 @@ async def install_schemas() -> None:
         await f.write(BOT_STATE_SCHEMA_TEXT)
 
     logger.debug(
-        "Lingchu JSON5 schemas installed: "
+        "Lingchu configuration schemas installed: "
         f"config={config_path}, menu={menu_path}, handle={handle_config_path}, state={data_path}"
     )

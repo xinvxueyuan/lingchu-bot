@@ -16,10 +16,10 @@ from nonebot import logger, require
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
 
-from ..database.json5_store import (
-    ensure_json5_dict_file_async,
-    load_json5_dict_async,
-    write_json5_dict_file_async,
+from ..database.toml_store import (
+    ensure_toml_dict_file_async,
+    load_toml_dict_async,
+    write_toml_dict_file_async,
 )
 from .handle_config_defaults import HANDLE_DEFAULTS_REGISTRY
 from .schemas import HANDLE_CONFIG_SCHEMA_BASENAME, HANDLE_CONFIG_SCHEMA_TEXT
@@ -46,16 +46,32 @@ class HandleConfigManager:
     This class provides centralized access to handle configurations with
     automatic caching, fallback to defaults, and JSON Schema validation.
 
-    The configuration priority is: code defaults < JSON5 file overrides.
+    The configuration priority is: code defaults < TOML file overrides.
     """
 
     _cache: ClassVar[dict[str, HandleConfig]] = {}
     _SCHEMA_REF: Final[str] = HANDLE_CONFIG_SCHEMA_BASENAME
 
+    @staticmethod
+    def _merge_registered_defaults(
+        command_key: str, config_dict: dict[str, Any]
+    ) -> dict[str, Any]:
+        registered = HANDLE_DEFAULTS_REGISTRY[command_key]
+        merged = dict(registered)
+        merged.update(config_dict)
+        for section in ("defaults", "policies"):
+            registered_section = registered.get(section, {})
+            loaded_section = config_dict.get(section, {})
+            if isinstance(registered_section, dict) and isinstance(
+                loaded_section, dict
+            ):
+                merged[section] = registered_section | loaded_section
+        return merged
+
     async def get_config(self, command_key: str) -> HandleConfig:
         """Get handle configuration for a specific command.
 
-        Loads configuration from the JSON5 file managed by localstore.
+        Loads configuration from the TOML file managed by localstore.
         Falls back to defaults from HANDLE_DEFAULTS_REGISTRY if the file
         does not exist or fails to load.
 
@@ -74,19 +90,16 @@ class HandleConfigManager:
         if command_key not in HANDLE_DEFAULTS_REGISTRY:
             raise ValueError(f"command_key not registered: {command_key}")  # noqa: TRY003
 
-        file_path = get_plugin_config_file(f"{command_key}.json5")
-        schema_ref = {"$schema": self._SCHEMA_REF}
-        default_config = {**schema_ref, **HANDLE_DEFAULTS_REGISTRY[command_key]}
+        file_path = get_plugin_config_file(f"{command_key}.toml")
+        default_config = dict(HANDLE_DEFAULTS_REGISTRY[command_key])
 
         try:
-            config_dict = await load_json5_dict_async(
+            config_dict = await load_toml_dict_async(
                 file_path,
                 default=default_config,
                 merge_default=True,
             )
-            # Ensure $schema field is present
-            if "$schema" not in config_dict:
-                config_dict["$schema"] = self._SCHEMA_REF
+            config_dict = self._merge_registered_defaults(command_key, config_dict)
         except Exception:  # noqa: BLE001
             logger.error(
                 f"Failed to load handle config for {command_key}, "
@@ -116,24 +129,22 @@ class HandleConfigManager:
 
         Raises:
             ValueError: If command_key is not registered or validation fails.
-            JSON5FileReadError: If file operations fail.
+            TOMLFileReadError: If file operations fail.
         """
         if command_key not in HANDLE_DEFAULTS_REGISTRY:
             raise ValueError(f"command_key not registered: {command_key}")  # noqa: TRY003
 
-        file_path = get_plugin_config_file(f"{command_key}.json5")
-        schema_ref = {"$schema": self._SCHEMA_REF}
-        default_config = {**schema_ref, **HANDLE_DEFAULTS_REGISTRY[command_key]}
+        file_path = get_plugin_config_file(f"{command_key}.toml")
+        default_config = dict(HANDLE_DEFAULTS_REGISTRY[command_key])
 
         # Load existing config or use defaults
         try:
-            config_dict = await load_json5_dict_async(
+            config_dict = await load_toml_dict_async(
                 file_path,
                 default=default_config,
                 merge_default=True,
             )
-            if "$schema" not in config_dict:
-                config_dict["$schema"] = self._SCHEMA_REF
+            config_dict = self._merge_registered_defaults(command_key, config_dict)
         except Exception:  # noqa: BLE001
             logger.error(
                 f"Failed to load handle config for {command_key} during update, "
@@ -149,7 +160,11 @@ class HandleConfigManager:
             raise ValueError(f"validation failed: {command_key}")  # noqa: TRY003
 
         # Persist to disk
-        await write_json5_dict_file_async(file_path, config_dict)
+        await write_toml_dict_file_async(
+            file_path,
+            config_dict,
+            schema_basename=self._SCHEMA_REF,
+        )
 
         # Update cache
         enabled = cast("bool", config_dict.get("enabled", True))
@@ -175,19 +190,20 @@ class HandleConfigManager:
     async def ensure_config_files(self) -> None:
         """Ensure configuration files exist for all registered handles.
 
-        Creates missing files with default values and $schema references.
+        Creates missing files with schema directives and default values.
         Existing files are not modified.
         """
         for command_key in HANDLE_DEFAULTS_REGISTRY:
-            file_path = get_plugin_config_file(f"{command_key}.json5")
+            file_path = get_plugin_config_file(f"{command_key}.toml")
             defaults = HANDLE_DEFAULTS_REGISTRY[command_key]
-            config_dict = {
-                "$schema": self._SCHEMA_REF,
-                **defaults,
-            }
+            config_dict = dict(defaults)
 
             try:
-                await ensure_json5_dict_file_async(file_path, config_dict)
+                await ensure_toml_dict_file_async(
+                    file_path,
+                    config_dict,
+                    schema_basename=self._SCHEMA_REF,
+                )
                 logger.debug(f"Ensured handle config file for {command_key}")
             except Exception:  # noqa: BLE001
                 logger.error(

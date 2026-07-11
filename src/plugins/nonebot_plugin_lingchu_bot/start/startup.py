@@ -84,7 +84,7 @@ async def startup() -> None:
         await install_schemas()
     except Exception:  # noqa: BLE001
         # Schema files are editor hints; missing them does not prevent startup.
-        logger.exception("Failed to install JSON5 schemas")
+        logger.exception("Failed to install TOML schemas")
     try:
         await _check_announcement_image_path_bridge()
     except Exception:  # noqa: BLE001

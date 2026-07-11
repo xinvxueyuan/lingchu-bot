@@ -1,7 +1,7 @@
-"""Two-tier bot state model with JSON5 persistence.
+"""Two-tier bot state model with TOML persistence.
 
 Maintains a global state plus per-platform overrides for ``handle_active``
-and ``silent_mode`` flags. State is persisted to ``bot_state.json5`` in the
+and ``silent_mode`` flags. State is persisted to ``bot_state.toml`` in the
 plugin data directory.
 
 Resolution semantics:
@@ -17,18 +17,17 @@ from nonebot import logger, require
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_data_file
 
-from ..database.json5_store import (
-    ensure_json5_dict_file_async,
-    load_json5_dict_async,
-    write_json5_dict_file_async,
+from ..database.toml_store import (
+    ensure_toml_dict_file_async,
+    load_toml_dict_async,
+    write_toml_dict_file_async,
 )
 from .async_utils import fire_and_forget
 from .schemas import BOT_STATE_SCHEMA_BASENAME
 
-_BOT_STATE_FILENAME = "bot_state.json5"
+_BOT_STATE_FILENAME = "bot_state.toml"
 
 _DEFAULT_STATE: dict[str, Any] = {
-    "$schema": BOT_STATE_SCHEMA_BASENAME,
     "global": {
         "handle_active": True,
         "silent_mode": False,
@@ -40,12 +39,11 @@ _state: dict[str, Any] = {
     "global_handle_active": True,
     "global_silent_mode": False,
     "platforms": {},
-    "$schema": BOT_STATE_SCHEMA_BASENAME,
 }
 
 
 def _get_state_file_path() -> Path:
-    """Resolve the path to the bot state JSON5 file.
+    """Resolve the path to the bot state TOML file.
 
     Returns the localstore-managed data file path. Owned by
     ``nonebot_plugin_localstore`` per the ``## Hard Constraints`` rule
@@ -55,10 +53,14 @@ def _get_state_file_path() -> Path:
 
 
 async def load_bot_state() -> None:
-    """Load bot state from JSON5 file into memory. Called at startup."""
+    """Load bot state from TOML file into memory. Called at startup."""
     path = _get_state_file_path()
-    await ensure_json5_dict_file_async(path, _DEFAULT_STATE)
-    data = await load_json5_dict_async(path, default=_DEFAULT_STATE, merge_default=True)
+    await ensure_toml_dict_file_async(
+        path,
+        _DEFAULT_STATE,
+        schema_basename=BOT_STATE_SCHEMA_BASENAME,
+    )
+    data = await load_toml_dict_async(path, default=_DEFAULT_STATE, merge_default=True)
 
     global_state = data.get("global", {})
     _state["global_handle_active"] = global_state.get("handle_active", True)
@@ -75,11 +77,9 @@ async def load_bot_state() -> None:
 
 
 async def _save_bot_state() -> None:
-    """Persist in-memory state to bot_state.json5."""
+    """Persist in-memory state to bot_state.toml."""
     path = _get_state_file_path()
-    schema_value = _state.get("$schema") or BOT_STATE_SCHEMA_BASENAME
     data = {
-        "$schema": schema_value,
         "global": {
             "handle_active": _state["global_handle_active"],
             "silent_mode": _state["global_silent_mode"],
@@ -87,13 +87,17 @@ async def _save_bot_state() -> None:
         "platforms": _state["platforms"],
     }
     try:
-        await write_json5_dict_file_async(path, data)
+        await write_toml_dict_file_async(
+            path,
+            data,
+            schema_basename=BOT_STATE_SCHEMA_BASENAME,
+        )
     except Exception:  # noqa: BLE001
         logger.exception("Failed to save bot state")
 
 
 def _persist_state() -> None:
-    """Fire-and-forget persist state to JSON5 file."""
+    """Fire-and-forget persist state to TOML file."""
     fire_and_forget(_save_bot_state(), name="save_bot_state")
 
 
@@ -166,4 +170,3 @@ def _reset_state_for_testing() -> None:
     _state["global_handle_active"] = True
     _state["global_silent_mode"] = False
     _state["platforms"] = {}
-    _state["$schema"] = BOT_STATE_SCHEMA_BASENAME

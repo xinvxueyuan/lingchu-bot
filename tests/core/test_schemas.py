@@ -153,6 +153,21 @@ def test_menu_schema_text_is_valid_json() -> None:
     assert json.loads(MENU_SCHEMA_TEXT)["title"] == "Lingchu Bot Menu Config"
 
 
+def test_config_schema_does_not_advertise_toml_null_values() -> None:
+    schema = json.loads(CONFIG_SCHEMA_TEXT)
+
+    def contains_null_type(value: object) -> bool:
+        if isinstance(value, dict):
+            return value.get("type") == "null" or any(
+                contains_null_type(item) for item in value.values()
+            )
+        if isinstance(value, list):
+            return any(contains_null_type(item) for item in value)
+        return False
+
+    assert contains_null_type(schema) is False
+
+
 async def test_install_schemas_propagates_localstore_errors() -> None:
     """``install_schemas`` must not swallow localstore errors.
 
