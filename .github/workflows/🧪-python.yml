@@ -93,7 +93,7 @@ jobs:
         # Install minimal dependencies for static analysis: project runtime
         # deps + lint group + git group. Skip test group to avoid building
         # database drivers (mariadb, aioodbc) that need system libraries.
-        run: uv sync --no-dev --group lint --group git --frozen
+        run: uv sync --no-dev --all-extras --group lint --group git --frozen
       - name: Install Task
         # pinned from go-task/setup-task@v2.1.0
         uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa
@@ -262,7 +262,7 @@ jobs:
           timeout_minutes: 5
           max_attempts: 4
           retry_wait_seconds: 30
-          command: uv sync --frozen
+          command: uv sync --frozen --all-extras
 
       - name: Install system ODBC driver (SQL Server)
         if: matrix.db.driver_install == 'mssql_odbc'
@@ -338,7 +338,7 @@ jobs:
         # Install minimal dependencies for auto-format: project runtime
         # deps + lint group + git group. Skip test group to avoid building
         # database drivers (mariadb, aioodbc) that need system libraries.
-        run: uv sync --no-dev --group lint --group git --frozen
+        run: uv sync --no-dev --all-extras --group lint --group git --frozen
       - name: Install Task
         # pinned from go-task/setup-task@v2.1.0
         uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa

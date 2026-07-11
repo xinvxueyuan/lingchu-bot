@@ -6,8 +6,6 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, cast
 
-from openai import AsyncOpenAI
-
 from ..core.runtime_config import runtime_config
 
 if TYPE_CHECKING:
@@ -79,6 +77,8 @@ async def _call_openai(
     api_key: str | None,
     request_timeout: float,
 ) -> Any:
+    from openai import AsyncOpenAI
+
     client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=request_timeout)
     return await client.chat.completions.create(
         model=model,
