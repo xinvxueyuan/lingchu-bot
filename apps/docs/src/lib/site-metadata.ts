@@ -11,14 +11,14 @@
  * declared in `SITE_URL`. This lets the same build pipeline serve a preview
  * environment without editing source code.
  */
-import type { Metadata } from 'next';
-import { appName, SITE_URL } from './shared';
+import type { Metadata } from "next";
+import { appName, SITE_URL } from "./shared";
 
 const SITE_DESCRIPTION =
-  'Lingchu Bot is a NoneBot2-based QQ group management bot with permission-aware commands and operator-focused documentation.';
+  "Lingchu Bot is a NoneBot2-based QQ group management bot with permission-aware commands and operator-focused documentation.";
 
 const SITE_DESCRIPTION_ZH =
-  'Lingchu Bot 是基于 NoneBot2 的 QQ 群管理机器人，提供权限感知命令与面向运营的文档。';
+  "Lingchu Bot 是基于 NoneBot2 的 QQ 群管理机器人，提供权限感知命令与面向运营的文档。";
 
 export function getSiteUrl(): URL {
   const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim() || SITE_URL;
@@ -30,7 +30,7 @@ export function getSiteUrl(): URL {
 }
 
 export function getSiteUrlString(): string {
-  return getSiteUrl().toString().replace(/\/$/, '');
+  return getSiteUrl().toString().replace(/\/$/, "");
 }
 
 export function getSiteMetadata(): Metadata {
@@ -44,61 +44,63 @@ export function getSiteMetadata(): Metadata {
     },
     description: SITE_DESCRIPTION,
     openGraph: {
-      type: 'website',
+      type: "website",
       siteName: appName,
       title: appName,
       description: SITE_DESCRIPTION,
       url: siteUrl,
-      locale: 'en_US',
+      locale: "en_US",
     },
     twitter: {
-      card: 'summary_large_image',
+      card: "summary_large_image",
       title: appName,
       description: SITE_DESCRIPTION,
     },
   };
 }
 
-export function getSiteAlternatesTypes(): NonNullable<Metadata['alternates']>['types'] {
+export function getSiteAlternatesTypes(): NonNullable<
+  Metadata["alternates"]
+>["types"] {
   const base = getSiteUrlString();
   return {
-    'application/rss+xml': [
+    "application/rss+xml": [
       { title: `${appName} Docs`, url: `${base}/rss.xml` },
       { title: `${appName} 文档`, url: `${base}/zh/rss.xml` },
     ],
   };
 }
 
-const HOME_OG_IMAGE = '/opengraph-image';
-const HOME_OG_IMAGE_ZH = '/zh/opengraph-image';
+const HOME_OG_IMAGE = "/opengraph-image";
+const HOME_OG_IMAGE_ZH = "/zh/opengraph-image";
 
-export function getHomeMetadata(locale: 'en' | 'zh'): Metadata {
-  const isEn = locale === 'en';
+export function getHomeMetadata(locale: "en" | "zh"): Metadata {
+  const isEn = locale === "en";
   return {
     title: isEn ? appName : `${appName} 文档`,
     description: isEn ? SITE_DESCRIPTION : SITE_DESCRIPTION_ZH,
     alternates: {
-      canonical: isEn ? '/' : '/zh',
+      canonical: isEn ? "/" : "/zh",
       languages: {
-        en: '/',
-        zh: '/zh',
+        en: "/",
+        zh: "/zh",
         // x-default points at the en home (default locale per
         // `hideLocale: 'default-locale'`).
-        'x-default': '/',
+        "x-default": "/",
       },
       types: getSiteAlternatesTypes(),
     },
     openGraph: {
-      type: 'website',
+      type: "website",
       title: isEn ? appName : `${appName} 文档`,
       description: isEn ? SITE_DESCRIPTION : SITE_DESCRIPTION_ZH,
-      url: isEn ? '/' : '/zh',
+      url: isEn ? "/" : "/zh",
       siteName: appName,
-      locale: isEn ? 'en_US' : 'zh_CN',
+      locale: isEn ? "en_US" : "zh_CN",
       images: isEn ? HOME_OG_IMAGE : HOME_OG_IMAGE_ZH,
     },
     twitter: {
-      card: 'summary_large_image',
+      card: "summary_large_image",
       title: isEn ? appName : `${appName} 文档`,
       description: isEn ? SITE_DESCRIPTION : SITE_DESCRIPTION_ZH,
       images: isEn ? HOME_OG_IMAGE : HOME_OG_IMAGE_ZH,
@@ -114,7 +116,9 @@ type DocsPage = {
   };
 };
 
-type HrefLangMap = NonNullable<NonNullable<Metadata['alternates']>['languages']>;
+type HrefLangMap = NonNullable<
+  NonNullable<Metadata["alternates"]>["languages"]
+>;
 
 export function getDocsPageMetadata(
   page: DocsPage,
@@ -123,12 +127,13 @@ export function getDocsPageMetadata(
 ): Metadata {
   // Infer the current locale from the page URL convention
   // (`/zh/docs/...` is the only zh-prefixed path the source emits).
-  const currentLocale: 'en' | 'zh' = page.url.startsWith('/zh/') ? 'zh' : 'en';
-  const ogLocale: 'en_US' | 'zh_CN' = currentLocale === 'en' ? 'en_US' : 'zh_CN';
-  const otherLocale: 'en' | 'zh' = currentLocale === 'en' ? 'zh' : 'en';
+  const currentLocale: "en" | "zh" = page.url.startsWith("/zh/") ? "zh" : "en";
+  const ogLocale: "en_US" | "zh_CN" =
+    currentLocale === "en" ? "en_US" : "zh_CN";
+  const otherLocale: "en" | "zh" = currentLocale === "en" ? "zh" : "en";
 
-  const openGraph: NonNullable<Metadata['openGraph']> = {
-    type: 'article',
+  const openGraph: NonNullable<Metadata["openGraph"]> = {
+    type: "article",
     title: page.data.title,
     description: page.data.description,
     url: page.url,
@@ -144,11 +149,11 @@ export function getDocsPageMetadata(
   if (alternateUrl) {
     languages[otherLocale] = alternateUrl;
     // x-default points at the en version (default locale) of the page.
-    languages['x-default'] = currentLocale === 'en' ? page.url : alternateUrl;
+    languages["x-default"] = currentLocale === "en" ? page.url : alternateUrl;
   }
 
-  const twitter: NonNullable<Metadata['twitter']> = {
-    card: 'summary_large_image',
+  const twitter: NonNullable<Metadata["twitter"]> = {
+    card: "summary_large_image",
     title: page.data.title,
     description: page.data.description,
   };

@@ -63,5 +63,5 @@ async def check_hook_registration() -> None:
 
 
 async def test_hook_registration() -> None:
-    """pytest entry point for ``check_hook_registration``."""
+    """Pytest entry point for ``check_hook_registration``."""
     await check_hook_registration()

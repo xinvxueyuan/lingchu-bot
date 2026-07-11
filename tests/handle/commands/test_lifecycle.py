@@ -1,6 +1,4 @@
-"""
-测试群生命周期命令 - OneBot11 群 API 映射覆盖
-"""
+"""测试群生命周期命令 - OneBot11 群 API 映射覆盖"""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 

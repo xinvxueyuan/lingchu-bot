@@ -1,6 +1,6 @@
-import { source } from '@/lib/source';
-import type { Graph } from '@/components/graph-view';
-import type { ExtractedReference } from 'fumadocs-mdx';
+import { source } from "@/lib/source";
+import type { Graph } from "@/components/graph-view";
+import type { ExtractedReference } from "fumadocs-mdx";
 
 interface PageDataWithReferences {
   extractedReferences?: ExtractedReference[];

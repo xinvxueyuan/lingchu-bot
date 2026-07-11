@@ -142,8 +142,11 @@ async def test_lifecycle_on_shutdown_calls_scheduler_and_message_store_in_order(
 async def test_check_announcement_image_path_bridge_emits_warning_on_mismatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Startup self-check warns when LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR uses a
-    Windows-style drive letter on a Linux / WSL2 host."""
+    """Startup self-check warns on cache path style mismatch.
+
+    Verifies that ``LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR`` using a Windows-style
+    drive letter on a Linux / WSL2 host triggers the startup warning.
+    """
     from unittest.mock import patch
 
     fake_config = MagicMock()

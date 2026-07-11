@@ -1,16 +1,16 @@
-'use client';
-import SearchDialog from '@/components/search';
-import { RootProvider } from 'fumadocs-ui/provider/next';
-import { i18nProvider } from 'fumadocs-ui/i18n';
-import { usePathname, useRouter } from 'next/navigation';
-import { type ReactNode, useCallback } from 'react';
-import { translations } from '@/lib/layout.shared';
-import { switchLocale } from '@/lib/locale';
+"use client";
+import SearchDialog from "@/components/search";
+import { RootProvider } from "fumadocs-ui/provider/next";
+import { i18nProvider } from "fumadocs-ui/i18n";
+import { usePathname, useRouter } from "next/navigation";
+import { type ReactNode, useCallback } from "react";
+import { translations } from "@/lib/layout.shared";
+import { switchLocale } from "@/lib/locale";
 
 export function Provider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const locale = pathname.startsWith('/zh') ? 'zh' : 'en';
+  const locale = pathname.startsWith("/zh") ? "zh" : "en";
 
   const onLocaleChange = useCallback(
     (newLocale: string) => {

@@ -33,7 +33,9 @@ from ..services.scheduler import (
 
 
 async def _check_announcement_image_path_bridge() -> None:
-    """Validate that ANNOUNCEMENT_IMAGE_* path bridge configuration matches
+    """Validate announcement image path bridge configuration.
+
+    Validates that ``ANNOUNCEMENT_IMAGE_*`` path bridge configuration matches
     the current host platform.
 
     Path bridge misconfiguration is the most common cause of

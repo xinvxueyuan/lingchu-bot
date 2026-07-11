@@ -207,6 +207,7 @@ async def get_one[T: Model](
     Args:
         model: ORM 模型类 / ORM model class.
         filters: 筛选条件 / Filter conditions.
+        conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
 
     Returns:
         匹配对象或 None / Matching object or None.
@@ -244,6 +245,7 @@ async def get_or_create[T: Model](
         model: ORM 模型类 / ORM model class.
         defaults: 创建时补充使用的字段 / Extra fields used when creating.
         filters: 用于查找已有记录的字段 / Lookup fields.
+        conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
 
     Returns:
         (对象, 是否新建) / (object, whether newly created).
@@ -290,6 +292,7 @@ async def update_or_create[T: Model](
         model: ORM 模型类 / ORM model class.
         filters: 查找已有记录的条件 / Conditions for locating the record.
         defaults: 找到记录时用于更新的字段，未找到时用于创建的字段。
+        conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
 
     Returns:
         (对象, 是否新建) / (object, whether newly created).
@@ -357,6 +360,7 @@ async def update[T: Model](
         model: ORM 模型类 / ORM model class.
         filters: 筛选条件 / Filter conditions.
         values: 要更新的字段和值 / Fields and values to update.
+        conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
 
     Returns:
         (受影响的行数, 行数是否已知) / (affected rows, whether rowcount is known).
@@ -401,6 +405,7 @@ async def delete[T: Model](
     Args:
         model: ORM 模型类 / ORM model class.
         filters: 删除条件 / Delete conditions.
+        conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
 
     Returns:
         (受影响的行数, 行数是否已知) / (affected rows, whether rowcount is known).
@@ -441,6 +446,7 @@ async def exists[T: Model](
     Args:
         model: ORM 模型类 / ORM model class.
         filters: 判断条件 / Existence check conditions.
+        conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
 
     Returns:
         存在返回 True，不存在返回 False / True if a match exists, else False.
@@ -477,6 +483,7 @@ async def count[T: Model](
     Args:
         model: ORM 模型类 / ORM model class.
         filters: 筛选条件 / Filter conditions.
+        conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
 
     Returns:
         记录数量 / Number of matching records.

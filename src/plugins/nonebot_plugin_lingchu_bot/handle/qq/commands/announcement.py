@@ -74,8 +74,7 @@ def _detect_cache_path_style_mismatch(
     protocol_dir: str | None,
     system_type: str,
 ) -> CachePathStyleMismatch | None:
-    """Detect when LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR uses a path style that does
-    not match the current platform.
+    """Detect announcement image cache path style mismatches.
 
     ``pathlib.Path("C:/dev/lingchu-bot")`` is a relative path on POSIX and an
     absolute path on Windows. When a user copy-pastes a Windows path into a

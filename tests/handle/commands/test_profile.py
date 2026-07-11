@@ -1,6 +1,4 @@
-"""
-测试群资料设置命令 - OneBot11 群 API 映射覆盖
-"""
+"""测试群资料设置命令 - OneBot11 群 API 映射覆盖"""
 
 import base64
 import hashlib
@@ -120,7 +118,7 @@ async def test_onebot11_set_group_avatar_rejects_unsupported_impl(
 
 @pytest.mark.asyncio
 async def test_resolve_image_path_returns_none_for_none_image() -> None:
-    """image 为 None 时返回 None。"""
+    """Image 为 None 时返回 None。"""
     result = await profile._resolve_image_path(None)
     assert result is None
 

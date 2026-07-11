@@ -1,9 +1,13 @@
-import { i18n } from './i18n';
+import { i18n } from "./i18n";
 
 const defaultLocale = i18n.defaultLanguage;
 
-export function switchLocale(pathname: string, currentLocale: string, targetLocale: string): string {
-  const segments = pathname.split('/').filter((v) => v.length > 0);
+export function switchLocale(
+  pathname: string,
+  currentLocale: string,
+  targetLocale: string,
+): string {
+  const segments = pathname.split("/").filter((v) => v.length > 0);
 
   if (currentLocale === defaultLocale) {
     segments.unshift(targetLocale);
@@ -14,5 +18,5 @@ export function switchLocale(pathname: string, currentLocale: string, targetLoca
     else segments.unshift(targetLocale);
   }
 
-  return `/${segments.join('/')}`;
+  return `/${segments.join("/")}`;
 }

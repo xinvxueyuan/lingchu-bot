@@ -1,5 +1,5 @@
-import type { MetadataRoute } from 'next';
-import { appName } from '@/lib/shared';
+import type { MetadataRoute } from "next";
+import { appName } from "@/lib/shared";
 
 // `app/manifest.ts` is a Next.js file convention that emits
 // `out/manifest.webmanifest` at build time. The manifest keeps the docs
@@ -8,7 +8,7 @@ import { appName } from '@/lib/shared';
 // palette; adjust as the brand evolves.
 
 // `output: 'export'` requires the route to be statically generated.
-export const dynamic = 'force-static';
+export const dynamic = "force-static";
 export const revalidate = false;
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -16,12 +16,10 @@ export default function manifest(): MetadataRoute.Manifest {
     name: appName,
     short_name: appName,
     description: `${appName} documentation site`,
-    start_url: '/',
-    display: 'standalone',
-    theme_color: '#0f172a',
-    background_color: '#ffffff',
-    icons: [
-      { src: '/favicon.ico', sizes: 'any', type: 'image/x-icon' },
-    ],
+    start_url: "/",
+    display: "standalone",
+    theme_color: "#0f172a",
+    background_color: "#ffffff",
+    icons: [{ src: "/favicon.ico", sizes: "any", type: "image/x-icon" }],
   };
 }

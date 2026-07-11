@@ -80,9 +80,9 @@ dev = [
 script = ["poethepoet>=0.44.0"]
 git = [
     # "bump-my-version>=1.3.0",
-    "prek>=0.3.8",
+    "prek>=0.4.4",
 ]
-lint = ["ruff>=0.15.10", "pyright>=1.1.407", "ty>=0.0.32"]
+lint = ["ruff>=0.15.21", "pyright>=1.1.410", "ty>=0.0.58"]
 test = [
     "nb-cli>=1.4.0",
     "nonebug>=0.4.3",
@@ -165,6 +165,7 @@ select = [
     "A",     # flake8-builtins
     "COM",   # flake8-commas
     "C4",    # flake8-comprehensions
+    "D",     # pydocstyle
     "DTZ",   # flake8-datetimez
     "T10",   # flake8-debugger
     "ICN",   # flake8-import-conventions
@@ -201,6 +202,20 @@ ignore = [
     "COM812",  # missing-trailing-comma
     "PLC0415", # import-outside-top-level
     "TID252",  # prefer-absolute-imports
+    # pydocstyle (D) ignores
+    "D100",  # missing-module-docstring (modules don't need docstrings)
+    "D104",  # missing-public-class-docstring (packages don't need docstrings)
+    "D105",  # missing-magic-method-docstring (magic methods don't need docstrings)
+    "D107",  # missing-__init__-docstring (__init__ doesn't need docstrings)
+    "D203",  # one-blank-line-before-class (conflicts with Google convention)
+    "D212",  # multi-line-summary-first-line (conflicts with D213, we want D213)
+    "D400",  # ends-in-period (too strict for CJK content)
+    "D415",  # ends-in-punctuation (too strict for CJK content)
+    # missing-docstring rules: too many existing public symbols lack docstrings
+    # to retrofit at once. D rules still enforce style on EXISTING docstrings.
+    "D101",  # missing-public-class-docstring
+    "D102",  # missing-public-method-docstring
+    "D103",  # missing-public-function-docstring
 ]
 allowed-confusables = [
     "，",
@@ -231,6 +246,11 @@ allowed-confusables = [
     "E501",    # line-too-long (test assertions can be verbose)
     "F841",    # unused-variable (fixtures may assign variables for clarity)
     "TC005",   # empty-type-checking-block (test files may have empty TYPE_CHECKING blocks)
+    # pydocstyle (D) ignores for tests
+    "D100",  # missing-module-docstring
+    "D101",  # missing-public-class-docstring
+    "D102",  # missing-public-method-docstring
+    "D103",  # missing-public-function-docstring
 ]
 # utility scripts use print for diagnostic output
 "scripts/**" = [
@@ -245,6 +265,9 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/handle/**/adapters/onebot11/default/**.py" = [
     "PLR0911", # too-many-return-statements (complex permission and privilege checks)
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint.pyupgrade]
 keep-runtime-typing = true
