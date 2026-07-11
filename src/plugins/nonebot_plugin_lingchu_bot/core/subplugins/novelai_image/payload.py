@@ -15,13 +15,26 @@ class NovelAIImageRequest:
     scale: float
     sampler: str
     seed: int
+    v4_base_caption: str | None = None
+    v4_char_captions: tuple[dict[str, Any], ...] = ()
+    v4_character_prompts: tuple[dict[str, Any], ...] = ()
+    use_coords: bool = False
 
 
-def _caption(text: str) -> dict[str, Any]:
-    return {"caption": {"base_caption": text, "char_captions": []}}
+def _caption(
+    text: str,
+    *,
+    char_captions: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    return {"caption": {"base_caption": text, "char_captions": char_captions or []}}
 
 
 def build_payload(request: NovelAIImageRequest) -> dict[str, Any]:
+    base_cap = (
+        request.v4_base_caption
+        if request.v4_base_caption is not None
+        else request.prompt
+    )
     return {
         "action": "generate",
         "input": request.prompt,
@@ -39,11 +52,16 @@ def build_payload(request: NovelAIImageRequest) -> dict[str, Any]:
             "ucPreset": 0,
             "params_version": 3,
             "stream": "msgpack",
-            "v4_prompt": _caption(request.prompt)
-            | {"use_coords": False, "use_order": True},
+            "v4_prompt": _caption(
+                base_cap,
+                char_captions=list(request.v4_char_captions),
+            )
+            | {"use_coords": request.use_coords, "use_order": True},
             "v4_negative_prompt": _caption(request.negative_prompt)
             | {"legacy_uc": False},
-            "characterPrompts": [],
+            "characterPrompts": list(request.v4_character_prompts)
+            if request.v4_character_prompts
+            else [],
             "add_original_image": True,
             "autoSmea": False,
             "cfg_rescale": 0,
@@ -56,6 +74,6 @@ def build_payload(request: NovelAIImageRequest) -> dict[str, Any]:
             "noise_schedule": "karras",
             "normalize_reference_strength_multiple": True,
             "prefer_brownian": True,
-            "use_coords": False,
+            "use_coords": request.use_coords,
         },
     }

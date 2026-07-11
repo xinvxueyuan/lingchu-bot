@@ -16,7 +16,9 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.config
     NovelAIConfig,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.prompt import (
+    CharacterPromptDef,
     ConvertedPrompt,
+    PositionCoord,
     PromptConversionError,
 )
 
@@ -95,6 +97,83 @@ async def test_success_sends_image(
     generate.assert_awaited_once()
     assert mock_finish.await_args is not None
     assert mock_finish.await_args.args[0].type == "image"
+
+
+async def test_handler_simple_request_has_no_v4_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        handler,
+        "convert_prompt",
+        AsyncMock(
+            return_value=ConvertedPrompt(
+                "A cat", ("cat",), ("text",), is_complex=False
+            ),
+        ),
+    )
+    generate = AsyncMock(return_value=b"image")
+    monkeypatch.setattr(handler, "generate_image", generate)
+
+    with pytest.raises(FinishedException):
+        await handler.run_novelai_image(
+            ["画猫"],
+            config=NovelAIConfig(token="token"),
+        )
+
+    assert generate.await_args is not None
+    request = generate.await_args.args[0]
+    assert request.v4_base_caption is None
+    assert request.v4_char_captions == ()
+    assert request.v4_character_prompts == ()
+    assert not request.use_coords
+
+
+async def test_handler_builds_complex_request_with_char_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        handler,
+        "convert_prompt",
+        AsyncMock(
+            return_value=ConvertedPrompt(
+                description="A girl embracing a boy under cherry blossoms",
+                tags=("1girl", "1boy", "cherry blossoms", "hug"),
+                negative_tags=("text",),
+                is_complex=True,
+                characters=(
+                    CharacterPromptDef(
+                        prompt="1girl, silver hair, blue eyes, white dress",
+                        negative_prompt="bad hands",
+                        center=PositionCoord(x=0.3, y=0.5),
+                    ),
+                    CharacterPromptDef(
+                        prompt="1boy, black hair, red eyes, school uniform",
+                        negative_prompt="bad anatomy",
+                        center=PositionCoord(x=0.7, y=0.5),
+                    ),
+                ),
+            ),
+        ),
+    )
+    generate = AsyncMock(return_value=b"image")
+    monkeypatch.setattr(handler, "generate_image", generate)
+
+    with pytest.raises(FinishedException):
+        await handler.run_novelai_image(
+            ["两个角色拥抱"],
+            config=NovelAIConfig(token="token"),
+        )
+
+    assert generate.await_args is not None
+    request = generate.await_args.args[0]
+    assert request.v4_base_caption == "A girl embracing a boy under cherry blossoms"
+    assert len(request.v4_char_captions) == 2
+    assert len(request.v4_character_prompts) == 2
+    assert request.use_coords
+    assert (
+        request.prompt
+        == "A girl embracing a boy under cherry blossoms, 1girl, 1boy, cherry blossoms, hug"
+    )
 
 
 @pytest.mark.parametrize(
