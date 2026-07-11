@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING
 
 import aiofiles
 import pytest
+import rtoml
 
 from src.plugins.nonebot_plugin_lingchu_bot.core import runtime_config as runtime_module
 from src.plugins.nonebot_plugin_lingchu_bot.core.runtime_config import (
-    CONFIG_SCHEMA_BASENAME,
     RuntimeConfigError,
     ensure_runtime_config_file,
     ensure_runtime_config_file_async,
@@ -23,20 +23,20 @@ if TYPE_CHECKING:
 DEFAULT_RETENTION_DAYS = 30
 DEFAULT_SUMMARY_LIMIT = 500
 DEFAULT_RECALL_COUNT = 10
-JSON_SUMMARY_LIMIT = 12
+TOML_SUMMARY_LIMIT = 12
 ENV_SUMMARY_LIMIT = 42
 DOTENV_SUMMARY_LIMIT = 64
 OS_SUMMARY_LIMIT = 88
 DEFAULT_AI_TIMEOUT = 60.0
 
 
-def test_runtime_config_uses_code_defaults_without_json(
+def test_runtime_config_uses_code_defaults_without_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(runtime_module, "_nonebot_runtime_overrides", dict)
 
-    config = get_runtime_config(tmp_path / "missing.json5")
+    config = get_runtime_config(tmp_path / "missing.toml")
 
     assert config.message_store_enabled is True
     assert config.message_store_retention_days == DEFAULT_RETENTION_DAYS
@@ -50,32 +50,45 @@ def test_runtime_config_uses_code_defaults_without_json(
     assert config.lingchu_adapter is None
 
 
-def test_runtime_config_reads_json5_defaults(
+def test_runtime_config_ignores_legacy_json5_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(runtime_module, "_nonebot_runtime_overrides", dict)
-    config_file = tmp_path / "config.json5"
+    legacy_file = tmp_path / "config.json5"
+    legacy_file.write_text("{message_store_enabled: false}", encoding="utf-8")
+
+    config = get_runtime_config(tmp_path / "config.toml")
+
+    assert config.message_store_enabled is True
+
+
+def test_runtime_config_reads_toml_defaults(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(runtime_module, "_nonebot_runtime_overrides", dict)
+    config_file = tmp_path / "config.toml"
     config_file.write_text(
-        """
-        {
-          message_store_enabled: false,
-          message_store_summary_limit: 12,
-          ai_provider: "openai",
-          ai_model: "gpt-4.1-mini",
-          ai_base_url: "https://example.test/v1",
-          ai_timeout: 9.5,
-          lingchu_adapter: "~milky",
-          future_field: "ignored",
-        }
-        """,
+        rtoml.dumps(
+            {
+                "message_store_enabled": False,
+                "message_store_summary_limit": 12,
+                "ai_provider": "openai",
+                "ai_model": "gpt-4.1-mini",
+                "ai_base_url": "https://example.test/v1",
+                "ai_timeout": 9.5,
+                "lingchu_adapter": "~milky",
+                "future_field": "ignored",
+            }
+        ),
         encoding="utf-8",
     )
 
     config = get_runtime_config(config_file)
 
     assert config.message_store_enabled is False
-    assert config.message_store_summary_limit == JSON_SUMMARY_LIMIT
+    assert config.message_store_summary_limit == TOML_SUMMARY_LIMIT
     assert config.ai_provider == "openai"
     assert config.ai_model == "gpt-4.1-mini"
     assert config.ai_base_url == "https://example.test/v1"
@@ -83,14 +96,16 @@ def test_runtime_config_reads_json5_defaults(
     assert config.lingchu_adapter == "~milky"
 
 
-def test_runtime_config_reads_lingchu_superusers_json5(
+def test_runtime_config_reads_lingchu_superusers_toml(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(runtime_module, "_nonebot_runtime_overrides", dict)
-    config_file = tmp_path / "config.json5"
+    config_file = tmp_path / "config.toml"
     config_file.write_text(
-        '{lingchu_superusers: {userA: {qq: 42, telegram: "tg-user"}}}',
+        rtoml.dumps(
+            {"lingchu_superusers": {"userA": {"qq": 42, "telegram": "tg-user"}}}
+        ),
         encoding="utf-8",
     )
 
@@ -103,20 +118,20 @@ def test_runtime_config_rejects_invalid_lingchu_superusers_env(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    config_file = tmp_path / "config.json5"
-    config_file.write_text("{}", encoding="utf-8")
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("", encoding="utf-8")
     monkeypatch.setenv("LINGCHU_SUPERUSERS", "not-json")
 
     with pytest.raises(RuntimeConfigError):
         get_runtime_config(config_file)
 
 
-def test_runtime_config_nonebot_env_overrides_json5(
+def test_runtime_config_nonebot_env_overrides_toml(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    config_file = tmp_path / "config.json5"
-    config_file.write_text("{message_store_summary_limit: 12}", encoding="utf-8")
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("message_store_summary_limit = 12\n", encoding="utf-8")
     monkeypatch.setenv("LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT", str(ENV_SUMMARY_LIMIT))
 
     config = get_runtime_config(config_file)
@@ -124,13 +139,13 @@ def test_runtime_config_nonebot_env_overrides_json5(
     assert config.message_store_summary_limit == ENV_SUMMARY_LIMIT
 
 
-def test_runtime_config_ai_env_overrides_json5(
+def test_runtime_config_ai_env_overrides_toml(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    config_file = tmp_path / "config.json5"
+    config_file = tmp_path / "config.toml"
     config_file.write_text(
-        '{ai_provider: "litellm", ai_model: "json-model", ai_timeout: 12}',
+        'ai_provider = "litellm"\nai_model = "toml-model"\nai_timeout = 12\n',
         encoding="utf-8",
     )
     monkeypatch.setenv("LINGCHU_AI_PROVIDER", "openai")
@@ -144,12 +159,12 @@ def test_runtime_config_ai_env_overrides_json5(
     assert config.ai_timeout == 7.5
 
 
-def test_runtime_config_dotenv_overrides_json5(
+def test_runtime_config_dotenv_overrides_toml(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    config_file = tmp_path / "config.json5"
-    config_file.write_text("{message_store_summary_limit: 12}", encoding="utf-8")
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("message_store_summary_limit = 12\n", encoding="utf-8")
     dotenv_file = tmp_path / ".env"
     dotenv_file.write_text(
         f"LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT={DOTENV_SUMMARY_LIMIT}\n",
@@ -164,12 +179,12 @@ def test_runtime_config_dotenv_overrides_json5(
     assert config.message_store_summary_limit == DOTENV_SUMMARY_LIMIT
 
 
-def test_runtime_config_os_env_overrides_dotenv_and_json5(
+def test_runtime_config_os_env_overrides_dotenv_and_toml(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    config_file = tmp_path / "config.json5"
-    config_file.write_text("{message_store_summary_limit: 12}", encoding="utf-8")
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("message_store_summary_limit = 12\n", encoding="utf-8")
     dotenv_file = tmp_path / ".env"
     dotenv_file.write_text(
         f"LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT={DOTENV_SUMMARY_LIMIT}\n",
@@ -184,8 +199,8 @@ def test_runtime_config_os_env_overrides_dotenv_and_json5(
     assert config.message_store_summary_limit == OS_SUMMARY_LIMIT
 
 
-def test_ensure_runtime_config_file_creates_default_json5(tmp_path: Path) -> None:
-    config_file = tmp_path / "config.json5"
+def test_ensure_runtime_config_file_creates_default_toml(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
 
     created = ensure_runtime_config_file(config_file)
 
@@ -200,8 +215,8 @@ def test_ensure_runtime_config_file_creates_default_json5(tmp_path: Path) -> Non
 def test_ensure_runtime_config_file_does_not_overwrite_existing(
     tmp_path: Path,
 ) -> None:
-    config_file = tmp_path / "config.json5"
-    config_file.write_text("{message_store_retention_days: 7}", encoding="utf-8")
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("message_store_retention_days = 7\n", encoding="utf-8")
 
     ensure_runtime_config_file(config_file)
 
@@ -209,10 +224,10 @@ def test_ensure_runtime_config_file_does_not_overwrite_existing(
 
 
 @pytest.mark.asyncio
-async def test_ensure_runtime_config_file_async_creates_default_json5(
+async def test_ensure_runtime_config_file_async_creates_default_toml(
     tmp_path: Path,
 ) -> None:
-    config_file = tmp_path / "config.json5"
+    config_file = tmp_path / "config.toml"
 
     created = await ensure_runtime_config_file_async(config_file)
 
@@ -228,9 +243,9 @@ async def test_ensure_runtime_config_file_async_creates_default_json5(
 async def test_ensure_runtime_config_file_async_does_not_overwrite_existing(
     tmp_path: Path,
 ) -> None:
-    config_file = tmp_path / "config.json5"
+    config_file = tmp_path / "config.toml"
     async with aiofiles.open(config_file, "w", encoding="utf-8") as f:
-        await f.write("{message_store_retention_days: 7}")
+        await f.write("message_store_retention_days = 7\n")
 
     await ensure_runtime_config_file_async(config_file)
 
@@ -238,8 +253,8 @@ async def test_ensure_runtime_config_file_async_does_not_overwrite_existing(
         assert "7" in await f.read()
 
 
-def test_runtime_config_invalid_json5_includes_path(tmp_path: Path) -> None:
-    config_file = tmp_path / "config.json5"
+def test_runtime_config_invalid_toml_includes_path(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
     config_file.write_text("{broken", encoding="utf-8")
 
     with pytest.raises(RuntimeConfigError) as exc_info:
@@ -249,8 +264,8 @@ def test_runtime_config_invalid_json5_includes_path(tmp_path: Path) -> None:
 
 
 def test_runtime_config_rejects_invalid_field_type(tmp_path: Path) -> None:
-    config_file = tmp_path / "config.json5"
-    config_file.write_text("{message_store_retention_days: -1}", encoding="utf-8")
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("message_store_retention_days = -1\n", encoding="utf-8")
 
     with pytest.raises(RuntimeConfigError) as exc_info:
         get_runtime_config(config_file)
@@ -263,8 +278,8 @@ def test_runtime_config_rejects_invalid_ai_provider(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(runtime_module, "_nonebot_runtime_overrides", dict)
-    config_file = tmp_path / "config.json5"
-    config_file.write_text('{ai_provider: "unsupported"}', encoding="utf-8")
+    config_file = tmp_path / "config.toml"
+    config_file.write_text('ai_provider = "unsupported"\n', encoding="utf-8")
 
     with pytest.raises(RuntimeConfigError) as exc_info:
         get_runtime_config(config_file)
@@ -277,8 +292,8 @@ def test_runtime_config_rejects_invalid_ai_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(runtime_module, "_nonebot_runtime_overrides", dict)
-    config_file = tmp_path / "config.json5"
-    config_file.write_text("{ai_timeout: 0}", encoding="utf-8")
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("ai_timeout = 0\n", encoding="utf-8")
 
     with pytest.raises(RuntimeConfigError) as exc_info:
         get_runtime_config(config_file)
@@ -286,13 +301,10 @@ def test_runtime_config_rejects_invalid_ai_timeout(
     assert str(config_file) in str(exc_info.value)
 
 
-def test_runtime_config_defaults_contain_schema_basename() -> None:
-    """Default payloads embed the schema reference as a bare basename."""
+def test_runtime_config_defaults_do_not_contain_schema_metadata() -> None:
     defaults = runtime_config_defaults()
 
-    assert defaults["$schema"] == CONFIG_SCHEMA_BASENAME
-    assert "/" not in defaults["$schema"]
-    assert "\\" not in defaults["$schema"]
+    assert "$schema" not in defaults
 
 
 def test_runtime_config_defaults_contain_whitelist_gate_keys() -> None:
@@ -323,30 +335,12 @@ def test_runtime_config_schema_documents_ai_fields() -> None:
     assert "ai_timeout" in CONFIG_SCHEMA_TEXT
 
 
-def test_runtime_config_user_schema_overrides_default(
-    tmp_path: Path,
-) -> None:
-    """A user-provided ``$schema`` wins over the default basename."""
-    config_file = tmp_path / "config.json5"
-    config_file.write_text(
-        '{"$schema": "custom.schema.json5", "message_store_enabled": false}',
-        encoding="utf-8",
-    )
-
-    raw = runtime_config_defaults() | runtime_module.load_runtime_json_defaults(
-        config_file
-    )
-
-    assert raw["$schema"] == "custom.schema.json5"
-    assert raw["message_store_enabled"] is False
-
-
 def test_env_overrides_prefixed_key(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """LINGCHU_-prefixed env keys are read correctly."""
     monkeypatch.setenv("LINGCHU_MESSAGE_STORE_ENABLED", "false")
-    config = get_runtime_config(tmp_path / "missing.json5")
+    config = get_runtime_config(tmp_path / "missing.toml")
     assert config.message_store_enabled is False
     monkeypatch.delenv("LINGCHU_MESSAGE_STORE_ENABLED", raising=False)
 
@@ -357,6 +351,6 @@ def test_env_overrides_ignores_legacy_key(
     """Legacy unprefixed env keys are ignored; only LINGCHU_ prefix is read."""
     monkeypatch.delenv("LINGCHU_MESSAGE_STORE_ENABLED", raising=False)
     monkeypatch.setenv("MESSAGE_STORE_ENABLED", "false")
-    config = get_runtime_config(tmp_path / "missing.json5")
+    config = get_runtime_config(tmp_path / "missing.toml")
     assert config.message_store_enabled is True  # code default, legacy key ignored
     monkeypatch.delenv("MESSAGE_STORE_ENABLED", raising=False)

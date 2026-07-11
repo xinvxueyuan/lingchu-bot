@@ -23,7 +23,7 @@ The service records structured summaries rather than raw message content. Events
 
 <Callout title="Optional feature">
 
-Message storage is enabled by default but can be disabled entirely by setting `message_store_enabled = false` in `config.json5`.
+Message storage is enabled by default but can be disabled entirely by setting `message_store_enabled = false` in `config.toml`.
 
 </Callout>
 
@@ -95,7 +95,7 @@ Message store uses `nonebot-plugin-orm` for database access. The ORM helper in `
 
 <Callout title="Blocking paths">
 
-File storage, JSON5 parsing, deepcopy, command parsing, and translation catalog loading are all moved to worker threads. Do not call synchronous storage methods directly from async handlers.
+File storage, TOML parsing, deepcopy, command parsing, and translation catalog loading are all moved to worker threads. Do not call synchronous storage methods directly from async handlers.
 
 </Callout>
 
@@ -103,10 +103,8 @@ File storage, JSON5 parsing, deepcopy, command parsing, and translation catalog 
 
 To disable message storage entirely:
 
-```json5
-{
-  message_store_enabled: false,
-}
+```toml
+message_store_enabled = false
 ```
 
 When disabled, no event hooks are registered and no records are written. Existing records are not automatically deleted.

@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (4557 symbols, 8630 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (4761 symbols, 8959 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -141,7 +141,7 @@ This sync rule starts after `<!-- gitnexus:end -->`. GitNexus marker blocks are 
 - **Localstore path ownership**: All mutable data, config, cache, resource, and schema files MUST be resolved through `nonebot_plugin_localstore` helpers such as `get_plugin_data_dir()`, `get_plugin_config_dir()`, `get_plugin_cache_dir()`, `get_plugin_data_file()`, `get_plugin_config_file()`, or `get_plugin_cache_file()`.
 - **No hard-coded mutable paths**: `Path("...")` for mutable runtime files is forbidden.
 - **No packaged schema resources**: Do not use `importlib.resources` or wheel data for JSON schemas. Schema text lives in `src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py` and is installed by `install_schemas()`.
-- **Handle default registration**: Handle-level defaults MUST be registered in `handle_config_defaults/` using `register_handle_defaults()` before `HandleConfigManager` can read or update `<command_key>.json5` files.
+- **Handle default registration**: Handle-level defaults MUST be registered in `handle_config_defaults/` using `register_handle_defaults()` before `HandleConfigManager` can read or update `<command_key>.toml` files.
 - **Prek is hook source of truth**: `prek.toml` is the only pre-commit hook configuration. Do not reintroduce `.pre-commit-config.yaml`.
 - **Version sync**: Use `Taskfile.yml` task `ci:version:write-config` to write both `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` and root `package.json`.
 - **Release branches**: Formal releases use `releases/<version>` branches and must keep `pyproject.toml`, `package.json`, and `core/config.py` versions synchronized before publishing.
@@ -184,8 +184,8 @@ When modifying business logic, especially adapter-layer code, check all relevant
 | i18n | `src/plugins/nonebot_plugin_lingchu_bot/i18n/`; run `task i18n` when user-facing strings change |
 | Docs | `apps/docs/content/docs/` |
 | Menu | `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py` |
-| Runtime config | `config.json5`, `bot_state.json5`, `menu.json5`, schema text in `core/schemas.py` |
-| Handle config files | `handle_config_defaults/`, `<command_key>.json5` in localstore config_dir |
+| Runtime config | `config.toml`, `bot_state.toml`, `menu.toml`, schema text in `core/schemas.py` |
+| Handle config files | `handle_config_defaults/`, `<command_key>.toml` in localstore config_dir |
 | Triggers | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` |
 | Agent context | `AGENTS.md`, `CLAUDE.md`, `.github/note/AGENTS-zh.md` |
 
@@ -201,13 +201,13 @@ For handle, QQ command, adapter handler, matcher, `command_key`, menu, trigger, 
 
 ### State And Config Rules
 
-- `core/bot_state.py` persists `bot_state.json5` through localstore.
+- `core/bot_state.py` persists `bot_state.toml` through localstore.
 - `is_handle_active(platform_id)` resolves global AND platform state.
 - `is_silent_mode(platform_id)` resolves global OR platform state.
 - `selected_adapter_handle()` supports `bypass_gate` and `bypass_silent`.
 - "闭嘴"/"说话" bypass silent mode but not shutdown gate.
 - "开机"/"关机" bypass both gate and silent mode.
-- `install_schemas()` must run before runtime JSON5 files reference schema basenames. Its failure is logged and non-fatal.
+- `install_schemas()` must run before runtime TOML files reference schema basenames. Its failure is logged and non-fatal.
 
 ### Repository API Style
 
@@ -360,7 +360,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - Package conversions need explicit `__init__.py` re-exports.
 - Alembic model packages must import all models so discovery works.
 - Run migrations before non-SQLite tests.
-- `ensure_json5_dict_file_async()` only creates missing files; use `write_json5_dict_file_async()` to overwrite.
+- `ensure_toml_dict_file_async()` only creates missing files; use `write_toml_dict_file_async()` to overwrite.
 - Runtime config defaults must be JSON-serializable; dump Pydantic defaults with `mode="json"` when needed.
 
 #### Cross-Database Compatibility (added with MariaDB / Oracle / SQL Server support)

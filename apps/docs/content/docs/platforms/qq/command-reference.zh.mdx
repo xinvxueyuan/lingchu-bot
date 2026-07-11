@@ -82,7 +82,7 @@ unmute-all
 recall [@user] [count]
 ```
 
-- 数量默认读取 `config.json5` 的 `recall_message_default_count`（默认 `10`）。
+- 数量默认读取 `config.toml` 的 `recall_message_default_count`（默认 `10`）。
 - 单个数字参数会被视为数量：`撤回 20`。
 - 定向撤回用户消息时先提供 @：`撤回 @用户 20`。
 - 命令从消息存储读取当前群最近消息，跳过触发命令本身，通过 OneBot V11 `get_msg` 校验候选消息，再调用 `delete_msg` 撤回。
@@ -221,12 +221,12 @@ chat <text>
 
 与 AI 聊天。机器人调用配置的 LLM 服务（`ai_provider` / `ai_model` / `ai_base_url` / `ai_api_key`）生成回复。
 
-- 系统提示词：默认 `"你是一个友好的群聊助手。"`，可通过 `chat.json5` 的 `defaults.system_prompt` 自定义。
-- 功能开关：`chat.json5` 的 `enabled` 字段控制启用/禁用。
+- 系统提示词：默认 `"你是一个友好的群聊助手。"`，可通过 `chat.toml` 的 `defaults.system_prompt` 自定义。
+- 功能开关：`chat.toml` 的 `enabled` 字段控制启用/禁用。
 
 <Callout type="info" title="LLM 配置">
 
-聊天命令依赖运行时 LLM 配置。在 `config.json5` 或环境变量中设置：
+聊天命令依赖运行时 LLM 配置。在 `config.toml` 或环境变量中设置：
 
 - `ai_provider`：`litellm`（默认）或 `openai`
 - `ai_model`：模型名称（默认 `gpt-4o-mini`）

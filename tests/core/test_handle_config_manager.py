@@ -199,7 +199,7 @@ class TestUpdateConfigPersistence:
         await install_schemas()
 
         command_key = "kick_member"
-        file_path = patched_localstore / f"{command_key}.json5"
+        file_path = patched_localstore / f"{command_key}.toml"
 
         # Update configuration
         updates = {"enabled": False, "defaults": {"require_reason": True}}
@@ -209,11 +209,11 @@ class TestUpdateConfigPersistence:
         assert file_path.exists()
 
         # Read file content
-        import json5
+        import rtoml
 
         async with aiofiles.open(file_path, encoding="utf-8") as f:
             content = await f.read()
-        config_dict = json5.loads(content)
+        config_dict = rtoml.loads(content)
 
         # Verify updates were persisted
         assert config_dict["enabled"] is False
@@ -277,7 +277,7 @@ class TestEnsureConfigFiles:
 
         # Ensure no config files exist
         for command_key in HANDLE_DEFAULTS_REGISTRY:
-            file_path = patched_localstore / f"{command_key}.json5"
+            file_path = patched_localstore / f"{command_key}.toml"
             assert not file_path.exists()
 
         # Run ensure_config_files
@@ -285,7 +285,7 @@ class TestEnsureConfigFiles:
 
         # Verify all files were created
         for command_key in HANDLE_DEFAULTS_REGISTRY:
-            file_path = patched_localstore / f"{command_key}.json5"
+            file_path = patched_localstore / f"{command_key}.toml"
             assert file_path.exists(), f"Config file for {command_key} should exist"
 
     async def test_creates_files_with_correct_content(
@@ -298,18 +298,21 @@ class TestEnsureConfigFiles:
 
         await config_manager.ensure_config_files()
 
-        import json5
+        import rtoml
 
         for command_key, expected_defaults in HANDLE_DEFAULTS_REGISTRY.items():
-            file_path = patched_localstore / f"{command_key}.json5"
+            file_path = patched_localstore / f"{command_key}.toml"
             async with aiofiles.open(file_path, encoding="utf-8") as f:
                 content = await f.read()
-            config_dict = json5.loads(content)
+            config_dict = rtoml.loads(content)
 
             # Verify content matches defaults
-            assert config_dict["$schema"] == "handle_config.schema.json5"
+            assert content.startswith("#:schema ./handle_config.schema.json\n")
             assert config_dict["enabled"] == expected_defaults["enabled"]
-            assert config_dict["defaults"] == expected_defaults["defaults"]
+            expected_on_disk = rtoml.loads(
+                rtoml.dumps(expected_defaults, pretty=True, none_value=None)
+            )
+            assert config_dict["defaults"] == expected_on_disk["defaults"]
             assert config_dict["policies"] == expected_defaults["policies"]
 
     async def test_does_not_modify_existing_files(
@@ -321,19 +324,18 @@ class TestEnsureConfigFiles:
         await install_schemas()
 
         command_key = "kick_member"
-        file_path = patched_localstore / f"{command_key}.json5"
+        file_path = patched_localstore / f"{command_key}.toml"
 
         # Create a file with custom content
-        import json5
+        import rtoml
 
         custom_content = {
-            "$schema": "handle_config.schema.json5",
             "enabled": False,
             "defaults": {"require_reason": True, "audit_level": "high"},
             "policies": {"custom_policy": "value"},
         }
         async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
-            await f.write(json5.dumps(custom_content, indent=2))
+            await f.write(rtoml.dumps(custom_content, pretty=True))
 
         # Run ensure_config_files
         await config_manager.ensure_config_files()
@@ -341,7 +343,7 @@ class TestEnsureConfigFiles:
         # Verify file was not modified
         async with aiofiles.open(file_path, encoding="utf-8") as f:
             content = await f.read()
-        config_dict = json5.loads(content)
+        config_dict = rtoml.loads(content)
 
         assert config_dict["enabled"] is False
         assert config_dict["defaults"]["require_reason"] is True
@@ -361,7 +363,6 @@ class TestValidateConfig:
 
         command_key = "kick_member"
         valid_config = {
-            "$schema": "handle_config.schema.json5",
             "enabled": True,
             "defaults": {"require_reason": False, "audit_level": "low"},
             "policies": {},
@@ -379,7 +380,6 @@ class TestValidateConfig:
 
         command_key = "kick_member"
         invalid_config = {
-            "$schema": "handle_config.schema.json5",
             "defaults": {"require_reason": False, "audit_level": "low"},
             "policies": {},
         }
@@ -396,7 +396,6 @@ class TestValidateConfig:
 
         command_key = "kick_member"
         invalid_config = {
-            "$schema": "handle_config.schema.json5",
             "enabled": "true",  # Should be bool, not string
             "defaults": {"require_reason": False, "audit_level": "low"},
             "policies": {},
@@ -413,9 +412,8 @@ class TestValidateConfig:
         await install_schemas()
 
         command_key = "kick_member"
-        # defaults is optional in schema (only $schema and enabled are required)
+        # defaults is optional in schema (only enabled is required)
         valid_config = {
-            "$schema": "handle_config.schema.json5",
             "enabled": True,
             "policies": {},
         }
@@ -431,9 +429,8 @@ class TestValidateConfig:
         await install_schemas()
 
         command_key = "kick_member"
-        # policies is optional in schema (only $schema and enabled are required)
+        # policies is optional in schema (only enabled is required)
         valid_config = {
-            "$schema": "handle_config.schema.json5",
             "enabled": True,
             "defaults": {"require_reason": False, "audit_level": "low"},
         }

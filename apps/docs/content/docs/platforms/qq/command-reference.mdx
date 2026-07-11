@@ -82,7 +82,7 @@ unmute-all
 recall [@user] [count]
 ```
 
-- Count default: `recall_message_default_count` from `config.json5` (default `10`).
+- Count default: `recall_message_default_count` from `config.toml` (default `10`).
 - A single numeric argument is treated as the count: `撤回 20`.
 - To target a user, mention them first: `撤回 @用户 20`.
 - The command reads recent current-group message records from the message store, skips the triggering command message, verifies each candidate through OneBot V11 `get_msg`, then recalls it through `delete_msg`.
@@ -221,12 +221,12 @@ chat <text>
 
 Chat with AI. The bot calls the configured LLM service (`ai_provider` / `ai_model` / `ai_base_url` / `ai_api_key`) to generate a response.
 
-- System prompt: defaults to `"你是一个友好的群聊助手。"`, customizable via `defaults.system_prompt` in `chat.json5`.
-- Feature toggle: the `enabled` field in `chat.json5` controls enable/disable.
+- System prompt: defaults to `"你是一个友好的群聊助手。"`, customizable via `defaults.system_prompt` in `chat.toml`.
+- Feature toggle: the `enabled` field in `chat.toml` controls enable/disable.
 
 <Callout type="info" title="LLM Configuration">
 
-The chat command requires runtime LLM configuration. Set the following in `config.json5` or environment variables:
+The chat command requires runtime LLM configuration. Set the following in `config.toml` or environment variables:
 
 - `ai_provider`: `litellm` (default) or `openai`
 - `ai_model`: model name (default `gpt-4o-mini`)

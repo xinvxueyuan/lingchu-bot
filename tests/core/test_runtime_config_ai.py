@@ -1,7 +1,7 @@
 """Tests for the ``ai_api_key`` field on :class:`RuntimeConfig`.
 
-Verifies code defaults, JSON5 dict loading, and env-var override priority
-(`OS env > dotenv > JSON5 > code defaults`).
+Verifies code defaults, TOML dict loading, and env-var override priority
+(`OS env > dotenv > TOML > code defaults`).
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ def test_ai_api_key_defaults_to_none() -> None:
 
 
 def test_ai_api_key_loaded_from_dict() -> None:
-    """``ai_api_key`` is populated when validating a JSON5-style dict."""
+    """``ai_api_key`` is populated when validating a TOML-style dict."""
     config = type_validate_python(RuntimeConfig, {"ai_api_key": "sk-test123"})
     assert config.ai_api_key == "sk-test123"
 
@@ -42,12 +42,12 @@ def test_ai_api_key_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
     assert overrides == {"ai_api_key": "sk-env456"}
 
 
-def test_ai_api_key_env_overrides_json5(monkeypatch: pytest.MonkeyPatch) -> None:
-    """OS env var wins over a JSON5 dict value when both are present."""
+def test_ai_api_key_env_overrides_toml(monkeypatch: pytest.MonkeyPatch) -> None:
+    """OS env var wins over a TOML dict value when both are present."""
     monkeypatch.setenv("LINGCHU_AI_API_KEY", "sk-env456")
     try:
-        json5_dict = {"ai_api_key": "sk-json5-losing"}
-        merged = json5_dict | _env_overrides({})
+        toml_dict = {"ai_api_key": "sk-toml-losing"}
+        merged = toml_dict | _env_overrides({})
     finally:
         monkeypatch.delenv("LINGCHU_AI_API_KEY", raising=False)
 

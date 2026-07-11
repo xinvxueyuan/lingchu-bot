@@ -1,4 +1,4 @@
-"""JSON5-backed runtime menu configuration."""
+"""TOML-backed runtime menu configuration."""
 
 # ruff: noqa: TRY003
 
@@ -13,21 +13,21 @@ from nonebot import logger, require
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
 
-from ..database.json5_store import (
+from ..database.toml_store import (
     DatabaseError,
-    ensure_json5_dict_file_async,
-    load_json5_dict_async,
+    ensure_toml_dict_file_async,
+    load_toml_dict_async,
 )
 from ..handle import menu as menu_module
 from ..handle.menu import LocalizedText, MenuFeature, MenuPage
 from .schemas import MENU_SCHEMA_BASENAME
 
-MENU_FILENAME: Final = "menu.json5"
+MENU_FILENAME: Final = "menu.toml"
 MENU_CONFIG_VERSION: Final = 2
 
 
 class MenuConfigError(RuntimeError):
-    """Menu JSON5 configuration loading failed."""
+    """Menu TOML configuration loading failed."""
 
     def __init__(self, config_file: Path, reason: BaseException | str) -> None:
         self.config_file = config_file
@@ -53,9 +53,8 @@ def get_menu_config_file() -> Path:
 
 
 def menu_config_defaults() -> dict[str, Any]:
-    """Return JSON5-compatible defaults generated from code-owned menu data."""
+    """Return TOML-compatible defaults generated from code-owned menu data."""
     return {
-        "$schema": MENU_SCHEMA_BASENAME,
         "version": MENU_CONFIG_VERSION,
         "pages": [_serialize_page(page) for page in menu_module._DEFAULT_MENU_PAGES],
     }
@@ -64,10 +63,10 @@ def menu_config_defaults() -> dict[str, Any]:
 async def load_menu_config(
     config_file: str | Path | None = None,
 ) -> tuple[tuple[MenuPage, ...], tuple[MenuFeature, ...]]:
-    """Load menu pages and features from JSON5, merged onto code defaults."""
+    """Load menu pages and features from TOML, merged onto code defaults."""
     path = Path(config_file) if config_file is not None else get_menu_config_file()
     try:
-        raw_config = await load_json5_dict_async(
+        raw_config = await load_toml_dict_async(
             path,
             default=menu_config_defaults(),
             merge_default=False,
@@ -86,10 +85,14 @@ async def load_menu_config(
 async def ensure_menu_config_file_async(
     config_file: str | Path | None = None,
 ) -> Path:
-    """Create the default menu JSON5 config file on first startup."""
+    """Create the default menu TOML config file on first startup."""
     path = Path(config_file) if config_file is not None else get_menu_config_file()
     try:
-        return await ensure_json5_dict_file_async(path, menu_config_defaults())
+        return await ensure_toml_dict_file_async(
+            path,
+            menu_config_defaults(),
+            schema_basename=MENU_SCHEMA_BASENAME,
+        )
     except DatabaseError as exc:
         raise MenuConfigError(path, exc) from exc
 

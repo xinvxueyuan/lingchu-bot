@@ -54,7 +54,7 @@ __plugin_meta__ = PluginMetadata(
 )
 
 # isort: off
-from .database import json5_store as json5_store
+from .database import toml_store as toml_store
 from .database import models as models
 from .database import orm_crud as orm_crud
 from .services import message_store as message_store

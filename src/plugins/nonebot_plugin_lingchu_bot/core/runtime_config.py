@@ -1,14 +1,14 @@
-"""Lightweight runtime configuration backed by JSON5 and NoneBot settings."""
+"""Lightweight runtime configuration backed by TOML and NoneBot settings."""
 
 # ruff: noqa: TRY003
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal
 
-import json5
 from nonebot import get_driver, require
 from nonebot.compat import type_validate_python
 
@@ -26,17 +26,17 @@ from pydantic import (
 if TYPE_CHECKING:
     from nonebot.config import Config as NoneBotConfig
 
-from ..database.json5_store import (
+from ..database.toml_store import (
     DatabaseError,
-    ensure_json5_dict_file_async,
-    ensure_json5_dict_file_sync,
-    load_json5_dict_sync,
+    ensure_toml_dict_file_async,
+    ensure_toml_dict_file_sync,
+    load_toml_dict_sync,
 )
 from .handle_config_defaults import HANDLE_DEFAULTS_REGISTRY  # noqa: F401
 from .handle_config_manager import HandleConfigManager
 from .schemas import CONFIG_SCHEMA_BASENAME
 
-CONFIG_FILENAME: Final = "config.json5"
+CONFIG_FILENAME: Final = "config.toml"
 
 
 class RuntimeConfigError(RuntimeError):
@@ -50,7 +50,7 @@ class RuntimeConfigError(RuntimeError):
 class RuntimeConfig(BaseModel):
     """Lingchu Bot lightweight runtime settings.
 
-    JSON5 values provide low-priority defaults. NoneBot direct config,
+    TOML values provide low-priority defaults. NoneBot direct config,
     environment variables and dotenv files override them through NoneBot's own
     settings parser.
     """
@@ -195,9 +195,9 @@ class RuntimeConfig(BaseModel):
             return None
         if isinstance(value, str):
             try:
-                value = json5.loads(value)
+                value = json.loads(value)
             except ValueError as exc:
-                raise ValueError("LINGCHU_SUPERUSERS must be valid JSON5") from exc
+                raise ValueError("LINGCHU_SUPERUSERS must be valid JSON") from exc
         if not isinstance(value, dict):
             raise ValueError("LINGCHU_SUPERUSERS must be a mapping")  # noqa: TRY004
         result: dict[str, dict[str, str | int]] = {}
@@ -228,7 +228,7 @@ class RuntimeConfig(BaseModel):
             return frozenset()
         if isinstance(value, str):
             try:
-                value = json5.loads(value)
+                value = json.loads(value)
             except ValueError:
                 value = [value]
         if not isinstance(value, (list, tuple, set, frozenset)):
@@ -237,17 +237,8 @@ class RuntimeConfig(BaseModel):
 
 
 def runtime_config_defaults() -> dict[str, Any]:
-    """Return validated code defaults for the generated JSON5 file.
-
-    The ``$schema`` field is injected as a basename so editors locate
-    the sibling schema file inside the localstore config directory
-    (managed by ``nonebot_plugin_localstore``) without any hard-coded
-    relative or absolute path.
-    """
-    return {
-        "$schema": CONFIG_SCHEMA_BASENAME,
-        **RuntimeConfig().model_dump(mode="json"),
-    }
+    """Return validated code defaults for the generated TOML file."""
+    return RuntimeConfig().model_dump(mode="json")
 
 
 def get_runtime_config_file() -> Path:
@@ -258,14 +249,14 @@ def get_runtime_config_file() -> Path:
         return Path(CONFIG_FILENAME)
 
 
-def load_runtime_json_defaults(
+def load_runtime_toml_defaults(
     config_file: str | Path | None = None,
 ) -> dict[str, Any]:
-    """Load low-priority runtime defaults from JSON5."""
+    """Load low-priority runtime defaults from TOML."""
     path = Path(config_file) if config_file is not None else get_runtime_config_file()
     try:
         # Import-time sync I/O: no event loop exists yet at module load.
-        return load_json5_dict_sync(path, default={}, merge_default=False)
+        return load_toml_dict_sync(path, default={}, merge_default=False)
     except DatabaseError as exc:
         raise RuntimeConfigError(path, exc) from exc
 
@@ -404,9 +395,9 @@ def _nonebot_runtime_overrides() -> dict[str, Any]:
 def get_runtime_config(
     config_file: str | Path | None = None,
 ) -> RuntimeConfig:
-    """Resolve runtime config with OS env > dotenv > JSON5 > code defaults."""
+    """Resolve runtime config with OS env > dotenv > TOML > code defaults."""
     path = Path(config_file) if config_file is not None else get_runtime_config_file()
-    raw_config = runtime_config_defaults() | load_runtime_json_defaults(path)
+    raw_config = runtime_config_defaults() | load_runtime_toml_defaults(path)
     raw_config |= _nonebot_runtime_overrides()
     try:
         return type_validate_python(RuntimeConfig, raw_config)
@@ -417,11 +408,15 @@ def get_runtime_config(
 def ensure_runtime_config_file(
     config_file: str | Path | None = None,
 ) -> Path:
-    """Create the default JSON5 runtime config file on first startup."""
+    """Create the default TOML runtime config file on first startup."""
     path = Path(config_file) if config_file is not None else get_runtime_config_file()
     try:
         # Sync I/O: import-time API; runtime uses ensure_runtime_config_file_async.
-        return ensure_json5_dict_file_sync(path, runtime_config_defaults())
+        return ensure_toml_dict_file_sync(
+            path,
+            runtime_config_defaults(),
+            schema_basename=CONFIG_SCHEMA_BASENAME,
+        )
     except DatabaseError as exc:
         raise RuntimeConfigError(path, exc) from exc
 
@@ -436,7 +431,11 @@ async def ensure_runtime_config_file_async(
     """
     path = Path(config_file) if config_file is not None else get_runtime_config_file()
     try:
-        return await ensure_json5_dict_file_async(path, runtime_config_defaults())
+        return await ensure_toml_dict_file_async(
+            path,
+            runtime_config_defaults(),
+            schema_basename=CONFIG_SCHEMA_BASENAME,
+        )
     except DatabaseError as exc:
         raise RuntimeConfigError(path, exc) from exc
 
@@ -513,7 +512,7 @@ __all__ = [
     "get_runtime_config",
     "get_runtime_config_file",
     "initialize_handle_config_manager",
-    "load_runtime_json_defaults",
+    "load_runtime_toml_defaults",
     "runtime_config",
     "runtime_config_defaults",
 ]

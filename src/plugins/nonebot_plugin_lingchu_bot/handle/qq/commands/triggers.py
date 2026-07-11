@@ -6,7 +6,7 @@ from ....core.runtime_config import (
     runtime_config,
     runtime_config_defaults,
 )
-from ....database.json5_store import RobustAsyncJSON5DB
+from ....database.toml_store import RobustAsyncTOMLDB
 from ....i18n import get_configured_locale, normalize_locale
 
 
@@ -146,7 +146,7 @@ def _override_to_json(value: CommandTriggerOverride) -> dict[str, Any]:
 
 
 async def list_command_trigger_overrides() -> dict[str, CommandTriggerOverride]:
-    async with RobustAsyncJSON5DB(
+    async with RobustAsyncTOMLDB(
         get_runtime_config_file(),
         default=runtime_config_defaults(),
     ) as db:
@@ -164,7 +164,7 @@ async def upsert_command_trigger_override(
     merged = dict(existing)
     merged[command_key] = override
     build_command_triggers(_DEFAULT_COMMAND_TRIGGERS, merged)
-    async with RobustAsyncJSON5DB(
+    async with RobustAsyncTOMLDB(
         get_runtime_config_file(),
         default=runtime_config_defaults(),
     ) as db:
@@ -176,7 +176,7 @@ async def upsert_command_trigger_override(
 
 
 async def delete_command_trigger_override(command_key: str) -> bool:
-    async with RobustAsyncJSON5DB(
+    async with RobustAsyncTOMLDB(
         get_runtime_config_file(),
         default=runtime_config_defaults(),
     ) as db:

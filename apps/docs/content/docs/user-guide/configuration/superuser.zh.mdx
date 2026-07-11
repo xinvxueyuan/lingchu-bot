@@ -3,7 +3,7 @@ icon: ShieldCheck
 title: 超级用户身份
 ---
 
-Lingchu 权限系统使用稳定 UID 和平台账号绑定，而不是只把平台账号 ID 当作身份。推荐用 JSON5 配置专属超级用户映射：
+Lingchu 权限系统使用稳定 UID 和平台账号绑定，而不是只把平台账号 ID 当作身份。环境变量中的专属超级用户映射使用严格 JSON：
 
 ```dotenv
 LINGCHU_SUPERUSERS='{"userA":{"qq":123,"telegram":"tg-id","discord":"discord-id"}}'

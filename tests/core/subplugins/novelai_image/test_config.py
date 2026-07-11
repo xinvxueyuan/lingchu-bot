@@ -62,7 +62,7 @@ def test_novelai_environment_overrides_json_defaults(
     monkeypatch.setenv("LINGCHU_NOVELAI_WIDTH", "1024")
     monkeypatch.setenv("LINGCHU_NOVELAI_TOKEN", "env-token")
 
-    value = config.get_novelai_config(tmp_path / "missing.json5")
+    value = config.get_novelai_config(tmp_path / "missing.toml")
 
     assert value.width == 1024
     assert value.token == "env-token"
@@ -84,17 +84,27 @@ def test_novelai_config_reads_nonebot_dotenv_values(
         ),
     )
 
-    value = config.get_novelai_config(tmp_path / "missing.json5")
+    value = config.get_novelai_config(tmp_path / "missing.toml")
 
     assert value.token == "dotenv-token"
     assert value.width == 1024
 
 
 def test_schema_contains_child_fields_only() -> None:
-    properties = config.NovelAIConfig.model_json_schema(mode="serialization")[
-        "properties"
-    ]
+    schema = config.novelai_config_schema()
+    properties = schema["properties"]
 
     assert "prompt_llm_model" in properties
     assert "token" in properties
     assert "ai_model" not in properties
+
+    def contains_null_type(value: object) -> bool:
+        if isinstance(value, dict):
+            return value.get("type") == "null" or any(
+                contains_null_type(item) for item in value.values()
+            )
+        if isinstance(value, list):
+            return any(contains_null_type(item) for item in value)
+        return False
+
+    assert contains_null_type(schema) is False

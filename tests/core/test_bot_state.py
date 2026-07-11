@@ -1,4 +1,4 @@
-"""Tests for :mod:`core.bot_state` JSON5 persistence and ``$schema`` handling."""
+"""Tests for :mod:`core.bot_state` TOML persistence."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import aiofiles
-import json5
 import pytest
+import rtoml
 
 from src.plugins.nonebot_plugin_lingchu_bot.core import bot_state as bot_state_module
 from src.plugins.nonebot_plugin_lingchu_bot.core.bot_state import (
@@ -37,18 +37,21 @@ def patched_state_dir(tmp_path: Path) -> Iterator[Path]:
         yield target
 
 
-async def test_bot_state_default_contains_schema(
+async def test_bot_state_default_contains_schema_directive(
     patched_state_dir: Path,  # type: ignore[ANN001]
 ) -> None:  # type: ignore[ANN001]
-    """First-time load writes a default file with a ``$schema`` basename."""
+    """First-time load writes a schema directive outside the data table."""
     bot_state_module._reset_state_for_testing()
     await load_bot_state()
 
     state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
     assert state_file.exists()
-    async with aiofiles.open(state_file, encoding="utf-8") as f:
-        payload = json5.loads(await f.read())
-    assert payload["$schema"] == bot_state_module.BOT_STATE_SCHEMA_BASENAME
+    content = state_file.read_text(encoding="utf-8")
+    payload = rtoml.loads(content)
+    assert content.startswith(
+        f"#:schema ./{bot_state_module.BOT_STATE_SCHEMA_BASENAME}\n"
+    )
+    assert "$schema" not in payload
     assert payload["global"]["handle_active"] is True
     assert payload["global"]["silent_mode"] is False
     assert payload["platforms"] == {}
@@ -57,12 +60,12 @@ async def test_bot_state_default_contains_schema(
 async def test_bot_state_existing_file_preserves_user_state(
     patched_state_dir: Path,  # type: ignore[ANN001]
 ) -> None:  # type: ignore[ANN001]
-    """An existing ``bot_state.json5`` without ``$schema`` still loads."""
+    """An existing ``bot_state.toml`` without ``$schema`` still loads."""
     bot_state_module._reset_state_for_testing()
     state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
     async with aiofiles.open(state_file, "w", encoding="utf-8") as f:
         await f.write(
-            json5.dumps(
+            rtoml.dumps(
                 {
                     "global": {
                         "handle_active": False,
@@ -82,32 +85,16 @@ async def test_bot_state_existing_file_preserves_user_state(
 
 
 @pytest.mark.asyncio
-async def test_bot_state_save_preserves_user_schema(
-    patched_state_dir: Path,  # type: ignore[ANN001]
-) -> None:  # type: ignore[ANN001]
-    """Saving a state with a custom ``$schema`` keeps the user value."""
-    bot_state_module._reset_state_for_testing()
-    bot_state_module._state["$schema"] = "custom-bot-state.schema.json5"
-
-    await _save_bot_state()
-
-    state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
-    async with aiofiles.open(state_file, encoding="utf-8") as f:
-        payload = json5.loads(await f.read())
-    assert payload["$schema"] == "custom-bot-state.schema.json5"
-
-
-@pytest.mark.asyncio
-async def test_bot_state_save_falls_back_to_default_basename(
+async def test_bot_state_save_writes_default_schema_directive(
     patched_state_dir,  # noqa: ANN001
 ) -> None:
-    """Saving without a cached ``$schema`` falls back to the default basename."""
+    """Saving always regenerates the code-owned schema directive."""
     bot_state_module._reset_state_for_testing()
-    bot_state_module._state["$schema"] = None
 
     await _save_bot_state()
 
     state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
-    async with aiofiles.open(state_file, encoding="utf-8") as f:
-        payload = json5.loads(await f.read())
-    assert payload["$schema"] == bot_state_module.BOT_STATE_SCHEMA_BASENAME
+    content = state_file.read_text(encoding="utf-8")
+    assert content.startswith(
+        f"#:schema ./{bot_state_module.BOT_STATE_SCHEMA_BASENAME}\n"
+    )

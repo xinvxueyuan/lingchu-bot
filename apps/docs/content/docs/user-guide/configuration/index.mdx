@@ -5,9 +5,9 @@ title: Configuration
 
 ## Configuration
 
-Lingchu Bot stores lightweight runtime settings in a plugin-owned JSON5 configuration file while reusing NoneBot2's global configuration parser.
+Lingchu Bot stores lightweight runtime settings in a plugin-owned TOML configuration file while reusing NoneBot2's global configuration parser.
 
-On first startup, the plugin creates `config.json5`. Its path is provided by `nonebot-plugin-localstore` and belongs to the plugin configuration directory, not the data or cache directory.
+On first startup, the plugin creates `config.toml`. Its path is provided by `nonebot-plugin-localstore` and belongs to the plugin configuration directory, not the data or cache directory.
 
 <Callout title="Configuration priority">
 
@@ -15,7 +15,7 @@ Runtime configuration priority, from highest to lowest:
 
 1. OS environment variables
 2. NoneBot dotenv / global configuration
-3. `config.json5`
+3. `config.toml`
 4. Code defaults
 
 OS environment variable and dotenv loading, case handling, Boolean parsing, path parsing, and env-file selection follow NoneBot's own behavior. Lingchu Bot does not implement separate dotenv discovery.
@@ -67,8 +67,8 @@ OS environment variable and dotenv loading, case handling, Boolean parsing, path
       description: "Default chat completion model for the selected AI provider",
     },
     ai_base_url: {
-      type: "string | null",
-      default: "null",
+      type: "string (optional)",
+      default: "omitted",
       description: "Optional OpenAI-compatible API base URL",
     },
     ai_timeout: {
@@ -107,50 +107,48 @@ OS environment variable and dotenv loading, case handling, Boolean parsing, path
       description: "Selects the enabled adapter for each platform (env: LINGCHUAdapter / LINGCHU_ADAPTER)",
     },
     lingchu_superusers: {
-      type: "object | null",
-      default: "null",
+      type: "object (optional)",
+      default: "omitted",
       description: "UID to platform account mapping for Lingchu SUPERUSERS",
     },
   }}
 />
 
-Example `config.json5`:
+Example `config.toml`:
 
-```json5
-{
-  superuser_key: "123456789abcdef",
-  message_store_enabled: true,
-  message_store_retention_days: 30,
-  message_store_summary_limit: 500,
-  message_store_record_api_calls: true,
-  message_store_cleanup_enabled: true,
-  ai_provider: "litellm",
-  ai_model: "gpt-4o-mini",
-  ai_base_url: null,
-  ai_timeout: 60,
-  recall_message_default_count: 10,
-  permission_platform_runtime_passthrough: true,
-  command_trigger_overrides: {
-    member_mute: {
-      chinese: "禁言",
-      chinese_aliases: ["禁言用户", "禁"],
-      english: "mute",
-      english_aliases: ["ban"],
-    },
-  },
-  menu_page_trigger_overrides: {
-    "member-management": {
-      chinese: "成员管理",
-      english: "member-management",
-    },
-  },
-  protected_subject_feature_keys: ["kick_member", "member_mute", "recall_message", "block_member"],
-  lingchu_adapter: "~onebot.v11",
-  lingchu_superusers: null,
-}
+```toml
+#:schema ./config.schema.json
+superuser_key = "123456789abcdef"
+message_store_enabled = true
+message_store_retention_days = 30
+message_store_summary_limit = 500
+message_store_record_api_calls = true
+message_store_cleanup_enabled = true
+ai_provider = "litellm"
+ai_model = "gpt-4o-mini"
+ai_timeout = 60
+recall_message_default_count = 10
+permission_platform_runtime_passthrough = true
+protected_subject_feature_keys = ["kick_member", "member_mute", "recall_message", "block_member"]
+lingchu_adapter = "~onebot.v11"
+
+[command_trigger_overrides.member_mute]
+chinese = "禁言"
+chinese_aliases = ["禁言用户", "禁"]
+english = "mute"
+english_aliases = ["ban"]
+
+[menu_page_trigger_overrides.member-management]
+chinese = "成员管理"
+english = "member-management"
 ```
 
-NoneBot global configuration can still override JSON5:
+TOML has no `null`. Omit optional keys to restore their `None` defaults. This
+is a breaking format change: Lingchu does not read or migrate legacy `.json5`
+files. Programmatic updates rewrite the TOML document and do not preserve
+custom comments or formatting.
+
+NoneBot global configuration can still override TOML:
 
 ```toml
 LINGCHUAdapter = "~onebot.v11"
@@ -162,11 +160,11 @@ Or in a `.env` file:
 LINGCHUAdapter=~onebot.v11
 ```
 
-If the same key appears in OS environment variables, dotenv, and `config.json5`, the OS environment variable wins.
+If the same key appears in OS environment variables, dotenv, and `config.toml`, the OS environment variable wins.
 
-## menu.json5
+## menu.toml
 
-Lingchu Bot also creates `menu.json5` in the plugin configuration directory. This file controls menu presentation only.
+Lingchu Bot also creates `menu.toml` in the plugin configuration directory. This file controls menu presentation only.
 
 Editable fields:
 
@@ -174,15 +172,15 @@ Editable fields:
 - Feature `summary` and `usage`
 - Page, child page, and item order
 
-Code-owned fields are not editable from JSON5. The `command_key` set, menu page `command`, `platform_capability`, and implementation `availability` stay in code so the menu cannot claim a command or adapter capability that does not exist. Use `menu_page_trigger_overrides` in `config.json5` to change menu page triggers. If `menu.json5` references an unknown `command_key`, Lingchu rejects the file and keeps the code defaults. Unknown page ids are skipped with a warning.
+Code-owned fields are not editable from TOML. The `command_key` set, menu page `command`, `platform_capability`, and implementation `availability` stay in code so the menu cannot claim a command or adapter capability that does not exist. Use `menu_page_trigger_overrides` in `config.toml` to change menu page triggers. If `menu.toml` references an unknown `command_key`, Lingchu rejects the file and keeps the code defaults. Unknown page ids are skipped with a warning.
 
-## novelai_image.json5
+## novelai_image.toml
 
 The optional nested NovelAI subplugin owns this file and its sibling
-`novelai_image.schema.json5`. Defaults are model `nai-diffusion-4-5-full`, size
+`novelai_image.schema.json`. Defaults are model `nai-diffusion-4-5-full`, size
 `832x1216`, 28 steps, scale 5, sampler `k_euler_ancestral`, and a 120-second
 timeout. Set `token` with `LINGCHU_NOVELAI_TOKEN` in preference to storing it in
-JSON5.
+TOML.
 
 The nullable `prompt_llm_provider`, `prompt_llm_model`,
 `prompt_llm_base_url`, `prompt_llm_api_key`, and `prompt_llm_timeout` settings
@@ -191,7 +189,7 @@ names use the `LINGCHU_NOVELAI_` prefix.
 
 ## Permission and trigger customization
 
-`permission_platform_runtime_passthrough` controls whether platform-side roles such as QQ group owner/admin/member can satisfy Lingchu permission grants through runtime identity groups. Set it to `false` to require explicit Lingchu memberships, or to an object such as `{ qq: false }` for platform-specific behavior.
+`permission_platform_runtime_passthrough` controls whether platform-side roles such as QQ group owner/admin/member can satisfy Lingchu permission grants through runtime identity groups. Set it to `false` to require explicit Lingchu memberships, or use a TOML table such as `[permission_platform_runtime_passthrough]` with `qq = false` for platform-specific behavior.
 
 `command_trigger_overrides` and `menu_page_trigger_overrides` are loaded before matchers are registered. Primary trigger changes therefore take effect on restart. The override loader rejects duplicate triggers across commands.
 
@@ -247,19 +245,19 @@ This means localstore-related directories prefer the current working directory, 
 
 ## Handle-level configuration files
 
-Lingchu Bot supports per-handle configuration files for granular control of individual command behaviors. Each handle (command) can have its own JSON5 configuration file that overrides code defaults.
+Lingchu Bot supports per-handle configuration files for granular control of individual command behaviors. Each handle (command) can have its own TOML configuration file that overrides code defaults.
 
 ### File naming and location
 
-Handle configuration files follow the naming convention `<command_key>.json5` and are stored in the plugin configuration directory managed by `nonebot-plugin-localstore`. For example:
+Handle configuration files follow the naming convention `<command_key>.toml` and are stored in the plugin configuration directory managed by `nonebot-plugin-localstore`. For example:
 
-- `recall_message.json5` — Configuration for the message recall command
-- `member_mute.json5` — Configuration for the member mute command
-- `kick_member.json5` — Configuration for the kick member command
+- `recall_message.toml` — Configuration for the message recall command
+- `member_mute.toml` — Configuration for the member mute command
+- `kick_member.toml` — Configuration for the kick member command
 
 ### Standard fields
 
-All handle configuration files share a common structure validated by `handle_config.schema.json5`:
+All handle configuration files share a common structure validated by `handle_config.schema.json`:
 
 <TypeTable
   type={{
@@ -281,7 +279,7 @@ All handle configuration files share a common structure validated by `handle_con
   }}
 />
 
-The `defaults` object can contain handle-specific fields. For example, `recall_message.json5` might define a `default_count` field that sets the default number of messages to recall when the user omits the count parameter.
+The `defaults` object can contain handle-specific fields. For example, `recall_message.toml` might define a `default_count` field that sets the default number of messages to recall when the user omits the count parameter.
 
 ### Configuration manager
 
@@ -313,18 +311,17 @@ Attempting to read or update a handle configuration without registering defaults
 
 ### Example configuration file
 
-```json5
-{
-  "$schema": "handle_config.schema.json5",
-  enabled: true,
-  defaults: {
-    default_count: 10,
-  },
-  policies: {},
-}
+```toml
+#:schema ./handle_config.schema.json
+enabled = true
+
+[defaults]
+default_count = 10
+
+[policies]
 ```
 
-This example shows a `recall_message.json5` file with the standard structure. The `defaults.default_count` field overrides the code-defined default for the recall command.
+This example shows a `recall_message.toml` file with the standard structure. The `defaults.default_count` field overrides the code-defined default for the recall command.
 
 ## Related pages
 

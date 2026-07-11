@@ -1,6 +1,6 @@
-"""Unit tests for RobustAsyncJSON5DB asynchronous JSON5 database client.
+"""Unit tests for the asynchronous TOML database client.
 
-This module provides comprehensive test coverage for the RobustAsyncJSON5DB client,
+This module provides comprehensive test coverage for the RobustAsyncTOMLDB client,
 including initialization, loading/saving, CRUD operations, path navigation, error
 handling, auto-save functionality, atomic writes, file watching, closing, and context
 manager support. The tests use pytest with asyncio support and cover both normal
@@ -30,15 +30,15 @@ from unittest.mock import patch
 
 import aiofiles
 import aiofiles.os
-import json5
 import pytest
 import pytest_asyncio
+import rtoml
 
 if TYPE_CHECKING:
     from _asyncio import Task
     from collections.abc import AsyncGenerator
 
-from src.plugins.nonebot_plugin_lingchu_bot.database.json5_store import (
+from src.plugins.nonebot_plugin_lingchu_bot.database.toml_store import (
     AtomicReplacementError,
     CallbackTypeError,
     DatabaseClosedError,
@@ -49,7 +49,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.database.json5_store import (
     InvalidKeyPathError,
     LoadStateMismatchError,
     LoadTaskCancelledError,
-    RobustAsyncJSON5DB,
+    RobustAsyncTOMLDB,
     TerminalPathResolutionError,
     WatchAlreadyRunningError,
 )
@@ -70,46 +70,46 @@ DEFAULT_VALUE_3: int = 3
 
 @pytest_asyncio.fixture
 async def tmp_db_path() -> AsyncGenerator[Path]:
-    """Create a temporary JSON5 file path and clean up after test.
+    """Create a temporary TOML file path and clean up after test.
 
     Creates a temporary file using tempfile.mkstemp and yields its Path object.
     The fixture automatically removes both the database file and its temporary
     replacement file after the test completes.
 
     Yields:
-        Path: Path object pointing to a temporary JSON5 file.
+        Path: Path object pointing to a temporary TOML file.
 
     Examples:
         >>> async def test_example(tmp_db_path: Path) -> None:
         ...     assert tmp_db_path.exists()
-        ...     assert tmp_db_path.suffix == ".json5"
+        ...     assert tmp_db_path.suffix == ".toml"
     """
-    fd, path = tempfile.mkstemp(suffix=".json5")
+    fd, path = tempfile.mkstemp(suffix=".toml")
     os.close(fd)
     yield Path(path)
-    for p in [Path(path), Path(path).with_suffix(suffix=".tmp.json5")]:
+    for p in [Path(path), Path(path).with_suffix(suffix=".tmp.toml")]:
         p.unlink(missing_ok=True)
 
 
 @pytest_asyncio.fixture
-async def db(tmp_db_path: Path) -> AsyncGenerator[RobustAsyncJSON5DB]:
+async def db(tmp_db_path: Path) -> AsyncGenerator[RobustAsyncTOMLDB]:
     """Provide an unloaded database instance.
 
-    Creates a RobustAsyncJSON5DB instance with auto_save disabled and yields it
+    Creates a RobustAsyncTOMLDB instance with auto_save disabled and yields it
     for testing. The instance is automatically closed after the test completes.
 
     Args:
         tmp_db_path (Path): Temporary database file path from tmp_db_path fixture.
 
     Yields:
-        RobustAsyncJSON5DB: An unloaded database instance ready for testing.
+        RobustAsyncTOMLDB: An unloaded database instance ready for testing.
 
     Examples:
-        >>> async def test_example(db: RobustAsyncJSON5DB) -> None:
+        >>> async def test_example(db: RobustAsyncTOMLDB) -> None:
         ...     assert db.is_closed is False
         ...     await db.load()
     """
-    instance: RobustAsyncJSON5DB = RobustAsyncJSON5DB(
+    instance: RobustAsyncTOMLDB = RobustAsyncTOMLDB(
         file_path=tmp_db_path, auto_save=False
     )
     yield instance
@@ -117,10 +117,10 @@ async def db(tmp_db_path: Path) -> AsyncGenerator[RobustAsyncJSON5DB]:
 
 
 @pytest_asyncio.fixture
-async def loaded_db(tmp_db_path: Path) -> AsyncGenerator[RobustAsyncJSON5DB]:
+async def loaded_db(tmp_db_path: Path) -> AsyncGenerator[RobustAsyncTOMLDB]:
     """Provide a loaded database instance with auto-cleanup.
 
-    Creates a RobustAsyncJSON5DB instance with auto_save disabled, loads the
+    Creates a RobustAsyncTOMLDB instance with auto_save disabled, loads the
     database, and yields it for testing. The instance is automatically closed
     after the test completes.
 
@@ -128,14 +128,14 @@ async def loaded_db(tmp_db_path: Path) -> AsyncGenerator[RobustAsyncJSON5DB]:
         tmp_db_path (Path): Temporary database file path from tmp_db_path fixture.
 
     Yields:
-        RobustAsyncJSON5DB: A loaded database instance ready for testing.
+        RobustAsyncTOMLDB: A loaded database instance ready for testing.
 
     Examples:
-        >>> async def test_example(loaded_db: RobustAsyncJSON5DB) -> None:
+        >>> async def test_example(loaded_db: RobustAsyncTOMLDB) -> None:
         ...     data = await loaded_db.read()
         ...     assert isinstance(data, dict)
     """
-    instance: RobustAsyncJSON5DB = RobustAsyncJSON5DB(
+    instance: RobustAsyncTOMLDB = RobustAsyncTOMLDB(
         file_path=tmp_db_path, auto_save=False
     )
     await instance.load()
@@ -146,10 +146,10 @@ async def loaded_db(tmp_db_path: Path) -> AsyncGenerator[RobustAsyncJSON5DB]:
 @pytest_asyncio.fixture
 async def auto_save_db(
     tmp_db_path: Path,
-) -> AsyncGenerator[RobustAsyncJSON5DB]:
+) -> AsyncGenerator[RobustAsyncTOMLDB]:
     """Provide a loaded database instance with auto-save enabled.
 
-    Creates a RobustAsyncJSON5DB instance with auto_save enabled, loads the
+    Creates a RobustAsyncTOMLDB instance with auto_save enabled, loads the
     database, and yields it for testing. The instance is automatically closed
     after the test completes.
 
@@ -157,13 +157,13 @@ async def auto_save_db(
         tmp_db_path (Path): Temporary database file path from tmp_db_path fixture.
 
     Yields:
-        RobustAsyncJSON5DB: A loaded database instance with auto-save enabled.
+        RobustAsyncTOMLDB: A loaded database instance with auto-save enabled.
 
     Examples:
-        >>> async def test_example(auto_save_db: RobustAsyncJSON5DB) -> None:
+        >>> async def test_example(auto_save_db: RobustAsyncTOMLDB) -> None:
         ...     await auto_save_db.set(key_path="key", value="value")
     """
-    instance: RobustAsyncJSON5DB = RobustAsyncJSON5DB(
+    instance: RobustAsyncTOMLDB = RobustAsyncTOMLDB(
         file_path=tmp_db_path, auto_save=True
     )
     await instance.load()
@@ -180,7 +180,7 @@ async def auto_save_db(
 async def test_init_default_not_dict() -> None:
     """Verify that non-dict default raises InvalidDefaultTypeError.
 
-    When initializing RobustAsyncJSON5DB with a default value that is not a
+    When initializing RobustAsyncTOMLDB with a default value that is not a
     dictionary, the constructor should raise InvalidDefaultTypeError to ensure
     data consistency and prevent runtime errors.
 
@@ -190,15 +190,15 @@ async def test_init_default_not_dict() -> None:
     Examples:
         >>> bad_default = [1, 2, 3]
         >>> with pytest.raises(InvalidDefaultTypeError):
-        ...     RobustAsyncJSON5DB(file_path="dummy.json5", default=bad_default)
+        ...     RobustAsyncTOMLDB(file_path="dummy.toml", default=bad_default)
     """
     bad_default: Any = [1, 2, 3]
     with pytest.raises(expected_exception=InvalidDefaultTypeError):
-        RobustAsyncJSON5DB(file_path="dummy.json5", default=bad_default)
+        RobustAsyncTOMLDB(file_path="dummy.toml", default=bad_default)
 
 
 @pytest.mark.asyncio
-async def test_repr(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_repr(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify __repr__ includes database file path and load state.
 
     The __repr__ method should provide a human-readable representation
@@ -206,26 +206,26 @@ async def test_repr(loaded_db: RobustAsyncJSON5DB) -> None:
     in debugging and development.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> repr(loaded_db)
-        'RobustAsyncJSON5DB(path=..., state=loaded)'
+        'RobustAsyncTOMLDB(path=..., state=loaded)'
     """
     r: str = repr(loaded_db)
-    assert "RobustAsyncJSON5DB" in r
+    assert "RobustAsyncTOMLDB" in r
     assert "loaded" in r
 
 
 @pytest.mark.asyncio
-async def test_is_closed(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_is_closed(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify is_closed property correctly reflects database state.
 
     The is_closed property should return False for an active database
     and True after the database is explicitly closed.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> assert not loaded_db.is_closed
@@ -243,14 +243,14 @@ async def test_is_closed(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_load_new_file(db: RobustAsyncJSON5DB) -> None:
+async def test_load_new_file(db: RobustAsyncTOMLDB) -> None:
     """Verify that loading a non-existent file initializes with default template.
 
     When load() is called on a non-existent file, the database should initialize
     with an empty dict (or the provided default template) without raising errors.
 
     Args:
-        db (RobustAsyncJSON5DB): An unloaded database instance.
+        db (RobustAsyncTOMLDB): An unloaded database instance.
 
     Examples:
         >>> await db.load()
@@ -274,12 +274,12 @@ async def test_load_with_default(tmp_db_path: Path) -> None:
 
     Examples:
         >>> template = {"count": 0, "tags": []}
-        >>> db = RobustAsyncJSON5DB(file_path=tmp_db_path, default=template)
+        >>> db = RobustAsyncTOMLDB(file_path=tmp_db_path, default=template)
         >>> await db.load()
         >>> assert await db.read() == template
     """
     template: dict[str, Any] = {"count": 0, "tags": []}
-    db: RobustAsyncJSON5DB = RobustAsyncJSON5DB(file_path=tmp_db_path, default=template)
+    db: RobustAsyncTOMLDB = RobustAsyncTOMLDB(file_path=tmp_db_path, default=template)
     await db.load()
     data: Any = await db.read()
     assert data == template
@@ -287,9 +287,9 @@ async def test_load_with_default(tmp_db_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_load_existing_file(tmp_db_path: Path) -> None:
-    """Verify that existing JSON5 files are correctly loaded.
+    """Verify that existing TOML files are correctly loaded.
 
-    When loading an existing database file containing valid JSON5, the database
+    When loading an existing database file containing valid TOML, the database
     should parse and populate the data correctly.
 
     Args:
@@ -298,14 +298,14 @@ async def test_load_existing_file(tmp_db_path: Path) -> None:
     Examples:
         >>> content = {"key": "value", "num": 42}
         >>> # Write content to file
-        >>> db = RobustAsyncJSON5DB(file_path=tmp_db_path)
+        >>> db = RobustAsyncTOMLDB(file_path=tmp_db_path)
         >>> await db.load()
         >>> assert await db.read() == content
     """
     content: dict[str, str | int] = {"key": "value", "num": DEFAULT_VALUE_42}
     async with aiofiles.open(file=tmp_db_path, mode="w", encoding="utf-8") as f:
-        await f.write(json5.dumps(obj=content))
-    db: RobustAsyncJSON5DB = RobustAsyncJSON5DB(file_path=tmp_db_path)
+        await f.write(rtoml.dumps(obj=content))
+    db: RobustAsyncTOMLDB = RobustAsyncTOMLDB(file_path=tmp_db_path)
     await db.load()
     data: Any = await db.read()
     assert data == content
@@ -323,13 +323,13 @@ async def test_load_empty_file(tmp_db_path: Path) -> None:
 
     Examples:
         >>> # Write whitespace-only file
-        >>> db = RobustAsyncJSON5DB(file_path=tmp_db_path, default={"hello": "world"})
+        >>> db = RobustAsyncTOMLDB(file_path=tmp_db_path, default={"hello": "world"})
         >>> await db.load()
         >>> assert await db.read() == {"hello": "world"}
     """
     async with aiofiles.open(file=tmp_db_path, mode="w", encoding="utf-8") as f:
         await f.write("   ")
-    db: RobustAsyncJSON5DB = RobustAsyncJSON5DB(
+    db: RobustAsyncTOMLDB = RobustAsyncTOMLDB(
         file_path=tmp_db_path, default={"hello": "world"}
     )
     await db.load()
@@ -341,7 +341,7 @@ async def test_load_empty_file(tmp_db_path: Path) -> None:
 async def test_load_invalid_json(tmp_db_path: Path, caplog: Any) -> None:
     """Verify that invalid JSON falls back to default and logs warning.
 
-    When loading a file with invalid JSON5 syntax, the database should use
+    When loading a file with invalid TOML syntax, the database should use
     the default template and log a warning instead of crashing.
 
     Args:
@@ -350,14 +350,14 @@ async def test_load_invalid_json(tmp_db_path: Path, caplog: Any) -> None:
 
     Examples:
         >>> # Write invalid JSON
-        >>> db = RobustAsyncJSON5DB(file_path=tmp_db_path, default={"fallback": True})
+        >>> db = RobustAsyncTOMLDB(file_path=tmp_db_path, default={"fallback": True})
         >>> await db.load()
         >>> assert await db.read() == {"fallback": True}
         >>> assert "Loading failed" in caplog.text
     """
     async with aiofiles.open(file=tmp_db_path, mode="w", encoding="utf-8") as f:
         await f.write("{invalid")
-    db: RobustAsyncJSON5DB = RobustAsyncJSON5DB(
+    db: RobustAsyncTOMLDB = RobustAsyncTOMLDB(
         file_path=tmp_db_path, default={"fallback": True}
     )
     await db.load()
@@ -367,8 +367,10 @@ async def test_load_invalid_json(tmp_db_path: Path, caplog: Any) -> None:
 
 
 @pytest.mark.asyncio
-async def test_load_non_dict_root(tmp_db_path: Path, caplog: Any) -> None:
-    """Verify that non-dict root JSON falls back to default and logs warning.
+async def test_load_invalid_toml_falls_back_to_default(
+    tmp_db_path: Path, caplog: Any
+) -> None:
+    """Verify malformed TOML falls back to default and logs warning.
 
     When loading a file whose root is not a dictionary (e.g., an array or
     scalar), the database should use the default template and log a warning.
@@ -379,20 +381,18 @@ async def test_load_non_dict_root(tmp_db_path: Path, caplog: Any) -> None:
 
     Examples:
         >>> # Write array to file (not dict)
-        >>> db = RobustAsyncJSON5DB(file_path=tmp_db_path, default={"ok": 1})
+        >>> db = RobustAsyncTOMLDB(file_path=tmp_db_path, default={"ok": 1})
         >>> await db.load()
         >>> assert await db.read() == {"ok": 1}
         >>> assert "Root is not a dict" in caplog.text
     """
     async with aiofiles.open(tmp_db_path, "w", encoding="utf-8") as f:
         await f.write("[1, 2, 3]")
-    db: RobustAsyncJSON5DB = RobustAsyncJSON5DB(
-        file_path=tmp_db_path, default={"ok": 1}
-    )
+    db: RobustAsyncTOMLDB = RobustAsyncTOMLDB(file_path=tmp_db_path, default={"ok": 1})
     await db.load()
     data: Any = await db.read()
     assert data == {"ok": 1}
-    assert "Root is not a dict" in caplog.text
+    assert "Loading failed" in caplog.text
 
 
 # ---------------------------------------------------------------------------
@@ -401,14 +401,14 @@ async def test_load_non_dict_root(tmp_db_path: Path, caplog: Any) -> None:
 
 
 @pytest.mark.asyncio
-async def test_operations_after_close(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_operations_after_close(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify that operations after close raise DatabaseClosedError.
 
     After explicitly closing the database, any read or write operations
     should raise DatabaseClosedError to prevent silent data loss.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Raises:
         DatabaseClosedError: When attempting operations on a closed database.
@@ -436,15 +436,15 @@ async def test_async_context_manager(tmp_db_path: Path) -> None:
         tmp_db_path (Path): Temporary database file path from tmp_db_path fixture.
 
     Examples:
-        >>> async with RobustAsyncJSON5DB(file_path=path, auto_save=False) as db:
+        >>> async with RobustAsyncTOMLDB(file_path=path, auto_save=False) as db:
         ...     await db.set(key_path="k", value=100)
         >>> # File is automatically saved
     """
     path: Path = tmp_db_path
-    async with RobustAsyncJSON5DB(file_path=path, auto_save=False) as db:
+    async with RobustAsyncTOMLDB(file_path=path, auto_save=False) as db:
         await db.set(key_path="k", value=100)
     async with aiofiles.open(file=path, encoding="utf-8") as f:
-        saved: dict[str, Any] = cast("dict[str, Any]", json5.loads(await f.read()))
+        saved: dict[str, Any] = rtoml.loads(await f.read())
     assert saved == {"k": 100}
 
 
@@ -461,13 +461,13 @@ async def test_context_manager_exception(tmp_db_path: Path) -> None:
 
     Examples:
         >>> with pytest.raises(RuntimeError):
-        ...     async with RobustAsyncJSON5DB(file_path=path, auto_save=False) as db:
+        ...     async with RobustAsyncTOMLDB(file_path=path, auto_save=False) as db:
         ...         await db.set(key_path="keep", value=1)
         ...         raise RuntimeError("boom")
     """
     path: Path = tmp_db_path
     with pytest.raises(RuntimeError):
-        async with RobustAsyncJSON5DB(file_path=path, auto_save=False) as db:
+        async with RobustAsyncTOMLDB(file_path=path, auto_save=False) as db:
             await db.set(key_path="keep", value=1)
             raise RuntimeError("boom")
     async with aiofiles.open(path, encoding="utf-8") as f:
@@ -481,14 +481,14 @@ async def test_context_manager_exception(tmp_db_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_read_root(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_read_root(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify reading the root object returns full database.
 
     The read() method without a key_path should return the entire database
     object as a single dictionary.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> await loaded_db.set(key_path="a", value=1)
@@ -501,14 +501,14 @@ async def test_read_root(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_read_nested(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_read_nested(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify reading nested paths using dot notation.
 
     Deep nested values should be accessible via dot-separated paths
     like "x.y.z" to navigate through nested dictionaries.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> await loaded_db.set(key_path="x.y.z", value="deep")
@@ -521,14 +521,14 @@ async def test_read_nested(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_read_default_value(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_read_default_value(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify reading non-existent paths returns default value.
 
     When reading a path that does not exist, the read() method should return
     the provided default value instead of raising an error.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> val = await loaded_db.read(key_path="no.such", default=42)
@@ -539,14 +539,14 @@ async def test_read_default_value(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_read_use_deepcopy(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_read_use_deepcopy(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify deep copy returns independent copies of data.
 
     When use_deepcopy=True (default), multiple reads should return independent
     copies so modifications to one don't affect others.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> await loaded_db.set(key_path="mylist", value=[1, 2, 3])
@@ -563,14 +563,14 @@ async def test_read_use_deepcopy(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_atomic_read(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_atomic_read(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify atomic_read returns deep copy maintaining data consistency.
 
     atomic_read() should return a deep copy of the data, ensuring that
     modifications to the returned copy don't affect the database state.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> await loaded_db.set(key_path="deep", value={"nested": {"a": 1}})
@@ -593,14 +593,14 @@ async def test_atomic_read(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_set_new_key(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_set_new_key(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify setting a new key creates the nested path structure.
 
     The set() method should create all intermediate dictionaries as needed
     to accommodate the given key path.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> await loaded_db.set(key_path="new.key", value="hi")
@@ -611,14 +611,14 @@ async def test_set_new_key(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_set_overwrite(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_set_overwrite(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify set() overwrites existing values.
 
     When setting a key that already exists, the new value should completely
     replace the old value.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> await loaded_db.set(key_path="k", value=1)
@@ -631,14 +631,14 @@ async def test_set_overwrite(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_success(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_create_success(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify create() succeeds when key doesn't exist and returns True.
 
     The create() method should create a new key-value pair and return True
     only when the key did not previously exist.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Returns:
         bool: True if key was created, False if it already existed.
@@ -654,14 +654,14 @@ async def test_create_success(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_already_exists(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_create_already_exists(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify create() fails when key exists and returns False.
 
     When the key already exists, create() should return False and not modify
     the existing value.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Returns:
         bool: False when key already existed.
@@ -679,14 +679,14 @@ async def test_create_already_exists(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_existing(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_update_existing(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify update() succeeds for existing keys and returns True.
 
     The update() method should modify an existing key and return True
     only when the key already existed.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Returns:
         bool: True if key existed and was updated, False otherwise.
@@ -704,14 +704,14 @@ async def test_update_existing(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_nonexistent(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_update_nonexistent(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify update() fails for non-existent keys and returns False.
 
     When updating a key that doesn't exist, update() should return False
     and not create the key.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Returns:
         bool: False when key doesn't exist.
@@ -725,14 +725,14 @@ async def test_update_nonexistent(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_delete(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify delete() removes existing keys and returns True.
 
     The delete() method should remove a key-value pair and return True
     when the key existed.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Returns:
         bool: True if key existed and was deleted, False otherwise.
@@ -750,14 +750,14 @@ async def test_delete(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete_nonexistent(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_delete_nonexistent(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify delete() returns False for non-existent keys.
 
     When deleting a key that doesn't exist, delete() should return False
     without raising an error.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Returns:
         bool: False when key doesn't exist.
@@ -771,14 +771,14 @@ async def test_delete_nonexistent(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete_list_shifts(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_delete_list_shifts(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify deleting list items shifts remaining elements correctly.
 
     When deleting an item from a list, remaining items should shift down
     (array indices decrease) to fill the gap.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> await loaded_db.set(key_path="items", value=["a", "b", "c"])
@@ -793,14 +793,14 @@ async def test_delete_list_shifts(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_exists(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_exists(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify exists() correctly reports key presence.
 
     The exists() method should return True for existing keys and False
     for non-existent keys.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Returns:
         bool: True if key exists, False otherwise.
@@ -816,14 +816,14 @@ async def test_exists(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_clear(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_clear(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify clear() removes all database contents.
 
     The clear() method should remove all key-value pairs, leaving an empty
     dictionary as the database state.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> await loaded_db.set(key_path="x", value=1)
@@ -841,14 +841,14 @@ async def test_clear(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_set_batch(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_set_batch(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify set_batch() applies multiple updates atomically.
 
     The set_batch() method should apply a dictionary of key-value pairs
     in a single atomic operation.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> await loaded_db.set(key_path="a", value=0)
@@ -865,13 +865,13 @@ async def test_set_batch(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_set_batch_empty(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_set_batch_empty(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify set_batch() with empty dict does nothing.
 
     Calling set_batch() with an empty dictionary should not modify the database.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> await loaded_db.set_batch(updates={})
@@ -883,7 +883,7 @@ async def test_set_batch_empty(loaded_db: RobustAsyncJSON5DB) -> None:
 
 @pytest.mark.asyncio
 async def test_set_batch_atomic(
-    auto_save_db: RobustAsyncJSON5DB, tmp_db_path: Path
+    auto_save_db: RobustAsyncTOMLDB, tmp_db_path: Path
 ) -> None:
     """Verify set_batch() is atomic with auto_save enabled.
 
@@ -891,7 +891,7 @@ async def test_set_batch_atomic(
     batch should fail and no changes should be persisted.
 
     Args:
-        auto_save_db (RobustAsyncJSON5DB): A loaded database with auto-save enabled.
+        auto_save_db (RobustAsyncTOMLDB): A loaded database with auto-save enabled.
         tmp_db_path (Path): Temporary database file path.
 
     Raises:
@@ -906,7 +906,7 @@ async def test_set_batch_atomic(
     with pytest.raises(expected_exception=InvalidKeyPathError):
         await auto_save_db.set_batch(updates={"y": 2, "": DEFAULT_VALUE_3})
     async with aiofiles.open(file=tmp_db_path, encoding="utf-8") as f:
-        content: dict[str, Any] = cast("dict[str, Any]", json5.loads(await f.read()))
+        content: dict[str, Any] = rtoml.loads(await f.read())
     assert content == {"x": 1}
 
 
@@ -917,7 +917,7 @@ async def test_set_batch_atomic(
 
 @pytest.mark.asyncio
 async def test_auto_save_writes_immediately(
-    auto_save_db: RobustAsyncJSON5DB, tmp_db_path: Path
+    auto_save_db: RobustAsyncTOMLDB, tmp_db_path: Path
 ) -> None:
     """Verify auto_save=True persists changes immediately to disk.
 
@@ -925,7 +925,7 @@ async def test_auto_save_writes_immediately(
     written to the file.
 
     Args:
-        auto_save_db (RobustAsyncJSON5DB): A loaded database with auto-save enabled.
+        auto_save_db (RobustAsyncTOMLDB): A loaded database with auto-save enabled.
         tmp_db_path (Path): Temporary database file path.
 
     Examples:
@@ -934,19 +934,19 @@ async def test_auto_save_writes_immediately(
     """
     await auto_save_db.set(key_path="instant", value=1)
     async with aiofiles.open(file=tmp_db_path, encoding="utf-8") as f:
-        saved: dict[str, Any] = cast("dict[str, Any]", json5.loads(await f.read()))
+        saved: dict[str, Any] = rtoml.loads(await f.read())
     assert saved == {"instant": 1}
 
 
 @pytest.mark.asyncio
-async def test_no_auto_save(loaded_db: RobustAsyncJSON5DB, tmp_db_path: Path) -> None:
+async def test_no_auto_save(loaded_db: RobustAsyncTOMLDB, tmp_db_path: Path) -> None:
     """Verify auto_save=False requires explicit save() call.
 
     When auto_save is disabled, changes should not be persisted until
     save() is explicitly called.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database without auto-save.
+        loaded_db (RobustAsyncTOMLDB): A loaded database without auto-save.
         tmp_db_path (Path): Temporary database file path.
 
     Examples:
@@ -962,7 +962,7 @@ async def test_no_auto_save(loaded_db: RobustAsyncJSON5DB, tmp_db_path: Path) ->
         assert "later" not in content
     await loaded_db.save()
     async with aiofiles.open(file=tmp_db_path, encoding="utf-8") as f:
-        saved: dict[str, Any] = cast("dict[str, Any]", json5.loads(await f.read()))
+        saved: dict[str, Any] = rtoml.loads(await f.read())
     assert saved == {"later": 1}
 
 
@@ -972,14 +972,14 @@ async def test_no_auto_save(loaded_db: RobustAsyncJSON5DB, tmp_db_path: Path) ->
 
 
 @pytest.mark.asyncio
-async def test_path_through_list(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_path_through_list(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify navigating through list indices in dot notation.
 
     Paths can use list indices (e.g., "outer.0.name") to access items
     within lists.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> await loaded_db.set("outer", [{}])
@@ -995,7 +995,7 @@ async def test_path_through_list(loaded_db: RobustAsyncJSON5DB) -> None:
 
 @pytest.mark.asyncio
 async def test_path_list_index_none_placeholder(
-    loaded_db: RobustAsyncJSON5DB,
+    loaded_db: RobustAsyncTOMLDB,
 ) -> None:
     """Verify None placeholder list items cannot be drilled into.
 
@@ -1003,7 +1003,7 @@ async def test_path_list_index_none_placeholder(
     through it should raise IntermediateListNoneError.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Raises:
         IntermediateListNoneError: When drilling into None list item.
@@ -1020,7 +1020,7 @@ async def test_path_list_index_none_placeholder(
 
 @pytest.mark.asyncio
 async def test_parent_path_resolution_error(
-    loaded_db: RobustAsyncJSON5DB,
+    loaded_db: RobustAsyncTOMLDB,
 ) -> None:
     """Verify parent node type mismatch raises TerminalPathResolutionError.
 
@@ -1028,7 +1028,7 @@ async def test_parent_path_resolution_error(
     should raise TerminalPathResolutionError.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Raises:
         TerminalPathResolutionError: When parent type doesn't match path operation.
@@ -1045,7 +1045,7 @@ async def test_parent_path_resolution_error(
 
 @pytest.mark.asyncio
 async def test_terminal_path_resolution_error(
-    loaded_db: RobustAsyncJSON5DB,
+    loaded_db: RobustAsyncTOMLDB,
 ) -> None:
     """Verify target container type mismatch raises TerminalPathResolutionError.
 
@@ -1053,7 +1053,7 @@ async def test_terminal_path_resolution_error(
     key/index, the database should raise TerminalPathResolutionError.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Raises:
         TerminalPathResolutionError: When terminal type doesn't support key.
@@ -1082,11 +1082,11 @@ async def test_empty_path_segment() -> None:
         EmptyPathSegmentError: When path contains empty segment.
 
     Examples:
-        >>> db = RobustAsyncJSON5DB(file_path="dummy.json5")
+        >>> db = RobustAsyncTOMLDB(file_path="dummy.toml")
         >>> with pytest.raises(EmptyPathSegmentError):
         ...     db._validate_path(key_path="a..b")
     """
-    db: RobustAsyncJSON5DB = RobustAsyncJSON5DB(file_path="dummy.json5")
+    db: RobustAsyncTOMLDB = RobustAsyncTOMLDB(file_path="dummy.toml")
     with pytest.raises(expected_exception=EmptyPathSegmentError):
         db._validate_path(key_path="a..b")
 
@@ -1105,11 +1105,11 @@ async def test_invalid_key_path() -> None:
         InvalidKeyPathError: When key_path is invalid.
 
     Examples:
-        >>> db = RobustAsyncJSON5DB(file_path="dummy.json5")
+        >>> db = RobustAsyncTOMLDB(file_path="dummy.toml")
         >>> with pytest.raises(InvalidKeyPathError):
         ...     db._validate_path(key_path=None)
     """
-    db: RobustAsyncJSON5DB = RobustAsyncJSON5DB(file_path="dummy.json5")
+    db: RobustAsyncTOMLDB = RobustAsyncTOMLDB(file_path="dummy.toml")
     bad_path: Any = None
     with pytest.raises(expected_exception=InvalidKeyPathError):
         db._validate_path(key_path=bad_path)
@@ -1118,14 +1118,14 @@ async def test_invalid_key_path() -> None:
 
 
 @pytest.mark.asyncio
-async def test_read_nonexistent_list_index(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_read_nonexistent_list_index(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify reading non-existent list index returns default value.
 
     When reading a list index that doesn't exist, the read() method should
     return the provided default value.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> await loaded_db.set(key_path="arr", value=[10])
@@ -1153,15 +1153,15 @@ async def test_save_creates_parent_directory(tmp_db_path: Path) -> None:
         tmp_db_path (Path): Temporary database file path.
 
     Examples:
-        >>> nested_dir = tmp_db_path.parent / "subdir" / "data.json5"
-        >>> db = RobustAsyncJSON5DB(file_path=nested_dir)
+        >>> nested_dir = tmp_db_path.parent / "subdir" / "data.toml"
+        >>> db = RobustAsyncTOMLDB(file_path=nested_dir)
         >>> await db.load()
         >>> await db.set(key_path="x", value=1)
         >>> await db.save()
         >>> assert nested_dir.exists()
     """
-    nested_dir: Path = tmp_db_path.parent / "subdir" / "data.json5"
-    db: RobustAsyncJSON5DB = RobustAsyncJSON5DB(file_path=nested_dir)
+    nested_dir: Path = tmp_db_path.parent / "subdir" / "data.toml"
+    db: RobustAsyncTOMLDB = RobustAsyncTOMLDB(file_path=nested_dir)
     await db.load()
     await db.set(key_path="x", value=1)
     await db.save()
@@ -1172,7 +1172,7 @@ async def test_save_creates_parent_directory(tmp_db_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_atomic_replace_simulation(
-    auto_save_db: RobustAsyncJSON5DB,
+    auto_save_db: RobustAsyncTOMLDB,
     tmp_db_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1182,7 +1182,7 @@ async def test_atomic_replace_simulation(
     unchanged and an AtomicReplacementError should be raised.
 
     Args:
-        auto_save_db (RobustAsyncJSON5DB): A loaded database with auto-save enabled.
+        auto_save_db (RobustAsyncTOMLDB): A loaded database with auto-save enabled.
         tmp_db_path (Path): Temporary database file path.
         monkeypatch (pytest.MonkeyPatch): Pytest fixture for mocking.
 
@@ -1199,7 +1199,7 @@ async def test_atomic_replace_simulation(
 
     async with aiofiles.open(tmp_db_path, encoding="utf-8") as f:
         original_content: dict[str, str] = cast(
-            "dict[str, str]", json5.loads(await f.read())
+            "dict[str, str]", rtoml.loads(await f.read())
         )
 
     async def fake_replace(*_args: Any, **_kwargs: Any) -> None:
@@ -1211,8 +1211,25 @@ async def test_atomic_replace_simulation(
         await auto_save_db.set(key_path="new_key", value="fail")
 
     async with aiofiles.open(tmp_db_path, encoding="utf-8") as f:
-        saved: dict[str, str] = cast("dict[str, str]", json5.loads(await f.read()))
+        saved: dict[str, str] = cast("dict[str, str]", rtoml.loads(await f.read()))
     assert saved == original_content
+
+
+@pytest.mark.asyncio
+async def test_save_does_not_follow_predictable_temp_symlink(
+    loaded_db: RobustAsyncTOMLDB, tmp_db_path: Path
+) -> None:
+    outside_file = tmp_db_path.parent / "outside.txt"
+    outside_file.write_text("protected", encoding="utf-8")
+    tmp_db_path.with_suffix(".tmp.toml").symlink_to(outside_file)
+
+    await loaded_db.set(key_path="safe", value=True)
+    await loaded_db.save()
+
+    async with aiofiles.open(outside_file, encoding="utf-8") as file:
+        assert await file.read() == "protected"
+    async with aiofiles.open(tmp_db_path, encoding="utf-8") as file:
+        assert rtoml.loads(await file.read()) == {"safe": True}
 
 
 # ---------------------------------------------------------------------------
@@ -1222,7 +1239,7 @@ async def test_atomic_replace_simulation(
 
 @pytest.mark.asyncio
 async def test_reload_from_disk(
-    loaded_db: RobustAsyncJSON5DB, tmp_db_path: Path
+    loaded_db: RobustAsyncTOMLDB, tmp_db_path: Path
 ) -> None:
     """Verify reload() reloads data from disk after external modification.
 
@@ -1230,7 +1247,7 @@ async def test_reload_from_disk(
     updated data from disk and refresh the in-memory state.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
         tmp_db_path (Path): Temporary database file path.
 
     Examples:
@@ -1241,7 +1258,7 @@ async def test_reload_from_disk(
     """
     await loaded_db.set(key_path="v1", value=1)
     async with aiofiles.open(file=tmp_db_path, mode="w", encoding="utf-8") as f:
-        await f.write(json5.dumps(obj={"v2": 2}))
+        await f.write(rtoml.dumps(obj={"v2": 2}))
     await loaded_db.reload()
     data: Any = await loaded_db.read()
     assert data == {"v2": 2}
@@ -1249,14 +1266,14 @@ async def test_reload_from_disk(
 
 
 @pytest.mark.asyncio
-async def test_reload_with_callback(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_reload_with_callback(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify reload() invokes callback after completion.
 
     The reload() method should accept an optional callback parameter and
     invoke it after reloading completes.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> called = False
@@ -1277,14 +1294,14 @@ async def test_reload_with_callback(loaded_db: RobustAsyncJSON5DB) -> None:
 
 
 @pytest.mark.asyncio
-async def test_reload_invalid_callback(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_reload_invalid_callback(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify reload() rejects non-async callbacks.
 
     When passing a non-async callback to reload(), it should raise
     CallbackTypeError.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Raises:
         CallbackTypeError: When callback is not async.
@@ -1310,7 +1327,7 @@ async def test_reload_invalid_callback(loaded_db: RobustAsyncJSON5DB) -> None:
 
 @pytest.mark.asyncio
 async def test_watch_detects_external_change(
-    loaded_db: RobustAsyncJSON5DB, tmp_db_path: Path
+    loaded_db: RobustAsyncTOMLDB, tmp_db_path: Path
 ) -> None:
     """Verify watch() detects external file changes and invokes callback.
 
@@ -1319,7 +1336,7 @@ async def test_watch_detects_external_change(
     are detected.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
         tmp_db_path (Path): Temporary database file path.
 
     Examples:
@@ -1339,7 +1356,7 @@ async def test_watch_detects_external_change(
     await asyncio.sleep(delay=0.1)
 
     async with aiofiles.open(file=tmp_db_path, mode="w", encoding="utf-8") as f:
-        await f.write(json5.dumps(obj={"new": "data"}))
+        await f.write(rtoml.dumps(obj={"new": "data"}))
 
     try:
         await asyncio.wait_for(fut=callback_event.wait(), timeout=2.0)
@@ -1353,14 +1370,14 @@ async def test_watch_detects_external_change(
 
 
 @pytest.mark.asyncio
-async def test_watch_already_running(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_watch_already_running(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify watch() raises error when already running.
 
     Calling watch() multiple times should raise WatchAlreadyRunningError
     to prevent duplicate watchers.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Raises:
         WatchAlreadyRunningError: When watch already running.
@@ -1383,7 +1400,7 @@ async def test_watch_already_running(loaded_db: RobustAsyncJSON5DB) -> None:
 
 @pytest.mark.asyncio
 async def test_concurrent_load_calls_one_load_task(
-    db: RobustAsyncJSON5DB, mocker: Any
+    db: RobustAsyncTOMLDB, mocker: Any
 ) -> None:
     """Verify concurrent load/ensure_loaded calls only start one load task.
 
@@ -1392,7 +1409,7 @@ async def test_concurrent_load_calls_one_load_task(
     wait for that same task to complete.
 
     Args:
-        db (RobustAsyncJSON5DB): An unloaded database instance.
+        db (RobustAsyncTOMLDB): An unloaded database instance.
         mocker (Any): Pytest-mock fixture for spying on calls.
 
     Examples:
@@ -1400,16 +1417,16 @@ async def test_concurrent_load_calls_one_load_task(
         >>> # Only one _unsafe_load call made
     """
     call_count: int = 0
-    original_unsafe_load = RobustAsyncJSON5DB._unsafe_load
+    original_unsafe_load = RobustAsyncTOMLDB._unsafe_load
 
     async def patched_unsafe_load(
-        self_: RobustAsyncJSON5DB, default_copy: dict[str, Any]
+        self_: RobustAsyncTOMLDB, default_copy: dict[str, Any]
     ) -> None:
         nonlocal call_count
         call_count += 1
         await original_unsafe_load(self_, default_copy)
 
-    mocker.patch.object(RobustAsyncJSON5DB, "_unsafe_load", new=patched_unsafe_load)
+    mocker.patch.object(RobustAsyncTOMLDB, "_unsafe_load", new=patched_unsafe_load)
     await asyncio.gather(db.load(), db.load(), db.load())
     assert call_count == 1
 
@@ -1430,18 +1447,18 @@ async def test_close_cancels_load_task() -> None:
         None
 
     Examples:
-        >>> db = RobustAsyncJSON5DB(file_path="never_used.json5")
+        >>> db = RobustAsyncTOMLDB(file_path="never_used.toml")
         >>> task = asyncio.create_task(db.load())
         >>> await asyncio.sleep(0.05)
         >>> await db.close()
         >>> assert task.cancelled() or task.done()
     """
-    db: RobustAsyncJSON5DB = RobustAsyncJSON5DB(file_path="never_used.json5")
+    db: RobustAsyncTOMLDB = RobustAsyncTOMLDB(file_path="never_used.toml")
 
     async def stuck_load(_self: Any) -> None:
         await asyncio.Event().wait()
 
-    with patch.object(target=RobustAsyncJSON5DB, attribute="_do_load", new=stuck_load):
+    with patch.object(target=RobustAsyncTOMLDB, attribute="_do_load", new=stuck_load):
         task: Task[None] = asyncio.create_task(coro=db.load())
         await asyncio.sleep(delay=0.05)
         await db.close()
@@ -1478,14 +1495,14 @@ def test_exception_hierarchy() -> None:
 
 
 @pytest.mark.asyncio
-async def test_read_deepcopy_scalar(loaded_db: RobustAsyncJSON5DB) -> None:
+async def test_read_deepcopy_scalar(loaded_db: RobustAsyncTOMLDB) -> None:
     """Verify deep copy doesn't affect scalar values.
 
     Deep copying scalar types (int, str, bool, etc.) should have no observable
     effect since they are immutable.
 
     Args:
-        loaded_db (RobustAsyncJSON5DB): A loaded database instance.
+        loaded_db (RobustAsyncTOMLDB): A loaded database instance.
 
     Examples:
         >>> await loaded_db.set(key_path="num", value=42)
@@ -1499,7 +1516,7 @@ async def test_read_deepcopy_scalar(loaded_db: RobustAsyncJSON5DB) -> None:
 
 @pytest.mark.asyncio
 async def test_auto_save_create_update_return(
-    auto_save_db: RobustAsyncJSON5DB,
+    auto_save_db: RobustAsyncTOMLDB,
 ) -> None:
     """Verify create/update return correct bool with auto_save enabled.
 
@@ -1507,7 +1524,7 @@ async def test_auto_save_create_update_return(
     correct boolean values indicating success or failure.
 
     Args:
-        auto_save_db (RobustAsyncJSON5DB): A loaded database with auto-save enabled.
+        auto_save_db (RobustAsyncTOMLDB): A loaded database with auto-save enabled.
 
     Returns:
         bool: True for successful operations, False for failures.
@@ -1532,7 +1549,7 @@ async def test_auto_save_create_update_return(
 
 @pytest.mark.asyncio
 async def test_set_batch_with_auto_save(
-    auto_save_db: RobustAsyncJSON5DB, tmp_db_path: Path
+    auto_save_db: RobustAsyncTOMLDB, tmp_db_path: Path
 ) -> None:
     """Verify batch updates persist immediately with auto_save enabled.
 
@@ -1540,7 +1557,7 @@ async def test_set_batch_with_auto_save(
     immediately to the file.
 
     Args:
-        auto_save_db (RobustAsyncJSON5DB): A loaded database with auto-save enabled.
+        auto_save_db (RobustAsyncTOMLDB): A loaded database with auto-save enabled.
         tmp_db_path (Path): Temporary database file path.
 
     Examples:
@@ -1549,7 +1566,7 @@ async def test_set_batch_with_auto_save(
     """
     await auto_save_db.set_batch(updates={"a": 1, "b.c": 2})
     async with aiofiles.open(file=tmp_db_path, encoding="utf-8") as f:
-        content: dict[str, Any] = cast("dict[str, Any]", json5.loads(await f.read()))
+        content: dict[str, Any] = rtoml.loads(await f.read())
     assert content == {"a": 1, "b": {"c": 2}}
 
 
@@ -1572,21 +1589,19 @@ async def test_load_task_cancelled_error() -> None:
         LoadTaskCancelledError: When load task is cancelled.
 
     Examples:
-        >>> db = RobustAsyncJSON5DB(file_path="some_file.json5")
+        >>> db = RobustAsyncTOMLDB(file_path="some_file.toml")
         >>> await db._start_load_task()
         >>> if db._load_task:
         ...     db._load_task.cancel()
         >>> with pytest.raises(LoadTaskCancelledError):
         ...     await db._await_load_task()
     """
-    db: RobustAsyncJSON5DB = RobustAsyncJSON5DB(file_path="some_file.json5")
+    db: RobustAsyncTOMLDB = RobustAsyncTOMLDB(file_path="some_file.toml")
 
     async def never_finish(_self: Any) -> None:
         await asyncio.Event().wait()
 
-    with patch.object(
-        target=RobustAsyncJSON5DB, attribute="_do_load", new=never_finish
-    ):
+    with patch.object(target=RobustAsyncTOMLDB, attribute="_do_load", new=never_finish):
         await db._start_load_task()
         if db._load_task is not None:
             db._load_task.cancel()
@@ -1609,19 +1624,19 @@ async def test_load_state_mismatch() -> None:
         LoadStateMismatchError: When load state is inconsistent.
 
     Examples:
-        >>> db = RobustAsyncJSON5DB(file_path="x.json5")
+        >>> db = RobustAsyncTOMLDB(file_path="x.toml")
         >>> # Mock _unsafe_load to not set _loaded
         >>> with pytest.raises(LoadStateMismatchError):
         ...     await db._ensure_loaded()
     """
-    db: RobustAsyncJSON5DB = RobustAsyncJSON5DB(file_path="x.json5")
+    db: RobustAsyncTOMLDB = RobustAsyncTOMLDB(file_path="x.toml")
 
     async def fake_unsafe_load(_self: Any, _default_copy: dict[str, Any]) -> None:
         pass
 
     with (
         patch.object(
-            target=RobustAsyncJSON5DB,
+            target=RobustAsyncTOMLDB,
             attribute="_unsafe_load",
             new=fake_unsafe_load,
         ),

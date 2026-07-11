@@ -182,8 +182,8 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 | i18n | `src/plugins/nonebot_plugin_lingchu_bot/i18n/`；用户可见字符串变化时运行 `task i18n` |
 | Docs | `apps/docs/content/docs/` |
 | Menu | `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py` |
-| Runtime config | `config.json5`、`bot_state.json5`、`menu.json5`、`core/schemas.py` schema 文本 |
-| Handle config files | `handle_config_defaults/`、localstore config_dir 中的 `<command_key>.json5` |
+| Runtime config | `config.toml`、`bot_state.toml`、`menu.toml`、`core/schemas.py` schema 文本 |
+| Handle config files | `handle_config_defaults/`、localstore config_dir 中的 `<command_key>.toml` |
 | Triggers | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` |
 | Agent context | `AGENTS.md`、`CLAUDE.md`、`.github/note/AGENTS-zh.md` |
 
@@ -199,13 +199,13 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 
 ### State And Config Rules
 
-- `core/bot_state.py` 通过 localstore 持久化 `bot_state.json5`。
+- `core/bot_state.py` 通过 localstore 持久化 `bot_state.toml`。
 - `is_handle_active(platform_id)` 按 global AND platform 解析。
 - `is_silent_mode(platform_id)` 按 global OR platform 解析。
 - `selected_adapter_handle()` 支持 `bypass_gate` 和 `bypass_silent`。
 - “闭嘴”/“说话”绕过 silent mode，但不绕过 shutdown gate。
 - “开机”/“关机”同时绕过 gate 和 silent mode。
-- `install_schemas()` 必须在 runtime JSON5 文件引用 schema basename 前运行。失败只记录日志，不中断启动。
+- `install_schemas()` 必须在 runtime TOML 文件引用 schema basename 前运行。失败只记录日志，不中断启动。
 
 ### Repository API Style
 
@@ -357,7 +357,7 @@ task ci
 - 文件转 package 需要在 `__init__.py` 显式 re-export。
 - Alembic model package 必须 import 所有 models，保证 discovery 生效。
 - 非 SQLite 测试前先运行 migrations。
-- `ensure_json5_dict_file_async()` 只创建缺失文件；覆盖写入用 `write_json5_dict_file_async()`。
+- `ensure_toml_dict_file_async()` 只创建缺失文件；覆盖写入用 `write_toml_dict_file_async()`。
 - Runtime config defaults 必须 JSON-serializable；需要时用 Pydantic `mode="json"` dump。
 
 #### 跨数据库方言适配（随 MariaDB / Oracle / SQL Server 支持新增）

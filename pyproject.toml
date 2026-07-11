@@ -48,7 +48,6 @@ dependencies = [
     "nonebot-plugin-docs>=2.5.0",
     # "nonebot-plugin-sentry>=2.0.0",
     "aiofiles>=25.1.0",
-    "json5>=0.14.0",
     "babel>=2.18.0",
     "nonebot-plugin-htmlkit>=0.1.0rc5",
     "rtoml>=0.13.0",

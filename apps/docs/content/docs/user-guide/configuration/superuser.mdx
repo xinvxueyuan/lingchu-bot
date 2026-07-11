@@ -3,7 +3,7 @@ icon: ShieldCheck
 title: Superuser Identity
 ---
 
-Lingchu permissions use stable UIDs and platform account bindings instead of treating a platform account ID as the only identity. Configure the dedicated superuser mapping with JSON5:
+Lingchu permissions use stable UIDs and platform account bindings instead of treating a platform account ID as the only identity. Configure the dedicated superuser mapping as strict JSON inside the environment variable:
 
 ```dotenv
 LINGCHU_SUPERUSERS='{"userA":{"qq":123,"telegram":"tg-id","discord":"discord-id"}}'

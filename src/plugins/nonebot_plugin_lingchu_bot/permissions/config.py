@@ -1,11 +1,11 @@
-"""JSON5-backed permission configuration APIs."""
+"""TOML-backed permission configuration APIs."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 from ..core.runtime_config import get_runtime_config_file, runtime_config_defaults
-from ..database.json5_store import RobustAsyncJSON5DB
+from ..database.toml_store import RobustAsyncTOMLDB
 
 PASSTHROUGH_KEY = "permission_platform_runtime_passthrough"
 
@@ -17,7 +17,7 @@ class PlatformPermissionMappingUpdate:
 
 
 async def get_platform_runtime_passthrough_config() -> bool | dict[str, bool]:
-    async with RobustAsyncJSON5DB(
+    async with RobustAsyncTOMLDB(
         get_runtime_config_file(),
         default=runtime_config_defaults(),
     ) as db:
@@ -32,7 +32,7 @@ async def get_platform_runtime_passthrough_config() -> bool | dict[str, bool]:
 async def update_platform_runtime_passthrough_config(
     request: PlatformPermissionMappingUpdate,
 ) -> bool | dict[str, bool]:
-    async with RobustAsyncJSON5DB(
+    async with RobustAsyncTOMLDB(
         get_runtime_config_file(),
         default=runtime_config_defaults(),
     ) as db:
