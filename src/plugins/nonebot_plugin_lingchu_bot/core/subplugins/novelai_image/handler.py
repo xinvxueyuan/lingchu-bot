@@ -49,7 +49,7 @@ async def run_novelai_image(
         return
     try:
         converted = await convert_prompt(user_text, config=selected)
-        positive, negative = compose_prompts(
+        composed = compose_prompts(
             converted,
             default_negative=selected.negative_prompt,
         )
@@ -58,8 +58,8 @@ async def run_novelai_image(
         await novelai_image_cmd.finish(translate("prompt_failed"))
         return
     request = NovelAIImageRequest(
-        prompt=positive,
-        negative_prompt=negative,
+        prompt=", ".join((converted.description, *converted.tags)),
+        negative_prompt=composed.negative_caption,
         model=selected.model,
         width=selected.width,
         height=selected.height,
@@ -67,6 +67,10 @@ async def run_novelai_image(
         scale=selected.scale,
         sampler=selected.sampler,
         seed=secrets.randbelow(2**32),
+        v4_base_caption=composed.base_caption if composed.use_coords else None,
+        v4_char_captions=composed.char_captions,
+        v4_character_prompts=composed.character_prompts,
+        use_coords=composed.use_coords,
     )
     try:
         image = await generate_image(request, config=selected)
