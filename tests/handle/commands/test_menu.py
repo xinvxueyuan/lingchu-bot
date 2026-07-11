@@ -13,6 +13,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.menu import (
     LocalizedText,
     MenuPage,
     MenuRuntimeContext,
+    default_menu_features,
     menu_cmd,
     menu_page_cmds,
     qq_menu_context,
@@ -35,13 +36,28 @@ from tests.handle.commands.conftest import finish_text
 
 
 def test_menu_registry_uses_known_command_keys() -> None:
-    assert {feature.command_key for feature in MENU_FEATURES} <= set(COMMAND_TRIGGERS)
+    all_features = default_menu_features()
+    assert {feature.command_key for feature in all_features} <= set(COMMAND_TRIGGERS)
     assert {feature.command_key for feature in _DEFAULT_MENU_FEATURES} <= set(
         COMMAND_TRIGGERS
     )
-    assert {feature.command_key for feature in MENU_FEATURES} == {
+    assert {feature.command_key for feature in all_features} >= {
         feature.command_key for feature in _DEFAULT_MENU_FEATURES
     }
+
+
+def test_default_menu_features_includes_subplugin_features() -> None:
+    """default_menu_features() must include subplugin-registered features (chat, novelai_image)."""
+    from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins import (
+        collect_subplugin_menu_features,
+    )
+
+    all_features = default_menu_features()
+    subplugin_keys = {f.command_key for f in collect_subplugin_menu_features()}
+    assert subplugin_keys <= {f.command_key for f in all_features}
+    # chat and novelai_image should be registered by subplugins
+    assert "chat" in subplugin_keys
+    assert "novelai_image" in subplugin_keys
 
 
 def test_set_menu_pages_replaces_runtime_lookup() -> None:

@@ -2,6 +2,7 @@
 
 from nonebot.plugin import PluginMetadata
 
+from ..contracts import register_subplugin_menu_feature
 from .config import ensure_novelai_config_files
 
 __plugin_meta__ = PluginMetadata(
@@ -14,4 +15,18 @@ __plugin_meta__ = PluginMetadata(
 
 ensure_novelai_config_files()
 
+from ....handle.menu import LocalizedText, MenuAvailability, MenuFeature
+from ....platforms import PlatformCapability
 from . import handler as handler
+
+register_subplugin_menu_feature(
+    MenuFeature(
+        "novelai-image",
+        "novelai_image",
+        "entertainment",
+        LocalizedText("NovelAI 生图", "NovelAI Image"),
+        LocalizedText("<描述>", "<description>"),
+        PlatformCapability.LLM_CHAT,
+        (MenuAvailability("qq", "~onebot.v11"),),
+    )
+)

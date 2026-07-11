@@ -565,17 +565,15 @@ _DEFAULT_MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         PlatformCapability.APPLICATION_OPERATION,
         (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
     ),
-    MenuFeature(
-        "chat",
-        "chat",
-        "entertainment",
-        LocalizedText("与 AI 聊天", "Chat with AI"),
-        LocalizedText("<文本>", "<text>"),
-        PlatformCapability.LLM_CHAT,
-        _QQ_BOTH,
-    ),
 )
 MENU_FEATURES: tuple[MenuFeature, ...] = _DEFAULT_MENU_FEATURES
+
+
+def default_menu_features() -> tuple[MenuFeature, ...]:
+    """Return static default features merged with subplugin-registered features."""
+    from ..core.subplugins import collect_subplugin_menu_features
+
+    return (*_DEFAULT_MENU_FEATURES, *collect_subplugin_menu_features())
 
 
 def set_menu_pages(pages: tuple[MenuPage, ...]) -> None:

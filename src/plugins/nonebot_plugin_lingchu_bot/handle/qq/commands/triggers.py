@@ -461,6 +461,12 @@ _DEFAULT_COMMAND_TRIGGERS = {
         chinese_aliases=frozenset(),
         english_aliases=frozenset(),
     ),
+    "novelai_image": CommandTrigger(
+        chinese="生图",
+        english="novelai-image",
+        chinese_aliases=frozenset({"生成图片", "画图"}),
+        english_aliases=frozenset({"novelai", "generate-image"}),
+    ),
 }
 
 COMMAND_TRIGGERS = build_command_triggers(
