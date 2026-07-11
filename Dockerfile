@@ -21,7 +21,7 @@ COPY ./pyproject.toml ./uv.lock /wheel/
 # Export only third-party runtime dependencies (no dev group). --no-emit-project
 # excludes the local ``-e .`` entry so the builder does not need README/license
 # files; the source is copied into the runtime stage directly.
-RUN python -m uv export --frozen --no-dev --no-emit-project --no-hashes \
+RUN python -m uv export --frozen --no-dev --all-extras --no-emit-project --no-hashes \
       --output-file requirements.txt
 
 # Build wheels for offline installation in the runtime stage.

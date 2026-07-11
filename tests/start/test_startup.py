@@ -148,8 +148,8 @@ async def test_check_announcement_image_path_bridge_emits_warning_on_mismatch(
 
     fake_config = MagicMock()
     fake_config.announcement_image_cache_dir = MagicMock()
-    fake_config.announcement_image_cache_dir.__str__ = lambda _: (
-        "C:/dev/lingchu-bot/.local/napcat-announcement-images"
+    fake_config.announcement_image_cache_dir.__str__ = MagicMock(
+        return_value="C:/dev/lingchu-bot/.local/napcat-announcement-images"
     )
     fake_config.announcement_image_protocol_dir = (
         "/lingchu-bot/.local/napcat-announcement-images"
