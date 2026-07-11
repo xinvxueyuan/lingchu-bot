@@ -106,7 +106,7 @@ def _serialize_page(page: MenuPage) -> dict[str, Any]:
         result["command"] = _serialize_localized_text(page.command)
     items = [
         _serialize_feature(feature)
-        for feature in menu_module._DEFAULT_MENU_FEATURES
+        for feature in menu_module.default_menu_features()
         if feature.section_id == page.id
     ]
     if items:
@@ -133,7 +133,7 @@ def _merge_menu_config(
     path: Path,
 ) -> tuple[tuple[MenuPage, ...], tuple[MenuFeature, ...]]:
     default_pages = menu_module._DEFAULT_MENU_PAGES
-    default_features = menu_module._DEFAULT_MENU_FEATURES
+    default_features = menu_module.default_menu_features()
     context = _MergeContext(
         path=path,
         default_page_by_id={page.id: page for page in _flatten_pages(default_pages)},

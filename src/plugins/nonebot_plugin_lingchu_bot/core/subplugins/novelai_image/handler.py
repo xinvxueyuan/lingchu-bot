@@ -11,22 +11,19 @@ from nonebot.adapters.onebot.v11.event import GroupMessageEvent
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 
-from ..contracts import get_configured_locale, selected_adapter_handle
+from ....handle.qq.commands.triggers import COMMAND_TRIGGERS
+from ..contracts import selected_adapter_handle
 from .client import MissingNovelAITokenError, NovelAIError, generate_image
 from .config import NovelAIConfig, get_novelai_config
 from .i18n import translate
 from .payload import NovelAIImageRequest
 from .prompt import PromptConversionError, compose_prompts, convert_prompt
 
-
-def command_for_locale(locale: str) -> str:
-    return "novelai-image" if locale.lower().startswith("en") else "生图"
-
-
-_COMMAND = command_for_locale(get_configured_locale())
+_NOVELAI_IMAGE = COMMAND_TRIGGERS["novelai_image"]
 
 novelai_image_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna(_COMMAND, Args["prompt", Nargs(str)]),
+    command=Alconna(_NOVELAI_IMAGE.primary, Args["prompt", Nargs(str)]),
+    aliases=_NOVELAI_IMAGE.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,
@@ -84,7 +81,7 @@ async def run_novelai_image(
     await novelai_image_cmd.finish(MessageSegment.image(image))
 
 
-@selected_adapter_handle(novelai_image_cmd, "~onebot.v11")
+@selected_adapter_handle(novelai_image_cmd, "~onebot.v11", "novelai_image")
 async def onebot11_novelai_image(
     prompt: list[str],
     bot: OneBot11,  # noqa: ARG001

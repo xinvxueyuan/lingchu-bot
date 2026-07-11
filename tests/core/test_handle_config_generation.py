@@ -316,3 +316,13 @@ async def test_config_matches_defaults(patched_localstore: Path):
         assert config_dict["defaults"] == expected_on_disk["defaults"]
         assert config_dict["enabled"] == expected_defaults["enabled"]
         assert config_dict["policies"] == expected_defaults["policies"]
+
+
+def test_chat_is_not_in_handle_defaults_registry() -> None:
+    """chat command was extracted to llm_chat subplugin; it must not be in handle defaults."""
+    assert "chat" not in HANDLE_DEFAULTS_REGISTRY
+
+
+def test_novelai_image_is_not_in_handle_defaults_registry() -> None:
+    """novelai_image command is owned by its subplugin; it must not be in handle defaults."""
+    assert "novelai_image" not in HANDLE_DEFAULTS_REGISTRY

@@ -37,7 +37,7 @@ def test_menu_config_defaults_returns_all_known_feature_command_keys() -> None:
     command_keys = _command_keys_from_pages(defaults["pages"])
 
     assert command_keys == {
-        feature.command_key for feature in menu_module._DEFAULT_MENU_FEATURES
+        feature.command_key for feature in menu_module.default_menu_features()
     }
     assert command_keys <= set(COMMAND_TRIGGERS)
 
@@ -116,7 +116,7 @@ async def test_load_menu_config_falls_back_when_file_missing(tmp_path: Path) -> 
     pages, features = await load_menu_config(tmp_path / "missing.toml")
 
     assert pages == menu_module._DEFAULT_MENU_PAGES
-    assert features == menu_module._DEFAULT_MENU_FEATURES
+    assert features == menu_module.default_menu_features()
 
 
 async def test_load_menu_config_overrides_summary(tmp_path: Path) -> None:
