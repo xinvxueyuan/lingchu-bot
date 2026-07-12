@@ -70,11 +70,24 @@ def _find_import_violations(source: str) -> list[str]:
                     f"line {node.lineno}: adapter import "
                     f"from {node.module} import {names}"
                 )
+            elif (
+                node.level == 0
+                and node.module is not None
+                and node.module.endswith("services.llm")
+            ):
+                violations.append(
+                    f"line {node.lineno}: direct LLM service import from {node.module}"
+                )
         elif isinstance(node, ast.Import):
             violations.extend(
                 f"line {node.lineno}: adapter import {alias.name}"
                 for alias in node.names
                 if alias.name.startswith("nonebot.adapters")
+            )
+            violations.extend(
+                f"line {node.lineno}: direct LLM service import {alias.name}"
+                for alias in node.names
+                if alias.name.endswith("services.llm")
             )
     return violations
 
@@ -98,9 +111,11 @@ def test_violation_detection_on_synthetic_source() -> None:
         "from ....services.llm import complete_chat\n"
         "from nonebot.adapters.onebot.v11 import Bot\n"
         "import nonebot.adapters.onebot.v11\n"
+        "from src.plugins.nonebot_plugin_lingchu_bot.services.llm import complete_chat\n"
+        "import src.plugins.nonebot_plugin_lingchu_bot.services.llm\n"
     )
     violations = _find_import_violations(source)
-    assert len(violations) == 3
+    assert len(violations) == 5
     assert any("3+ dot relative import" in v for v in violations)
     assert any(
         "adapter import" in v and "from nonebot.adapters" in v for v in violations
@@ -108,3 +123,4 @@ def test_violation_detection_on_synthetic_source() -> None:
     assert any(
         "adapter import" in v and "import nonebot.adapters" in v for v in violations
     )
+    assert sum("direct LLM service import" in v for v in violations) == 2
