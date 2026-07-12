@@ -4,12 +4,15 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: write
+  contents: read
 
 jobs:
   clear-workflows:
     name: 🧹 Clear Workflow
     runs-on: ubuntu-latest
+    # Deleting workflow runs via the GitHub API requires actions: write.
+    permissions:
+      actions: write
     steps:
       - name: Delete all non-running workflow runs
         # pinned from actions/github-script@v9.0.0

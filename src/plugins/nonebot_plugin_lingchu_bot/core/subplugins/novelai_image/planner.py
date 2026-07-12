@@ -115,35 +115,28 @@ def build_generation_plan(
         prompt_tags = intent.base_tags
     prompt = _joined(base_caption, prompt_tags)
 
-    negative_tags = normalize_tags(
-        (
-            *normalize_negative_prompt(config.negative_prompt),
-            *intent.generation.negative_tags,
-            *(
-                tag
-                for character in intent.characters
-                for tag in character.negative_tags
-            ),
-            *normalize_negative_prompt(overrides.negative_prompt),
-        )
-    )
+    negative_tags = normalize_tags((
+        *normalize_negative_prompt(config.negative_prompt),
+        *intent.generation.negative_tags,
+        *(tag for character in intent.characters for tag in character.negative_tags),
+        *normalize_negative_prompt(overrides.negative_prompt),
+    ))
 
     char_captions: list[dict[str, object]] = []
     character_prompts: list[dict[str, object]] = []
     for character in intent.characters:
         character_prompt = _joined(character.description, character.tags)
         center = {"x": character.center.x, "y": character.center.y}
-        char_captions.append(
-            {"char_caption": character_prompt, "centers": [center.copy()]}
-        )
-        character_prompts.append(
-            {
-                "prompt": character_prompt,
-                "uc": ", ".join(character.negative_tags),
-                "center": center,
-                "enabled": True,
-            }
-        )
+        char_captions.append({
+            "char_caption": character_prompt,
+            "centers": [center.copy()],
+        })
+        character_prompts.append({
+            "prompt": character_prompt,
+            "uc": ", ".join(character.negative_tags),
+            "center": center,
+            "enabled": True,
+        })
 
     return NovelAIGenerationPlan(
         prompt=prompt,

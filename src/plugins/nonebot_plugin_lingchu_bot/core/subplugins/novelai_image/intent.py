@@ -166,12 +166,10 @@ def parse_prompt_intent(text: str) -> PromptIntent:
 async def analyze_prompt_intent(user_text: str) -> PromptIntent:
     """Ask the global LLM to analyze a user request and parse its response."""
     try:
-        response = await complete_subplugin_chat_default(
-            [
-                {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user", "content": user_text},
-            ]
-        )
+        response = await complete_subplugin_chat_default([
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": user_text},
+        ])
     except SubpluginLLMError as exc:
         raise IntentAnalysisError("Intent analysis provider failed") from exc
     return parse_prompt_intent(response)

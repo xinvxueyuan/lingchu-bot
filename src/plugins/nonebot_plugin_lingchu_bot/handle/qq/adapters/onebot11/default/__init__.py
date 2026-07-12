@@ -1,18 +1,22 @@
 from typing import Any
 
-from . import announcement as announcement
-from . import block as block
-from . import bot_state as bot_state
-from . import kick as kick
-from . import lifecycle as lifecycle
-from . import member as member
-from . import menu as menu
-from . import mute as mute
-from . import profile as profile
-from . import protect as protect
-from . import remote as remote
-from .menu import onebot11_menu as onebot11_menu
-from .menu import onebot11_menu_pages as onebot11_menu_pages
+from . import (
+    announcement as announcement,
+    block as block,
+    bot_state as bot_state,
+    kick as kick,
+    lifecycle as lifecycle,
+    member as member,
+    menu as menu,
+    mute as mute,
+    profile as profile,
+    protect as protect,
+    remote as remote,
+)
+from .menu import (
+    onebot11_menu as onebot11_menu,
+    onebot11_menu_pages as onebot11_menu_pages,
+)
 
 
 async def import_handle() -> Any:

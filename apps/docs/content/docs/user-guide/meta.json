@@ -3,11 +3,5 @@
   "description": "Documentation for users",
   "icon": "BookOpen",
   "root": true,
-  "pages": [
-    "overview",
-    "quick-start",
-    "commands",
-    "configuration",
-    "troubleshooting"
-  ]
+  "pages": ["overview", "quick-start", "commands", "configuration", "troubleshooting"]
 }

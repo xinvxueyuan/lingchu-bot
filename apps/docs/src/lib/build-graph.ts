@@ -1,6 +1,6 @@
+import type { ExtractedReference } from "fumadocs-mdx";
 import { source } from "@/lib/source";
 import type { Graph } from "@/components/graph-view";
-import type { ExtractedReference } from "fumadocs-mdx";
 
 interface PageDataWithReferences {
   extractedReferences?: ExtractedReference[];
@@ -16,19 +16,19 @@ export async function buildGraph(): Promise<Graph> {
       id: page.url,
       url: page.url,
       text: page.data.title,
-      description: page.data.description,
+      description: page.data.description ?? "",
     });
 
     const data = page.data as unknown as PageDataWithReferences;
     const { extractedReferences = [] } = data;
     for (const ref of extractedReferences) {
       const refPage = source.getPageByHref(ref.href);
-      if (!refPage) continue;
-
-      graph.links.push({
-        source: page.url,
-        target: refPage.page.url,
-      });
+      if (refPage) {
+        graph.links.push({
+          source: page.url,
+          target: refPage.page.url,
+        });
+      }
     }
   }
 

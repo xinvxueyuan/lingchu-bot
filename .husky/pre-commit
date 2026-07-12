@@ -3,257 +3,56 @@
 
 # Pre-commit hook: 自动修复 → 快速检查 → 慢速检查 → 非阻断分析
 # 原则：快反馈优先，阻断性检查在前，非阻断分析放最后
-# 优化（v3 — 颗粒度化）：
-#   1. 继承 v2 的 resolve_js / 一次性探测 / CHANGED 检测优化
-#   2. 拆分 HAS_DOCS → CODE/TSX/CONTENT/STYLE/CONFIG 五类，拆分 HAS_PACKAGES → CODE/CONFIG 两类
-#   3. ESLint 与 check-types 解耦：ESLint 跳过纯内容变更，check-types 跳过纯样式变更
-#   4. React Doctor 仅在 .tsx 变更时运行（React 组件扫描）
-#   5. Docs Vitest 跳过纯样式变更（CSS 不影响测试）
-#   6. 新增 NEEDS_LINT / NEEDS_TYPE_CHECK / NEEDS_REACT_DOCTOR / NEEDS_DOCS_TEST 派生条件
-#   7. Docs 变更时运行 Chromium Playwright 冒烟测试
+#
+# 模块化结构（v4 — husky pre-commit 模块化拆分）：
+#   - .husky/lib/detect.sh    工具解析 + 一次性探测 + 暂存文件类型检测
+#   - .husky/lib/markdown.sh  Phase 2:   markdownlint
+#   - .husky/lib/python.sh    Phase 2.5: # noqa 防回退 | Phase 4: Pyright | Phase 5: pytest
+#   - .husky/lib/frontend.sh  Phase 6a-6d: ESLint/check-types/Vitest/Playwright | Phase 7: React Doctor
+#
+# 与 prek 的职责划分（避免重复执行）：
+#   - prek.toml（Phase 1 调用）负责: trailing-whitespace, end-of-file-fixer,
+#     check-yaml/toml/json/xml, check-merge-conflict, check-added-large-files,
+#     detect-private-key, check-case-conflict, mixed-line-ending, check-symlinks,
+#     destroyed-symlinks, ruff (--fix), ruff-format, ty
+#   - husky pre-commit 负责: markdownlint, # noqa 防回退, Pyright, pytest,
+#     ESLint, turbo check-types, Docs Vitest, Docs Playwright, React Doctor,
+#     Gitnexus 非阻断分析
+#   - 已移除的重复检查: Phase 3 (Ruff lint + Ruff format) 与 Phase 4 中的 ty
 set +e
 
-# ── 工具解析辅助函数 ────────────────────────────────────
+# ── 定位 husky 目录（兼容 symlink、subshell、不同启动路径）──────────
+# .husky/_/h 以 sh -e 调用本脚本；$0 可能是相对路径或绝对路径。
+HUSKY_DIR=$(dirname "$0")
+case "$HUSKY_DIR" in
+    /*) ;;                          # 绝对路径，直接使用
+    *)  HUSKY_DIR="$PWD/$HUSKY_DIR" ;; # 相对路径，补全为绝对路径
+esac
+# 解析可能存在的 .. 或 . 段（不依赖 readlink，保持 POSIX）
+HUSKY_DIR=$(cd "$HUSKY_DIR" && pwd)
+LIB_DIR="$HUSKY_DIR/lib"
 
-# first_runnable <command>... — 返回第一个可执行且能启动的命令
-first_runnable() {
-    for candidate in "$@"; do
-        if command -v "$candidate" >/dev/null 2>&1 && "$candidate" --version >/dev/null 2>&1; then
-            printf '%s\n' "$candidate"
-            return 0
-        fi
-    done
-    return 1
-}
-
-# first_cmd_runnable <command.cmd>... — 返回第一个可通过 cmd.exe 启动的 Windows 命令
-first_cmd_runnable() {
-    if ! command -v cmd.exe >/dev/null 2>&1; then
-        return 1
-    fi
-    for candidate in "$@"; do
-        if command -v "$candidate" >/dev/null 2>&1 && cmd.exe /c "$candidate" --version >/dev/null 2>&1; then
-            printf '%s\n' "$candidate"
-            return 0
-        fi
-    done
-    return 1
-}
-
-# resolve_native <bin>... — 返回第一个可在当前 shell 直接调用的命令
-resolve_native() {
-    first_runnable "$@" && return 0
-    return 1
-}
-
-# resolve_cmd <bin>... — 返回第一个可通过 cmd.exe 调用的 .cmd shim
-resolve_cmd() {
-    first_cmd_runnable "$@" && return 0
-    return 1
-}
-
-# resolve_js <bin>
-#   解析顺序：node_modules/.bin/<bin> → 全局 PATH → 全局 .cmd shim
-#   输出：native:<path> | cmd:<path>（失败返回 1，调用方决定兜底）
-#   Windows 上 .cmd shim 必须经 cmd.exe 包装，直接 $path 调用会被 Git Bash 静默跳过
-resolve_js() {
-    local bin="$1"
-    local bin_path=""
-
-    # 1. 本地 node_modules/.bin（devDep 已装时直接命中，零下载）
-    if [ -x "node_modules/.bin/$bin" ]; then
-        bin_path="node_modules/.bin/$bin"
-    elif [ -f "node_modules/.bin/$bin.cmd" ]; then
-        bin_path="node_modules/.bin/$bin.cmd"
-    fi
-    if [ -n "$bin_path" ]; then
-        if printf '%s\n' "$bin_path" | grep -q '\.cmd$'; then
-            printf 'cmd:%s\n' "$bin_path"
-        else
-            printf 'native:%s\n' "$bin_path"
-        fi
-        return 0
-    fi
-
-    # 2. 全局 PATH
-    local resolved
-    resolved=$(resolve_native "$bin" "$bin.exe") && { printf 'native:%s\n' "$resolved"; return 0; }
-    resolved=$(resolve_cmd "$bin.cmd") && { printf 'cmd:%s\n' "$resolved"; return 0; }
-    return 1
-}
-
-# run_resolved <resolver-output> <args...>
-run_resolved() {
-    case "$1" in
-        native:*) local bin="${1#native:}"; shift; "$bin" "$@" ;;
-        cmd:*) local bin="${1#cmd:}"; shift; cmd.exe /c "$bin" "$@" ;;
-        *) return 127 ;;
-    esac
-}
-
-# select_js_runner <bin> — 解析 pnpm/npx 等 wrapper 工具自身
-select_js_runner() {
-    resolved=$(resolve_native "$1" "$1.exe") && { printf 'native:%s\n' "$resolved"; return 0; }
-    resolved=$(resolve_cmd "$1.cmd") && { printf 'cmd:%s\n' "$resolved"; return 0; }
-    return 1
-}
-
-run_pnpm() {
-    case "$PNPM_RUNNER" in
-        native:*) "${PNPM_RUNNER#native:}" "$@" ;;
-        cmd:*) cmd.exe /c "${PNPM_RUNNER#cmd:}" "$@" ;;
-        *) return 127 ;;
-    esac
-}
-
-# ── 一次性探测环境（缓存到变量）────────────────────────
-GIT_CMD=$(first_runnable git git.exe)
-UV_CMD=$(first_runnable uv uv.exe)
-PNPM_RUNNER=$(select_js_runner pnpm)
-
-if [ -z "$GIT_CMD" ]; then
-    echo "❌ 未找到可运行的 git，无法检测暂存区变更。"
+# ── source 库模块（顺序敏感：detect.sh 必须最先）────────────────────
+# detect.sh 提供工具解析函数、环境探测、HAS_*/NEEDS_* 标志，
+# 后续 markdown.sh / python.sh / frontend.sh 均依赖这些变量与函数。
+if [ ! -f "$LIB_DIR/detect.sh" ]; then
+    echo "❌ 缺少 $LIB_DIR/detect.sh，husky 模块化拆分不完整。"
     exit 1
 fi
-
-# 预解析 JS 工具：devDep 命中本地 bin 时直接调用，避免 npx 重新下载
-GITNEXUS_RESOLVED=$(resolve_js gitnexus || true)
-
-# react-doctor 不在 devDep 中：尝试全局命中，否则走 pnpm dlx（带 pnpm 缓存），
-# 最后才用 npx（每次都重新拉包）
-REACT_DOCTOR_RESOLVED=$(resolve_js react-doctor || true)
-DLX_RUNNER=""
-if [ -z "$REACT_DOCTOR_RESOLVED" ] && [ -n "$PNPM_RUNNER" ]; then
-    DLX_RUNNER="pnpm"
-elif [ -z "$REACT_DOCTOR_RESOLVED" ]; then
-    DLX_RUNNER=$(select_js_runner npx || true)
-fi
-
-# ── 变更检测 ────────────────────────────────────────────
-STAGED_FILES=$("$GIT_CMD" diff --cached --name-only --diff-filter=ACMR 2>/dev/null)
-
-# has_pattern <glob_pattern>... — 任一模式匹配到暂存文件则返回 0
-has_pattern() {
-    for pattern in "$@"; do
-        if printf '%s\n' "$STAGED_FILES" | grep -qE "$pattern"; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-HAS_PYTHON=false
-HAS_PY_CONFIG=false   # pyproject.toml / ruff.toml / uv.lock 等 Python 配置
-HAS_MARKDOWN=false    # .md 文件变更
-
-# ── Docs 文件分类（apps/docs/）─────────────────────────
-HAS_DOCS_CODE=false     # .ts/.tsx/.mjs/.mts — 代码文件，触发 ESLint + check-types + Vitest
-HAS_DOCS_TSX=false      # .tsx — React 组件，触发 React Doctor（CODE 的子集）
-HAS_DOCS_CONTENT=false  # .mdx/.json — 内容文件，触发 check-types + Vitest（fumadocs-mdx 重新生成类型）
-HAS_DOCS_MDX=false      # .mdx — MDX 内容文件，触发 ESLint（eslint-plugin-mdx 覆盖 .mdx）
-HAS_DOCS_STYLE=false    # .css — 样式文件，触发 ESLint（CSS Modules 可能影响类型）
-HAS_DOCS_CONFIG=false   # 配置文件（next.config.mjs/tsconfig.json 等），触发 ESLint + check-types + Vitest
-
-# ── Packages 文件分类（packages/）──────────────────────
-HAS_PACKAGES_CODE=false   # .ts/.tsx/.mjs/.mts/.js/.css — 代码/样式文件
-HAS_PACKAGES_CONFIG=false # .json — 配置文件（含嵌套路径）
-
-# markdownlint-cli2 范围由根目录 .markdownlint-cli2.jsonc 统一驱动（globs + ignores + config）
-# 无参调用即可，无需在此维护 glob 列表
-
-if has_pattern '\.py$'; then
-    HAS_PYTHON=true
-fi
-if has_pattern '(^|/)(pyproject\.toml|ruff\.toml|\.ruff\.toml|uv\.lock|\.python-version)$'; then
-    HAS_PY_CONFIG=true
-fi
-
-# Docs: 代码文件（.ts/.tsx/.mjs/.mts）
-if has_pattern '^apps/docs/.*\.(ts|tsx|mjs|mts)$'; then
-    HAS_DOCS_CODE=true
-fi
-# Docs: React 组件（.tsx，CODE 的子集，单独标记以触发 React Doctor）
-if has_pattern '^apps/docs/.*\.tsx$'; then
-    HAS_DOCS_TSX=true
-fi
-# Docs: 内容文件（.mdx/.json，fumadocs-mdx 据此生成类型）
-if has_pattern '^apps/docs/.*\.(mdx|json)$'; then
-    HAS_DOCS_CONTENT=true
-fi
-# Docs: MDX 文件（eslint-plugin-mdx 覆盖 .mdx，需触发 ESLint；.json 不触发）
-if has_pattern '^apps/docs/.*\.mdx$'; then
-    HAS_DOCS_MDX=true
-fi
-# Docs: 样式文件（.css）
-if has_pattern '^apps/docs/.*\.css$'; then
-    HAS_DOCS_STYLE=true
-fi
-# Docs: 配置文件（影响 lint/type/test 行为）
-if has_pattern '^apps/docs/(next\.config\.mjs|source\.config\.ts|tsconfig\.json|vitest\.config\.ts|playwright\.config\.ts|eslint\.config\.mjs|postcss\.config\.mjs|package\.json)$'; then
-    HAS_DOCS_CONFIG=true
-fi
-
-# Packages: 代码/样式文件（.ts/.tsx/.mjs/.mts/.js/.css）
-if has_pattern '^packages/.*\.(ts|tsx|mjs|mts|js|css)$'; then
-    HAS_PACKAGES_CODE=true
-fi
-# Packages: 配置文件（.json，含嵌套路径如 packages/ui/tsconfig.json）
-if has_pattern '^packages/.*\.json$'; then
-    HAS_PACKAGES_CONFIG=true
-fi
-
-# Markdown 文件
-if has_pattern '\.md$'; then
-    HAS_MARKDOWN=true
-fi
-
-NEEDS_PYTHON_CHECK=false
-if [ "$HAS_PYTHON" = true ] || [ "$HAS_PY_CONFIG" = true ]; then
-    NEEDS_PYTHON_CHECK=true
-fi
-
-# ── 派生条件 ──────────────────────────────────────────
-# HAS_DOCS / HAS_PACKAGES / HAS_FRONTEND: 用于日志和兜底判断
-HAS_DOCS=false
-if [ "$HAS_DOCS_CODE" = true ] || [ "$HAS_DOCS_CONTENT" = true ] || [ "$HAS_DOCS_STYLE" = true ] || [ "$HAS_DOCS_CONFIG" = true ]; then
-    HAS_DOCS=true
-fi
-HAS_PACKAGES=false
-if [ "$HAS_PACKAGES_CODE" = true ] || [ "$HAS_PACKAGES_CONFIG" = true ]; then
-    HAS_PACKAGES=true
-fi
-HAS_FRONTEND=false
-if [ "$HAS_DOCS" = true ] || [ "$HAS_PACKAGES" = true ]; then
-    HAS_FRONTEND=true
-fi
-
-# NEEDS_LINT: 代码/样式/文档配置/MDX 内容变更触发 ESLint（纯 .json 内容跳过）
-NEEDS_LINT=false
-if [ "$HAS_DOCS_CODE" = true ] || [ "$HAS_DOCS_STYLE" = true ] || [ "$HAS_DOCS_CONFIG" = true ] || [ "$HAS_DOCS_MDX" = true ] || [ "$HAS_PACKAGES_CODE" = true ]; then
-    NEEDS_LINT=true
-fi
-
-# NEEDS_TYPE_CHECK: 任意前端变更触发（fumadocs-mdx 需重新生成类型，CSS Modules 可能影响类型）
-NEEDS_TYPE_CHECK=false
-if [ "$HAS_FRONTEND" = true ]; then
-    NEEDS_TYPE_CHECK=true
-fi
-
-# NEEDS_REACT_DOCTOR: 仅 .tsx 变更触发（React 组件扫描）
-NEEDS_REACT_DOCTOR=false
-if [ "$HAS_DOCS_TSX" = true ]; then
-    NEEDS_REACT_DOCTOR=true
-fi
-
-# NEEDS_DOCS_TEST: 代码/内容/配置变更触发 Vitest（纯样式 .css 跳过）
-NEEDS_DOCS_TEST=false
-if [ "$HAS_DOCS_CODE" = true ] || [ "$HAS_DOCS_CONTENT" = true ] || [ "$HAS_DOCS_CONFIG" = true ]; then
-    NEEDS_DOCS_TEST=true
-fi
+# shellcheck disable=SC1090
+. "$LIB_DIR/detect.sh"
+# shellcheck disable=SC1090
+. "$LIB_DIR/markdown.sh"
+# shellcheck disable=SC1090
+. "$LIB_DIR/python.sh"
+# shellcheck disable=SC1090
+. "$LIB_DIR/frontend.sh"
 
 echo "🚀 正在运行代码检查..."
 
-# ── Phase 1: 自动修复（prek 始终运行，prek 自身按 stage 过滤）──
+# ── Phase 1: 自动修复（prek 始终运行，prek 自身按 stage 过滤）────────
+# prek 在此统一处理: ruff (--fix) + ruff-format + ty + 通用文件检查钩子
+# husky 不再在后续 phase 重复运行 ruff/ty，避免双重执行。
 if [ -n "$UV_CMD" ]; then
     echo "🔧 正在运行 Prek 自动修复..."
     "$UV_CMD" run prek run --config prek.toml --stage pre-commit
@@ -265,250 +64,22 @@ else
     echo "⚠️  未找到 uv，跳过 Prek 检查。"
 fi
 
-# ── Phase 2: Markdownlint（秒级）──────────────────────────
-if [ "$HAS_MARKDOWN" = true ] && [ -n "$PNPM_RUNNER" ]; then
-    echo "📝 正在运行 markdownlint-cli2..."
-    run_pnpm exec markdownlint-cli2
-    if [ $? -ne 0 ]; then
-        echo "ℹ️  markdownlint 发现问题，正在尝试自动修复..."
-        run_pnpm exec markdownlint-cli2 --fix
-        if [ $? -ne 0 ]; then
-            echo "❌ markdownlint 自动修复失败，请手动修复后重新提交。"
-            exit 1
-        fi
-        echo "ℹ️  markdownlint 自动修复成功，正在暂存..."
-        "$GIT_CMD" add -u
-        echo "📝 正在重新验证 markdownlint..."
-        run_pnpm exec markdownlint-cli2
-        if [ $? -ne 0 ]; then
-            echo "❌ markdownlint 验证失败，请手动修复后重新提交。"
-            exit 1
-        fi
-    fi
-else
-    echo "⏭️  无 Markdown 变更，跳过 markdownlint。"
-fi
+# ── Phase 2: Markdownlint（秒级，.md 变更触发）──────────────────────
+run_markdown_checks
 
-# ── Phase 2.5: 忽略注释防回退（秒级）──────────────────
-# 非阻断：仅告警 src/ 中新增的 # noqa 注释（tests/ 不检查）
-# 内联 noqa 已迁移至 pyproject.toml [tool.ruff.lint.per-file-ignores]，
-# 此检查防止 src/ 重新引入内联 noqa；CI 会做更严格的审计
-if [ "$HAS_PYTHON" = true ]; then
-    STAGED_SRC_PY=$(printf '%s\n' "$STAGED_FILES" | grep -E '^src/.*\.py$' || true)
-    if [ -n "$STAGED_SRC_PY" ]; then
-        # 仅检查新增行（diff 中以 + 开头），避免对存量 noqa 误报
-        # shellcheck disable=SC2086
-        NEW_NOQA=$("$GIT_CMD" diff --cached --unified=0 -- $STAGED_SRC_PY 2>/dev/null | grep -E '^\+' | grep -F '# noqa' || true)
-        if [ -n "$NEW_NOQA" ]; then
-            echo "⚠️  检测到 src/ 中新增 # noqa 注释："
-            printf '%s\n' "$NEW_NOQA"
-            echo "   内联 noqa 已迁移至 pyproject.toml [tool.ruff.lint.per-file-ignores]，"
-            echo "   请将抑制规则移至 per-file-ignores 配置，或在注释中说明特殊理由。"
-            echo "   （此告警不阻断提交，但会在 CI 中再次审计）"
-        fi
-    fi
-fi
+# ── Phase 2.5 + Phase 4 + Phase 5: Python 检查 ──────────────────────
+# Phase 2.5: # noqa 防回退（非阻断告警）
+# Phase 4:   Pyright 类型检查（ty 已由 prek 在 Phase 1 处理）
+# Phase 5:   pytest 测试
+# 注：Phase 3 (Ruff lint + Ruff format) 已移除，由 prek 接管
+run_python_checks
 
-# ── Phase 3: 快速检查（秒级）──────────────────────────
-if [ "$NEEDS_PYTHON_CHECK" = true ] && [ -n "$UV_CMD" ]; then
-    echo "🔍 正在运行 Ruff lint..."
-    "$UV_CMD" run -m ruff check . --output-format=github
-    if [ $? -ne 0 ]; then
-        echo "ℹ️  Ruff lint 发现问题，正在尝试自动修复..."
-        "$UV_CMD" run -m ruff check --fix .
-        if [ $? -ne 0 ]; then
-            echo "❌ Ruff lint 自动修复失败，请手动修复后重新提交。"
-            exit 1
-        fi
-        echo "ℹ️  Ruff lint 自动修复成功，正在暂存..."
-        "$GIT_CMD" add -u
-        echo "🔍 正在重新验证 Ruff lint..."
-        "$UV_CMD" run -m ruff check . --output-format=github
-        if [ $? -ne 0 ]; then
-            echo "❌ Ruff lint 验证失败，请手动修复后重新提交。"
-            exit 1
-        fi
-    fi
+# ── Phase 6a-6d + Phase 7: 前端检查 ─────────────────────────────────
+# Phase 6a: ESLint | Phase 6b: turbo check-types | Phase 6c: Docs Vitest
+# Phase 6d: Docs Playwright Chromium 冒烟 | Phase 7: React Doctor
+run_frontend_checks
 
-    echo "🔍 正在运行 Ruff format 检查..."
-    "$UV_CMD" run -m ruff format --check .
-    if [ $? -ne 0 ]; then
-        echo "ℹ️  Ruff format 发现问题，正在自动格式化..."
-        "$UV_CMD" run -m ruff format .
-        if [ $? -ne 0 ]; then
-            echo "❌ Ruff format 自动格式化失败，请手动修复后重新提交。"
-            exit 1
-        fi
-        echo "ℹ️  Ruff format 自动格式化成功，正在暂存..."
-        "$GIT_CMD" add -u
-        echo "🔍 正在重新验证 Ruff format..."
-        "$UV_CMD" run -m ruff format --check .
-        if [ $? -ne 0 ]; then
-            echo "❌ Ruff format 验证失败，请手动修复后重新提交。"
-            exit 1
-        fi
-    fi
-else
-    echo "⏭️  无 Python 变更，跳过 Ruff lint/format 检查。"
-fi
-
-# ── Phase 4: 类型检查（十秒级）────────────────────────
-if [ "$NEEDS_PYTHON_CHECK" = true ] && [ -n "$UV_CMD" ]; then
-    echo "🔍 正在运行 Pyright 类型检查..."
-    "$UV_CMD" run -m pyright .
-    if [ $? -ne 0 ]; then
-        echo "❌ Pyright 类型检查失败，请修复后重新提交。"
-        exit 1
-    fi
-
-    echo "🔍 正在运行 ty 类型检查..."
-    "$UV_CMD" run -m ty check --output-format github
-    if [ $? -ne 0 ]; then
-        echo "❌ ty 类型检查失败，请修复后重新提交。"
-        exit 1
-    fi
-else
-    echo "⏭️  无 Python 变更，跳过 Pyright/ty 类型检查。"
-fi
-
-# ── Phase 5: 测试（十秒级）────────────────────────────
-if [ "$NEEDS_PYTHON_CHECK" = true ] && [ -n "$UV_CMD" ]; then
-    echo "🧪 正在运行 pytest..."
-    "$UV_CMD" run -m pytest -x -q
-    if [ $? -ne 0 ]; then
-        echo "❌ pytest 测试失败，请修复后重新提交。"
-        exit 1
-    fi
-else
-    echo "⏭️  无 Python 变更，跳过 pytest 测试。"
-fi
-
-# ── Phase 6a: ESLint（秒级，仅代码/样式/配置变更）──────────────────
-if [ "$NEEDS_LINT" = true ] && [ -n "$PNPM_RUNNER" ]; then
-    echo "🔍 正在运行 ESLint (all workspaces)..."
-    run_pnpm turbo run lint
-    if [ $? -ne 0 ]; then
-        echo "ℹ️  ESLint 发现问题，正在尝试自动修复..."
-        # ESLint --fix 需要针对各个 workspace 执行
-        if [ "$HAS_DOCS_CODE" = true ] || [ "$HAS_DOCS_MDX" = true ] || [ "$HAS_DOCS_CONFIG" = true ]; then
-            run_pnpm --filter docs exec eslint . --fix
-        fi
-        if [ "$HAS_PACKAGES_CODE" = true ]; then
-            run_pnpm --filter packages exec eslint . --fix 2>/dev/null || true
-        fi
-        echo "ℹ️  ESLint 自动修复完成，正在暂存..."
-        "$GIT_CMD" add -u
-        echo "🔍 正在重新验证 ESLint..."
-        run_pnpm turbo run lint
-        if [ $? -ne 0 ]; then
-            echo "❌ ESLint 验证失败，请手动修复后重新提交。"
-            exit 1
-        fi
-    fi
-else
-    echo "⏭️  无代码/样式/配置变更，跳过 ESLint。"
-fi
-
-# ── Phase 6b: 类型检查（十秒级，任意前端变更）──────────────────────
-if [ "$NEEDS_TYPE_CHECK" = true ] && [ -n "$PNPM_RUNNER" ]; then
-    echo "🔍 正在运行类型检查 (all workspaces)..."
-    run_pnpm turbo run check-types
-    if [ $? -ne 0 ]; then
-        echo "❌ 类型检查失败，请修复后重新提交。"
-        exit 1
-    fi
-else
-    echo "⏭️  无前端变更，跳过类型检查。"
-fi
-
-# ── Phase 6c: Docs Vitest（十秒级，代码/内容/配置变更）──────────────
-if [ "$NEEDS_DOCS_TEST" = true ] && [ -n "$PNPM_RUNNER" ]; then
-    echo "🧪 正在运行 Docs Vitest..."
-    run_pnpm --filter docs test
-    if [ $? -ne 0 ]; then
-        echo "❌ Docs 测试失败，请修复后重新提交。"
-        exit 1
-    fi
-fi
-
-# ── Phase 6d: Docs Playwright（Chromium 冒烟，任意 docs 变更）────────
-if [ "$HAS_DOCS" = true ] && [ -n "$PNPM_RUNNER" ]; then
-    # 跨平台检查 Playwright Chromium 浏览器是否已安装
-    # Linux/macOS: ~/.cache/ms-playwright   Windows: %LOCALAPPDATA%/ms-playwright
-    PW_CHROMIUM_FOUND=false
-    for pw_base in "${HOME}/.cache/ms-playwright" "${LOCALAPPDATA:+$LOCALAPPDATA/ms-playwright}"; do
-        if [ -d "$pw_base" ] && command -v find >/dev/null 2>&1; then
-            if find "$pw_base" -maxdepth 2 \( -name "chrome" -o -name "chrome.exe" -o -name "chrome-headless-shell" -o -name "chrome-headless-shell.exe" \) -type f 2>/dev/null | head -1 | grep -q .; then
-                PW_CHROMIUM_FOUND=true
-                break
-            fi
-        fi
-    done
-    if [ "$PW_CHROMIUM_FOUND" = false ]; then
-        echo "⚠️  Playwright Chromium 浏览器未安装，跳过 Docs Playwright 冒烟测试。"
-        echo "💡 运行 'pnpm --filter docs exec playwright install' 安装浏览器后再试。"
-    else
-        echo "🎭 正在运行 Docs Playwright (Chromium)..."
-        run_pnpm --filter docs run test:e2e:hook
-        if [ $? -ne 0 ]; then
-            echo "❌ Docs Playwright 测试失败，请修复后重新提交。"
-            exit 1
-        fi
-    fi
-fi
-
-# ── Phase 7: React Doctor（十秒级，仅 .tsx 变更）────────────────────
-if [ "$NEEDS_REACT_DOCTOR" = true ]; then
-    if [ -n "$REACT_DOCTOR_RESOLVED" ]; then
-        echo "🩺 正在运行 React Doctor..."
-        NO_COLOR=1 run_resolved "$REACT_DOCTOR_RESOLVED" . --blocking error --no-telemetry --project docs
-        if [ $? -ne 0 ]; then
-            echo "❌ React Doctor 发现错误，请修复后重新提交。"
-            echo "💡 运行 'pnpm doctor -- --verbose' 查看详细信息。"
-            exit 1
-        fi
-    elif [ "$DLX_RUNNER" = "pnpm" ]; then
-        # pnpm dlx 命中 pnpm 内容寻址缓存，后续调用零下载
-        echo "🩺 正在运行 React Doctor (pnpm dlx 缓存)..."
-        NO_COLOR=1 run_pnpm dlx -y react-doctor@latest . --blocking error --no-telemetry --project docs --yes
-        if [ $? -ne 0 ]; then
-            echo "❌ React Doctor 发现错误，请修复后重新提交。"
-            echo "💡 运行 'pnpm doctor -- --verbose' 查看详细信息。"
-            exit 1
-        fi
-    elif [ -n "$DLX_RUNNER" ]; then
-        # 终极兜底：npx 每次都会重新下载（最慢路径）
-        # 在非 Windows 系统上，cmd.exe 不可用，跳过 cmd shim 路径
-        DLX_EXIT=0
-        case "$DLX_RUNNER" in
-            cmd:*)
-                if command -v cmd.exe >/dev/null 2>&1; then
-                    echo "🩺 正在运行 React Doctor (npx 兜底)..."
-                    NO_COLOR=1 cmd.exe /c "${DLX_RUNNER#cmd:}" -y react-doctor@latest . --blocking error --no-telemetry --project docs --yes
-                    DLX_EXIT=$?
-                else
-                    echo "⚠️  cmd.exe 不可用，跳过 React Doctor 检查。"
-                fi
-                ;;
-            native:*)
-                echo "🩺 正在运行 React Doctor (npx 兜底)..."
-                NO_COLOR=1 "${DLX_RUNNER#native:}" -y react-doctor@latest . --blocking error --no-telemetry --project docs --yes
-                DLX_EXIT=$?
-                ;;
-        esac
-        if [ "$DLX_EXIT" -ne 0 ]; then
-            echo "❌ React Doctor 发现错误，请修复后重新提交。"
-            echo "💡 运行 'pnpm doctor -- --verbose' 查看详细信息。"
-            exit 1
-        fi
-    else
-        echo "⚠️  未找到 react-doctor / pnpm / npx，跳过 React Doctor 检查。"
-    fi
-else
-    echo "⏭️  无 .tsx 变更，跳过 React Doctor 检查。"
-fi
-
-# ── Phase 8: 非阻断分析 ────────────────────────────────
+# ── Phase 8: 非阻断分析 ─────────────────────────────────────────────
 # Gitnexus 优先本地 node_modules/.bin（devDep 已装时零下载零 pnpm 开销），
 # 其次 pnpm exec，最后才走 pnpm dlx 缓存
 if [ -n "$GITNEXUS_RESOLVED" ]; then

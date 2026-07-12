@@ -146,22 +146,20 @@ class RuntimeConfig(BaseModel):
         ),
     )
     protected_subject_feature_keys: frozenset[str] = Field(
-        default_factory=lambda: frozenset(
-            {
-                "kick_member",
-                "block_member",
-                "global_block_member",
-                "member_mute",
-                "recall_message",
-                "set_member_card",
-                "set_member_title",
-                "set_member_admin",
-                "unset_member_admin",
-                "remote_kick",
-                "remote_block",
-                "remote_mute",
-            }
-        ),
+        default_factory=lambda: frozenset({
+            "kick_member",
+            "block_member",
+            "global_block_member",
+            "member_mute",
+            "recall_message",
+            "set_member_card",
+            "set_member_title",
+            "set_member_admin",
+            "unset_member_admin",
+            "remote_kick",
+            "remote_block",
+            "remote_mute",
+        }),
         validation_alias=AliasChoices(
             "LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS",
             "protected_subject_feature_keys",

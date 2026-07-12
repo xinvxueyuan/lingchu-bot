@@ -3,10 +3,5 @@
   "description": "QQ platform documentation separated by protocol and implementation",
   "icon": "MessageCircle",
   "root": true,
-  "pages": [
-    "overview",
-    "frameworks",
-    "command-reference",
-    "onebot-v11"
-  ]
+  "pages": ["overview", "frameworks", "command-reference", "onebot-v11"]
 }

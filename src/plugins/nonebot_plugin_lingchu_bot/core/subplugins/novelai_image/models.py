@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
+import re
 
 _MIN_COORD = 0.1
 _MAX_COORD = 0.9

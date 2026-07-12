@@ -18,7 +18,7 @@ import { useI18n } from "fumadocs-ui/contexts/i18n";
 export default function DefaultSearchDialog(props: SharedProps) {
   const { locale } = useI18n();
   const { search, setSearch, query } = useDocsSearch({
-    client: flexsearchStaticClient({ locale }),
+    client: flexsearchStaticClient({ ...(locale && { locale }) }),
   });
 
   return (
@@ -35,7 +35,7 @@ export default function DefaultSearchDialog(props: SharedProps) {
           <SearchDialogInput />
           <SearchDialogClose />
         </SearchDialogHeader>
-        <SearchDialogList items={query.data !== "empty" ? query.data : null} />
+        <SearchDialogList items={query.data === "empty" ? null : query.data} />
       </SearchDialogContent>
       <SearchDialogFooter />
     </SearchDialog>

@@ -29,8 +29,6 @@ on:
 
 permissions:
   contents: read
-  checks: write
-  pull-requests: write
 
 concurrency:
   group: python-ci-${{ github.ref }}-${{ github.event.pull_request.number || github.sha }}
@@ -107,6 +105,11 @@ jobs:
     name: 🧪 Tests & Type Check (${{ matrix.db.label }})
     needs: changes
     if: needs.changes.outputs.python == 'true'
+    # EnricoMi/publish-unit-test-result-action needs checks: write to create
+    # check runs and pull-requests: write to annotate PR check runs.
+    permissions:
+      checks: write
+      pull-requests: write
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:

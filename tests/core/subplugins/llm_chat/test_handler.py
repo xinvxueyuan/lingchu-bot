@@ -2,8 +2,8 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from nonebot.exception import FinishedException
+import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.contracts import (
     SubpluginLLMError,

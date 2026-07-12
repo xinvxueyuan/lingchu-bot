@@ -4,8 +4,10 @@ from typing import Any
 
 import pytest
 
-from src.plugins.nonebot_plugin_lingchu_bot.handle.qq import adapters as group_loader
-from src.plugins.nonebot_plugin_lingchu_bot.handle.qq import commands as commands_loader
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq import (
+    adapters as group_loader,
+    commands as commands_loader,
+)
 
 GROUP_DIR = Path(commands_loader.__file__).parent
 SHARED_GROUP_MODULES = (

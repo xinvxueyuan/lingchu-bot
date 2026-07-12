@@ -4,7 +4,14 @@
   "config": {
     "default": true,
     "MD013": false, // 禁用行长度限制（CJK 内容不适用）
+    "MD024": {
+      "siblings_only": true, // 仅禁止同级重复标题（允许不同父节点下的同名标题）
+    },
+    "MD026": {
+      "punctuation": ".,;:!", // 标题末尾禁止 .,;:! 标点
+    },
     "MD033": false, // 允许内联 HTML（Callout / 章节标记等需要）
+    "MD036": false, // 禁用强调作为标题检查（Callout / 提示框等需要）
     "MD041": false, // 不强制首行必须为一级标题
     "MD060": {
       "style": "consistent", // 标题末尾标点风格保持一致

@@ -23,8 +23,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.menu import (
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     menu as onebot_menu_module,
-)
-from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     onebot11_menu,
     onebot11_menu_pages,
 )

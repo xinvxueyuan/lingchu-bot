@@ -4,7 +4,6 @@ This test verifies that the HandleConfigManager can generate valid TOML
 configuration files for the first 5 registered handles.
 """
 
-import json
 from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
@@ -15,8 +14,8 @@ import rtoml
 
 from src.plugins.nonebot_plugin_lingchu_bot.core import (
     handle_config_manager as manager_module,
+    schemas as schemas_module,
 )
-from src.plugins.nonebot_plugin_lingchu_bot.core import schemas as schemas_module
 from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_defaults import (
     HANDLE_DEFAULTS_REGISTRY,
 )
@@ -25,7 +24,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_manager import (
 )
 from src.plugins.nonebot_plugin_lingchu_bot.core.schemas import (
     HANDLE_CONFIG_SCHEMA_BASENAME,
-    HANDLE_CONFIG_SCHEMA_TEXT,
     install_schemas,
 )
 
@@ -263,8 +261,6 @@ async def test_schema_validation_for_all_handles(
     # Install schemas and ensure config files exist
     await install_schemas()
     await config_manager.ensure_config_files()
-
-    schema = json.loads(HANDLE_CONFIG_SCHEMA_TEXT)
 
     for command_key in HANDLE_DEFAULTS_REGISTRY:
         file_path = patched_localstore / f"{command_key}.toml"

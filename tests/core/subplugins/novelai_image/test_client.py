@@ -28,9 +28,10 @@ def frame(value: object) -> bytes:
 
 
 def test_extract_final_image_uses_last_final_event() -> None:
-    content = frame({"event_type": "intermediate", "image": b"x"}) + frame(
-        {"event_type": "final", "image": b"png"}
-    )
+    content = frame({"event_type": "intermediate", "image": b"x"}) + frame({
+        "event_type": "final",
+        "image": b"png",
+    })
 
     assert extract_final_image(content) == b"png"
 

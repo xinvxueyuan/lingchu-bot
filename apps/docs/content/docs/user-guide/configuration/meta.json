@@ -3,10 +3,5 @@
   "description": "Runtime settings, environment variables, and adapter selection",
   "icon": "Settings",
   "root": true,
-  "pages": [
-    "index",
-    "environment-variables",
-    "adapter-selection",
-    "superuser"
-  ]
+  "pages": ["index", "environment-variables", "adapter-selection", "superuser"]
 }

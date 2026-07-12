@@ -1,15 +1,12 @@
-import { getPageImage, source } from "@/lib/source";
 import { notFound } from "next/navigation";
 import { ImageResponse } from "next/og";
 import { generate as DefaultImage } from "fumadocs-ui/og";
+import { getPageImage, source } from "@/lib/source";
 import { appName } from "@/lib/shared";
 
 export const revalidate = false;
 
-export async function GET(
-  _req: Request,
-  { params }: RouteContext<"/og/docs/[...slug]">,
-) {
+export async function GET(_req: Request, { params }: RouteContext<"/og/docs/[...slug]">) {
   const { slug } = await params;
   const locale = slug[0] === "zh" ? "zh" : "en";
   const pageSlug = locale === "zh" ? slug.slice(1, -1) : slug.slice(0, -1);

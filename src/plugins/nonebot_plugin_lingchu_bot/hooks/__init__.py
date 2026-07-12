@@ -7,9 +7,11 @@ with NoneBot when they are imported.
 
 from __future__ import annotations
 
-from . import adapters as adapters
-from . import handlers as handlers
-from . import interfaces as interfaces
-from . import registry as registry
+from . import (
+    adapters as adapters,
+    handlers as handlers,
+    interfaces as interfaces,
+    registry as registry,
+)
 
 __all__ = ["adapters", "handlers", "interfaces", "registry"]

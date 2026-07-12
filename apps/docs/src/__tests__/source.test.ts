@@ -7,12 +7,7 @@ vi.mock("collections/server", () => ({
   },
 }));
 
-import {
-  getPageImage,
-  getPageMarkdownUrl,
-  getLLMText,
-  source,
-} from "@/lib/source";
+import { getPageImage, getPageMarkdownUrl, getLLMText, source } from "@/lib/source";
 
 type Page = (typeof source)["$inferPage"];
 
@@ -66,9 +61,7 @@ describe("source utilities", () => {
       });
       const result = getPageImage(page);
 
-      expect(result.url).toBe(
-        "/og/docs/developer-guide/engineering/commit-style/image.png",
-      );
+      expect(result.url).toBe("/og/docs/developer-guide/engineering/commit-style/image.png");
     });
   });
 
@@ -100,9 +93,7 @@ describe("source utilities", () => {
 
       const result = await getLLMText(page);
 
-      expect(result).toBe(
-        "# Getting Started (/docs/getting-started)\n\nWelcome to the guide.",
-      );
+      expect(result).toBe("# Getting Started (/docs/getting-started)\n\nWelcome to the guide.");
     });
 
     it("should handle empty content", async () => {

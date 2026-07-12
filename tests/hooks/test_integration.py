@@ -32,9 +32,8 @@ def test_hooks_package_import_registers_all_hooks() -> None:
     verifies that the registration side effect populated all expected NoneBot
     hook registries.
     """
-    # Re-importing the hooks package is a no-op if already loaded, but it keeps
-    # the test explicit about the registration trigger under verification.
-    from src.plugins.nonebot_plugin_lingchu_bot import hooks  # noqa: F401
+    # Importing hooks.handlers triggers the parent hooks/__init__.py, which
+    # registers all runtime hooks with NoneBot as a side effect.
     from src.plugins.nonebot_plugin_lingchu_bot.hooks.handlers import (
         api_audit,
         bot_connection,

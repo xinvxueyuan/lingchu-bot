@@ -8,8 +8,7 @@ from nonebot import require
 
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
-from nonebot_plugin_alconna.uniseg import At
-from nonebot_plugin_alconna.uniseg import Image as UniImage
+from nonebot_plugin_alconna.uniseg import At, Image as UniImage
 
 from .triggers import COMMAND_TRIGGERS
 

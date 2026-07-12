@@ -1,7 +1,7 @@
 import { Bot } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/cn";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
+import { cn } from "@/lib/cn";
 
 export function LLMBadge({ locale }: { locale?: string }) {
   const label =

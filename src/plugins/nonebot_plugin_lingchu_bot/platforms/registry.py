@@ -6,9 +6,9 @@ of concrete NoneBot adapters. Adapter modules stay at the edge of the system.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from enum import StrEnum
+import json
 from typing import Any, Final, cast
 
 from ..core.runtime_config import get_runtime_config
@@ -148,30 +148,26 @@ class PlatformAdapterUnknownError(RuntimeError):
 
 UNKNOWN_PLATFORM_ID: Final[str] = "unknown"
 
-QQ_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset(
-    {
-        PlatformCapability.GROUP_MANAGEMENT,
-        PlatformCapability.MEMBER_MODERATION,
-        PlatformCapability.MEMBER_PROFILE,
-        PlatformCapability.GROUP_PROFILE,
-        PlatformCapability.ANNOUNCEMENT,
-        PlatformCapability.APPLICATION_OPERATION,
-        PlatformCapability.MESSAGE_STORE,
-        PlatformCapability.API_AUDIT,
-        PlatformCapability.LLM_CHAT,
-    }
-)
+QQ_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset({
+    PlatformCapability.GROUP_MANAGEMENT,
+    PlatformCapability.MEMBER_MODERATION,
+    PlatformCapability.MEMBER_PROFILE,
+    PlatformCapability.GROUP_PROFILE,
+    PlatformCapability.ANNOUNCEMENT,
+    PlatformCapability.APPLICATION_OPERATION,
+    PlatformCapability.MESSAGE_STORE,
+    PlatformCapability.API_AUDIT,
+    PlatformCapability.LLM_CHAT,
+})
 
 PLATFORM_PROFILES: Final[tuple[PlatformProfile, ...]] = (
     PlatformProfile(
         platform_id="qq",
         display_name="QQ",
-        adapter_names=frozenset(
-            {
-                "onebot v11",
-                "onebot11",
-            }
-        ),
+        adapter_names=frozenset({
+            "onebot v11",
+            "onebot11",
+        }),
         nonebot_adapters=("~onebot.v11",),
         adapter_name_map=(
             ("onebot v11", "~onebot.v11"),
@@ -240,10 +236,8 @@ def parse_configured_adapters(configured: AdapterConfig) -> tuple[str, ...]:
     raw_values: tuple[Any, ...]
     if isinstance(configured, str):
         raw_values = tuple(configured.split("+"))
-    elif isinstance(configured, (list, tuple)):
-        raw_values = tuple(configured)
     else:
-        raw_values = (configured,)
+        raw_values = tuple(configured)
 
     parsed: list[str] = []
     for raw_value in raw_values:
@@ -443,9 +437,9 @@ def export_registry_for_seeding() -> dict[str, Any]:
         {
             "platform_id": profile.platform_id,
             "display_name": profile.display_name,
-            "capabilities": json.dumps(
-                [cap.value for cap in sorted(profile.capabilities)]
-            ),
+            "capabilities": json.dumps([
+                cap.value for cap in sorted(profile.capabilities)
+            ]),
             "implemented": profile.implemented,
         }
         for profile in PLATFORM_PROFILES
@@ -453,14 +447,12 @@ def export_registry_for_seeding() -> dict[str, Any]:
     adapters: list[dict[str, Any]] = []
     for profile in PLATFORM_PROFILES:
         for display_name, nonebot_id in profile.adapter_name_map:
-            adapters.append(
-                {
-                    "adapter_id": nonebot_id,
-                    "platform_id": profile.platform_id,
-                    "display_name": display_name,
-                    "nonebot_adapter_id": nonebot_id,
-                }
-            )
+            adapters.append({
+                "adapter_id": nonebot_id,
+                "platform_id": profile.platform_id,
+                "display_name": display_name,
+                "nonebot_adapter_id": nonebot_id,
+            })
     # Deduplicate by adapter_id (adapter_name_map has multiple
     # display names per adapter)
     seen: set[str] = set()

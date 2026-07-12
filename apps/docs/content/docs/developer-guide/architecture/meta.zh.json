@@ -3,10 +3,5 @@
   "description": "核心架构与适配器文档",
   "icon": "Blocks",
   "root": true,
-  "pages": [
-    "introduction",
-    "adapter-guide",
-    "message-store",
-    "runtime-hooks"
-  ]
+  "pages": ["introduction", "adapter-guide", "message-store", "runtime-hooks"]
 }

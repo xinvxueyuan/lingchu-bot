@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  appName,
-  docsRoute,
-  docsImageRoute,
-  docsContentRoute,
-  gitConfig,
-} from "@/lib/shared";
+import { appName, docsRoute, docsImageRoute, docsContentRoute, gitConfig } from "@/lib/shared";
 
 describe("shared constants", () => {
   it("should export appName", () => {

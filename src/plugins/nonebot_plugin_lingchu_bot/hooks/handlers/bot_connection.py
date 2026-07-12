@@ -13,7 +13,7 @@ driver = get_driver()
 
 
 @driver.on_bot_connect
-async def on_bot_connect(bot: "Bot") -> None:
+async def on_bot_connect(bot: Bot) -> None:
     """Record bot lifecycle and send pending restart feedback on connect."""
     fire_and_forget(
         record_bot_lifecycle(bot, "bot_connected"), name="record_bot_lifecycle"
@@ -24,7 +24,7 @@ async def on_bot_connect(bot: "Bot") -> None:
 
 
 @driver.on_bot_disconnect
-async def on_bot_disconnect(bot: "Bot") -> None:
+async def on_bot_disconnect(bot: Bot) -> None:
     """Record bot lifecycle on disconnect."""
     fire_and_forget(
         record_bot_lifecycle(bot, "bot_disconnected"), name="record_bot_lifecycle"

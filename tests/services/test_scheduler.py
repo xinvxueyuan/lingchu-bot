@@ -5,8 +5,8 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from apscheduler.jobstores.base import JobLookupError
+import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.services import (
     scheduler as scheduler_service,

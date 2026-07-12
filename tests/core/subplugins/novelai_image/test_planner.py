@@ -232,16 +232,21 @@ def test_characters_retain_intent_prompts_negatives_and_coordinates() -> None:
 
 
 def test_simple_scene_has_no_character_fields_and_fixed_seed_is_deterministic() -> None:
-    kwargs = {
-        "intent": intent(),
-        "tipo_prompt": None,
-        "overrides": GenerationOverrides(),
-        "config": NovelAIConfig(),
-        "random_seed": 42,
-    }
-
-    first = build_generation_plan(**kwargs)
-    second = build_generation_plan(**kwargs)
+    intent_value = intent()
+    first = build_generation_plan(
+        intent=intent_value,
+        tipo_prompt=None,
+        overrides=GenerationOverrides(),
+        config=NovelAIConfig(),
+        random_seed=42,
+    )
+    second = build_generation_plan(
+        intent=intent_value,
+        tipo_prompt=None,
+        overrides=GenerationOverrides(),
+        config=NovelAIConfig(),
+        random_seed=42,
+    )
 
     assert first == second
     assert first.char_captions == ()

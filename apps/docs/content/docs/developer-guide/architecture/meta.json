@@ -3,10 +3,5 @@
   "description": "Core architecture and adapter documentation",
   "icon": "Blocks",
   "root": true,
-  "pages": [
-    "introduction",
-    "adapter-guide",
-    "message-store",
-    "runtime-hooks"
-  ]
+  "pages": ["introduction", "adapter-guide", "message-store", "runtime-hooks"]
 }

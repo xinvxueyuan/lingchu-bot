@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import os
-import tempfile
 from copy import deepcopy
+import os
 from pathlib import Path
+import tempfile
 from typing import Any
 
 import aiofiles
@@ -35,7 +35,7 @@ def load_toml_dict_sync(
         return default_copy
     try:
         content = path.read_text(encoding="utf-8")
-        loaded = rtoml.loads(content) if content.strip() else default_copy
+        loaded: Any = rtoml.loads(content) if content.strip() else default_copy
     except (OSError, ValueError) as exc:
         raise TOMLFileReadError(path, exc) from exc
     if not isinstance(loaded, dict):
@@ -57,7 +57,9 @@ async def load_toml_dict_async(
     try:
         async with aiofiles.open(path, encoding="utf-8") as file:
             content = await file.read()
-        loaded = await _toml_loads_async(content) if content.strip() else default_copy
+        loaded: Any = (
+            await _toml_loads_async(content) if content.strip() else default_copy
+        )
     except (OSError, ValueError) as exc:
         raise TOMLFileReadError(path, exc) from exc
     if not isinstance(loaded, dict):

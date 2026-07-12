@@ -1,4 +1,4 @@
-version: "3"
+name: lingchu-bot
 
 # Anchors for host/port reuse across services. Override via shell env or .env.prod.
 x-config-host: &config-host ${HOST:-0.0.0.0}
@@ -26,7 +26,7 @@ services:
       - lingchu-config:/app/config
       - lingchu-data:/app/data
       - lingchu-cache:/app/cache
-    restart: always
+    restart: unless-stopped
     healthcheck:
       test:
         - "CMD-SHELL"

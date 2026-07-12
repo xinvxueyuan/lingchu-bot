@@ -12,8 +12,8 @@
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from nonebot.exception import FinishedException
+import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.core import bot_state as bot_state_module
 from src.plugins.nonebot_plugin_lingchu_bot.core.bot_state import (
@@ -29,8 +29,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.bot_state import (
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     bot_state as bot_state_handlers,
-)
-from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     mute as mute_module,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.bot_state import (

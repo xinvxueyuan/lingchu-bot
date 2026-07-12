@@ -16,11 +16,12 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import os
-import tempfile
 from copy import deepcopy
+import inspect
+import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Self
+import tempfile
+from typing import TYPE_CHECKING, Any, Self, override
 
 import aiofiles
 import aiofiles.os
@@ -136,6 +137,7 @@ class RobustAsyncTOMLDB:
         """
         return self._closed
 
+    @override
     def __repr__(self) -> str:
         """返回调试表示。
 
@@ -224,7 +226,7 @@ class RobustAsyncTOMLDB:
             InvalidKeyPathError: 路径不是非空字符串时。
             EmptyPathSegmentError: 路径包含空段时。
         """
-        if not key_path or not isinstance(key_path, str):
+        if not key_path:
             raise InvalidKeyPathError(key_path)
         segments = key_path.split(".")
         if any(not s for s in segments):
@@ -245,7 +247,7 @@ class RobustAsyncTOMLDB:
                 async with aiofiles.open(self.file_path, encoding="utf-8") as f:
                     content = await f.read()
                 if content.strip():
-                    loaded_data = await _toml_loads_async(content)
+                    loaded_data: Any = await _toml_loads_async(content)
                 else:
                     loaded_data = default_copy
 
@@ -340,7 +342,7 @@ class RobustAsyncTOMLDB:
         if self._closed:
             raise DatabaseClosedError
 
-        if callback is not None and not asyncio.iscoroutinefunction(callback):
+        if callback is not None and not inspect.iscoroutinefunction(callback):
             raise CallbackTypeError
 
         default_copy = await self._get_fresh_default_copy()
@@ -464,12 +466,7 @@ class RobustAsyncTOMLDB:
             if not use_deepcopy or not isinstance(val, (dict, list)):
                 return val
 
-            if isinstance(val, dict):
-                shallow = dict(val)
-            elif isinstance(val, list):
-                shallow = list(val)
-            else:
-                shallow = val
+            shallow = dict(val) if isinstance(val, dict) else list(val)
 
         return await _deepcopy_async(shallow)
 
@@ -748,7 +745,7 @@ class RobustAsyncTOMLDB:
         Only one watcher can run at a time. If a change is detected, the
         database reloads automatically and the optional callback is awaited.
         """
-        if callback is not None and not asyncio.iscoroutinefunction(callback):
+        if callback is not None and not inspect.iscoroutinefunction(callback):
             raise CallbackTypeError
 
         if self._watch_task is not None and not self._watch_task.done():

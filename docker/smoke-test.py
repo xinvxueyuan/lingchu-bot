@@ -12,12 +12,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from pathlib import Path
 import signal
 import subprocess
 import sys
 import time
 import traceback
-from pathlib import Path
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 import nonebot
@@ -167,13 +167,11 @@ async def _run_checks() -> list[dict[str, object]]:
         except Exception as exc:  # noqa: BLE001
             error = exc
         duration = time.monotonic() - start
-        results.append(
-            {
-                "name": name,
-                "error": error,
-                "duration": duration,
-            }
-        )
+        results.append({
+            "name": name,
+            "error": error,
+            "duration": duration,
+        })
     return results
 
 

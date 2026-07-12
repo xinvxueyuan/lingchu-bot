@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-import gettext as gettext_module
 from functools import lru_cache
+import gettext as gettext_module
 from pathlib import Path
 from typing import TYPE_CHECKING
 

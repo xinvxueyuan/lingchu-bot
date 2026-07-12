@@ -11,8 +11,7 @@ from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from packaging.version import InvalidVersion, Version, parse
 
 from ..core.runtime_config import runtime_config
-from ..i18n import _async as _
-from ..i18n import get_configured_locale, gettext, normalize_locale
+from ..i18n import _async as _, get_configured_locale, gettext, normalize_locale
 from ..platforms import QQ_CAPABILITIES, PlatformCapability, resolve_enabled_adapters
 from .qq.adapters import load_adapter_handlers
 from .qq.commands.triggers import COMMAND_TRIGGERS
@@ -76,7 +75,7 @@ class MenuSection:
 class MenuPage:
     id: str
     title: LocalizedText
-    children: tuple["MenuPage", ...] = ()
+    children: tuple[MenuPage, ...] = ()
     command: LocalizedText | None = None
 
 
@@ -170,9 +169,9 @@ def _menu_page_command(page: MenuPage) -> str:
     locale = normalize_locale(get_configured_locale())
     override = runtime_config.menu_page_trigger_overrides.get(page.id, {})
     if locale.lower().startswith("en"):
-        value = override.get("english") if isinstance(override, dict) else None
+        value = override.get("english")
         return str(value).strip() if value else command.en_us
-    value = override.get("chinese") if isinstance(override, dict) else None
+    value = override.get("chinese")
     return str(value).strip() if value else command.zh_cn
 
 

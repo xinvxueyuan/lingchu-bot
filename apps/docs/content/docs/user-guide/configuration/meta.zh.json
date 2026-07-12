@@ -3,10 +3,5 @@
   "description": "运行时设置、环境变量与适配器选择",
   "icon": "Settings",
   "root": true,
-  "pages": [
-    "index",
-    "environment-variables",
-    "adapter-selection",
-    "superuser"
-  ]
+  "pages": ["index", "environment-variables", "adapter-selection", "superuser"]
 }

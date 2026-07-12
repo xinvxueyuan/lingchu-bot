@@ -1,4 +1,3 @@
-import { getPageImage, getPageMarkdownUrl, source } from "@/lib/source";
 import {
   DocsBody,
   DocsDescription,
@@ -9,8 +8,9 @@ import {
   PageLastUpdate,
 } from "fumadocs-ui/layouts/docs/page";
 import { notFound } from "next/navigation";
-import { getMDXComponents } from "@/components/mdx";
 import { createRelativeLink } from "fumadocs-ui/mdx";
+import { getMDXComponents } from "@/components/mdx";
+import { getPageImage, getPageMarkdownUrl, source } from "@/lib/source";
 import { gitConfig } from "@/lib/shared";
 import { LLMBadge } from "@/components/llm-badge";
 import { getDocsPageMetadata } from "@/lib/site-metadata";
@@ -24,11 +24,12 @@ export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
   const markdownUrl = getPageMarkdownUrl(page).url;
 
   return (
-    <DocsPage toc={page.data.toc} full={page.data.full}>
+    <DocsPage
+      toc={page.data.toc}
+      full={page.data.full}
+    >
       <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription className="mb-0">
-        {page.data.description}
-      </DocsDescription>
+      <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
       <div className="flex flex-row gap-2 items-center border-b pb-6">
         <LLMBadge locale="en" />
         <MarkdownCopyButton markdownUrl={markdownUrl} />
@@ -44,9 +45,7 @@ export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
           })}
         />
       </DocsBody>
-      {page.data.lastModified && (
-        <PageLastUpdate date={page.data.lastModified} />
-      )}
+      {page.data.lastModified && <PageLastUpdate date={page.data.lastModified} />}
     </DocsPage>
   );
 }

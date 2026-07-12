@@ -70,18 +70,16 @@ def test_runtime_config_reads_toml_defaults(
     monkeypatch.setattr(runtime_module, "_nonebot_runtime_overrides", dict)
     config_file = tmp_path / "config.toml"
     config_file.write_text(
-        rtoml.dumps(
-            {
-                "message_store_enabled": False,
-                "message_store_summary_limit": 12,
-                "ai_provider": "openai",
-                "ai_model": "gpt-4.1-mini",
-                "ai_base_url": "https://example.test/v1",
-                "ai_timeout": 9.5,
-                "lingchu_adapter": "~milky",
-                "future_field": "ignored",
-            }
-        ),
+        rtoml.dumps({
+            "message_store_enabled": False,
+            "message_store_summary_limit": 12,
+            "ai_provider": "openai",
+            "ai_model": "gpt-4.1-mini",
+            "ai_base_url": "https://example.test/v1",
+            "ai_timeout": 9.5,
+            "lingchu_adapter": "~milky",
+            "future_field": "ignored",
+        }),
         encoding="utf-8",
     )
 
@@ -103,9 +101,9 @@ def test_runtime_config_reads_lingchu_superusers_toml(
     monkeypatch.setattr(runtime_module, "_nonebot_runtime_overrides", dict)
     config_file = tmp_path / "config.toml"
     config_file.write_text(
-        rtoml.dumps(
-            {"lingchu_superusers": {"userA": {"qq": 42, "telegram": "tg-user"}}}
-        ),
+        rtoml.dumps({
+            "lingchu_superusers": {"userA": {"qq": 42, "telegram": "tg-user"}}
+        }),
         encoding="utf-8",
     )
 

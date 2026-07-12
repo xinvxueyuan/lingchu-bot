@@ -21,7 +21,7 @@ const SITE_DESCRIPTION_ZH =
   "Lingchu Bot 是基于 NoneBot2 的 QQ 群管理机器人，提供权限感知命令与面向运营的文档。";
 
 export function getSiteUrl(): URL {
-  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim() || SITE_URL;
+  const raw = process.env["NEXT_PUBLIC_SITE_URL"]?.trim() || SITE_URL;
   // Ensure the pathname ends with `/` so `metadataBase` resolves
   // `openGraph.images` and similar relative URLs against the site root
   // (e.g. `/og/docs/...` -> `https://host/og/docs/...`).
@@ -30,7 +30,7 @@ export function getSiteUrl(): URL {
 }
 
 export function getSiteUrlString(): string {
-  return getSiteUrl().toString().replace(/\/$/, "");
+  return getSiteUrl().href.replace(/\/$/, "");
 }
 
 export function getSiteMetadata(): Metadata {
@@ -59,9 +59,7 @@ export function getSiteMetadata(): Metadata {
   };
 }
 
-export function getSiteAlternatesTypes(): NonNullable<
-  Metadata["alternates"]
->["types"] {
+export function getSiteAlternatesTypes(): NonNullable<Metadata["alternates"]>["types"] {
   const base = getSiteUrlString();
   return {
     "application/rss+xml": [
@@ -112,13 +110,11 @@ type DocsPage = {
   url: string;
   data: {
     title: string;
-    description?: string;
+    description?: string | undefined;
   };
 };
 
-type HrefLangMap = NonNullable<
-  NonNullable<Metadata["alternates"]>["languages"]
->;
+type HrefLangMap = NonNullable<NonNullable<Metadata["alternates"]>["languages"]>;
 
 export function getDocsPageMetadata(
   page: DocsPage,
@@ -128,8 +124,7 @@ export function getDocsPageMetadata(
   // Infer the current locale from the page URL convention
   // (`/zh/docs/...` is the only zh-prefixed path the source emits).
   const currentLocale: "en" | "zh" = page.url.startsWith("/zh/") ? "zh" : "en";
-  const ogLocale: "en_US" | "zh_CN" =
-    currentLocale === "en" ? "en_US" : "zh_CN";
+  const ogLocale: "en_US" | "zh_CN" = currentLocale === "en" ? "en_US" : "zh_CN";
   const otherLocale: "en" | "zh" = currentLocale === "en" ? "zh" : "en";
 
   const openGraph: NonNullable<Metadata["openGraph"]> = {

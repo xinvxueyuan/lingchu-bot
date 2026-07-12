@@ -6,8 +6,8 @@ including loading, updating, validation, and persistence of handle configs.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
+import json
 from typing import Any, ClassVar, Final, cast
 
 import jsonschema

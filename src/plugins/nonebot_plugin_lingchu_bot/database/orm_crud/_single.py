@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
-import time
 from collections.abc import Sequence
+import time
 from typing import TYPE_CHECKING, Any
 
 from nonebot import require
 
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import Model, get_session
-from sqlalchemy import Select, func, select
-from sqlalchemy import delete as sqlalchemy_delete
-from sqlalchemy import update as sqlalchemy_update
+from sqlalchemy import (
+    Select,
+    delete as sqlalchemy_delete,
+    func,
+    select,
+    update as sqlalchemy_update,
+)
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from ._base import (

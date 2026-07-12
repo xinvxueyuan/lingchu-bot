@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Sequence
+import logging
 from typing import TYPE_CHECKING, Any
 
 from nonebot import require

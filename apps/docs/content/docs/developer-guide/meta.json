@@ -3,8 +3,5 @@
   "description": "Technical documentation for developers",
   "icon": "Code",
   "root": true,
-  "pages": [
-    "architecture",
-    "engineering"
-  ]
+  "pages": ["architecture", "engineering"]
 }

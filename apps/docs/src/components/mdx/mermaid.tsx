@@ -2,11 +2,7 @@
 
 import { use, useId, useMemo, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
-import {
-  getMermaidConfig,
-  sanitizeMermaidSvg,
-  renderMermaidSvg,
-} from "./mermaid-utils";
+import { getMermaidConfig, sanitizeMermaidSvg, renderMermaidSvg } from "./mermaid-utils";
 
 const emptySubscribe = () => () => {};
 
@@ -27,10 +23,7 @@ export function Mermaid({ chart }: { chart: string }) {
 
 const cache = new Map<string, Promise<unknown>>();
 
-function cachePromise<T>(
-  key: string,
-  setPromise: () => Promise<T>,
-): Promise<T> {
+function cachePromise<T>(key: string, setPromise: () => Promise<T>): Promise<T> {
   const cached = cache.get(key);
   if (cached) return cached as Promise<T>;
 
@@ -42,13 +35,11 @@ function cachePromise<T>(
 function MermaidContent({ chart }: { chart: string }) {
   const id = useId();
   const { resolvedTheme } = useTheme();
-  const { default: mermaid } = use(
-    cachePromise("mermaid", () => import("mermaid")),
-  );
+  const { default: mermaid } = use(cachePromise("mermaid", () => import("mermaid")));
 
   const renderPromise = useMemo(() => {
     mermaid.initialize(getMermaidConfig(resolvedTheme));
-    return mermaid.render(id, chart.replaceAll("\\n", "\n"));
+    return mermaid.render(id, chart.replaceAll(String.raw`\n`, "\n"));
   }, [chart, id, mermaid, resolvedTheme]);
   const { svg, bindFunctions } = use(renderPromise);
   const sanitizedSvg = sanitizeMermaidSvg(svg);

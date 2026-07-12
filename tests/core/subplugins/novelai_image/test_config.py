@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
-import pytest
 from pydantic import ValidationError
+import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image import config
 
@@ -108,11 +108,9 @@ def test_schema_contains_child_fields_only() -> None:
 
 
 def test_old_prompt_llm_keys_are_ignored() -> None:
-    value = config.NovelAIConfig.model_validate(
-        {
-            "prompt_llm_provider": "openai",
-            "prompt_llm_model": "legacy-model",
-        }
-    )
+    value = config.NovelAIConfig.model_validate({
+        "prompt_llm_provider": "openai",
+        "prompt_llm_model": "legacy-model",
+    })
 
     assert not any(key.startswith("prompt_llm_") for key in value.model_fields_set)

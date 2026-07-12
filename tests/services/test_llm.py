@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from types import SimpleNamespace
-from typing import overload
+from typing import overload, override
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -224,12 +224,15 @@ class RaisingAnnotations(Sequence[object]):
     @overload
     def __getitem__(self, index: slice) -> Sequence[object]: ...
 
+    @override
     def __getitem__(self, index: int | slice) -> object | Sequence[object]:
         raise RuntimeError
 
+    @override
     def __len__(self) -> int:
         return 1
 
+    @override
     def __iter__(self) -> Iterator[object]:
         raise RuntimeError
 
