@@ -2,7 +2,10 @@
 
 import base64
 import hashlib
+from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiofiles
@@ -143,3 +146,127 @@ async def test_resolve_image_path_caches_raw_bytes(
     assert result is not None
     async with aiofiles.open(result, "rb") as f:
         assert await f.read() == raw_bytes
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_returns_path_for_path_attribute(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_resolve_image_path 直接返回 path 属性对应的 Path 对象。"""
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(profile, "plugin_config", fake_config)
+
+    expected_path = tmp_path / "avatar.png"
+    image = MagicMock()
+    image.raw = None
+    image.path = str(expected_path)
+    image.url = None
+
+    result = await profile._resolve_image_path(image)
+
+    assert result == expected_path
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_caches_raw_bytesio(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_resolve_image_path 处理 BytesIO 类型的 raw 属性。"""
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(profile, "plugin_config", fake_config)
+
+    raw_bytes = b"bytesio-avatar-bytes"
+    image = MagicMock()
+    image.raw = BytesIO(raw_bytes)
+    image.path = None
+    image.url = None
+
+    result = await profile._resolve_image_path(image)
+
+    expected_md5 = hashlib.md5(raw_bytes).hexdigest()
+    expected_path = tmp_path / "announcement_images" / f"{expected_md5}.png"
+    assert result == expected_path
+    assert result is not None
+    async with aiofiles.open(result, "rb") as f:
+        assert await f.read() == raw_bytes
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_downloads_and_caches_url(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_resolve_image_path 通过 driver session 下载 URL 图片并缓存。"""
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(profile, "plugin_config", fake_config)
+
+    downloaded_content = b"downloaded-image-bytes"
+    request_call = AsyncMock(return_value=SimpleNamespace(content=downloaded_content))
+
+    class SessionContext:
+        async def __aenter__(self) -> Any:
+            return SimpleNamespace(request=request_call)
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+    fake_driver = SimpleNamespace(get_session=SessionContext)
+    monkeypatch.setattr(profile, "get_driver", lambda: fake_driver)
+
+    image = MagicMock()
+    image.raw = None
+    image.path = None
+    image.url = "http://example.com/avatar.png"
+
+    result = await profile._resolve_image_path(image)
+
+    expected_md5 = hashlib.md5(downloaded_content).hexdigest()
+    expected_path = tmp_path / "announcement_images" / f"{expected_md5}.png"
+    assert result == expected_path
+    assert result is not None
+    async with aiofiles.open(result, "rb") as f:
+        assert await f.read() == downloaded_content
+    request_call.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_returns_none_when_driver_has_no_session(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Driver 没有 get_session 方法时，URL 图片返回 None。"""
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(profile, "plugin_config", fake_config)
+
+    fake_driver = SimpleNamespace()
+    monkeypatch.setattr(profile, "get_driver", lambda: fake_driver)
+
+    image = MagicMock()
+    image.raw = None
+    image.path = None
+    image.url = "http://example.com/avatar.png"
+
+    result = await profile._resolve_image_path(image)
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_returns_none_when_no_resolvable_attribute(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """raw/path/url 均为 None 时返回 None。"""
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(profile, "plugin_config", fake_config)
+
+    image = MagicMock()
+    image.raw = None
+    image.path = None
+    image.url = None
+
+    result = await profile._resolve_image_path(image)
+
+    assert result is None
