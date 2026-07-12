@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import TYPE_CHECKING, Any, Final, Literal
+from typing import TYPE_CHECKING, Any, Final
 
 from nonebot import get_driver, require
 from nonebot.compat import type_validate_python
@@ -13,12 +13,7 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
 
-from ..contracts import (
-    LLMOptions,
-    ensure_subplugin_config_file,
-    load_subplugin_config,
-    resolve_default_llm_options,
-)
+from ..contracts import ensure_subplugin_config_file, load_subplugin_config
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -55,11 +50,15 @@ class NovelAIConfig(BaseModel):
     negative_prompt: str = (
         "lowres, bad anatomy, bad hands, text, watermark, worst quality"
     )
-    prompt_llm_provider: Literal["litellm", "openai"] | None = None
-    prompt_llm_model: str | None = Field(default=None, min_length=1)
-    prompt_llm_base_url: str | None = None
-    prompt_llm_api_key: str | None = None
-    prompt_llm_timeout: float | None = Field(default=None, gt=0)
+    tipo_enabled: bool = True
+    tipo_base_url: str = "http://127.0.0.1:8081/v1"
+    tipo_model: str = Field(default="tipo-500m-ft", min_length=1)
+    tipo_api_key: str | None = None
+    tipo_timeout: float = Field(default=30.0, gt=0)
+    tipo_max_tokens: int = Field(default=512, gt=0)
+    tipo_temperature: float = Field(default=0.5, ge=0, le=2)
+    tipo_top_p: float = Field(default=0.95, ge=0, le=1)
+    tipo_top_k: int = Field(default=40, gt=0)
 
     model_config = ConfigDict(extra="ignore")
 
@@ -136,14 +135,3 @@ def get_novelai_config() -> NovelAIConfig:
         if value not in (None, ""):
             raw[field] = value
     return type_validate_python(NovelAIConfig, raw)
-
-
-def resolve_prompt_llm_options(config: NovelAIConfig) -> LLMOptions:
-    defaults = resolve_default_llm_options()
-    return LLMOptions(
-        provider=config.prompt_llm_provider or defaults.provider,
-        model=config.prompt_llm_model or defaults.model,
-        base_url=config.prompt_llm_base_url or defaults.base_url,
-        api_key=config.prompt_llm_api_key or defaults.api_key,
-        timeout=config.prompt_llm_timeout or defaults.timeout,
-    )

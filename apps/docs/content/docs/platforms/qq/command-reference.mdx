@@ -239,11 +239,49 @@ The chat command requires runtime LLM configuration. Set the following in `confi
 ## NovelAI image generation
 
 ```text
-novelai-image <description>
+novelai-image <description> [options]
 ```
 
-The removable `core/subplugins/novelai_image` child plugin first converts the
-user description into an English scene description and NovelAI tags through its
-dedicated LLM settings, then generates one V4.5 image. Chinese locales use
-`生图 <描述>` instead. Installing or removing the child directory takes effect
+The removable `core/subplugins/novelai_image` child plugin uses the global
+user-configured `ai_*` profile to understand and translate the request. It can
+then enrich the prompt with optional web research and TIPO before generating one
+NovelAI Diffusion V4.5 image. Chinese locales use `生图 <描述> [选项]` instead.
+
+```text
+novelai-image two girls waiting at a rainy station --width 1216 --height 832 --steps 32 --scale 5.5 --seed 1234
+novelai-image a librarian in an old archive --sampler k_euler_ancestral --negative text
+```
+
+| Option | Value | Purpose |
+| --- | --- | --- |
+| `--width` | integer | Output width, from 64 to 2048 pixels |
+| `--height` | integer | Output height, from 64 to 2048 pixels |
+| `--steps` | integer | Diffusion steps, from 1 to 50 |
+| `--scale` | number | Prompt guidance scale, greater than 0 and at most 20 |
+| `--sampler` | string | NovelAI sampler identifier |
+| `--seed` | integer | Reproducible unsigned 32-bit seed, from 0 to 4294967295 |
+| `--negative` | string | Negative prompt text appended to the configured and inferred negatives |
+
+The final scalar value follows this exact precedence:
+
+```text
+explicit command option > LLM-extracted hint > novelai_image.toml default
+```
+
+The LLM can infer hints such as landscape, portrait, square, a fixed seed, or
+“no text” when the corresponding command option is absent. Invalid explicit
+values stop the command with a localized validation message; invalid inferred
+values fall back to the TOML default.
+
+The same global LLM automatically decides whether current or canonical visual
+facts would help. For example, it may search for a real place, product, recent
+event, named character, or exact costume. A generated search query is sent to
+the configured LLM provider, so it can disclose the subject of the image
+request to that provider. Search sources and diagnostics are not posted in chat.
+Search is available only when the selected LiteLLM model/provider supports it;
+unsupported or failed search silently degrades to generation without research.
+
+TIPO failure also degrades to the LLM-produced English description and tags.
+See [Deploy TIPO with llama.cpp](/docs/user-guide/deployment/tipo-llama-cpp) for
+the standalone service. Installing or removing the child directory takes effect
 after restarting the bot; the parent plugin has no NovelAI-specific registry.

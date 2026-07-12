@@ -15,6 +15,10 @@ MESSAGES = {
         "zh": "提示词转换暂时不可用，请稍后再试",
         "en": "Prompt conversion is temporarily unavailable",
     },
+    "parameter_invalid": {
+        "zh": "生图参数无效，请检查后重试",
+        "en": "Invalid image parameters",
+    },
     "token_missing": {
         "zh": "未配置 NovelAI Token",
         "en": "NovelAI token is not configured",

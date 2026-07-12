@@ -1,0 +1,75 @@
+---
+title: Deploy TIPO with llama.cpp
+description: Run TIPO-500M-ft as a separate llama.cpp completion service.
+---
+
+## Service boundary
+
+Lingchu Bot does not bundle the TIPO model in its wheel or container. Run the
+TIPO GGUF file in a separate llama.cpp service and expose port `8081` to the bot.
+The model directory should be read-only for the service account or container.
+
+Install the official llama.cpp [`b9968` release](https://github.com/ggml-org/llama.cpp/releases/tag/b9968)
+for your platform, place the model at `/models/model.gguf`, change into that
+directory, and start the CPU service:
+
+```bash
+llama-server -m model.gguf --alias tipo-500m-ft --host 0.0.0.0 --port 8081 -c 1024
+```
+
+CPU execution is the portable default. For a llama.cpp build with CUDA support,
+add an appropriate `--gpu-layers` value after measuring available VRAM. GPU
+settings are deployment-specific and do not change the Lingchu configuration.
+When wrapping this command in a container, bind-mount `/models` with `:ro` or
+`readonly`; do not copy the model into either the bot image or a writable volume.
+
+<Callout type="warn" title="Network exposure">
+
+`--host 0.0.0.0` listens on every interface. Restrict port `8081` with a firewall
+or private container network. If you enable llama.cpp API-key authentication,
+set the matching `tipo_api_key` in Lingchu Bot.
+
+</Callout>
+
+## Connect Lingchu Bot
+
+Use the model alias from `--alias` and include `/v1` in the base URL:
+
+```toml
+tipo_enabled = true
+tipo_base_url = "http://127.0.0.1:8081/v1"
+tipo_model = "tipo-500m-ft"
+```
+
+When the bot runs in another container, replace `127.0.0.1` with the llama.cpp
+service name or a reachable private address.
+
+## Verify the service
+
+Wait until the public health endpoint reports HTTP 200 and `{"status":"ok"}`:
+
+```bash
+curl --fail http://127.0.0.1:8081/health
+```
+
+Lingchu sends completion requests to `POST /v1/completions`, not the chat
+completions endpoint. A minimal connectivity check is:
+
+```bash
+curl --fail http://127.0.0.1:8081/v1/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"tipo-500m-ft","prompt":"<|special|>","max_tokens":8}'
+```
+
+## Degradation behavior
+
+| Condition | Result |
+| --- | --- |
+| `tipo_enabled = false` | Skip TIPO and use the global LLM description and tags |
+| TIPO timeout, connection error, or unusable output | Log an internal warning and use the global LLM fallback |
+| Automatic search unsupported or failed | Continue without visual research |
+| Global LLM intent analysis fails | Stop and return the localized prompt-analysis failure |
+| NovelAI request fails | Stop and return the localized generation failure |
+
+TIPO and automatic search are enrichments. Their failure does not prevent the
+deterministic planner from generating an image from valid LLM intent.

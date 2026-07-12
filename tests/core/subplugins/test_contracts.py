@@ -122,6 +122,10 @@ async def test_complete_subplugin_chat_default_uses_default_options(
     assert "options" not in complete_chat.call_args.kwargs
 
 
+def test_default_chat_contract_is_public() -> None:
+    assert "complete_subplugin_chat_default" in contracts.__all__
+
+
 async def test_complete_subplugin_chat_default_wraps_llm_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -207,6 +211,40 @@ def test_resolve_default_llm_options_reads_runtime_config(
     assert options.base_url == "http://example.com"
     assert options.api_key == "secret"
     assert options.timeout == 30.0
+
+
+async def test_subplugin_web_search_contract_forwards_same_options(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options = contracts.LLMOptions(
+        provider="litellm",
+        model="search-model",
+        base_url="https://example.test/v1",
+        api_key="secret",
+        timeout=12.0,
+    )
+    messages = [{"role": "user", "content": "visual facts"}]
+    result = contracts.WebSearchResult(
+        text='["blue coat"]', sources=("https://example.test/source",)
+    )
+    complete = AsyncMock(return_value=result)
+    monkeypatch.setattr(contracts, "complete_with_web_search", complete)
+
+    monkeypatch.setattr(contracts, "supports_web_search", MagicMock(return_value=False))
+    assert contracts.subplugin_supports_web_search(options) is False
+    monkeypatch.setattr(contracts, "supports_web_search", MagicMock(return_value=True))
+    assert contracts.subplugin_supports_web_search(options) is True
+    assert (
+        await contracts.complete_subplugin_web_search(messages, options=options)
+        == result
+    )
+    complete.assert_awaited_once_with(messages, options=options)
+
+
+def test_web_search_contract_is_public() -> None:
+    assert "WebSearchResult" in contracts.__all__
+    assert "complete_subplugin_web_search" in contracts.__all__
+    assert "subplugin_supports_web_search" in contracts.__all__
 
 
 def test_ensure_subplugin_config_file_delegates_to_toml_store(

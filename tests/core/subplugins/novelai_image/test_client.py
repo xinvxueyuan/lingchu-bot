@@ -17,8 +17,8 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.client
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.config import (
     NovelAIConfig,
 )
-from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.payload import (
-    NovelAIImageRequest,
+from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.models import (
+    NovelAIGenerationPlan,
 )
 
 
@@ -40,17 +40,20 @@ def test_extract_final_image_rejects_truncated_stream() -> None:
         extract_final_image(struct.pack(">I", 5) + b"x")
 
 
-def request() -> NovelAIImageRequest:
-    return NovelAIImageRequest(
+def request() -> NovelAIGenerationPlan:
+    return NovelAIGenerationPlan(
         prompt="A cat, cat",
         negative_prompt="text",
-        model="nai-diffusion-4-5-full",
         width=832,
         height=1216,
         steps=28,
         scale=5,
         sampler="k_euler_ancestral",
         seed=42,
+        base_caption="A cat",
+        char_captions=(),
+        character_prompts=(),
+        use_coords=False,
     )
 
 

@@ -1,24 +1,8 @@
-"""Minimal NovelAI V4.5 request payload."""
+"""NovelAI V4.5 wire payload mapping."""
 
-from dataclasses import dataclass
 from typing import Any
 
-
-@dataclass(frozen=True, slots=True)
-class NovelAIImageRequest:
-    prompt: str
-    negative_prompt: str
-    model: str
-    width: int
-    height: int
-    steps: int
-    scale: float
-    sampler: str
-    seed: int
-    v4_base_caption: str | None = None
-    v4_char_captions: tuple[dict[str, Any], ...] = ()
-    v4_character_prompts: tuple[dict[str, Any], ...] = ()
-    use_coords: bool = False
+from .models import NovelAIGenerationPlan
 
 
 def _caption(
@@ -29,39 +13,36 @@ def _caption(
     return {"caption": {"base_caption": text, "char_captions": char_captions or []}}
 
 
-def build_payload(request: NovelAIImageRequest) -> dict[str, Any]:
-    base_cap = (
-        request.v4_base_caption
-        if request.v4_base_caption is not None
-        else request.prompt
-    )
+def build_payload(
+    plan: NovelAIGenerationPlan,
+    *,
+    model: str,
+) -> dict[str, Any]:
+    """Map an already-resolved plan to NovelAI's V4.5 request shape."""
     return {
         "action": "generate",
-        "input": request.prompt,
-        "model": request.model,
+        "input": plan.prompt,
+        "model": model,
         "parameters": {
-            "width": request.width,
-            "height": request.height,
-            "steps": request.steps,
-            "scale": request.scale,
-            "sampler": request.sampler,
-            "seed": request.seed,
+            "width": plan.width,
+            "height": plan.height,
+            "steps": plan.steps,
+            "scale": plan.scale,
+            "sampler": plan.sampler,
+            "seed": plan.seed,
             "n_samples": 1,
-            "negative_prompt": request.negative_prompt,
+            "negative_prompt": plan.negative_prompt,
             "qualityToggle": True,
             "ucPreset": 0,
             "params_version": 3,
             "stream": "msgpack",
             "v4_prompt": _caption(
-                base_cap,
-                char_captions=list(request.v4_char_captions),
+                plan.base_caption,
+                char_captions=list(plan.char_captions),
             )
-            | {"use_coords": request.use_coords, "use_order": True},
-            "v4_negative_prompt": _caption(request.negative_prompt)
-            | {"legacy_uc": False},
-            "characterPrompts": list(request.v4_character_prompts)
-            if request.v4_character_prompts
-            else [],
+            | {"use_coords": plan.use_coords, "use_order": True},
+            "v4_negative_prompt": _caption(plan.negative_prompt) | {"legacy_uc": False},
+            "characterPrompts": list(plan.character_prompts),
             "add_original_image": True,
             "autoSmea": False,
             "cfg_rescale": 0,
@@ -74,6 +55,6 @@ def build_payload(request: NovelAIImageRequest) -> dict[str, Any]:
             "noise_schedule": "karras",
             "normalize_reference_strength_multiple": True,
             "prefer_brownian": True,
-            "use_coords": request.use_coords,
+            "use_coords": plan.use_coords,
         },
     }

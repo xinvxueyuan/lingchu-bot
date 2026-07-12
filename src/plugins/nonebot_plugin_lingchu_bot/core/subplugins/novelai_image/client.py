@@ -12,10 +12,11 @@ import msgpack
 from nonebot import get_driver
 from nonebot.drivers import Request
 
-from .payload import NovelAIImageRequest, build_payload
+from .payload import build_payload
 
 if TYPE_CHECKING:
     from .config import NovelAIConfig
+    from .models import NovelAIGenerationPlan
 
 HTTP_BAD_REQUEST = 400
 
@@ -67,7 +68,7 @@ def extract_final_image(content: bytes) -> bytes:
 
 
 async def generate_image(
-    request: NovelAIImageRequest,
+    plan: NovelAIGenerationPlan,
     *,
     config: NovelAIConfig,
 ) -> bytes:
@@ -81,7 +82,7 @@ async def generate_image(
             "Accept": "application/x-msgpack",
             "Content-Type": "application/json",
         },
-        json=build_payload(request),
+        json=build_payload(plan, model=config.model),
         timeout=config.timeout,
     )
     get_session = getattr(get_driver(), "get_session", None)

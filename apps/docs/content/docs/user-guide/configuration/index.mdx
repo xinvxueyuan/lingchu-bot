@@ -182,10 +182,32 @@ The optional nested NovelAI subplugin owns this file and its sibling
 timeout. Set `token` with `LINGCHU_NOVELAI_TOKEN` in preference to storing it in
 TOML.
 
-The nullable `prompt_llm_provider`, `prompt_llm_model`,
-`prompt_llm_base_url`, `prompt_llm_api_key`, and `prompt_llm_timeout` settings
-fall back independently to the matching parent `ai_*` setting. Their environment
-names use the `LINGCHU_NOVELAI_` prefix.
+The prompt pipeline uses the global user `ai_*` profile for language
+understanding, translation, hint extraction, and optional provider-native web
+search. This is a breaking configuration change: all former child-specific LLM
+keys have been removed and are ignored. Delete them from existing
+`novelai_image.toml` files and configure the global `ai_provider`, `ai_model`,
+`ai_base_url`, `ai_api_key`, and `ai_timeout` settings instead.
+
+TIPO prompt expansion is a separate, optional llama.cpp service:
+
+```toml
+tipo_enabled = true
+tipo_base_url = "http://127.0.0.1:8081/v1"
+tipo_model = "tipo-500m-ft"
+tipo_timeout = 30.0
+tipo_max_tokens = 512
+tipo_temperature = 0.5
+tipo_top_p = 0.95
+tipo_top_k = 40
+```
+
+`tipo_api_key` is optional and is omitted from the generated TOML when unset.
+Every field can also be supplied with the `LINGCHU_NOVELAI_` prefix, for example
+`LINGCHU_NOVELAI_TIPO_BASE_URL`. Set `tipo_enabled = false` to skip TIPO and use
+the LLM-produced English description and tags directly. A timeout, transport
+error, or unusable TIPO completion has the same fallback and does not stop image
+generation. See [Deploy TIPO with llama.cpp](/docs/user-guide/deployment/tipo-llama-cpp).
 
 ## Permission and trigger customization
 

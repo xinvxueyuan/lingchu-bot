@@ -18,7 +18,14 @@ from ...handle.qq.commands.common import selected_adapter_handle
 from ...handle.qq.commands.triggers import COMMAND_TRIGGERS
 from ...i18n import get_configured_locale
 from ...platforms import PlatformCapability
-from ...services.llm import LLMError, LLMOptions, complete_chat
+from ...services.llm import (
+    LLMError,
+    LLMOptions,
+    WebSearchResult,
+    complete_chat,
+    complete_with_web_search,
+    supports_web_search,
+)
 from ..runtime_config import runtime_config
 
 if TYPE_CHECKING:
@@ -55,6 +62,20 @@ async def complete_subplugin_chat_default(
         raise
     except LLMError as exc:
         raise SubpluginLLMError(str(exc)) from exc
+
+
+def subplugin_supports_web_search(options: LLMOptions) -> bool:
+    """Return whether the selected parent LLM supports native web search."""
+    return supports_web_search(options)
+
+
+async def complete_subplugin_web_search(
+    messages: Sequence[Mapping[str, str]],
+    *,
+    options: LLMOptions,
+) -> WebSearchResult | None:
+    """Complete a child-owned native web-search prompt through the parent service."""
+    return await complete_with_web_search(messages, options=options)
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,9 +211,11 @@ __all__ = [
     "PlatformCapability",
     "SubpluginLLMError",
     "SubpluginTrigger",
+    "WebSearchResult",
     "collect_subplugin_menu_features",
     "complete_subplugin_chat",
     "complete_subplugin_chat_default",
+    "complete_subplugin_web_search",
     "ensure_subplugin_config_file",
     "get_configured_locale",
     "get_subplugin_trigger",
@@ -202,4 +225,5 @@ __all__ = [
     "register_subplugin_menu_feature",
     "reset_subplugin_menu_features",
     "resolve_default_llm_options",
+    "subplugin_supports_web_search",
 ]

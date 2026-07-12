@@ -1,0 +1,74 @@
+---
+title: 使用 llama.cpp 部署 TIPO
+description: 将 TIPO-500M-ft 作为独立的 llama.cpp completion 服务运行。
+---
+
+## 服务边界
+
+Lingchu Bot 不会把 TIPO 模型打包进 wheel 或机器人容器。请在独立的 llama.cpp
+服务中运行 TIPO GGUF 文件，并向机器人开放 `8081` 端口。模型目录对服务账号或
+容器应当只读。
+
+安装适用于当前平台的官方 llama.cpp
+[`b9968` release](https://github.com/ggml-org/llama.cpp/releases/tag/b9968)，将模型
+放在 `/models/model.gguf`，进入该目录，然后启动 CPU 服务：
+
+```bash
+llama-server -m model.gguf --alias tipo-500m-ft --host 0.0.0.0 --port 8081 -c 1024
+```
+
+CPU 是可移植的默认执行方式。使用支持 CUDA 的 llama.cpp 构建时，可以在测量
+可用显存后添加合适的 `--gpu-layers` 值。GPU 设置属于部署细节，不会改变
+Lingchu 配置。将此命令封装进容器时，请使用 `:ro` 或 `readonly` 只读挂载
+`/models`；不要把模型复制进机器人镜像或可写卷。
+
+<Callout type="warn" title="网络暴露">
+
+`--host 0.0.0.0` 会监听所有网络接口。请通过防火墙或私有容器网络限制
+`8081` 端口。如果启用 llama.cpp API 密钥认证，请在 Lingchu Bot 中设置匹配的
+`tipo_api_key`。
+
+</Callout>
+
+## 连接 Lingchu Bot
+
+使用 `--alias` 设置的模型别名，并在基础 URL 中保留 `/v1`：
+
+```toml
+tipo_enabled = true
+tipo_base_url = "http://127.0.0.1:8081/v1"
+tipo_model = "tipo-500m-ft"
+```
+
+如果机器人运行在另一个容器中，请将 `127.0.0.1` 替换为 llama.cpp 服务名或
+机器人可访问的私有地址。
+
+## 验证服务
+
+等待公开健康端点返回 HTTP 200 和 `{"status":"ok"}`：
+
+```bash
+curl --fail http://127.0.0.1:8081/health
+```
+
+Lingchu 会向 `POST /v1/completions` 发送 completion 请求，而不是 chat
+completions 端点。最小连通性检查如下：
+
+```bash
+curl --fail http://127.0.0.1:8081/v1/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"tipo-500m-ft","prompt":"<|special|>","max_tokens":8}'
+```
+
+## 降级行为
+
+| 条件 | 结果 |
+| --- | --- |
+| `tipo_enabled = false` | 跳过 TIPO，使用全局 LLM 产生的描述和标签 |
+| TIPO 超时、连接失败或输出不可用 | 记录内部警告，使用全局 LLM 回退结果 |
+| 自动搜索不受支持或失败 | 不含视觉搜索补充，继续生成 |
+| 全局 LLM 意图分析失败 | 中止并返回本地化的提示词分析失败消息 |
+| NovelAI 请求失败 | 中止并返回本地化的生成失败消息 |
+
+TIPO 和自动搜索都是增强阶段。只要 LLM 意图有效，它们失败后仍可由确定性规划器
+继续生成图片。

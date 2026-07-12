@@ -239,10 +239,45 @@ chat <text>
 ## NovelAI 生图
 
 ```text
-生图 <描述>
+生图 <描述> [选项]
 ```
 
-可移除的 `core/subplugins/novelai_image` 子插件会先通过专用 LLM 将用户描述
-转换为英文场景描述和 NovelAI 标签，再生成一张 V4.5 图片。英文 locale 使用
-`novelai-image <description>`。加入或删除子插件目录后重启即可生效，父插件不
-维护 NovelAI 专用注册表。
+可移除的 `core/subplugins/novelai_image` 子插件使用用户全局配置的 `ai_*`
+模型理解并翻译请求，再选择性地通过联网搜索和 TIPO 丰富提示词，最后生成一张
+NovelAI Diffusion V4.5 图片。英文 locale 使用
+`novelai-image <description> [options]`。
+
+```text
+生图 两个女孩在雨夜车站等车 --width 1216 --height 832 --steps 32 --scale 5.5 --seed 1234
+生图 古老档案馆里的图书管理员 --sampler k_euler_ancestral --negative 文字
+```
+
+| 选项 | 值 | 用途 |
+| --- | --- | --- |
+| `--width` | 整数 | 输出宽度，范围为 64 到 2048 像素 |
+| `--height` | 整数 | 输出高度，范围为 64 到 2048 像素 |
+| `--steps` | 整数 | 扩散步数，范围为 1 到 50 |
+| `--scale` | 数值 | 提示词引导强度，大于 0 且不超过 20 |
+| `--sampler` | 字符串 | NovelAI 采样器标识 |
+| `--seed` | 整数 | 可复现的 32 位无符号种子，范围为 0 到 4294967295 |
+| `--negative` | 字符串 | 追加到配置与推断结果的负面提示词 |
+
+最终标量值严格遵循以下优先级：
+
+```text
+显式命令选项 > LLM 提取的提示 > novelai_image.toml 默认值
+```
+
+缺少对应命令选项时，LLM 可以从“横图”“竖图”“正方形”“固定种子”或“不要
+文字”等自然语言中提取提示。无效的显式值会中止命令并返回本地化校验消息；
+无效的推断值会回退到 TOML 默认值。
+
+同一个全局 LLM 会自动判断是否需要当前或权威的视觉事实，例如真实地点、产品、
+近期事件、具名角色或精确服装。生成的搜索查询会发送给已配置的 LLM 提供商，
+因此可能向该提供商披露生图主题；搜索来源和阶段诊断不会发送到群聊。只有所选
+LiteLLM 模型与提供商支持联网搜索时才会执行；不支持或搜索失败时会静默降级为
+不含搜索补充的生图流程。
+
+TIPO 失败时也会降级使用 LLM 生成的英文描述和标签。独立服务部署参见
+[使用 llama.cpp 部署 TIPO](/zh/docs/user-guide/deployment/tipo-llama-cpp)。加入或
+删除子插件目录后重启即可生效，父插件不维护 NovelAI 专用注册表。
