@@ -97,6 +97,41 @@ def test_parse_generation_hints_and_multiple_clamped_characters() -> None:
     assert (result.characters[1].center.x, result.characters[1].center.y) == (0.9, 0.9)
 
 
+def test_parse_accepts_comma_separated_string_tags_as_array() -> None:
+    result = intent.parse_prompt_intent(
+        _payload(
+            base_tags="1girl, cherry blossoms , 1girl",
+            generation={
+                "width": 832,
+                "height": 1216,
+                "steps": 28,
+                "scale": 5.5,
+                "sampler": "k_euler",
+                "seed": 42,
+                "negative_tags": "worst quality, low quality",
+            },
+        )
+    )
+
+    assert result.base_tags == ("1girl", "cherry blossoms")
+    assert result.generation.negative_tags == ("worst quality", "low quality")
+
+
+def test_parse_accepts_character_string_tags_as_array() -> None:
+    characters = [
+        {
+            "description": "heroine",
+            "tags": "blue hair, blue hair",
+            "negative_tags": "hat, glasses",
+            "center": {"x": 0.5, "y": 0.5},
+        }
+    ]
+    result = intent.parse_prompt_intent(_payload(characters=characters))
+
+    assert result.characters[0].tags == ("blue hair",)
+    assert result.characters[0].negative_tags == ("hat", "glasses")
+
+
 @pytest.mark.parametrize(
     "characters",
     [
@@ -139,6 +174,36 @@ def test_parse_rejects_non_object_json() -> None:
 def test_parse_rejects_content_outside_the_single_json_object(wrapper: str) -> None:
     with pytest.raises(intent.IntentAnalysisError, match="exactly one JSON object"):
         intent.parse_prompt_intent(wrapper.format(payload=_payload()))
+
+
+@pytest.mark.parametrize(
+    "fence",
+    [
+        "```json\n{payload}\n```",
+        "```JSON\n{payload}\n```",
+        "```\n{payload}\n```",
+        "```json\n  {payload}  \n```",
+    ],
+)
+def test_parse_accepts_markdown_fenced_payload(fence: str) -> None:
+    result = intent.parse_prompt_intent(fence.format(payload=_payload()))
+
+    assert result.english_description == "A girl beneath cherry blossoms"
+    assert result.base_tags == ("1girl", "cherry blossoms")
+
+
+def test_parse_rejects_markdown_fence_with_non_json_language_hint() -> None:
+    fenced = "```python\n" + _payload() + "\n```"
+
+    with pytest.raises(intent.IntentAnalysisError, match="exactly one JSON object"):
+        intent.parse_prompt_intent(fenced)
+
+
+def test_parse_rejects_unclosed_markdown_fence() -> None:
+    fenced = "```json\n" + _payload()
+
+    with pytest.raises(intent.IntentAnalysisError, match="exactly one JSON object"):
+        intent.parse_prompt_intent(fenced)
 
 
 @pytest.mark.parametrize(

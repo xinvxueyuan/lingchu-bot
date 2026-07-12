@@ -41,6 +41,34 @@ def test_extract_final_image_rejects_truncated_stream() -> None:
         extract_final_image(struct.pack(">I", 5) + b"x")
 
 
+def test_extract_final_image_raises_on_error_event() -> None:
+    content = frame({"event_type": "error", "code": 500, "message": "internal error"})
+    with pytest.raises(NovelAIResponseError) as exc_info:
+        extract_final_image(content)
+    assert "500" in str(exc_info.value)
+    assert "internal error" in str(exc_info.value)
+
+
+def test_extract_final_image_error_event_before_final() -> None:
+    content = frame({"event_type": "error", "code": 402, "message": "cost"}) + frame({
+        "event_type": "final",
+        "image": b"png",
+    })
+    with pytest.raises(NovelAIResponseError) as exc_info:
+        extract_final_image(content)
+    assert "402" in str(exc_info.value)
+    assert "cost" in str(exc_info.value)
+
+
+def test_extract_final_image_skips_retry_event() -> None:
+    content = frame({"event_type": "retry", "message": "transient"}) + frame({
+        "event_type": "final",
+        "image": b"png",
+    })
+
+    assert extract_final_image(content) == b"png"
+
+
 def request() -> NovelAIGenerationPlan:
     return NovelAIGenerationPlan(
         prompt="A cat, cat",
