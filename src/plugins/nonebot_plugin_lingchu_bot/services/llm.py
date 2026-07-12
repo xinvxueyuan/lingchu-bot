@@ -1,5 +1,8 @@
 """Thin LLM service over LiteLLM with OpenAI SDK fallback."""
 
+# pyright: reportMissingImports=false
+# openai and litellm are optional extras ([project.optional-dependencies] ai)
+
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
@@ -12,7 +15,7 @@ from nonebot import logger
 from ..core.runtime_config import runtime_config
 
 if TYPE_CHECKING:
-    from openai.types.chat import (  # pyright: ignore[reportMissingImports]
+    from openai.types.chat import (
         ChatCompletionMessageParam,
     )
 
@@ -71,7 +74,7 @@ async def _call_litellm(
     api_key: str | None,
     request_timeout: float,
 ) -> Any:
-    from litellm import (  # pyright: ignore[reportMissingImports]
+    from litellm import (
         acompletion,
     )
 
@@ -85,7 +88,7 @@ async def _call_litellm(
 
 
 def _litellm_supports_web_search(model: str) -> bool:
-    from litellm import (  # pyright: ignore[reportMissingImports]
+    from litellm import (
         supports_web_search as probe,
     )
 
@@ -98,7 +101,7 @@ def supports_web_search(options: LLMOptions) -> bool:
         return False
     try:
         return _litellm_supports_web_search(options.model)
-    except Exception:  # noqa: BLE001 - capability probes must fail closed
+    except Exception:  # capability probes must fail closed
         logger.warning(
             "LLM web-search capability probe failed: model={}, reason=probe_error",
             options.model,
@@ -114,7 +117,7 @@ async def _call_litellm_web_search(
     api_key: str | None,
     request_timeout: float,
 ) -> Any:
-    from litellm import (  # pyright: ignore[reportMissingImports]
+    from litellm import (
         acompletion,
     )
 
@@ -158,7 +161,7 @@ def _extract_source_urls_unchecked(response: Any) -> tuple[str, ...]:
 def _extract_source_urls(response: Any) -> tuple[str, ...]:
     try:
         return _extract_source_urls_unchecked(response)
-    except Exception:  # noqa: BLE001 - provider annotations are untrusted
+    except Exception:  # provider annotations are untrusted
         return ()
 
 
@@ -193,7 +196,7 @@ async def complete_with_web_search(
             request_timeout=selected.timeout,
         )
         text = _extract_content(response)
-    except Exception:  # noqa: BLE001 - provider failures are soft failures
+    except Exception:  # provider failures are soft failures
         logger.warning(
             "LLM web search failed: model={}, reason=provider_error, "
             "duration={:.3f}s, sources=0",
@@ -220,7 +223,7 @@ async def _call_openai(
     api_key: str | None,
     request_timeout: float,
 ) -> Any:
-    from openai import (  # pyright: ignore[reportMissingImports]
+    from openai import (
         AsyncOpenAI,
     )
 

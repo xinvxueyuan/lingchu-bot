@@ -176,7 +176,7 @@ def _plain_text(event: Event) -> str | None:
     return _truncate(str(message)) if message is not None else None
 
 
-def _jsonable(value: Any, *, depth: int = 0) -> Any:  # noqa: C901, PLR0911
+def _jsonable(value: Any, *, depth: int = 0) -> Any:
     if depth > RAW_PAYLOAD_MAX_DEPTH:
         return repr(value)
     if value is None or isinstance(value, (str, int, float, bool)):

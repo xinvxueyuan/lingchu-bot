@@ -583,9 +583,7 @@ class RobustAsyncTOMLDB:
                     if isinstance(parent, dict):
                         del parent[key]
                         continue
-                    raise TOMLSerializationError(  # noqa: TRY003
-                        "None inside a list is not supported"
-                    )
+                    raise TOMLSerializationError("None inside a list is not supported")
                 parent, key, _ = self._navigate_to_parent(
                     segments, create_missing=True, root=data_copy
                 )
@@ -792,5 +790,5 @@ class RobustAsyncTOMLDB:
                 logger.info("File change detected, reloading")
                 try:
                     await self.reload(callback)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     logger.exception("Reload/callback failed in watcher")

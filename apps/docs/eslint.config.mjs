@@ -16,6 +16,24 @@ const eslintConfig = defineConfig([
     },
   },
 
+  // Ignore-comment governance: ban @ts-ignore entirely, require @ts-expect-error to carry a reason.
+  // Aligns with the project's "suppress at config level, not inline" policy.
+  {
+    files: ['**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}'],
+    rules: {
+      '@typescript-eslint/ban-ts-comment': [
+        'error',
+        {
+          'ts-ignore': false,
+          'ts-expect-error': 'allow-with-description',
+          'ts-nocheck': false,
+          'ts-check': false,
+          minimumDescriptionLength: 3,
+        },
+      ],
+    },
+  },
+
   // MDX lint layer 1: parse .mdx files + apply mdx/* rules (no-jsx-html-comments, no-unescaped-entities, etc.)
   // mdx.flat is a single config object (files: **/*.{md,mdx}) with its own processor, plugins, and rules.
   mdx.flat,

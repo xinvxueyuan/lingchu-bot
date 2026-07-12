@@ -1,6 +1,5 @@
 """数据库 CRUD 共享基础：DatabaseError 与内部辅助函数。"""
 
-# ruff: noqa: TRY003
 from __future__ import annotations
 
 import logging

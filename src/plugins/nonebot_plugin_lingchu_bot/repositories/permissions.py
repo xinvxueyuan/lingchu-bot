@@ -1,7 +1,5 @@
 """Repository helpers for the permission system."""
 
-# ruff: noqa: TC001, TC003
-
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -84,7 +82,7 @@ async def get_platform_account(
     )
 
 
-async def upsert_identity_group(  # noqa: PLR0913
+async def upsert_identity_group(
     *,
     group_id: str,
     platform_id: str,

@@ -74,7 +74,7 @@ async def _kick_blocked_user(
     )
 
 
-async def _block_member(  # noqa: PLR0913
+async def _block_member(
     *,
     command: Any,
     scope: BlockScope,
@@ -204,7 +204,7 @@ async def onebot11_global_block_member(
     )
 
 
-async def _unblock_member(  # noqa: PLR0913
+async def _unblock_member(
     *,
     command: Any,
     scope: BlockScope,

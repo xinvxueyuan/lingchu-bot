@@ -356,3 +356,92 @@ jobs:
           commit_message: "🎨 style: auto-format & ty fix [skip ci]"
           file_pattern: "*.py *.toml *.yaml *.yml *.md"
           branch: ${{ github.ref_name }}
+
+  # ── Ignore Comment Audit ───────────────────────────────────────────
+  # Detects new inline ignore comments (# noqa, # ruff: noqa, # type: ignore,
+  # # pyright: ignore, # ty: ignore) in changed Python files and posts a PR
+  # comment with guidance to move them to pyproject.toml
+  # [tool.ruff.lint.per-file-ignores]. Informational only — does not block.
+  ignore-comment-audit:
+    name: 🔍 Ignore Comment Audit
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        # pinned from actions/checkout@v6.0.3
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+      - name: Audit new inline ignore comments
+        id: audit
+        shell: bash
+        run: |
+          BASE_BRANCH="${{ github.event.pull_request.base.ref || 'main' }}"
+          # Get changed .py files between base and HEAD (Added, Copied, Modified, Renamed)
+          CHANGED_PY=$(git diff --name-only --diff-filter=ACMR "origin/${BASE_BRANCH}...HEAD" -- '*.py' 2>/dev/null || true)
+
+          # Temp file to collect matches (avoids echo -e backslash interpretation issues)
+          MATCHES_FILE=$(mktemp)
+          trap 'rm -f "$MATCHES_FILE"' EXIT
+
+          if [ -n "$CHANGED_PY" ]; then
+            while IFS= read -r file; do
+              [ -z "$file" ] && continue
+              # Get added lines only (unified=0 means no context lines)
+              DIFF_OUTPUT=$(git diff --unified=0 "origin/${BASE_BRANCH}...HEAD" -- "$file" 2>/dev/null || true)
+              # Filter to added lines (start with +) but exclude the +++ header
+              NEW_LINES=$(printf '%s\n' "$DIFF_OUTPUT" | grep -E '^\+' | grep -vE '^\+\+\+' || true)
+              # Check for inline ignore comments
+              MATCHES=$(printf '%s\n' "$NEW_LINES" | grep -E '# noqa|# ruff: noqa|# type: ignore|# pyright: ignore|# ty: ignore' || true)
+              if [ -n "$MATCHES" ]; then
+                while IFS= read -r line; do
+                  [ -z "$line" ] && continue
+                  # Strip the leading + from diff
+                  CLEAN_LINE="${line#+}"
+                  printf '%s\n' "- \`${file}\`: \`${CLEAN_LINE}\`" >> "$MATCHES_FILE"
+                done <<< "$MATCHES"
+              fi
+            done <<< "$CHANGED_PY"
+          fi
+
+          if [ -s "$MATCHES_FILE" ]; then
+            echo "::warning::New inline ignore comments detected in changed Python files"
+            cat "$MATCHES_FILE"
+            echo "new-ignores<<EOF" >> "$GITHUB_OUTPUT"
+            cat "$MATCHES_FILE" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          else
+            echo "No new inline ignore comments detected."
+            echo "new-ignores=" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Post PR comment
+        if: steps.audit.outputs.new-ignores != ''
+        # pinned from actions/github-script@v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        env:
+          NEW_IGNORES: ${{ steps.audit.outputs.new-ignores }}
+        with:
+          script: |
+            const newIgnores = process.env.NEW_IGNORES;
+            const body = `## ⚠️ New Inline Ignore Comments Detected
+
+            The following new inline ignore comments were found in changed Python files:
+
+            ${newIgnores}
+
+            ### Guidance
+
+            Inline ignore comments (\`# noqa\`, \`# type: ignore\`, \`# pyright: ignore\`, \`# ty: ignore\`) should be moved to \`pyproject.toml\` \`[tool.ruff.lint.per-file-ignores]\` section. See AGENTS.md "忽略注释治理策略" section for details.
+
+            This is an informational audit — it does not block the PR.`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });

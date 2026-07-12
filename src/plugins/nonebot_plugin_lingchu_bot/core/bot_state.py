@@ -92,7 +92,7 @@ async def _save_bot_state() -> None:
             data,
             schema_basename=BOT_STATE_SCHEMA_BASENAME,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.exception("Failed to save bot state")
 
 

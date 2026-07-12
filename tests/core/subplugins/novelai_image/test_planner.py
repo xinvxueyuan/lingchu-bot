@@ -97,12 +97,11 @@ def test_scalar_precedence_is_explicit_then_inferred_then_default(
 )
 def test_invalid_explicit_scalar_raises(field: str, value: object) -> None:
     with pytest.raises(InvalidGenerationOverrideError, match=field):
+        invalid_overrides: dict[str, Any] = {field: value}
         build_generation_plan(
             intent(),
             tipo_prompt=None,
-            overrides=GenerationOverrides(
-                **{field: value},  # pyright: ignore[reportArgumentType]  # ty: ignore[invalid-argument-type]
-            ),
+            overrides=GenerationOverrides(**invalid_overrides),
             config=NovelAIConfig(),
             random_seed=42,
         )
@@ -120,12 +119,9 @@ def test_invalid_explicit_scalar_raises(field: str, value: object) -> None:
 )
 def test_invalid_inferred_scalar_uses_config_default(field: str, value: object) -> None:
     config = NovelAIConfig()
+    invalid_hints: dict[str, Any] = {field: value}
     plan = build_generation_plan(
-        intent(
-            generation=GenerationHints(
-                **{field: value},  # pyright: ignore[reportArgumentType]  # ty: ignore[invalid-argument-type]
-            )
-        ),
+        intent(generation=GenerationHints(**invalid_hints)),
         tipo_prompt=None,
         overrides=GenerationOverrides(),
         config=config,

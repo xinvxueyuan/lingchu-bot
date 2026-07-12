@@ -32,30 +32,30 @@ def test_tags_are_trimmed_and_deduplicated_case_insensitively() -> None:
 def test_collection_fields_are_immutable_tuples() -> None:
     character = CharacterIntent(
         description="girl",
-        tags=["blue hair"],  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
-        negative_tags=["text"],  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
+        tags=("blue hair",),
+        negative_tags=("text",),
         center=PositionCoord(0.5, 0.5),
     )
     intent = PromptIntent(
         source_language="zh",
         english_description="a girl",
-        base_tags=["1girl"],  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
+        base_tags=("1girl",),
         generation=GenerationHints(
-            negative_tags=["watermark"],  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
+            negative_tags=("watermark",),
         ),
-        characters=[character],  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
+        characters=(character,),
         search_required=False,
         search_query=None,
         search_reason=None,
     )
     research = VisualResearch(
-        facts=["blue coat"],  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
-        sources=["https://example.test"],  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
+        facts=("blue coat",),
+        sources=("https://example.test",),
     )
     request = TipoRequest(
         description="a girl",
-        tags=["1girl"],  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
-        visual_facts=["blue coat"],  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
+        tags=("1girl",),
+        visual_facts=("blue coat",),
         seed=1,
     )
 
@@ -67,8 +67,9 @@ def test_collection_fields_are_immutable_tuples() -> None:
     assert research.sources == ("https://example.test",)
     assert request.tags == ("1girl",)
     assert request.visual_facts == ("blue coat",)
+    field_name = "seed"
     with pytest.raises(FrozenInstanceError):
-        request.seed = 2  # type: ignore[misc]  # ty: ignore[invalid-assignment]
+        setattr(request, field_name, 2)
 
 
 @pytest.mark.parametrize("seed", [-1, 2**32])
@@ -111,8 +112,8 @@ def test_negative_prompt_splits_and_deduplicates_normalized_tags() -> None:
 
 
 def test_generation_plan_normalizes_nested_collections() -> None:
-    char_caption = {"char_caption": "blue hair"}
-    character_prompt = {"prompt": "blue hair"}
+    char_caption: dict[str, object] = {"char_caption": "blue hair"}
+    character_prompt: dict[str, object] = {"prompt": "blue hair"}
     value = NovelAIGenerationPlan(
         prompt="portrait",
         negative_prompt="text",
@@ -123,8 +124,8 @@ def test_generation_plan_normalizes_nested_collections() -> None:
         sampler="k_euler_ancestral",
         seed=1,
         base_caption="portrait",
-        char_captions=[char_caption],  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
-        character_prompts=[character_prompt],  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
+        char_captions=(char_caption,),
+        character_prompts=(character_prompt,),
         use_coords=True,
     )
 

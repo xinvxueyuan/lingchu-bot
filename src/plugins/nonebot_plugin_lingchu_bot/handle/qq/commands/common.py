@@ -107,12 +107,12 @@ async def _silent_call(
     async def _suppressed_finish(_message: Any = None, **_kw: Any) -> Any:
         raise FinishedException
 
-    command.finish = _suppressed_finish  # type: ignore[method-assign, ty:invalid-assignment]
+    cast("Any", command).finish = _suppressed_finish
     try:
         return await func(*args, **kwargs)
     finally:
         if has_own_finish:
-            command.finish = original_finish  # type: ignore[method-assign, ty:invalid-assignment]
+            cast("Any", command).finish = original_finish
         elif "finish" in command.__dict__:
             delattr(command, "finish")
 

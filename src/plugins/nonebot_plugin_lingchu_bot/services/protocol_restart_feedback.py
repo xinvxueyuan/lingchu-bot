@@ -84,7 +84,7 @@ async def send_pending_restart_feedback(bot: Any) -> bool:
             group_id=int(pending.conversation_id),
             message=await _("协议端已重启并重新连接"),
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.exception("Failed to send protocol restart feedback")
         return False
     else:
@@ -95,7 +95,7 @@ async def send_pending_restart_feedback(bot: Any) -> bool:
 async def _is_reconnected_onebot11_ready(bot: Any, *, expected_bot_id: str) -> bool:
     try:
         login_info = await bot.get_login_info()
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.exception("Failed to verify protocol restart login account")
         return False
 
@@ -106,7 +106,7 @@ async def _is_reconnected_onebot11_ready(bot: Any, *, expected_bot_id: str) -> b
 
     try:
         status = await bot.get_status()
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.exception("Failed to verify protocol restart status")
         return False
 

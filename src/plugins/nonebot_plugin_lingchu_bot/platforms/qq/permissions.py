@@ -71,7 +71,7 @@ async def _fetch_role_from_api(
             group_id=int(context.scope_id),
             user_id=int(context.account_id),
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.warning(
             "get_group_member_info failed for group=%s user=%s, "
             "falling back to member role",

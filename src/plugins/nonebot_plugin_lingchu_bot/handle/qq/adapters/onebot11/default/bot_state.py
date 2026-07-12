@@ -20,8 +20,8 @@ from ....commands.common import selected_adapter_handle
     bot_silence_cmd, "~onebot.v11", "bot_silence", bypass_silent=True
 )
 async def onebot11_bot_silence(
-    bot: OneBot11Bot,  # noqa: ARG001
-    event: OneBot11GroupMessageEvent,  # noqa: ARG001
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
 ) -> Any:
     set_global_silent_mode(silent=True)
     return await bot_silence_cmd.finish(await _("已进入静默模式"))
@@ -29,8 +29,8 @@ async def onebot11_bot_silence(
 
 @selected_adapter_handle(bot_speak_cmd, "~onebot.v11", "bot_speak", bypass_silent=True)
 async def onebot11_bot_speak(
-    bot: OneBot11Bot,  # noqa: ARG001
-    event: OneBot11GroupMessageEvent,  # noqa: ARG001
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
 ) -> Any:
     set_global_silent_mode(silent=False)
     return await bot_speak_cmd.finish(await _("已退出静默模式"))
@@ -40,8 +40,8 @@ async def onebot11_bot_speak(
     bot_boot_cmd, "~onebot.v11", "bot_boot", bypass_gate=True, bypass_silent=True
 )
 async def onebot11_bot_boot(
-    bot: OneBot11Bot,  # noqa: ARG001
-    event: OneBot11GroupMessageEvent,  # noqa: ARG001
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
 ) -> Any:
     set_global_handle_active(active=True)
     return await bot_boot_cmd.finish(await _("已开机"))
@@ -55,8 +55,8 @@ async def onebot11_bot_boot(
     bypass_silent=True,
 )
 async def onebot11_bot_shutdown(
-    bot: OneBot11Bot,  # noqa: ARG001
-    event: OneBot11GroupMessageEvent,  # noqa: ARG001
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
 ) -> Any:
     set_global_handle_active(active=False)
     return await bot_shutdown_cmd.finish(await _("已关机"))

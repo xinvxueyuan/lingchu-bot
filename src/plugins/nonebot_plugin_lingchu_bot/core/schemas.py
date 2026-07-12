@@ -15,11 +15,6 @@ permitted in this module, and no ``importlib.resources`` / wheel data
 indirection is used.
 """
 
-# ruff: noqa: E501
-# E501 disabled: the embedded JSON Schema strings intentionally use long
-# description lines for human readability inside editors; line wrapping
-# inside a triple-quoted string would change the on-disk content.
-
 from __future__ import annotations
 
 import json

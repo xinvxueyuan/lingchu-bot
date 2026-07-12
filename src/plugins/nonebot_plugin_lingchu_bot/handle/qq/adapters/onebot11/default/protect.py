@@ -57,7 +57,7 @@ async def _require_superuser(command: Any, event: OneBot11GroupMessageEvent) -> 
     return False
 
 
-async def _protect_member(  # noqa: PLR0913
+async def _protect_member(
     *,
     command: Any,
     scope: BlockScope,
@@ -169,7 +169,7 @@ async def onebot11_global_protect_member(
     )
 
 
-async def _unprotect_member(  # noqa: PLR0913
+async def _unprotect_member(
     *,
     command: Any,
     scope: BlockScope,

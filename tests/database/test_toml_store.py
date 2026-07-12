@@ -36,7 +36,7 @@ import rtoml
 
 if TYPE_CHECKING:
     from _asyncio import Task
-    from collections.abc import AsyncGenerator
+    from collections.abc import AsyncGenerator, Awaitable, Callable
 
 from src.plugins.nonebot_plugin_lingchu_bot.database.toml_store import (
     AtomicReplacementError,
@@ -1317,7 +1317,9 @@ async def test_reload_invalid_callback(loaded_db: RobustAsyncTOMLDB) -> None:
         return
 
     with pytest.raises(expected_exception=CallbackTypeError):
-        await loaded_db.reload(callback=not_async_callback)  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        await loaded_db.reload(
+            callback=cast("Callable[[], Awaitable[None]]", not_async_callback)
+        )
 
 
 # ---------------------------------------------------------------------------

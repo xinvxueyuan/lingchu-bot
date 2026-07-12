@@ -126,7 +126,7 @@ class TestHandleConfigDataclass:
 
         # Should raise AttributeError when trying to modify
         with pytest.raises(AttributeError):
-            config.enabled = False  # type: ignore[misc]  # ty: ignore[invalid-assignment]
+            setattr(config, "enabled", False)  # noqa: B010 - intentional frozen-dataclass mutation test
 
     def test_handle_config_empty_defaults_and_policies(self) -> None:
         """Test that HandleConfig allows empty defaults and policies."""

@@ -18,7 +18,7 @@ def _json_load(value: str) -> Any:
     return json.loads(value)
 
 
-async def save_job_spec(  # noqa: PLR0913
+async def save_job_spec(
     *,
     job_id: str,
     handler_key: str,
@@ -80,15 +80,15 @@ def decode_job_payload(
     args = _json_load(job.args)
     kwargs = _json_load(job.kwargs)
     if not isinstance(trigger_kwargs, dict):
-        raise ValueError(  # noqa: TRY003, TRY004
+        raise ValueError(
             "scheduled job trigger_kwargs must be a JSON object",
         )
     if not isinstance(args, list):
-        raise ValueError(  # noqa: TRY003, TRY004
+        raise ValueError(
             "scheduled job args must be a JSON array",
         )
     if not isinstance(kwargs, dict):
-        raise ValueError(  # noqa: TRY003, TRY004
+        raise ValueError(
             "scheduled job kwargs must be a JSON object",
         )
     return trigger_kwargs, args, kwargs

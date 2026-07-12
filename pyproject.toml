@@ -261,9 +261,100 @@ allowed-confusables = [
     "E501",    # line-too-long
     "F541",    # f-string-without-placeholders
 ]
-# handle handlers may have complex logic with multiple return paths
+# handle handlers may have complex logic with many return paths and NoneBot-mandated parameters
 "src/plugins/nonebot_plugin_lingchu_bot/handle/**/adapters/onebot11/default/**.py" = [
-    "PLR0911", # too-many-return-statements (complex permission and privilege checks)
+    "PLR0911",  # too-many-return-statements (complex permission and privilege checks)
+    "PLR0913",  # too-many-arguments (NoneBot handler + OneBot API signatures)
+]
+# schemas.py embeds JSON Schema strings with intentionally long lines for editor readability
+"src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py" = [
+    "E501",  # line-too-long: embedded JSON Schema strings intentionally use long lines
+]
+
+# TC001/TC002/TC003: NoneBot evaluates forward references at hook registration time;
+# these runtime imports must not be hidden behind TYPE_CHECKING
+"src/plugins/nonebot_plugin_lingchu_bot/hooks/handlers/message_store.py" = ["TC002"]
+"src/plugins/nonebot_plugin_lingchu_bot/hooks/handlers/bot_connection.py" = ["TC002"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/models/scheduler.py" = ["TC003"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/models/subject_policy.py" = ["TC003"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/models/blocklist.py" = ["TC003"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/models/registry.py" = ["TC003"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/models/identity.py" = ["TC003"]
+
+# ARG001: NoneBot handler signatures require bot/event params even when unused
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/napcat/announcement.py" = ["ARG001"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/bot_state.py" = ["ARG001"]
+
+# TRY003/TRY004: vanilla exceptions (ValueError/TypeError) are intentional for validation
+"src/plugins/nonebot_plugin_lingchu_bot/core/menu_config.py" = ["TRY003"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_manager.py" = ["TRY003", "BLE001"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_defaults/__init__.py" = ["TRY003"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/models.py" = ["TRY003"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/tipo.py" = ["TRY003"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/intent.py" = ["TRY003"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/client.py" = ["TRY003"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_base.py" = ["TRY003"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/toml_store/_helpers.py" = ["TRY003"]
+
+# BLE001: startup/probe code uses intentional fail-closed/fail-soft exception handling
+"src/plugins/nonebot_plugin_lingchu_bot/core/bot_state.py" = ["BLE001"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/search.py" = ["BLE001"]
+"src/plugins/nonebot_plugin_lingchu_bot/services/llm.py" = ["BLE001"]
+"src/plugins/nonebot_plugin_lingchu_bot/services/protocol_restart_feedback.py" = ["BLE001"]
+"src/plugins/nonebot_plugin_lingchu_bot/start/startup.py" = ["BLE001"]
+"src/plugins/nonebot_plugin_lingchu_bot/platforms/qq/permissions.py" = ["BLE001"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/toml_store/_async_db.py" = ["TRY003", "BLE001"]
+
+# PLW0603: module-level state management is an established pattern in this codebase
+"src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py" = ["PLW0603"]
+
+# C901/PLR0911: complex functions that are difficult to split without losing readability
+"src/plugins/nonebot_plugin_lingchu_bot/hooks/adapters.py" = ["C901", "PLR0911"]
+
+# PLR0913: parameter-heavy write/audit and CRUD APIs (request object refactoring is a follow-up task)
+"src/plugins/nonebot_plugin_lingchu_bot/repositories/blocklist.py" = ["PLR0913"]
+"src/plugins/nonebot_plugin_lingchu_bot/repositories/message_store.py" = ["PLR0913"]
+"src/plugins/nonebot_plugin_lingchu_bot/permissions/subject_policy.py" = ["PLR0913"]
+
+# Combined entries for files needing multiple rule suppressions
+"src/plugins/nonebot_plugin_lingchu_bot/core/runtime_config.py" = [
+    "TRY003",  # vanilla exceptions for config validation
+    "TRY004",  # TypeError for invalid config types
+    "PLW0603",  # module-level state management
+    "C901",  # complex validation logic
+]
+"src/plugins/nonebot_plugin_lingchu_bot/repositories/scheduler_jobs.py" = [
+    "PLR0913",  # parameter-heavy job spec API
+    "TRY003",  # vanilla exceptions for validation
+    "TRY004",  # TypeError for invalid types
+]
+"src/plugins/nonebot_plugin_lingchu_bot/repositories/permissions.py" = [
+    "TC001",  # runtime type imports needed by NoneBot
+    "TC003",  # runtime stdlib imports needed by NoneBot
+    "PLR0913",  # parameter-heavy identity group API
+]
+"src/plugins/nonebot_plugin_lingchu_bot/services/scheduler.py" = [
+    "PLR0913",  # parameter-heavy scheduler API
+    "TRY003",  # vanilla exceptions for validation
+]
+"src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_bulk.py" = [
+    "TC003",  # runtime stdlib imports needed by NoneBot
+    "TRY003",  # vanilla exceptions for CRUD validation
+    "PLR0913",  # parameter-heavy generic CRUD functions
+]
+"src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_single.py" = [
+    "TRY003",  # vanilla exceptions for CRUD validation
+    "TC003",  # runtime stdlib imports needed by NoneBot
+]
+"src/plugins/nonebot_plugin_lingchu_bot/permissions/bootstrap.py" = [
+    "TC001",  # runtime type imports needed by NoneBot
+    "TC003",  # runtime stdlib imports needed by NoneBot
+    "TRY003",  # vanilla exceptions for validation
+]
+"src/plugins/nonebot_plugin_lingchu_bot/permissions/admin.py" = [
+    "TC001",  # runtime type imports needed by NoneBot
+    "TC003",  # runtime stdlib imports needed by NoneBot
+    "TRY003",  # vanilla exceptions for validation
 ]
 
 [tool.ruff.lint.pydocstyle]

@@ -1,7 +1,5 @@
 """Startup validation and seeding for permissions."""
 
-# ruff: noqa: TRY003, TC003
-
 from __future__ import annotations
 
 import asyncio

@@ -38,8 +38,8 @@ def patched_state_dir(tmp_path: Path) -> Iterator[Path]:
 
 
 async def test_bot_state_default_contains_schema_directive(
-    patched_state_dir: Path,  # type: ignore[ANN001]
-) -> None:  # type: ignore[ANN001]
+    patched_state_dir: Path,
+) -> None:
     """First-time load writes a schema directive outside the data table."""
     bot_state_module._reset_state_for_testing()
     await load_bot_state()
@@ -58,8 +58,8 @@ async def test_bot_state_default_contains_schema_directive(
 
 
 async def test_bot_state_existing_file_preserves_user_state(
-    patched_state_dir: Path,  # type: ignore[ANN001]
-) -> None:  # type: ignore[ANN001]
+    patched_state_dir: Path,
+) -> None:
     """An existing ``bot_state.toml`` without ``$schema`` still loads."""
     bot_state_module._reset_state_for_testing()
     state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME

@@ -168,7 +168,7 @@ def test_subplugin_trigger_is_frozen_dataclass() -> None:
     assert trigger.aliases == frozenset({"a", "b"})
 
     with pytest.raises(FrozenInstanceError):
-        trigger.primary = "other"  # type: ignore[misc, ty:invalid-assignment]
+        setattr(trigger, "primary", "other")  # noqa: B010 - intentional frozen-dataclass mutation test
 
 
 def test_get_subplugin_trigger_for_chat() -> None:

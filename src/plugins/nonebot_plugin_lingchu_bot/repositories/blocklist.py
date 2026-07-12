@@ -91,7 +91,7 @@ async def upsert_block(request: BlocklistUpsert) -> BlocklistEntry:
     return entry
 
 
-async def remove_block(  # noqa: PLR0913
+async def remove_block(
     *,
     platform_id: str,
     adapter_id: str,
@@ -124,7 +124,7 @@ async def remove_block(  # noqa: PLR0913
     return result
 
 
-async def clear_blocklist(  # noqa: PLR0913
+async def clear_blocklist(
     *,
     platform_id: str,
     adapter_id: str,
@@ -154,7 +154,7 @@ async def clear_blocklist(  # noqa: PLR0913
     return result
 
 
-async def find_active_block(  # noqa: PLR0913
+async def find_active_block(
     *,
     platform_id: str,
     adapter_id: str,
@@ -185,7 +185,7 @@ async def find_active_block(  # noqa: PLR0913
     )
 
 
-async def _find_active_block_for_scope(  # noqa: PLR0913
+async def _find_active_block_for_scope(
     *,
     platform_id: str,
     adapter_id: str,
@@ -254,7 +254,7 @@ async def _sync_blocked_policy_upsert(request: BlocklistUpsert) -> None:
     )
 
 
-async def _sync_blocked_policy_remove(  # noqa: PLR0913
+async def _sync_blocked_policy_remove(
     *,
     platform_id: str,
     adapter_id: str,
@@ -278,7 +278,7 @@ async def _sync_blocked_policy_remove(  # noqa: PLR0913
     )
 
 
-async def _sync_blocked_policy_clear(  # noqa: PLR0913
+async def _sync_blocked_policy_clear(
     *,
     platform_id: str,
     adapter_id: str,

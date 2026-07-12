@@ -165,6 +165,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 - **工具版本**：ruff>=0.15.21, pyright>=1.1.410, ty>=0.0.58, prek>=0.4.4, ESLint 10.x, TypeScript 6.x。
 - **格式化工作流**：`task format` 运行 Ruff format → Prettier → markdownlint --fix。`task fix` 运行 Ruff check --fix → Ruff format → Prettier → ty check --fix → markdownlint --fix。
 - **已移除的无用脚手架**：`packages/eslint-config/` 和 `packages/ui/`（Turborepo 模板残留，未被任何 app 引用）。`apps/docs` 有自己的 `eslint.config.mjs`。
+- **忽略注释治理**：`src/` 中禁止内联 `# noqa`、`# type: ignore`、`# pyright: ignore`、`# ty: ignore` 和文件级 `# ruff: noqa`。所有合法抑制 MUST 集中在 `pyproject.toml` `[tool.ruff.lint.per-file-ignores]` 中，每个条目附带 `# comment` 理由。模块级 `# pyright: reportMissingImports=false` 仅用于可选依赖导入。前端 `@ts-ignore` 通过 `@typescript-eslint/ban-ts-comment` 禁用；改用 `@ts-expect-error` 并附带描述。Pre-commit Phase 2.5 对 staged `src/*.py` 中新增的 `# noqa` 发出告警；CI `ignore-comment-audit` job 在 PR 中对回归发评论。
 
 ### Architecture Decisions
 
@@ -324,6 +325,13 @@ task ci
 - 结构一致不包括 GitNexus marker 块；该块由 `gitnexus analyze` 生成。保持 marker comments 和其他尖括号定位标签原样，确保 CLI 能找到受管范围。
 - 不在 agent context 嵌入大型生成清单。链接 canonical docs 或检查实时文件。
 - 结构性源码变化后，更新 developer docs 并搜索 stale references。
+
+#### Ignore Comment Governance
+
+- `src/` 中的内联 `# noqa` 和 `# type: ignore` 已全部集中到 `pyproject.toml` `[tool.ruff.lint.per-file-ignores]`。`src/` 中新增的内联忽略注释将触发 pre-commit 告警（Phase 2.5）和 CI 审计评论。
+- NoneBot matcher handler 和 ORM upsert 函数的 `PLR0913`（参数过多）通过 `per-file-ignores` 抑制，因为参数列表受框架约束。未来向 frozen dataclass 请求对象重构（见 "Repository API Style"）应逐步削减这些抑制。
+- `BLE001`（blind-except）在启动/探测代码中允许使用（fail-closed/fail-soft 设计）。理由注释以普通 `# <reason>` 形式保留在行内，不使用 `# noqa` 指令。
+- `services/llm.py` 中的模块级 `# pyright: reportMissingImports=false` 是唯一合法的内联类型忽略指令，用于可选 `openai`/`litellm` 依赖导入。
 
 #### Adapter And API Boundaries
 

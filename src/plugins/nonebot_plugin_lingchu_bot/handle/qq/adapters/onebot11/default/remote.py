@@ -163,12 +163,9 @@ async def _validate_remote_context(
         await cmd_matcher.finish(await _("机器人不在目标群聊中"))
         return False
 
-    if check_admin and not await check_bot_privilege(  # noqa: SIM103
+    return (not check_admin) or await check_bot_privilege(
         bot, group_id_int, cmd_matcher
-    ):
-        return False
-
-    return True
+    )
 
 
 async def _resolve_and_validate_user(
@@ -194,7 +191,7 @@ async def _resolve_and_validate_user(
 
 
 @selected_adapter_handle(remote_mute_cmd, "~onebot.v11", "remote_mute")
-async def onebot11_remote_mute(  # noqa: PLR0913
+async def onebot11_remote_mute(
     group_id: int | str,
     user: At | int,
     duration: int,
@@ -524,7 +521,7 @@ async def onebot11_remote_kick(
 
 
 @selected_adapter_handle(remote_block_cmd, "~onebot.v11", "remote_block")
-async def onebot11_remote_block(  # noqa: PLR0913
+async def onebot11_remote_block(
     group_id: int | str,
     user: At | int,
     duration: int | None,
