@@ -11,6 +11,9 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_manager import (
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     kick as kick_module,
 )
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import (
+    kick as kick_commands_module,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.kick import (
     kick_member_cmd,
 )
@@ -252,3 +255,19 @@ async def test_onebot11_kick_member_action_failed(
         )
 
     assert "踢出群成员失败" in finish_text(mock_finish)
+
+
+def test_lazy_export_resolves_onebot11_kick_member() -> None:
+    """__getattr__ 成功解析懒导出的 onebot11_kick_member 并缓存到 globals()。"""
+    kick_commands_module.__dict__.pop("onebot11_kick_member", None)
+
+    value = kick_commands_module.onebot11_kick_member
+
+    assert value is kick_module.onebot11_kick_member
+    assert kick_commands_module.__dict__.get("onebot11_kick_member") is value
+
+
+def test_lazy_export_raises_attribute_error_for_unknown_name() -> None:
+    """__getattr__ 对不在 _LAZY_EXPORTS 中的属性名抛出 AttributeError。"""
+    with pytest.raises(AttributeError):
+        _ = kick_commands_module.nonexistent_lazy_export

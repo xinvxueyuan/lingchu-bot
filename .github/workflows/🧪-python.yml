@@ -289,6 +289,17 @@ jobs:
       - name: Run Tests
         run: uv run -m pytest -n auto --dist=worksteal --junitxml=test-results/pytest.xml --timeout=300
 
+      - name: Upload Coverage Report
+        # pinned from actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: coverage-report-${{ matrix.db.engine }}
+          path: |
+            test-results/coverage.xml
+            htmlcov/
+          retention-days: 14
+
       - name: Publish Test Results
         # pinned from EnricoMi/publish-unit-test-result-action@v2.24.0
         uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3
