@@ -12,7 +12,7 @@ from nonebot import logger
 from ..core.runtime_config import runtime_config
 
 if TYPE_CHECKING:
-    from openai.types.chat import (  # pyright: ignore[reportMissingImports]  # ty: ignore[unresolved-import]
+    from openai.types.chat import (  # pyright: ignore[reportMissingImports]
         ChatCompletionMessageParam,
     )
 
@@ -71,7 +71,7 @@ async def _call_litellm(
     api_key: str | None,
     request_timeout: float,
 ) -> Any:
-    from litellm import (  # pyright: ignore[reportMissingImports]  # ty: ignore[unresolved-import]
+    from litellm import (  # pyright: ignore[reportMissingImports]
         acompletion,
     )
 
@@ -85,7 +85,7 @@ async def _call_litellm(
 
 
 def _litellm_supports_web_search(model: str) -> bool:
-    from litellm import (  # pyright: ignore[reportMissingImports]  # ty: ignore[unresolved-import]
+    from litellm import (  # pyright: ignore[reportMissingImports]
         supports_web_search as probe,
     )
 
@@ -114,7 +114,7 @@ async def _call_litellm_web_search(
     api_key: str | None,
     request_timeout: float,
 ) -> Any:
-    from litellm import (  # pyright: ignore[reportMissingImports]  # ty: ignore[unresolved-import]
+    from litellm import (  # pyright: ignore[reportMissingImports]
         acompletion,
     )
 
@@ -220,7 +220,7 @@ async def _call_openai(
     api_key: str | None,
     request_timeout: float,
 ) -> Any:
-    from openai import (  # pyright: ignore[reportMissingImports]  # ty: ignore[unresolved-import]
+    from openai import (  # pyright: ignore[reportMissingImports]
         AsyncOpenAI,
     )
 
