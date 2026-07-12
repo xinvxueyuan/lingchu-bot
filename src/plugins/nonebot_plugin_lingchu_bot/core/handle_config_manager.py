@@ -88,7 +88,7 @@ class HandleConfigManager:
             return self._cache[command_key]
 
         if command_key not in HANDLE_DEFAULTS_REGISTRY:
-            raise ValueError(f"command_key not registered: {command_key}")  # noqa: TRY003
+            raise ValueError(f"command_key not registered: {command_key}")
 
         file_path = get_plugin_config_file(f"{command_key}.toml")
         default_config = dict(HANDLE_DEFAULTS_REGISTRY[command_key])
@@ -100,7 +100,7 @@ class HandleConfigManager:
                 merge_default=True,
             )
             config_dict = self._merge_registered_defaults(command_key, config_dict)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.error(
                 f"Failed to load handle config for {command_key}, "
                 f"falling back to defaults. Path: {file_path}"
@@ -132,7 +132,7 @@ class HandleConfigManager:
             TOMLFileReadError: If file operations fail.
         """
         if command_key not in HANDLE_DEFAULTS_REGISTRY:
-            raise ValueError(f"command_key not registered: {command_key}")  # noqa: TRY003
+            raise ValueError(f"command_key not registered: {command_key}")
 
         file_path = get_plugin_config_file(f"{command_key}.toml")
         default_config = dict(HANDLE_DEFAULTS_REGISTRY[command_key])
@@ -145,7 +145,7 @@ class HandleConfigManager:
                 merge_default=True,
             )
             config_dict = self._merge_registered_defaults(command_key, config_dict)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.error(
                 f"Failed to load handle config for {command_key} during update, "
                 f"using defaults. Path: {file_path}"
@@ -157,7 +157,7 @@ class HandleConfigManager:
 
         # Validate before persisting
         if not self.validate_config(command_key, config_dict):
-            raise ValueError(f"validation failed: {command_key}")  # noqa: TRY003
+            raise ValueError(f"validation failed: {command_key}")
 
         # Persist to disk
         await write_toml_dict_file_async(
@@ -205,7 +205,7 @@ class HandleConfigManager:
                     schema_basename=self._SCHEMA_REF,
                 )
                 logger.debug(f"Ensured handle config file for {command_key}")
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.error(
                     f"Failed to ensure handle config file for {command_key}. "
                     f"Path: {file_path}"
@@ -236,7 +236,7 @@ class HandleConfigManager:
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse schema JSON: {e}")
             return False
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.error(f"Unexpected error during validation for {command_key}")
             return False
         else:

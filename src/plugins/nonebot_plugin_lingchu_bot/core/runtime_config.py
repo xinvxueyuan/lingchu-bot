@@ -1,7 +1,5 @@
 """Lightweight runtime configuration backed by TOML and NoneBot settings."""
 
-# ruff: noqa: TRY003
-
 from __future__ import annotations
 
 import json
@@ -32,7 +30,7 @@ from ..database.toml_store import (
     ensure_toml_dict_file_sync,
     load_toml_dict_sync,
 )
-from .handle_config_defaults import HANDLE_DEFAULTS_REGISTRY  # noqa: F401
+from .handle_config_defaults import HANDLE_DEFAULTS_REGISTRY
 from .handle_config_manager import HandleConfigManager
 from .schemas import CONFIG_SCHEMA_BASENAME
 
@@ -187,7 +185,7 @@ class RuntimeConfig(BaseModel):
 
     @field_validator("lingchu_superusers", mode="before")
     @classmethod
-    def _validate_lingchu_superusers(  # noqa: C901
+    def _validate_lingchu_superusers(
         cls,
         value: Any,
     ) -> dict[str, dict[str, str | int]] | None:
@@ -199,25 +197,21 @@ class RuntimeConfig(BaseModel):
             except ValueError as exc:
                 raise ValueError("LINGCHU_SUPERUSERS must be valid JSON") from exc
         if not isinstance(value, dict):
-            raise ValueError("LINGCHU_SUPERUSERS must be a mapping")  # noqa: TRY004
+            raise ValueError("LINGCHU_SUPERUSERS must be a mapping")
         result: dict[str, dict[str, str | int]] = {}
         for uid, accounts in value.items():
             uid_text = str(uid).strip()
             if not uid_text:
                 raise ValueError("LINGCHU_SUPERUSERS UID cannot be empty")
             if not isinstance(accounts, dict):
-                raise ValueError(  # noqa: TRY004
-                    "LINGCHU_SUPERUSERS account value must be a mapping"
-                )
+                raise ValueError("LINGCHU_SUPERUSERS account value must be a mapping")
             result[uid_text] = {}
             for platform_id, account_id in accounts.items():
                 platform_text = str(platform_id).strip()
                 if not platform_text:
                     raise ValueError("LINGCHU_SUPERUSERS platform cannot be empty")
                 if not isinstance(account_id, (str, int)):
-                    raise ValueError(  # noqa: TRY004
-                        "LINGCHU_SUPERUSERS account id must be str or int"
-                    )
+                    raise ValueError("LINGCHU_SUPERUSERS account id must be str or int")
                 result[uid_text][platform_text] = account_id
         return result
 
@@ -467,7 +461,7 @@ def get_handle_config_manager() -> HandleConfigManager:
         >>> manager = get_handle_config_manager()
         >>> config = await manager.get_config("kick_member")
     """
-    global _handle_config_manager  # noqa: PLW0603
+    global _handle_config_manager
     if _handle_config_manager is None:
         _handle_config_manager = HandleConfigManager()
     return _handle_config_manager
@@ -504,6 +498,7 @@ async def initialize_handle_config_manager() -> None:
 
 
 __all__ = [
+    "HANDLE_DEFAULTS_REGISTRY",
     "RuntimeConfig",
     "RuntimeConfigError",
     "ensure_runtime_config_file",

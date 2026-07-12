@@ -42,7 +42,4 @@ def _on_background_task_done(task: asyncio.Task[Any]) -> None:
     exc = task.exception()
     if exc is None:
         return
-    try:
-        raise exc  # noqa: TRY301
-    except Exception:  # noqa: BLE001
-        logger.exception("Background task %s failed", task.get_name())
+    logger.exception("Background task %s failed", task.get_name(), exc_info=exc)

@@ -1,7 +1,5 @@
 """SUPERUSERS-only permission administration APIs."""
 
-# ruff: noqa: TRY003, TC001
-
 from __future__ import annotations
 
 from typing import Any

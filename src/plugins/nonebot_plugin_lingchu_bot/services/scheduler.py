@@ -37,7 +37,7 @@ async def _maybe_await(value: Awaitable[Any] | Any) -> Any:
     return value
 
 
-def _schedule_runtime_job(  # noqa: PLR0913
+def _schedule_runtime_job(
     *,
     job_id: str,
     trigger_type: str,
@@ -78,7 +78,7 @@ async def execute_persistent_job(job_id: str) -> None:
     await _maybe_await(handler(*args, **kwargs))
 
 
-async def register_persistent_job(  # noqa: PLR0913
+async def register_persistent_job(
     *,
     job_id: str,
     handler_key: str,
@@ -93,7 +93,7 @@ async def register_persistent_job(  # noqa: PLR0913
 ) -> None:
     """Persist a scheduler job spec and schedule it when enabled."""
     if handler_key not in _handlers:
-        raise ValueError(f"unknown scheduler handler: {handler_key}")  # noqa: TRY003
+        raise ValueError(f"unknown scheduler handler: {handler_key}")
 
     await repository.save_job_spec(
         job_id=job_id,

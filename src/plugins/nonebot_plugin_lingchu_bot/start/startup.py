@@ -84,12 +84,12 @@ async def startup() -> None:
     """
     try:
         await install_schemas()
-    except Exception:  # noqa: BLE001
+    except Exception:
         # Schema files are editor hints; missing them does not prevent startup.
         logger.exception("Failed to install TOML schemas")
     try:
         await _check_announcement_image_path_bridge()
-    except Exception:  # noqa: BLE001
+    except Exception:
         # Self-check failures must never block startup; the failure case
         # is also reported later via the runtime warning on the actual
         # _send_group_notice call.
@@ -97,22 +97,22 @@ async def startup() -> None:
     await ensure_runtime_config_file_async()
     try:
         await ensure_menu_config_file_async()
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.exception("Failed to ensure menu config file")
     try:
         await get_handle_config_manager().ensure_config_files()
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.exception("Failed to ensure handle config files")
     await load_bot_state()
     try:
         menu_pages, menu_features = await load_menu_config()
         menu_module.set_menu_pages(menu_pages)
         menu_module.set_menu_features(menu_features)
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.exception("Failed to load menu config")
     try:
         await initialize_handle_config_manager()
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.exception("Failed to initialize handle config manager")
     registered_adapter_names = tuple(
         str(adapter_name) for adapter_name in get_adapters()

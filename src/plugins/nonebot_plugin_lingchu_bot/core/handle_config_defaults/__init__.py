@@ -22,7 +22,7 @@ def register_handle_defaults(command_key: str, defaults: dict[str, Any]) -> None
         ValueError: If command_key is already registered.
     """
     if command_key in HANDLE_DEFAULTS_REGISTRY:
-        raise ValueError(f"duplicate key: {command_key}")  # noqa: TRY003
+        raise ValueError(f"duplicate key: {command_key}")
     HANDLE_DEFAULTS_REGISTRY[command_key] = defaults
 
 

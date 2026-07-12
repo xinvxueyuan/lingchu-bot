@@ -289,6 +289,26 @@ else
     echo "⏭️  无 Markdown 变更，跳过 markdownlint。"
 fi
 
+# ── Phase 2.5: 忽略注释防回退（秒级）──────────────────
+# 非阻断：仅告警 src/ 中新增的 # noqa 注释（tests/ 不检查）
+# 内联 noqa 已迁移至 pyproject.toml [tool.ruff.lint.per-file-ignores]，
+# 此检查防止 src/ 重新引入内联 noqa；CI 会做更严格的审计
+if [ "$HAS_PYTHON" = true ]; then
+    STAGED_SRC_PY=$(printf '%s\n' "$STAGED_FILES" | grep -E '^src/.*\.py$' || true)
+    if [ -n "$STAGED_SRC_PY" ]; then
+        # 仅检查新增行（diff 中以 + 开头），避免对存量 noqa 误报
+        # shellcheck disable=SC2086
+        NEW_NOQA=$("$GIT_CMD" diff --cached --unified=0 -- $STAGED_SRC_PY 2>/dev/null | grep -E '^\+' | grep -F '# noqa' || true)
+        if [ -n "$NEW_NOQA" ]; then
+            echo "⚠️  检测到 src/ 中新增 # noqa 注释："
+            printf '%s\n' "$NEW_NOQA"
+            echo "   内联 noqa 已迁移至 pyproject.toml [tool.ruff.lint.per-file-ignores]，"
+            echo "   请将抑制规则移至 per-file-ignores 配置，或在注释中说明特殊理由。"
+            echo "   （此告警不阻断提交，但会在 CI 中再次审计）"
+        fi
+    fi
+fi
+
 # ── Phase 3: 快速检查（秒级）──────────────────────────
 if [ "$NEEDS_PYTHON_CHECK" = true ] && [ -n "$UV_CMD" ]; then
     echo "🔍 正在运行 Ruff lint..."

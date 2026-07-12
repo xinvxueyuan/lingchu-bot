@@ -1,10 +1,9 @@
 """单条记录 CRUD 操作：create、get_one、update、delete、exists、count 等。"""
 
-# ruff: noqa: TRY003
 from __future__ import annotations
 
 import time
-from collections.abc import Sequence  # noqa: TC003
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from nonebot import require

@@ -112,7 +112,7 @@ async def research_visual_facts(intent: PromptIntent) -> VisualResearch:
         _log_failure(correlation_id, "invalid_fact_json")
     except TimeoutError:
         _log_failure(correlation_id, "timeout")
-    except Exception:  # noqa: BLE001 - research must never block image generation
+    except Exception:  # research must never block image generation
         _log_failure(correlation_id, "provider_error")
     return _EMPTY_RESEARCH
 

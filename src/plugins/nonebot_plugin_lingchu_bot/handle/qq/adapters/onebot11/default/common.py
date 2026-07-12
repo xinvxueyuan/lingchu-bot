@@ -177,7 +177,7 @@ async def check_self_target(
     return True
 
 
-async def store_block_record(  # noqa: PLR0913
+async def store_block_record(
     *,
     scope: BlockScope,
     group_id: int,

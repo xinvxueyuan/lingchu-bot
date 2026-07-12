@@ -75,7 +75,7 @@ def _event_category_from_type(event_type: str) -> str | None:
     return head or None
 
 
-async def record_event_received(  # noqa: PLR0913
+async def record_event_received(
     *,
     platform_id: str,
     adapter_id: str,
@@ -135,7 +135,7 @@ async def record_event_received(  # noqa: PLR0913
     )
 
 
-async def record_matcher_result(  # noqa: PLR0913
+async def record_matcher_result(
     *,
     platform_id: str,
     adapter_id: str,
@@ -204,7 +204,7 @@ async def record_api_call(
     )
 
 
-async def list_recent_messages(  # noqa: PLR0913
+async def list_recent_messages(
     *,
     platform_id: str = "qq",
     adapter_id: str | None = None,

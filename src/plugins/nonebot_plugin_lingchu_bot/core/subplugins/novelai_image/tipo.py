@@ -1,7 +1,5 @@
 """llama.cpp completion boundary for TIPO prompt expansion."""
 
-# ruff: noqa: TRY003
-
 from __future__ import annotations
 
 import json

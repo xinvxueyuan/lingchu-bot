@@ -1,9 +1,8 @@
 """批量与 upsert 操作：bulk_create、upsert、list_items、async_iterate_safe。"""
 
-# ruff: noqa: TRY003
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Sequence  # noqa: TC003
+from collections.abc import Awaitable, Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from nonebot import require
@@ -268,7 +267,7 @@ def _merge_target_identifiers[T: Model](
     return target_table, target_columns
 
 
-def _build_merge_sql(  # noqa: PLR0913
+def _build_merge_sql(
     target_clause: str,
     target_columns: dict[str, str],
     insert_values: dict[str, Any],
@@ -462,7 +461,7 @@ async def upsert[T: Model](
         return obj
 
 
-async def _mysql_upsert[T: Model](  # noqa: PLR0913
+async def _mysql_upsert[T: Model](
     s: AsyncSession,
     model: type[T],
     insert_values: dict[str, Any],
@@ -543,7 +542,7 @@ def _is_oracle_unique_constraint_violation(error: SQLAlchemyError) -> bool:
     return False
 
 
-async def _oracle_upsert[T: Model](  # noqa: PLR0913
+async def _oracle_upsert[T: Model](
     s: AsyncSession,
     model: type[T],
     insert_values: dict[str, Any],
@@ -615,7 +614,7 @@ async def _oracle_upsert[T: Model](  # noqa: PLR0913
     return obj
 
 
-async def _mssql_upsert[T: Model](  # noqa: PLR0913
+async def _mssql_upsert[T: Model](
     s: AsyncSession,
     model: type[T],
     insert_values: dict[str, Any],
@@ -685,7 +684,7 @@ async def _mssql_upsert[T: Model](  # noqa: PLR0913
     return obj
 
 
-async def list_items[T: Model](  # noqa: PLR0913
+async def list_items[T: Model](
     model: type[T],
     filters: dict[str, Any] | None = None,
     order_by: Sequence[str] | None = None,
@@ -734,7 +733,7 @@ async def list_items[T: Model](  # noqa: PLR0913
             raise DatabaseError("Failed to list records") from e
 
 
-async def async_iterate_safe[T: Model](  # noqa: PLR0913
+async def async_iterate_safe[T: Model](
     model: type[T],
     *,
     filters: dict[str, Any] | None = None,

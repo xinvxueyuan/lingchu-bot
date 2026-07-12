@@ -1,7 +1,5 @@
 """Clean-room minimal NovelAI V4.5 HTTP client."""
 
-# ruff: noqa: TRY003
-
 from __future__ import annotations
 
 import base64

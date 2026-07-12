@@ -34,12 +34,13 @@ def config(tmp_path: Path) -> Config:
 
 def _config_with(tmp_path: Path, **alias_kwargs: Any) -> Config:
     """Build a Config using validation-alias kwargs that pyright cannot resolve."""
-    return Config(  # type: ignore[call-arg]
-        data_dir=tmp_path / "data",
-        config_dir=tmp_path / "config",
-        cache_dir=tmp_path / "cache",
+    kwargs: dict[str, Any] = {
+        "data_dir": tmp_path / "data",
+        "config_dir": tmp_path / "config",
+        "cache_dir": tmp_path / "cache",
         **alias_kwargs,
-    )
+    }
+    return Config(**kwargs)
 
 
 def test_config_has_core_version_default(config: Config) -> None:

@@ -1,7 +1,5 @@
 """Pure value objects shared by the NovelAI generation pipeline."""
 
-# ruff: noqa: TRY003
-
 from __future__ import annotations
 
 import re

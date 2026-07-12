@@ -79,7 +79,7 @@ async def upsert_subject_policy(request: SubjectPolicyUpsert) -> SubjectPolicyEn
     )
 
 
-async def remove_subject_policy(  # noqa: PLR0913
+async def remove_subject_policy(
     *,
     policy_type: SubjectPolicyType,
     platform_id: str,
@@ -104,7 +104,7 @@ async def remove_subject_policy(  # noqa: PLR0913
     return await delete(SubjectPolicyEntry, filters)
 
 
-async def clear_subject_policy(  # noqa: PLR0913
+async def clear_subject_policy(
     *,
     policy_type: SubjectPolicyType,
     platform_id: str,
@@ -127,7 +127,7 @@ async def clear_subject_policy(  # noqa: PLR0913
     return await delete(SubjectPolicyEntry, filters)
 
 
-async def find_active_subject_policy(  # noqa: PLR0913
+async def find_active_subject_policy(
     *,
     policy_type: SubjectPolicyType,
     platform_id: str,
@@ -161,7 +161,7 @@ async def find_active_subject_policy(  # noqa: PLR0913
     )
 
 
-async def _find_active_subject_policy_for_scope(  # noqa: PLR0913
+async def _find_active_subject_policy_for_scope(
     *,
     policy_type: SubjectPolicyType,
     platform_id: str,

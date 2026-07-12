@@ -21,9 +21,7 @@ async def _deepcopy_async[T](value: T) -> T:
 def _normalize_toml_value(value: Any, *, in_list: bool = False) -> Any:
     if value is None:
         if in_list:
-            raise TOMLSerializationError(  # noqa: TRY003
-                "None inside a list is not supported"
-            )
+            raise TOMLSerializationError("None inside a list is not supported")
         return None
     if isinstance(value, dict):
         return {

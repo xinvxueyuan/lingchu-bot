@@ -578,7 +578,7 @@ def default_menu_features() -> tuple[MenuFeature, ...]:
 
 def set_menu_pages(pages: tuple[MenuPage, ...]) -> None:
     """Replace runtime menu pages and refresh derived lookup data."""
-    global MENU_PAGES, MENU_PAGE_COMMANDS, MENU_SECTIONS, _MENU_PAGE_BY_ID  # noqa: PLW0603
+    global MENU_PAGES, MENU_PAGE_COMMANDS, MENU_SECTIONS, _MENU_PAGE_BY_ID
     MENU_PAGES = pages
     MENU_SECTIONS = _sections_from_pages(pages)
     MENU_PAGE_COMMANDS = _page_commands_from_pages(pages)
@@ -587,7 +587,7 @@ def set_menu_pages(pages: tuple[MenuPage, ...]) -> None:
 
 def set_menu_features(features: tuple[MenuFeature, ...]) -> None:
     """Replace runtime menu features used by renderers and permissions."""
-    global MENU_FEATURES  # noqa: PLW0603
+    global MENU_FEATURES
     MENU_FEATURES = features
 
 

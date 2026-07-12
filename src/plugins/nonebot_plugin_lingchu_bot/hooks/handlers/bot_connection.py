@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from nonebot import get_driver
-from nonebot.adapters import Bot  # noqa: TC002
+from nonebot.adapters import Bot
 
 from ...core.async_utils import fire_and_forget
 from ...services.message_store import record_bot_lifecycle

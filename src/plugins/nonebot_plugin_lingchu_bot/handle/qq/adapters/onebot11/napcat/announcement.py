@@ -37,7 +37,7 @@ async def send_group_notice_napcat(
     group_id: int,
     image_path: AnnouncementImagePath | None,
     bot: OneBot11Bot,
-    event: OneBot11GroupMessageEvent,  # noqa: ARG001
+    event: OneBot11GroupMessageEvent,
 ) -> None:
     """发送群公告（NapCat 实现）"""
     try:
