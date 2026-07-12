@@ -113,12 +113,7 @@ async def run_novelai_image(
     random_seed = secrets.randbelow(2**32)
     try:
         intent = await analyze_prompt_intent(user_text)
-    except IntentAnalysisError as exc:
-        logger.warning(
-            "NovelAI pipeline failed: correlation_id={}, stage=intent, reason={}",
-            correlation_id,
-            type(exc).__name__,
-        )
+    except IntentAnalysisError:
         await novelai_image_cmd.finish(translate("prompt_failed"))
         return
 

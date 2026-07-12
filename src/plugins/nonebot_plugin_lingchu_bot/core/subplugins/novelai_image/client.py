@@ -7,7 +7,7 @@ import struct
 from typing import TYPE_CHECKING
 
 import msgpack
-from nonebot import get_driver
+from nonebot import get_driver, logger
 from nonebot.drivers import Request
 
 from .payload import build_payload
@@ -39,6 +39,33 @@ class NovelAIResponseError(NovelAIError):
     pass
 
 
+def _process_event(event: object) -> tuple[str, bytes | None, str | None]:
+    """Classify one msgpack event for the streaming parser.
+
+    Returns ``(event_type, image_bytes, error_message)``:
+    - final → image_bytes set
+    - error → error_message set
+    - retry/intermediate/other → both None
+    """
+    if not isinstance(event, dict):
+        return (type(event).__name__, None, None)
+    etype = str(event.get("event_type"))
+    if etype == "final":
+        image = event.get("image")
+        if isinstance(image, bytes):
+            return (etype, image, None)
+        if isinstance(image, str):
+            return (etype, base64.b64decode(image, validate=True), None)
+        return (etype, None, "Invalid final image value")
+    if etype == "error":
+        code = event.get("code", "unknown")
+        message = event.get("message", "unknown error")
+        return (etype, None, f"NovelAI error (code={code}): {message}")
+    if etype == "retry":
+        logger.warning("NovelAI retry during generation: {}", event.get("message"))
+    return (etype, None, None)
+
+
 def extract_final_image(content: bytes) -> bytes:
     offset = 0
     final: bytes | None = None
@@ -49,14 +76,11 @@ def extract_final_image(content: bytes) -> bytes:
             if end > len(content):
                 raise NovelAIResponseError("Truncated msgpack frame")
             event = msgpack.unpackb(content[start:end], raw=False)
-            if isinstance(event, dict) and event.get("event_type") == "final":
-                image = event.get("image")
-                if isinstance(image, bytes):
-                    final = image
-                elif isinstance(image, str):
-                    final = base64.b64decode(image, validate=True)
-                else:
-                    raise NovelAIResponseError("Invalid final image value")
+            _etype, image, error = _process_event(event)
+            if error is not None:
+                raise NovelAIResponseError(error)
+            if image is not None:
+                final = image
             offset = end
     except (TypeError, ValueError, msgpack.UnpackException) as exc:
         raise NovelAIResponseError("Invalid msgpack image stream") from exc

@@ -144,6 +144,66 @@ def test_invalid_inferred_seed_uses_random_seed(seed: int) -> None:
     assert plan.seed == 42
 
 
+@pytest.mark.parametrize(
+    ("alias", "native"),
+    [
+        ("Euler a", "k_euler_ancestral"),
+        ("euler", "k_euler"),
+        ("DPM++ 2M", "k_dpmpp_2m"),
+        ("euler-ancestral", "k_euler_ancestral"),
+        ("k_euler", "k_euler"),
+        ("ddim", "ddim_v3"),
+        ("ddim_v3", "ddim_v3"),
+    ],
+)
+def test_sampler_alias_maps_to_novelai_native(alias: str, native: str) -> None:
+    plan = build_generation_plan(
+        intent(generation=GenerationHints(sampler=alias)),
+        tipo_prompt=None,
+        overrides=GenerationOverrides(),
+        config=NovelAIConfig(),
+        random_seed=42,
+    )
+
+    assert plan.sampler == native
+
+
+def test_unknown_inferred_sampler_falls_back_to_config() -> None:
+    config = NovelAIConfig()
+    plan = build_generation_plan(
+        intent(generation=GenerationHints(sampler="totally bogus")),
+        tipo_prompt=None,
+        overrides=GenerationOverrides(),
+        config=config,
+        random_seed=42,
+    )
+
+    assert plan.sampler == config.sampler
+
+
+def test_explicit_sampler_alias_maps_to_novelai_native() -> None:
+    plan = build_generation_plan(
+        intent(),
+        tipo_prompt=None,
+        overrides=GenerationOverrides(sampler="Euler a"),
+        config=NovelAIConfig(),
+        random_seed=42,
+    )
+
+    assert plan.sampler == "k_euler_ancestral"
+
+
+def test_invalid_explicit_sampler_alias_raises() -> None:
+    with pytest.raises(InvalidGenerationOverrideError, match="sampler"):
+        build_generation_plan(
+            intent(),
+            tipo_prompt=None,
+            overrides=GenerationOverrides(sampler="bogus sampler"),
+            config=NovelAIConfig(),
+            random_seed=42,
+        )
+
+
 def test_negative_prompt_precedence_merges_and_deduplicates_sources() -> None:
     plan = build_generation_plan(
         intent(

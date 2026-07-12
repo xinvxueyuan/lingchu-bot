@@ -18,6 +18,43 @@ _MAX_DIMENSION = 2048
 _MAX_STEPS = 50
 _MAX_SCALE = 20
 
+_NOVELAI_SAMPLERS = frozenset({
+    "k_euler",
+    "k_euler_ancestral",
+    "k_dpmpp_2m",
+    "k_dpmpp_2s_ancestral",
+    "k_dpmpp_sde",
+    "k_dpmpp_2m_sde",
+    "ddim_v3",
+})
+
+_SAMPLER_ALIASES = {
+    "euler": "k_euler",
+    "euler a": "k_euler_ancestral",
+    "euler_a": "k_euler_ancestral",
+    "euler ancestral": "k_euler_ancestral",
+    "euler-ancestral": "k_euler_ancestral",
+    "dpm++ 2m": "k_dpmpp_2m",
+    "dpm++2m": "k_dpmpp_2m",
+    "dpm++ 2s a": "k_dpmpp_2s_ancestral",
+    "dpm++ sde": "k_dpmpp_sde",
+    "dpm++ 2m sde": "k_dpmpp_2m_sde",
+    "ddim": "ddim_v3",
+    "ddim_v3": "ddim_v3",
+}
+
+
+def _normalize_sampler(value: str) -> str | None:
+    """Map a sampler name (NovelAI native or WebUI alias) to NovelAI form.
+
+    Returns ``None`` when the name is unrecognized so the caller can fall
+    back to the configured default instead of sending an invalid value.
+    """
+    key = value.strip().casefold()
+    if key in _NOVELAI_SAMPLERS:
+        return key
+    return _SAMPLER_ALIASES.get(key)
+
 
 class InvalidGenerationOverrideError(ValueError):
     """Raised when an explicit generation override is outside safe limits."""
@@ -92,8 +129,9 @@ def build_generation_plan(
         overrides.sampler,
         intent.generation.sampler,
         config.sampler,
-        lambda v: bool(v.strip()),
+        lambda v: _normalize_sampler(v) is not None,
     )
+    sampler = _normalize_sampler(sampler) or config.sampler
     seed = _choose(
         "seed",
         overrides.seed,
@@ -145,7 +183,7 @@ def build_generation_plan(
         height=height,
         steps=steps,
         scale=scale,
-        sampler=sampler.strip(),
+        sampler=sampler,
         seed=seed,
         base_caption=base_caption,
         char_captions=tuple(char_captions),

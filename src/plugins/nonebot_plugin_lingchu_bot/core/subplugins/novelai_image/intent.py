@@ -21,7 +21,7 @@ base_tags (string array), generation (object with width, height, steps, scale,
 sampler, seed, negative_tags), characters (array of objects with description,
 tags, negative_tags, and center containing numeric x and y), search_required
 (boolean), search_query (string or null), and search_reason (string or null).
-Translate Chinese descriptions to English; preserve an already-English description.
+Translate Chinese descriptions to English; preserve an already-english description.
 Request search only for current or canonical visual facts, such as real people,
 named fictional characters, exact costumes, real locations, products, recent events,
 or explicit accuracy requests. Do not request search for generic original scenes,
@@ -70,13 +70,46 @@ def _optional_number(value: Any, name: str, expected: Any) -> Any:
 
 
 def _tags(value: Any, name: str) -> tuple[str, ...]:
+    if isinstance(value, str):
+        value = [tag.strip() for tag in value.split(",") if tag.strip()]
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise _fail(f"{name} must be an array of strings")
     return tuple(value)
 
 
+_MARKDOWN_FENCE = "```"
+_MARKDOWN_LANGS = ("json", "jsonc", "json5")
+
+
+def _strip_markdown_fence(text: str) -> str:
+    """Strip a single ``` / ```json fence that wraps the entire response.
+
+    LLMs frequently wrap JSON in a Markdown code fence even when explicitly
+    told not to. The fence is the only outer wrapper we strip, so untrusted
+    prose around the object is still rejected by ``_recover_object``.
+    """
+    stripped = text.strip()
+    if not stripped.startswith(_MARKDOWN_FENCE):
+        return text
+    closing = stripped.rfind(_MARKDOWN_FENCE)
+    if closing <= len(_MARKDOWN_FENCE):
+        return text
+    if not stripped.endswith(_MARKDOWN_FENCE):
+        return text
+    head_break = stripped.find("\n")
+    if head_break == -1 or head_break >= closing:
+        return text
+    info_string = stripped[len(_MARKDOWN_FENCE) : head_break].strip().lower()
+    if info_string and not any(
+        info_string == lang or info_string.startswith(f"{lang} ")
+        for lang in _MARKDOWN_LANGS
+    ):
+        return text
+    return stripped[head_break + 1 : closing]
+
+
 def _recover_object(text: str) -> dict[str, Any]:
-    content = text.strip()
+    content = _strip_markdown_fence(text).strip()
 
     def reject_constant(value: str) -> None:
         raise _fail(f"Non-finite JSON number is not allowed: {value}")

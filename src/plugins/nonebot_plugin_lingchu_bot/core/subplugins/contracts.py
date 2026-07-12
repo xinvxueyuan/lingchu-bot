@@ -57,11 +57,12 @@ async def complete_subplugin_chat_default(
 ) -> str:
     """Complete a prompt using the parent's default LLM options."""
     try:
-        return await complete_chat(messages)
+        result = await complete_chat(messages)
     except SubpluginLLMError:
         raise
     except LLMError as exc:
         raise SubpluginLLMError(str(exc)) from exc
+    return result
 
 
 def subplugin_supports_web_search(options: LLMOptions) -> bool:
