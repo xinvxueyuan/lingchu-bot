@@ -3,9 +3,5 @@
   "description": "OneBot V11 protocol documentation separated by implementation",
   "icon": "Plug",
   "root": true,
-  "pages": [
-    "overview",
-    "default",
-    "napcat"
-  ]
+  "pages": ["overview", "default", "napcat"]
 }

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 import inspect
 import logging
-from collections.abc import Awaitable, Callable
 from typing import Any
 
 from apscheduler.jobstores.base import JobLookupError

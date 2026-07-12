@@ -128,8 +128,6 @@ describe("getRSS", () => {
 
   it("should expose the feed self link", async () => {
     const result = await getRSS("en");
-    expect(result).toContain(
-      '<atom:link href="https://lingchu.zone.id/rss.xml"',
-    );
+    expect(result).toContain('<atom:link href="https://lingchu.zone.id/rss.xml"');
   });
 });

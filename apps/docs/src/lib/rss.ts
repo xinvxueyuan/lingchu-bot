@@ -24,9 +24,7 @@ export async function getRSS(locale: string = "en"): Promise<string> {
   });
 
   for (const page of source.getPages(locale)) {
-    const pageDate = page.data.lastModified
-      ? new Date(page.data.lastModified)
-      : new Date();
+    const pageDate = page.data.lastModified ? new Date(page.data.lastModified) : new Date();
     const item: Parameters<typeof feed.addItem>[0] = {
       id: `${baseUrl}${page.url}`,
       title: page.data.title,

@@ -1,5 +1,5 @@
-import inspect
 from dataclasses import FrozenInstanceError
+import inspect
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -134,9 +134,9 @@ async def test_complete_subplugin_chat_default_wraps_llm_error(
     monkeypatch.setattr(contracts, "complete_chat", complete_chat)
 
     with pytest.raises(contracts.SubpluginLLMError) as exc_info:
-        await contracts.complete_subplugin_chat_default(
-            [{"role": "user", "content": "hi"}]
-        )
+        await contracts.complete_subplugin_chat_default([
+            {"role": "user", "content": "hi"}
+        ])
     assert isinstance(exc_info.value.__cause__, contracts.LLMError)
 
 
@@ -149,9 +149,9 @@ async def test_complete_subplugin_chat_default_reraises_subplugin_llm_error(
     monkeypatch.setattr(contracts, "complete_chat", complete_chat)
 
     with pytest.raises(contracts.SubpluginLLMError) as exc_info:
-        await contracts.complete_subplugin_chat_default(
-            [{"role": "user", "content": "hi"}]
-        )
+        await contracts.complete_subplugin_chat_default([
+            {"role": "user", "content": "hi"}
+        ])
     assert exc_info.value is original
 
 

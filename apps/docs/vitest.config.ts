@@ -1,31 +1,31 @@
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
-import path from 'node:path';
+import path from "node:path";
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [
     react(),
     {
-      name: 'css-ignore',
-      transform(code, id) {
-        if (id.endsWith('.css')) return { code: '' };
+      name: "css-ignore",
+      transform(_code, id) {
+        if (id.endsWith(".css")) return { code: "" };
+        return;
       },
     },
   ],
   test: {
-    environment: 'jsdom',
+    environment: "jsdom",
     globals: true,
-    setupFiles: ['./src/__tests__/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}'],
+    setupFiles: ["./src/__tests__/setup.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
     onConsoleLog(log) {
-      if (log.includes('act(')) return false;
-      return true;
+      return !log.includes("act(");
     },
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      'collections': path.resolve(__dirname, './.source'),
+      "@": path.resolve(import.meta.dirname, "./src"),
+      collections: path.resolve(import.meta.dirname, "./.source"),
     },
   },
 });

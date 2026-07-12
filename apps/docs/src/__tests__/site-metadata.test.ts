@@ -15,9 +15,7 @@ const DEFAULT_BASE = SITE_URL.replace(/\/$/, "");
 type RssFeed = { url: string; title?: string };
 
 function getRssFeeds(types: unknown): RssFeed[] {
-  const feeds = (types as Record<string, unknown> | undefined)?.[
-    "application/rss+xml"
-  ];
+  const feeds = (types as Record<string, unknown> | undefined)?.["application/rss+xml"];
   if (!Array.isArray(feeds)) return [];
   return feeds.filter(
     (feed): feed is RssFeed =>
@@ -52,7 +50,7 @@ describe("site-metadata", () => {
     it("trims trailing slashes from NEXT_PUBLIC_SITE_URL", () => {
       vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://example.com/");
       const url = getSiteUrl();
-      expect(url.toString()).toBe("https://example.com/");
+      expect(url.href).toBe("https://example.com/");
     });
 
     it("keeps the trailing slash so metadataBase resolves repo-relative paths", () => {
@@ -62,7 +60,7 @@ describe("site-metadata", () => {
     });
 
     it("ignores whitespace-only NEXT_PUBLIC_SITE_URL", () => {
-      vi.stubEnv("NEXT_PUBLIC_SITE_URL", "   ");
+      vi.stubEnv("NEXT_PUBLIC_SITE_URL", ' '.repeat(3));
       const url = getSiteUrl();
       expect(url.origin).toBe(DEFAULT_ORIGIN);
     });
@@ -99,12 +97,8 @@ describe("site-metadata", () => {
       expect(meta.openGraph?.siteName).toBe(appName);
       // The returned object is the `OpenGraphWebsite` subtype (`type: 'website'`),
       // but `Metadata['openGraph']` is a union, so we narrow before reading the discriminator.
-      expect((meta.openGraph as { type?: string } | undefined)?.type).toBe(
-        "website",
-      );
-      expect((meta.twitter as { card?: string } | undefined)?.card).toBe(
-        "summary_large_image",
-      );
+      expect((meta.openGraph as { type?: string } | undefined)?.type).toBe("website");
+      expect((meta.twitter as { card?: string } | undefined)?.card).toBe("summary_large_image");
     });
   });
 
@@ -167,27 +161,17 @@ describe("site-metadata", () => {
     it("declares openGraph.type=website and locale per locale", () => {
       const enMeta = getHomeMetadata("en");
       const zhMeta = getHomeMetadata("zh");
-      expect((enMeta.openGraph as { type?: string } | undefined)?.type).toBe(
-        "website",
-      );
-      expect(
-        (enMeta.openGraph as { locale?: string } | undefined)?.locale,
-      ).toBe("en_US");
-      expect((zhMeta.openGraph as { type?: string } | undefined)?.type).toBe(
-        "website",
-      );
-      expect(
-        (zhMeta.openGraph as { locale?: string } | undefined)?.locale,
-      ).toBe("zh_CN");
+      expect((enMeta.openGraph as { type?: string } | undefined)?.type).toBe("website");
+      expect((enMeta.openGraph as { locale?: string } | undefined)?.locale).toBe("en_US");
+      expect((zhMeta.openGraph as { type?: string } | undefined)?.type).toBe("website");
+      expect((zhMeta.openGraph as { locale?: string } | undefined)?.locale).toBe("zh_CN");
     });
 
     it("points openGraph.images and twitter.images at the locale home OG image", () => {
       const enMeta = getHomeMetadata("en");
       const zhMeta = getHomeMetadata("zh");
       expect(enMeta.openGraph?.images).toBe("/opengraph-image");
-      expect((enMeta.twitter as { images?: unknown } | undefined)?.images).toBe(
-        "/opengraph-image",
-      );
+      expect((enMeta.twitter as { images?: unknown } | undefined)?.images).toBe("/opengraph-image");
       expect(zhMeta.openGraph?.images).toBe("/zh/opengraph-image");
       expect((zhMeta.twitter as { images?: unknown } | undefined)?.images).toBe(
         "/zh/opengraph-image",
@@ -217,13 +201,8 @@ describe("site-metadata", () => {
     });
 
     it("sets openGraph.images when imageUrl is provided", () => {
-      const meta = getDocsPageMetadata(
-        enPage,
-        "/og/docs/user-guide/commands/image.png",
-      );
-      expect(meta.openGraph?.images).toBe(
-        "/og/docs/user-guide/commands/image.png",
-      );
+      const meta = getDocsPageMetadata(enPage, "/og/docs/user-guide/commands/image.png");
+      expect(meta.openGraph?.images).toBe("/og/docs/user-guide/commands/image.png");
     });
 
     it("omits openGraph.images when imageUrl is missing", () => {
@@ -233,56 +212,41 @@ describe("site-metadata", () => {
 
     it("attaches a summary_large_image twitter card", () => {
       const meta = getDocsPageMetadata(enPage);
-      expect((meta.twitter as { card?: string } | undefined)?.card).toBe(
-        "summary_large_image",
-      );
+      expect((meta.twitter as { card?: string } | undefined)?.card).toBe("summary_large_image");
       expect(meta.twitter?.title).toBe("Commands");
     });
 
     it("declares openGraph.type=article and locale matching the inferred locale", () => {
       const enMeta = getDocsPageMetadata(enPage);
-      expect((enMeta.openGraph as { type?: string } | undefined)?.type).toBe(
-        "article",
-      );
-      expect(
-        (enMeta.openGraph as { locale?: string } | undefined)?.locale,
-      ).toBe("en_US");
+      expect((enMeta.openGraph as { type?: string } | undefined)?.type).toBe("article");
+      expect((enMeta.openGraph as { locale?: string } | undefined)?.locale).toBe("en_US");
 
       const zhPage = {
         url: "/zh/docs/user-guide/commands",
         data: { title: "群管命令", description: "全部命令" },
       };
       const zhMeta = getDocsPageMetadata(zhPage);
-      expect((zhMeta.openGraph as { type?: string } | undefined)?.type).toBe(
-        "article",
-      );
-      expect(
-        (zhMeta.openGraph as { locale?: string } | undefined)?.locale,
-      ).toBe("zh_CN");
+      expect((zhMeta.openGraph as { type?: string } | undefined)?.type).toBe("article");
+      expect((zhMeta.openGraph as { locale?: string } | undefined)?.locale).toBe("zh_CN");
     });
 
     it("mirrors imageUrl into twitter.images when provided", () => {
       const imageUrl = "/og/docs/user-guide/commands/image.png";
       const meta = getDocsPageMetadata(enPage, imageUrl);
-      expect((meta.twitter as { images?: unknown } | undefined)?.images).toBe(
-        imageUrl,
-      );
+      expect((meta.twitter as { images?: unknown } | undefined)?.images).toBe(imageUrl);
     });
 
     it("omits twitter.images when imageUrl is missing", () => {
       const meta = getDocsPageMetadata(enPage);
-      expect(
-        (meta.twitter as { images?: unknown } | undefined)?.images,
-      ).toBeUndefined();
+      expect((meta.twitter as { images?: unknown } | undefined)?.images).toBeUndefined();
     });
 
     it("infers en locale and emits only the current locale when no alternateUrl is given", () => {
       const meta = getDocsPageMetadata(enPage);
-      const languages = meta.alternates?.languages as
-        Record<string, string> | undefined;
+      const languages = meta.alternates?.languages as Record<string, string> | undefined;
       expect(languages).toEqual({ en: "/docs/user-guide/commands" });
       expect(languages?.["x-default"]).toBeUndefined();
-      expect(languages?.zh).toBeUndefined();
+      expect(languages?.["zh"]).toBeUndefined();
     });
 
     it("infers zh locale from a /zh/-prefixed page url when no alternateUrl is given", () => {
@@ -291,20 +255,14 @@ describe("site-metadata", () => {
         data: { title: "群管命令", description: "全部命令" },
       };
       const meta = getDocsPageMetadata(zhPage);
-      const languages = meta.alternates?.languages as
-        Record<string, string> | undefined;
+      const languages = meta.alternates?.languages as Record<string, string> | undefined;
       expect(languages).toEqual({ zh: "/zh/docs/user-guide/commands" });
       expect(languages?.["x-default"]).toBeUndefined();
     });
 
     it("emits en+zh+x-default hreflang when an alternateUrl is provided to an en page", () => {
-      const meta = getDocsPageMetadata(
-        enPage,
-        undefined,
-        "/zh/docs/user-guide/commands",
-      );
-      const languages = meta.alternates?.languages as
-        Record<string, string> | undefined;
+      const meta = getDocsPageMetadata(enPage, undefined, "/zh/docs/user-guide/commands");
+      const languages = meta.alternates?.languages as Record<string, string> | undefined;
       expect(languages).toEqual({
         en: "/docs/user-guide/commands",
         zh: "/zh/docs/user-guide/commands",
@@ -317,13 +275,8 @@ describe("site-metadata", () => {
         url: "/zh/docs/user-guide/commands",
         data: { title: "群管命令", description: "全部命令" },
       };
-      const meta = getDocsPageMetadata(
-        zhPage,
-        undefined,
-        "/docs/user-guide/commands",
-      );
-      const languages = meta.alternates?.languages as
-        Record<string, string> | undefined;
+      const meta = getDocsPageMetadata(zhPage, undefined, "/docs/user-guide/commands");
+      const languages = meta.alternates?.languages as Record<string, string> | undefined;
       expect(languages).toEqual({
         zh: "/zh/docs/user-guide/commands",
         en: "/docs/user-guide/commands",

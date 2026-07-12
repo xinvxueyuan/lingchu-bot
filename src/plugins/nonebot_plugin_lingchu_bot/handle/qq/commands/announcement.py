@@ -1,9 +1,9 @@
-import hashlib
-import re
 from dataclasses import dataclass
+import hashlib
 from importlib import import_module
 from io import BytesIO
 from pathlib import Path
+import re
 from typing import Any, Final, NamedTuple
 
 import aiofiles
@@ -59,7 +59,7 @@ def _join_protocol_path(base: str, relative_path: Path) -> str:
 def _to_protocol_path(local_path: Path) -> str | None:
     cache_dir = plugin_config.announcement_image_cache_dir
     protocol_dir = plugin_config.announcement_image_protocol_dir
-    if cache_dir is None or protocol_dir is None:
+    if protocol_dir is None:
         return None
 
     try:

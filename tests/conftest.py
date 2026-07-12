@@ -13,14 +13,14 @@ from __future__ import annotations
 import asyncio
 import inspect
 import os
-import sys
 from pathlib import Path
+import sys
 from types import MethodType
 from typing import TYPE_CHECKING, Any
 
 import nonebot
-import pytest
 from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
+import pytest
 from pytest_asyncio import is_async_test
 
 sys.path.insert(0, str(object=Path(__file__).parent))

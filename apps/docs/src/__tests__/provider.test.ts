@@ -3,15 +3,11 @@ import { switchLocale } from "@/lib/locale";
 
 describe("switchLocale", () => {
   it("should switch from en (default) to zh", () => {
-    expect(switchLocale("/docs/getting-started", "en", "zh")).toBe(
-      "/zh/docs/getting-started",
-    );
+    expect(switchLocale("/docs/getting-started", "en", "zh")).toBe("/zh/docs/getting-started");
   });
 
   it("should switch from zh to en (default)", () => {
-    expect(switchLocale("/zh/docs/getting-started", "zh", "en")).toBe(
-      "/docs/getting-started",
-    );
+    expect(switchLocale("/zh/docs/getting-started", "zh", "en")).toBe("/docs/getting-started");
   });
 
   it("should handle root docs path from en to zh", () => {

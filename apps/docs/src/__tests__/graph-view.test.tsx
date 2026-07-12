@@ -30,23 +30,23 @@ const mockGraph: Graph = {
 
 describe("GraphView", () => {
   it("should render a container with correct height", async () => {
-    let container: HTMLElement;
+    let container: HTMLElement = document.createElement("div");
     await act(async () => {
       const result = render(<GraphView graph={mockGraph} />);
       container = result.container;
     });
-    const wrapper = container!.querySelector(".h-\\[600px\\]");
+    const wrapper = container.querySelector(String.raw`.h-\[600px\]`);
     expect(wrapper).toBeInTheDocument();
   });
 
   it("should render with empty graph", async () => {
     const emptyGraph: Graph = { nodes: [], links: [] };
-    let container: HTMLElement;
+    let container: HTMLElement = document.createElement("div");
     await act(async () => {
       const result = render(<GraphView graph={emptyGraph} />);
       container = result.container;
     });
-    expect(container!.querySelector(".h-\\[600px\\]")).toBeInTheDocument();
+    expect(container.querySelector(String.raw`.h-\[600px\]`)).toBeInTheDocument();
   });
 
   it("should render ForceGraph when mounted on client", async () => {

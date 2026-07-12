@@ -1,5 +1,5 @@
-import { source } from "@/lib/source";
 import { exportEpub } from "fumadocs-epub";
+import { source } from "@/lib/source";
 import { appName, gitConfig } from "@/lib/shared";
 
 export const revalidate = false;

@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock, Mock
 
-import pytest
 from nonebot.exception import FinishedException
+import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.contracts import (
     SubpluginLLMError,
@@ -9,8 +9,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.contracts import (
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image import (
     handler,
     i18n,
-)
-from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image import (
     intent as intent_boundary,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.client import (

@@ -9,8 +9,8 @@
 
 """
 
-import platform
 from pathlib import Path
+import platform
 from typing import Any, Literal, cast
 
 from nonebot import get_driver, get_plugin_config, require

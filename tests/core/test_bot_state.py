@@ -65,15 +65,13 @@ async def test_bot_state_existing_file_preserves_user_state(
     state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
     async with aiofiles.open(state_file, "w", encoding="utf-8") as f:
         await f.write(
-            rtoml.dumps(
-                {
-                    "global": {
-                        "handle_active": False,
-                        "silent_mode": True,
-                    },
-                    "platforms": {"qq": {"handle_active": False}},
-                }
-            )
+            rtoml.dumps({
+                "global": {
+                    "handle_active": False,
+                    "silent_mode": True,
+                },
+                "platforms": {"qq": {"handle_active": False}},
+            })
         )
 
     await load_bot_state()
@@ -86,7 +84,7 @@ async def test_bot_state_existing_file_preserves_user_state(
 
 @pytest.mark.asyncio
 async def test_bot_state_save_writes_default_schema_directive(
-    patched_state_dir,  # noqa: ANN001
+    patched_state_dir: Path,
 ) -> None:
     """Saving always regenerates the code-owned schema directive."""
     bot_state_module._reset_state_for_testing()

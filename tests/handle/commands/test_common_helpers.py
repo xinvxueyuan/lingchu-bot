@@ -3,8 +3,8 @@
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from nonebot.adapters.onebot.v11.exception import ActionFailed as Onebot11ActionFailed
+import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import DatabaseError
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common import (

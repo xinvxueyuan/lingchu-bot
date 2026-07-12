@@ -47,10 +47,7 @@ describe("Mermaid", () => {
     const sanitizedSvg = sanitizeMermaidSvg(
       '<svg><style>.node{fill:red}</style><script>alert(1)</script><g onclick="alert(1)"><text>safe</text></g></svg>',
     );
-    const element = new DOMParser().parseFromString(
-      sanitizedSvg,
-      "image/svg+xml",
-    ).documentElement;
+    const element = new DOMParser().parseFromString(sanitizedSvg, "image/svg+xml").documentElement;
 
     expect(element.querySelector("style")?.textContent).toBe(".node{fill:red}");
     expect(element.querySelector("script")).not.toBeInTheDocument();
@@ -76,7 +73,7 @@ describe("Mermaid", () => {
       bindFunctions,
     );
 
-    expect(container.querySelector("svg text")?.textContent).toBe("safe");
+    expect(container.querySelector(":scope svg text")?.textContent).toBe("safe");
     expect(bindFunctions).toHaveBeenCalledWith(container);
   });
 
@@ -85,9 +82,7 @@ describe("Mermaid", () => {
     const bindFunctions = vi.fn();
     const domParserSpy = vi.spyOn(globalThis, "DOMParser");
 
-    container.append(
-      document.createElementNS("http://www.w3.org/2000/svg", "svg"),
-    );
+    container.append(document.createElementNS("http://www.w3.org/2000/svg", "svg"));
     domParserSpy.mockImplementation(function DOMParserMock() {
       const doc = document.implementation.createDocument(
         "http://www.w3.org/1999/xhtml",

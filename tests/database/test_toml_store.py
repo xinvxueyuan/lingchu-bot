@@ -22,9 +22,9 @@ from __future__ import annotations
 
 import asyncio
 import os
+from pathlib import Path
 import shutil
 import tempfile
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import patch
 

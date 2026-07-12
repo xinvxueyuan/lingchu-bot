@@ -4,10 +4,7 @@ import { zhCN } from "@fumadocs/language/zh-cn";
 import { i18n } from "./i18n";
 import { appName, gitConfig } from "./shared";
 
-export const translations = i18n
-  .translations()
-  .extend(uiTranslations())
-  .preset("zh", zhCN());
+export const translations = i18n.translations().extend(uiTranslations()).preset("zh", zhCN());
 
 const labels = {
   en: {

@@ -1,12 +1,5 @@
 "use client";
-import {
-  lazy,
-  type RefObject,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { lazy, type RefObject, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type {
   ForceGraphMethods,
   ForceGraphProps,
@@ -56,7 +49,12 @@ export function GraphView(props: GraphViewProps) {
       ref={ref}
       className="relative border h-[600px] [&_canvas]:size-full rounded-xl overflow-hidden bg-fd-background"
     >
-      {mount && <ClientOnly {...props} containerRef={ref} />}
+      {mount && (
+        <ClientOnly
+          {...props}
+          containerRef={ref}
+        />
+      )}
     </div>
   );
 }
@@ -80,7 +78,8 @@ function ClientOnly({
     hoveredRef.current = node;
 
     if (node) {
-      const coords = graph.graph2ScreenCoords(node.x!, node.y!);
+      if (node.x == null || node.y == null) return;
+      const coords = graph.graph2ScreenCoords(node.x, node.y);
       setTooltip({
         x: coords.x + 4,
         y: coords.y + 4,
@@ -94,17 +93,17 @@ function ClientOnly({
   const nodeCanvasObject: ForceGraphProps["nodeCanvasObject"] = (node, ctx) => {
     const container = containerRef.current;
     if (!container) return;
+    if (node.x == null || node.y == null) return;
     const style = getComputedStyle(container);
     const fontSize = 14;
     const radius = 5;
+    const text = node["text"] as string;
 
     ctx.beginPath();
-    ctx.arc(node.x!, node.y!, radius, 0, 2 * Math.PI, false);
+    ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
 
     const hoverNode = hoveredRef.current;
-    const isActive =
-      hoverNode?.id === node.id ||
-      hoverNode?.neighbors?.includes(node.id as string);
+    const isActive = hoverNode?.id === node.id || hoverNode?.neighbors?.includes(node.id as string);
 
     ctx.fillStyle = isActive
       ? style.getPropertyValue("--color-fd-primary")
@@ -115,7 +114,7 @@ function ClientOnly({
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = getComputedStyle(container).getPropertyValue("color");
-    ctx.fillText(node.text, node.x!, node.y! + radius + fontSize);
+    ctx.fillText(text, node.x, node.y + radius + fontSize);
   };
 
   const linkColor = (link: Link) => {
@@ -173,7 +172,7 @@ function ClientOnly({
         linkColor={linkColor}
         onNodeHover={handleNodeHover}
         onNodeClick={(node) => {
-          router.push(node.url);
+          void router.push(node.url);
         }}
         linkWidth={2}
         enableNodeDrag

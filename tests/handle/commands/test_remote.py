@@ -4,13 +4,13 @@ import hashlib
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
-import pytest
 from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
 from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent as OneBot11GroupMessageEvent,
 )
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 from nonebot_plugin_alconna.uniseg import At
+import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     remote as remote_module,

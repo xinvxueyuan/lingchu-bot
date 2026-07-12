@@ -1,5 +1,5 @@
-import { register } from 'fumadocs-mdx/node';
 import { registerHooks } from 'node:module';
+import { register } from 'fumadocs-mdx/node';
 import {
     type FileObject,
     type ScanResult,

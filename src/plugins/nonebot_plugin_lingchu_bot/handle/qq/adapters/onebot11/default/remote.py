@@ -1,7 +1,7 @@
 """Remote management handlers for OneBot V11 adapter."""
 
-import re
 from dataclasses import dataclass
+import re
 from typing import Any
 
 from nonebot import logger, require
@@ -12,8 +12,7 @@ from nonebot.adapters.onebot.v11.event import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 
 require("nonebot_plugin_alconna")
-from nonebot_plugin_alconna.uniseg import At
-from nonebot_plugin_alconna.uniseg import Image as UniImage
+from nonebot_plugin_alconna.uniseg import At, Image as UniImage
 
 from ......core.runtime_config import get_handle_config_manager
 from ......database.orm_crud import DatabaseError

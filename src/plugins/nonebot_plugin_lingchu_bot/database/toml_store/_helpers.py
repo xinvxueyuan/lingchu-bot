@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from copy import deepcopy
-from typing import Any, cast
+import logging
+from typing import Any
 
 import rtoml
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _deepcopy_async[T](value: T) -> T:
-    return cast("T", await asyncio.to_thread(deepcopy, value))
+    return await asyncio.to_thread(deepcopy, value)
 
 
 def _normalize_toml_value(value: Any, *, in_list: bool = False) -> Any:

@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (5096 symbols, 9542 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (5112 symbols, 9549 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -168,6 +168,18 @@ The project enforces a unified code style across Python and frontend workspaces:
 - **Format workflow**: `task format` runs Ruff format → Prettier → markdownlint --fix. `task fix` runs Ruff check --fix → Ruff format → Prettier → ty check --fix → markdownlint --fix.
 - **Dead scaffolding removed**: `packages/eslint-config/` and `packages/ui/` (Turborepo template leftovers, not consumed by any app). `apps/docs` has its own `eslint.config.mjs`.
 - **Ignore comment governance**: Inline `# noqa`, `# type: ignore`, `# pyright: ignore`, `# ty: ignore`, and file-level `# ruff: noqa` are prohibited in `src/`. All legitimate suppressions MUST live in `pyproject.toml` `[tool.ruff.lint.per-file-ignores]` with a `# comment` justification per entry. Module-level `# pyright: reportMissingImports=false` is allowed for optional-dependency imports. Frontend `@ts-ignore` is banned via `@typescript-eslint/ban-ts-comment`; use `@ts-expect-error` with a description instead. Pre-commit Phase 2.5 warns on new `# noqa` in staged `src/*.py`; CI `ignore-comment-audit` job posts a PR comment on regressions.
+- **Aggressive Toolchain Strategy (2026 future-facing)**: The project commits to a future-facing toolchain baseline; the rules below are non-negotiable unless explicitly rolled back.
+  - Ruff: `preview = true` + `explicit-preview-rules = true` for lint and format, proactively adopting the 2026 style guide; `future-annotations = true`, explicit `isort`, `task-tags`.
+  - Pyright: `typeCheckingMode = "strict"`; NoneBot framework-constrained handler signatures are centrally managed through equivalent `per-file-ignores` config, no inline `# pyright: ignore`.
+  - ty: strict mode via `[tool.ty]` + `[[tool.ty.overrides]]`; Taskfile MUST NOT mask failures with `|| true`.
+  - TypeScript: strictest four-pack (`exactOptionalPropertyTypes`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `noUnusedLocals`) + `verbatimModuleSyntax` in `packages/typescript-config/base.json`.
+  - ESLint: type-aware rule set (`no-floating-promises`, `no-misused-promises`, etc.) with `projectService`; `eslint-plugin-import-x` + `eslint-plugin-unicorn` enforce `import/order`, `import/no-cycle`, `unicorn/filename-case`.
+  - Prettier: `printWidth = 100`, `singleAttributePerLine = true`.
+  - pytest: `--strict-markers --strict-config`; `[tool.coverage.run]` with `branch = true`.
+  - Python baseline: 3.13 (downgrade guard), `requires-python = ">=3.13, <4.0"`, `target-version = "py313"`, do NOT upgrade to 3.14.
+  - Docker Compose: no `version` field, `name: lingchu-bot`, `restart: unless-stopped`.
+  - prek: `prek.toml` explicitly declares ruff/ty hooks, decoupled from husky, no duplicate execution.
+  - CI: all workflows top-level `permissions: contents: read`, job-level elevated as needed with comment justification.
 
 ### Architecture Decisions
 
@@ -289,10 +301,11 @@ task ci
 
 | Changed | Minimum checks before commit |
 | --- | --- |
-| Python source only | Ruff check + Ruff format check + Pyright + ty + relevant pytest |
-| Docs site only | `pnpm --filter docs lint` (covers `.ts/.tsx/.mdx` via ESLint flat config + eslint-plugin-mdx) + docs tests + Playwright hook smoke + docs type check + link lint when content changes |
+| Python source only | Ruff check + Ruff format check + Pyright strict + ty strict (`uv run -m ty check --output-format github`) + relevant pytest |
+| Docs site only | `pnpm --filter docs lint` (covers `.ts/.tsx/.mdx` via ESLint flat config + eslint-plugin-mdx; type-aware rules via `projectService`) + docs tests + Playwright hook smoke + docs type check + link lint when content changes |
 | Markdown only | `pnpm exec markdownlint-cli2` |
 | i18n strings | `task i18n` + relevant pytest |
+| Infrastructure config | `docker compose config` + `prek run --all-files` + `task ci:typecheck` |
 | Mixed / uncertain | `task check && task test` |
 
 Prefer granular checks during development. Full `task check && task test` is for pre-commit or broad verification.

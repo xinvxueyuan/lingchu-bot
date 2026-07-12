@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
+import json
 from typing import Any
 
 from ..database.models import ScheduledJob

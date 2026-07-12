@@ -166,6 +166,18 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 - **格式化工作流**：`task format` 运行 Ruff format → Prettier → markdownlint --fix。`task fix` 运行 Ruff check --fix → Ruff format → Prettier → ty check --fix → markdownlint --fix。
 - **已移除的无用脚手架**：`packages/eslint-config/` 和 `packages/ui/`（Turborepo 模板残留，未被任何 app 引用）。`apps/docs` 有自己的 `eslint.config.mjs`。
 - **忽略注释治理**：`src/` 中禁止内联 `# noqa`、`# type: ignore`、`# pyright: ignore`、`# ty: ignore` 和文件级 `# ruff: noqa`。所有合法抑制 MUST 集中在 `pyproject.toml` `[tool.ruff.lint.per-file-ignores]` 中，每个条目附带 `# comment` 理由。模块级 `# pyright: reportMissingImports=false` 仅用于可选依赖导入。前端 `@ts-ignore` 通过 `@typescript-eslint/ban-ts-comment` 禁用；改用 `@ts-expect-error` 并附带描述。Pre-commit Phase 2.5 对 staged `src/*.py` 中新增的 `# noqa` 发出告警；CI `ignore-comment-audit` job 在 PR 中对回归发评论。
+- **激进工具链策略（2026 面向未来版）**：项目承诺面向未来的工具链基线；以下规则不可违反，除非显式回滚。
+  - Ruff：lint 与 format 启用 `preview = true` + `explicit-preview-rules = true`，主动采用 2026 style guide；`future-annotations = true`、显式 `isort`、`task-tags`。
+  - Pyright：`typeCheckingMode = "strict"`；NoneBot 框架约束的 handler 签名通过 `per-file-ignores` 等价配置集中治理，禁止内联 `# pyright: ignore`。
+  - ty：通过 `[tool.ty]` + `[[tool.ty.overrides]]` 启用 strict 模式；Taskfile 不得用 `|| true` 掩盖失败。
+  - TypeScript：`packages/typescript-config/base.json` 启用 strictest 四件套（`exactOptionalPropertyTypes`、`noImplicitOverride`、`noPropertyAccessFromIndexSignature`、`noUnusedLocals`）+ `verbatimModuleSyntax`。
+  - ESLint：启用 type-aware 规则集（`no-floating-promises`、`no-misused-promises` 等）并配置 `projectService`；`eslint-plugin-import-x` + `eslint-plugin-unicorn` 强制 `import/order`、`import/no-cycle`、`unicorn/filename-case`。
+  - Prettier：`printWidth = 100`，`singleAttributePerLine = true`。
+  - pytest：`--strict-markers --strict-config`；`[tool.coverage.run]` 启用 `branch = true`。
+  - Python 基线：3.13（降级守卫），`requires-python = ">=3.13, <4.0"`，`target-version = "py313"`，不升级至 3.14。
+  - Docker Compose：移除 `version` 字段，新增 `name: lingchu-bot`，使用 `restart: unless-stopped`。
+  - prek：`prek.toml` 显式声明 ruff/ty 钩子，与 husky 解耦，避免重复执行。
+  - CI：所有 workflow 顶层 `permissions: contents: read`，job 级按需提升并附注释说明。
 
 ### Architecture Decisions
 
@@ -287,10 +299,11 @@ task ci
 
 | 变更 | 提交前最低检查 |
 | --- | --- |
-| 仅 Python source | Ruff check + Ruff format check + Pyright + ty + relevant pytest |
-| 仅 docs site | `pnpm --filter docs lint`（通过 ESLint flat config + eslint-plugin-mdx 覆盖 `.ts/.tsx/.mdx`）+ docs tests + Playwright hook smoke + docs type check + content 变更时 link lint |
+| 仅 Python source | Ruff check + Ruff format check + Pyright strict + ty strict（`uv run -m ty check --output-format github`）+ relevant pytest |
+| 仅 docs site | `pnpm --filter docs lint`（通过 ESLint flat config + eslint-plugin-mdx 覆盖 `.ts/.tsx/.mdx`；type-aware 规则经 `projectService` 启用）+ docs tests + Playwright hook smoke + docs type check + content 变更时 link lint |
 | 仅 Markdown | `pnpm exec markdownlint-cli2` |
 | i18n strings | `task i18n` + relevant pytest |
+| 基础设施配置 | `docker compose config` + `prek run --all-files` + `task ci:typecheck` |
 | 混合 / 不确定 | `task check && task test` |
 
 开发中优先 granular checks。完整 `task check && task test` 用于提交前或大范围验证。

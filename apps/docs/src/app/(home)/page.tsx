@@ -22,16 +22,8 @@ const features = [
 ] as const;
 
 const docLinks = [
-  [
-    "Start",
-    "Configure the active QQ adapter and platform identity model.",
-    "/docs/platforms/qq",
-  ],
-  [
-    "Operate",
-    "Use documented group commands for daily moderation.",
-    "/docs/user-guide/commands",
-  ],
+  ["Start", "Configure the active QQ adapter and platform identity model.", "/docs/platforms/qq"],
+  ["Operate", "Use documented group commands for daily moderation.", "/docs/user-guide/commands"],
   [
     "Extend",
     "Follow the developer guide for tests, i18n, and delivery checks.",
@@ -51,9 +43,8 @@ export default function HomePage() {
             Lingchu Bot
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-8 text-fd-muted-foreground md:text-lg">
-            A code-driven operations bot for QQ groups: moderation commands,
-            permission-aware menus, runtime switches, and docs that describe
-            what actually exists.
+            A code-driven operations bot for QQ groups: moderation commands, permission-aware menus,
+            runtime switches, and docs that describe what actually exists.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
@@ -81,9 +72,7 @@ export default function HomePage() {
           <div className="mb-5 flex items-center justify-between gap-4 border-b pb-4">
             <div>
               <h2 className="text-base font-semibold">Operator snapshot</h2>
-              <p className="text-sm text-fd-muted-foreground">
-                QQ / OneBot V11 / permission gate
-              </p>
+              <p className="text-sm text-fd-muted-foreground">QQ / OneBot V11 / permission gate</p>
             </div>
             <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-300">
               active
@@ -96,9 +85,7 @@ export default function HomePage() {
                 className="min-w-0 rounded-md border bg-fd-background p-4"
               >
                 <h3 className="text-sm font-semibold">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-fd-muted-foreground">
-                  {description}
-                </p>
+                <p className="mt-2 text-sm leading-6 text-fd-muted-foreground">{description}</p>
               </article>
             ))}
           </div>
@@ -114,9 +101,7 @@ export default function HomePage() {
               className="rounded-md border bg-fd-card p-5 hover:bg-fd-muted/40"
             >
               <h2 className="text-base font-semibold">{title}</h2>
-              <p className="mt-2 text-sm leading-6 text-fd-muted-foreground">
-                {description}
-              </p>
+              <p className="mt-2 text-sm leading-6 text-fd-muted-foreground">{description}</p>
             </Link>
           ))}
         </div>

@@ -14,8 +14,8 @@ import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.core import (
     handle_config_manager as manager_module,
+    schemas as schemas_module,
 )
-from src.plugins.nonebot_plugin_lingchu_bot.core import schemas as schemas_module
 from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_defaults import (
     HANDLE_DEFAULTS_REGISTRY,
 )

@@ -12,8 +12,7 @@ from ..core.schemas import install_schemas
 from ..handle import menu as menu_module
 from ..handle.menu import import_handle as menu_import_handle
 from ..handle.qq.adapters import import_handle as group_import_handle
-from ..i18n import _async as _
-from ..i18n import warm_translation_cache
+from ..i18n import _async as _, warm_translation_cache
 from ..permissions import validate_and_seed_permission_system
 from ..platforms import (
     resolve_enabled_adapters,

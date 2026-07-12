@@ -353,12 +353,10 @@ def _build_merge_sql(
         insert_param_names[key]: value for key, value in insert_values.items()
     }
     if explicit_update_values is not None:
-        params.update(
-            {
-                update_param_names[key]: value
-                for key, value in explicit_update_values.items()
-            }
-        )
+        params.update({
+            update_param_names[key]: value
+            for key, value in explicit_update_values.items()
+        })
     return merge_sql, params
 
 
@@ -532,13 +530,11 @@ def _is_oracle_unique_constraint_violation(error: SQLAlchemyError) -> bool:
         visited.add(id(current))
         if "ORA-00001" in str(current):
             return True
-        stack.extend(
-            [
-                getattr(current, "orig", None),
-                current.__cause__,
-                current.__context__,
-            ]
-        )
+        stack.extend([
+            getattr(current, "orig", None),
+            current.__cause__,
+            current.__context__,
+        ])
     return False
 
 

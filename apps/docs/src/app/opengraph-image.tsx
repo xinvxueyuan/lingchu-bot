@@ -19,7 +19,11 @@ export const contentType = "image/png";
 
 export default async function Image() {
   return new ImageResponse(
-    <DefaultImage title={appName} description="Documentation" site={appName} />,
+    <DefaultImage
+      title={appName}
+      description="Documentation"
+      site={appName}
+    />,
     size,
   );
 }

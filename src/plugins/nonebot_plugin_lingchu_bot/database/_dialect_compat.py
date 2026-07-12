@@ -26,20 +26,13 @@ from typing import Any
 
 from sqlalchemy import (
     Boolean as SABoolean,
-)
-from sqlalchemy import (
     DateTime as SADateTime,
-)
-from sqlalchemy import (
     String as SAString,
-)
-from sqlalchemy import (
     Text as SAText,
 )
 from sqlalchemy.dialects.mssql import NVARCHAR as MSSQL_NVARCHAR
 from sqlalchemy.dialects.mysql import DATETIME as MYSQL_DATETIME
-from sqlalchemy.dialects.oracle import CLOB as ORACLE_CLOB
-from sqlalchemy.dialects.oracle import NUMBER as ORACLE_NUMBER
+from sqlalchemy.dialects.oracle import CLOB as ORACLE_CLOB, NUMBER as ORACLE_NUMBER
 
 # SQL Server ``NVARCHAR`` 上限 4000；超过时切到 ``NVARCHAR(MAX)``。
 # SQL Server ``NVARCHAR`` upper bound; switch to ``NVARCHAR(MAX)`` above it.

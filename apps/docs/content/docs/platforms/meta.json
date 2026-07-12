@@ -3,8 +3,5 @@
   "description": "Platform-specific documentation separated by platform, protocol, and implementation",
   "icon": "Layers",
   "root": true,
-  "pages": [
-    "index",
-    "qq"
-  ]
+  "pages": ["index", "qq"]
 }

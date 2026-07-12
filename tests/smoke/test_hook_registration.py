@@ -26,11 +26,9 @@ def _dependent_calls(registry: Any) -> set[Any]:
 async def check_hook_registration() -> None:
     """Verify lifecycle, bot_connection, message_store and api_audit hooks.
 
-    Re-importing the hooks package is a no-op if it is already loaded; keeping
-    the import explicit makes the test self-contained when executed outside of
-    pytest.
+    Importing hooks.handlers triggers the parent hooks/__init__.py, which
+    registers all runtime hooks with NoneBot as a side effect.
     """
-    from src.plugins.nonebot_plugin_lingchu_bot import hooks  # noqa: F401
     from src.plugins.nonebot_plugin_lingchu_bot.hooks.handlers import (
         api_audit,
         bot_connection,

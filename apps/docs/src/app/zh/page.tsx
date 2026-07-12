@@ -7,14 +7,8 @@ export const metadata = getHomeMetadata("zh");
 const githubUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
 
 const features = [
-  [
-    "权限感知命令",
-    "菜单与处理器使用同一套 command key，只展示操作者能执行的动作。",
-  ],
-  [
-    "OneBot V11 优先",
-    "QQ 群操作围绕当前启用的 OneBot V11 路径展开，不隐藏适配器边界。",
-  ],
+  ["权限感知命令", "菜单与处理器使用同一套 command key，只展示操作者能执行的动作。"],
+  ["OneBot V11 优先", "QQ 群操作围绕当前启用的 OneBot V11 路径展开，不隐藏适配器边界。"],
   ["运行期控制", "静默模式和开关机门控可以暂停高噪声回复，同时保留恢复命令。"],
 ] as const;
 
@@ -69,9 +63,7 @@ export default function ChineseHomePage() {
           <div className="mb-5 flex items-center justify-between gap-4 border-b pb-4">
             <div>
               <h2 className="text-base font-semibold">运营概览</h2>
-              <p className="text-sm text-fd-muted-foreground">
-                QQ / OneBot V11 / 权限门控
-              </p>
+              <p className="text-sm text-fd-muted-foreground">QQ / OneBot V11 / 权限门控</p>
             </div>
             <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-300">
               active
@@ -84,9 +76,7 @@ export default function ChineseHomePage() {
                 className="min-w-0 rounded-md border bg-fd-background p-4"
               >
                 <h3 className="text-sm font-semibold">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-fd-muted-foreground">
-                  {description}
-                </p>
+                <p className="mt-2 text-sm leading-6 text-fd-muted-foreground">{description}</p>
               </article>
             ))}
           </div>
@@ -102,9 +92,7 @@ export default function ChineseHomePage() {
               className="rounded-md border bg-fd-card p-5 hover:bg-fd-muted/40"
             >
               <h2 className="text-base font-semibold">{title}</h2>
-              <p className="mt-2 text-sm leading-6 text-fd-muted-foreground">
-                {description}
-              </p>
+              <p className="mt-2 text-sm leading-6 text-fd-muted-foreground">{description}</p>
             </Link>
           ))}
         </div>

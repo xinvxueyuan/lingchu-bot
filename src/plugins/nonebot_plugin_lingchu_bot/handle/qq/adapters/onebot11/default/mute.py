@@ -1,5 +1,5 @@
-import json
 from dataclasses import dataclass
+import json
 from typing import Any
 
 from nonebot import logger, require
@@ -78,8 +78,6 @@ async def _verified_recall_message(
         message = await bot.get_msg(message_id=message_id)
     except OneBot11ActionFailed:
         logger.debug(f"撤回校验失败，消息不存在或不可访问: message_id={message_id}")
-        return None
-    if not isinstance(message, dict):
         return None
     if not _message_type_matches(message) or not _group_id_matches(message, group_id):
         return None
@@ -319,11 +317,10 @@ async def onebot11_mute(
         return await member_mute_cmd.finish(await _("该功能已禁用"))
 
     # 读取配置参数
-    default_mute_duration = config.defaults.get("mute_duration", 300)
     default_reason_text = config.defaults.get("default_reason", "管理员操作")
 
-    # 如果用户没有提供duration，使用配置中的默认值
-    actual_duration = duration if duration is not None else default_mute_duration
+    # duration 参数由命令解析器保证为 int
+    actual_duration = duration
 
     # 1. 参数合法性检查
     if actual_duration < MUTE_DURATION_MIN:

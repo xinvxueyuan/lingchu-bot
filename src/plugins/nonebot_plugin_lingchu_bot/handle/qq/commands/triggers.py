@@ -199,54 +199,48 @@ _DEFAULT_COMMAND_TRIGGERS = {
     "member_unmute": CommandTrigger(
         chinese="解禁",
         english="unmute",
-        chinese_aliases=frozenset(
-            {
-                "解禁用户",
-                "解禁群成员",
-                "解禁成员",
-                "解禁",
-                "解封",
-                "解除封禁",
-                "解除禁言",
-            }
-        ),
+        chinese_aliases=frozenset({
+            "解禁用户",
+            "解禁群成员",
+            "解禁成员",
+            "解禁",
+            "解封",
+            "解除封禁",
+            "解除禁言",
+        }),
         english_aliases=frozenset({"pardon", "unmute-member"}),
     ),
     "whole_mute": CommandTrigger(
         chinese="全员禁言",
         english="mute-all",
-        chinese_aliases=frozenset(
-            {
-                "开启全体禁言",
-                "全禁",
-                "全禁言",
-                "全体禁言",
-                "全体禁言开启",
-                "全员禁言开启",
-                "开启全员禁言",
-                "禁言群",
-            }
-        ),
+        chinese_aliases=frozenset({
+            "开启全体禁言",
+            "全禁",
+            "全禁言",
+            "全体禁言",
+            "全体禁言开启",
+            "全员禁言开启",
+            "开启全员禁言",
+            "禁言群",
+        }),
         english_aliases=frozenset({"mute-group", "enable-whole-mute"}),
     ),
     "whole_unmute": CommandTrigger(
         chinese="全体解禁",
         english="unmute-all",
-        chinese_aliases=frozenset(
-            {
-                "全员解禁",
-                "关闭全体禁言",
-                "解除全体禁言",
-                "解禁全体",
-                "解禁全员",
-                "全解",
-                "全解禁",
-                "全体解禁",
-                "关闭全员禁言",
-                "解除全员禁言",
-                "解禁群",
-            }
-        ),
+        chinese_aliases=frozenset({
+            "全员解禁",
+            "关闭全体禁言",
+            "解除全体禁言",
+            "解禁全体",
+            "解禁全员",
+            "全解",
+            "全解禁",
+            "全体解禁",
+            "关闭全员禁言",
+            "解除全员禁言",
+            "解禁群",
+        }),
         english_aliases=frozenset({"unmute-group", "disable-whole-mute"}),
     ),
     "recall_message": CommandTrigger(
@@ -421,9 +415,10 @@ _DEFAULT_COMMAND_TRIGGERS = {
         chinese="群发公告",
         english="mass-announcement",
         chinese_aliases=frozenset({"批量公告", "多群公告"}),
-        english_aliases=frozenset(
-            {"broadcast-announcement", "multi-group-announcement"}
-        ),
+        english_aliases=frozenset({
+            "broadcast-announcement",
+            "multi-group-announcement",
+        }),
     ),
     "restart_protocol_endpoint": CommandTrigger(
         chinese="重启协议端",

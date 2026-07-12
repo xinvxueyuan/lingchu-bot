@@ -2,8 +2,8 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
+import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.lifecycle import (
     onebot11_quit_group,

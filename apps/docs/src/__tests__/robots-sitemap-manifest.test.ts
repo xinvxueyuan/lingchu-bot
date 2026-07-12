@@ -40,23 +40,17 @@ vi.mock("@/lib/source", () => ({
           data: { title: "Commands" },
         };
       }
-      return undefined;
+      return;
     }),
   },
   getAlternateUrl: vi.fn((page: { slugs: string[]; locale: "en" | "zh" }) => {
-    if (
-      page.locale === "zh" &&
-      page.slugs.join("/") === "user-guide/commands"
-    ) {
+    if (page.locale === "zh" && page.slugs.join("/") === "user-guide/commands") {
       return "/docs/user-guide/commands";
     }
-    if (
-      page.locale === "en" &&
-      page.slugs.join("/") === "user-guide/commands"
-    ) {
+    if (page.locale === "en" && page.slugs.join("/") === "user-guide/commands") {
       return "/zh/docs/user-guide/commands";
     }
-    return undefined;
+    return;
   }),
 }));
 
@@ -98,9 +92,7 @@ describe("app/sitemap", () => {
     const out = sitemap();
     const urls = out.map((entry) => entry.url);
     expect(urls).toContain("https://lingchu.zone.id/docs/user-guide/commands");
-    expect(urls).toContain(
-      "https://lingchu.zone.id/zh/docs/user-guide/commands",
-    );
+    expect(urls).toContain("https://lingchu.zone.id/zh/docs/user-guide/commands");
     expect(urls).toContain(
       "https://lingchu.zone.id/docs/developer-guide/architecture/introduction",
     );
@@ -108,16 +100,12 @@ describe("app/sitemap", () => {
 
   it("attaches alternates.languages to docs pages", () => {
     const out = sitemap();
-    const en = out.find(
-      (e) => e.url === "https://lingchu.zone.id/docs/user-guide/commands",
-    );
+    const en = out.find((e) => e.url === "https://lingchu.zone.id/docs/user-guide/commands");
     expect(en?.alternates?.languages).toEqual({
       en: "https://lingchu.zone.id/docs/user-guide/commands",
       zh: "https://lingchu.zone.id/zh/docs/user-guide/commands",
     });
-    const zh = out.find(
-      (e) => e.url === "https://lingchu.zone.id/zh/docs/user-guide/commands",
-    );
+    const zh = out.find((e) => e.url === "https://lingchu.zone.id/zh/docs/user-guide/commands");
     expect(zh?.alternates?.languages).toEqual({
       zh: "https://lingchu.zone.id/zh/docs/user-guide/commands",
       en: "https://lingchu.zone.id/docs/user-guide/commands",
@@ -127,9 +115,7 @@ describe("app/sitemap", () => {
   it("emits a single-locale alternate entry when no counterpart exists", () => {
     const out = sitemap();
     const orphan = out.find(
-      (e) =>
-        e.url ===
-        "https://lingchu.zone.id/docs/developer-guide/architecture/introduction",
+      (e) => e.url === "https://lingchu.zone.id/docs/developer-guide/architecture/introduction",
     );
     expect(orphan?.alternates?.languages).toEqual({
       en: "https://lingchu.zone.id/docs/developer-guide/architecture/introduction",
@@ -138,13 +124,9 @@ describe("app/sitemap", () => {
 
   it("parses lastModified into a Date instance when provided", () => {
     const out = sitemap();
-    const en = out.find(
-      (e) => e.url === "https://lingchu.zone.id/docs/user-guide/commands",
-    );
+    const en = out.find((e) => e.url === "https://lingchu.zone.id/docs/user-guide/commands");
     expect(en?.lastModified).toBeInstanceOf(Date);
-    expect((en?.lastModified as Date).toISOString()).toBe(
-      "2025-01-01T00:00:00.000Z",
-    );
+    expect((en?.lastModified as Date).toISOString()).toBe("2025-01-01T00:00:00.000Z");
   });
 });
 

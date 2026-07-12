@@ -45,7 +45,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: toAbsolute(base, "/"),
       changeFrequency: "weekly",
-      priority: 1.0,
+      priority: 1,
       alternates: {
         languages: { en: toAbsolute(base, "/"), zh: toAbsolute(base, "/zh") },
       },
@@ -53,7 +53,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: toAbsolute(base, "/zh"),
       changeFrequency: "weekly",
-      priority: 1.0,
+      priority: 1,
       alternates: {
         languages: { en: toAbsolute(base, "/"), zh: toAbsolute(base, "/zh") },
       },
@@ -61,9 +61,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ];
 
   const docsEntries: MetadataRoute.Sitemap = source.getPages().map((page) => {
-    const lastModified = page.data.lastModified
-      ? new Date(page.data.lastModified)
-      : undefined;
+    const lastModified = page.data.lastModified ? new Date(page.data.lastModified) : undefined;
     return {
       url: toAbsolute(base, page.url),
       lastModified,

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import json
 import logging
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from ..core.runtime_config import runtime_config

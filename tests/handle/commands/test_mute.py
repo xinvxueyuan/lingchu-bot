@@ -3,8 +3,8 @@
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from nonebot_plugin_alconna.uniseg import At
+import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     mute as mute_module,

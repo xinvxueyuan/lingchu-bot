@@ -16,7 +16,7 @@ license-files = [
     "CLA.md",
     "Repository-Policy.md",
 ]
-requires-python = ">=3.12, <4.0"
+requires-python = ">=3.13, <4.0"
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Environment :: Plugins",
@@ -144,9 +144,14 @@ extend-exclude = ["skills", ".agents/skills", ".claude/skills", ".trae/skills"]
 
 [tool.ruff.format]
 line-ending = "lf"
+preview = true
 
 [tool.ruff.lint]
 # For more rules, see https://docs.astral.sh/ruff/rules/.
+preview = true
+explicit-preview-rules = true
+future-annotations = true
+task-tags = ["TODO", "FIXME", "XXX", "HACK", "BUG", "NOTE"]
 select = [
     "F",     # Pyflakes
     "W",     # pycodestyle warnings
@@ -190,9 +195,9 @@ select = [
     "RUF",  # Ruff-specific rules
 ]
 ignore = [
-    "E402",  # module-import-not-at-top-of-file  # nonebot2 require() violates this
     "B008",  # function-call-in-default-argument  # nonebot2 Depends() without Annotated violates this
-    "UP037", # quoted-annotation
+    # UP037 (quoted-annotation) removed: with future-annotations = true, quoted
+    # annotations are unnecessary and UP037 auto-fixes them by unquoting.
     # "RUF001",  # ambiguous-unicode-character-string
     # "RUF002",  # ambiguous-unicode-character-docstring
     # "RUF003",  # ambiguous-unicode-character-comment
@@ -245,6 +250,8 @@ allowed-confusables = [
     "PLR2004", # magic-value-comparison (tests often use magic values for assertions)
     "E501",    # line-too-long (test assertions can be verbose)
     "F841",    # unused-variable (fixtures may assign variables for clarity)
+    "TC002",   # typing-only-third-party-import (e.g. pytest used as @pytest.mark decorator)
+    "TC003",   # typing-only-standard-library-import (tests don't need TYPE_CHECKING optimization)
     "TC005",   # empty-type-checking-block (test files may have empty TYPE_CHECKING blocks)
     # pydocstyle (D) ignores for tests
     "D100",  # missing-module-docstring
@@ -260,44 +267,69 @@ allowed-confusables = [
     "BLE001",  # blind-exception
     "E501",    # line-too-long
     "F541",    # f-string-without-placeholders
+    "TRY003",  # raise-vanilla-args: CI scripts use SystemExit with inline messages
 ]
 # handle handlers may have complex logic with many return paths and NoneBot-mandated parameters
+# E402: nonebot2 require() must precede cross-plugin imports at module level
 "src/plugins/nonebot_plugin_lingchu_bot/handle/**/adapters/onebot11/default/**.py" = [
+    "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
     "PLR0911",  # too-many-return-statements (complex permission and privilege checks)
     "PLR0913",  # too-many-arguments (NoneBot handler + OneBot API signatures)
+    "TC001",    # typing-only-first-party-import (NoneBot evaluates type hints at runtime)
+    "TC002",    # typing-only-third-party-import (Bot/Event imports needed by get_type_hints())
 ]
 # schemas.py embeds JSON Schema strings with intentionally long lines for editor readability
+# E402: nonebot2 require() must precede cross-plugin imports at module level
 "src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py" = [
+    "E402",  # module-import-not-at-top-of-file (nonebot2 require() pattern)
     "E501",  # line-too-long: embedded JSON Schema strings intentionally use long lines
 ]
 
 # TC001/TC002/TC003: NoneBot evaluates forward references at hook registration time;
-# these runtime imports must not be hidden behind TYPE_CHECKING
+# these runtime imports must not be hidden behind TYPE_CHECKING.
+# Additionally, with future-annotations = true in ruff config, TC rules suggest moving
+# type-only imports to TYPE_CHECKING, but most files lack `from __future__ import annotations`,
+# making such fixes unsafe (would break runtime). NoneBot's get_type_hints() also cannot
+# resolve TYPE_CHECKING-only imports during handler/matcher registration.
+# E402: nonebot2 require() must precede cross-plugin imports at module level
 "src/plugins/nonebot_plugin_lingchu_bot/hooks/handlers/message_store.py" = ["TC002"]
 "src/plugins/nonebot_plugin_lingchu_bot/hooks/handlers/bot_connection.py" = ["TC002"]
-"src/plugins/nonebot_plugin_lingchu_bot/database/models/scheduler.py" = ["TC003"]
-"src/plugins/nonebot_plugin_lingchu_bot/database/models/subject_policy.py" = ["TC003"]
-"src/plugins/nonebot_plugin_lingchu_bot/database/models/blocklist.py" = ["TC003"]
-"src/plugins/nonebot_plugin_lingchu_bot/database/models/registry.py" = ["TC003"]
-"src/plugins/nonebot_plugin_lingchu_bot/database/models/identity.py" = ["TC003"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/models/scheduler.py" = ["TC003", "E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/models/subject_policy.py" = ["TC003", "E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/models/blocklist.py" = ["TC003", "E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/models/registry.py" = ["TC003", "E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/models/identity.py" = ["TC003", "E402"]
+# TC003: stdlib imports (Coroutine, Path, Callable) used at runtime or in annotations
+# evaluated by NoneBot; files lack `from __future__ import annotations`.
+"src/plugins/nonebot_plugin_lingchu_bot/core/async_utils.py" = ["TC003"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/__init__.py" = ["TC003"]
+# TC002: third-party imports (Plugin, Matcher) needed at runtime for NoneBot registration.
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/loader.py" = ["TC002"]
+# TC001: first-party imports (NovelAIGenerationPlan) used at runtime in payload construction.
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/payload.py" = ["TC001"]
 
 # ARG001: NoneBot handler signatures require bot/event params even when unused
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/napcat/announcement.py" = ["ARG001"]
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/bot_state.py" = ["ARG001"]
+# TC001/TC002/TC003: NoneBot evaluates type hints at runtime via get_type_hints();
+# Bot/Event/Path imports must remain at module level for handler registration.
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/napcat/**.py" = ["TC001", "TC002", "TC003"]
 
 # TRY003/TRY004: vanilla exceptions (ValueError/TypeError) are intentional for validation
-"src/plugins/nonebot_plugin_lingchu_bot/core/menu_config.py" = ["TRY003"]
-"src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_manager.py" = ["TRY003", "BLE001"]
-"src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_defaults/__init__.py" = ["TRY003"]
+# E402: nonebot2 require() must precede cross-plugin imports at module level
+"src/plugins/nonebot_plugin_lingchu_bot/core/menu_config.py" = ["TRY003", "E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_manager.py" = ["TRY003", "BLE001", "E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_defaults/__init__.py" = ["TRY003", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/models.py" = ["TRY003"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/tipo.py" = ["TRY003"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/intent.py" = ["TRY003"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/client.py" = ["TRY003"]
-"src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_base.py" = ["TRY003"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_base.py" = ["TRY003", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/database/toml_store/_helpers.py" = ["TRY003"]
 
 # BLE001: startup/probe code uses intentional fail-closed/fail-soft exception handling
-"src/plugins/nonebot_plugin_lingchu_bot/core/bot_state.py" = ["BLE001"]
+# E402: nonebot2 require() must precede cross-plugin imports at module level
+"src/plugins/nonebot_plugin_lingchu_bot/core/bot_state.py" = ["BLE001", "E402", "TC003"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/search.py" = ["BLE001"]
 "src/plugins/nonebot_plugin_lingchu_bot/services/llm.py" = ["BLE001"]
 "src/plugins/nonebot_plugin_lingchu_bot/services/protocol_restart_feedback.py" = ["BLE001"]
@@ -306,7 +338,8 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/database/toml_store/_async_db.py" = ["TRY003", "BLE001"]
 
 # PLW0603: module-level state management is an established pattern in this codebase
-"src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py" = ["PLW0603"]
+# E402: nonebot2 require() must precede cross-plugin imports at module level
+"src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py" = ["PLW0603", "E402"]
 
 # C901/PLR0911: complex functions that are difficult to split without losing readability
 "src/plugins/nonebot_plugin_lingchu_bot/hooks/adapters.py" = ["C901", "PLR0911"]
@@ -317,7 +350,9 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/permissions/subject_policy.py" = ["PLR0913"]
 
 # Combined entries for files needing multiple rule suppressions
+# E402: nonebot2 require() must precede cross-plugin imports at module level
 "src/plugins/nonebot_plugin_lingchu_bot/core/runtime_config.py" = [
+    "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
     "TRY003",  # vanilla exceptions for config validation
     "TRY004",  # TypeError for invalid config types
     "PLW0603",  # module-level state management
@@ -334,28 +369,52 @@ allowed-confusables = [
     "PLR0913",  # parameter-heavy identity group API
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/services/scheduler.py" = [
+    "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
     "PLR0913",  # parameter-heavy scheduler API
     "TRY003",  # vanilla exceptions for validation
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_bulk.py" = [
+    "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
     "TC003",  # runtime stdlib imports needed by NoneBot
     "TRY003",  # vanilla exceptions for CRUD validation
     "PLR0913",  # parameter-heavy generic CRUD functions
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_single.py" = [
+    "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
     "TRY003",  # vanilla exceptions for CRUD validation
     "TC003",  # runtime stdlib imports needed by NoneBot
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/permissions/bootstrap.py" = [
-    "TC001",  # runtime type imports needed by NoneBot
     "TC003",  # runtime stdlib imports needed by NoneBot
     "TRY003",  # vanilla exceptions for validation
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/permissions/admin.py" = [
-    "TC001",  # runtime type imports needed by NoneBot
-    "TC003",  # runtime stdlib imports needed by NoneBot
+    "TC001",  # runtime first-party imports needed by NoneBot
     "TRY003",  # vanilla exceptions for validation
 ]
+
+# E402: nonebot2 require() must precede cross-plugin imports at module level.
+# Preferred fix is function-level require() (per AGENTS.md) as a follow-up refactor.
+"src/plugins/nonebot_plugin_lingchu_bot/core/config.py" = ["E402", "TC003"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/contracts.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/llm_chat/config.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/llm_chat/handler.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/llm_chat/__init__.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/config.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/handler.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/__init__.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/models/message.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/announcement.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/block.py" = ["E402", "TC002"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/bot_state.py" = ["E402", "TC002"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/common.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/kick.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/lifecycle.py" = ["E402", "TC002"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/member.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/mute.py" = ["E402", "TC002"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/profile.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/protect.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/remote.py" = ["E402"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -363,11 +422,53 @@ convention = "google"
 [tool.ruff.lint.pyupgrade]
 keep-runtime-typing = true
 
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "double"
+multiline-quotes = "double"
+docstring-quotes = "double"
+
+[tool.ruff.lint.isort]
+known-first-party = ["nonebot_plugin_lingchu_bot"]
+force-sort-within-sections = true
+combine-as-imports = true
+
 [tool.pyright]
 # For Pylance/Pyright configurations, see https://microsoft.github.io/pyright/#/configuration.
 pythonVersion = "3.13"
 pythonPlatform = "All"
-typeCheckingMode = "standard"
+typeCheckingMode = "strict"
+# Spec-mandated explicit report rules (error-level).
+reportMissingParameterType = "error"
+reportUnnecessaryTypeConstraint = "error"
+reportImplicitOverride = "error"
+# Spec-mandated explicit report rules (warning-level).
+reportShadowedImports = "warning"
+reportImplicitStringConcatenation = "warning"
+reportImportCycles = "warning"
+# Framework-related unknown-type rules relaxed to warning.
+# NoneBot2 and nonebot-plugin-alconna lack complete type stubs; their
+# finish(), on_alconna(), get() etc. emit "partially unknown" types that
+# are false positives, not real type safety issues.
+reportUnknownVariableType = "warning"
+reportUnknownMemberType = "warning"
+reportUnknownArgumentType = "warning"
+reportUnknownLambdaType = "warning"
+reportUnknownParameterType = "warning"
+reportMissingTypeArgument = "warning"
+reportMissingTypeStubs = "none"
+# NoneBot plugin architecture uses cross-module private function access and
+# decorator-based registration; reportUnusedFunction reports false positives.
+reportUnusedFunction = "none"
+# Accessing framework internals (e.g. NoneBot private APIs) is intentional.
+reportPrivateUsage = "warning"
+# Module-level state management is an established pattern (menu.py etc.);
+# PLW0603 is already suppressed in ruff per-file-ignores for the same files.
+reportConstantRedefinition = "warning"
+# Deprecated function usage flagged by typeshed; fix when actionable.
+reportDeprecated = "warning"
+# Defensive runtime isinstance checks on typed parameters are intentional;
+# type annotations cannot guarantee runtime types (e.g. user-supplied config).
+reportUnnecessaryIsInstance = "warning"
 include = ["src", "tests"]
 # skills 排除列表同步至 prek.toml
 exclude = [
@@ -388,6 +489,12 @@ exclude = [
     "tmp",
 ]
 
+[tool.ty]
+# ty is pre-1.0 (0.0.x); it checks all rules by default and exits non-zero on
+# any warning or error diagnostic. There is no global "strict" toggle — the
+# default behavior is already strict. Per-rule severity can be tuned in
+# [tool.ty.rules] and per-file overrides via [[tool.ty.overrides]].
+
 [tool.ty.src]
 # skills 排除列表同步至 prek.toml
 exclude = [
@@ -400,17 +507,38 @@ exclude = [
     "docker/",
 ]
 
+# ty cannot infer that asyncio.to_thread(deepcopy, value) preserves the outer
+# generic TypeVar T through deepcopy's own _T scope (ty 0.0.x limitation with
+# higher-order generic functions). Remove this override once the code is
+# restructured (e.g. with typing.cast) or ty improves generic inference.
+[[tool.ty.overrides]]
+include = ["src/plugins/nonebot_plugin_lingchu_bot/database/toml_store/_helpers.py"]
+
+[tool.ty.overrides.rules]
+invalid-return-type = "ignore"
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 pythonpath = ["src"]
 testpaths = ["tests"]
-addopts = "--import-mode=importlib"
+addopts = "--import-mode=importlib --strict-markers --strict-config"
 timeout = 300
 timeout_method = "thread"
 filterwarnings = [
     "ignore:No path_separator found in configuration:DeprecationWarning:alembic.config",
     "ignore:The version_path_separator configuration parameter is deprecated:DeprecationWarning:alembic.config",
+]
+
+[tool.coverage.run]
+source = ["src/plugins/nonebot_plugin_lingchu_bot"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
 ]
 
 # TODO: add build system configuration

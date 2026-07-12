@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import platform
 from pathlib import Path
+import platform
 from typing import Any
 
 import pytest

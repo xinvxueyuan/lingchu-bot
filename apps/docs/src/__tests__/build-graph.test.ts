@@ -33,7 +33,7 @@ vi.mock("@/lib/source", () => ({
     ]),
     getPageByHref: vi.fn((href: string) => {
       if (href === "/docs/b") return { page: { url: "/docs/b" } };
-      return undefined;
+      return;
     }),
   },
 }));
@@ -62,15 +62,13 @@ describe("buildGraph", () => {
     const graph = await buildGraph();
     const nodeA = graph.nodes.find((n) => n.id === "/docs/a");
     expect(nodeA).toBeDefined();
-    expect(nodeA!.text).toBe("Page A");
-    expect(nodeA!.description).toBe("Desc A");
+    expect(nodeA?.text).toBe("Page A");
+    expect(nodeA?.description).toBe("Desc A");
   });
 
   it("should create links for valid extracted references", async () => {
     const graph = await buildGraph();
-    const link = graph.links.find(
-      (l) => l.source === "/docs/a" && l.target === "/docs/b",
-    );
+    const link = graph.links.find((l) => l.source === "/docs/a" && l.target === "/docs/b");
     expect(link).toBeDefined();
   });
 
