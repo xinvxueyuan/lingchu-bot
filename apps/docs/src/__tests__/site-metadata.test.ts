@@ -60,7 +60,7 @@ describe("site-metadata", () => {
     });
 
     it("ignores whitespace-only NEXT_PUBLIC_SITE_URL", () => {
-      vi.stubEnv("NEXT_PUBLIC_SITE_URL", ' '.repeat(3));
+      vi.stubEnv("NEXT_PUBLIC_SITE_URL", " ".repeat(3));
       const url = getSiteUrl();
       expect(url.origin).toBe(DEFAULT_ORIGIN);
     });

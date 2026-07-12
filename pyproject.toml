@@ -505,6 +505,12 @@ exclude = [
     "apps/",
     "packages/",
     "docker/",
+    # `tests/` lives outside the runtime src tree and is checked by the
+    # matrix `tests` job (with the test dependency group installed).
+    # Excluding it here keeps `task ci:fix` (ty check --fix) green in the
+    # lint-only environment, which deliberately skips the test group to
+    # avoid building system-level database drivers (mariadb, aioodbc).
+    "tests/",
 ]
 
 # ty cannot infer that asyncio.to_thread(deepcopy, value) preserves the outer

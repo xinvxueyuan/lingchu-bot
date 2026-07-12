@@ -10,7 +10,7 @@
     "check-types": "fumadocs-mdx && next typegen && fumadocs-mdx && tsc --noEmit",
     "types:check": "pnpm run check-types",
     "postinstall": "fumadocs-mdx",
-    "lint": "eslint --cache",
+    "lint": "fumadocs-mdx && next typegen && fumadocs-mdx && eslint --cache",
     "lint:links": "node --import tsx/esm scripts/lint.mts",
     "test": "vitest run",
     "test:e2e": "playwright test",
