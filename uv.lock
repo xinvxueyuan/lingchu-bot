@@ -1678,7 +1678,7 @@ requires-dist = [
     { name = "babel", specifier = ">=2.18.0" },
     { name = "jinja2", marker = "extra == 'webui'", specifier = ">=3.1.6" },
     { name = "jsonschema", specifier = ">=4.23.0" },
-    { name = "litellm", marker = "extra == 'ai'", specifier = ">=1.83.3" },
+    { name = "litellm", marker = "extra == 'ai'", specifier = ">=1.92.0" },
     { name = "msgpack", marker = "extra == 'novelai'", specifier = ">=1.1.1" },
     { name = "nonebot-adapter-onebot", specifier = ">=2.4.6" },
     { name = "nonebot-plugin-alconna", specifier = ">=0.62.0" },
@@ -1691,7 +1691,7 @@ requires-dist = [
     { name = "nonebot2", extras = ["fastapi"], specifier = ">=2.5.0" },
     { name = "nonebot2", extras = ["httpx"], specifier = ">=2.4.4" },
     { name = "nonebot2", extras = ["websockets"], specifier = ">=2.4.4" },
-    { name = "openai", marker = "extra == 'ai'", specifier = ">=2.38.0" },
+    { name = "openai", marker = "extra == 'ai'", specifier = ">=2.45.0" },
     { name = "packaging", specifier = ">=24.2" },
     { name = "rtoml", specifier = ">=0.13.0" },
 ]

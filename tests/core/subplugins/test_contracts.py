@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.plugins.nonebot_plugin_lingchu_bot.core import subplugins
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins import contracts
 
 
@@ -124,6 +125,19 @@ async def test_complete_subplugin_chat_default_uses_default_options(
 
 def test_default_chat_contract_is_public() -> None:
     assert "complete_subplugin_chat_default" in contracts.__all__
+
+
+def test_managed_llm_runtime_getter_is_exported_by_parent_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = MagicMock(spec=contracts.LLMRuntime)
+    getter = MagicMock(return_value=runtime)
+    monkeypatch.setattr(contracts, "get_llm_runtime", getter, raising=False)
+
+    assert contracts.get_subplugin_llm_runtime() is runtime
+    assert subplugins.get_subplugin_llm_runtime is contracts.get_subplugin_llm_runtime
+    assert "get_subplugin_llm_runtime" in contracts.__all__
+    assert "get_subplugin_llm_runtime" in subplugins.__all__
 
 
 async def test_complete_subplugin_chat_default_wraps_llm_error(

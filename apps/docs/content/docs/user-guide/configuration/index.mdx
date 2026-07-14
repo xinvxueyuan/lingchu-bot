@@ -59,12 +59,12 @@ OS environment variable and dotenv loading, case handling, Boolean parsing, path
     ai_provider: {
       type: '"litellm" | "openai"',
       default: '"litellm"',
-      description: "LLM SDK backend; OpenAI is kept as the direct SDK fallback",
+      description: "Legacy/default backend used when llm.toml has no profiles",
     },
     ai_model: {
       type: "string",
       default: '"gpt-4o-mini"',
-      description: "Default chat completion model for the selected AI provider",
+      description: "Legacy/default model used when llm.toml has no profiles",
     },
     ai_base_url: {
       type: "string (optional)",
@@ -162,6 +162,88 @@ LINGCHUAdapter=~onebot.v11
 
 If the same key appears in OS environment variables, dotenv, and `config.toml`, the OS environment variable wins.
 
+## llm.toml
+
+The managed LLM runtime owns a separate `llm.toml` and `llm.schema.json` in the
+same localstore configuration directory. A non-empty `[profiles]` table wins
+over the legacy `ai_*` fields in `config.toml`; when `[profiles]` is empty,
+Lingchu constructs an implicit `default` profile from those legacy fields.
+
+<Callout title="Keep secrets in the environment">
+
+`api_key_env` contains an environment variable **name**, not a credential.
+Lingchu resolves it when that profile is first used. A named but missing or
+empty variable invalidates only that profile without printing the secret or raw
+validation input; unused optional profiles do not block initialization/reload.
+
+</Callout>
+
+```toml
+#:schema ./llm.schema.json
+default_profile = "primary"
+
+[profiles.primary]
+backend = "openai"
+model = "gpt-4o-mini"
+api_key_env = "OPENAI_API_KEY"
+litellm_generation = "responses"
+timeout = 60
+max_retries = 2
+
+[profiles.fallback]
+backend = "litellm"
+model = "openai/gpt-4o-mini"
+api_key_env = "OPENAI_API_KEY"
+litellm_generation = "chat"
+
+[profiles.fallback.provider_options]
+temperature = 0.2
+
+[router]
+enabled = false
+strategy = "simple-shuffle"
+num_retries = 2
+
+[observability]
+enabled = true
+```
+
+`litellm_generation = "responses"` selects LiteLLM `aresponses`; `"chat"`
+selects `acompletion`. OpenAI stable calls use the Responses API. Trusted
+internal callers can escape to the native `AsyncOpenAI` client, the native
+LiteLLM module, or an enabled in-process LiteLLM Router. Native objects and
+unknown provider fields are preserved, so new SDK operations do not require a
+project wrapper before use.
+
+Capability probes return `supported`, `unsupported`, or `unknown`. They improve
+UI and fallback decisions but never veto an explicitly requested native call.
+Configuration reload structurally validates and freezes every candidate profile
+before an atomic swap. Credentials remain lazy per profile. A failed reload
+leaves the active generation untouched; a successful reload closes retired
+clients and invalidates capability caches.
+
+### Network and tool security
+
+- Private, loopback, link-local, and metadata Base URLs are rejected unless the
+  profile explicitly sets `allow_private_network = true`.
+- A configured credential is not forwarded to a custom Base URL unless
+  `allow_credentials_to_custom_base_url = true`.
+- The synthesized implicit legacy profile treats an existing `ai_base_url` plus
+  `ai_api_key` pair as legacy opt-in. Explicit profiles never inherit this
+  exception, even when their URL matches the legacy URL.
+- Credential-like default headers/query entries and control-plane keys inside
+  `provider_options` are rejected unless they use their dedicated trusted
+  configuration surface. Native handles remain available to trusted code.
+- These switches acknowledge an operator-controlled trust boundary. The HTTP
+  egress layer must still revalidate DNS results and redirects because static
+  configuration validation does not perform blocking DNS resolution.
+- Model tool calls are returned as data. Lingchu does not automatically execute
+requested tools, shell commands, URLs, or provider actions.
+
+Both SDKs stay lazy: importing Lingchu or starting without a usable LLM profile
+does not import OpenAI or LiteLLM. Missing optional dependencies fail only when
+their backend is first requested and do not stop unrelated bot features.
+
 ## menu.toml
 
 Lingchu Bot also creates `menu.toml` in the plugin configuration directory. This file controls menu presentation only.
@@ -193,12 +275,11 @@ Full image-API defaults also include `n_samples` (1-8), `quality`, `uc_preset`
 `prefer_brownian`, `vibe_cache_entries`, and `image_download_max_bytes`. The last
 two bound the in-memory vibe-token cache and chat image downloads.
 
-The prompt pipeline uses the global user `ai_*` profile for language
+The prompt pipeline uses the managed default LLM profile for language
 understanding, translation, hint extraction, and optional provider-native web
-search. This is a breaking configuration change: all former child-specific LLM
-keys have been removed and are ignored. Delete them from existing
-`novelai_image.toml` files and configure the global `ai_provider`, `ai_model`,
-`ai_base_url`, `ai_api_key`, and `ai_timeout` settings instead.
+search. Configure it in `llm.toml`; the global `ai_*` fields remain the legacy
+fallback only when `llm.toml` has no profiles. All former child-specific LLM
+keys have been removed and are ignored.
 
 TIPO prompt expansion is a separate, optional llama.cpp service:
 
