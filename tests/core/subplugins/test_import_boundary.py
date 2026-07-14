@@ -41,6 +41,15 @@ def _collect_subplugin_python_files() -> list[Path]:
     return files
 
 
+def _is_llm_service_module(module: str) -> bool:
+    """Return whether an import targets services.llm or one of its children."""
+    components = module.split(".")
+    return any(
+        component == "services" and components[index + 1] == "llm"
+        for index, component in enumerate(components[:-1])
+    )
+
+
 def _find_import_violations(source: str) -> list[str]:
     """AST-parse source and return import boundary violation descriptions.
 
@@ -73,7 +82,7 @@ def _find_import_violations(source: str) -> list[str]:
             elif (
                 node.level == 0
                 and node.module is not None
-                and node.module.endswith("services.llm")
+                and _is_llm_service_module(node.module)
             ):
                 violations.append(
                     f"line {node.lineno}: direct LLM service import from {node.module}"
@@ -87,7 +96,7 @@ def _find_import_violations(source: str) -> list[str]:
             violations.extend(
                 f"line {node.lineno}: direct LLM service import {alias.name}"
                 for alias in node.names
-                if alias.name.endswith("services.llm")
+                if _is_llm_service_module(alias.name)
             )
     return violations
 
@@ -113,9 +122,12 @@ def test_violation_detection_on_synthetic_source() -> None:
         "import nonebot.adapters.onebot.v11\n"
         "from src.plugins.nonebot_plugin_lingchu_bot.services.llm import complete_chat\n"
         "import src.plugins.nonebot_plugin_lingchu_bot.services.llm\n"
+        "from src.plugins.nonebot_plugin_lingchu_bot.services.llm.runtime import "
+        "LLMRuntime\n"
+        "import src.plugins.nonebot_plugin_lingchu_bot.services.llm.security\n"
     )
     violations = _find_import_violations(source)
-    assert len(violations) == 5
+    assert len(violations) == 7
     assert any("3+ dot relative import" in v for v in violations)
     assert any(
         "adapter import" in v and "from nonebot.adapters" in v for v in violations
@@ -123,4 +135,4 @@ def test_violation_detection_on_synthetic_source() -> None:
     assert any(
         "adapter import" in v and "import nonebot.adapters" in v for v in violations
     )
-    assert sum("direct LLM service import" in v for v in violations) == 2
+    assert sum("direct LLM service import" in v for v in violations) == 4

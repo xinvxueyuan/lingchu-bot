@@ -251,10 +251,11 @@ class LLMUsage:
 @dataclass(frozen=True, slots=True)
 class LLMResponse:
     text: str | None
-    backend: LLMBackendName
-    model: str
+    output: tuple[object, ...]
+    usage: LLMUsage | None
     request_id: str | None
-    usage: LLMUsage
+    model: str | None
+    backend: LLMBackendName
     raw: object
 
 @dataclass(frozen=True, slots=True)
@@ -415,17 +416,20 @@ timeout = 60.0
 max_retries = 2
 api_key_env = "OPENAI_API_KEY"
 
-[litellm.router]
+[router]
 enabled = false
-routing_strategy = "simple-shuffle"
-allowed_fails = 3
-cooldown_time = 60
+strategy = "simple-shuffle"
+num_retries = 2
+timeout = 60
+
+[router.extensions]
 model_list = []
 fallbacks = []
-context_window_fallbacks = []
+allowed_fails = 3
+cooldown_time = 60
 
 [observability]
-log_usage = true
+enabled = true
 ```
 
 `base_url` accepts only HTTP(S), with no userinfo, fragment, or control
@@ -435,23 +439,45 @@ to a custom endpoint additionally requires
 `allow_credentials_to_custom_base_url = true`. Operators must account for DNS
 rebinding and redirect targets when enabling private-network access.
 
+For the synthesized implicit legacy profile only, an existing legacy
+`ai_base_url` plus `ai_api_key` pair is treated as the operator's legacy opt-in
+so current deployments keep working. Every explicit profile must set
+`allow_credentials_to_custom_base_url = true`; matching the legacy URL does not
+grant an exception. Credential-like default headers or query keys are rejected
+for a custom endpoint without that opt-in. Provider options cannot contain
+endpoint, credential, callback/logger, retry, or Router control-plane keys,
+including nested occurrences; trusted code uses the native handles for those
+operations.
+
 Requirements:
 
 - Profile names are unique non-empty strings.
 - `default_profile` must exist after legacy fallback resolution.
 - `api_key_env` names an existing environment variable at call time. A missing
   key raises a configuration error only when that profile is used.
-- A literal `api_key` remains accepted for current configuration compatibility
-  but documentation marks environment-based secrets as preferred.
+- Only the legacy `ai_api_key` field remains accepted for implicit-profile
+  compatibility. Explicit profiles accept `api_key_env` only and reject a
+  literal `api_key`.
 - `timeout` is positive and `max_retries` is non-negative.
 - Profile `provider_options` and LiteLLM Router-specific tables allow extra
   keys so new SDK options do not require an immediate schema release.
 - Extra keys remain administrator-controlled configuration and are never
   copied from incoming chat messages.
 - `llm.toml` wins over legacy `ai_*` values for named profiles. Legacy values
-  remain the fallback for the implicit default profile.
+  remain the fallback for the implicit default profile. An explicit profile
+  without `api_key_env` has no credential and never inherits legacy
+  `ai_api_key`.
 - Invalid `llm.toml` fails LLM initialization with a precise file-and-field
   error but does not corrupt or overwrite the user's file.
+- `[observability].enabled` controls safe allowlisted stable-call records and
+  defaults to true. No prompt, output, provider body, credential, or arbitrary
+  custom field is logged by the LLM runtime.
+
+NoneBot's own dev-mode DEBUG startup logging happens before plugin startup and
+may dump arbitrary dotenv-backed global configuration. This runtime cannot
+redact that framework log. Use `LOG_LEVEL=INFO` or higher with real credentials
+and treat framework-level global configuration redaction as a separate startup
+boundary.
 
 ## Dependency And Import Behavior
 
@@ -784,3 +810,42 @@ The redesign is accepted when:
 
 These are separate product features. Their APIs can build on this runtime
 without expanding the core service into a provider emulator.
+
+## Implementation Status (2026-07-15)
+
+This specification is implemented in the current working tree. The delivered
+runtime includes strict localstore-owned profiles, lazy OpenAI and LiteLLM
+backends, native SDK escape hatches, Responses and chat generations, normalized
+and native streaming events, capability probes, observability, atomic reload,
+cross-loop lifecycle coordination, and the compatibility facade required by
+the existing chat and NovelAI consumers.
+
+Verification evidence:
+
+- final LLM package suite: 183 passed, 2 live tests skipped;
+- final broad LLM and consumer regression suite: 512 passed, 2 live tests
+  skipped;
+- the pre-review full Python suite passed 1195 tests, skipped 2 live tests, and
+  reached 86.80% coverage; all post-review changes were rechecked by the final
+  LLM and broad consumer suites above;
+- docs suite: 16 files and 115 tests passed in the resource-isolated rerun;
+- `task check` passed before the final security review. After its findings were
+  repaired, the affected repository checks were rerun individually: full Ruff,
+  formatting, Markdown, docs ESLint, Pyright (0 errors), ty, and docs tests all
+  passed;
+- REUSE lint, dependency lock check, and diff whitespace check: passed;
+- runtime smoke: reached `Application startup complete.`, observed a OneBot V11
+  connection event, and completed orderly shutdown after the timeout;
+- GitNexus comparison against `main`: medium risk, with the indexed affected
+  flows limited to three startup flows. New untracked LLM package files were
+  not present in the stale index and therefore required direct review;
+- a fresh subagent security/specification review found no remaining Critical,
+  High, or Medium issue after two repair-and-rereview rounds.
+
+The aggregate `task test` invocation completed the full Python suite but its
+subsequent Vitest fork pool could not start after the parallel coverage run
+exhausted the constrained WSL memory and swap. The same docs suite passed with
+one worker, so this is recorded as an environment-level aggregate-run failure,
+not a test assertion failure. Paid provider tests remain double-gated by
+`LINGCHU_LLM_LIVE_TESTS=1` and provider credentials; no live billed request was
+made during verification.

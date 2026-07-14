@@ -13,15 +13,45 @@ def _empty_registered_adapters(_names: object) -> set[str]:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("llm_error", [None, ValueError("invalid LLM configuration")])
 async def test_startup_imports_group_and_menu_handlers(
     monkeypatch: pytest.MonkeyPatch,
+    llm_error: ValueError | None,
 ) -> None:
     calls: list[str] = []
     group_import = AsyncMock()
     menu_import = AsyncMock(side_effect=lambda: calls.append("menu_import"))
 
-    monkeypatch.setattr(startup_module, "install_schemas", AsyncMock())
-    monkeypatch.setattr(startup_module, "ensure_runtime_config_file_async", AsyncMock())
+    monkeypatch.setattr(
+        startup_module,
+        "install_schemas",
+        AsyncMock(side_effect=lambda: calls.append("install_schemas")),
+    )
+    log_exception = MagicMock()
+    monkeypatch.setattr(startup_module.logger, "exception", log_exception)
+    monkeypatch.setattr(
+        startup_module,
+        "ensure_runtime_config_file_async",
+        AsyncMock(side_effect=lambda: calls.append("ensure_runtime_config")),
+    )
+
+    async def _initialize_llm_runtime() -> None:
+        calls.append("initialize_llm_runtime")
+        if llm_error is not None:
+            raise llm_error
+
+    monkeypatch.setattr(
+        startup_module,
+        "ensure_llm_config_file_async",
+        AsyncMock(side_effect=lambda: calls.append("ensure_llm_config")),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        startup_module,
+        "initialize_llm_runtime",
+        _initialize_llm_runtime,
+        raising=False,
+    )
     monkeypatch.setattr(
         startup_module,
         "ensure_menu_config_file_async",
@@ -97,9 +127,17 @@ async def test_startup_imports_group_and_menu_handlers(
         startup_module.cleanup_expired_messages,
     )
     initialize_scheduler_service.assert_awaited_once()
+    assert calls.index("install_schemas") < calls.index("ensure_runtime_config")
+    assert calls.index("ensure_runtime_config") < calls.index("ensure_llm_config")
+    assert calls.index("ensure_llm_config") < calls.index("initialize_llm_runtime")
+    assert calls.index("initialize_llm_runtime") < calls.index("ensure_menu_config")
     assert calls.index("ensure_menu_config") < calls.index("menu_import")
     assert calls.index("set_menu_pages") < calls.index("menu_import")
     assert calls.index("set_menu_features") < calls.index("menu_import")
+    if llm_error is not None:
+        log_exception.assert_called_once_with(
+            "Failed to initialize LLM runtime; AI is unavailable"
+        )
 
 
 @pytest.mark.asyncio
@@ -126,8 +164,17 @@ async def test_lifecycle_on_shutdown_calls_scheduler_and_message_store_in_order(
     async def _shutdown_message_store() -> None:
         call_order.append("message_store")
 
+    async def _shutdown_llm_runtime() -> None:
+        call_order.append("llm")
+
     monkeypatch.setattr(
         lifecycle_module, "shutdown_scheduler_service", _shutdown_scheduler_service
+    )
+    monkeypatch.setattr(
+        lifecycle_module,
+        "shutdown_llm_runtime",
+        _shutdown_llm_runtime,
+        raising=False,
     )
     monkeypatch.setattr(
         lifecycle_module, "shutdown_message_store", _shutdown_message_store
@@ -135,7 +182,7 @@ async def test_lifecycle_on_shutdown_calls_scheduler_and_message_store_in_order(
 
     await lifecycle_module.on_shutdown()
 
-    assert call_order == ["scheduler", "message_store"]
+    assert call_order == ["scheduler", "llm", "message_store"]
 
 
 @pytest.mark.asyncio

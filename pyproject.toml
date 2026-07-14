@@ -49,8 +49,8 @@ dependencies = [
 
 [project.optional-dependencies]
 ai = [
-    "openai>=2.38.0",
-    "litellm>=1.83.3",
+    "openai>=2.45.0",
+    "litellm>=1.92.0",
 ]
 novelai = [
     "argon2-cffi>=25.1.0",
@@ -369,7 +369,28 @@ allowed-confusables = [
 # E402: nonebot2 require() must precede cross-plugin imports at module level
 "src/plugins/nonebot_plugin_lingchu_bot/core/bot_state.py" = ["BLE001", "E402", "TC003"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/search.py" = ["BLE001"]
-"src/plugins/nonebot_plugin_lingchu_bot/services/llm.py" = ["BLE001"]
+"src/plugins/nonebot_plugin_lingchu_bot/services/llm/backends.py" = [
+    "BLE001", # closing one provider client must not skip remaining owned clients
+]
+"src/plugins/nonebot_plugin_lingchu_bot/services/llm/capabilities.py" = [
+    "BLE001", # advisory probes fail closed across arbitrary optional SDK failures
+]
+"src/plugins/nonebot_plugin_lingchu_bot/services/llm/compat.py" = [
+    "BLE001", # compatibility search and annotation enrichment is intentionally fail-open
+]
+"src/plugins/nonebot_plugin_lingchu_bot/services/llm/events.py" = [
+    "BLE001", # provider stream objects may raise from hostile attribute access
+]
+"src/plugins/nonebot_plugin_lingchu_bot/services/llm/runtime.py" = [
+    "A002",   # `input` is the public facade parameter named by the runtime specification
+    "BLE001", # provider normalization and resource cleanup contain untrusted SDK objects
+]
+"src/plugins/nonebot_plugin_lingchu_bot/services/llm/security.py" = [
+    "BLE001", # redaction must remain total for hostile objects and broken repr implementations
+]
+"src/plugins/nonebot_plugin_lingchu_bot/services/llm/types.py" = [
+    "BLE001", # safe representation helpers must tolerate hostile sized objects
+]
 "src/plugins/nonebot_plugin_lingchu_bot/services/protocol_restart_feedback.py" = ["BLE001"]
 "src/plugins/nonebot_plugin_lingchu_bot/start/startup.py" = ["BLE001"]
 "src/plugins/nonebot_plugin_lingchu_bot/platforms/qq/permissions.py" = ["BLE001"]
@@ -571,6 +592,9 @@ timeout_method = "thread"
 filterwarnings = [
     "ignore:No path_separator found in configuration:DeprecationWarning:alembic.config",
     "ignore:The version_path_separator configuration parameter is deprecated:DeprecationWarning:alembic.config",
+]
+markers = [
+    "llm_live: calls configured live LLM providers",
 ]
 
 [tool.coverage.run]

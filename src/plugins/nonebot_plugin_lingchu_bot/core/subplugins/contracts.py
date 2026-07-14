@@ -26,6 +26,7 @@ from ...services.llm import (
     complete_with_web_search,
     supports_web_search,
 )
+from ...services.llm.runtime import LLMRuntime, get_llm_runtime
 from ..runtime_config import runtime_config
 
 if TYPE_CHECKING:
@@ -36,6 +37,11 @@ if TYPE_CHECKING:
 
 class SubpluginLLMError(LLMError):
     """Contracts-owned LLM error type for nested subplugins."""
+
+
+def get_subplugin_llm_runtime() -> LLMRuntime:
+    """Return the parent-owned managed runtime to a nested subplugin."""
+    return get_llm_runtime()
 
 
 async def complete_subplugin_chat(
@@ -219,6 +225,7 @@ __all__ = [
     "complete_subplugin_web_search",
     "ensure_subplugin_config_file",
     "get_configured_locale",
+    "get_subplugin_llm_runtime",
     "get_subplugin_trigger",
     "image_message",
     "load_subplugin_config",

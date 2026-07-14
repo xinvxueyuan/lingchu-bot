@@ -42,6 +42,9 @@ Pyright, and ty.
    baseline before each task that touches an overlapping file.
 8. The design and plan live under ignored `/docs`. Do not force-add them unless
    the user explicitly asks.
+9. The repository-level pytest configuration enforces full-suite coverage.
+   Add `--no-cov` to every task-scoped RED/GREEN pytest command in this plan;
+   retain the coverage gate only for final `task test` verification.
 
 ## Global Security And Product Invariants
 
@@ -207,6 +210,7 @@ class LLMUsage:
     input_tokens: int | None = None
     output_tokens: int | None = None
     total_tokens: int | None = None
+    cost: float | None = None
 
 @dataclass(frozen=True, slots=True)
 class LLMResponse:
@@ -315,6 +319,8 @@ never into persisted configuration or diagnostics.
 Precedence is call data > profile provider options > runtime-owned defaults,
 but stable APIs reject call data for runtime-owned control-plane keys. An empty
 profiles table produces a legacy implicit profile without rewriting the file.
+Only that synthesized profile may inherit `legacy.ai_api_key`; explicit
+profiles without `api_key_env` resolve with no credential.
 
 **Step 4: Verify**
 
@@ -817,7 +823,7 @@ uv lock --check
 TMPDIR=/tmp uv run -m pytest -s tests/services/llm/test_sdk_contract.py
 pnpm --filter docs lint
 pnpm --filter docs test
-pnpm --filter docs exec tsc --noEmit
+pnpm --filter docs run check-types
 pnpm exec markdownlint-cli2
 reuse lint
 ```

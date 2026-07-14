@@ -74,6 +74,7 @@ def test_novelai_config_reads_nonebot_dotenv_values(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("LINGCHU_NOVELAI_TOKEN", raising=False)
+    monkeypatch.delenv("LINGCHU_NOVELAI_WIDTH", raising=False)
     monkeypatch.setattr(config, "load_subplugin_config", lambda _: {})
     monkeypatch.setattr(
         config,

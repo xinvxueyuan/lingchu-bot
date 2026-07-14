@@ -34,6 +34,7 @@ CONFIG_SCHEMA_BASENAME: Final = "config.schema.json"
 BOT_STATE_SCHEMA_BASENAME: Final = "bot_state.schema.json"
 MENU_SCHEMA_BASENAME: Final = "menu.schema.json"
 HANDLE_CONFIG_SCHEMA_BASENAME: Final = "handle_config.schema.json"
+LLM_SCHEMA_BASENAME: Final = "llm.schema.json"
 
 CONFIG_SCHEMA_TEXT: Final = """{
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -276,6 +277,30 @@ HANDLE_CONFIG_SCHEMA_TEXT: Final = """{
   }
 }
 """
+LLM_SCHEMA_TEXT: Final = """{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Lingchu Bot LLM Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "default_profile": {"type": "string"},
+    "profiles": {"type": "object", "propertyNames": {"type": "string", "minLength": 1}, "additionalProperties": {"type": "object", "additionalProperties": false, "required": ["model"], "properties": {
+      "backend": {"type": "string", "enum": ["litellm", "openai"]}, "model": {"type": "string", "minLength": 1},
+      "base_url": {"type": "string", "format": "uri"}, "api_key_env": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+      "organization": {"type": "string"}, "project": {"type": "string"}, "timeout": {"type": "number", "exclusiveMinimum": 0},
+      "max_retries": {"type": "integer", "minimum": 0, "maximum": 20}, "default_headers": {"type": "object", "additionalProperties": {"type": "string"}},
+      "default_query": {"type": "object", "maxProperties": 100, "description": "Query parameters passed to the provider."}, "provider_options": {"type": "object", "maxProperties": 100, "description": "Provider-specific options; unknown keys are forwarded."}, "litellm_generation": {"type": "string", "enum": ["responses", "chat"]},
+      "allow_private_network": {"type": "boolean"}, "allow_credentials_to_custom_base_url": {"type": "boolean"}
+    }}},
+    "router": {"type": "object", "additionalProperties": false, "description": "LiteLLM router settings. Provider-specific extensions belong in extensions.", "properties": {
+      "enabled": {"type": "boolean"}, "strategy": {"type": "string"}, "num_retries": {"type": "integer", "minimum": 0}, "timeout": {"type": "number", "exclusiveMinimum": 0}, "extensions": {"type": "object", "additionalProperties": true}
+    }},
+    "observability": {"type": "object", "additionalProperties": false, "description": "Safe allowlisted stable-call logging.", "properties": {
+      "enabled": {"type": "boolean", "default": true}
+    }}
+  }
+}
+"""
 
 
 def generate_handle_schema(command_key: str, defaults_fields: dict[str, Any]) -> str:
@@ -317,6 +342,7 @@ async def install_schemas() -> None:
     config_path: Path = config_dir / CONFIG_SCHEMA_BASENAME
     menu_path: Path = config_dir / MENU_SCHEMA_BASENAME
     handle_config_path: Path = config_dir / HANDLE_CONFIG_SCHEMA_BASENAME
+    llm_path: Path = config_dir / LLM_SCHEMA_BASENAME
     data_path: Path = get_plugin_data_dir() / BOT_STATE_SCHEMA_BASENAME
 
     await aiofiles.os.makedirs(config_path.parent, exist_ok=True)
@@ -328,6 +354,8 @@ async def install_schemas() -> None:
         await f.write(MENU_SCHEMA_TEXT)
     async with aiofiles.open(handle_config_path, "w", encoding="utf-8") as f:
         await f.write(HANDLE_CONFIG_SCHEMA_TEXT)
+    async with aiofiles.open(llm_path, "w", encoding="utf-8") as f:
+        await f.write(LLM_SCHEMA_TEXT)
     async with aiofiles.open(data_path, "w", encoding="utf-8") as f:
         await f.write(BOT_STATE_SCHEMA_TEXT)
 

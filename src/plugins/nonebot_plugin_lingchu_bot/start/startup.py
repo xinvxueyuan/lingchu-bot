@@ -20,6 +20,8 @@ from ..platforms import (
     validate_enabled_adapters_loaded,
 )
 from ..repositories.registry import seed_registry_tables
+from ..services.llm.config import ensure_llm_config_file_async
+from ..services.llm.runtime import initialize_llm_runtime
 from ..services.message_store import (
     SCHEDULER_CLEANUP_HANDLER_KEY,
     cleanup_expired_messages,
@@ -76,16 +78,20 @@ async def _check_announcement_image_path_bridge() -> None:
 
 
 async def startup() -> None:
-    """
-    在应用启动时预热翻译缓存并注册命令处理器。
-
-    依次执行：预热翻译缓存、导入并注册 group 命令处理器（含所有子模块）。
-    """
+    """Initialize configuration, optional AI, handlers, stores, and scheduler."""
     try:
         await install_schemas()
     except Exception:
         # Schema files are editor hints; missing them does not prevent startup.
         logger.exception("Failed to install TOML schemas")
+    await ensure_runtime_config_file_async()
+    try:
+        await ensure_llm_config_file_async()
+        await initialize_llm_runtime()
+    except Exception:
+        # AI is optional; configuration or backend-local dependency failures
+        # must not prevent the bot's non-AI services from starting.
+        logger.exception("Failed to initialize LLM runtime; AI is unavailable")
     try:
         await _check_announcement_image_path_bridge()
     except Exception:
@@ -93,7 +99,6 @@ async def startup() -> None:
         # is also reported later via the runtime warning on the actual
         # _send_group_notice call.
         logger.exception("Failed to run announcement image path bridge self-check")
-    await ensure_runtime_config_file_async()
     try:
         await ensure_menu_config_file_async()
     except Exception:
