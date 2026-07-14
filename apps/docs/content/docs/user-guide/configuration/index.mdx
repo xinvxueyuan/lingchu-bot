@@ -182,6 +182,17 @@ The optional nested NovelAI subplugin owns this file and its sibling
 timeout. Set `token` with `LINGCHU_NOVELAI_TOKEN` in preference to storing it in
 TOML.
 
+Token authentication is preferred. Username/password login is also supported:
+set `username` and provide `LINGCHU_NOVELAI_PASSWORD`; the subplugin exchanges it
+for an in-memory token through `account_base_url` (default
+`https://api.novelai.net`). Custom gateways can set `base_url` and
+`account_base_url` independently.
+
+Full image-API defaults also include `n_samples` (1-8), `quality`, `uc_preset`
+(0-3), `noise_schedule`, `cfg_rescale`, `dynamic_thresholding`, `auto_smea`,
+`prefer_brownian`, `vibe_cache_entries`, and `image_download_max_bytes`. The last
+two bound the in-memory vibe-token cache and chat image downloads.
+
 The prompt pipeline uses the global user `ai_*` profile for language
 understanding, translation, hint extraction, and optional provider-native web
 search. This is a breaking configuration change: all former child-specific LLM
