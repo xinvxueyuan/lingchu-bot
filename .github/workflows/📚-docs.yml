@@ -48,7 +48,7 @@ jobs:
           command: pnpm install --frozen-lockfile
 
       - name: Markdown Lint
-        run: pnpm exec markdownlint-cli2 "apps/**/*.md" "packages/**/*.md" "!**/node_modules/**" "!**/out/**" "README.md" "CHANGELOG.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "Repository-Policy.md" "SECURITY.md" ".github/**/*.md"
+        run: pnpm exec markdownlint-cli2
 
       - name: Lint & Type Check
         run: pnpm turbo run lint check-types

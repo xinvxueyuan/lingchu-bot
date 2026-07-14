@@ -285,3 +285,25 @@ TIPO failure also degrades to the LLM-produced English description and tags.
 See [Deploy TIPO with llama.cpp](/docs/user-guide/deployment/tipo-llama-cpp) for
 the standalone service. Installing or removing the child directory takes effect
 after restarting the bot; the parent plugin has no NovelAI-specific registry.
+
+The same command exposes the complete NovelAI image API. Image arguments must be
+message image segments supplied to the corresponding option:
+
+```text
+novelai-image img2img fantasy outfit --image <image> --strength 0.6 --noise 0.1
+novelai-image inpaint detailed background --image <source> --mask <mask>
+novelai-image vibe sunset mountains --reference <image> --reference-strength 0.7
+novelai-image tool lineart --image <image>
+novelai-image tool colorize --image <line-art> --prompt "silver hair" --defry 0
+novelai-image tool emotion --image <image> --emotion happy --emotion-level 2
+novelai-image upscale --image <image> --factor 4
+novelai-image annotate --image <image> --model fake_scribble
+novelai-image tags "blue hai" --lang en
+novelai-image account subscription
+```
+
+Other Director tools include `sketch`, `bg-removal`, and `declutter`. The domain
+layer supports V3, Furry V3, V4, V4.5, their Curated/inpainting variants, batch
+generation, real-time V4/V4.5 MessagePack events, vibe encoding with caching, and
+account queries. Chat sends final images only and never exposes credentials or raw
+base64 data.

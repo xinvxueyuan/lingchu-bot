@@ -53,6 +53,7 @@ ai = [
     "litellm>=1.83.3",
 ]
 novelai = [
+    "argon2-cffi>=25.1.0",
     "msgpack>=1.1.1",
     "nonebot-plugin-lingchu-bot[ai]",
 ]
@@ -84,6 +85,7 @@ git = [
 ]
 lint = ["ruff>=0.15.21", "pyright>=1.1.410", "ty>=0.0.58"]
 test = [
+    "argon2-cffi>=25.1.0",
     "nb-cli>=1.4.0",
     "nonebug>=0.4.3",
     "pytest>=8.4.2",
@@ -320,10 +322,46 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/core/menu_config.py" = ["TRY003", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_manager.py" = ["TRY003", "BLE001", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_defaults/__init__.py" = ["TRY003", "E402"]
-"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/models.py" = ["TRY003"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/models.py" = [
+    "TRY003",  # request value objects report field-specific validation messages
+    "PLR2004", # NovelAI protocol limits are clearest beside their validation
+    "C901",    # complete generation validation intentionally stays centralized
+    "PLR0912", # complete generation validation covers independent feature families
+    "PLR0915", # complete generation validation keeps coupled protocol invariants together
+]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/tipo.py" = ["TRY003"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/intent.py" = ["TRY003"]
-"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/client.py" = ["TRY003"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/client.py" = [
+    "TRY003",  # domain failures carry endpoint-specific diagnostics
+    "PLR0911", # compatibility event classification has explicit terminal shapes
+    "PLR0913", # Director tools have a fixed public protocol parameter surface
+    "TC003",   # AsyncIterator/Mapping annotations document the public client API
+]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/auth.py" = [
+    "TRY003", # credential validation needs actionable operator diagnostics
+]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/imaging.py" = [
+    "TRY003",  # malformed image diagnostics identify the rejected format
+    "PLR2004", # PNG/JPEG marker sizes are wire-format constants
+]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/response.py" = [
+    "TRY003",  # response exceptions preserve bounded provider diagnostics
+    "PLR2004", # HTTP statuses and frame prefix sizes are protocol constants
+]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/service.py" = [
+    "TRY003", # missing credentials need an actionable configuration diagnostic
+]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/handler.py" = [
+    "E402",    # nonebot require() must run before optional plugin imports
+    "TRY003",  # command validation errors are mapped to localized user output
+    "TRY004",  # external segment objects with invalid payloads are value errors
+    "TRY301",  # one action boundary maps all domain validation failures uniformly
+    "PLR2004", # HTTP status boundary is kept next to image download handling
+    "PLR0913", # generation action request mirrors the protocol's coupled settings
+    "C901",    # action dispatcher keeps one permission-gated matcher entry point
+    "PLR0912", # each explicit NovelAI action is one command branch
+    "PLR0915", # action dispatcher performs validation, invocation, and localized output
+]
 "src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_base.py" = ["TRY003", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/database/toml_store/_helpers.py" = ["TRY003"]
 
@@ -401,7 +439,6 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/llm_chat/handler.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/llm_chat/__init__.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/config.py" = ["E402"]
-"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/handler.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/__init__.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/database/models/message.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/announcement.py" = ["E402"]

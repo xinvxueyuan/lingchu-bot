@@ -1,6 +1,10 @@
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import AsyncMock, Mock
 
 from nonebot.exception import FinishedException
+from nonebot_plugin_alconna.uniseg import Image as UniImage
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.contracts import (
@@ -28,6 +32,9 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.models
     PromptIntent,
     TipoPrompt,
     VisualResearch,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.response import (
+    NovelAIImage,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.tipo import (
     TipoProviderError,
@@ -123,6 +130,152 @@ def test_omitted_options_remain_none() -> None:
     assert handler.generation_overrides_from_args(result.all_matched_args) == (
         GenerationOverrides()
     )
+
+
+@pytest.mark.parametrize(
+    ("command_text", "path"),
+    [
+        ("tags ca", "tags"),
+        ("account subscription", "account"),
+    ],
+)
+def test_command_parser_recognizes_full_api_subcommands(
+    command_text: str,
+    path: str,
+) -> None:
+    result = handler.build_novelai_image_command().parse(
+        f"{handler._novelai_trigger.primary} {command_text}"
+    )
+    assert result.matched
+    assert result.find(path)
+
+
+@pytest.mark.parametrize(
+    "action",
+    ["img2img", "inpaint", "vibe", "tool", "upscale", "annotate", "tags", "account"],
+)
+async def test_full_api_action_dispatches_to_domain_client(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_finish: AsyncMock,
+    action: str,
+) -> None:
+    png = b"\x89PNG\r\n\x1a\n" + b"\0" * 8 + (3).to_bytes(4) + (5).to_bytes(4)
+    segment = UniImage(raw=png)
+    args: dict[str, Any] = {
+        "action_prompt": ["cat"],
+        "image": segment,
+        "mask": segment,
+        "reference": segment,
+        "tool_name": "lineart",
+        "tag_prefix": "ca",
+        "account_kind": "subscription",
+    }
+
+    class Result:
+        all_matched_args = args
+
+        def find(self, path: str) -> bool:
+            return path == action
+
+    image = NovelAIImage("image.png", png)
+    generated = (image, image) if action == "img2img" else (image,)
+    client = SimpleNamespace(
+        generate=AsyncMock(return_value=generated),
+        director=AsyncMock(return_value=image),
+        upscale=AsyncMock(return_value=image),
+        annotate=AsyncMock(return_value=image),
+        suggest_tags=AsyncMock(return_value=({"tag": "cat"},)),
+        get_subscription=AsyncMock(return_value={"tier": "opus"}),
+        get_user_data=AsyncMock(return_value={"user": "ok"}),
+    )
+    monkeypatch.setattr(handler, "create_novelai_client", lambda _: client)
+    send = AsyncMock()
+    monkeypatch.setattr(handler.novelai_image_cmd, "send", send)
+    monkeypatch.setattr(
+        handler,
+        "get_novelai_config",
+        lambda: NovelAIConfig(token="token"),
+    )
+
+    with pytest.raises(FinishedException):
+        await handler.run_novelai_api_action(cast("Any", Result()))
+
+    method = {
+        "img2img": "generate",
+        "inpaint": "generate",
+        "vibe": "generate",
+        "tool": "director",
+        "upscale": "upscale",
+        "annotate": "annotate",
+        "tags": "suggest_tags",
+        "account": "get_subscription",
+    }[action]
+    getattr(client, method).assert_awaited_once()
+    mock_finish.assert_awaited_once()
+    assert send.await_count == (1 if action == "img2img" else 0)
+
+
+async def test_uniseg_image_reader_supports_path_and_url(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    png = b"\x89PNG\r\n\x1a\n" + b"\0" * 8 + (3).to_bytes(4) + (5).to_bytes(4)
+    image_path = tmp_path / "image.png"
+    image_path.write_bytes(png)
+    config = NovelAIConfig(token="token")
+    assert (
+        await handler._read_uniseg_image(UniImage(path=image_path), config=config)
+        == png
+    )
+
+    class SessionContext:
+        async def __aenter__(self) -> Any:
+            return SimpleNamespace(
+                request=AsyncMock(
+                    return_value=SimpleNamespace(status_code=200, content=png)
+                )
+            )
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+    monkeypatch.setattr(
+        handler,
+        "get_driver",
+        lambda: SimpleNamespace(get_session=SessionContext),
+    )
+    assert (
+        await handler._read_uniseg_image(
+            UniImage(url="https://example.test/image.png"), config=config
+        )
+        == png
+    )
+    with pytest.raises(ValueError):
+        await handler._read_uniseg_image(UniImage(), config=config)
+
+
+async def test_full_api_action_maps_validation_failure_to_localized_error(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_finish: AsyncMock,
+) -> None:
+    class Result:
+        def __init__(self) -> None:
+            self.all_matched_args = {"action_prompt": []}
+
+        @staticmethod
+        def find(path: str) -> bool:
+            return path == "img2img"
+
+    monkeypatch.setattr(
+        handler,
+        "get_novelai_config",
+        lambda: NovelAIConfig(token="token"),
+    )
+
+    with pytest.raises(FinishedException):
+        await handler.run_novelai_api_action(cast("Any", Result()))
+
+    mock_finish.assert_awaited_once_with(handler.translate("action_failed"))
 
 
 @pytest.mark.parametrize(

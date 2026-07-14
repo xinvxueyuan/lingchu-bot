@@ -281,3 +281,23 @@ LiteLLM 模型与提供商支持联网搜索时才会执行；不支持或搜索
 TIPO 失败时也会降级使用 LLM 生成的英文描述和标签。独立服务部署参见
 [使用 llama.cpp 部署 TIPO](/zh/docs/user-guide/deployment/tipo-llama-cpp)。加入或
 删除子插件目录后重启即可生效，父插件不维护 NovelAI 专用注册表。
+
+同一命令还提供完整的 NovelAI 图片 API。图片参数必须以消息图片段传给对应选项：
+
+```text
+生图 img2img 幻想服装 --image <图片> --strength 0.6 --noise 0.1
+生图 inpaint 细致背景 --image <原图> --mask <蒙版>
+生图 vibe 日落群山 --reference <参考图> --reference-strength 0.7
+生图 tool lineart --image <图片>
+生图 tool colorize --image <线稿> --prompt 银发蓝眼 --defry 0
+生图 tool emotion --image <图片> --emotion happy --emotion-level 2
+生图 upscale --image <图片> --factor 4
+生图 annotate --image <图片> --model fake_scribble
+生图 tags "blue hai" --lang en
+生图 account subscription
+```
+
+支持的工具还包括 `sketch`、`bg-removal` 和 `declutter`。模型层覆盖 V3、Furry
+V3、V4、V4.5 及其 Curated/修补变体；Python 客户端另外公开批量生成、V4/V4.5
+实时 MessagePack 事件、vibe 编码缓存、订阅和用户数据查询。群聊只发送最终图像，
+不会公开 token、密码或原始 base64 数据。

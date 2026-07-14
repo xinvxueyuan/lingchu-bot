@@ -28,9 +28,24 @@ class NovelAIConfig(BaseModel):
         default=None,
         validation_alias=AliasChoices("LINGCHU_NOVELAI_TOKEN", "token"),
     )
+    username: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("LINGCHU_NOVELAI_USERNAME", "username"),
+    )
+    password: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("LINGCHU_NOVELAI_PASSWORD", "password"),
+    )
     base_url: str = Field(
         default="https://image.novelai.net",
         validation_alias=AliasChoices("LINGCHU_NOVELAI_BASE_URL", "base_url"),
+    )
+    account_base_url: str = Field(
+        default="https://api.novelai.net",
+        validation_alias=AliasChoices(
+            "LINGCHU_NOVELAI_ACCOUNT_BASE_URL",
+            "account_base_url",
+        ),
     )
     model: str = Field(
         default="nai-diffusion-4-5-full",
@@ -44,11 +59,25 @@ class NovelAIConfig(BaseModel):
     )
     width: int = Field(default=832, ge=64, le=2048)
     height: int = Field(default=1216, ge=64, le=2048)
+    n_samples: int = Field(default=1, ge=1, le=8)
     steps: int = Field(default=28, ge=1, le=50)
     scale: float = Field(default=5.0, gt=0, le=20)
     sampler: str = "k_euler_ancestral"
     negative_prompt: str = (
         "lowres, bad anatomy, bad hands, text, watermark, worst quality"
+    )
+    quality: bool = True
+    uc_preset: int = Field(default=0, ge=0, le=3)
+    noise_schedule: str = "karras"
+    cfg_rescale: float = Field(default=0.0, ge=0, le=1)
+    dynamic_thresholding: bool = False
+    auto_smea: bool = False
+    prefer_brownian: bool = True
+    vibe_cache_entries: int = Field(default=64, ge=1, le=1024)
+    image_download_max_bytes: int = Field(
+        default=10 * 1024 * 1024,
+        gt=0,
+        le=64 * 1024 * 1024,
     )
     tipo_enabled: bool = True
     tipo_base_url: str = "http://127.0.0.1:8081/v1"
@@ -93,7 +122,11 @@ def novelai_config_schema() -> dict[str, Any]:
         return value
 
     schema = NovelAIConfig.model_json_schema(mode="serialization")
-    return remove_null_branches(schema)
+    cleaned = remove_null_branches(schema)
+    properties = cleaned.get("properties")
+    if isinstance(properties, dict):
+        properties.pop("password", None)
+    return cleaned
 
 
 def _config_file(name: str) -> Path:
@@ -123,6 +156,7 @@ def ensure_novelai_config_files() -> None:
 
 def get_novelai_config() -> NovelAIConfig:
     raw = novelai_config_defaults() | load_subplugin_config(CONFIG_FILENAME)
+    raw.pop("password", None)
     try:
         global_config = get_driver().config
     except ValueError:

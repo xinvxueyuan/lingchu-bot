@@ -27,6 +27,10 @@ MESSAGES = {
         "zh": "NovelAI 生图暂时不可用，请稍后再试",
         "en": "NovelAI image generation is temporarily unavailable",
     },
+    "action_failed": {
+        "zh": "NovelAI 操作失败，请检查参数或稍后再试",
+        "en": "The NovelAI operation failed; check the parameters or try again later",
+    },
 }
 
 
