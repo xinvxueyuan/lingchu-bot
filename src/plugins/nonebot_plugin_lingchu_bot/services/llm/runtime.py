@@ -166,6 +166,11 @@ class _InvalidStreamContextError(TypeError):
 
 
 def _fingerprint(secret: str | None) -> str:
+    # SHA-256 produces a stable cache key for LLM profile lookup by API key;
+    # this is NOT password storage. argon2/bcrypt are unsuitable because their
+    # random salts make them non-deterministic and unusable as dict keys.
+    # CodeQL py/weak-sensitive-data-hashing flagged this as false positive
+    # (dismissed: alert #2).
     value = secret.encode("utf-8", errors="replace") if secret else b""
     return hashlib.sha256(value).hexdigest()
 

@@ -34,6 +34,11 @@ def derive_access_key(credentials: NovelAICredentials) -> str:
             "install the novelai extra for username/password login"
         ) from exc
 
+    # blake2b derives a 16-byte deterministic salt for the argon2id call below;
+    # it is NOT the password hash. Construction is mandated by NovelAI's
+    # novelai_data_access_key protocol; altering breaks upstream compatibility.
+    # CodeQL py/weak-sensitive-data-hashing flagged this as false positive
+    # (dismissed: alert #1).
     salt_source = (
         f"{credentials.password[:6]}{credentials.username}novelai_data_access_key"
     )
