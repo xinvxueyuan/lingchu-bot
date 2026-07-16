@@ -47,13 +47,22 @@ and verification.
 - [ ] For code changes, I ran `gitnexus_impact` (or the equivalent
       analysis) and recorded the blast radius below.
 - [ ] For code changes, I have run `uv run -m ruff check .`,
-      `uv run -m ruff format --check .`, `uv run -m pyright`, and
-      `uv run -m ty check .` locally.
-- [ ] For docs site changes, I have run `pnpm --filter docs lint` and
-      `pnpm --filter docs test` locally.
+      `uv run -m ruff format --check .`, `uv run -m pyright`,
+      `uv run -m ty check .`, and `uv run -m pytest` locally.
+- [ ] For docs site changes, I have run `pnpm --filter docs lint`,
+      `pnpm --filter docs test`, and
+      `pnpm turbo run build --filter=docs` locally.
+- [ ] For Markdown changes, I have run
+      `pnpm exec markdownlint-cli2` locally.
 - [ ] I have added or updated tests covering the change.
-- [ ] I have updated relevant documentation, i18n strings, runtime
-      config, and handle defaults as needed.
+- [ ] I have updated relevant documentation, i18n strings
+      (`task i18n`), runtime config, and handle defaults as needed.
+- [ ] I have run `prek run --all-files` (or relied on the
+      `pre-commit` hook) and confirmed all files carry SPDX license
+      declarations (REUSE compliance).
+- [ ] For changes to `AGENTS.md`, `CLAUDE.md`, or
+      `.github/note/AGENTS-zh.md`, I have kept the three mirror files
+      structurally aligned (excluding GitNexus marker blocks).
 
 ### Release PR Checklist (only for `releases/**` branches)
 

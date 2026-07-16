@@ -15,6 +15,30 @@ LINGCHUAdapter = "~onebot.v11"
 
 默认选择。请确保 NoneBot 已加载 OneBot V11 适配器。其他适配器 ID（如 Milky、QQ、OneBot V12）未实现；配置它们会抛出 `PlatformAdapterUnknownError`。
 
+### 环境变量形式
+
+Lingchu Bot 还会读取 `LINGCHU_ADAPTER` 环境变量，适用于容器化部署和 CI 等不便编辑 `.env` 或 TOML 的场景。底层 `lingchu_adapter` 字段可接受单个适配器字符串、`+` 分隔的多个 ID 字符串，或字符串列表：
+
+```bash
+# 单个适配器
+LINGCHU_ADAPTER=~onebot.v11
+
+# 多个适配器（字符串形式）
+LINGCHU_ADAPTER=~onebot.v11+~another_adapter
+```
+
+通过 NoneBot 的 dotenv/TOML 配置设置时，也接受 JSON 数组字面量：
+
+```toml
+LINGCHUAdapter = ["~onebot.v11", "~another_adapter"]
+```
+
+配置优先级（从高到低）：
+
+1. 操作系统环境变量（`os.environ` 中的 `LINGCHU_ADAPTER`）
+2. NoneBot dotenv 文件（`.env`，可出现 `LINGCHUAdapter` 或 `LINGCHU_ADAPTER`）
+3. NoneBot `global_config`（通过 `lingchu_adapter` 别名解析）
+
 <Callout type="warn" title="冲突预防">
 
 为同一平台显式配置多个已知适配器会导致启动失败：

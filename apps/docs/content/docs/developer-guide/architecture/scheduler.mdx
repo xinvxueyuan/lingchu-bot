@@ -1,0 +1,145 @@
+---
+icon: Clock
+title: Scheduler
+description: Persistent periodic job service backed by nonebot-plugin-apscheduler.
+---
+
+# Scheduler
+
+Lingchu Bot runs a persistent scheduler on top of `nonebot-plugin-apscheduler`. Job specs are stored in the database so periodic tasks survive restarts, and a handler registry maps persisted keys to runtime callables. The scheduler is initialized during startup and shut down alongside other runtime services.
+
+## Architecture
+
+The scheduler is split between a service layer that owns runtime scheduling and a repository layer that owns persistence.
+
+| Layer | File | Responsibility |
+| --- | --- | --- |
+| Service | `services/scheduler.py` | Registers handlers, persists job specs, rehydrates enabled jobs, dispatches executions |
+| Repository | `repositories/scheduler_jobs.py` | CRUD over `ScheduledJob` rows, JSON payload encoding and decoding |
+| Model | `database/models/scheduler.py` | ORM model for `lingchu_scheduled_jobs` |
+| Adapter | `nonebot_plugin_apscheduler` | Provides the in-process `scheduler` used by the service |
+
+The service requires `nonebot_plugin_apscheduler` through NoneBot's `require()` and imports the shared `scheduler` singleton from it. APScheduler itself is configured by the host project (for example, through NoneBot config), while Lingchu only adds, removes, and rehydrates jobs on top of it.
+
+## Data model
+
+`database/models/scheduler.py` defines the `ScheduledJob` ORM model on the `lingchu_scheduled_jobs` table. It uses cross-dialect compatibility types from `database/_dialect_compat.py` (`compat_string`, `CompatText`, `CompatBoolean`, `CompatDateTimeTZ`) so the same schema works across SQLite, PostgreSQL, MySQL/MariaDB, Oracle, and SQL Server.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `Integer` (Identity) | Primary key |
+| `job_id` | `compat_string(128)` | Unique, indexed; the APScheduler `id` |
+| `handler_key` | `compat_string(128)` | Indexed; looked up in the in-memory handler registry |
+| `trigger_type` | `compat_string(32)` | APScheduler trigger name (for example, `interval`, `cron`) |
+| `trigger_kwargs` | `CompatText` | JSON-encoded trigger constructor arguments |
+| `args` | `CompatText` | JSON-encoded positional arguments for the handler (default `[]`) |
+| `kwargs` | `CompatText` | JSON-encoded keyword arguments for the handler (default `{}`) |
+| `enabled` | `CompatBoolean` | Indexed; only enabled jobs are scheduled at startup |
+| `coalesce` | `CompatBoolean` | APScheduler `coalesce` option (default `True`) |
+| `max_instances` | `Integer` | APScheduler `max_instances` option (default `1`) |
+| `misfire_grace_time` | `Integer` (nullable) | APScheduler `misfire_grace_time` option |
+| `created_at` / `updated_at` | `CompatDateTimeTZ` | Indexed; defaults to `utc_now()` |
+
+`job_id` has a unique constraint (`uq_lingchu_scheduled_jobs_job_id`). The repository encodes `trigger_kwargs`, `args`, and `kwargs` as JSON with `ensure_ascii=False` and sorted keys, and decodes them back with strict type checks (object / array / object).
+
+## Handler registry
+
+The service keeps an in-memory `_handlers: dict[str, SchedulerHandler]` mapping. A handler is any `Callable[..., Awaitable[Any] | Any]` — sync or async — registered through `register_scheduler_handler(key, handler)`.
+
+When a persisted job fires, `execute_persistent_job(job_id)`:
+
+1. loads the `ScheduledJob` spec via `repository.get_job_spec(job_id)`,
+2. returns early if the job is missing or `enabled = false`,
+3. looks up `handler = _handlers.get(job.handler_key)` and warns if no handler is registered,
+4. decodes `args` / `kwargs` via `repository.decode_job_payload(job)`, and
+5. awaits the handler (or returns its sync result) through `_maybe_await`.
+
+Handlers are registered at startup before `initialize_scheduler_service()` runs. Registration after initialization is allowed but those jobs only run after their spec is persisted and scheduled.
+
+## Public API
+
+`services/scheduler.py` exposes the following functions:
+
+| Function | Purpose |
+| --- | --- |
+| `register_scheduler_handler(key, handler)` | Register a handler key used by persisted jobs |
+| `clear_scheduler_handlers()` | Clear all registered handlers (test helper) |
+| `register_persistent_job(...)` | Persist a job spec and schedule it when `enabled = true` |
+| `remove_persistent_job(job_id)` | Remove the runtime scheduler entry and delete the persisted spec |
+| `initialize_scheduler_service()` | Rehydrate enabled persisted jobs into the runtime scheduler |
+| `execute_persistent_job(job_id)` | Load and dispatch a persisted job (used as the APScheduler callable) |
+| `shutdown_scheduler_service()` | Reserved shutdown hook for future scheduler cleanup |
+
+`register_persistent_job()` raises `ValueError` if `handler_key` is not in `_handlers`, so a typo cannot silently persist a job that will never run. It always saves the spec through `repository.save_job_spec()` (an upsert on `job_id`) and only calls `_schedule_runtime_job()` when `enabled = true`.
+
+`_schedule_runtime_job()` calls `scheduler.add_job()` with `replace_existing = True` so re-registering a job updates its trigger instead of duplicating it.
+
+## Built-in periodic task: message store cleanup
+
+The only built-in periodic task is the message store cleanup job. `start/startup.py` wires it during startup:
+
+```python
+register_scheduler_handler(
+    SCHEDULER_CLEANUP_HANDLER_KEY,
+    cleanup_expired_messages,
+)
+await initialize_scheduler_service()
+```
+
+`SCHEDULER_CLEANUP_HANDLER_KEY` is defined in `services/message_store.py` as `"message_store.cleanup_expired_messages"`. The handler, `cleanup_expired_messages()`, deletes `MessageRecord`, `AuditRecord`, and the QQ + OneBot V11 + NoneBot partition tables (`QQOneBotV11NoneBotEventRecord`, `QQOneBotV11NoneBotAuditRecord`) whose `created_at` is older than `message_store_retention_days` days.
+
+The cleanup honors two runtime config flags from `core/runtime_config.py`:
+
+- `message_store_enabled` (env `LINGCHU_MESSAGE_STORE_ENABLED`, default `true`) — if false, cleanup returns `(0, True)` immediately.
+- `message_store_cleanup_enabled` (env `LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED`, default `true`) — if false, cleanup is skipped.
+
+When `message_store_retention_days` is `0`, day-based expiry is disabled and records are kept indefinitely. The same cleanup also runs once during shutdown through `shutdown_message_store()` so a clean stop trims expired rows even when no periodic job is scheduled.
+
+<Callout title="See also">
+
+The cleanup targets and the full set of `MESSAGE_STORE_*` configuration knobs are documented in [Message Store](message-store) and [API Audit](api-audit).
+
+</Callout>
+
+## Adding a custom periodic task
+
+To register a custom periodic job:
+
+1. **Implement the handler** as a sync or async callable. Keep business logic in `services/` or `repositories/` and avoid NoneBot matcher side effects inside the handler.
+
+   ```python
+   from services.scheduler import register_scheduler_handler
+
+   async def refresh_external_cache() -> None:
+       ...
+
+   register_scheduler_handler("my_feature.refresh_cache", refresh_external_cache)
+   ```
+
+2. **Register the handler key before `initialize_scheduler_service()` runs.** The startup flow in `start/startup.py` registers built-in handlers and then calls `initialize_scheduler_service()`; late registrations only take effect for jobs persisted and scheduled after that point.
+
+3. **Persist and schedule the job** by calling `register_persistent_job()` with an APScheduler trigger:
+
+   ```python
+   await register_persistent_job(
+       job_id="my_feature.refresh_cache",
+       handler_key="my_feature.refresh_cache",
+       trigger_type="interval",
+       trigger_kwargs={"minutes": 30},
+   )
+   ```
+
+4. **Tune APScheduler options** through `coalesce`, `max_instances`, and `misfire_grace_time` to control missed-fire behavior. `coalesce = True` (the default) collapses multiple missed runs into one.
+
+5. **Remove the job** with `remove_persistent_job(job_id)` when it is no longer needed. It removes the runtime scheduler entry (tolerating `JobLookupError` if the job was never scheduled) and deletes the persisted spec.
+
+The persisted `args` and `kwargs` are JSON-encoded, so only JSON-serializable values can be passed to the handler. Complex objects must be reconstructed inside the handler from their identifiers.
+
+## Lifecycle
+
+The scheduler participates in the NoneBot driver lifecycle through `start/startup.py` and the lifecycle hook in `hooks/handlers/lifecycle.py`:
+
+- `driver.on_startup` calls `start.startup.startup()`, which registers handlers and calls `initialize_scheduler_service()`.
+- `driver.on_shutdown` calls `shutdown_scheduler_service()` (currently a reserved no-op) followed by `shutdown_message_store()`.
+
+`initialize_scheduler_service()` tolerates a `DatabaseError` when loading persisted specs: it logs the failure and returns without scheduling anything, so a database issue during startup never prevents the bot from coming up. Individual jobs that fail to schedule (for example, due to invalid trigger arguments) are logged and skipped while the rest are still scheduled.

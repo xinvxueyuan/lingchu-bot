@@ -18,16 +18,28 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
 <Files>
   <Folder name="src/plugins/nonebot_plugin_lingchu_bot" defaultOpen>
     <Folder name="core">
+      <File name="async_utils.py" />
+      <File name="bot_state.py" />
       <File name="config.py" />
+      <File name="handle_config_manager.py" />
+      <File name="http_security.py" />
+      <File name="menu_config.py" />
       <File name="runtime_config.py" />
+      <File name="schemas.py" />
+      <Folder name="handle_config_defaults" />
+      <Folder name="subplugins">
+        <Folder name="llm_chat" />
+        <Folder name="novelai_image" />
+      </Folder>
     </Folder>
     <Folder name="database">
-      <Folder name="toml_store" />
+      <File name="_dialect_compat.py" />
       <Folder name="models" />
       <Folder name="orm_crud" />
+      <Folder name="toml_store" />
     </Folder>
     <Folder name="handle">
-      <Folder name="menu.py" />
+      <File name="menu.py" />
       <Folder name="qq">
         <Folder name="commands">
           <File name="triggers.py" />
@@ -45,6 +57,12 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
         </Folder>
       </Folder>
     </Folder>
+    <Folder name="hooks">
+      <File name="adapters.py" />
+      <File name="interfaces.py" />
+      <File name="registry.py" />
+      <Folder name="handlers" />
+    </Folder>
     <Folder name="i18n">
       <File name="__init__.py" />
       <File name="babel.cfg" />
@@ -53,28 +71,47 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
         <Folder name="zh_CN" />
       </Folder>
     </Folder>
+    <Folder name="migrations">
+      <File name="30f5a01259cd_initial_schema.py" />
+      <File name="a1b2c3d4e5f6_permissions_schema.py" />
+      <File name="b7c8d9e0f1a2_event_policy_partitions.py" />
+      <File name="c3d4e5f6a7b8_scheduler_jobs.py" />
+      <File name="cf2c06d51a17_blocklist_unique_constraint.py" />
+    </Folder>
+    <Folder name="permissions">
+      <File name="__init__.py" />
+      <File name="admin.py" />
+      <File name="bootstrap.py" />
+      <File name="config.py" />
+      <File name="platforms.py" />
+      <File name="service.py" />
+      <File name="subject_policy.py" />
+      <File name="types.py" />
+    </Folder>
     <Folder name="platforms">
       <File name="registry.py" />
       <Folder name="qq">
         <File name="permissions.py" />
       </Folder>
     </Folder>
-    <Folder name="permissions">
-      <File name="admin.py" />
-      <File name="bootstrap.py" />
-      <File name="service.py" />
-    </Folder>
     <Folder name="repositories">
+      <File name="__init__.py" />
       <File name="blocklist.py" />
       <File name="message_store.py" />
       <File name="permissions.py" />
+      <File name="registry.py" />
+      <File name="scheduler_jobs.py" />
     </Folder>
     <Folder name="services">
       <File name="message_store.py" />
+      <File name="protocol_restart_feedback.py" />
+      <File name="scheduler.py" />
+      <Folder name="llm" />
     </Folder>
     <Folder name="start">
       <File name="startup.py" />
     </Folder>
+    <Folder name="tools" />
   </Folder>
   <Folder name="apps/docs">
     <Folder name="content" />
@@ -91,12 +128,15 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
 | --- | --- |
 | `core/config.py` | Core configuration, localstore paths, and platform information |
 | `core/runtime_config.py` | Runtime configuration helpers |
+| `core/subplugins/` | Subplugin contracts, loader, and bundled subplugins (llm_chat, novelai_image) |
 | `database/toml_store/` | TOML file storage package |
 | `database/models/` | ORM models package (message, blocklist, registry, identity) |
 | `database/orm_crud/` | Async CRUD helpers based on `nonebot-plugin-orm` |
+| `migrations/` | Alembic database migrations |
 | `handle/menu.py` | Menu system (pages, sections, features, availability) |
 | `handle/qq/commands/` | Shared QQ command definitions (Alconna matchers, triggers) |
 | `handle/qq/adapters/onebot11/` | OneBot V11 handlers (default, napcat) |
+| `hooks/` | Hook registry, interfaces, and NoneBot event lifecycle handlers |
 | `i18n/__init__.py` | gettext/Babel translation helpers, locale reading, and async catalog warmup |
 | `platforms/registry.py` | Platform capabilities, adapter mapping, priority selection, and conflict validation |
 | `platforms/qq/permissions.py` | QQ default identity groups and runtime platform identity resolution |
@@ -105,6 +145,7 @@ Lingchu Bot is an application-side bot project based on NoneBot2. Current code s
 | `repositories/message_store.py` | Message store repository |
 | `repositories/permissions.py` | Permission-system ORM repository |
 | `services/message_store.py` | Message event, processing result, bot lifecycle, and platform API call summary recording |
+| `services/llm/` | LLM service abstraction (backends, capabilities, runtime, security) |
 | `start/` | Startup hooks |
 
 ## Adapter status

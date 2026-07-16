@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
   backed up; recreate configuration as `.toml`. Optional `None` values are
   represented by omitted keys, and programmatic writes do not preserve custom
   comments or formatting.
+- Refreshed governance and documentation infrastructure: realigned
+  `AGENTS.md`, `CLAUDE.md`, and `.github/note/AGENTS-zh.md` under the CREATE
+  framework; corrected README environment variable tables (added `LINGCHU_`
+  prefix) and pinned Python 3.13 / Node.js 24+ requirements; completed the CI
+  workflow list and husky pre-commit description in `CONTRIBUTING.md`; expanded
+  the PR template checklist; exposed the orphan `user-guide/deployment/tipo-llama-cpp`
+  page and added 7 bilingual architecture doc pairs
+  (permissions, i18n-runtime, storage-orm, llm-service, scheduler,
+  platform-registry, api-audit) under `apps/docs`.
 
 ### Deprecated
 

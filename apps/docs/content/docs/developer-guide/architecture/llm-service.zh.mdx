@@ -1,0 +1,179 @@
+---
+icon: Sparkles
+title: LLM 服务
+description: 托管 LLM 运行时，在 OpenAI 与 LiteLLM 之上提供稳定响应门面。
+---
+
+# LLM 服务
+
+Lingchu Bot 内置一个托管 LLM 运行时，持有提供商后端、将提供商响应归一化为稳定的值对象，并将凭据与控制面参数与调用方隔离。该运行时是可选的：当其依赖或配置不可用时，非 AI 机器人服务仍可正常启动。
+
+## 架构
+
+LLM 服务位于 `services/llm/` 下，按职责拆分为多个模块。
+
+| 模块 | 职责 |
+| --- | --- |
+| `services/llm/runtime.py` | 托管生命周期、profile 缓存、稳定的 `respond` / `stream` 门面、热重载 |
+| `services/llm/config.py` | 基于 localstore 的 `llm.toml` 解析、profile 解析、URL 与凭据校验 |
+| `services/llm/backends.py` | 包装原生 SDK 客户端的惰性 `OpenAIBackend` 与 `LiteLLMBackend` |
+| `services/llm/capabilities.py` | 顾问式、模型感知的能力探测，带进程级缓存 |
+| `services/llm/security.py` | 有界不可变数据辅助、日志脱敏与控制面键检测 |
+| `services/llm/types.py` | 稳定不可变值对象（`LLMProfile`、`LLMResponse`、`LLMEvent`、`LLMUsage`） |
+| `services/llm/compat.py` | 旧版 `complete_chat` / `complete_with_web_search` 兼容门面 |
+| `services/llm/events.py` | 将提供商原生流事件无损投影为 `LLMEvent` |
+| `services/llm/observability.py` | 用于调用可观测性的结构化 `LLMCallRecord` 发射 |
+
+公共包 `services/llm/__init__.py` 重新导出稳定门面，并通过 `__getattr__` 惰性加载运行时较重的符号，因此导入该包永远不会触发 `openai` 或 `litellm` 的导入。
+
+## 配置
+
+LLM 配置从通过 `nonebot_plugin_localstore.get_plugin_config_file()` 解析的 `llm.toml` 加载。当文件缺失时，启动期由 `ensure_llm_config_file_async()` 创建一个最小化的 `default_profile = "default"` 和空 `[profiles]` 表。
+
+### 基于 profile 的配置
+
+`[profiles]` 下的每个 profile 都由严格的 Pydantic 模型（`_ProfileModel` 且 `extra = "forbid"`）校验。
+
+```toml
+default_profile = "default"
+
+[profiles.default]
+backend = "litellm"            # 或 "openai"
+model = "gpt-4o-mini"
+base_url = "https://api.example.com"
+api_key_env = "MY_PROVIDER_API_KEY"   # 环境变量名
+timeout = 60.0
+max_retries = 2
+litellm_generation = "responses"      # "responses" 或 "chat"
+allow_private_network = false
+allow_credentials_to_custom_base_url = false
+```
+
+| 字段 | 默认值 | 说明 |
+| --- | --- | --- |
+| `backend` | `litellm` | `litellm` 或 `openai` 之一 |
+| `model` | 必填 | 非空，拒绝控制/分隔符/Bidi 覆写字符 |
+| `base_url` | `None` | 协议必须为 `http`/`https`；默认拒绝私有网络 |
+| `api_key_env` | `None` | 持有 API Key 的环境变量名 |
+| `timeout` | `60.0` | 必须大于零 |
+| `max_retries` | `2` | 介于 0 与 20 之间 |
+| `litellm_generation` | `responses` | 为 LiteLLM 选择 `aresponses` 或 `acompletion` |
+| `allow_private_network` | `false` | 允许回环/链路本地/私网 `base_url` 主机 |
+| `allow_credentials_to_custom_base_url` | `false` | 允许将 API Key 发往自定义 `base_url` |
+| `provider_options` | `{}` | 冻结的 JSON-like 映射；拒绝控制面键 |
+| `default_headers` / `default_query` | `{}` | 冻结映射；自定义 `base_url` 下拒绝敏感键 |
+
+顶层 `[router]` 表可配置一个隔离的 LiteLLM `Router`（仅当 `enabled = true` 时激活），`[observability]` 表可切换结构化调用记录。
+
+### 旧版 `LINGCHU_AI_*` 隐式 profile
+
+当 `llm.toml` 未声明 `[profiles]` 时，运行时回退到 `core/runtime_config.py` 中基于环境变量的旧版字段：
+
+| 旧版字段 | 环境变量 |
+| --- | --- |
+| `ai_provider` | `LINGCHU_AI_PROVIDER` |
+| `ai_model` | `LINGCHU_AI_MODEL` |
+| `ai_base_url` | `LINGCHU_AI_BASE_URL` |
+| `ai_timeout` | `LINGCHU_AI_TIMEOUT` |
+| `ai_api_key` | `LINGCHU_AI_API_KEY` |
+
+这些字段被投影为一个隐式 `default` profile，且 `inherits_legacy_api_key = true`，因此 API Key 仍从 `LINGCHU_AI_API_KEY` 解析。仅当显式 profile 声明了自己的 `api_key_env` 时，才支持显式 `[profiles]` 表与旧版字段混用。
+
+## 稳定接口
+
+运行时在 `LLMRuntime` 上暴露两个稳定操作：
+
+- `respond(input, *, profile=None, **params) -> LLMResponse` — 一次归一化响应
+- `stream(input, *, profile=None, **params) -> AsyncIterator[LLMEvent]` — 提供商原生流的无损投影
+
+两者都会解析 profile、将 `provider_options` 与按调用传入的 `params` 合并，并根据 `backend` 和 `litellm_generation` 路由到 OpenAI `responses.create` API 或 LiteLLM `aresponses` / `acompletion` 操作。组装出的 `LLMResponse` 始终携带 `text`、`output`、`usage`、`request_id`、`model`、`backend` 以及提供商 `raw` 对象。
+
+### 提供商原生访问
+
+`LLMRuntime.openai(name=None)` 与 `LLMRuntime.litellm(name=None)` 返回运行时所持有的后端，供调用方在需要提供商特有功能时直接访问 SDK。`OpenAIBackend.client` 惰性构造绑定到已解析 profile 的 `AsyncOpenAI` 实例；`LiteLLMBackend.call(operation, **params)` 在合并 profile 默认值后调用一个公开的异步 LiteLLM 操作。仅当 `[router] enabled = true` 时才构建 LiteLLM `Router`。
+
+## 能力探测
+
+`services/llm/capabilities.py` 通过 `CapabilityRegistry.probe(profile, capability, *, backend)` 暴露顾问式、模型感知的探测。探测返回 `CapabilityResult`，其 `support` 取以下值之一：
+
+- `supported` — 提供商报告该能力可用
+- `unsupported` — 提供商报告该能力不可用
+- `unknown` — 探测不可用、出错，或后端不是 LiteLLM
+
+`unknown` 永远不会阻止原生调用。结果按 `(backend, model, base_url 指纹, SDK 版本, capability)` 缓存，并在配置重载后由 `invalidate_capability_cache()` 失效。OpenAI 后端始终返回 `unknown`，因为 OpenAI 模型元数据不具备权威性。
+
+`compat.py` 中的旧版 `supports_web_search(options)` 辅助函数将三态结果投影为布尔值（仅当 `supported` 时为 `true`），便于调用方在发起原生 web 搜索补全前短路。
+
+## 安全
+
+### 私有网络防护
+
+`config.py` 中的 `_check_url()` 会拒绝指向私网、回环或链路本地主机的 `base_url`，以及知名云元数据主机（`metadata.google.internal`、`localhost`、`*.localhost`）。在 profile 上设置 `allow_private_network = true` 可显式放行。
+
+该校验不执行 DNS 解析。下游 HTTP 客户端与网络策略必须在连接时重新校验解析地址与重定向是否符合 SSRF 策略。
+
+### 凭据防护
+
+默认情况下，运行时不会将凭据发往自定义 `base_url`。当 `base_url` 已设置、`inherits_legacy_api_key` 为 `false`、且 `allow_credentials_to_custom_base_url` 为 `false` 时：
+
+- 该 profile 的 API Key 被置为 `None`，且
+- 含有凭据类键或授权值的 `default_headers` / `default_query` 会被拒绝。
+
+设置 `allow_credentials_to_custom_base_url = true` 可允许凭据流向自定义端点。对于 `litellm_params` 中未声明 `api_key` 的 LiteLLM Router 部署，会注入一个哨兵值 `__lingchu_no_credential__` 占位。
+
+### 控制面键拒绝
+
+`security.py` 中的 `CONTROL_PLANE_KEYS` 是一个冻结键集合，调用方不得通过稳定接口传入。它覆盖凭据（`api_key`、`access_token`、`azure_ad_token`）、端点（`base_url`、`api_base`、`azure_endpoint`、`organization`、`project`）、传输（`transport`、`http_client`、`client`）、回调（`callback`、`callbacks`、`success_callback`、`failure_callback`、`custom_logger`、`logger_fn`、`loggers`）、头与查询（`headers`、`extra_headers`、`default_headers`、`query`、`extra_query`、`default_query`）、重试控制（`max_retries`、`retry`、`retries`、`retry_config`、`retry_policy`、`retry_strategy`、`num_retries`、`allowed_fails`、`fallbacks`、`context_window_fallbacks`、`content_policy_fallbacks`）以及 `router` / `token`。
+
+当以下任一情况发生时，`LLMRuntime.respond()` 与 `LLMRuntime.stream()` 会抛出 `_ControlPlaneParameterError`（一种 `LLMConfigurationError`）：
+
+- 任一 `**params` 键与 `CONTROL_PLANE_KEYS` 相交，或
+- 已解析 profile 的 `provider_options` 含有控制面键。
+
+`backends.py` 中另一个 `_ROUTER_CONTROL_KEYS` 集合会递归拒绝 LiteLLM Router 的回调与日志器（`callbacks`、`custom_logger`、`failure_callback`、`logger_fn`、`loggers`、`success_callback`）。
+
+### 不自动执行工具
+
+运行时不执行提供商返回的工具调用。`LLMEvent` 暴露 `tool_call_delta` 事件以便调用方观察工具调用流，但运行时绝不会代表模型调用工具、回调或本地函数。
+
+### 有界不可变数据
+
+`security.py` 强制使用有界、不可变、JSON-like 的数据：
+
+- `freeze_value()` 将受支持的值深拷贝为 `MappingProxyType` / `tuple` 容器，含 `MAX_NESTING_DEPTH = 8`、`MAX_COLLECTION_ITEMS = 100`、循环检测，并拒绝非字符串映射键。
+- `thaw_value()` 将冻结值拷贝回可变 `dict` / `list` 以供 SDK 调用。
+- `sanitize_message()` 在返回有界公开异常文本前，剥离控制/分隔符/Bidi 覆写字符，并对 `Bearer`/`Basic` 授权值与凭据类赋值进行脱敏。
+- `LLMProfile.__repr__` 永不渲染 `api_key`、`default_headers`、`default_query` 或 `provider_options` 的内容。
+
+## 生命周期与热重载
+
+单个托管 `LLMRuntime` 实例由 `runtime.py` 中的 `_managed_state` 持有，并受 `_managed_runtime_lock` 与一个 `_LifecycleCoordinator` 保护，后者在线程与事件循环间串行化生命周期工作。
+
+| 函数 | 用途 |
+| --- | --- |
+| `get_llm_runtime()` | 返回进程运行时，首次访问时惰性构造 |
+| `initialize_llm_runtime()` | 初始化一次，与重载和关闭串行 |
+| `reload_llm_runtime()` | 发布一个已校验的候选运行时，再关闭旧运行时 |
+| `shutdown_llm_runtime()` | 分离并关闭进程运行时 |
+
+### 热重载语义
+
+`reload_llm_runtime()` 遵循严格的顺序，使失败的重载永远不会破坏运行中的机器人：
+
+1. 获取生命周期协调器票据（与初始化/关闭串行）。
+2. 通过 `_build_managed_runtime()` 以 `next_generation = 当前值 + 1` 构建候选运行时。该步调用 `load_llm_runtime_config()` 并构造 `LLMRuntime`，但不会发布，因此配置校验错误在此暴露。
+3. 通过交换 `_managed_state.runtime` 并递增 `_managed_state.generation` 来发布候选。
+4. 调用 `invalidate_capability_cache()`，使下次探测重新查询新的 SDK 与模型。
+5. 通过 `_finish_cleanup_before_cancellation()` 关闭旧运行时，该函数在所拥有的清理完成前保持生命周期串行化，仅在清理完成后才传播取消。
+
+关闭失败会在交换后传播。新 generation 保持已发布状态，因为回滚到一个已部分关闭的运行时不安全。profile 与后端按 `(name, generation, api_key 指纹)` 缓存，因此旧运行时上仍在进行的调用会继续解析各自的后端，直到旧运行时被关闭。
+
+### 关闭
+
+`shutdown_llm_runtime()` 将 `shutting_down` 置为 `True`，分离运行时，并逐个关闭所持有的后端，单个失败不会中断其余关闭。一旦关闭开始，`get_llm_runtime()` 会抛出 `_RuntimeClosingError`。
+
+<Callout title="启动时可选">
+
+`start/startup.py` 将 `ensure_llm_config_file_async()` 与 `initialize_llm_runtime()` 包裹在 try/except 中，因此配置或后端本地依赖失败永远不会阻止非 AI 机器人服务启动。
+
+</Callout>

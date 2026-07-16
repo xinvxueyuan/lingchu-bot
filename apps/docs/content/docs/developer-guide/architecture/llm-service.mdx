@@ -1,0 +1,179 @@
+---
+icon: Sparkles
+title: LLM Service
+description: Managed LLM runtime with stable response facade over OpenAI and LiteLLM.
+---
+
+# LLM Service
+
+Lingchu Bot ships a managed LLM runtime that owns provider backends, normalizes provider responses into stable value objects, and isolates credentials and control-plane parameters from callers. The runtime is optional: when its dependencies or configuration are unavailable, non-AI bot services still start.
+
+## Architecture
+
+The LLM service lives under `services/llm/` and is split into focused modules.
+
+| Module | Responsibility |
+| --- | --- |
+| `services/llm/runtime.py` | Managed lifecycle, profile cache, stable `respond` / `stream` facade, hot reload |
+| `services/llm/config.py` | Localstore-backed `llm.toml` parsing, profile resolution, URL and credential validation |
+| `services/llm/backends.py` | Lazy `OpenAIBackend` and `LiteLLMBackend` wrappers around native SDK clients |
+| `services/llm/capabilities.py` | Advisory, model-aware capability probes with a process-level cache |
+| `services/llm/security.py` | Bounded immutable data helpers, log redaction, and control-plane key detection |
+| `services/llm/types.py` | Stable immutable value objects (`LLMProfile`, `LLMResponse`, `LLMEvent`, `LLMUsage`) |
+| `services/llm/compat.py` | Legacy `complete_chat` / `complete_with_web_search` compatibility facade |
+| `services/llm/events.py` | Lossless projection of provider-native stream events into `LLMEvent` |
+| `services/llm/observability.py` | Structured `LLMCallRecord` emission for call observability |
+
+The public package `services/llm/__init__.py` re-exports the stable facade and lazily loads runtime-heavy symbols through `__getattr__` so importing the package never imports `openai` or `litellm`.
+
+## Configuration
+
+LLM configuration is loaded from `llm.toml` resolved through `nonebot_plugin_localstore.get_plugin_config_file()`. The file is created on startup by `ensure_llm_config_file_async()` with a minimal `default_profile = "default"` and an empty `[profiles]` table when missing.
+
+### Profile-based configuration
+
+Each profile under `[profiles]` is validated by a strict Pydantic model (`_ProfileModel` with `extra = "forbid"`).
+
+```toml
+default_profile = "default"
+
+[profiles.default]
+backend = "litellm"            # or "openai"
+model = "gpt-4o-mini"
+base_url = "https://api.example.com"
+api_key_env = "MY_PROVIDER_API_KEY"   # environment variable name
+timeout = 60.0
+max_retries = 2
+litellm_generation = "responses"      # "responses" or "chat"
+allow_private_network = false
+allow_credentials_to_custom_base_url = false
+```
+
+| Field | Default | Notes |
+| --- | --- | --- |
+| `backend` | `litellm` | One of `litellm`, `openai` |
+| `model` | required | Non-empty, control/separator/bidi characters rejected |
+| `base_url` | `None` | Scheme must be `http`/`https`; private networks rejected by default |
+| `api_key_env` | `None` | Name of the environment variable holding the API key |
+| `timeout` | `60.0` | Must be greater than zero |
+| `max_retries` | `2` | Between 0 and 20 |
+| `litellm_generation` | `responses` | Selects `aresponses` vs `acompletion` for LiteLLM |
+| `allow_private_network` | `false` | Allows loopback / link-local / private `base_url` hosts |
+| `allow_credentials_to_custom_base_url` | `false` | Allows API key to be sent to a custom `base_url` |
+| `provider_options` | `{}` | Frozen JSON-like mapping; control-plane keys rejected |
+| `default_headers` / `default_query` | `{}` | Frozen mappings; sensitive keys rejected for custom `base_url` |
+
+A top-level `[router]` table can configure an isolated LiteLLM `Router` (only `enabled = true` activates it), and an `[observability]` table toggles structured call records.
+
+### Legacy `LINGCHU_AI_*` implicit profile
+
+When `llm.toml` declares no `[profiles]`, the runtime falls back to the legacy environment-backed fields from `core/runtime_config.py`:
+
+| Legacy field | Environment variable |
+| --- | --- |
+| `ai_provider` | `LINGCHU_AI_PROVIDER` |
+| `ai_model` | `LINGCHU_AI_MODEL` |
+| `ai_base_url` | `LINGCHU_AI_BASE_URL` |
+| `ai_timeout` | `LINGCHU_AI_TIMEOUT` |
+| `ai_api_key` | `LINGCHU_AI_API_KEY` |
+
+These are projected into an implicit `default` profile with `inherits_legacy_api_key = true`, so the API key is still resolved from `LINGCHU_AI_API_KEY`. Mixing an explicit `[profiles]` table with legacy fields is supported only when the explicit profile declares its own `api_key_env`.
+
+## Stable interface
+
+The runtime exposes two stable operations on `LLMRuntime`:
+
+- `respond(input, *, profile=None, **params) -> LLMResponse` — one normalized response
+- `stream(input, *, profile=None, **params) -> AsyncIterator[LLMEvent]` — a lossless projection of the provider-native stream
+
+Both resolve a profile, merge `provider_options` with per-call `params`, and route to the OpenAI `responses.create` API or the LiteLLM `aresponses` / `acompletion` operation based on `backend` and `litellm_generation`. The assembled `LLMResponse` always carries `text`, `output`, `usage`, `request_id`, `model`, `backend`, and the provider `raw` object.
+
+### Provider-native access
+
+`LLMRuntime.openai(name=None)` and `LLMRuntime.litellm(name=None)` return the runtime-owned backends for direct SDK access when callers need provider-specific features. `OpenAIBackend.client` lazily constructs an `AsyncOpenAI` instance bound to the resolved profile; `LiteLLMBackend.call(operation, **params)` invokes one public asynchronous LiteLLM operation after merging profile defaults. LiteLLM `Router` is built only when `[router] enabled = true`.
+
+## Capability probing
+
+`services/llm/capabilities.py` exposes advisory, model-aware probes through `CapabilityRegistry.probe(profile, capability, *, backend)`. Probes return a `CapabilityResult` with `support` set to one of:
+
+- `supported` — the provider reports the capability is available
+- `unsupported` — the provider reports the capability is not available
+- `unknown` — the probe is unavailable, errored, or the backend is not LiteLLM
+
+`unknown` never prevents a native call. Results are cached per `(backend, model, base_url fingerprint, SDK version, capability)` and invalidated by `invalidate_capability_cache()` after a configuration reload. OpenAI backends always return `unknown` because OpenAI model metadata is not authoritative.
+
+The legacy `supports_web_search(options)` helper in `compat.py` projects the tri-state result onto a boolean (`true` only when `supported`) so callers can short-circuit before issuing a native web-search completion.
+
+## Security
+
+### Private network protection
+
+`_check_url()` in `config.py` rejects `base_url` values that point at private, loopback, or link-local hosts, plus well-known cloud metadata hosts (`metadata.google.internal`, `localhost`, `*.localhost`). Set `allow_private_network = true` on a profile to opt in.
+
+The check does not perform DNS resolution. Downstream HTTP clients and network policy must revalidate resolved addresses and redirects against SSRF policy at connection time.
+
+### Credential protection
+
+By default the runtime does not send credentials to a custom `base_url`. When `base_url` is set, `inherits_legacy_api_key` is `false`, and `allow_credentials_to_custom_base_url` is `false`:
+
+- the API key is set to `None` for that profile, and
+- `default_headers` / `default_query` containing credential-like keys or authorization values are rejected.
+
+Set `allow_credentials_to_custom_base_url = true` to allow credentials to flow to a custom endpoint. LiteLLM Router deployments without an `api_key` in `litellm_params` are injected with a sentinel `__lingchu_no_credential__` placeholder.
+
+### Control-plane key rejection
+
+`CONTROL_PLANE_KEYS` in `security.py` is a frozen set of keys that callers must not pass through the stable interface. It covers credentials (`api_key`, `access_token`, `azure_ad_token`), endpoints (`base_url`, `api_base`, `azure_endpoint`, `organization`, `project`), transport (`transport`, `http_client`, `client`), callbacks (`callback`, `callbacks`, `success_callback`, `failure_callback`, `custom_logger`, `logger_fn`, `loggers`), headers and query (`headers`, `extra_headers`, `default_headers`, `query`, `extra_query`, `default_query`), retry control (`max_retries`, `retry`, `retries`, `retry_config`, `retry_policy`, `retry_strategy`, `num_retries`, `allowed_fails`, `fallbacks`, `context_window_fallbacks`, `content_policy_fallbacks`), and `router` / `token`.
+
+`LLMRuntime.respond()` and `LLMRuntime.stream()` raise `_ControlPlaneParameterError` (an `LLMConfigurationError`) when:
+
+- any `**params` key intersects `CONTROL_PLANE_KEYS`, or
+- the resolved profile's `provider_options` contains a control-plane key.
+
+A separate `_ROUTER_CONTROL_KEYS` set in `backends.py` rejects LiteLLM Router callbacks and loggers (`callbacks`, `custom_logger`, `failure_callback`, `logger_fn`, `loggers`, `success_callback`) recursively.
+
+### No automatic tool execution
+
+The runtime does not execute tool calls returned by the provider. `LLMEvent` exposes `tool_call_delta` events so callers can observe tool-call streaming, but the runtime never invokes tools, callbacks, or local functions on behalf of the model.
+
+### Bounded immutable data
+
+`security.py` enforces bounded, immutable, JSON-like data:
+
+- `freeze_value()` deep-copies supported values into `MappingProxyType` / `tuple` containers with `MAX_NESTING_DEPTH = 8`, `MAX_COLLECTION_ITEMS = 100`, cycle detection, and rejection of non-string mapping keys.
+- `thaw_value()` copies frozen values back into mutable `dict` / `list` for SDK calls.
+- `sanitize_message()` strips control, separator, and bidi-override characters and redacts `Bearer`/`Basic` authorization values and credential-like assignments before returning bounded public exception text.
+- `LLMProfile.__repr__` never renders `api_key`, `default_headers`, `default_query`, or `provider_options` contents.
+
+## Lifecycle and hot reload
+
+A single managed `LLMRuntime` instance is held by `_managed_state` in `runtime.py` and protected by `_managed_runtime_lock` plus a `_LifecycleCoordinator` that serializes lifecycle work across threads and event loops.
+
+| Function | Purpose |
+| --- | --- |
+| `get_llm_runtime()` | Return the process runtime, constructing it lazily on first access |
+| `initialize_llm_runtime()` | Initialize once, serialized with reload and shutdown |
+| `reload_llm_runtime()` | Publish a validated candidate, then close the previous runtime |
+| `shutdown_llm_runtime()` | Detach and close the process runtime |
+
+### Hot reload semantics
+
+`reload_llm_runtime()` follows a strict sequence so a failed reload never breaks the running bot:
+
+1. Acquire the lifecycle coordinator ticket (serialized with init/shutdown).
+2. Build a candidate runtime with `next_generation = current + 1` through `_build_managed_runtime()`. This calls `load_llm_runtime_config()` and constructs the `LLMRuntime` without publishing it, so configuration validation errors surface here.
+3. Publish the candidate by swapping `_managed_state.runtime` and incrementing `_managed_state.generation`.
+4. Call `invalidate_capability_cache()` so the next probe re-queries the new SDK and model.
+5. Close the previous runtime through `_finish_cleanup_before_cancellation()`, which keeps lifecycle serialization until owned cleanup finishes and propagates cancellation only after cleanup completes.
+
+A close failure is propagated after the swap. The new generation remains published because rolling back to a partially closed runtime is unsafe. Profiles and backends are cached per `(name, generation, api_key fingerprint)`, so in-flight calls on the old runtime continue to resolve their own backends until the old runtime is closed.
+
+### Shutdown
+
+`shutdown_llm_runtime()` sets `shutting_down = True`, detaches the runtime, and closes every owned backend once, continuing after individual failures. `get_llm_runtime()` raises `_RuntimeClosingError` once shutdown has started.
+
+<Callout title="Optional at startup">
+
+`start/startup.py` wraps `ensure_llm_config_file_async()` and `initialize_llm_runtime()` in a try/except so configuration or backend-local dependency failures never prevent non-AI bot services from starting.
+
+</Callout>

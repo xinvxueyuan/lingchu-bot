@@ -39,13 +39,79 @@ The project provides a cross-platform setup script (`./scripts/setup.sh`) that a
 | `ALEMBIC_STARTUP_CHECK` | `false` | Set to `true` in production to enforce schema migration checks on startup |
 | `SQLALCHEMY_DATABASE_URL` | (unset) | SQLAlchemy database URL for multi-database testing; supports six backends (SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server); unset uses default SQLite |
 
+## Container detection
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LINGCHU_IN_CONTAINERS` | `false` | Set to `true` when running inside Docker / Kubernetes. MUST be lowercase `true` / `false` — NoneBot2 only accepts JSON-standard booleans here |
+
 ## Superuser settings
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `LINGCHU_SUPERUSERS` | (unset) | JSON object mapping Lingchu UIDs to platform accounts; see [Superuser Identity](./superuser) |
+| `LINGCHU_SUPERUSER_KEY` | `123456789abcdef` | Lightweight auth key used for root-level operations when no Lingchu superuser is configured. Override in production with a strong random value |
 
 See [Superuser Identity](./superuser) for detailed configuration.
+
+## Adapter and locale
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LINGCHU_ADAPTER` | (unset) | Adapter selection. Use `~` prefix to use NoneBot adapter shorthand (e.g. `~onebot.v11`). Accepts a string or a list of strings |
+| `LINGCHU_LOCALE` | `en_US` | Lingchu i18n locale. Supported catalogs: `zh_CN`, `en_US`. NoneBot automatically converts this to the `lingchu_locale` config field |
+
+## Message store
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LINGCHU_MESSAGE_STORE_ENABLED` | `true` | Enable message storage hooks (group message history, audit, summary) |
+| `LINGCHU_MESSAGE_STORE_RETENTION_DAYS` | `30` | Days to retain stored messages. `0` = unlimited. Must be `>= 0` |
+| `LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT` | `500` | Maximum number of messages included in a single summary. Must be `>= 0` |
+| `LINGCHU_MESSAGE_STORE_RECORD_API_CALLS` | `true` | Whether platform API call summaries are recorded |
+| `LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED` | `true` | Enable automatic cleanup of expired message records |
+
+## LLM service
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LINGCHU_AI_PROVIDER` | `litellm` | LLM provider backend. One of: `litellm`, `openai` |
+| `LINGCHU_AI_MODEL` | `gpt-4o-mini` | Default LLM model name |
+| `LINGCHU_AI_BASE_URL` | (unset) | Optional OpenAI-compatible base URL (for DeepSeek, Qwen, Moonshot, Zhipu, OpenRouter, Ollama, etc.). Leave unset for OpenAI default |
+| `LINGCHU_AI_TIMEOUT` | `60.0` | Request timeout in seconds. Must be `> 0` |
+| `LINGCHU_AI_API_KEY` | (unset) | Legacy / default LLM API key. A non-empty profiles table in localstore-backed `llm.toml` takes precedence over all `LINGCHU_AI_*` fields |
+
+## Recall settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT` | `10` | Default number of messages to recall when no explicit count is given. Range: `1`–`100` |
+
+## Permissions
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LINGCHU_PERMISSION_PLATFORM_RUNTIME_PASSTHROUGH` | `true` | Whether platform permission resolvers pass through to runtime config. `true` = passthrough; `false` = strict; or a per-platform mapping (strict JSON) |
+
+## Trigger overrides
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LINGCHU_COMMAND_TRIGGER_OVERRIDES` | `{}` | Per-command trigger word overrides (strict JSON). Empty = use defaults. Example: `{"kick_member":{"triggers":["kick","踢"]}}` |
+| `LINGCHU_MENU_PAGE_TRIGGER_OVERRIDES` | `{}` | Per-menu-page trigger overrides (strict JSON). Empty = use defaults |
+
+## Protected subject feature keys
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS` | (built-in set) | Feature keys that require elevated subject permission. Strict JSON string list. Defaults to a built-in set of 12 sensitive operations (`kick_member`, `block_member`, `global_block_member`, `member_mute`, `recall_message`, `set_member_card`, `set_member_title`, `set_member_admin`, `unset_member_admin`, `remote_kick`, `remote_block`, `remote_mute`) |
+
+## Announcement image paths
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` | `<localstore cache_dir>/announcement_images` | Host-side cache directory for group announcement images. Override only for cross-container file sharing (e.g. NapCat bind mount) |
+| `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` | (unset) | Protocol-side path: container-internal path seen by NapCat. Required when `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` is set and NapCat runs in Docker |
 
 <Callout type="warn" title="Boolean format">
 

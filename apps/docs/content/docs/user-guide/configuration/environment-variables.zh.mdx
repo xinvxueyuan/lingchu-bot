@@ -39,13 +39,79 @@ Lingchu Bot 使用 NoneBot2 的环境变量系统。将 `.env.example` 复制为
 | `ALEMBIC_STARTUP_CHECK` | `false` | 生产环境设为 `true` 以在启动时强制执行 schema 迁移检查 |
 | `SQLALCHEMY_DATABASE_URL` | （未设置） | 用于多数据库测试的 SQLAlchemy 数据库 URL；支持 SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server 六个后端，未设置时使用默认 SQLite |
 
+## 容器检测
+
+| 变量 | 默认值 | 说明 |
+|----------|---------|-------------|
+| `LINGCHU_IN_CONTAINERS` | `false` | 在 Docker / Kubernetes 内运行时设为 `true`。必须为小写 `true` / `false` —— NoneBot2 在此只接受 JSON 标准布尔值 |
+
 ## 超级用户设置
 
 | 变量 | 默认值 | 说明 |
 |----------|---------|-------------|
 | `LINGCHU_SUPERUSERS` | （未设置） | Lingchu UID 到平台账号映射的 JSON 对象；参见[超级用户身份](./superuser) |
+| `LINGCHU_SUPERUSER_KEY` | `123456789abcdef` | 未配置 Lingchu 超级用户时用于根级操作的轻量认证密钥。生产环境应覆盖为强随机值 |
 
 参见[超级用户身份](./superuser)了解详细配置。
+
+## 适配器与语言
+
+| 变量 | 默认值 | 说明 |
+|----------|---------|-------------|
+| `LINGCHU_ADAPTER` | （未设置） | 适配器选择。使用 `~` 前缀启用 NoneBot 适配器简写（如 `~onebot.v11`）。接受字符串或字符串列表 |
+| `LINGCHU_LOCALE` | `en_US` | Lingchu i18n 语言。支持的目录：`zh_CN`、`en_US`。NoneBot 会自动将其转换为 `lingchu_locale` 配置字段 |
+
+## 消息存储
+
+| 变量 | 默认值 | 说明 |
+|----------|---------|-------------|
+| `LINGCHU_MESSAGE_STORE_ENABLED` | `true` | 启用消息存储钩子（群消息历史、审计、摘要） |
+| `LINGCHU_MESSAGE_STORE_RETENTION_DAYS` | `30` | 已存储消息的保留天数。`0` = 永久保留。必须 `>= 0` |
+| `LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT` | `500` | 单次摘要包含的最大消息数。必须 `>= 0` |
+| `LINGCHU_MESSAGE_STORE_RECORD_API_CALLS` | `true` | 是否记录平台 API 调用摘要 |
+| `LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED` | `true` | 启用过期消息记录的自动清理 |
+
+## LLM 服务
+
+| 变量 | 默认值 | 说明 |
+|----------|---------|-------------|
+| `LINGCHU_AI_PROVIDER` | `litellm` | LLM 提供方后端。取值：`litellm`、`openai` |
+| `LINGCHU_AI_MODEL` | `gpt-4o-mini` | 默认 LLM 模型名称 |
+| `LINGCHU_AI_BASE_URL` | （未设置） | 可选的 OpenAI 兼容 base URL（用于 DeepSeek、Qwen、Moonshot、Zhipu、OpenRouter、Ollama 等）。未设置时使用 OpenAI 默认值 |
+| `LINGCHU_AI_TIMEOUT` | `60.0` | 请求超时（秒）。必须 `> 0` |
+| `LINGCHU_AI_API_KEY` | （未设置） | 旧版 / 默认 LLM API 密钥。localstore 支持的 `llm.toml` 中非空的 profiles 表优先于所有 `LINGCHU_AI_*` 字段 |
+
+## 撤回设置
+
+| 变量 | 默认值 | 说明 |
+|----------|---------|-------------|
+| `LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT` | `10` | 未显式指定数量时默认撤回的消息数。范围：`1`–`100` |
+
+## 权限
+
+| 变量 | 默认值 | 说明 |
+|----------|---------|-------------|
+| `LINGCHU_PERMISSION_PLATFORM_RUNTIME_PASSTHROUGH` | `true` | 平台权限解析器是否透传到运行时配置。`true` = 透传；`false` = 严格；或按平台的映射（严格 JSON） |
+
+## 触发词覆盖
+
+| 变量 | 默认值 | 说明 |
+|----------|---------|-------------|
+| `LINGCHU_COMMAND_TRIGGER_OVERRIDES` | `{}` | 按命令的触发词覆盖（严格 JSON）。空 = 使用默认值。示例：`{"kick_member":{"triggers":["kick","踢"]}}` |
+| `LINGCHU_MENU_PAGE_TRIGGER_OVERRIDES` | `{}` | 按菜单页的触发词覆盖（严格 JSON）。空 = 使用默认值 |
+
+## 受保护主体功能键
+
+| 变量 | 默认值 | 说明 |
+|----------|---------|-------------|
+| `LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS` | （内置集合） | 需要提升主体权限的功能键。严格 JSON 字符串列表。默认为内置的 12 项敏感操作（`kick_member`、`block_member`、`global_block_member`、`member_mute`、`recall_message`、`set_member_card`、`set_member_title`、`set_member_admin`、`unset_member_admin`、`remote_kick`、`remote_block`、`remote_mute`） |
+
+## 公告图片路径
+
+| 变量 | 默认值 | 说明 |
+|----------|---------|-------------|
+| `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` | `<localstore cache_dir>/announcement_images` | 群公告图片的宿主侧缓存目录。仅在与容器共享文件时覆盖（如 NapCat bind mount） |
+| `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` | （未设置） | 协议侧路径：NapCat 容器内部看到的路径。当 `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` 已设置且 NapCat 运行在 Docker 中时必填 |
 
 <Callout type="warn" title="布尔值格式">
 

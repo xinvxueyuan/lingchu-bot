@@ -15,7 +15,7 @@
 task install
 ```
 
-`task install` 会执行 `uv sync` 和 `pnpm install`。如果只处理单侧改动，也可以分别运行 `uv sync --frozen` 或 `pnpm install --frozen-lockfile`。
+`task install` 会执行 `uv sync --all-extras` 和 `pnpm install`。如果只处理单侧改动，也可以分别运行 `uv sync --frozen` 或 `pnpm install --frozen-lockfile`。
 
 开始前请阅读 [README.md](../../README.md)、[Repository-Policy.md](../../Repository-Policy.md) 和 [CODE_OF_CONDUCT.md](../../CODE_OF_CONDUCT.md)。提交媒体、截图或示例数据时，遵守仓库策略中的许可和脱敏要求。
 
@@ -83,7 +83,7 @@ task install
 - `uv`：Python 依赖、虚拟环境、Ruff、Pyright、ty、pytest、Babel 和构建命令入口。
 - `pnpm`：Node 工作区、docs 应用、Turbo、Gitmoji、Markdown lint 和前端依赖入口。
 - `turbo`：编排 docs 与 packages 的 lint、type check、build 等任务。
-- `husky`：安装 Git hooks；`pre-commit` 运行 prek 和 GitNexus 分析，`commit-msg` 校验提交信息，`prepare-commit-msg` 尝试启动 Gitmoji 交互。
+- `husky`：安装 Git hooks；`pre-commit` 根据变更文件类型运行 prek 自动修复、markdownlint、Ruff、Pyright、ty、pytest、docs lint/type/test/e2e smoke、对 `.tsx` 运行 React Doctor 以及非阻塞的 GitNexus 分析；`commit-msg` 校验提交信息；`prepare-commit-msg` 尝试启动 Gitmoji 交互模式。
 - `prek`：通过 `prek.toml` 运行 pre-commit hooks，检查空白、换行、YAML/TOML/JSON/XML、合并冲突、大文件、私钥和大小写冲突等。
 - GitNexus / codegraph：用于代码理解、影响分析、变更范围检查和安全重构。
 - Context7：用于查询当前库、框架、SDK、CLI 或云服务文档；不要用它替代业务逻辑分析或代码审查。
@@ -164,7 +164,7 @@ uv run -m ruff check --fix path/to/file.py
 - 注释应解释不明显的原因或约束，不重复代码本身。
 - 文档改动应简洁、可执行，避免和 CI、Taskfile 或实际目录结构不一致。
 - Python 代码遵循 Ruff 规则（见 `pyproject.toml` 的 `[tool.ruff]`）。提交前运行 `uv run -m ruff check .` 和 `uv run -m ruff format --check .`。
-- TypeScript 代码遵循 ESLint 规则（见 `packages/eslint-config/`）。提交前运行 `pnpm turbo run lint`。
+- TypeScript 代码遵循 ESLint 规则（见 `apps/docs/eslint.config.mjs`）。提交前运行 `pnpm turbo run lint`。
 - 函数签名参数数量应 ≤ 5（Ruff `PLR0913`）。如有需要，将相关参数合并为单个对象。
 - 测试文件必须避免硬编码模块路径；改用直接对象引用。
 - 迁移文件时，更新所有依赖引用（测试、i18n、文档、配置）以反映新路径。
@@ -244,11 +244,17 @@ PR 描述应包含：
 
 ## CI 与失败处理
 
-- PR 会触发 GitHub Actions；`main` 和 `dev` 的 push 也会触发主要 CI。
-- `🧪 Python CI` 的 Static Analysis 运行 `task ci:static`，Tests & Type Check 运行 Pyright、ty 和 pytest（多数据库矩阵）；`🧪 Frontend CI` 运行 Docs Check（Turbo lint、type check、link validation、docs test）。
-- `👷 CI-builds` 运行 `task ci:build`；在 `main`、`dev`、`releases/**` 的 push 上还会执行版本写入、构建产物归档、来源证明和 tag 流程。
-- `📚 Docs Deploy` 在 docs 相关路径 push 到 `main` 或 `dev` 时运行 pnpm/turbo lint、docs test 和 docs build，然后部署 GitHub Pages。
-- `🧪 Python CI` 中 `main` 和 `dev` push 上的 auto-format job 会运行 `task ci:fix` 并可能自动提交格式修复。
+PR 会触发 GitHub Actions；`main` 和 `dev` 的 push 也会触发主要 CI 工作流。仓库在 `.github/workflows/` 下提供九个工作流：
+
+- `🧪 Python CI`（`🧪-python.yml`）— 运行 Static Analysis（`task ci:static`）和 Tests & Type Check（Pyright、ty、pytest，覆盖多数据库矩阵）。在 `main` 和 `dev` 的 push 上，auto-format job 会运行 `task ci:fix` 并可能自动提交格式修复。信息性的 `ignore-comment-audit` job 会在变更的 Python 文件中检测到新增内联忽略注释时，在 PR 下发布评论。
+- `🧪 Frontend CI`（`🧪-frontend.yml`）— 当 frontend 路径变更时运行 Docs Check（Turbo lint、type check、link validation、docs test）。
+- `📚 Docs Deploy`（`📚-docs.yml`）— 在 `main` 和 `dev` 的 push 上运行 pnpm/turbo lint、docs test、docs build、docs smoke test，然后部署到 GitHub Pages。
+- `👷 CI-builds`（`👷-ci-builds.yml`）— 在 PR 和非 `main`/`dev` 的 push 分支上运行 `task ci:build`，随后执行容器化 smoke test。在 `main` 和 `dev` 的 push 上，`versioned-build` job 会 bump 开发版本，写入 `core/config.py` 和 `package.json`，构建产物，attest SLSA Build L3 来源证明并推送版本 tag。
+- `🚀 Release`（`🚀-release.yml`）— 由 `releases/**` 的 push 触发。构建 dist 产物，通过 Trusted Publishing/OIDC 发布到 PyPI，使用 `GITHUB_TOKEN` 推送 Docker 镜像到 GHCR，attest SLSA Build L3 来源证明，并基于 `.github/releases/<version>.md` 创建 GitHub Release。
+- `🩺 React Doctor`（`🩺-react-doctor.yml`）— 扫描 `.tsx` 变更中的安全、性能、正确性、可访问性、bundle 体积和架构问题。
+- `🎭 Playwright`（`🎭-playwright.yml`）— 在 docs/frontend 变更时运行 docs 端到端测试（`pnpm --filter docs run test:e2e`）。
+- `🧹 Clear Workflow`（`🧹-clear-workflow.yml`）— 手动派发的工作流，用于删除非运行中的 workflow run 历史。
+- `🏷️ Top Issues`（`🏷️-issues-top.yml`）— 每日定时任务，对 top issue、bug、feature 和 PR 进行标记和展示。
 
 如果 CI 失败，先打开失败 job 的日志，定位具体命令、规则和行号。修 CI 时只改导致失败的最小范围，并重新跑对应本地命令验证。
 

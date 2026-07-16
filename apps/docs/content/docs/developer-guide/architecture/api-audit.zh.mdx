@@ -1,0 +1,150 @@
+---
+icon: ShieldCheck
+title: API 审计
+description: 事件、生命周期与 API 调用审计的运行时钩子，以及命令级审计记录。
+---
+
+# API 审计
+
+Lingchu Bot 为消息处理的每个阶段记录结构化审计记录：事件接收、匹配器结果、Bot 生命周期与平台 API 调用。审计管道建立在消息存储运行时钩子之上，并扩展了本地与远程群管理处理器使用的命令级 `CommandAudit` 载荷。
+
+## 管道概览
+
+审计数据流经三层，全部位于 `hooks/` 与 `services/` 之下。
+
+| 阶段 | 钩子 / 调用方 | 处理器 | 记录类型 |
+| --- | --- | --- | --- |
+| 事件接收 | `event_preprocessor` | `hooks/handlers/message_store.py::message_store_preprocessor` | `MessageRecord`（或 `QQOneBotV11NoneBotEventRecord`） |
+| 匹配器结果 | `run_postprocessor` | `hooks/handlers/message_store.py::message_store_run_postprocessor` | 更新事件记录的 `process_status` |
+| Bot 生命周期 | `driver.on_bot_connect` / `on_bot_disconnect` | `hooks/handlers/bot_connection.py` | `AuditRecord`，`audit_type = "lifecycle"` |
+| 平台 API 调用 | `Bot.on_called_api` | `hooks/handlers/api_audit.py::on_called_api` | `AuditRecord`，`audit_type = "api_call"` |
+| 命令审计 | 处理器调用点 | `handle/qq/adapters/onebot11/default/common.py::record_command_audit` | `AuditRecord`，`audit_type = "command"` |
+
+每个阶段都通过 `core/async_utils.py::fire_and_forget(coro, *, name=...)` 派发工作，因此存储写入永远不会阻塞 NoneBot 事件循环。`hooks/adapters.py` 中的平台适配器层将 `Bot` 解析为 `PlatformContext(platform_id, adapter_id, bot_id, protocol_id)`，并将事件归一化为 `NormalizedMessageEvent`，使处理器保持与适配器无关。
+
+<Callout title="构建于消息存储之上">
+
+事件接收、匹配器结果、生命周期与 API 调用这些阶段与[消息存储](message-store)文档中的管道相同。本页聚焦审计专属的配置项与命令级 `CommandAudit` 扩展。
+
+</Callout>
+
+## 配置
+
+所有审计配置都从 `core/runtime_config.py::RuntimeConfig` 读取。每个字段通过 Pydantic `AliasChoices` 同时接受环境变量与 TOML 别名。
+
+| 字段 | 环境变量 / 别名 | 默认值 | 用途 |
+| --- | --- | --- | --- |
+| `message_store_enabled` | `LINGCHU_MESSAGE_STORE_ENABLED` / `message_store_enabled` | `true` | 整个管道（事件、生命周期、API、命令）的主开关 |
+| `message_store_retention_days` | `LINGCHU_MESSAGE_STORE_RETENTION_DAYS` / `message_store_retention_days` | `30` | 记录保留天数；`0` 禁用按天过期 |
+| `message_store_summary_limit` | `LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT` / `message_store_summary_limit` | `500` | 文本、数据与结果摘要的最大长度 |
+| `message_store_record_api_calls` | `LINGCHU_MESSAGE_STORE_RECORD_API_CALLS` / `message_store_record_api_calls` | `true` | 是否记录平台 API 调用摘要 |
+| `message_store_cleanup_enabled` | `LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED` / `message_store_cleanup_enabled` | `true` | 是否清理过期记录（关闭 + 周期任务） |
+
+当 `message_store_enabled = false` 时，每个处理器都短路返回，不写入任何记录。当 `message_store_record_api_calls = false` 时，`on_called_api` 钩子与 `handle_api_called()` 跳过 API 调用记录，但事件、匹配器、生命周期与命令记录仍会写入。
+
+## 事件与匹配器记录
+
+`message_store_preprocessor` 在任何匹配器之前运行。它调用 `hooks/adapters.py` 中的 `normalize_message_event(bot, event)` 生成包含标识、事件类型、消息类型、文本摘要与原始载荷的 `NormalizedMessageEvent`。`MessageIdentity` 被存入 `state[STATE_KEY]`（`"_lingchu_message_record_identity"`），便于下游钩子关联记录。写入通过 `fire_and_forget(handle_event_received(normalized), name="record_event_received")` 派发。
+
+`message_store_run_postprocessor` 在匹配器完成后运行。它从 `state` 读回标识，计算 `process_status` 字符串，并调用 `handle_matcher_result(identity, matcher, exception, ...)`：
+
+- 匹配器无异常返回时为 `"handled"`，
+- 匹配器抛出异常时为 `"failed"`，
+- 当 `matcher.block` 为 `True` 时追加 `":blocked"`。
+
+`event_postprocessor` 与 `run_preprocessor` 作为预留空操作占位符注册，供未来聚合更新与匹配器计时使用。
+
+## Bot 生命周期记录
+
+`hooks/handlers/bot_connection.py` 注册 `driver.on_bot_connect` 与 `driver.on_bot_disconnect`：
+
+- `on_bot_connect` 以 fire-and-forget 方式调用 `record_bot_lifecycle(bot, "bot_connected")` 与 `send_pending_restart_feedback(bot)`。
+- `on_bot_disconnect` 以 fire-and-forget 方式调用 `record_bot_lifecycle(bot, "bot_disconnected")`。
+
+`services/message_store.py` 中的 `record_bot_lifecycle()` 通过 `resolve_adapter_id` / `get_platform_profile` 将适配器解析为平台 profile。若适配器未知或平台未启用，则返回 `False` 且不写入任何内容。否则构造一个 `audit_type = "lifecycle"`、`api_name = event_type`、数据/结果/异常摘要均为空的 `AuditEvent`，并调用 `repository.record_api_call()`。
+
+## 平台 API 调用审计
+
+`hooks/handlers/api_audit.py` 注册两个 NoneBot 钩子：
+
+- `Bot.on_calling_api` —— `on_calling_api(bot, api, data)` 为预留空操作占位符，供未来关联标识符使用。
+- `Bot.on_called_api` —— `on_called_api(bot, exception, api, data, result)` 记录调用结果。
+
+当 `message_store_enabled` 或 `message_store_record_api_calls` 为 `false`，或 `resolve_platform_context(bot)` 返回 `None`（未知适配器）时，`on_called_api` 短路返回。否则以 fire-and-forget 方式调用 `handle_api_called(platform_context, exception, api, data, result)`。
+
+`handle_api_called()` 构造一个 `audit_type = "api_call"`、含 API 名与字符串化（通过 `_stringify`/`_truncate` 截断到 `message_store_summary_limit` 字符）的 `data`/`result`/`exception` 摘要的 `AuditEvent`。写入通过 `repository.record_api_call()` 路由。
+
+## 命令审计
+
+群管理处理器（踢出、禁言、设置群名片/头衔/管理员、拉黑、远程操作）在平台 API 成功后额外记录一条命令级审计条目。共享辅助函数位于 `handle/qq/adapters/onebot11/default/common.py`。
+
+### `CommandAudit` 载荷
+
+`CommandAudit` 是一个冻结 dataclass，包含群管理动作所需字段：
+
+| 字段 | 类型 | 用途 |
+| --- | --- | --- |
+| `action` | `str` | 稳定动作名，例如 `set_member_card`、`kick_member` |
+| `target_user_id` | `int | None` | 动作目标用户 |
+| `reason` | `str | None` | 操作者提供的原因 |
+| `duration` | `int | None` | 持续秒数（用于禁言动作） |
+| `group_id` | `int | None` | 覆盖群号；缺省回退到 `event.group_id` |
+
+### 记录函数
+
+| 函数 | 模块 | 行为 |
+| --- | --- | --- |
+| `record_command_audit(bot, event, audit)` | `handle/qq/adapters/onebot11/default/common.py` | 构造 `data_summary` 字符串（`operator=..., target=..., action=..., group=...`，存在时追加 `duration=` / `reason=`），以 `api_name = f"command:{audit.action}"`、`audit_type = "command"`、`result_summary = "success"` 调用 `repository.record_api_call()`。捕获 `DatabaseError` 并记录日志。 |
+| `record_audit_fire_and_forget(bot, event, audit)` | 同模块 | 将 `record_command_audit` 包裹在 `fire_and_forget(..., name="record_command_audit")` 中，使匹配器不被写入阻塞。 |
+
+处理器在平台 API 调用成功后调用 `record_audit_fire_and_forget`：
+
+```python
+await record_audit_fire_and_forget(
+    bot,
+    event,
+    CommandAudit(action="set_member_card", target_user_id=target_user_id),
+)
+```
+
+命令审计记录与平台 API 调用、生命周期记录共享 `AuditRecord` 表，但 `audit_type = "command"` 且 `api_name` 以 `command:` 前缀，便于过滤。
+
+## 仓库层
+
+`repositories/message_store.py` 持有实际的 ORM 写入。它按平台/适配器/框架组合选择 ORM 模型：
+
+- QQ + `~onebot.v11` + `nonebot` 使用专用分区表 `QQOneBotV11NoneBotEventRecord` 与 `QQOneBotV11NoneBotAuditRecord`。
+- 其他组合回退到旧版全局 `MessageRecord` 与 `AuditRecord` 表。
+
+当存在 `message_id` 时，`record_event_received()` 按 `(platform_id, adapter_id, protocol_id, bot_id, conversation_id, message_id)` upsert，因此重复接收的事件不会创建重复行。`record_matcher_result()` 按相同键查找已有行并更新 `process_status` 与 `exception_summary`。`record_api_call()` 始终创建新行，因为每次调用都是独立事件。
+
+## 保留与清理
+
+过期记录由 `repositories/message_store.py` 中的 `cleanup_expired_messages(retention_days)` 删除。截止时间为 `datetime.now(UTC) - timedelta(days=retention_days)`。按顺序清理四张表：
+
+1. `MessageRecord`
+2. `AuditRecord`
+3. `QQOneBotV11NoneBotEventRecord`
+4. `QQOneBotV11NoneBotAuditRecord`
+
+函数返回 `(总计数, 是否全部已知)`，其中"是否全部已知"仅当每次删除都报告已知表时才为 `True`。当 `retention_days <= 0` 时，不删除任何记录并返回 `(0, True)`。
+
+清理在两处触发：
+
+- 关闭时通过 `shutdown_message_store()`，受 `message_store_cleanup_enabled` 控制。
+- 由键为 `message_store.cleanup_expired_messages` 的周期调度任务触发，在 `start/startup.py` 中注册。注册流程参见[调度器](scheduler)。
+
+## `fire_and_forget` 语义
+
+`core/async_utils.py::fire_and_forget(coro, *, name="fire_and_forget")` 是每个审计阶段用来避免阻塞事件循环的统一机制。
+
+- 协程以给定 `name` 作为 `asyncio.Task` 调度。
+- 任务存入模块级 `_background_tasks: set[asyncio.Task]`，使其在完成前不被垃圾回收。
+- 完成回调 `_on_background_task_done` 丢弃引用，吞掉 `CancelledError`，并通过 `logger.exception` 记录其他异常，因此失败永远不会被静默丢失。
+- 函数返回 `asyncio.Task`，调用方在确实需要结果时可 `await`。
+
+<Callout title="仅用于可丢弃工作">
+
+`fire_and_forget` 用于审计写入与其他调用方不需要其结果的可丢弃后台工作。不要将其用于失败必须改变调用方控制流的工作 —— 请直接 await 协程，或按仓库 API 风格指南使用请求对象模式。
+
+</Callout>

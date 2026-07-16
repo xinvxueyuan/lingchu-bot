@@ -1,52 +1,6 @@
-<!-- gitnexus:start -->
-# GitNexus — Code Intelligence
-
-This project is indexed by GitNexus as **lingchu-bot** (3223 symbols, 6266 relationships, 269 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
-
-> Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
-
-## Always Do
-
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows. For regression review, compare against the default branch: `detect_changes({scope: "compare", base_ref: "main"})`.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `context({name: "symbolName"})`.
-
-## Never Do
-
-- NEVER edit a function, class, or method without first running `impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `rename` which understands the call graph.
-- NEVER commit changes without running `detect_changes()` to check affected scope.
-
-## Resources
-
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/lingchu-bot/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/lingchu-bot/clusters` | All functional areas |
-| `gitnexus://repo/lingchu-bot/processes` | All execution flows |
-| `gitnexus://repo/lingchu-bot/process/{name}` | Step-by-step execution trace |
-
-## CLI
-
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-exploring/guide.md` |
-| Blast radius / "What breaks if I change X?" | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-impact-analysis/guide.md` |
-| Trace bugs / "Why is X failing?" | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-debugging/guide.md` |
-| Rename / extract / split / refactor | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-refactoring/guide.md` |
-| Tools, resources, schema reference | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-guide/guide.md` |
-| Index, status, clean, wiki CLI commands | `.agents/skills/engineering-workflow/references/gitnexus/gitnexus-cli/guide.md` |
-
-<!-- gitnexus:end -->
-
 ## Lingchu Bot Agent Guide
 
 > [English](../../AGENTS.md) | 中文
-
-上方 GitNexus 块由 `gitnexus analyze` 管理。不要手动编辑、翻译、重排或同步 `<!-- gitnexus:start -->` 到 `<!-- gitnexus:end -->` 之间的内容。`<!-- ... -->` 这类带尖括号的 HTML 注释是 CLI 定位锚点；除非 owning CLI 文档明确要求，否则不要删除、转义、改名、翻译、复制或移动。
 
 这是 `AGENTS.md` 的中文镜像。保持结构同步，内容以 `AGENTS.md` 为准；不要把本文件维护成独立规则集。
 
@@ -54,14 +8,14 @@ This project is indexed by GitNexus as **lingchu-bot** (3223 symbols, 6266 relat
 
 本指南按 CREATE 组织，让 agent 快速取用约束：
 
-| 字母 | 章节 | 目的 |
-| --- | --- | --- |
-| C | Context | 项目是什么、各类事实来源在哪里 |
-| R | Role | agent 在本仓库中的工作方式 |
-| E | Expectations | 不可违反的约束和质量门禁 |
-| A | Actions | 标准开发流程和联动面 |
-| T | Tools | 命令、skills、MCP、hooks、验证路径 |
-| E | Evidence | 经验教训、清单和收尾证据 |
+| 字母 | 章节           | 目的                       |
+| -- | ------------ | ------------------------ |
+| C  | Context      | 项目是什么、各类事实来源在哪里          |
+| R  | Role         | agent 在本仓库中的工作方式         |
+| E  | Expectations | 不可违反的约束和质量门禁             |
+| A  | Actions      | 标准开发流程和联动面               |
+| T  | Tools        | 命令、skills、MCP、hooks、验证路径 |
+| E  | Evidence     | 经验教训、清单和收尾证据             |
 
 编辑本文件时遵循 DRY 和 SMAR/TL：
 
@@ -124,12 +78,12 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 
 ### Canonical Context Files
 
-| 文件 | 何时加载 | 目的 |
-| --- | --- | --- |
-| `AGENTS.md` | Codex / Trae 共享上下文 | canonical 项目规则、命令、约束和经验 |
-| `CLAUDE.md` | Claude Code 上下文 | 与 `AGENTS.md` 同结构，唯一允许额外章节是 Claude Code Behavioral Guidelines |
-| `.github/note/AGENTS-zh.md` | 中文镜像 | `AGENTS.md` 的中文 counterpart，结构同步 |
-| `.trae/rules/git-commit-message.md` | Trae always-applied rule | Gitmoji + Conventional Commits 校验 |
+| 文件                                  | 何时加载                     | 目的                                                            |
+| ----------------------------------- | ------------------------ | ------------------------------------------------------------- |
+| `AGENTS.md`                         | Codex / Trae 共享上下文       | canonical 项目规则、命令、约束和经验                                       |
+| `CLAUDE.md`                         | Claude Code 上下文          | 与 `AGENTS.md` 同结构，唯一允许额外章节是 Claude Code Behavioral Guidelines |
+| `.github/note/AGENTS-zh.md`         | 中文镜像                     | `AGENTS.md` 的中文 counterpart，结构同步                              |
+| `.trae/rules/git-commit-message.md` | Trae always-applied rule | Gitmoji + Conventional Commits 校验                             |
 
 当 `AGENTS.md`、`CLAUDE.md`、`.github/note/AGENTS-zh.md` 不一致时，以 `AGENTS.md` 为准，再把相同结构变更复制/同步到另外两个文件。
 
@@ -140,7 +94,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 - **Localstore 路径所有权**：所有 mutable data、config、cache、resource、schema 文件必须通过 `nonebot_plugin_localstore` helper 解析，例如 `get_plugin_data_dir()`、`get_plugin_config_dir()`、`get_plugin_cache_dir()`、`get_plugin_data_file()`、`get_plugin_config_file()`、`get_plugin_cache_file()`。
 - **禁止硬编码 mutable 路径**：禁止对 mutable runtime 文件使用 `Path("...")`。
 - **禁止打包 schema resource**：不要用 `importlib.resources` 或 wheel data 提供 JSON schema。Schema 文本位于 `src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py`，由 `install_schemas()` 安装。
-- **Prek 是 hook 唯一来源**：`prek.toml` 是唯一 pre-commit hook 配置，不要重新引入 `.pre-commit-config.yaml`。
+- **Prek 是 hook 唯一来源**：`prek.toml` 是唯一 pre-commit hook 配置（显式声明 ruff/ty 钩子，与 husky 解耦，无重复执行）。不要重新引入 `.pre-commit-config.yaml`。
 - **版本同步**：使用 `Taskfile.yml` 的 `ci:version:write-config` 同步写入 `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` 和根 `package.json`。
 - **发布分支**：正式版本使用 `releases/<version>` 分支，发布前必须保持 `pyproject.toml`、`package.json` 和 `core/config.py` 中的版本一致。
 - **发布说明**：每个正式版本都要更新 `CHANGELOG.md` 和发布策略记录。
@@ -176,7 +130,6 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
   - pytest：`--strict-markers --strict-config`；`[tool.coverage.run]` 启用 `branch = true`。
   - Python 基线：3.13（降级守卫），`requires-python = ">=3.13, <4.0"`，`target-version = "py313"`，不升级至 3.14。
   - Docker Compose：移除 `version` 字段，新增 `name: lingchu-bot`，使用 `restart: unless-stopped`。
-  - prek：`prek.toml` 显式声明 ruff/ty 钩子，与 husky 解耦，避免重复执行。
   - CI：所有 workflow 顶层 `permissions: contents: read`，job 级按需提升并附注释说明。
 
 ### Architecture Decisions
@@ -204,17 +157,17 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 
 修改业务逻辑，尤其 adapter 层代码时，完成前检查所有相关面：
 
-| 面向 | 常见文件 |
-| --- | --- |
-| Source | `src/plugins/nonebot_plugin_lingchu_bot/` |
-| Tests | `tests/` |
-| i18n | `src/plugins/nonebot_plugin_lingchu_bot/i18n/`；用户可见字符串变化时运行 `task i18n` |
-| Docs | `apps/docs/content/docs/` |
-| Menu | `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py` |
-| Runtime config | `config.toml`、`bot_state.toml`、`menu.toml`、`core/schemas.py` schema 文本 |
-| Handle config files | `handle_config_defaults/`、localstore config_dir 中的 `<command_key>.toml` |
-| Triggers | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` |
-| Agent context | `AGENTS.md`、`CLAUDE.md`、`.github/note/AGENTS-zh.md` |
+| 面向                  | 常见文件                                                                     |
+| ------------------- | ------------------------------------------------------------------------ |
+| Source              | `src/plugins/nonebot_plugin_lingchu_bot/`                                |
+| Tests               | `tests/`                                                                 |
+| i18n                | `src/plugins/nonebot_plugin_lingchu_bot/i18n/`；用户可见字符串变化时运行 `task i18n`  |
+| Docs                | `apps/docs/content/docs/`                                                |
+| Menu                | `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py`                  |
+| Runtime config      | `config.toml`、`bot_state.toml`、`menu.toml`、`core/schemas.py` schema 文本   |
+| Handle config files | `handle_config_defaults/`、localstore config\_dir 中的 `<command_key>.toml` |
+| Triggers            | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py`  |
+| Agent context       | `AGENTS.md`、`CLAUDE.md`、`.github/note/AGENTS-zh.md`                      |
 
 涉及 handle、QQ command、adapter handler、matcher、`command_key`、menu、trigger、permission、config 耦合的工作，使用 `.agents/skills/engineering-workflow/references/delivery-loop/references/handle-feature-workflow.md`。
 
@@ -247,15 +200,15 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 
 ### Skills And MCPs
 
-| 需求 | 路由 |
-| --- | --- |
+| 需求                                        | 路由                                                                     |
+| ----------------------------------------- | ---------------------------------------------------------------------- |
 | 当前 library、framework、SDK、API、CLI、cloud 文档 | 通过 `tool-workflows` 使用 Context7：resolve library ID，再用完整用户问题 query docs |
-| OpenAI 产品/API 文档 | `openai-docs`，只用官方文档 |
-| 架构、影响、重构、review、前端质量、issue planning | `.agents/skills/engineering-workflow/SKILL.md` |
-| Lingchu / NapCat / QQ live runtime 故障 | `.agents/skills/interactive-runtime-debugging/SKILL.md` |
-| Hooks、Prek、Husky、skill 管理 | `.agents/skills/tool-workflows/SKILL.md` |
-| OneBot V11 / NapCat API 签名 | 写 adapter 调用前查 NapCat API MCP |
-| GitHub PR、issue、CI、发布 | GitHub skills |
+| OpenAI 产品/API 文档                          | `openai-docs`，只用官方文档                                                   |
+| 架构、影响、重构、review、前端质量、issue planning       | `.agents/skills/engineering-workflow/SKILL.md`                         |
+| Lingchu / NapCat / QQ live runtime 故障     | `.agents/skills/interactive-runtime-debugging/SKILL.md`                |
+| Hooks、Prek、Husky、skill 管理                 | `.agents/skills/tool-workflows/SKILL.md`                               |
+| OneBot V11 / NapCat API 签名                | 写 adapter 调用前查 NapCat API MCP                                          |
+| GitHub PR、issue、CI、发布                     | GitHub skills                                                          |
 
 ### Development Commands
 
@@ -297,14 +250,14 @@ task ci
 
 ### Quick Verification Matrix
 
-| 变更 | 提交前最低检查 |
-| --- | --- |
-| 仅 Python source | Ruff check + Ruff format check + Pyright strict + ty strict（`uv run -m ty check --output-format github`）+ relevant pytest |
-| 仅 docs site | `pnpm --filter docs lint`（通过 ESLint flat config + eslint-plugin-mdx 覆盖 `.ts/.tsx/.mdx`；type-aware 规则经 `projectService` 启用）+ docs tests + Playwright hook smoke + docs type check + content 变更时 link lint |
-| 仅 Markdown | `pnpm exec markdownlint-cli2` |
-| i18n strings | `task i18n` + relevant pytest |
-| 基础设施配置 | `docker compose config` + `prek run --all-files` + `task ci:typecheck` |
-| 混合 / 不确定 | `task check && task test` |
+| 变更              | 提交前最低检查                                                                                                                                                                                                  |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 仅 Python source | Ruff check + Ruff format check + Pyright strict + ty strict（`uv run -m ty check --output-format github`）+ relevant pytest                                                                                |
+| 仅 docs site     | `pnpm --filter docs lint`（通过 ESLint flat config + eslint-plugin-mdx 覆盖 `.ts/.tsx/.mdx`；type-aware 规则经 `projectService` 启用）+ docs tests + Playwright hook smoke + docs type check + content 变更时 link lint |
+| 仅 Markdown      | `pnpm exec markdownlint-cli2`                                                                                                                                                                            |
+| i18n strings    | `task i18n` + relevant pytest                                                                                                                                                                            |
+| 基础设施配置          | `docker compose config` + `prek run --all-files` + `task ci:typecheck`                                                                                                                                   |
+| 混合 / 不确定        | `task check && task test`                                                                                                                                                                                |
 
 开发中优先 granular checks。完整 `task check && task test` 用于提交前或大范围验证。
 
@@ -341,7 +294,7 @@ task ci
 
 #### Ignore Comment Governance
 
-- `src/` 中的内联 `# noqa` 和 `# type: ignore` 已全部集中到 `pyproject.toml` `[tool.ruff.lint.per-file-ignores]`。`src/` 中新增的内联忽略注释将触发 pre-commit 告警（Phase 2.5）和 CI 审计评论。
+- `src/` 中的内联 `# noqa` / `# type: ignore` 已全部集中到 `pyproject.toml` `[tool.ruff.lint.per-file-ignores]`；禁止与执行（Phase 2.5 告警 + CI `ignore-comment-audit` PR 评论）见 "Code Style → 忽略注释治理"。以下各条记录 `per-file-ignores` 中保留的合法例外。
 - NoneBot matcher handler 和 ORM upsert 函数的 `PLR0913`（参数过多）通过 `per-file-ignores` 抑制，因为参数列表受框架约束。未来向 frozen dataclass 请求对象重构（见 "Repository API Style"）应逐步削减这些抑制。
 - `BLE001`（blind-except）在启动/探测代码中允许使用（fail-closed/fail-soft 设计）。理由注释以普通 `# <reason>` 形式保留在行内，不使用 `# noqa` 指令。
 - `services/llm.py` 中的模块级 `# pyright: reportMissingImports=false` 是唯一合法的内联类型忽略指令，用于可选 `openai`/`litellm` 依赖导入。
@@ -358,7 +311,7 @@ task ci
 
 - `.github/workflows/*.yml` 中所有第三方 GitHub Actions 都按 40 字符 commit SHA 锁定并附 `# vX.Y.Z` 注释（非可变 tag）。`👷-ci-builds.yml` 与 `🚀-release.yml` 均使用 `actions/attest-build-provenance@v4.1.0`（SHA `a2bbfa2…`）生成 SLSA Build L3 provenance。用 `gh attestation verify <artifact> --repository xinvxueyuan/lingchu-bot` 验证。
 - 版本验证系统：分支名约定（`dev-minor-*`/`dev-major-*`/`dev-alpha-*`/`dev-beta-*`/`dev-rc-*`/`dev-stable-*`）驱动 `ci:version:bump` 中的 `BUMP_LEVEL`/`BUMP_PRERELEASE`。`ci:version:precheck` 校验 PEP 440 + 大于所有 tag + 源一致性 + 无重复 tag。`ci:version:postcheck` 调用 `release:verify-version` + dev release 语义。智能 bump 策略处理 stable vs pre-release tag：stable tag 需要 level+prerelease，同类 pre-release tag 仅 bump prerelease，`stable` 清除 prerelease。
-- `.github/ISSUE_TEMPLATE/` 使用 YAML 表单模板（`bug.yml`、`feature.yml`、`docs.yml`、`config.yml`）；`blank_issues_enabled: false` 带 contact_links 指向 docs 站和安全策略。不要重新引入 Markdown issue 模板。
+- `.github/ISSUE_TEMPLATE/` 使用 YAML 表单模板（`bug.yml`、`feature.yml`、`docs.yml`、`config.yml`）；`blank_issues_enabled: false` 带 contact\_links 指向 docs 站和安全策略。不要重新引入 Markdown issue 模板。
 - `CHANGELOG.md` 遵循 Keep a Changelog 1.1.0 格式，包含 `## [Unreleased]` 节和底部 compare 链接。
 
 #### Docker And Runtime
@@ -424,12 +377,12 @@ task ci
 - Workflow 文件名使用 emoji-prefix + kebab-case，workflow `name:` 使用英文并匹配 emoji。
 - `.github` YAML 注释使用英文；移除空的/损坏的 schema comment。
 - `git push origin --delete` 前用 `git ls-remote` 检查远端分支是否存在。
-- CI 工作流按领域拆分：`🧪-python.yml`（Python 静态分析 + 多数据库测试矩阵 + auto-format）、`🧪-frontend.yml`（docs lint/type/test/links）、`📚-docs.yml`（docs 部署）。共享的变更检测位于 `.github/actions/detect-changes` 复合 action（输出 python/markdown/frontend-* 标志）。标准触发约定：PR 仅跑检查（不提交/部署）；push 到 `main`/`dev` 跑检查 + auto-format + 部署。每个工作流有独立的 concurrency group 以避免互相取消。
+- CI 工作流按领域拆分：`🧪-python.yml`（Python 静态分析 + 多数据库测试矩阵 + auto-format）、`🧪-frontend.yml`（docs lint/type/test/links）、`📚-docs.yml`（docs 部署）、`👷-ci-builds.yml`（版本 bump + build artifacts + SLSA provenance）、`🚀-release.yml`（PyPI/GHCR 发布）、`🧹-clear-workflow.yml`（手动 dispatch；通过 `actions: write` 删除非运行中的 workflow run）、`🏷️-issues-top.yml`（每日定时；label 并展示 top issues）、`🩺-react-doctor.yml`（`.tsx` 变更时 PR/push；直接运行 React Doctor CLI — 见 Pending Rollbacks）、`🎭-playwright.yml`（`apps/docs` 变更时 PR/push；带 browser cache 的 Playwright E2E）。共享的变更检测位于 `.github/actions/detect-changes` 复合 action（输出 python/markdown/frontend-\* 标志）。标准触发约定：PR 仅跑检查（不提交/部署）；push 到 `main`/`dev` 跑检查 + auto-format + 部署。每个工作流有独立的 concurrency group 以避免互相取消。
 - Python CI 的 Static Analysis job 使用 `uv sync --no-dev --group lint --group git --frozen` + `UV_NO_SYNC=1` 来只安装 lint/format 所需的最小依赖集（ruff、pyright、ty、prek），避免安装 test 组中包含的数据库驱动（mariadb、aioodbc）——这些驱动需要系统级库，在极简 CI 环境中可能构建失败。任何不需要运行测试的 CI job 都可使用此模式。
 
 #### Pending Rollbacks
 
-| What | Where | Why | Rollback condition |
-| --- | --- | --- | --- |
-| `deslop/unused-export: "off"` | `doctor.config.ts` | `useMDXComponents` 是框架要求 re-export，但当前未消费 | `useMDXComponents` 被实际消费后移除 |
-| React Doctor CLI instead of action | `.github/workflows/🩺-react-doctor.yml` | 上游 action 有 detached HEAD 和 ANSI 泄漏问题 | 上游发布修复后切回 action |
+| What                               | Where                                   | Why                                       | Rollback condition          |
+| ---------------------------------- | --------------------------------------- | ----------------------------------------- | --------------------------- |
+| `deslop/unused-export: "off"`      | `doctor.config.ts`                      | `useMDXComponents` 是框架要求 re-export，但当前未消费 | `useMDXComponents` 被实际消费后移除 |
+| React Doctor CLI instead of action | `.github/workflows/🩺-react-doctor.yml` | 上游 action 有 detached HEAD 和 ANSI 泄漏问题     | 上游发布修复后切回 action            |

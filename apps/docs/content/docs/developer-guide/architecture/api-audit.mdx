@@ -1,0 +1,150 @@
+---
+icon: ShieldCheck
+title: API Audit
+description: Runtime hooks for event, lifecycle, and API call auditing plus command-level audit records.
+---
+
+# API Audit
+
+Lingchu Bot records structured audit records for every stage of message processing: event receipt, matcher outcome, bot lifecycle, and platform API calls. The audit pipeline is built on the message store runtime hooks and extended with a command-level `CommandAudit` payload used by local and remote group-management handlers.
+
+## Pipeline overview
+
+Audit data flows through three layers, all of which live under `hooks/` and `services/`.
+
+| Stage | Hook / Caller | Handler | Record type |
+| --- | --- | --- | --- |
+| Event receipt | `event_preprocessor` | `hooks/handlers/message_store.py::message_store_preprocessor` | `MessageRecord` (or `QQOneBotV11NoneBotEventRecord`) |
+| Matcher result | `run_postprocessor` | `hooks/handlers/message_store.py::message_store_run_postprocessor` | updates `process_status` on the event record |
+| Bot lifecycle | `driver.on_bot_connect` / `on_bot_disconnect` | `hooks/handlers/bot_connection.py` | `AuditRecord` with `audit_type = "lifecycle"` |
+| Platform API call | `Bot.on_called_api` | `hooks/handlers/api_audit.py::on_called_api` | `AuditRecord` with `audit_type = "api_call"` |
+| Command audit | handler call site | `handle/qq/adapters/onebot11/default/common.py::record_command_audit` | `AuditRecord` with `audit_type = "command"` |
+
+Every stage funnels work through `core/async_utils.py::fire_and_forget(coro, *, name=...)` so the NoneBot event loop is never blocked by storage writes. The platform adapter layer in `hooks/adapters.py` resolves a `Bot` to a `PlatformContext(platform_id, adapter_id, bot_id, protocol_id)` and normalizes events into a `NormalizedMessageEvent` so handlers stay adapter-agnostic.
+
+<Callout title="Built on Message Store">
+
+The event-receipt, matcher-result, lifecycle, and API-call stages are the same pipeline documented in [Message Store](message-store). This page focuses on the audit-specific configuration knobs and the command-level `CommandAudit` extension.
+
+</Callout>
+
+## Configuration
+
+All audit configuration is read from `core/runtime_config.py::RuntimeConfig`. Each field accepts both an environment variable and a TOML alias through Pydantic `AliasChoices`.
+
+| Field | Env / alias | Default | Purpose |
+| --- | --- | --- | --- |
+| `message_store_enabled` | `LINGCHU_MESSAGE_STORE_ENABLED` / `message_store_enabled` | `true` | Master switch for the whole pipeline (event, lifecycle, API, command) |
+| `message_store_retention_days` | `LINGCHU_MESSAGE_STORE_RETENTION_DAYS` / `message_store_retention_days` | `30` | Days to retain records; `0` disables day-based expiry |
+| `message_store_summary_limit` | `LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT` / `message_store_summary_limit` | `500` | Max length for text, data, and result summaries |
+| `message_store_record_api_calls` | `LINGCHU_MESSAGE_STORE_RECORD_API_CALLS` / `message_store_record_api_calls` | `true` | Whether to record platform API call summaries |
+| `message_store_cleanup_enabled` | `LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED` / `message_store_cleanup_enabled` | `true` | Whether to clean expired records (shutdown + periodic job) |
+
+When `message_store_enabled = false`, every handler short-circuits and no records are written. When `message_store_record_api_calls = false`, the `on_called_api` hook and `handle_api_called()` skip API call recording, but event, matcher, lifecycle, and command records are still written.
+
+## Event and matcher records
+
+`message_store_preprocessor` runs before any matcher. It calls `normalize_message_event(bot, event)` from `hooks/adapters.py` to produce a `NormalizedMessageEvent` containing identity, event type, message type, text summary, and raw payloads. The `MessageIdentity` is stashed in `state[STATE_KEY]` (`"_lingchu_message_record_identity"`) so downstream hooks can correlate the record. The write is dispatched through `fire_and_forget(handle_event_received(normalized), name="record_event_received")`.
+
+`message_store_run_postprocessor` runs after the matcher completes. It reads the identity back from `state`, computes a `process_status` string, and calls `handle_matcher_result(identity, matcher, exception, ...)`:
+
+- `"handled"` when the matcher returned without exception,
+- `"failed"` when the matcher raised,
+- `":blocked"` is appended when `matcher.block` is `True`.
+
+`event_postprocessor` and `run_preprocessor` are registered as reserved no-op placeholders for future aggregate updates and matcher timing.
+
+## Bot lifecycle records
+
+`hooks/handlers/bot_connection.py` registers `driver.on_bot_connect` and `driver.on_bot_disconnect`:
+
+- `on_bot_connect` fire-and-forgets `record_bot_lifecycle(bot, "bot_connected")` and `send_pending_restart_feedback(bot)`.
+- `on_bot_disconnect` fire-and-forgets `record_bot_lifecycle(bot, "bot_disconnected")`.
+
+`record_bot_lifecycle()` in `services/message_store.py` resolves the adapter to a platform profile through `resolve_adapter_id` / `get_platform_profile`. If the adapter is unknown or the platform is not enabled, it returns `False` without writing anything. Otherwise it builds an `AuditEvent` with `audit_type = "lifecycle"`, `api_name = event_type`, and empty data/result/exception summaries, and calls `repository.record_api_call()`.
+
+## Platform API call audit
+
+`hooks/handlers/api_audit.py` registers two NoneBot hooks:
+
+- `Bot.on_calling_api` — `on_calling_api(bot, api, data)` is a reserved no-op placeholder for future correlation identifiers.
+- `Bot.on_called_api` — `on_called_api(bot, exception, api, data, result)` records the call result.
+
+`on_called_api` short-circuits when `message_store_enabled` or `message_store_record_api_calls` is `false`, or when `resolve_platform_context(bot)` returns `None` (unknown adapter). Otherwise it fire-and-forgets `handle_api_called(platform_context, exception, api, data, result)`.
+
+`handle_api_called()` builds an `AuditEvent` with `audit_type = "api_call"`, the API name, and stringified `data`/`result`/`exception` summaries (truncated to `message_store_summary_limit` characters through `_stringify`/`_truncate`). The write is routed through `repository.record_api_call()`.
+
+## Command audit
+
+Group-management handlers (kick, mute, set member card/title/admin, block, remote operations) record an additional command-level audit entry after the platform API succeeds. The shared helpers live in `handle/qq/adapters/onebot11/default/common.py`.
+
+### `CommandAudit` payload
+
+`CommandAudit` is a frozen dataclass with the fields a group-management action needs:
+
+| Field | Type | Purpose |
+| --- | --- | --- |
+| `action` | `str` | Stable action name, for example `set_member_card`, `kick_member` |
+| `target_user_id` | `int | None` | The user the action targets |
+| `reason` | `str | None` | Operator-supplied reason |
+| `duration` | `int | None` | Duration in seconds (for mute actions) |
+| `group_id` | `int | None` | Override group; falls back to `event.group_id` |
+
+### Recording functions
+
+| Function | Module | Behavior |
+| --- | --- | --- |
+| `record_command_audit(bot, event, audit)` | `handle/qq/adapters/onebot11/default/common.py` | Builds a `data_summary` string (`operator=..., target=..., action=..., group=...`, plus `duration=` / `reason=` when present) and calls `repository.record_api_call()` with `api_name = f"command:{audit.action}"`, `audit_type = "command"`, and `result_summary = "success"`. Catches `DatabaseError` and logs. |
+| `record_audit_fire_and_forget(bot, event, audit)` | same module | Wraps `record_command_audit` in `fire_and_forget(..., name="record_command_audit")` so the matcher is not blocked by the write. |
+
+Handlers call `record_audit_fire_and_forget` after a successful platform API call:
+
+```python
+await record_audit_fire_and_forget(
+    bot,
+    event,
+    CommandAudit(action="set_member_card", target_user_id=target_user_id),
+)
+```
+
+Command audit records share the `AuditRecord` table with platform API call and lifecycle records, but `audit_type = "command"` and `api_name` prefixed with `command:` make them easy to filter.
+
+## Repository layer
+
+`repositories/message_store.py` owns the actual ORM writes. It selects the ORM model per record based on the platform/adapter/framework combination:
+
+- QQ + `~onebot.v11` + `nonebot` uses the dedicated partition tables `QQOneBotV11NoneBotEventRecord` and `QQOneBotV11NoneBotAuditRecord`.
+- Any other combination falls back to the legacy global `MessageRecord` and `AuditRecord` tables.
+
+`record_event_received()` upserts on `(platform_id, adapter_id, protocol_id, bot_id, conversation_id, message_id)` when `message_id` is present, so an event received twice does not create a duplicate row. `record_matcher_result()` looks up the existing row by the same key and updates `process_status` and `exception_summary`. `record_api_call()` always creates a new row because each call is a distinct event.
+
+## Retention and cleanup
+
+Expired records are deleted by `cleanup_expired_messages(retention_days)` in `repositories/message_store.py`. The cutoff is `datetime.now(UTC) - timedelta(days=retention_days)`. Four tables are cleaned in sequence:
+
+1. `MessageRecord`
+2. `AuditRecord`
+3. `QQOneBotV11NoneBotEventRecord`
+4. `QQOneBotV11NoneBotAuditRecord`
+
+The function returns `(total_count, all_known)` where `all_known` is `True` only if every delete reported a known table. When `retention_days <= 0` it returns `(0, True)` without deleting anything.
+
+Cleanup is triggered in two places:
+
+- On shutdown through `shutdown_message_store()`, gated by `message_store_cleanup_enabled`.
+- By the periodic scheduler job keyed `message_store.cleanup_expired_messages`, registered in `start/startup.py`. See [Scheduler](scheduler) for the registration flow.
+
+## `fire_and_forget` semantics
+
+`core/async_utils.py::fire_and_forget(coro, *, name="fire_and_forget")` is the single mechanism every audit stage uses to avoid blocking the event loop.
+
+- The coroutine is scheduled as an `asyncio.Task` with the given `name`.
+- The task is stored in a module-level `_background_tasks: set[asyncio.Task]` so it is not garbage-collected before completion.
+- A done callback `_on_background_task_done` discards the reference, swallows `CancelledError`, and logs any other exception via `logger.exception` so failures are never silently lost.
+- The function returns the `asyncio.Task` so a caller may `await` it when it actually needs the result.
+
+<Callout title="Use for discardable work only">
+
+`fire_and_forget` is for audit writes and other discardable background work whose result the caller does not need. Do not use it for work whose failure must change the caller's control flow — await the coroutine directly instead, or use a request object pattern as described in the repository API style guide.
+
+</Callout>

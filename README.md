@@ -78,11 +78,11 @@ OneBot V11 currently has `default` and `NapCat` implementation paths. Some featu
 
 ### Requirements
 
-- Python 3.13 (`pyproject.toml` requires `>=3.12, <4.0`; targets 3.13)
+- Python 3.13 (`pyproject.toml` requires `>=3.13, <4.0`; targets 3.13)
 - `uv`
 - Git
 - A usable NoneBot runtime and OneBot V11 connection / account setup
-- Node.js 22+ and pnpm for the docs / frontend workspace and the full setup script
+- Node.js 24+ and pnpm for the docs / frontend workspace and the full setup script
 
 ### Option A — Install via NB-CLI (recommended)
 
@@ -141,7 +141,7 @@ Lingchu creates `config.toml` on first startup in the plugin configuration direc
 3. `config.toml`
 4. Code defaults
 
-The table below enumerates the environment variables actually read by `core/config.py` and `core/runtime_config.py`. Boolean values in NoneBot `.env` files must use JSON-style lowercase `true` / `false`, not Python-style `True` / `False`.
+The table below enumerates the environment variables actually read by NoneBot core, `nonebot_plugin_localstore`, `nonebot_plugin_orm`, `core/config.py`, `core/runtime_config.py`, and `i18n/__init__.py`. Boolean values in NoneBot `.env` files must use JSON-style lowercase `true` / `false`, not Python-style `True` / `False`.
 
 | Group | Setting | Purpose |
 | --- | --- | --- |
@@ -150,22 +150,22 @@ The table below enumerates the environment variables actually read by `core/conf
 | NoneBot Core | `LOG_LEVEL` | NoneBot log level. |
 | NoneBot Core | `COMMAND_START`, `COMMAND_SEP` | NoneBot command parsing tokens. |
 | NoneBot Core | `FASTAPI_DOCS_URL`, `FASTAPI_REDOC_URL` | FastAPI docs endpoints; disable in production. |
-| Container Detection | `IN_CONTAINERS` | Whether the bot runs inside a container (`config.in_containers`). |
+| Container Detection | `LINGCHU_IN_CONTAINERS` | Whether the bot runs inside a container (`config.in_containers`). |
 | Lingchu Runtime | `LINGCHUAdapter` / `LINGCHU_ADAPTER` | Select the active adapter; current supported value is `~onebot.v11`. |
 | Lingchu Runtime | `LINGCHU_SUPERUSERS` | UID-to-platform account mapping for Lingchu superusers. |
 | Lingchu Runtime | `LINGCHU_LOCALE` | Runtime locale; available catalogs are `zh_CN` and `en_US`. |
-| Lingchu Runtime | `SUPERUSER_KEY` | Superuser key string (`superuser_key`). |
+| Lingchu Runtime | `LINGCHU_SUPERUSER_KEY` | Superuser key string (`superuser_key`). |
 | Localstore | `LOCALSTORE_USE_CWD` | Store localstore data / config / cache under the project directory when true. |
-| Message Store | `MESSAGE_STORE_ENABLED` | Enable message-store runtime hooks. |
-| Message Store | `MESSAGE_STORE_RETENTION_DAYS` | Retention window for message records; `0` disables day-based expiry. |
-| Message Store | `MESSAGE_STORE_SUMMARY_LIMIT` | Maximum summary length for text / data / result payloads. |
-| Message Store | `MESSAGE_STORE_RECORD_API_CALLS` | Record platform API call summaries. |
-| Message Store | `MESSAGE_STORE_CLEANUP_ENABLED` | Enable expired message cleanup. |
-| Recall | `RECALL_MESSAGE_DEFAULT_COUNT` | Default count for the message recall command (`1`–`100`). |
-| Permissions | `PERMISSION_PLATFORM_RUNTIME_PASSTHROUGH` | Allow platform roles such as QQ owner / admin / member to satisfy Lingchu permission grants. |
-| Trigger Overrides | `COMMAND_TRIGGER_OVERRIDES` | Override primary command triggers and aliases by command key. |
-| Trigger Overrides | `MENU_PAGE_TRIGGER_OVERRIDES` | Override menu page triggers by menu page id. |
-| Protected Subjects | `PROTECTED_SUBJECT_FEATURE_KEYS` | Side-effect command keys blocked when their target user is protected. |
+| Message Store | `LINGCHU_MESSAGE_STORE_ENABLED` | Enable message-store runtime hooks. |
+| Message Store | `LINGCHU_MESSAGE_STORE_RETENTION_DAYS` | Retention window for message records; `0` disables day-based expiry. |
+| Message Store | `LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT` | Maximum summary length for text / data / result payloads. |
+| Message Store | `LINGCHU_MESSAGE_STORE_RECORD_API_CALLS` | Record platform API call summaries. |
+| Message Store | `LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED` | Enable expired message cleanup. |
+| Recall | `LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT` | Default count for the message recall command (`1`–`100`). |
+| Permissions | `LINGCHU_PERMISSION_PLATFORM_RUNTIME_PASSTHROUGH` | Allow platform roles such as QQ owner / admin / member to satisfy Lingchu permission grants. |
+| Trigger Overrides | `LINGCHU_COMMAND_TRIGGER_OVERRIDES` | Override primary command triggers and aliases by command key. |
+| Trigger Overrides | `LINGCHU_MENU_PAGE_TRIGGER_OVERRIDES` | Override menu page triggers by menu page id. |
+| Protected Subjects | `LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS` | Side-effect command keys blocked when their target user is protected. |
 | Database | `SQLALCHEMY_DATABASE_URL` | SQLAlchemy database URL; supports SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server. Unset uses default SQLite. |
 | Database | `ALEMBIC_STARTUP_CHECK` | Set to `true` in production to enforce schema migration checks on startup. |
 | LLM Service | `LINGCHU_AI_PROVIDER` | Legacy/default LLM backend: `litellm` or `openai`. |
@@ -173,8 +173,8 @@ The table below enumerates the environment variables actually read by `core/conf
 | LLM Service | `LINGCHU_AI_BASE_URL` | Legacy/default OpenAI-compatible base URL. |
 | LLM Service | `LINGCHU_AI_TIMEOUT` | Legacy/default request timeout in seconds. |
 | LLM Service | `LINGCHU_AI_API_KEY` | Legacy/default API key; prefer profile `api_key_env`. |
-| Announcement Images | `ANNOUNCEMENT_IMAGE_CACHE_DIR` | Host-side cache directory for announcement images (defaults to localstore cache). |
-| Announcement Images | `ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` | Protocol-side directory NapCat sees inside the container. |
+| Announcement Images | `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` | Host-side cache directory for announcement images (defaults to localstore cache). |
+| Announcement Images | `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` | Protocol-side directory NapCat sees inside the container. |
 
 Example `config.toml`:
 

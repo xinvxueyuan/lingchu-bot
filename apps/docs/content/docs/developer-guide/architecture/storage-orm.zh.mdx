@@ -1,0 +1,107 @@
+---
+icon: Database
+title: 存储与 ORM
+description: nonebot_plugin_orm 后端、跨方言类型、六后端 upsert 与 TOML 存储。
+---
+
+# 存储与 ORM
+
+Lingchu Bot 通过两层协作存储运行时数据：`nonebot_plugin_orm` 用于关系数据，基于 TOML 的文件存储用于轻量运行时配置。本页覆盖默认后端、六个支持的数据库、跨方言类型兼容层、方言专属 upsert 实现，以及与 `nonebot_plugin_localstore` 协作的 TOML 存储。
+
+## 默认后端
+
+默认数据库后端是通过 `aiosqlite` 的 SQLite，由 `nonebot_plugin_orm` 提供。本地开发无需显式连接 URL——ORM 插件会在 localstore 数据目录下创建 SQLite 数据库文件。
+
+所有关系访问通过 `nonebot_plugin_orm` 会话进行。项目不引入自定义引擎管理；`database/orm_crud/` 将 ORM 插件的 `get_session()` 包装为类型化异步辅助。
+
+## 六个支持的后端
+
+`SQLALCHEMY_DATABASE_URL`（由 `nonebot_plugin_orm` 消费）选择后端。支持六个引擎：
+
+| 后端 | 驱动（URL scheme） | 备注 |
+| --- | --- | --- |
+| SQLite | `sqlite+aiosqlite://` | 默认；无需 URL |
+| PostgreSQL | `postgresql+psycopg://` 或 `postgresql+asyncpg://` | 使用 `on_conflict_do_update` |
+| MySQL | `mysql+aiomysql://` | 使用 `on_duplicate_key_update` |
+| MariaDB | `mariadb+aiomysql://` | 共用 MySQL 路径；`aiomysql` 驱动 |
+| Oracle | `oracle+oracledb://` | 默认 Thin 模式；`MERGE INTO` upsert |
+| SQL Server | `mssql+aioodbc://` | 需 `msodbcsql18`；`MERGE INTO` upsert |
+
+`SQLALCHEMY_DATABASE_URL` 未设置时，`nonebot_plugin_orm` 回退到默认 SQLite 数据库。CI 矩阵覆盖全部六个引擎及版本变体（PostgreSQL 16/18、MySQL 8.4/9.7、MariaDB 11.4/11.8、Oracle 23ai、SQL Server 2022/2025）。
+
+## 跨方言类型
+
+ORM 模型 MUST 使用 `database/_dialect_compat.py` 中的兼容类型，而非原始 `String` / `Text` / `Boolean` / `DateTime(timezone=True)`。该模块导出四个辅助：
+
+| 辅助 | 行为 |
+| --- | --- |
+| `CompatBoolean` | 多数后端为原生 `BOOLEAN`；Oracle pre-23c 为 `NUMBER(1)` |
+| `CompatDateTimeTZ` | 多数后端为 `DateTime(timezone=True)`；MySQL / MariaDB 为 `DATETIME(fsp=6)` |
+| `CompatText` | 多数后端为 `TEXT`；Oracle 为 `CLOB` 以避免 `VARCHAR2(4000)` 截断 |
+| `compat_string(length)` | 默认 `VARCHAR(length)`；`length > 4000` 时 SQL Server 为 `NVARCHAR(MAX)`、Oracle 为 `CLOB` |
+
+`CompatDateTimeTZ` 在 MySQL / MariaDB 上会发出"timezone only supported in MySQL 5.6+"警告。写入使用 `datetime.now(UTC)`（`database/models/message.py` 中的 `utc_now()` 辅助），因此实践中不会出现漂移。
+
+仓库中当前所有 `String` 列长度 ≤ 128，因此 `compat_string(length)` 在所有后端上都保持 `VARCHAR(N)`——`NVARCHAR(MAX)` / `CLOB` 分支预留给未来的长字符串列。
+
+## 六后端 upsert
+
+`database/orm_crud/_bulk.py::upsert()` 是跨全部六个后端原子 upsert 的唯一入口。它按会话 dialect name 分发：
+
+| Dialect | 实现 | RETURNING 支持 |
+| --- | --- | --- |
+| `sqlite` | `sqlite_insert(model).on_conflict_do_update(...)` | 是——使用 `RETURNING` |
+| `postgresql` | `postgresql_insert(model).on_conflict_do_update(...)` | 是——使用 `RETURNING` |
+| `mysql`、`mariadb` | `mysql_insert(model).on_duplicate_key_update(...)` | 否——按 `conflict_fields` 后续 `SELECT` |
+| `oracle` | 通过 `text()` 手写 `MERGE INTO ... USING (SELECT ... FROM DUAL) s ...` | 否——后续 `SELECT`；检测 `ORA-00001` 处理冲突竞争 |
+| `mssql` | 通过 `text()` 手写 `MERGE INTO ... USING (SELECT ...) s ...`，带 `WITH (HOLDLOCK)` 与 `SET LOCK_TIMEOUT 5000` | 否——后续 `SELECT` |
+
+Oracle 与 SQL Server 路径的存在是因为 SQLAlchemy 2.0.51 不提供 `sqlalchemy.dialects.{oracle,mssql}.insert`，而通用 `sqlalchemy.insert()` 返回的 `Insert` 对象没有 `on_conflict_do_update` 方法。`_build_merge_sql()` 构造带命名绑定参数的参数化 `MERGE INTO` 文本；`_prepare_merge_insert_values()` 填充 SQLAlchemy 构建 `INSERT` 构造时通常会应用的 Python 侧列默认值。
+
+所有 upsert 调用必须提供 `conflict_fields` 或 `constraint`（互斥）。MySQL / MariaDB / Oracle / SQL Server 要求 `conflict_fields`，因为它们用其进行后续 `SELECT` 取回行。
+
+## `ALEMBIC_STARTUP_CHECK`
+
+`ALEMBIC_STARTUP_CHECK` 是 `nonebot_plugin_orm` 的配置键，并非 Lingchu 专属设置。设为 `true` 时，ORM 插件在启动时强制执行 Alembic schema 迁移检查。生产部署应设置它：
+
+```bash
+ALEMBIC_STARTUP_CHECK=true
+```
+
+默认为 `false` 以保持本地开发快速。Docker Compose 生产模板（`docker-compose.yml`）发布时带 `ALEMBIC_STARTUP_CHECK: "true"`。
+
+Lingchu Bot 的模型包（位于 `database/models/`）在 `__init__.py` 中导入所有模型，以便 Alembic autogenerate 发现可用。非 SQLite 测试前必须运行迁移。
+
+## TOML 存储与 localstore
+
+`database/toml_store/` 提供异步、基于 TOML 的键值客户端，用于不值得建关系表的轻量运行时配置。它与 `nonebot_plugin_localstore` 协作：
+
+- 文件路径通过 `get_plugin_config_file()`、`get_plugin_data_file()` 或 `get_plugin_cache_file()` 解析——绝不硬编码 `Path("...")`。
+- 主客户端为 `RobustAsyncTOMLDB`，支持嵌套键路径、原子写入、可选文件监听与显式关闭语义。
+- 模块级辅助：`ensure_toml_dict_file_async()`、`ensure_toml_dict_file_sync()`、`load_toml_dict_async()`、`load_toml_dict_sync()`、`write_toml_dict_file_async()`。
+
+`ensure_toml_dict_file_async()` 仅创建缺失文件；要覆盖现有文件请使用 `write_toml_dict_file_async()`。运行时配置默认值必须 JSON 可序列化；写入 TOML 时以 `mode="json"` 转储 Pydantic 默认值。
+
+## ORM 辅助
+
+`database/orm_crud/` 拆分为三个模块：
+
+| 模块 | 导出 |
+| --- | --- |
+| `_base.py` | 共享辅助：`_combined_conditions`、`_get_column_map`、`_is_fk_constraint_violation`、`_orders`、`_validate_column_values`、`DatabaseError`、`ROWCOUNT_UNKNOWN` |
+| `_single.py` | `create`、`get_one`、`get_or_create`、`update`、`update_or_create`、`delete`、`exists`、`count` |
+| `_bulk.py` | `bulk_create`、`upsert`、`list_items`、`async_iterate_safe` |
+
+`bulk_create(..., partial=True)` 使用逐行 savepoint，使失败行被跳过并上报，而非中断整批。`async_iterate_safe()` 以 `yield_per` 流式遍历大型结果集并支持异步回调，可选收集条目。
+
+<Callout title="阻塞路径">
+
+文件存储、TOML 解析、deepcopy、命令解析和翻译 catalog 加载会放到 worker 线程执行。不要在异步处理器中直接调用同步存储方法。
+
+</Callout>
+
+<Callout title="参见">
+
+消息存储专属配置与保留策略，参见[消息存储](message-store)。由 TOML 存储支持的运行时配置文件，参见[架构概览](introduction)。
+
+</Callout>
