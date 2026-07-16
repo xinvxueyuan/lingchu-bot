@@ -1,7 +1,7 @@
-import asyncio
 import base64
 from pathlib import Path
 
+import aiofiles
 from nonebot import logger
 from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
 from nonebot.adapters.onebot.v11.event import (
@@ -22,7 +22,8 @@ async def set_group_portrait_napcat(
     ``base64://`` 或 ``file://`` 格式，裸本地路径会被拒绝（retcode=1200）。
     这里统一使用 ``base64://`` 编码，兼容 bot 与 NapCat 分属不同容器的部署。
     """
-    raw_bytes = await asyncio.to_thread(image_path.read_bytes)
+    async with aiofiles.open(image_path, "rb") as f:
+        raw_bytes = await f.read()
     file_field = "base64://" + base64.b64encode(raw_bytes).decode()
     try:
         await bot.call_api(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 from types import MappingProxyType
 from typing import cast
@@ -317,3 +318,9 @@ def test_implicit_legacy_profile_treats_existing_url_and_key_as_legacy_opt_in(
         resolved = resolve_profile(config, legacy=legacy)
 
     assert resolved.api_key == "legacy-key"
+
+
+async def test_ensure_llm_config_file_async_uses_aiofiles_not_to_thread() -> None:
+    source = inspect.getsource(ensure_llm_config_file_async)
+    assert "asyncio.to_thread" not in source
+    assert "aiofiles" in source
