@@ -9,6 +9,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_manager import (
     HandleConfig,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
+    common as onebot11_common_module,
     member as onebot11_member_module,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.member import (
@@ -109,8 +110,11 @@ async def test_onebot11_set_group_member_admin_calls_v11_api(
     mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_onebot11_bot.set_group_admin = AsyncMock()
+    # check_target_privilege: 目标为普通成员（通过）
     # check_bot_privilege: 机器人为管理员（通过）
-    mock_onebot11_bot.get_group_member_info = AsyncMock(return_value={"role": "admin"})
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        side_effect=[{"role": "member"}, {"role": "admin"}]
+    )
 
     with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await onebot11_set_group_member_admin(
@@ -126,12 +130,44 @@ async def test_onebot11_set_group_member_admin_calls_v11_api(
 
 
 @pytest.mark.asyncio
+async def test_onebot11_set_group_member_admin_rejects_protected_target(
+    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+) -> None:
+    mock_onebot11_bot.set_group_admin = AsyncMock()
+
+    with (
+        patch.object(set_group_member_admin_cmd, "finish") as mock_finish,
+        patch.object(
+            onebot11_common_module,
+            "find_active_subject_policy",
+            new=AsyncMock(return_value=object()),
+        ),
+        patch.object(
+            onebot11_common_module,
+            "operator_is_superuser_onebot11",
+            new=AsyncMock(return_value=False),
+        ),
+    ):
+        await onebot11_set_group_member_admin(
+            user=mock_at,
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+        )
+
+    mock_onebot11_bot.set_group_admin.assert_not_called()
+    assert "目标用户受白名单保护" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
 async def test_onebot11_unset_group_member_admin_calls_v11_api(
     mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_onebot11_bot.set_group_admin = AsyncMock()
+    # check_target_privilege: 目标为普通成员（通过）
     # check_bot_privilege: 机器人为管理员（通过）
-    mock_onebot11_bot.get_group_member_info = AsyncMock(return_value={"role": "admin"})
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        side_effect=[{"role": "member"}, {"role": "admin"}]
+    )
 
     with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await onebot11_unset_group_member_admin(
@@ -149,10 +185,20 @@ async def test_onebot11_kick_group_member_calls_v11_api(
     mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_onebot11_bot.set_group_kick = AsyncMock()
+    # check_target_privilege: 目标为普通成员（通过）
     # check_bot_privilege: 机器人为管理员（通过）
-    mock_onebot11_bot.get_group_member_info = AsyncMock(return_value={"role": "admin"})
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        side_effect=[{"role": "member"}, {"role": "admin"}]
+    )
 
-    with patch.object(kick_group_member_cmd, "finish") as mock_finish:
+    with (
+        patch.object(kick_group_member_cmd, "finish") as mock_finish,
+        patch.object(
+            onebot11_member_module,
+            "find_active_block",
+            new=AsyncMock(return_value={"user_id": 987654321}),
+        ),
+    ):
         await onebot11_kick_group_member(
             user=mock_at,
             bot=mock_onebot11_bot,

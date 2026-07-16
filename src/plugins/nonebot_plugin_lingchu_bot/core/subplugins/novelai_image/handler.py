@@ -8,14 +8,14 @@ from uuid import uuid4
 
 import aiofiles
 from arclet.alconna import Alconna, Args, Arparma, Nargs, Option, Subcommand
-from nonebot import get_driver, logger, require
-from nonebot.drivers import Request
+from nonebot import logger, require
 
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import Image as UniImage
 
 from ..contracts import (
+    download_public_http_bytes,
     get_subplugin_trigger,
     image_message,
     register_subplugin_handler,
@@ -117,17 +117,13 @@ async def _read_uniseg_image(image: UniImage, *, config: NovelAIConfig) -> bytes
     url = getattr(image, "url", None)
     if not isinstance(url, str) or urlparse(url).scheme not in {"http", "https"}:
         raise ValueError("image must contain bytes, a path, or an HTTP(S) URL")
-    get_session = getattr(get_driver(), "get_session", None)
-    if get_session is None:
+    data = await download_public_http_bytes(
+        url,
+        max_bytes=config.image_download_max_bytes,
+        request_timeout=config.timeout,
+    )
+    if data is None:
         raise ValueError("HTTP image download is unavailable")
-    async with get_session() as session:
-        response = await session.request(Request("GET", url, timeout=config.timeout))
-    if response.status_code >= 400:
-        raise ValueError("image download failed")
-    content = response.content
-    data = content.encode() if isinstance(content, str) else content
-    if not isinstance(data, bytes) or len(data) > config.image_download_max_bytes:
-        raise ValueError("downloaded image is invalid or too large")
     parse_image(data)
     return data
 

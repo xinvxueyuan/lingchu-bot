@@ -11,7 +11,9 @@ require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At
 
 from ......core.runtime_config import get_handle_config_manager
+from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
+from ......repositories.blocklist import find_active_block
 from ....commands.common import selected_adapter_handle
 from ....commands.member import (
     kick_group_member_cmd,
@@ -21,7 +23,10 @@ from ....commands.member import (
     unset_group_member_admin_cmd,
 )
 from .common import (
+    ONEBOT_V11_ADAPTER_ID,
+    QQ_PLATFORM_ID,
     CommandAudit,
+    bot_id,
     bot_self_id_safe,
     check_bot_privilege,
     check_target_privilege,
@@ -187,6 +192,11 @@ async def onebot11_set_group_member_admin(
             await _("不能修改机器人的管理员权限")
         )
 
+    if not await check_target_privilege(
+        bot, event, target_user_id, set_group_member_admin_cmd
+    ):
+        return None
+
     # 3. 机器人权限预检
     if not await check_bot_privilege(bot, event.group_id, set_group_member_admin_cmd):
         return None
@@ -253,6 +263,29 @@ async def onebot11_kick_group_member(
     bot_self_id = bot_self_id_safe(bot)
     if bot_self_id is not None and target_user_id == bot_self_id:
         return await kick_group_member_cmd.finish(await _("不能踢出机器人"))
+
+    if not await check_target_privilege(
+        bot, event, target_user_id, kick_group_member_cmd
+    ):
+        return None
+
+    try:
+        entry = await find_active_block(
+            platform_id=QQ_PLATFORM_ID,
+            adapter_id=ONEBOT_V11_ADAPTER_ID,
+            bot_id=bot_id(bot),
+            group_id=event.group_id,
+            user_id=target_user_id,
+        )
+    except DatabaseError:
+        return await kick_group_member_cmd.finish(await _("查询黑名单失败，数据库异常"))
+
+    if entry is None:
+        name_display = format_user_display_name(
+            target_user_id, target_name, style="detail"
+        )
+        message = await _("用户 {name} 不在黑名单中，无法执行踢出操作")
+        return await kick_group_member_cmd.finish(message.format(name=name_display))
 
     # 3. 机器人权限预检
     if not await check_bot_privilege(bot, event.group_id, kick_group_member_cmd):

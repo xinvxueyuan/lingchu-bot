@@ -14,9 +14,10 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At, Image as UniImage
 
-from ......core.runtime_config import get_handle_config_manager
+from ......core.runtime_config import get_handle_config_manager, runtime_config
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
+from ......permissions.subject_policy import find_active_subject_policy
 from ......repositories.blocklist import (
     find_active_block,
     remove_block,
@@ -41,12 +42,14 @@ from .common import (
     ONEBOT_V11_ADAPTER_ID,
     QQ_PLATFORM_ID,
     CommandAudit,
+    _operator_can_manage_privileged_target,
     bot_id,
     check_bot_privilege,
     check_self_target,
     default_admin_reason,
     default_block_reason,
     format_user_display_name,
+    operator_is_superuser_onebot11,
     record_audit_fire_and_forget,
     resolve_user_onebot11,
     store_block_record,
@@ -189,6 +192,64 @@ async def _resolve_and_validate_user(
     return target_user_id, target_name
 
 
+async def _is_remote_protected_target(
+    bot: OneBot11Bot,
+    group_id: int,
+    target_user_id: int,
+    cmd_matcher: Any,
+) -> bool:
+    command_key = getattr(cmd_matcher, "_lingchu_command_key", None)
+    if command_key not in runtime_config.protected_subject_feature_keys:
+        return False
+    protected = await find_active_subject_policy(
+        policy_type="protected",
+        platform_id=QQ_PLATFORM_ID,
+        adapter_id=ONEBOT_V11_ADAPTER_ID,
+        bot_id=bot_id(bot),
+        group_id=group_id,
+        user_id=target_user_id,
+    )
+    return protected is not None
+
+
+async def _check_remote_target_privilege(
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
+    group_id: int,
+    target_user_id: int,
+    cmd_matcher: Any,
+) -> bool:
+    if await _is_remote_protected_target(bot, group_id, target_user_id, cmd_matcher):
+        if await operator_is_superuser_onebot11(event.user_id):
+            return True
+        await cmd_matcher.finish(await _("目标用户受白名单保护，无法执行"))
+        return False
+
+    try:
+        target_info = await bot.get_group_member_info(
+            group_id=group_id, user_id=target_user_id, no_cache=True
+        )
+    except OneBot11ActionFailed:
+        return True
+
+    if target_info.get("role", "member") not in ("admin", "owner"):
+        return True
+
+    try:
+        operator_info = await bot.get_group_member_info(
+            group_id=group_id, user_id=event.user_id, no_cache=True
+        )
+    except OneBot11ActionFailed:
+        await cmd_matcher.finish(await _("无法验证操作权限"))
+        return False
+
+    if _operator_can_manage_privileged_target(operator_info, event.user_id):
+        return True
+
+    await cmd_matcher.finish(await _("目标用户权限过高，无法执行"))
+    return False
+
+
 @selected_adapter_handle(remote_mute_cmd, "~onebot.v11", "remote_mute")
 async def onebot11_remote_mute(
     group_id: int | str,
@@ -229,6 +290,11 @@ async def onebot11_remote_mute(
 
     # 5. 边界条件检查
     if not await check_self_target(target_user_id, bot, event, remote_mute_cmd, "禁言"):
+        return None
+
+    if not await _check_remote_target_privilege(
+        bot, event, group_id_int, target_user_id, remote_mute_cmd
+    ):
         return None
 
     # 6. 执行禁言操作
@@ -469,6 +535,11 @@ async def onebot11_remote_kick(
     if not await check_self_target(target_user_id, bot, event, remote_kick_cmd, "踢出"):
         return None
 
+    if not await _check_remote_target_privilege(
+        bot, event, group_id_int, target_user_id, remote_kick_cmd
+    ):
+        return None
+
     # 5. 检查目标用户是否在黑名单中
     try:
         entry = await find_active_block(
@@ -546,6 +617,11 @@ async def onebot11_remote_block(
     if user_result is None:
         return None
     target_user_id, target_name = user_result
+
+    if not await _check_remote_target_privilege(
+        bot, event, group_id_int, target_user_id, remote_block_cmd
+    ):
+        return None
 
     # 4. 存储黑名单记录并踢出用户
     reason_text = await default_block_reason(reason)

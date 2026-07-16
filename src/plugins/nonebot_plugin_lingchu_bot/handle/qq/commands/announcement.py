@@ -9,17 +9,18 @@ from typing import Any, Final, NamedTuple
 import aiofiles
 import aiofiles.os
 from arclet.alconna import Alconna, Args
-from nonebot import get_driver, require
-from nonebot.drivers import Request
+from nonebot import require
 
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import Image as UniImage
 
 from ....core.config import plugin_config
+from ....core.http_security import download_public_http_bytes
 from .triggers import COMMAND_TRIGGERS
 
 _SEND_ANNOUNCEMENT = COMMAND_TRIGGERS["send_announcement"]
+_ANNOUNCEMENT_IMAGE_DOWNLOAD_MAX_BYTES: Final = 10 * 1024 * 1024
 
 
 # Matches Windows drive letter prefixes such as `C:` or `C:/`. On a POSIX
@@ -150,14 +151,12 @@ async def _resolve_image_path(image: UniImage) -> AnnouncementImagePath | None:
 
     url = getattr(image, "url", None)
     if url is not None:
-        driver = get_driver()
-        get_session = getattr(driver, "get_session", None)
-        if get_session is not None:
-            async with get_session() as session:
-                request = Request("GET", url)
-                response = await session.request(request)
-                content = response.content
-                return await _cache_image_bytes(content)
+        content = await download_public_http_bytes(
+            str(url),
+            max_bytes=_ANNOUNCEMENT_IMAGE_DOWNLOAD_MAX_BYTES,
+        )
+        if content is not None:
+            return await _cache_image_bytes(content)
 
     return None
 
