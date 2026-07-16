@@ -1,6 +1,6 @@
 """测试 common.py 中新增的权限检查和审计函数。"""
 
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from nonebot.adapters.onebot.v11.exception import ActionFailed as Onebot11ActionFailed
@@ -15,6 +15,15 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.
     operator_is_superuser_onebot11,
     record_audit_fire_and_forget,
     record_command_audit,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import (
+    common as common_module,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.common import (
+    _first_arg_with_attr,
+    _first_event_arg,
+    _permission_wrapper,
+    selected_adapter_handle,
 )
 
 _GROUP_ID = 123456789
@@ -437,3 +446,410 @@ class TestRecordAuditFireAndForget:
 
         audit_event = mock_record.call_args.args[0]
         assert "group=987654321" in audit_event.data_summary
+
+
+# ================= selected_adapter_handle / 装饰器路径测试 =================
+
+
+class _StubAdapter:
+    """带有 adapter 属性的桩对象，用于 _first_arg_with_attr 测试。"""
+
+    adapter = "stub-adapter"
+
+
+class _StubEvent:
+    """带有 user_id 属性的桩对象，用于 _first_event_arg 测试。"""
+
+    user_id = 100
+
+
+class _StubDataEvent:
+    """带有 data 属性的桩对象，用于 _first_event_arg 测试。"""
+
+    def __init__(self) -> None:
+        self.data: list[int] = []
+
+
+class TestSelectedAdapterHandle:
+    """selected_adapter_handle 装饰器分支覆盖测试。"""
+
+    def test_registers_handler_when_adapter_enabled_and_command_key_given(
+        self,
+    ) -> None:
+        """适配器启用且提供 command_key 时，应用权限与状态包装并注册处理器。"""
+        register = MagicMock()
+        command: Any = MagicMock()
+        command.handle = MagicMock(return_value=register)
+
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            return "ok"
+
+        profile = MagicMock()
+        profile.platform_id = "qq"
+
+        with (
+            patch.object(common_module, "is_adapter_enabled", return_value=True),
+            patch.object(common_module, "get_platform_profile", return_value=profile),
+        ):
+            decorator = selected_adapter_handle(command, "~onebot.v11", "remote_mute")
+            returned = decorator(handler)
+
+        # 装饰器始终返回原函数
+        assert returned is handler
+        # _lingchu_command_key 被设置
+        assert command._lingchu_command_key == "remote_mute"
+        # command.handle() 被调用，注册器接收包装后的 handler
+        command.handle.assert_called_once()
+        register.assert_called_once()
+        registered = register.call_args.args[0]
+        assert registered is not handler  # 已被包装
+        assert callable(registered)
+
+    def test_skips_permission_wrapper_when_command_key_is_none(self) -> None:
+        """command_key 为 None 时不应用权限包装，但仍注册状态包装后的 handler。"""
+        register = MagicMock()
+        command: Any = MagicMock()
+        command.handle = MagicMock(return_value=register)
+
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            return "ok"
+
+        profile = MagicMock()
+        profile.platform_id = "qq"
+
+        with (
+            patch.object(common_module, "is_adapter_enabled", return_value=True),
+            patch.object(common_module, "get_platform_profile", return_value=profile),
+        ):
+            decorator = selected_adapter_handle(command, "~onebot.v11", None)
+            decorator(handler)
+
+        command.handle.assert_called_once()
+        register.assert_called_once()
+        # command_key 为 None 时不调用 _permission_wrapper，仅应用状态包装
+        # 注册的 handler 不是原 handler（已被状态包装）
+        registered = register.call_args.args[0]
+        assert registered is not handler
+
+    def test_skips_state_wrapper_when_bypass_all(self) -> None:
+        """bypass_gate 与 bypass_silent 同时为 True 时不应用状态包装。"""
+        register = MagicMock()
+        command: Any = MagicMock()
+        command.handle = MagicMock(return_value=register)
+
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            return "ok"
+
+        profile = MagicMock()
+        profile.platform_id = "qq"
+
+        with (
+            patch.object(common_module, "is_adapter_enabled", return_value=True),
+            patch.object(common_module, "get_platform_profile", return_value=profile),
+        ):
+            decorator = selected_adapter_handle(
+                command,
+                "~onebot.v11",
+                "remote_mute",
+                bypass_gate=True,
+                bypass_silent=True,
+            )
+            decorator(handler)
+
+        # 即使全部 bypass，command.handle() 仍被调用注册 handler
+        command.handle.assert_called_once()
+        register.assert_called_once()
+
+    def test_uses_empty_platform_id_when_profile_missing(self) -> None:
+        """get_platform_profile 返回 None 时 platform_id 回退为空字符串。"""
+        register = MagicMock()
+        command: Any = MagicMock()
+        command.handle = MagicMock(return_value=register)
+
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            return "ok"
+
+        with (
+            patch.object(common_module, "is_adapter_enabled", return_value=True),
+            patch.object(common_module, "get_platform_profile", return_value=None),
+            patch.object(
+                common_module, "_state_wrapper", wraps=common_module._state_wrapper
+            ) as state_wrapper_spy,
+        ):
+            decorator = selected_adapter_handle(command, "~onebot.v11", "remote_mute")
+            decorator(handler)
+
+        state_wrapper_spy.assert_called_once()
+        assert state_wrapper_spy.call_args.kwargs["platform_id"] == ""
+
+    def test_does_not_register_when_adapter_disabled(self) -> None:
+        """适配器未启用时不注册任何 handler。"""
+        command: Any = MagicMock()
+        command.handle = MagicMock()
+
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            return "ok"
+
+        with patch.object(common_module, "is_adapter_enabled", return_value=False):
+            decorator = selected_adapter_handle(command, "~onebot.v11", "remote_mute")
+            returned = decorator(handler)
+
+        assert returned is handler
+        command.handle.assert_not_called()
+
+
+# ================= _permission_wrapper 分支测试 =================
+
+
+class TestPermissionWrapper:
+    """_permission_wrapper 内部分支测试。"""
+
+    def test_returns_func_when_command_key_is_none(self) -> None:
+        """command_key 为 None 时直接返回原函数。"""
+        command: Any = MagicMock()
+
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            return "ok"
+
+        result = _permission_wrapper(command, handler, None)
+        assert result is handler
+
+    @pytest.mark.asyncio
+    async def test_wrapper_passes_through_when_bot_and_event_missing(self) -> None:
+        """Wrapper 在缺少 bot/event 时直接调用原函数。"""
+        command: Any = MagicMock()
+        command.finish = AsyncMock()
+
+        called = False
+
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            nonlocal called
+            called = True
+            return "called"
+
+        wrapped = _permission_wrapper(command, handler, "test_cmd")
+        result = await wrapped()
+
+        assert result == "called"
+        assert called is True
+        command.finish.assert_not_awaited()
+
+
+# ================= 私有参数查找工具测试 =================
+
+
+class TestFirstArgWithAttr:
+    """_first_arg_with_attr 工具函数测试。"""
+
+    def test_returns_first_arg_with_attribute(self) -> None:
+        """返回第一个拥有指定属性的参数。"""
+        other = object()
+        stub = _StubAdapter()
+        result = _first_arg_with_attr((other, stub), "adapter")
+        assert result is stub
+
+    def test_returns_none_when_no_arg_has_attribute(self) -> None:
+        """无参数拥有指定属性时返回 None。"""
+        result = _first_arg_with_attr((1, "x", None, []), "adapter")
+        assert result is None
+
+    def test_returns_none_for_empty_args(self) -> None:
+        """空参数元组返回 None。"""
+        result = _first_arg_with_attr((), "adapter")
+        assert result is None
+
+    def test_returns_first_match_when_multiple_have_attribute(self) -> None:
+        """多个参数都拥有属性时返回第一个。"""
+        first = _StubAdapter()
+        second = _StubAdapter()
+        result = _first_arg_with_attr((first, second), "adapter")
+        assert result is first
+
+
+class TestFirstEventArg:
+    """_first_event_arg 工具函数测试。"""
+
+    def test_returns_first_arg_with_user_id(self) -> None:
+        """返回第一个拥有 user_id 属性的参数。"""
+        other = object()
+        event = _StubEvent()
+        result = _first_event_arg((other, event))
+        assert result is event
+
+    def test_returns_first_arg_with_data(self) -> None:
+        """返回第一个拥有 data 属性的参数。"""
+        data_event = _StubDataEvent()
+        result = _first_event_arg((data_event,))
+        assert result is data_event
+
+    def test_returns_none_when_no_event_arg(self) -> None:
+        """无参数拥有 user_id 或 data 属性时返回 None。"""
+        result = _first_event_arg((1, "x", None))
+        assert result is None
+
+    def test_returns_none_for_empty_args(self) -> None:
+        """空参数元组返回 None。"""
+        result = _first_event_arg(())
+        assert result is None
+
+
+# ================= _permission_wrapper 主体调用测试 =================
+
+
+class TestPermissionWrapperBody:
+    """_permission_wrapper 内部 wrapper 主体调用测试（覆盖行 69-73）。"""
+
+    @pytest.mark.asyncio
+    async def test_wrapper_calls_func_when_permission_allowed(self) -> None:
+        """权限检查通过时调用原函数并返回结果。"""
+        command: Any = MagicMock()
+        command.finish = AsyncMock()
+        bot = MagicMock()
+        event = MagicMock()
+
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            return "allowed-result"
+
+        decision = MagicMock()
+        decision.allowed = True
+        with patch.object(common_module, "check_permission", new=AsyncMock()) as check:
+            check.return_value = decision
+            wrapped = _permission_wrapper(command, handler, "test_cmd")
+            result = await wrapped(bot=bot, event=event)
+
+        assert result == "allowed-result"
+        check.assert_awaited_once_with("test_cmd", bot, event)
+        command.finish.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_wrapper_finishes_when_permission_denied(self) -> None:
+        """权限检查未通过时调用 command.finish 并返回 None。"""
+        command: Any = MagicMock()
+        command.finish = AsyncMock()
+        bot = MagicMock()
+        event = MagicMock()
+
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            return "should-not-reach"
+
+        decision = MagicMock()
+        decision.allowed = False
+        with patch.object(common_module, "check_permission", new=AsyncMock()) as check:
+            check.return_value = decision
+            wrapped = _permission_wrapper(command, handler, "test_cmd")
+            result = await wrapped(bot=bot, event=event)
+
+        assert result is None
+        command.finish.assert_awaited_once()
+        check.assert_awaited_once_with("test_cmd", bot, event)
+
+    @pytest.mark.asyncio
+    async def test_wrapper_finds_bot_and_event_from_args(self) -> None:
+        """bot/event 从位置参数中解析时仍走权限检查路径。"""
+        command: Any = MagicMock()
+        command.finish = AsyncMock()
+        bot = MagicMock()
+        bot.adapter = "stub-adapter"
+        event = _StubEvent()
+
+        called = False
+
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            nonlocal called
+            called = True
+            return "ok"
+
+        decision = MagicMock()
+        decision.allowed = True
+        with patch.object(common_module, "check_permission", new=AsyncMock()) as check:
+            check.return_value = decision
+            wrapped = _permission_wrapper(command, handler, "test_cmd")
+            result = await wrapped(bot, event)
+
+        assert result == "ok"
+        assert called is True
+        check.assert_awaited_once()
+
+
+# ================= _state_wrapper 主体调用测试 =================
+
+
+class TestStateWrapperBody:
+    """_state_wrapper 内部 wrapper 主体调用测试（覆盖行 88-92）。"""
+
+    @pytest.mark.asyncio
+    async def test_state_wrapper_blocks_when_gate_inactive(self) -> None:
+        """门禁关闭时 wrapper 直接返回 None 且不调用 handler。"""
+        from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.common import (
+            _state_wrapper,
+        )
+
+        called = False
+
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            nonlocal called
+            called = True
+            return "result"
+
+        command: Any = MagicMock()
+        wrapped = _state_wrapper(command, handler, platform_id="qq", check_gate=True)
+
+        with patch.object(common_module, "is_handle_active", return_value=False):
+            result = await wrapped()
+
+        assert result is None
+        assert called is False
+
+    @pytest.mark.asyncio
+    async def test_state_wrapper_normal_path_calls_handler(self) -> None:
+        """门禁开启且静默关闭时直接调用 handler。"""
+        from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.common import (
+            _state_wrapper,
+        )
+
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            return "normal-result"
+
+        command: Any = MagicMock()
+        wrapped = _state_wrapper(command, handler, platform_id="qq", check_gate=True)
+
+        with (
+            patch.object(common_module, "is_handle_active", return_value=True),
+            patch.object(common_module, "is_silent_mode", return_value=False),
+        ):
+            result = await wrapped()
+
+        assert result == "normal-result"
+
+
+# ================= _silent_call 恢复测试 =================
+
+
+class _SilentCallFakeCommand:
+    """模拟匹配器命令类，用于 _silent_call 单元测试。"""
+
+    @classmethod
+    async def finish(cls, _message: Any = None, **_kwargs: Any) -> Any:
+        """模拟 finish 方法。"""
+        return "original"
+
+
+class TestSilentCallBody:
+    """_silent_call 主体调用测试（覆盖行 104-117）。"""
+
+    @pytest.mark.asyncio
+    async def test_restores_finish_on_exception(self) -> None:
+        """_silent_call 在处理器抛出异常时仍恢复原始 finish。"""
+        from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.common import (
+            _silent_call,
+        )
+
+        original = _SilentCallFakeCommand.__dict__["finish"]
+
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            raise RuntimeError("error")
+
+        with pytest.raises(RuntimeError, match="error"):
+            await _silent_call(cast("Any", _SilentCallFakeCommand), handler)
+
+        assert _SilentCallFakeCommand.__dict__["finish"] is original

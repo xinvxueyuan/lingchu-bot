@@ -320,3 +320,152 @@ async def test_find_active_block_lazily_deletes_expired_entries() -> None:
 
     assert result is None
     delete_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_clear_blocklist_includes_protocol_id_filter_when_provided() -> None:
+    delete_mock = AsyncMock(return_value=(1, True))
+
+    with (
+        patch.object(blocklist, "delete", delete_mock),
+        patch.object(blocklist, "_sync_blocked_policy_clear", AsyncMock()),
+    ):
+        await blocklist.clear_blocklist(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id="napcat",
+            bot_id="bot-1",
+            scope="group",
+            group_id=123,
+        )
+
+    filters = delete_mock.call_args.args[1]
+    assert filters["protocol_id"] == "napcat"
+
+
+@pytest.mark.asyncio
+async def test_find_active_block_passes_protocol_id_and_returns_unexpired_entry() -> (
+    None
+):
+    future = datetime.now(UTC) + timedelta(seconds=60)
+    entry = _entry(expires_at=future)
+    get_one_mock = AsyncMock(return_value=entry)
+
+    with patch.object(blocklist, "get_one", get_one_mock):
+        result = await blocklist.find_active_block(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id="napcat",
+            bot_id="bot-1",
+            group_id=123,
+            user_id=456,
+        )
+
+    assert result is entry
+    assert get_one_mock.call_args_list[0].args[1]["protocol_id"] == "napcat"
+
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_blocks_delegates_to_delete_with_conditions() -> None:
+    delete_mock = AsyncMock(return_value=(3, True))
+
+    with patch.object(blocklist, "delete", delete_mock):
+        result = await blocklist.cleanup_expired_blocks()
+
+    assert result == (3, True)
+    delete_mock.assert_awaited_once()
+    kwargs = delete_mock.call_args.kwargs
+    assert "conditions" in kwargs
+    assert len(kwargs["conditions"]) == 2
+
+
+def test_active_block_condition_returns_or_clause() -> None:
+    condition = blocklist.active_block_condition()
+
+    assert condition is not None
+
+
+@pytest.mark.asyncio
+async def test_sync_blocked_policy_upsert_invokes_upsert_subject_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.plugins.nonebot_plugin_lingchu_bot.permissions import subject_policy
+
+    upsert_mock = AsyncMock()
+    monkeypatch.setattr(subject_policy, "upsert_subject_policy", upsert_mock)
+
+    request = blocklist.BlocklistUpsert(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        protocol_id="napcat",
+        bot_id="bot-1",
+        scope="group",
+        group_id=123,
+        user_id=456,
+        operator_id=789,
+        reason="bad",
+        expires_at=None,
+    )
+
+    await blocklist._sync_blocked_policy_upsert(request)
+
+    upsert_mock.assert_awaited_once()
+    assert upsert_mock.await_args is not None
+    call_arg = upsert_mock.await_args.args[0]
+    assert call_arg.policy_type == "blocked"
+    assert call_arg.platform_id == "qq"
+    assert call_arg.protocol_id == "napcat"
+    assert call_arg.user_id == 456
+
+
+@pytest.mark.asyncio
+async def test_sync_blocked_policy_remove_invokes_remove_subject_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.plugins.nonebot_plugin_lingchu_bot.permissions import subject_policy
+
+    remove_mock = AsyncMock()
+    monkeypatch.setattr(subject_policy, "remove_subject_policy", remove_mock)
+
+    await blocklist._sync_blocked_policy_remove(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        protocol_id="napcat",
+        bot_id="bot-1",
+        scope="group",
+        group_id=123,
+        user_id=456,
+    )
+
+    remove_mock.assert_awaited_once()
+    assert remove_mock.await_args is not None
+    kwargs = remove_mock.await_args.kwargs
+    assert kwargs["policy_type"] == "blocked"
+    assert kwargs["platform_id"] == "qq"
+    assert kwargs["protocol_id"] == "napcat"
+
+
+@pytest.mark.asyncio
+async def test_sync_blocked_policy_clear_invokes_clear_subject_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.plugins.nonebot_plugin_lingchu_bot.permissions import subject_policy
+
+    clear_mock = AsyncMock()
+    monkeypatch.setattr(subject_policy, "clear_subject_policy", clear_mock)
+
+    await blocklist._sync_blocked_policy_clear(
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        protocol_id="napcat",
+        bot_id="bot-1",
+        scope="group",
+        group_id=123,
+    )
+
+    clear_mock.assert_awaited_once()
+    assert clear_mock.await_args is not None
+    kwargs = clear_mock.await_args.kwargs
+    assert kwargs["policy_type"] == "blocked"
+    assert kwargs["platform_id"] == "qq"
+    assert kwargs["protocol_id"] == "napcat"

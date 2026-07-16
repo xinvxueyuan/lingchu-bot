@@ -255,6 +255,7 @@ allowed-confusables = [
     "TC002",   # typing-only-third-party-import (e.g. pytest used as @pytest.mark decorator)
     "TC003",   # typing-only-standard-library-import (tests don't need TYPE_CHECKING optimization)
     "TC005",   # empty-type-checking-block (test files may have empty TYPE_CHECKING blocks)
+    "TRY003",  # raise-vanilla-args: hostile test doubles raise descriptive exceptions inline
     # pydocstyle (D) ignores for tests
     "D100",  # missing-module-docstring
     "D101",  # missing-public-class-docstring
@@ -586,7 +587,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 pythonpath = [".", "src"]
 testpaths = ["tests"]
-addopts = "--import-mode=importlib --strict-markers --strict-config --cov=src/plugins/nonebot_plugin_lingchu_bot --cov-branch --cov-report=term-missing --cov-report=xml:test-results/coverage.xml --cov-report=html:htmlcov --cov-fail-under=86"
+addopts = "--import-mode=importlib --strict-markers --strict-config --cov=src/plugins/nonebot_plugin_lingchu_bot --cov-branch --cov-report=term-missing --cov-report=xml:test-results/coverage.xml --cov-report=html:htmlcov --cov-fail-under=90"
 timeout = 300
 timeout_method = "thread"
 filterwarnings = [

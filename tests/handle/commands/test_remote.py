@@ -12,6 +12,7 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 from nonebot_plugin_alconna.uniseg import At
 import pytest
 
+from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import DatabaseError
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     remote as remote_module,
 )
@@ -912,3 +913,923 @@ class TestMassAnnouncement:
                 image=f"/lingchu/announcement-images/{expected_md5}.png",
             ),
         ]
+
+
+class TestResolveGroupIdSingleFuzzy:
+    """测试 _resolve_group_id 单候选模糊匹配（覆盖行 107）。"""
+
+    @pytest.mark.asyncio
+    async def test_resolve_single_fuzzy_match_returns_group_id(
+        self, mock_bot: MagicMock, mock_group_list: list[dict]
+    ) -> None:
+        """仅匹配到一个群时返回对应群号。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        result = await _resolve_group_id(mock_bot, "群1", remote_mute_cmd)
+        assert result == _GROUP_ID_1
+
+
+class TestCheckBotInGroup:
+    """测试 _check_bot_in_group 异常分支（覆盖行 129-130）。"""
+
+    @pytest.mark.asyncio
+    async def test_returns_false_on_action_failed(self, mock_bot: MagicMock) -> None:
+        mock_bot.get_group_list.side_effect = OneBot11ActionFailed()
+        assert await remote_module._check_bot_in_group(mock_bot, _GROUP_ID_1) is False
+
+    @pytest.mark.asyncio
+    async def test_returns_false_on_key_error(self, mock_bot: MagicMock) -> None:
+        mock_bot.get_group_list.return_value = [{"group_name": "无群号键"}]
+        assert await remote_module._check_bot_in_group(mock_bot, _GROUP_ID_1) is False
+
+    @pytest.mark.asyncio
+    async def test_returns_false_on_type_error(self, mock_bot: MagicMock) -> None:
+        mock_bot.get_group_list.return_value = None
+        assert await remote_module._check_bot_in_group(mock_bot, _GROUP_ID_1) is False
+
+
+class TestCheckUserInGroup:
+    """测试 _check_user_in_group 异常分支（覆盖行 137-138）。"""
+
+    @pytest.mark.asyncio
+    async def test_returns_false_on_action_failed(self, mock_bot: MagicMock) -> None:
+        mock_bot.get_group_member_info.side_effect = OneBot11ActionFailed()
+        result = await remote_module._check_user_in_group(
+            mock_bot, _GROUP_ID_1, _TARGET_USER_ID
+        )
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_returns_true_when_member_info_succeeds(
+        self, mock_bot: MagicMock
+    ) -> None:
+        mock_bot.get_group_member_info.return_value = {"role": "member"}
+        result = await remote_module._check_user_in_group(
+            mock_bot, _GROUP_ID_1, _TARGET_USER_ID
+        )
+        assert result is True
+
+
+class TestValidateRemoteContext:
+    """测试 _validate_remote_context 失败分支（覆盖行 164-166）。"""
+
+    @pytest.mark.asyncio
+    async def test_returns_false_when_bot_not_in_group(
+        self, mock_bot: MagicMock
+    ) -> None:
+        mock_bot.get_group_list.return_value = []
+        with patch.object(remote_mute_cmd, "finish", new_callable=AsyncMock):
+            result = await remote_module._validate_remote_context(
+                mock_bot, _GROUP_ID_NONEXIST, remote_mute_cmd
+            )
+        assert result is False
+
+
+class TestResolveAndValidateUser:
+    """测试 _resolve_and_validate_user 错误分支（覆盖行 183-190）。"""
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_value_error(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                side_effect=ValueError("无效用户"),
+            ),
+            patch.object(
+                remote_mute_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            result = await remote_module._resolve_and_validate_user(
+                At("user", "x"), mock_bot, mock_event, _GROUP_ID_1, remote_mute_cmd
+            )
+        assert result is None
+        mock_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_user_not_in_group(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        mock_bot.get_group_member_info.side_effect = OneBot11ActionFailed()
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                return_value=(_TARGET_USER_ID, "测试用户"),
+            ),
+            patch.object(
+                remote_mute_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            result = await remote_module._resolve_and_validate_user(
+                At("user", str(_TARGET_USER_ID)),
+                mock_bot,
+                mock_event,
+                _GROUP_ID_1,
+                remote_mute_cmd,
+            )
+        assert result is None
+        mock_finish.assert_called_once()
+
+
+class TestIsRemoteProtectedTarget:
+    """测试 _is_remote_protected_target（覆盖行 203）。"""
+
+    @pytest.mark.asyncio
+    async def test_returns_false_when_command_key_not_protected(
+        self, mock_bot: MagicMock
+    ) -> None:
+        matcher = MagicMock()
+        matcher._lingchu_command_key = None
+        result = await remote_module._is_remote_protected_target(
+            mock_bot, _GROUP_ID_1, _TARGET_USER_ID, matcher
+        )
+        assert result is False
+
+
+class TestCheckRemoteTargetPrivilege:
+    """测试 _check_remote_target_privilege 各分支（覆盖行 224、232-250）。"""
+
+    @pytest.mark.asyncio
+    async def test_returns_true_when_protected_and_operator_is_superuser(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        with (
+            patch(
+                f"{remote_module.__name__}.find_active_subject_policy",
+                new_callable=AsyncMock,
+                return_value=object(),
+            ),
+            patch(
+                f"{remote_module.__name__}.operator_is_superuser_onebot11",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+        ):
+            result = await remote_module._check_remote_target_privilege(
+                mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, remote_mute_cmd
+            )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_returns_true_when_target_member_info_action_failed(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        matcher = MagicMock()
+        matcher._lingchu_command_key = None
+        mock_bot.get_group_member_info.side_effect = OneBot11ActionFailed()
+        result = await remote_module._check_remote_target_privilege(
+            mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
+        )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_returns_true_when_target_admin_and_operator_can_manage(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        matcher = MagicMock()
+        matcher._lingchu_command_key = None
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "admin"},
+            {"role": "owner"},
+        ]
+        with patch(
+            f"{remote_module.__name__}._operator_can_manage_privileged_target",
+            return_value=True,
+        ):
+            result = await remote_module._check_remote_target_privilege(
+                mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
+            )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_finishes_when_operator_info_action_failed(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        matcher = MagicMock()
+        matcher._lingchu_command_key = None
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "admin"},
+            OneBot11ActionFailed(),
+        ]
+        with patch.object(matcher, "finish", new_callable=AsyncMock) as mock_finish:
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await remote_module._check_remote_target_privilege(
+                    mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
+                )
+            mock_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_finishes_when_operator_cannot_manage_privileged_target(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        matcher = MagicMock()
+        matcher._lingchu_command_key = None
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "owner"},
+            {"role": "member"},
+        ]
+        with (
+            patch(
+                f"{remote_module.__name__}._operator_can_manage_privileged_target",
+                return_value=False,
+            ),
+            patch.object(matcher, "finish", new_callable=AsyncMock) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await remote_module._check_remote_target_privilege(
+                    mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
+                )
+            mock_finish.assert_called_once()
+
+
+def _make_disabled_config_manager() -> MagicMock:
+    """构造返回 disabled 配置的 HandleConfigManager mock。"""
+    fake_config = MagicMock()
+    fake_config.enabled = False
+    fake_manager = MagicMock()
+    fake_manager.get_config = AsyncMock(return_value=fake_config)
+    return fake_manager
+
+
+class TestRemoteMuteActionFailed:
+    """测试远程禁言 ActionFailed 分支（覆盖行 305-307）。"""
+
+    @pytest.mark.asyncio
+    async def test_remote_mute_action_failed_finishes(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "admin", "user_id": int(mock_bot.self_id)},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+        ]
+        mock_bot.set_group_ban.side_effect = OneBot11ActionFailed()
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                return_value=(_TARGET_USER_ID, "测试用户"),
+            ),
+            patch.object(
+                remote_mute_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_mute(
+                    group_id=_GROUP_ID_1,
+                    user=At("user", str(_TARGET_USER_ID)),
+                    duration=60,
+                    bot=mock_bot,
+                    event=mock_event,
+                )
+            mock_finish.assert_called_once()
+
+
+class TestRemoteUnmuteActionFailed:
+    """测试远程解禁 ActionFailed 分支（覆盖行 382-384）。"""
+
+    @pytest.mark.asyncio
+    async def test_remote_unmute_action_failed_finishes(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_group_member_info.return_value = {
+            "role": "admin",
+            "user_id": _TARGET_USER_ID,
+        }
+        mock_bot.set_group_ban.side_effect = OneBot11ActionFailed()
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                return_value=(_TARGET_USER_ID, "测试用户"),
+            ),
+            patch.object(
+                remote_unmute_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_unmute(
+                    group_id=_GROUP_ID_1,
+                    user=At("user", str(_TARGET_USER_ID)),
+                    bot=mock_bot,
+                    event=mock_event,
+                )
+            mock_finish.assert_called_once()
+
+
+class TestRemoteWholeMuteActionFailed:
+    """测试远程全体禁言 ActionFailed 分支（覆盖行 442-444）。"""
+
+    @pytest.mark.asyncio
+    async def test_remote_whole_mute_action_failed_finishes(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.set_group_whole_ban.side_effect = OneBot11ActionFailed()
+        with patch.object(
+            remote_whole_mute_cmd, "finish", new_callable=AsyncMock
+        ) as mock_finish:
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_whole_mute(
+                    group_id=_GROUP_ID_1, bot=mock_bot, event=mock_event
+                )
+            mock_finish.assert_called_once()
+
+
+class TestRemoteWholeUnmuteErrorPaths:
+    """测试远程全体解禁配置禁用与 ActionFailed 分支（覆盖行 474、489-491）。"""
+
+    @pytest.mark.asyncio
+    async def test_remote_whole_unmute_disabled_finishes(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        with (
+            patch(
+                f"{remote_module.__name__}.get_handle_config_manager",
+                return_value=_make_disabled_config_manager(),
+            ),
+            patch.object(
+                remote_whole_unmute_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_whole_unmute(
+                    group_id=_GROUP_ID_1, bot=mock_bot, event=mock_event
+                )
+            mock_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_remote_whole_unmute_action_failed_finishes(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_group_member_info.return_value = {"role": "admin"}
+        mock_bot.set_group_whole_ban.side_effect = OneBot11ActionFailed()
+        with patch.object(
+            remote_whole_unmute_cmd, "finish", new_callable=AsyncMock
+        ) as mock_finish:
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_whole_unmute(
+                    group_id=_GROUP_ID_1, bot=mock_bot, event=mock_event
+                )
+            mock_finish.assert_called_once()
+
+
+class TestRemoteKickErrorPaths:
+    """测试远程踢出错误分支（覆盖行 552-570）。"""
+
+    @pytest.mark.asyncio
+    async def test_remote_kick_database_error_finishes(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "admin", "user_id": int(mock_bot.self_id)},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+        ]
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                return_value=(_TARGET_USER_ID, "测试用户"),
+            ),
+            patch(
+                f"{remote_module.__name__}.find_active_block",
+                new_callable=AsyncMock,
+                side_effect=DatabaseError("db error"),
+            ),
+            patch.object(
+                remote_kick_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_kick(
+                    group_id=_GROUP_ID_1,
+                    user=At("user", str(_TARGET_USER_ID)),
+                    bot=mock_bot,
+                    event=mock_event,
+                )
+            mock_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_remote_kick_entry_none_finishes(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "admin", "user_id": int(mock_bot.self_id)},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+        ]
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                return_value=(_TARGET_USER_ID, "测试用户"),
+            ),
+            patch(
+                f"{remote_module.__name__}.find_active_block",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch.object(
+                remote_kick_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_kick(
+                    group_id=_GROUP_ID_1,
+                    user=At("user", str(_TARGET_USER_ID)),
+                    bot=mock_bot,
+                    event=mock_event,
+                )
+            mock_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_remote_kick_action_failed_finishes(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "admin", "user_id": int(mock_bot.self_id)},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+        ]
+        mock_bot.set_group_kick.side_effect = OneBot11ActionFailed()
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                return_value=(_TARGET_USER_ID, "测试用户"),
+            ),
+            patch(
+                f"{remote_module.__name__}.find_active_block",
+                new_callable=AsyncMock,
+                return_value={"user_id": _TARGET_USER_ID},
+            ),
+            patch.object(
+                remote_kick_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_kick(
+                    group_id=_GROUP_ID_1,
+                    user=At("user", str(_TARGET_USER_ID)),
+                    bot=mock_bot,
+                    event=mock_event,
+                )
+            mock_finish.assert_called_once()
+
+
+class TestRemoteBlockErrorPaths:
+    """测试远程拉黑错误分支（覆盖行 639-644）。"""
+
+    @pytest.mark.asyncio
+    async def test_remote_block_database_error_finishes(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "admin", "user_id": int(mock_bot.self_id)},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+        ]
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                return_value=(_TARGET_USER_ID, "测试用户"),
+            ),
+            patch(
+                f"{remote_module.__name__}.store_block_record",
+                new_callable=AsyncMock,
+                side_effect=DatabaseError("db error"),
+            ),
+            patch.object(
+                remote_block_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_block(
+                    group_id=_GROUP_ID_1,
+                    user=At("user", str(_TARGET_USER_ID)),
+                    duration=3600,
+                    bot=mock_bot,
+                    event=mock_event,
+                )
+            mock_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_remote_block_action_failed_finishes(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "admin", "user_id": int(mock_bot.self_id)},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+        ]
+        mock_bot.set_group_kick.side_effect = OneBot11ActionFailed()
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                return_value=(_TARGET_USER_ID, "测试用户"),
+            ),
+            patch(
+                f"{remote_module.__name__}.store_block_record",
+                new_callable=AsyncMock,
+            ),
+            patch.object(
+                remote_block_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_block(
+                    group_id=_GROUP_ID_1,
+                    user=At("user", str(_TARGET_USER_ID)),
+                    duration=3600,
+                    bot=mock_bot,
+                    event=mock_event,
+                )
+            mock_finish.assert_called_once()
+
+
+class TestRemoteUnblockErrorPaths:
+    """测试远程删黑错误分支（覆盖行 699、704-706、720-722）。"""
+
+    @pytest.mark.asyncio
+    async def test_remote_unblock_bot_not_in_group_finishes(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        mock_bot.get_group_list.return_value = []
+        with patch.object(
+            remote_unblock_cmd, "finish", new_callable=AsyncMock
+        ) as mock_finish:
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_unblock(
+                    group_id=_GROUP_ID_1,
+                    user=At("user", str(_TARGET_USER_ID)),
+                    bot=mock_bot,
+                    event=mock_event,
+                )
+            mock_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_remote_unblock_value_error_finishes(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                side_effect=ValueError("无效用户"),
+            ),
+            patch.object(
+                remote_unblock_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_unblock(
+                    group_id=_GROUP_ID_1,
+                    user=At("user", str(_TARGET_USER_ID)),
+                    bot=mock_bot,
+                    event=mock_event,
+                )
+            mock_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_remote_unblock_database_error_finishes(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                return_value=(_TARGET_USER_ID, "测试用户"),
+            ),
+            patch(
+                f"{remote_module.__name__}.remove_block",
+                new_callable=AsyncMock,
+                side_effect=DatabaseError("db error"),
+            ),
+            patch.object(
+                remote_unblock_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_unblock(
+                    group_id=_GROUP_ID_1,
+                    user=At("user", str(_TARGET_USER_ID)),
+                    bot=mock_bot,
+                    event=mock_event,
+                )
+            mock_finish.assert_called_once()
+
+
+def _napcat_version_info() -> dict:
+    return {
+        "data": {
+            "protocol_version": "v11",
+            "app_version": "4.18.0",
+            "app_name": "NapCat.Onebot",
+        }
+    }
+
+
+class TestRemoteAnnouncementErrorPaths:
+    """测试远程公告错误分支（覆盖行 774、806-809）。"""
+
+    @pytest.mark.asyncio
+    async def test_remote_announcement_disabled_finishes(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        with (
+            patch(
+                f"{remote_module.__name__}.get_handle_config_manager",
+                return_value=_make_disabled_config_manager(),
+            ),
+            patch.object(
+                remote_announcement_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_announcement(
+                    group_id=_GROUP_ID_1,
+                    content="x",
+                    bot=mock_bot,
+                    event=mock_event,
+                    image=None,
+                )
+            mock_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_remote_announcement_action_failed_finishes(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_version_info.return_value = _napcat_version_info()
+        with (
+            patch(
+                f"{remote_module.__name__}.send_onebot11_group_announcement_notice",
+                new_callable=AsyncMock,
+                side_effect=OneBot11ActionFailed(),
+            ),
+            patch.object(
+                remote_announcement_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_announcement(
+                    group_id=_GROUP_ID_1,
+                    content="x",
+                    bot=mock_bot,
+                    event=mock_event,
+                    image=None,
+                )
+            mock_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_remote_announcement_returns_error_msg_from_notice(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_version_info.return_value = _napcat_version_info()
+        with (
+            patch(
+                f"{remote_module.__name__}.send_onebot11_group_announcement_notice",
+                new_callable=AsyncMock,
+                return_value="发送失败",
+            ),
+            patch.object(
+                remote_announcement_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_remote_announcement(
+                    group_id=_GROUP_ID_1,
+                    content="x",
+                    bot=mock_bot,
+                    event=mock_event,
+                    image=None,
+                )
+            mock_finish.assert_called_once()
+
+
+class TestResolveAllGroupIds:
+    """测试 _resolve_all_group_ids 错误分支（覆盖行 849-857）。"""
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_action_failed(self, mock_bot: MagicMock) -> None:
+        mock_bot.get_group_list.side_effect = OneBot11ActionFailed()
+        with patch.object(
+            mass_announcement_cmd, "finish", new_callable=AsyncMock
+        ) as mock_finish:
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await remote_module._resolve_all_group_ids(
+                    mock_bot, mass_announcement_cmd
+                )
+            mock_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_invalid_group_entry(
+        self, mock_bot: MagicMock
+    ) -> None:
+        mock_bot.get_group_list.return_value = [{"group_name": "无群号键"}]
+        with patch.object(
+            mass_announcement_cmd, "finish", new_callable=AsyncMock
+        ) as mock_finish:
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await remote_module._resolve_all_group_ids(
+                    mock_bot, mass_announcement_cmd
+                )
+            mock_finish.assert_called_once()
+
+
+class TestCheckMassAnnouncementTargetContext:
+    """测试 _check_mass_announcement_target_context 各分支（覆盖行 908、916-921）。"""
+
+    @pytest.mark.asyncio
+    async def test_returns_error_when_bot_not_in_group(
+        self, mock_bot: MagicMock
+    ) -> None:
+        mock_bot.get_group_list.return_value = []
+        result = await remote_module._check_mass_announcement_target_context(
+            mock_bot, _GROUP_ID_1
+        )
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_returns_error_when_member_info_fails(
+        self, mock_bot: MagicMock, mock_group_list: list[dict]
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_group_member_info.side_effect = OneBot11ActionFailed()
+        result = await remote_module._check_mass_announcement_target_context(
+            mock_bot, _GROUP_ID_1
+        )
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_returns_error_when_bot_role_is_member(
+        self, mock_bot: MagicMock, mock_group_list: list[dict]
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_group_member_info.return_value = {"role": "member"}
+        result = await remote_module._check_mass_announcement_target_context(
+            mock_bot, _GROUP_ID_1
+        )
+        assert result is not None
+
+
+class TestMassAnnouncementErrorPaths:
+    """测试群发公告错误分支（覆盖行 941、961-968、990-993）。"""
+
+    @pytest.mark.asyncio
+    async def test_mass_announcement_disabled_finishes(
+        self, mock_bot: MagicMock, mock_event: MagicMock
+    ) -> None:
+        with (
+            patch(
+                f"{remote_module.__name__}.get_handle_config_manager",
+                return_value=_make_disabled_config_manager(),
+            ),
+            patch.object(
+                mass_announcement_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            mock_finish.side_effect = Exception("finish called")
+            with pytest.raises(Exception, match="finish called"):
+                await onebot11_mass_announcement(
+                    content="x",
+                    bot=mock_bot,
+                    event=mock_event,
+                    targets=None,
+                    image=None,
+                )
+            mock_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_mass_announcement_records_context_error_for_target(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_version_info.return_value = _napcat_version_info()
+        with (
+            patch.object(
+                remote_module,
+                "_check_mass_announcement_target_context",
+                new_callable=AsyncMock,
+                return_value="机器人不在目标群聊中",
+            ),
+            patch.object(
+                mass_announcement_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            await onebot11_mass_announcement(
+                content="x",
+                bot=mock_bot,
+                event=mock_event,
+                targets="111111111",
+                image=None,
+            )
+        mock_bot.call_api.assert_not_called()
+        assert "失败 1 个" in str(mock_finish.call_args.args[0])
+
+    @pytest.mark.asyncio
+    async def test_mass_announcement_records_error_msg_from_notice(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_version_info.return_value = _napcat_version_info()
+        with (
+            patch.object(
+                remote_module,
+                "send_onebot11_group_announcement_notice",
+                new_callable=AsyncMock,
+                return_value="发送失败",
+            ),
+            patch.object(
+                mass_announcement_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            await onebot11_mass_announcement(
+                content="x",
+                bot=mock_bot,
+                event=mock_event,
+                targets="111111111",
+                image=None,
+            )
+        assert "失败 1 个" in str(mock_finish.call_args.args[0])

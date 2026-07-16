@@ -377,3 +377,179 @@ async def test_record_bot_lifecycle_swallows_database_errors(
 
     assert result is False
     record_api.assert_awaited_once()
+
+
+def test_truncate_returns_none_for_none_value() -> None:
+    assert message_store._truncate(None) is None
+
+
+def test_truncate_returns_value_unchanged_when_within_limit() -> None:
+    assert message_store._truncate("hello", 10) == "hello"
+
+
+def test_truncate_returns_value_unchanged_when_size_le_zero() -> None:
+    assert message_store._truncate("hello", 0) == "hello"
+    assert message_store._truncate("hello", -1) == "hello"
+
+
+def test_truncate_truncates_long_value_with_ellipsis() -> None:
+    assert message_store._truncate("hello world", 5) == "hello..."
+
+
+def test_truncate_uses_runtime_config_limit_when_no_limit_passed(
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    assert patched_runtime_config.message_store_summary_limit == 10
+    assert message_store._truncate("0123456789ABC") == "0123456789..."
+
+
+def test_stringify_returns_none_for_none_value() -> None:
+    assert message_store._stringify(None) is None
+
+
+def test_stringify_truncates_string_representation_of_arbitrary_value() -> None:
+    assert message_store._stringify("hello world", limit=5) == "hello..."
+    assert message_store._stringify(12345, limit=10) == "12345"
+
+
+async def test_initialize_message_store_logs_disabled_when_disabled(
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    patched_runtime_config.message_store_enabled = False
+    await message_store.initialize_message_store()
+
+
+async def test_initialize_message_store_logs_initialized_when_enabled(
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    await message_store.initialize_message_store()
+
+
+async def test_shutdown_message_store_skips_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    patched_runtime_config.message_store_enabled = False
+    cleanup_mock = AsyncMock(return_value=(0, True))
+    monkeypatch.setattr(message_store, "cleanup_expired_messages", cleanup_mock)
+
+    await message_store.shutdown_message_store()
+
+    cleanup_mock.assert_not_awaited()
+
+
+async def test_shutdown_message_store_runs_cleanup_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    cleanup_mock = AsyncMock(return_value=(0, True))
+    monkeypatch.setattr(message_store, "cleanup_expired_messages", cleanup_mock)
+
+    await message_store.shutdown_message_store()
+
+    cleanup_mock.assert_awaited_once()
+
+
+async def test_cleanup_expired_messages_skips_when_store_disabled(
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    patched_runtime_config.message_store_enabled = False
+    result = await message_store.cleanup_expired_messages()
+    assert result == (0, True)
+
+
+async def test_cleanup_expired_messages_skips_when_cleanup_disabled(
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    patched_runtime_config.message_store_cleanup_enabled = False
+    result = await message_store.cleanup_expired_messages()
+    assert result == (0, True)
+
+
+async def test_cleanup_expired_messages_returns_count_when_successful(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    cleanup_mock = AsyncMock(return_value=(7, True))
+    monkeypatch.setattr(
+        message_store.repository, "cleanup_expired_messages", cleanup_mock
+    )
+
+    result = await message_store.cleanup_expired_messages()
+
+    assert result == (7, True)
+    cleanup_mock.assert_awaited_once()
+    assert cleanup_mock.await_args is not None
+    assert cleanup_mock.await_args.kwargs["retention_days"] == 30
+
+
+async def test_cleanup_expired_messages_swallows_database_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    cleanup_mock = AsyncMock(side_effect=DatabaseError("boom"))
+    monkeypatch.setattr(
+        message_store.repository, "cleanup_expired_messages", cleanup_mock
+    )
+
+    result = await message_store.cleanup_expired_messages()
+
+    assert result == (0, False)
+    cleanup_mock.assert_awaited_once()
+
+
+async def test_record_bot_lifecycle_handles_missing_adapter_attribute(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    record_api = AsyncMock()
+    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
+
+    bot = MagicMock()
+    bot.self_id = "bot-1"
+    bot.adapter = None
+
+    result = await message_store.record_bot_lifecycle(bot, "bot_connected")
+
+    assert result is False
+    record_api.assert_not_awaited()
+
+
+async def test_record_bot_lifecycle_falls_back_when_get_name_raises(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    record_api = AsyncMock()
+    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
+
+    bot = MagicMock()
+    bot.self_id = "bot-1"
+    bot.adapter = MagicMock()
+    bot.adapter.get_name.side_effect = AttributeError("no name")
+
+    result = await message_store.record_bot_lifecycle(bot, "bot_connected")
+
+    assert result is False
+    record_api.assert_not_awaited()
+
+
+async def test_record_bot_lifecycle_skips_when_no_platform_profile(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    _ = patched_runtime_config
+    record_api = AsyncMock()
+    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
+    monkeypatch.setattr(message_store, "get_platform_profile", lambda _adapter_id: None)
+
+    result = await message_store.record_bot_lifecycle(make_bot(), "bot_connected")
+
+    assert result is False
+    record_api.assert_not_awaited()

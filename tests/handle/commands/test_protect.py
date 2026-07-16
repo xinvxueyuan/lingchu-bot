@@ -7,6 +7,9 @@ import pytest
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     protect as protect_module,
 )
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import (
+    protect as protect_cmd_module,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.protect import (
     global_protect_member_cmd,
     global_unprotect_member_cmd,
@@ -160,3 +163,47 @@ async def test_non_superuser_cannot_protect_member(
 
     upsert.assert_not_awaited()
     assert "权限不足" in finish_text(mock_finish)
+
+
+# ================= __getattr__ 懒加载导出测试 =================
+
+
+class TestLazyExports:
+    """commands.protect 模块 __getattr__ 懒加载导出测试（覆盖行 74-77）。"""
+
+    def test_lazy_export_returns_handler_and_caches(self) -> None:
+        """访问懒导出名时通过 __getattr__ 返回处理器并写入 globals 缓存。"""
+        cached = protect_cmd_module.__dict__.pop("onebot11_protect_member", None)
+        try:
+            value = protect_cmd_module.onebot11_protect_member
+            assert callable(value)
+            assert protect_cmd_module.__dict__["onebot11_protect_member"] is value
+        finally:
+            if cached is not None:
+                protect_cmd_module.__dict__["onebot11_protect_member"] = cached
+
+    def test_lazy_export_caches_all_four_handlers(self) -> None:
+        """四个懒导出名都能正确解析到适配器处理器。"""
+        names = (
+            "onebot11_protect_member",
+            "onebot11_global_protect_member",
+            "onebot11_unprotect_member",
+            "onebot11_global_unprotect_member",
+        )
+        originals = {
+            name: protect_cmd_module.__dict__.pop(name, None) for name in names
+        }
+        try:
+            for name in names:
+                value = getattr(protect_cmd_module, name)
+                assert callable(value), f"{name} 应为可调用处理器"
+                assert name in protect_cmd_module.__dict__
+        finally:
+            for name, original in originals.items():
+                if original is not None:
+                    protect_cmd_module.__dict__[name] = original
+
+    def test_unknown_attribute_raises_attribute_error(self) -> None:
+        """访问未导出的属性名时抛出 AttributeError。"""
+        with pytest.raises(AttributeError):
+            _ = protect_cmd_module.not_a_real_export

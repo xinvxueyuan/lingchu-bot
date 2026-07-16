@@ -3,16 +3,23 @@ from __future__ import annotations
 from collections.abc import Iterator
 from types import MappingProxyType
 from typing import Any, cast, override
+from unittest.mock import Mock
 
 import pytest
 
+from src.plugins.nonebot_plugin_lingchu_bot.services.llm import (
+    security as security_module,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.services.llm.security import (
     MAX_COLLECTION_ITEMS,
     MAX_NESTING_DEPTH,
     MAX_TEXT_LENGTH,
+    contains_control_plane_key,
+    contains_sensitive_mapping_entry,
     freeze_value,
     redact_value,
     safe_repr,
+    safe_type_name,
     sanitize_message,
     thaw_value,
 )
@@ -206,3 +213,213 @@ def test_sanitize_message_redacts_assignments_urls_and_unicode_controls() -> Non
     assert "\u2029" not in sanitized
     assert "\u202e" not in sanitized
     assert len(sanitized) <= MAX_TEXT_LENGTH
+
+
+class _TypeErrorLenMapping(dict[str, object]):
+    @override
+    def __len__(self) -> int:
+        raise TypeError("len access hostile")
+
+
+class _HostileArgsException(BaseException):
+    def __init__(self) -> None:
+        pass
+
+    @override
+    def __getattribute__(self, name: str) -> object:
+        if name == "args":
+            raise AssertionError("args access hostile")
+        return super().__getattribute__(name)
+
+
+def _raise_hostile_type_name(_cls: object) -> str:
+    raise AssertionError
+
+
+HostileTypeNameMeta = cast(
+    "type",
+    type(
+        "HostileTypeNameMeta",
+        (type,),
+        {"__name__": property(_raise_hostile_type_name)},
+    ),
+)
+HostileTypeNameValue = HostileTypeNameMeta("HostileTypeNameValue", (), {})
+
+
+def test_sanitize_message_returns_redacted_for_non_str_input() -> None:
+    assert sanitize_message(cast("Any", 123)) == "<redacted>"
+    assert sanitize_message(cast("Any", None)) == "<redacted>"
+    assert sanitize_message(cast("Any", 3.14)) == "<redacted>"
+
+
+def test_contains_control_plane_key_detects_dict_and_nested_entries() -> None:
+    assert contains_control_plane_key({"api_key": "secret"}) is True
+    assert contains_control_plane_key({"nested": {"token": "value"}}) is True
+    assert contains_control_plane_key(MappingProxyType({"base_url": "x"})) is True
+    assert contains_control_plane_key({"visible": "value"}) is False
+    assert contains_control_plane_key({123: "non-string-key"}) is False
+
+
+def test_contains_control_plane_key_detects_list_and_tuple_entries() -> None:
+    assert contains_control_plane_key([{"api_key": "secret"}]) is True
+    assert contains_control_plane_key(({"token": "x"}, "safe")) is True
+    assert contains_control_plane_key(["api_key", "visible"]) is False
+    assert contains_control_plane_key(("safe", "value")) is False
+
+
+def test_contains_control_plane_key_returns_false_for_scalars() -> None:
+    assert contains_control_plane_key(123) is False
+    assert contains_control_plane_key("string") is False
+    assert contains_control_plane_key(None) is False
+    assert contains_control_plane_key(3.14) is False
+    scalar_true: bool = True
+    assert contains_control_plane_key(scalar_true) is False
+
+
+def test_contains_sensitive_mapping_entry_detects_secret_keys_and_auth_values() -> None:
+    assert contains_sensitive_mapping_entry({"api_key": "x"}) is True
+    assert contains_sensitive_mapping_entry({"Authorization": "Bearer abc"}) is True
+    assert contains_sensitive_mapping_entry({"auth": "Basic xyz"}) is True
+    assert contains_sensitive_mapping_entry(MappingProxyType({"token": "x"})) is True
+    assert contains_sensitive_mapping_entry({"visible": "value"}) is False
+    assert contains_sensitive_mapping_entry({123: "non-string-key"}) is False
+
+
+def test_contains_sensitive_mapping_entry_detects_nested_and_list_entries() -> None:
+    assert contains_sensitive_mapping_entry([{"token": "x"}]) is True
+    assert contains_sensitive_mapping_entry(({"password": "x"},)) is True
+    assert contains_sensitive_mapping_entry(["safe", "value"]) is False
+    assert contains_sensitive_mapping_entry({"nested": {"secret": "x"}}) is True
+
+
+def test_contains_sensitive_mapping_entry_returns_false_for_scalars() -> None:
+    assert contains_sensitive_mapping_entry(123) is False
+    assert contains_sensitive_mapping_entry("string") is False
+    assert contains_sensitive_mapping_entry(None) is False
+
+
+def test_safe_type_name_returns_object_when_name_access_fails() -> None:
+    assert safe_type_name(HostileTypeNameValue()) == "object"
+
+
+def test_freeze_rejects_values_exceeding_max_nesting_depth() -> None:
+    deep: object = "leaf"
+    for _ in range(MAX_NESTING_DEPTH + 3):
+        deep = [deep]
+    with pytest.raises(TypeError, match=r"^unsupported LLM configuration value$"):
+        freeze_value(deep)
+
+
+def test_freeze_mapping_rejects_cycles_and_oversized_collections() -> None:
+    cyclic: dict[str, object] = {}
+    cyclic["self"] = cyclic
+    with pytest.raises(TypeError, match=r"^unsupported LLM configuration value$"):
+        freeze_value(cyclic)
+    oversized = {f"key_{i}": i for i in range(MAX_COLLECTION_ITEMS + 5)}
+    with pytest.raises(TypeError, match=r"^unsupported LLM configuration value$"):
+        freeze_value(oversized)
+
+
+def test_freeze_sequence_rejects_cycles_and_oversized_collections() -> None:
+    cyclic: list[object] = []
+    cyclic.append(cyclic)
+    with pytest.raises(TypeError, match=r"^unsupported LLM configuration value$"):
+        freeze_value(cyclic)
+    oversized = list(range(MAX_COLLECTION_ITEMS + 5))
+    with pytest.raises(TypeError, match=r"^unsupported LLM configuration value$"):
+        freeze_value(oversized)
+
+
+def test_freeze_wraps_non_unsupported_type_error() -> None:
+    hostile = MappingProxyType(_TypeErrorLenMapping(synthetic="value"))
+    with pytest.raises(TypeError, match=r"^unsupported LLM configuration value$"):
+        freeze_value(hostile)
+
+
+def test_thaw_rejects_values_exceeding_max_nesting_depth() -> None:
+    deep: object = "leaf"
+    for _ in range(MAX_NESTING_DEPTH + 3):
+        deep = [deep]
+    with pytest.raises(TypeError, match=r"^unsupported LLM configuration value$"):
+        thaw_value(deep)
+
+
+def test_thaw_mapping_rejects_cycles_and_oversized_collections() -> None:
+    cyclic: dict[str, object] = {}
+    cyclic["self"] = cyclic
+    with pytest.raises(TypeError, match=r"^unsupported LLM configuration value$"):
+        thaw_value(cyclic)
+    oversized = {f"key_{i}": i for i in range(MAX_COLLECTION_ITEMS + 5)}
+    with pytest.raises(TypeError, match=r"^unsupported LLM configuration value$"):
+        thaw_value(oversized)
+
+
+def test_thaw_sequence_rejects_cycles_and_oversized_collections() -> None:
+    cyclic: list[object] = []
+    cyclic.append(cyclic)
+    with pytest.raises(TypeError, match=r"^unsupported LLM configuration value$"):
+        thaw_value(cyclic)
+    oversized = list(range(MAX_COLLECTION_ITEMS + 5))
+    with pytest.raises(TypeError, match=r"^unsupported LLM configuration value$"):
+        thaw_value(oversized)
+
+
+def test_thaw_wraps_non_unsupported_type_error() -> None:
+    hostile = MappingProxyType(_TypeErrorLenMapping(synthetic="value"))
+    with pytest.raises(TypeError, match=r"^unsupported LLM configuration value$"):
+        thaw_value(hostile)
+
+
+def test_redact_value_returns_unavailable_for_hostile_mapping() -> None:
+    hostile = MappingProxyType(HostileMapping(api_key="secret"))
+    assert redact_value(hostile) == "<unavailable>"
+
+
+def test_redact_value_handles_bytes_and_non_finite_floats() -> None:
+    assert redact_value(b"hello") == "<bytes:5>"
+    assert redact_value(float("inf")) == "<non-finite-float>"
+    assert redact_value(float("-inf")) == "<non-finite-float>"
+    assert redact_value(float("nan")) == "<non-finite-float>"
+    assert redact_value(3.14) == 3.14
+
+
+def test_redact_value_handles_cyclic_exception() -> None:
+    exc = RuntimeError("cyclic")
+    exc.args = (exc,)
+    redacted = cast("dict[str, object]", redact_value(exc))
+    assert redacted["type"] == "RuntimeError"
+    args = cast("list[object]", redacted["args"])
+    assert args == ["<cycle>"]
+
+
+def test_redact_value_handles_exception_with_hostile_args() -> None:
+    exc = _HostileArgsException()
+    redacted = cast("dict[str, object]", redact_value(exc))
+    assert redacted["type"] == "_HostileArgsException"
+    assert redacted["args"] == "<unavailable>"
+
+
+def test_redact_value_truncates_oversized_mapping() -> None:
+    oversized = {f"key_{i}": i for i in range(MAX_COLLECTION_ITEMS + 5)}
+    redacted = cast("dict[str, object]", redact_value(oversized))
+    assert redacted["<truncated>"] == "<truncated>"
+    assert len(redacted) == MAX_COLLECTION_ITEMS + 1
+
+
+def test_redact_value_handles_cyclic_collection() -> None:
+    cyclic: list[object] = []
+    cyclic.append(cyclic)
+    result = cast("list[object]", redact_value(cyclic))
+    assert result == ["<cycle>"]
+
+
+def test_safe_repr_returns_unavailable_when_json_serialization_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        security_module.json,
+        "dumps",
+        Mock(side_effect=ValueError("json hostile")),
+    )
+    assert safe_repr({"visible": "value"}) == '"<unavailable>"'

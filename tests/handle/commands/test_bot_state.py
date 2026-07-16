@@ -31,6 +31,9 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default 
     bot_state as bot_state_handlers,
     mute as mute_module,
 )
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import (
+    bot_state as bot_state_cmd_module,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.bot_state import (
     bot_boot_cmd,
     bot_shutdown_cmd,
@@ -576,3 +579,48 @@ class TestSilentCallRestore:
             await _silent_call(cast("Any", Child), fake_handler)
 
         assert "finish" not in Child.__dict__
+
+
+# ================= __getattr__ 懒加载导出测试 =================
+
+
+class TestLazyExports:
+    """commands.bot_state 模块 __getattr__ 懒加载导出测试（覆盖行 62-65）。"""
+
+    def test_lazy_export_returns_handler_and_caches(self) -> None:
+        """访问懒导出名时通过 __getattr__ 返回处理器并写入 globals 缓存。"""
+        cached = bot_state_cmd_module.__dict__.pop("onebot11_bot_silence", None)
+        try:
+            value = bot_state_cmd_module.onebot11_bot_silence
+            assert callable(value)
+            # 第二次访问应命中缓存（__getattr__ 不再触发）
+            assert bot_state_cmd_module.__dict__["onebot11_bot_silence"] is value
+        finally:
+            if cached is not None:
+                bot_state_cmd_module.__dict__["onebot11_bot_silence"] = cached
+
+    def test_lazy_export_caches_all_four_handlers(self) -> None:
+        """四个懒导出名都能正确解析到适配器处理器。"""
+        names = (
+            "onebot11_bot_silence",
+            "onebot11_bot_speak",
+            "onebot11_bot_boot",
+            "onebot11_bot_shutdown",
+        )
+        originals = {
+            name: bot_state_cmd_module.__dict__.pop(name, None) for name in names
+        }
+        try:
+            for name in names:
+                value = getattr(bot_state_cmd_module, name)
+                assert callable(value), f"{name} 应为可调用处理器"
+                assert name in bot_state_cmd_module.__dict__
+        finally:
+            for name, original in originals.items():
+                if original is not None:
+                    bot_state_cmd_module.__dict__[name] = original
+
+    def test_unknown_attribute_raises_attribute_error(self) -> None:
+        """访问未导出的属性名时抛出 AttributeError。"""
+        with pytest.raises(AttributeError):
+            _ = bot_state_cmd_module.not_a_real_export
