@@ -5,96 +5,85 @@ title: 代理技能
 
 ## 代理技能
 
-项目内置一组**技能（Skills）**——由 AI 编码代理（Trae、Codex、Claude Code）按需加载的结构化提示。技能将常见工作流转化为可重复、有纪律的流程。它们存放在 `.agents/skills/`，由 `.agents/skills/available-skills/SKILL.md` 做路由索引。
+项目内置一组**技能（Skills）**——由 AI 编码代理（Trae、Codex、Claude Code）按需加载的结构化提示。技能将常见工作流转化为可重复、有纪律的流程。
 
 技能**不会**注入每次对话。仅在用户任务匹配技能触发条件时才加载，保持上下文精简的同时让专业工作流随时可用。
 
 ## 技能分类
 
 <Cards>
-  <Card title="开发工作流">
-    调试、TDD、代码审查、议题规划和设计原型
-  </Card>
   <Card title="代码智能">
-    架构探索、影响面分析、安全重构和 PR 审查
+    通过 GitNexus 进行架构探索、影响面分析、安全重构和 PR 审查
   </Card>
   <Card title="前端质量">
-    React 诊断、视觉打磨、可访问性和健康检查
+    通过 react-doctor 进行 React 诊断、lint、可访问性、打包和架构扫描
   </Card>
   <Card title="文档查询">
     通过 Context7 获取最新的库和框架文档
   </Card>
+  <Card title="Web 自动化">
+    通过 Firecrawl 进行抓取、爬取、搜索和结构化提取
+  </Card>
+  <Card title="开发纪律">
+    计划到提交链（grill → spec → tickets → TDD）、最小方案强制、Git 钩子
+  </Card>
 </Cards>
 
-## 项目本地技能
+## 开发调度链
 
-这些技能存放在 `.agents/skills/`，针对本项目的约定和工具链定制。
+计划到提交的 skills 组成五阶段流水线。在每个阶段开始时加载对应 skill；不要预加载整条链。
 
-### delivery-loop
+```text
+grill-with-docs          ← 阶段 1：PLAN
+  ↓                        grill 计划，构建 CONTEXT.md + ADRs
+domain-modeling          ← 阶段 1b：磨砺领域语言（可选）
+  ↓
+to-spec                  ← 阶段 2：SPEC
+  ↓                        将计划综合成 spec
+to-tickets               ← 阶段 3：TICKETS
+  ↓                        将 spec 拆成垂直切片 tickets
+tdd                      ← 阶段 4：IMPLEMENT
+  ↓                        红-绿-重构，一次一个切片
+  ├─ ponytail             ← 实现期间强制最小方案
+  ├─ context7-cli         ← 需要时查库文档
+  ├─ gitnexus             ← 编辑任何 symbol 前运行 impact()
+  ├─ firecrawl-*          ← 需要时进行 web 调研/抓取
+  └─ react-doctor         ← 前端变更的 React triage
+prek                     ← 阶段 5：COMMIT
+                           Git 钩子：lint + format + type + test
+```
 
-用于调试、测试驱动开发和代码审查验证的纪律化实现循环。
+轻量替代：当只需压力测试、不需要文档产物时，用 `grilling` / `grill-me` 替代 `grill-with-docs` + `domain-modeling`。
 
-| 路由 | 使用场景 |
+## 技能管理
+
+技能由 [`skills` CLI](https://github.com/vercel-labs/skills) 管理，并在项目级追踪，确保每位贡献者拿到同一套技能。
+
+| 关注点 | 位置 |
 | --- | --- |
-| `debug-investigation` | Bug、崩溃、不稳定行为、性能问题 |
-| `tdd` | 测试先行开发、红-绿-重构循环 |
-| `change-review` | 差异、分支或 PR 的代码审查 |
+| 真实技能文件（单一来源） | `.agents/skills/<skill-name>/SKILL.md` |
+| Claude Code 入口（整目录软链） | `.claude/skills` → `../.agents/skills` |
+| Trae 入口（整目录软链） | `.trae/skills` → `../.agents/skills` |
+| 锁文件（用 `skills experimental_install` 恢复） | `skills-lock.json` |
+| GitNexus 管理的技能（gitignored，由 CLI 重建） | `.agents/skills/gitnexus/` |
 
-**核心原则**：修改代码前先建立可靠的反馈循环。复现问题、定位原因、做最小修复、证明回归已被覆盖。
+新增技能：`npx -y skills add <owner/repo> --full-depth --skill '*' --agent codex,claude-code,trae-cn --yes`（不要加 `-g`，让它落到项目而非用户家目录）。新克隆后恢复：`npx -y skills experimental_install`。
 
-<Callout title="TDD 反模式">
+<Callout title="避免使用 --all">
 
-不要先写完所有测试再实现（水平切片）。应使用**垂直切片**：写一个失败测试、实现通过、然后重复。这样产生的测试验证的是实际行为，而非想象中的行为。
+`--all` 是 `--skill '*' --agent '*' -y` 的简写，会向 CLI 识别的**所有** agent（约 30+）安装，包括 `eve`（`agent/skills/`）和 `astrbot`（`data/skills/`），它们会创建不需要的真实副本目录。始终用 `--agent codex,claude-code,trae-cn` 限定目标，只安装到本项目使用的 agent。
 
 </Callout>
 
-### frontend-quality
+## 项目本地技能
 
-文档站（`apps/docs`）的 React/前端 UI 质量，包括响应式行为、视觉一致性、可访问性和架构健康度。
+### `prek` — Git 钩子
 
-| 路由 | 使用场景 |
-| --- | --- |
-| `react-doctor` | React 诊断、lint、可访问性、打包、架构扫描 |
-| `frontend-polish` | 视觉打磨、响应式状态、布局一致性 |
+配置、运行或排查 `prek`、Husky、pre-commit、commit-msg 以及 lint/format/type/test 钩子。来源：[`j178/prek`](https://github.com/j178/prek)。
 
-```bash
-# 对变更文件运行 React Doctor
-npx react-doctor@latest --verbose --diff
+### GitNexus — 代码智能
 
-# 运行完整扫描
-npx react-doctor@latest --verbose
-```
-
-项目有 `🩺-react-doctor.yml` CI 工作流，在 PR 上运行。提交前本地评分不应回退。
-
-### issue-planning
-
-将对话、Bug 和计划转化为 GitHub Issues 上可追踪的工作。
-
-| 路由 | 使用场景 |
-| --- | --- |
-| `to-prd` | 从对话上下文编写 PRD |
-| `to-issues` | 将计划拆分为垂直切片议题 |
-| `triage` | 将议题推进分类状态 |
-| `request-refactor-plan` | 创建包含小步提交的详细重构计划 |
-
-**核心原则**：议题应是可独立领取的垂直切片，而非水平分层。每个切片交付一条窄但完整的端到端路径。
-
-### design-prototyping
-
-在提交实现之前，探索和打磨产品、API、UI 或架构设计。
-
-| 路由 | 使用场景 |
-| --- | --- |
-| `design-an-interface` | 生成多种截然不同的接口设计，然后比较 |
-| `design-grill` | 通过聚焦提问审视计划，直到下一步清晰 |
-| `prototype` | 构建一次性原型来回答特定设计问题 |
-
-**核心原则**：第一个设计往往不是最好的。生成 3 种以上截然不同的方案，比较后综合。原型是一次性的——答案才是唯一值得保留的东西。
-
-### 代码智能技能（GitNexus）
-
-GitNexus 通过知识图谱提供代码智能。完整指南见 [GitNexus 工作流](gitnexus)。
+GitNexus 从仓库构建知识图谱，并通过 MCP 工具提供影响分析、执行流探索、安全重命名和 PR 审查。技能目录由 `gitnexus analyze` 重建，被 gitignored。完整指南见 [GitNexus 工作流](gitnexus)。
 
 | 技能 | 用途 |
 | --- | --- |
@@ -106,12 +95,61 @@ GitNexus 通过知识图谱提供代码智能。完整指南见 [GitNexus 工作
 | `gitnexus-cli` | 运行 GitNexus CLI 命令 |
 | `gitnexus-guide` | 工具、资源和图谱模式参考 |
 
-### 其他技能
+### `firecrawl-*` — Web 自动化
 
-| 技能 | 用途 |
-| --- | --- |
-| `prek` | 使用 `prek` 设置或运行 Git 钩子检查 |
-| `context7-mcp` | 查询最新的库/框架文档 |
+31 个来自 Firecrawl CLI、build、workflows 仓库的技能。覆盖 scrape、crawl、map、search、parse、interact、monitor、deep-research、lead-gen、market-research、SEO audit、knowledge-base、QA 等。来源：[`firecrawl/cli`](https://github.com/firecrawl/cli)、[`firecrawl/skills`](https://github.com/firecrawl/skills)、[`firecrawl/firecrawl-workflows`](https://github.com/firecrawl/firecrawl-workflows)。
+
+### `context7-cli` / `context7-mcp` / `find-docs` — 文档查询
+
+通过 Context7 获取任意库、框架、SDK、CLI 或云服务的最新文档、API 参考和代码示例。来源：[`upstash/context7`](https://github.com/upstash/context7)。
+
+### `react-doctor` 家族 — React triage
+
+12 个来自 react-doctor 仓库的技能。主 `react-doctor` 技能运行 `npx react-doctor@latest` 给 React 代码库打 0–100 分；同仓的 `deslop`、`find-similar-functions`、`fuzz`、`improve-react`、`product-thinking`、`rde-eval`、`rule-research`、`rule-validate`、`rule-writing`、`ship`、`writing-guidelines` 覆盖相关的规则创作和质量工作流。来源：[`aidenybai/react-doctor`](https://github.com/aidenybai/react-doctor)。
+
+```bash
+# 对变更文件运行（回归检查）
+npx react-doctor@latest --verbose --scope changed
+
+# 运行完整扫描
+npx react-doctor@latest --verbose
+```
+
+项目有 `🩺-react-doctor.yml` CI 工作流，在 PR 上运行。提交前本地评分不应回退。
+
+### `ponytail` 家族 — Lazy / 最小方案
+
+6 个技能（`ponytail`、`ponytail-audit`、`ponytail-debt`、`ponytail-gain`、`ponytail-help`、`ponytail-review`），强制采用真正可行的最懒方案——最简单、最短、最最小。来源：[`dietrichgebert/ponytail`](https://github.com/dietrichgebert/ponytail)。
+
+### `tdd` — 测试驱动开发
+
+垂直切片的红-绿-重构循环。来源：[`mattpocock/skills`](https://github.com/mattpocock/skills)。
+
+<Callout title="TDD 反模式">
+
+不要先写完所有测试再实现（水平切片）。应使用**垂直切片**：写一个失败测试、实现通过、然后重复。这样产生的测试验证的是实际行为，而非想象中的行为。
+
+</Callout>
+
+### `grill-with-docs` — 计划 + 文档产物
+
+计划到提交链的推荐入口。对照代码库 grill 用户的计划，并产出 `CONTEXT.md` 和 ADRs 作为后续阶段引用的持久产物。来源：[`mattpocock/skills`](https://github.com/mattpocock/skills)。
+
+### `domain-modeling` — 磨砺领域语言
+
+可选阶段 1b。磨砺通用语言和领域术语，让后续 spec 和 tickets 引用共享词汇。来源：[`mattpocock/skills`](https://github.com/mattpocock/skills)。
+
+### `to-spec` — 计划 → spec
+
+将经过 grill 的计划或对话综合成结构化 spec，便于拆分 tickets。来源：[`mattpocock/skills`](https://github.com/mattpocock/skills)。
+
+### `to-tickets` — spec → tracer-bullet tickets
+
+将 spec 拆成带显式阻塞边的垂直切片 tickets，可直接进入 TDD 实现。来源：[`mattpocock/skills`](https://github.com/mattpocock/skills)。
+
+### `grilling` / `grill-me` — 压力测试计划
+
+`grilling` 围绕计划的每个方面对用户进行无情访谈，直到达成共识。`grill-me` 是触发 `/grilling` 的 stub 别名。当不需要文档产物时，用作 `grill-with-docs` + `domain-modeling` 的轻量替代。来源：[`mattpocock/skills`](https://github.com/mattpocock/skills)。
 
 ## 平台技能（仅路由）
 
@@ -138,9 +176,22 @@ GitNexus 通过知识图谱提供代码智能。完整指南见 [GitNexus 工作
 
 ## 添加新技能
 
-使用 `skill-creator` 技能创建或更新技能。技能文件夹必须包含：
+优先用 `skills` CLI 而非手写技能目录：
+
+```bash
+# 搜索技能
+npx -y skills find <query>
+
+# 在项目级安装（不加 -g）；限定 agent 避免产生杂散目录
+npx -y skills add <owner/repo> --full-depth --skill '*' --agent codex,claude-code,trae-cn --yes
+
+# 新克隆后恢复
+npx -y skills experimental_install
+```
+
+如确需手写技能，目录必须包含：
 
 - `SKILL.md` — 含 `name` 和 `description` 的 frontmatter，加上路由指令
 - `references/` — 可选的按需加载详细指南
 
-创建技能后，更新 `.agents/skills/available-skills/SKILL.md` 中的路由索引，以及 `AGENTS.md` / `CLAUDE.md` / `.github/note/AGENTS-zh.md` 中的技能表。
+任何技能集变更后，更新 `AGENTS.md` / `CLAUDE.md` / `.github/note/AGENTS-zh.md` 中的技能表，并提交 `skills-lock.json`。

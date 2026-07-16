@@ -8,11 +8,11 @@
 .turbo/
 # GitNexus 本地知识图谱索引（由 `npx gitnexus analyze` 重建）
 .gitnexus/
-# GitNexus-managed Claude skill copies are synchronized by the tool.
-.claude/skills/gitnexus/
 # GitNexus-managed Codex skill copies are synchronized by the tool.
+# Note: `.claude/skills` and `.trae/skills` are whole-directory symlinks to
+# `.agents/skills/`, so this single gitignore entry also covers them via
+# symlink resolution.
 .agents/skills/gitnexus/
-.agents/skills/engineering-workflow/references/gitnexus/
 # git worktree 检出目录
 .worktrees/
 # fumadocs 生成的 source 目录（generic + apps/docs 兜底）
@@ -243,6 +243,10 @@ output
 
 .tools/
 .codex/
+# AstrBot 私有 skills 目录（skills CLI --all 副产物，本项目不使用 AstrBot）
+agent/
+# Firecrawl MCP 运行时缓存文档
+.firecrawl/
 
 # pnpm
 
