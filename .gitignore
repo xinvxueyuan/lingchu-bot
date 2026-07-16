@@ -1,153 +1,37 @@
-
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
+# Cleaned for lingchu-bot: NoneBot2 + uv + pnpm + Turborepo + Next.js + Fumadocs.
+# Project does NOT use: Django, Flask, Scrapy, Sphinx, zensical, PyBuilder,
+# Jupyter, IPython, pyenv, pipenv, PEP 582, Celery, SageMath, Spyder, Rope,
+# mkdocs, Pyre, pytype, PDM, PyInstaller. Remove their entries when re-applying
+# the upstream template.
+#
+# IMPORTANT: Git does NOT support inline comments. Trailing text after a
+# pattern (e.g. `.venv  # comment`) is treated as part of the glob and the
+# rule becomes inert. Keep each comment on its own line.
 
-# ===== Turbo / Monorepo tooling =====
-
-# Turbo (root + nested): daemon 日志、preferences、运行产物
+# ===== Monorepo / build tooling =====
+# Turborepo daemon logs and per-package cache
 .turbo/
-# GitNexus 本地知识图谱索引（由 `npx gitnexus analyze` 重建）
-.gitnexus/
-# GitNexus-managed Codex skill copies are synchronized by the tool.
-# Note: `.claude/skills` and `.trae/skills` are whole-directory symlinks to
-# `.agents/skills/`, so this single gitignore entry also covers them via
-# symlink resolution.
-.agents/skills/gitnexus/
-# git worktree 检出目录
+# git worktree checkouts
 .worktrees/
-# fumadocs 生成的 source 目录（generic + apps/docs 兜底）
-.source/
-apps/docs/.source/
-# Next.js / Fumadocs 静态导出产物
-apps/docs/out/
-# uv 缓存目录（uv sync / uv tool 默认位置）
+# uv cache (uv sync / uv tool default location)
 .uv-cache/
+# GitNexus-managed Codex skill copies (synchronized by the tool).
+# `.claude/skills` and `.trae/skills` are whole-directory symlinks to
+# `.agents/skills/`, so this single entry also covers them via symlink resolution.
+.agents/skills/gitnexus/
 
-### Python ###
-# Byte-compiled / optimized / DLL files
+# ===== Python =====
+# Byte-compiled / optimized
 __pycache__/
 *.py[cod]
 *$py.class
-
 # C extensions
 *.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-/lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-pip-wheel-metadata/
-share/python-wheels/
-/public
-/docs
-
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-pytestdebug.log
-cache
-pytest_cache/
-pytest.xml
-
-# Translations
-*.mo
-*.pot
-!src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot
-!src/plugins/nonebot_plugin_lingchu_bot/i18n/locales/**/LC_MESSAGES/*.mo
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-doc/_build/
-
-# zensical documentation
-!docs/**/lib/
-
-# PyBuilder
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
 # Environments
 .env
 .env.*
-.env.test
-.env.local
-.env.prod
-.env.dev
 !.env.example
 !.env.prod.example
 .venv
@@ -156,110 +40,91 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
+# Distribution / packaging artifacts
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.installed.cfg
+# Type checkers / linters used by the project
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# PDM
-.pdm-python
-
-# UV
+.pyright/
+.ruff_cache/
 .uv-python
 uv.toml
 
-# ruff
-.ruff_cache/
-
-# nonebot.plugin.orm.dev.data
-/data
-/.local/
-
-# ===== Testing & Build artifacts =====
-
-# Playwright 报告与产物
+# ===== Test & coverage =====
+htmlcov/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+coverage.xml
+# nonebot-plugin-localstore pytest fixture data
+.pytest-localstore/
+# Playwright root-level artifacts
 playwright-report/
 test-results/
-# TypeScript 增量编译缓存（root + nested）
+
+# ===== Apps / docs (Next.js + Fumadocs) =====
+# Root /docs/ is intentionally ignored; canonical docs live in apps/docs/.
+/docs
+.source/
+apps/docs/.source/
+apps/docs/.next/
+apps/docs/out/
+apps/docs/coverage/
+apps/docs/playwright-report/
+apps/docs/test-results/
+apps/docs/next-env.d.ts
+apps/docs/.eslintcache
+# Codex dev server logs (both with and without .err/.out suffix)
+apps/docs/.codex-dev-server.log
+apps/docs/.codex-dev-server.*.log
+*.log
 *.tsbuildinfo
-# 根目录覆盖率报告（与 apps/docs/.gitignore 一致）
 coverage/
 
-# PyCharm/IntelliJ IDEA
+# ===== Local runtime (nonebot-plugin-localstore / nonebot-plugin-orm) =====
+data/
+config/
+tmp/
+cache/
 
-.idea/*.iml
-.idea/*.ipr
-.idea/*.iws
-.idea/*.iws
-.idea/*.xml
-.idea/inspectionProfiles
-.idea_modules/
-out/
-*.pyc
-__pycache__/
-*.pyo
-*.pyd
-.Python
-pyvenv.cfg
-!.idea/dictionaries/
-!.idea/vcs.xml
+# ===== Lockfile policy =====
+# uv.lock is tracked (single source of truth, project uses uv).
+# pnpm-lock.yaml is tracked (single source of truth, project uses pnpm).
+# Project does not use poetry / Pipfile / pdm; no lockfiles for them to ignore.
 
-# VS Code
-# 忽略用户级 settings，保留项目级 extensions 与 mcp 推荐
+# ===== IDE / Editor =====
+# JetBrains / PyCharm
+.idea/
+# VS Code — ignore user settings, keep project-level extensions and MCP
 .vscode/*
 !.vscode/extensions.json
 !.vscode/mcp.json
 *.code-workspace
 
-# Version Control(add other all)
-
-poetry.lock
-Pipfile.lock
-pdm.lock
-# uv.lock
-
-# output
-
-output
-
-# AI
-
-.tools/
+# ===== Tooling indexes / agent caches =====
+# GitNexus knowledge graph (rebuilt by `npx gitnexus analyze`)
+.gitnexus/
+# CodeGraph daemon data
+.codegraph/
+# OpenAI Codex CLI local cache
 .codex/
-# AstrBot 私有 skills 目录（skills CLI --all 副产物，本项目不使用 AstrBot）
-agent/
-# Firecrawl MCP 运行时缓存文档
+# Firecrawl MCP runtime cache
 .firecrawl/
+# Superpowers plan / spec cache
+.superpowers/
+# AstrBot private skills (CLI --all byproduct; project does not use AstrBot)
+agent/
+# nonebot CLI local data
+.local/
 
-# pnpm
-
+# ===== pnpm =====
 node_modules/
-
-# nonebot
-
-data/
-tmp/
-eache/
-config/
-
-# Other
-
 
 # End of https://www.toptal.com/developers/gitignore/api/python
