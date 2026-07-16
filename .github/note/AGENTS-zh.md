@@ -33,7 +33,8 @@ Lingchu Bot 是基于 NoneBot2 的群管理机器人。Monorepo 包含：
 
 - Python 后端插件：`src/plugins/nonebot_plugin_lingchu_bot/`
 - Next.js 文档站：`apps/docs/`
-- 项目本地 skills：`.agents/skills/`
+- 项目本地 skills（单一来源）：`.agents/skills/`
+  - `.claude/skills/` 和 `.trae/skills/` 是指向 `.agents/skills/` 的**整目录软链**，让 Codex、Trae、Claude Code 三家代理读同一套 skill；在 `.agents/skills/` 增删 skill 三个代理同时生效。
 - 中文 agent 指南镜像：`.github/note/AGENTS-zh.md`
 - Claude Code 指南镜像：`CLAUDE.md`
 
@@ -169,7 +170,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 | Triggers            | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py`  |
 | Agent context       | `AGENTS.md`、`CLAUDE.md`、`.github/note/AGENTS-zh.md`                      |
 
-涉及 handle、QQ command、adapter handler、matcher、`command_key`、menu、trigger、permission、config 耦合的工作，使用 `.agents/skills/engineering-workflow/references/delivery-loop/references/handle-feature-workflow.md`。
+涉及 handle、QQ command、adapter handler、matcher、`command_key`、menu、trigger、permission、config 耦合的工作，直接检查 `src/plugins/nonebot_plugin_lingchu_bot/handle/` 及相邻 tests —— 原 `engineering-workflow` skill 引用已移除。
 
 ### Command And Menu Rules
 
@@ -202,13 +203,47 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 
 | 需求                                        | 路由                                                                     |
 | ----------------------------------------- | ---------------------------------------------------------------------- |
-| 当前 library、framework、SDK、API、CLI、cloud 文档 | 通过 `tool-workflows` 使用 Context7：resolve library ID，再用完整用户问题 query docs |
+| 计划/领域：对照代码库 grill 计划，构建 CONTEXT.md + ADRs | `grill-with-docs` skill                                                |
+| 计划/领域：磨砺领域语言和术语                           | `domain-modeling` skill                                                |
+| 计划/领域：不带文档产物的轻量压力测试                       | `grilling` / `grill-me` skill                                          |
+| 将计划/对话转为 spec                             | `to-spec` skill                                                        |
+| 将 spec 拆成带阻塞边的 tracer-bullet tickets       | `to-tickets` skill                                                     |
+| 测试驱动开发（红-绿-重构，垂直切片）                      | `tdd` skill                                                            |
+| Lazy / 最小方案强制                              | `ponytail` skill                                                       |
+| 当前 library、framework、SDK、API、CLI、cloud 文档 | `context7-cli` / `find-docs` skills                                    |
 | OpenAI 产品/API 文档                          | `openai-docs`，只用官方文档                                                   |
-| 架构、影响、重构、review、前端质量、issue planning       | `.agents/skills/engineering-workflow/SKILL.md`                         |
-| Lingchu / NapCat / QQ live runtime 故障     | `.agents/skills/interactive-runtime-debugging/SKILL.md`                |
-| Hooks、Prek、Husky、skill 管理                 | `.agents/skills/tool-workflows/SKILL.md`                               |
+| 架构、影响、重构、review                          | GitNexus（见本文件顶部）                                                       |
+| Hooks、Prek、Husky                          | `prek` skill                                                           |
+| React 代码 triage / cleanup                | `react-doctor` skill                                                   |
+| Web 抓取、爬取、搜索                              | `firecrawl-*` skills                                                   |
 | OneBot V11 / NapCat API 签名                | 写 adapter 调用前查 NapCat API MCP                                          |
 | GitHub PR、issue、CI、发布                     | GitHub skills                                                          |
+
+### Development Workflow Chain（开发调度链）
+
+Skills 组成从计划到提交的调度链。在每个阶段开始时加载对应 skill；不要预加载整条链。
+
+```text
+grill-with-docs          ← 阶段 1：PLAN
+  ↓                        grill 计划，构建 CONTEXT.md + ADRs
+domain-modeling          ← 阶段 1b：磨砺领域语言（可选）
+  ↓
+to-spec                  ← 阶段 2：SPEC
+  ↓                        将计划综合成 spec
+to-tickets               ← 阶段 3：TICKETS
+  ↓                        将 spec 拆成垂直切片 tickets
+tdd                      ← 阶段 4：IMPLEMENT
+  ↓                        红-绿-重构，一次一个切片
+  ├─ ponytail             ← 实现中强制最小方案
+  ├─ context7-cli         ← 需要时查库文档
+  ├─ gitnexus             ← 编辑 symbol 前运行 impact()
+  ├─ firecrawl-*          ← 需要时做 Web 调研/抓取
+  └─ react-doctor         ← 前端变更的 React triage
+prek                     ← 阶段 5：COMMIT
+                           Git hooks：lint + format + type + test
+```
+
+轻量替代：`grilling` / `grill-me` 在只需要压力测试、不需要文档产物时替代 `grill-with-docs` + `domain-modeling`。
 
 ### Development Commands
 
