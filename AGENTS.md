@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (6483 symbols, 12151 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (6669 symbols, 12336 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -80,7 +80,8 @@ Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains:
 
 - Python backend plugin: `src/plugins/nonebot_plugin_lingchu_bot/`
 - Next.js documentation site: `apps/docs/`
-- Project-local skills: `.agents/skills/`
+- Project-local skills (single source of truth): `.agents/skills/`
+  - `.claude/skills/` and `.trae/skills/` are **whole-directory symlinks** to `.agents/skills/`, so Codex, Trae, and Claude Code all read from the same set; add or update a skill in `.agents/skills/` and all three agents see it.
 - Chinese agent guide mirror: `.github/note/AGENTS-zh.md`
 - Claude Code guide mirror: `CLAUDE.md`
 
@@ -217,7 +218,7 @@ When modifying business logic, especially adapter-layer code, check all relevant
 | Triggers | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` |
 | Agent context | `AGENTS.md`, `CLAUDE.md`, `.github/note/AGENTS-zh.md` |
 
-For handle, QQ command, adapter handler, matcher, `command_key`, menu, trigger, permission, or config-coupled work, use `.agents/skills/engineering-workflow/references/delivery-loop/references/handle-feature-workflow.md`.
+For handle, QQ command, adapter handler, matcher, `command_key`, menu, trigger, permission, or config-coupled work, inspect `src/plugins/nonebot_plugin_lingchu_bot/handle/` and adjacent tests directly — the previous `engineering-workflow` skill reference has been removed.
 
 ### Command And Menu Rules
 
@@ -250,13 +251,47 @@ For handle, QQ command, adapter handler, matcher, `command_key`, menu, trigger, 
 
 | Need | Route |
 | --- | --- |
-| Current library, framework, SDK, API, CLI, or cloud docs | Context7 via `tool-workflows`: resolve library ID, then query docs with the full user question |
+| Plan/domain: grill a plan against codebase, build CONTEXT.md + ADRs | `grill-with-docs` skill |
+| Plan/domain: sharpen domain language and terminology | `domain-modeling` skill |
+| Plan/domain: lighter pressure-test without docs artifacts | `grilling` / `grill-me` skill |
+| Turn plan/conversation into a spec | `to-spec` skill |
+| Break spec into tracer-bullet tickets with blocking edges | `to-tickets` skill |
+| Test-driven development (red-green-refactor, vertical slices) | `tdd` skill |
+| Lazy / minimal solution enforcement | `ponytail` skill |
+| Current library, framework, SDK, API, CLI, or cloud docs | `context7-cli` / `find-docs` skills |
 | OpenAI product/API docs | `openai-docs`, official docs only |
-| Architecture, impact, refactor, review, frontend quality, issue planning | `.agents/skills/engineering-workflow/SKILL.md` |
-| Live Lingchu / NapCat / QQ runtime failures | `.agents/skills/interactive-runtime-debugging/SKILL.md` |
-| Hooks, Prek, Husky, skill management | `.agents/skills/tool-workflows/SKILL.md` |
+| Architecture, impact, refactor, review | GitNexus (see top of this file) |
+| Hooks, Prek, Husky | `prek` skill |
+| React code triage / cleanup | `react-doctor` skill |
+| Web scraping, crawling, search | `firecrawl-*` skills |
 | OneBot V11 / NapCat API signatures | NapCat API MCP before writing adapter calls |
 | GitHub PRs, issues, CI, publishing | GitHub skills |
+
+### Development Workflow Chain
+
+Skills form a scheduling chain from plan to commit. Load each skill when the corresponding phase starts; do not preload the entire chain.
+
+```text
+grill-with-docs          ← phase 1: PLAN
+  ↓                        grill the plan, build CONTEXT.md + ADRs
+domain-modeling          ← phase 1b: sharpen domain language (optional)
+  ↓
+to-spec                  ← phase 2: SPEC
+  ↓                        synthesize plan into a spec
+to-tickets               ← phase 3: TICKETS
+  ↓                        break spec into vertical-slice tickets
+tdd                      ← phase 4: IMPLEMENT
+  ↓                        red-green-refactor, one slice at a time
+  ├─ ponytail             ← enforce minimal solution during implementation
+  ├─ context7-cli         ← look up library docs when needed
+  ├─ gitnexus             ← run impact() before editing any symbol
+  ├─ firecrawl-*          ← web research/scraping when needed
+  └─ react-doctor         ← React triage for frontend changes
+prek                     ← phase 5: COMMIT
+                           Git hooks: lint + format + type + test
+```
+
+Lighter alternatives: `grilling` / `grill-me` replace `grill-with-docs` + `domain-modeling` when you only need a pressure-test without docs artifacts.
 
 ### Development Commands
 
