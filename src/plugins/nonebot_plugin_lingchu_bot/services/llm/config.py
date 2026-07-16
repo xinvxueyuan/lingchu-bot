@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from contextlib import suppress
 from dataclasses import dataclass, field
 import ipaddress
@@ -12,6 +11,8 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import urlparse
 
+import aiofiles
+import aiofiles.os
 from nonebot import require
 from nonebot_plugin_localstore import get_plugin_config_file
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -232,15 +233,11 @@ def get_llm_config_file() -> Path:
 
 async def ensure_llm_config_file_async() -> Path:
     path = get_llm_config_file()
-    await asyncio.to_thread(path.parent.mkdir, parents=True, exist_ok=True)
-    if not await asyncio.to_thread(path.exists):
+    await aiofiles.os.makedirs(path.parent, exist_ok=True)
+    if not await aiofiles.os.path.exists(path):
         with suppress(FileExistsError):
-            await asyncio.to_thread(
-                path.write_text,
-                'default_profile = "default"\n[profiles]\n',
-                encoding="utf-8",
-                errors="strict",
-            )
+            async with aiofiles.open(path, "w", encoding="utf-8") as f:
+                await f.write('default_profile = "default"\n[profiles]\n')
     return path
 
 
@@ -291,6 +288,7 @@ def _normalize_url(url: str | None) -> str | None:
 
 
 def load_llm_runtime_config(*, legacy: RuntimeConfig) -> LLMRuntimeConfig:
+    # Sync I/O: startup-time API called once before the event loop is in use.
     path = get_llm_config_file()
     try:
         raw = tomllib.loads(path.read_text(encoding="utf-8")) if path.exists() else {}

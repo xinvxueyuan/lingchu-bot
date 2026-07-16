@@ -73,6 +73,7 @@ def ensure_toml_dict_file_sync(
     *,
     schema_basename: str | None = None,
 ) -> Path:
+    # Sync I/O: import-time API; runtime uses ensure_toml_dict_file_async.
     path = Path(file_path)
     if path.exists():
         return path
