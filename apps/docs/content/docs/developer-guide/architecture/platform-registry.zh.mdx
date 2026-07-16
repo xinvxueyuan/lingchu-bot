@@ -1,0 +1,118 @@
+---
+icon: Layers
+title: 平台注册表
+description: 将平台能力映射到具体适配器的平台/协议/实现三层注册表。
+---
+
+# 平台注册表
+
+Lingchu Bot 基于平台能力做业务决策，而非直接针对具体 NoneBot 适配器。`platforms/registry.py` 中的注册表将抽象平台标识映射到 NoneBot 适配器标识、校验用户的适配器选择，并暴露协议实现，使功能代码在某个实现缺乏能力时能够优雅降级。
+
+## 三层模型
+
+注册表按三层嵌套组织。
+
+| 层 | 概念 | 示例 |
+| --- | --- | --- |
+| 平台 | 具有稳定标识与能力集合的产品面 | `qq` |
+| 协议 | 某适配器暴露的特定协议族 | `default`、`napcat` |
+| 实现 | 在某适配器下实现某协议的模块路径 | `handle.qq.adapters.onebot11.default`、`handle.qq.adapters.onebot11.napcat` |
+
+- **平台 profile**（`PlatformProfile`）声明 `platform_id`、`display_name`、所接受的适配器名集合、所映射到的 NoneBot 适配器标识、冻结的 `PlatformCapability` 集合，以及可选的 `permission_module` 路径。
+- **协议实现**（`ProtocolImplementationInfo`）声明 `protocol_id`、所属 `adapter_id`、`display_name` 与实现它的 `module_path`。
+
+业务代码通过 `get_platform_profile(adapter_name)` 将具体适配器解析为其 `PlatformProfile`，从不硬编码适配器 ID。
+
+## 当前 profile
+
+目前仅实现了一个平台 profile。
+
+| 平台 | 显示名 | NoneBot 适配器 | 已实现 |
+| --- | --- | --- | --- |
+| `qq` | QQ | `~onebot.v11` | 是 |
+
+QQ profile 声明了完整的能力集合：
+
+- `group_management`
+- `member_moderation`
+- `member_profile`
+- `group_profile`
+- `announcement`
+- `application_operation`
+- `message_store`
+- `api_audit`
+- `llm_chat`
+
+其他平台 profile（如 Milky、原生 QQ 或 OneBot V12）已从项目中移除。在 `LINGCHUAdapter` 中配置其中任何一个适配器 ID 都会以 `PlatformAdapterUnknownError` 启动失败。
+
+### 适配器选择
+
+`LINGCHUAdapter`（从 NoneBot 全局配置读取）为每个平台选择适配器。未配置时使用平台 `nonebot_adapters` 的第一个条目，因此默认是 `~onebot.v11`。
+
+- `parse_configured_adapters()` 接受字符串（`"~onebot.v11"`）、`+` 分隔字符串（`"~onebot.v11+~milky"`）或列表/元组，并将每个条目归一化为小写、`~` 前缀的 id。
+- `resolve_enabled_adapters()` 返回每个已实现平台启用的唯一适配器。若某平台配置了多个适配器，则抛出 `PlatformAdapterConflictError`。
+- `validate_enabled_adapters_loaded()` 校验每个 Lingchu 启用的适配器是否确实由 NoneBot 注册；否则抛出 `PlatformAdapterNotLoadedError`。
+
+`is_adapter_enabled(adapter_name)` 是消息存储与 API 审计使用的运行时检查。NoneBot 注册但 Lingchu 未选中的适配器会被忽略 —— 视为未启用，不参与平台识别，在存储记录中归入稳定的 `unknown` 平台。
+
+## 错误处理
+
+注册表针对无效配置抛出特定异常。三者均位于 `platforms/registry.py`。
+
+| 异常 | 触发时机 |
+| --- | --- |
+| `PlatformAdapterUnknownError` | `LINGCHUAdapter` 声明了 Lingchu 未实现或无法识别的适配器 |
+| `PlatformAdapterConflictError` | 同一平台配置了多个已知适配器 |
+| `PlatformAdapterNotLoadedError` | Lingchu 选择了未由 NoneBot 注册的适配器 |
+
+每个异常消息都包含出错的适配器 id、该平台可用的适配器，以及具体建议（例如在 `.env.dev` 中设置 `LINGCHUAdapter=~onebot.v11`）。
+
+## 协议实现
+
+OneBot V11 有两条协议实现，注册在 `_PROTOCOL_IMPLEMENTATIONS` 中。
+
+| 协议 id | 适配器 id | 显示名 | 模块路径 |
+| --- | --- | --- | --- |
+| `default` | `~onebot.v11` | Default | `handle.qq.adapters.onebot11.default` |
+| `napcat` | `~onebot.v11` | NapCat | `handle.qq.adapters.onebot11.napcat` |
+
+两条实现都位于同一个 NoneBot 适配器（`~onebot.v11`）之下。运行时通过查询所连接实现的 `get_version_info()` 并检查 `app_name` 与 `app_version` 来区分它们。功能代码根据该探测结果分发到正确的实现模块。
+
+`get_protocol_implementations(adapter_id=None)` 返回已注册实现（可按适配器过滤），`export_registry_for_seeding()` 导出结构化元数据（平台、适配器、协议实现）供 `repositories/registry.py` 进行数据库播种。
+
+## 能力驱动的功能可见性
+
+功能代码根据实现的真实能力显示或隐藏命令，而非假设每条 OneBot V11 实现都支持所有操作。
+
+### 群公告
+
+`handle/qq/adapters/onebot11/default/announcement.py` 中的公告处理器在调用时通过 `_resolve_announcement_action(bot)` 解析动作：
+
+1. 调用 `bot.get_version_info()`。
+2. 要求 `protocol_version == "v11"`。
+3. 用 `packaging.version.parse` 解析 `app_version`。
+4. 匹配 `app_name`：
+   - `NapCat.Onebot` 且 `app_version >= 4.18.0` 时路由到 `handle/qq/adapters/onebot11/napcat/announcement.py` 中的 `send_group_notice_napcat`。
+   - 其他 `app_name` 或更旧版本时返回本地化错误"不支持的 OneBot 版本"，命令直接结束，不调用 API。
+
+NapCat 实现通过 `bot.call_api()` 调用私有的 `_send_group_notice` API。当公告 `image` 字段不可读时，NapCat 报告 `retcode = 1200`；实现通过 `_is_napcat_image_format_error()` 检测该情况，并记录一条诊断日志，指向 `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` / `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` 以及 NapCat 容器 bind mount。
+
+<Callout title="版本要求">
+
+远程群公告要求 `NapCat.Onebot >= 4.18.0`。更旧的 NapCat 构建与非 NapCat 的 OneBot V11 实现被视为不支持，命令会以本地化错误退出，而不是尝试发起必然失败的调用。
+
+</Callout>
+
+### 群头像与其他功能
+
+所连接实现不支持的功能以同样方式隐藏或拒绝：处理器探测实现，当所需能力不可用时，命令以本地化的"不支持的版本"消息结束，而不是发起必然失败的 API 调用。这使菜单与命令面如实反映当前连接实际能做什么。
+
+## 权限模块发现
+
+平台权限模块通过 `PlatformProfile.permission_module` 字段发现，而非硬编码模块路径。QQ profile 声明 `permission_module = "..platforms.qq.permissions"`，`permissions/bootstrap.py` 会动态导入它。新增一个带自身权限模块的平台 profile 不需要修改权限引导代码 —— 只需新 profile 设置 `permission_module`。
+
+<Callout title="参见">
+
+关于 `.env` 中的适配器配置、驱动要求与连接建立，参见[适配器指南](adapter-guide)。关于存储记录如何从本注册表派生其 `platform` 字段，参见[消息存储](message-store)。
+
+</Callout>

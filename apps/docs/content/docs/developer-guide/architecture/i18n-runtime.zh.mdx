@@ -1,0 +1,105 @@
+---
+icon: Languages
+title: 运行时国际化
+description: gettext/Babel 目录、运行时 locale 选择与 locale-exclusive 命令触发词。
+---
+
+# 运行时国际化
+
+Lingchu Bot 使用 Python `gettext` 和 Babel 管理运行时反馈文本和命令触发词。本页聚焦运行时部分：目录结构、locale 选择与 locale-exclusive 触发词规则。开发态的提取/更新/编译工作流，参见[国际化](../engineering/i18n)。
+
+## 目录结构
+
+翻译文件位于 `src/plugins/nonebot_plugin_lingchu_bot/i18n`：
+
+```text
+src/plugins/nonebot_plugin_lingchu_bot/i18n/
+├── babel.cfg
+├── messages.pot
+└── locales/
+    ├── en_US/LC_MESSAGES/messages.po
+    ├── en_US/LC_MESSAGES/messages.mo
+    ├── zh_CN/LC_MESSAGES/messages.po
+    └── zh_CN/LC_MESSAGES/messages.mo
+```
+
+| 文件 | 作用 |
+| --- | --- |
+| `babel.cfg` | 提取配置——`[python: **.py]`，UTF-8 编码 |
+| `messages.pot` | 提取模板，由 `pybabel extract` 重新生成 |
+| `messages.po` | 按 locale 的可编辑翻译源 |
+| `messages.mo` | 编译后的二进制 catalog，运行时由 gettext 加载 |
+
+gettext domain 为 `messages`（`i18n/__init__.py` 中的常量 `DOMAIN`），locales 目录由 `Path(__file__).parent / "locales"` 解析（常量 `LOCALES_DIR`）。当前仅发布 `zh_CN` 与 `en_US`。
+
+## 运行时 locale 选择
+
+运行时代码读取 `lingchu_locale` NoneBot 配置键。`.env` 中推荐的项目专用键为 `LINGCHU_LOCALE`：
+
+```bash
+LINGCHU_LOCALE=zh_CN
+```
+
+`i18n/__init__.py` 中的 `get_configured_locale()` 是唯一入口。它从 `_read_configured_locale()`（一个 `lru_cache` 支持的读取器，调用 `get_driver().config`）读取缓存的值，规范化后返回。`normalize_locale()` 处理三种情况：
+
+- `en-US` 变为 `en_US`（连字符 → 下划线）。
+- `en_US.UTF-8` 变为 `en_US`（剥离编码后缀）。
+- 空或未设置的值回退到代码内默认值。
+
+代码内默认值为 `i18n/__init__.py` 中的 `DEFAULT_LOCALE = "en_US"`。发布的 `.env.example` 设置 `LINGCHU_LOCALE=zh_CN` 作为新部署的推荐默认值，因此除非覆盖，大多数安装运行在 `zh_CN`。
+
+`get_translation()` 以 `fallback=True` 打开 catalog，因此未翻译的消息会返回原始字符串，而不会抛出 `MissingMessageError` 中断命令处理。
+
+## Locale-exclusive 命令触发词
+
+群命令触发词是 locale-exclusive 的。同一个 matcher 要么注册中文触发词集合，要么注册英文触发词集合，不会同时注册。选择由 `handle/qq/commands/triggers.py` 中的 `_is_english_locale()` 驱动：
+
+```python
+def _is_english_locale(locale: str | None = None) -> bool:
+    configured_locale = get_configured_locale() if locale is None else locale
+    return normalize_locale(configured_locale).lower().startswith("en")
+```
+
+每个 `CommandTrigger` 携带并行的 `chinese` / `english` 主触发词与 `chinese_aliases` / `english_aliases` 别名集合。`primary_for(locale)` 与 `aliases_for(locale)` 仅返回当前激活语言的值，因此非激活语言的别名不会进入 matcher。
+
+例如，`menu` 命令根据配置的 locale 注册 `菜单`（别名 `帮助`、`功能`、`功能列表`、`指令`、`命令列表`）或 `menu`（别名 `help`、`commands`）。
+
+`build_command_triggers()` 在 `_DEFAULT_COMMAND_TRIGGERS` 之上应用来自 `command_trigger_overrides` 的运行时覆盖，然后调用 `_validate_no_duplicates()` 确保跨两种语言没有任何触发词字符串被两个 command_key 共同拥有。重复会在导入时抛出 `ValueError`。
+
+## `_()` 与异步翻译辅助
+
+该模块同时暴露同步与异步翻译辅助：
+
+| 辅助函数 | 用途 |
+| --- | --- |
+| `_` / `gettext` | 同步单数翻译 |
+| `ngettext` | 同步复数翻译 |
+| `_async` / `gettext_async` | 异步单数翻译（在 worker 线程加载 catalog） |
+| `ngettext_async` | 异步复数翻译 |
+| `get_translation(locale)` | 缓存的 `NullTranslations` 对象 |
+| `get_translation_async(locale)` | 同上，但不在事件循环上加载 |
+| `warm_translation_cache(locales)` | 启动期间预热 catalog |
+
+异步处理器应使用 `_async`、`gettext_async` 或 `ngettext_async`，避免同步文件读取阻塞 NoneBot 事件循环。启动会调用 `warm_translation_cache()`（见 `start/startup.py`），在任何处理器运行前预热配置的 locale 与默认 locale。
+
+<Callout title="不要在导入时翻译">
+
+同步 `_` / `gettext` 仅适用于同步路径。不要在模块导入时翻译可能随 locale 变化的默认值——应在处理器执行时读取并翻译。
+
+</Callout>
+
+## 开发工作流
+
+修改可翻译字符串后，运行：
+
+```bash
+task i18n
+```
+
+`task i18n` 按顺序提取、更新并编译 catalog。完整的底层 `pybabel` 命令与开发态工作流，参见[国际化](../engineering/i18n)。
+
+<Callout title="参见">
+
+用户可见的反馈文本行为与触发词语言切换，参见[命令](../../user-guide/commands)与[故障排查](../../user-guide/troubleshooting)。
+
+</Callout>

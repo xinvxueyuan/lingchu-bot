@@ -44,12 +44,21 @@
 - [ ] 对于代码改动，我已运行 `gitnexus_impact`（或等效分析）并在下方
       记录影响范围。
 - [ ] 对于代码改动，我已在本地运行 `uv run -m ruff check .`、
-      `uv run -m ruff format --check .`、`uv run -m pyright` 和
-      `uv run -m ty check .`。
-- [ ] 对于文档站改动，我已在本地运行 `pnpm --filter docs lint` 与
-      `pnpm --filter docs test`。
+      `uv run -m ruff format --check .`、`uv run -m pyright`、
+      `uv run -m ty check .` 与 `uv run -m pytest`。
+- [ ] 对于文档站改动，我已在本地运行 `pnpm --filter docs lint`、
+      `pnpm --filter docs test` 与
+      `pnpm turbo run build --filter=docs`。
+- [ ] 对于 Markdown 改动，我已在本地运行
+      `pnpm exec markdownlint-cli2`。
 - [ ] 我已添加或更新覆盖本改动的测试。
-- [ ] 我已按需更新相关文档、i18n 文案、运行时配置与 handle 默认值。
+- [ ] 我已按需更新相关文档、i18n 文案（`task i18n`）、运行时配置与
+      handle 默认值。
+- [ ] 我已运行 `prek run --all-files`（或依赖 `pre-commit` 钩子），
+      并确认所有文件携带 SPDX 许可声明（REUSE 合规）。
+- [ ] 对于 `AGENTS.md`、`CLAUDE.md` 或
+      `.github/note/AGENTS-zh.md` 的改动，我已保持三份镜像文件
+      结构对齐（不含 GitNexus 标记块）。
 
 ### Release PR 自检（仅适用于 `releases/**` 分支）
 

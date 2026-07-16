@@ -1,0 +1,118 @@
+---
+icon: Layers
+title: Platform Registry
+description: Three-layer platform/protocol/implementation registry mapping capabilities to concrete adapters.
+---
+
+# Platform Registry
+
+Lingchu Bot reasons about platform capabilities instead of concrete NoneBot adapters. The registry in `platforms/registry.py` maps abstract platform identities to NoneBot adapter identifiers, validates the user's adapter selection, and exposes protocol implementations so feature code can degrade gracefully when an implementation lacks a capability.
+
+## Three-layer model
+
+The registry is organized as three nested layers.
+
+| Layer | Concept | Examples |
+| --- | --- | --- |
+| Platform | A product surface with a stable identity and capability set | `qq` |
+| Protocol | A specific protocol family exposed by an adapter | `default`, `napcat` |
+| Implementation | A module path that realizes a protocol under an adapter | `handle.qq.adapters.onebot11.default`, `handle.qq.adapters.onebot11.napcat` |
+
+- A **platform profile** (`PlatformProfile`) declares `platform_id`, `display_name`, the set of adapter names it accepts, the NoneBot adapter identifiers it maps to, a frozen set of `PlatformCapability` values, and an optional `permission_module` path.
+- A **protocol implementation** (`ProtocolImplementationInfo`) declares `protocol_id`, the `adapter_id` it belongs to, a `display_name`, and the `module_path` that implements it.
+
+Business code resolves a concrete adapter to its `PlatformProfile` through `get_platform_profile(adapter_name)` and never hard-codes adapter IDs.
+
+## Current profiles
+
+Only one platform profile is implemented today.
+
+| Platform | Display name | NoneBot adapters | Implemented |
+| --- | --- | --- | --- |
+| `qq` | QQ | `~onebot.v11` | Yes |
+
+The QQ profile declares the full capability set:
+
+- `group_management`
+- `member_moderation`
+- `member_profile`
+- `group_profile`
+- `announcement`
+- `application_operation`
+- `message_store`
+- `api_audit`
+- `llm_chat`
+
+Other platform profiles (such as Milky, native QQ, or OneBot V12) have been removed from the project. Configuring any of those adapter IDs in `LINGCHUAdapter` fails startup with `PlatformAdapterUnknownError`.
+
+### Adapter selection
+
+`LINGCHUAdapter` (read from NoneBot global config) selects the adapter for each platform. When unset, the platform's first `nonebot_adapters` entry is used, so the default is `~onebot.v11`.
+
+- `parse_configured_adapters()` accepts a string (`"~onebot.v11"`), a `+`-delimited string (`"~onebot.v11+~milky"`), or a list/tuple, and normalizes each entry to a lowercase `~`-prefixed id.
+- `resolve_enabled_adapters()` returns the single enabled adapter for each implemented platform. If a platform has more than one configured adapter, it raises `PlatformAdapterConflictError`.
+- `validate_enabled_adapters_loaded()` checks that every Lingchu-enabled adapter was actually registered by NoneBot; otherwise it raises `PlatformAdapterNotLoadedError`.
+
+`is_adapter_enabled(adapter_name)` is the runtime check used by message storage and API audit. Adapters that NoneBot registered but Lingchu did not select are ignored — they are treated as disabled, excluded from platform resolution, and grouped under the stable `unknown` platform in stored records.
+
+## Error handling
+
+The registry raises specific exceptions for invalid configuration. All three live in `platforms/registry.py`.
+
+| Exception | When raised |
+| --- | --- |
+| `PlatformAdapterUnknownError` | `LINGCHUAdapter` declares an adapter Lingchu has not implemented or cannot recognize |
+| `PlatformAdapterConflictError` | Multiple known adapters are configured for the same platform |
+| `PlatformAdapterNotLoadedError` | Lingchu selected an adapter that NoneBot did not register |
+
+Each exception message includes the offending adapter ids, the adapters available for the platform, and a concrete suggestion (for example, set `LINGCHUAdapter=~onebot.v11` in `.env.dev`).
+
+## Protocol implementations
+
+OneBot V11 has two protocol implementations, registered in `_PROTOCOL_IMPLEMENTATIONS`.
+
+| Protocol id | Adapter id | Display name | Module path |
+| --- | --- | --- | --- |
+| `default` | `~onebot.v11` | Default | `handle.qq.adapters.onebot11.default` |
+| `napcat` | `~onebot.v11` | NapCat | `handle.qq.adapters.onebot11.napcat` |
+
+Both implementations live under the same NoneBot adapter (`~onebot.v11`). The runtime distinguishes them by querying the connected implementation's `get_version_info()` and inspecting `app_name` and `app_version`. Feature code dispatches to the right implementation module based on that probe.
+
+`get_protocol_implementations(adapter_id=None)` returns registered implementations, optionally filtered by adapter, and `export_registry_for_seeding()` exports structured metadata (platforms, adapters, protocol implementations) for database seeding through `repositories/registry.py`.
+
+## Capability-driven feature visibility
+
+Feature code shows or hides commands based on the implementation's actual capabilities rather than assuming every OneBot V11 implementation supports every operation.
+
+### Group announcement
+
+The announcement handler in `handle/qq/adapters/onebot11/default/announcement.py` resolves the action at call time through `_resolve_announcement_action(bot)`:
+
+1. Call `bot.get_version_info()`.
+2. Require `protocol_version == "v11"`.
+3. Parse `app_version` with `packaging.version.parse`.
+4. Match `app_name`:
+   - `NapCat.Onebot` with `app_version >= 4.18.0` routes to `send_group_notice_napcat` in `handle/qq/adapters/onebot11/napcat/announcement.py`.
+   - Any other `app_name` or an older version returns the localized error "不支持的 OneBot 版本" and the command finishes without calling the API.
+
+The NapCat implementation calls the private `_send_group_notice` API through `bot.call_api()`. When the announcement `image` field is unreadable, NapCat reports `retcode = 1200`; the implementation detects this via `_is_napcat_image_format_error()` and logs a diagnostic that points at `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` / `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` and the NapCat container bind mount.
+
+<Callout title="Version requirement">
+
+Remote group announcements require `NapCat.Onebot >= 4.18.0`. Older NapCat builds and non-NapCat OneBot V11 implementations are treated as unsupported and the command exits with a localized error instead of attempting the call.
+
+</Callout>
+
+### Group avatar and other features
+
+Features that are not supported by a connected implementation are hidden or rejected the same way: the handler probes the implementation, and when the required capability is unavailable the command finishes with a localized "unsupported version" message rather than issuing an API call that would fail. This keeps the menu and command surface honest about what the current connection can actually do.
+
+## Permission module discovery
+
+Platform permission modules are discovered through the `PlatformProfile.permission_module` field rather than a hard-coded module path. The QQ profile declares `permission_module = "..platforms.qq.permissions"`, which `permissions/bootstrap.py` imports dynamically. Adding a new platform profile with its own permission module does not require touching the permission bootstrap — it only needs the new profile to set `permission_module`.
+
+<Callout title="See also">
+
+For adapter configuration in `.env`, driver requirements, and connection setup, see [Adapter Guide](adapter-guide). For how stored records derive their `platform` field from this registry, see [Message Store](message-store).
+
+</Callout>

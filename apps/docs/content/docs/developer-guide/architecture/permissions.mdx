@@ -1,0 +1,151 @@
+---
+icon: ShieldCheck
+title: Permissions
+description: UID superusers, identity groups, command grants, and protected-subject interception.
+---
+
+# Permissions
+
+Lingchu Bot uses a layered permission system that combines a Lingchu-wide UID identity, platform account bindings, identity-group memberships, and per-command allow-list grants. This page describes how the runtime resolves permissions, how superusers are configured, and how blocklist and protected-subject policies gate destructive commands.
+
+## Architecture layers
+
+| Layer | File | Responsibility |
+| --- | --- | --- |
+| Bootstrap | `permissions/bootstrap.py` | Validates `LINGCHU_SUPERUSERS`, seeds default identity groups, syncs superuser memberships and command grants at startup |
+| Service | `permissions/service.py` | Resolves `PermissionContext`, runs `check_permission`, expands runtime + membership groups, queries grants |
+| Admin API | `permissions/admin.py` | SUPERUSERS-only mutations: create / update / delete identity groups, add / remove members |
+| Subject policy | `permissions/subject_policy.py` | Blocked and protected subject entries, active-policy lookup with expiry |
+| Platform integration | `permissions/platforms.py` | Discovers platform permission modules via `PlatformProfile.permission_module`, resolves runtime identity groups |
+| Repository | `repositories/permissions.py` | ORM CRUD on `IdentityUser`, `PlatformAccount`, `PlatformIdentityGroup`, `IdentityMembership`, `PermissionGrant` |
+
+## UID superusers and platform account mapping
+
+Superusers are declared through the `LINGCHU_SUPERUSERS` environment key (NoneBot config alias `lingchu_superusers`). The value is a JSON mapping from a Lingchu UID to one or more platform account bindings:
+
+```json
+{
+  "alice": { "qq": 10001 },
+  "bob": { "qq": 10002 }
+}
+```
+
+At startup, `validate_and_seed_permission_system()` in `permissions/bootstrap.py`:
+
+1. Reads the configured mapping from `runtime_config.lingchu_superusers`.
+2. Normalizes each UID and platform account ID to strings (QQ accounts are validated as positive integers).
+3. Validates that every `platform_id` is a known platform profile and that no `(platform_id, account_id)` pair is bound twice.
+4. Upserts each UID into `IdentityUser`, adds a membership in the `system.superusers` group (source `superusers_config`), and binds each platform account via `bind_platform_account()`.
+5. Grants every `MENU_FEATURES.command_key` to the `system.superusers` group so superusers can run all commands.
+
+If `LINGCHU_SUPERUSERS` is missing or empty, startup raises `PermissionConfigError` and aborts.
+
+## Command authorization and `MENU_FEATURES.command_key`
+
+Each command is identified by a stable `command_key` declared on a `MenuFeature` in `handle/menu.py`. The same `command_key` is the shared identifier across:
+
+- Permission checks (`check_permission(command_key, bot, event)`)
+- Menu filtering (`allowed_command_keys()` hides commands the current identity cannot execute)
+- Handler decorators and trigger registration
+- Permission grants in the `lingchu_permission_grants` table
+
+`check_permission_for_context()` in `permissions/service.py` resolves a `PermissionDecision` with the following short-circuit order:
+
+1. If `context.uid` is `None` → `allowed=False, reason="anonymous"`.
+2. If `repo.is_superuser(uid)` → `allowed=True, reason="superuser"`.
+3. Otherwise, collect effective identity groups from runtime passthrough (when enabled) plus matching `IdentityMembership` rows, expand to ancestor groups via `parent_group_id`, and look up `PermissionGrant` rows with `effect == "allow"`.
+4. If any grant matches → `allowed=True, reason="granted"`; otherwise → `allowed=False, reason="missing_grant"`.
+
+## Platform runtime role passthrough
+
+`permission_platform_runtime_passthrough` controls whether platform-resolved runtime roles (for example QQ group owner / admin / member) participate in permission checks. It accepts either a global boolean or a per-platform mapping:
+
+```toml
+permission_platform_runtime_passthrough = true
+# or per-platform:
+# permission_platform_runtime_passthrough = { qq = true }
+```
+
+When passthrough is enabled for the current `platform_id`, the runtime identity groups returned by the platform module (see `permissions/platforms.py::resolve_runtime_identity_groups`) are added to the direct group set before grant lookup. When disabled, only explicit `IdentityMembership` rows count. The default is `True`; if a per-platform entry is missing it also falls back to `True`.
+
+`platform_runtime_passthrough_enabled()` in `permissions/service.py` is the single resolver used by both `check_permission_for_context()` and the menu visibility path.
+
+## Blocklist and protected-subject interception
+
+`protected_subject_feature_keys` is the allow-list of `command_key` values that must be gated by subject policy before execution. The default covers destructive operations:
+
+```toml
+protected_subject_feature_keys = [
+  "kick_member",
+  "block_member",
+  "global_block_member",
+  "member_mute",
+  "recall_message",
+  "set_member_card",
+  "set_member_title",
+  "set_member_admin",
+  "unset_member_admin",
+  "remote_kick",
+  "remote_block",
+  "remote_mute",
+]
+```
+
+Subject policies are stored in the `lingchu_subject_policy` table and exposed through `permissions/subject_policy.py`:
+
+| Policy type | Effect |
+| --- | --- |
+| `blocked` | Target user is on the blocklist; protected commands are denied |
+| `protected` | Target user is on the protection list; destructive commands against them are denied |
+
+`find_active_subject_policy()` checks the global scope first, then the group scope, and lazily deletes expired entries. `active_subject_policy_condition()` returns a SQLAlchemy filter that excludes rows whose `expires_at` is in the past, used by repository queries that need to join against the policy table.
+
+## Permission seeds and platform role tree
+
+Default identity groups are seeded from each platform's permission module. `permissions/platforms.py::iter_default_identity_groups()` walks every `PlatformProfile.permission_module` and calls `get_default_identity_groups()` on it.
+
+For QQ, `platforms/qq/permissions.py` declares `PLATFORM_ID = "qq"` and seeds the following tree:
+
+| Group ID | Parent | Display name |
+| --- | --- | --- |
+| `qq.group` | — | QQ群聊 |
+| `qq.group.owner` | `qq.group` | QQ群主 |
+| `qq.group.admin` | `qq.group` | QQ群管理员 |
+| `qq.group.member` | `qq.group` | QQ群成员 |
+| `qq.friend` | — | QQ好友 |
+| `qq.channel` | — | QQ频道 |
+| `qq.bot` | — | QQ机器人 |
+| `qq.device` | — | QQ设备 |
+
+At runtime, `resolve_runtime_identity_groups()` maps the OneBot V11 sender role (`owner` / `admin` / `member`) to the corresponding `qq.group.*` group IDs. If the role is missing from the event, it falls back to `bot.call_api("get_group_member_info", ...)` and ultimately to the `member` role on API failure.
+
+Platform permission modules are discovered dynamically through the adapter registry's `PlatformProfile.permission_module` field — there are no hard-coded module paths in the core permission layer.
+
+## Permission data model
+
+The ORM models live in `database/models/identity.py` and use the cross-dialect compatibility types from `database/_dialect_compat.py`:
+
+| Table | Model | Purpose |
+| --- | --- | --- |
+| `lingchu_identity_users` | `IdentityUser` | Lingchu-wide UID with optional nickname |
+| `lingchu_platform_accounts` | `PlatformAccount` | Binding between a UID and a `(platform_id, account_id)` pair |
+| `lingchu_platform_identity_groups` | `PlatformIdentityGroup` | Platform-scoped group with optional `parent_group_id` and `builtin` flag |
+| `lingchu_identity_memberships` | `IdentityMembership` | UID → group membership, optionally scoped by `scope_type` / `scope_id` |
+| `lingchu_permission_grants` | `PermissionGrant` | Allow-list grant from a group to a `command_key` |
+
+`SUPERUSERS_GROUP_ID = "system.superusers"` is the only built-in group that is not platform-scoped; it is seeded by `bootstrap.py` rather than by a platform module.
+
+## Administration APIs
+
+`permissions/admin.py` exposes SUPERUSERS-only mutations. Every function calls `assert_superuser()` first and raises `PermissionDeniedError` if the actor is not a superuser:
+
+- `create_platform_identity_group()` / `update_platform_identity_group()` / `delete_platform_identity_group()`
+- `add_identity_group_member()` / `remove_identity_group_member()` / `list_identity_group_members()`
+
+Builtin groups (`builtin=True`) cannot be updated or deleted, and groups that still have memberships or grants cannot be deleted.
+
+<Callout title="See also">
+
+For how command triggers and menu visibility consume these permissions, see [Architecture](introduction) and [Adapter Guide](adapter-guide).
+
+</Callout>

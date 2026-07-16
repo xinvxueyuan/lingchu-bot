@@ -142,7 +142,7 @@ This sync rule starts after `<!-- gitnexus:end -->`. GitNexus marker blocks are 
 - **No hard-coded mutable paths**: `Path("...")` for mutable runtime files is forbidden.
 - **No packaged schema resources**: Do not use `importlib.resources` or wheel data for JSON schemas. Schema text lives in `src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py` and is installed by `install_schemas()`.
 - **Handle default registration**: Handle-level defaults MUST be registered in `handle_config_defaults/` using `register_handle_defaults()` before `HandleConfigManager` can read or update `<command_key>.toml` files.
-- **Prek is hook source of truth**: `prek.toml` is the only pre-commit hook configuration. Do not reintroduce `.pre-commit-config.yaml`.
+- **Prek is hook source of truth**: `prek.toml` is the only pre-commit hook configuration (explicitly declares ruff/ty hooks, decoupled from husky, no duplicate execution). Do not reintroduce `.pre-commit-config.yaml`.
 - **Version sync**: Use `Taskfile.yml` task `ci:version:write-config` to write both `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` and root `package.json`.
 - **Release branches**: Formal releases use `releases/<version>` branches and must keep `pyproject.toml`, `package.json`, and `core/config.py` versions synchronized before publishing.
 - **Release notes**: Every formal release updates `CHANGELOG.md` and the release policy record.
@@ -178,7 +178,6 @@ The project enforces a unified code style across Python and frontend workspaces:
   - pytest: `--strict-markers --strict-config`; `[tool.coverage.run]` with `branch = true`.
   - Python baseline: 3.13 (downgrade guard), `requires-python = ">=3.13, <4.0"`, `target-version = "py313"`, do NOT upgrade to 3.14.
   - Docker Compose: no `version` field, `name: lingchu-bot`, `restart: unless-stopped`.
-  - prek: `prek.toml` explicitly declares ruff/ty hooks, decoupled from husky, no duplicate execution.
   - CI: all workflows top-level `permissions: contents: read`, job-level elevated as needed with comment justification.
 
 ### Architecture Decisions
@@ -343,7 +342,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 
 #### Ignore Comment Governance
 
-- Inline `# noqa` and `# type: ignore` comments in `src/` have been fully consolidated into `pyproject.toml` `[tool.ruff.lint.per-file-ignores]`. New inline ignore comments in `src/` trigger a pre-commit warning (Phase 2.5) and a CI audit comment on PRs.
+- Inline `# noqa` / `# type: ignore` in `src/` are fully consolidated into `pyproject.toml` `[tool.ruff.lint.per-file-ignores]`; the prohibition and enforcement (Phase 2.5 warning + CI `ignore-comment-audit` PR comment) are documented under "Code Style → Ignore comment governance". The bullets below capture the legitimate exceptions retained in `per-file-ignores`.
 - `PLR0913` (too-many-arguments) for NoneBot matcher handlers and ORM upsert functions is suppressed via `per-file-ignores` because the parameter lists are framework-constrained. Future refactoring to frozen dataclass request objects (per "Repository API Style") should reduce these suppressions.
 - `BLE001` (blind-except) is intentionally allowed in startup/probe code (fail-closed/fail-soft design). Justification comments are preserved inline as plain `# <reason>` comments, not as `# noqa` directives.
 - Module-level `# pyright: reportMissingImports=false` in `services/llm.py` is the only legitimate inline type-ignore directive, used for optional `openai`/`litellm` dependency imports.
@@ -427,7 +426,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - Workflow filenames use emoji-prefix + kebab-case, and workflow `name:` uses English with matching emoji.
 - `.github` YAML comments should be English; remove broken empty schema comments.
 - Check remote branch existence with `git ls-remote` before `git push origin --delete`.
-- CI workflows are split by domain: `🧪-python.yml` (Python static analysis + multi-DB test matrix + auto-format), `🧪-frontend.yml` (docs lint/type/test/links), `📚-docs.yml` (docs deploy). Shared change detection lives in the `.github/actions/detect-changes` composite action (outputs python/markdown/frontend-* flags). Standard trigger convention: PR runs checks only (no commits/deploy); push to `main`/`dev` runs checks + auto-format + deploy. Each workflow has its own concurrency group to avoid cross-canceling.
+- CI workflows are split by domain: `🧪-python.yml` (Python static analysis + multi-DB test matrix + auto-format), `🧪-frontend.yml` (docs lint/type/test/links), `📚-docs.yml` (docs deploy), `👷-ci-builds.yml` (version bump + build artifacts + SLSA provenance), `🚀-release.yml` (PyPI/GHCR publish), `🧹-clear-workflow.yml` (manual dispatch; deletes non-running workflow runs via `actions: write`), `🏷️-issues-top.yml` (scheduled daily; labels and displays top issues), `🩺-react-doctor.yml` (PR/push on `.tsx` changes; runs React Doctor CLI directly — see Pending Rollbacks), `🎭-playwright.yml` (PR/push on `apps/docs` changes; Playwright E2E with browser cache). Shared change detection lives in the `.github/actions/detect-changes` composite action (outputs python/markdown/frontend-* flags). Standard trigger convention: PR runs checks only (no commits/deploy); push to `main`/`dev` runs checks + auto-format + deploy. Each workflow has its own concurrency group to avoid cross-canceling.
 - Static Analysis jobs in Python CI use `uv sync --no-dev --group lint --group git --frozen` + `UV_NO_SYNC=1` to install only the minimal dependencies needed for linting/formatting (ruff, pyright, ty, prek), avoiding the test group which contains database drivers (mariadb, aioodbc) that require system-level libraries and can fail to build in minimal CI environments. Use this pattern for any CI job that doesn't need to run tests.
 
 #### Pending Rollbacks

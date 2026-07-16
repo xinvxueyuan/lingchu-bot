@@ -15,7 +15,7 @@ Welcome to Lingchu Bot. The project welcomes code, tests, documentation, bug rep
 task install
 ```
 
-`task install` runs `uv sync` and `pnpm install`. If you're only working on one side, you can run `uv sync --frozen` or `pnpm install --frozen-lockfile` separately.
+`task install` runs `uv sync --all-extras` and `pnpm install`. If you're only working on one side, you can run `uv sync --frozen` or `pnpm install --frozen-lockfile` separately.
 
 Before starting, read [README.md](README.md), [Repository-Policy.md](Repository-Policy.md), and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). When submitting media, screenshots, or sample data, comply with the license and anonymization requirements in the repository policy.
 
@@ -83,7 +83,7 @@ Before starting, read [README.md](README.md), [Repository-Policy.md](Repository-
 - `uv`: Python dependencies, virtual environments, Ruff, Pyright, ty, pytest, Babel, and build command entry point.
 - `pnpm`: Node workspaces, docs app, Turbo, Gitmoji, Markdown lint, and frontend dependency entry point.
 - `turbo`: Orchestrates lint, type check, build, and other tasks for docs and packages.
-- `husky`: Installs Git hooks; `pre-commit` runs prek and GitNexus analysis, `commit-msg` validates commit messages, `prepare-commit-msg` attempts to launch Gitmoji interactive mode.
+- `husky`: Installs Git hooks; `pre-commit` runs prek auto-fix, markdownlint, Ruff, Pyright, ty, pytest, docs lint/type/test/e2e smoke, React Doctor for `.tsx`, and non-blocking GitNexus analysis based on changed file classes; `commit-msg` validates commit messages; `prepare-commit-msg` attempts to launch Gitmoji interactive mode.
 - `prek`: Runs pre-commit hooks via `prek.toml`, checking whitespace, line endings, YAML/TOML/JSON/XML, merge conflicts, large files, private keys, and case conflicts.
 - GitNexus / codegraph: Used for code understanding, impact analysis, change scope checking, and safe refactoring.
 - Context7: Used for querying current library, framework, SDK, CLI, or cloud service documentation; do not use it as a substitute for business logic analysis or code review.
@@ -164,7 +164,7 @@ uv run -m ruff check --fix path/to/file.py
 - Comments should explain non-obvious reasons or constraints, not repeat the code itself.
 - Documentation changes should be concise and actionable, avoiding inconsistency with CI, Taskfile, or actual directory structure.
 - Python code follows Ruff rules (see `pyproject.toml` `[tool.ruff]`). Run `uv run -m ruff check .` and `uv run -m ruff format --check .` before committing.
-- TypeScript code follows ESLint rules (see `packages/eslint-config/`). Run `pnpm turbo run lint` before committing.
+- TypeScript code follows ESLint rules (see `apps/docs/eslint.config.mjs`). Run `pnpm turbo run lint` before committing.
 - Function signatures should have ≤ 5 parameters (Ruff `PLR0913`). Combine related params into a single object if needed.
 - Test files must avoid hard-coded module paths; use direct object references instead.
 - When migrating files, update all dependent references (tests, i18n, docs, configs) to reflect new paths.
@@ -244,11 +244,17 @@ Before requesting review, confirm each item:
 
 ## CI and Failure Handling
 
-- PRs trigger GitHub Actions; pushes to `main` and `dev` also trigger main CI.
-- `🧪 Python CI` runs Static Analysis (`task ci:static`) and Tests & Type Check (Pyright, ty, pytest across the multi-database matrix); `🧪 Frontend CI` runs Docs Check (Turbo lint, type check, link validation, docs test).
-- `👷 CI-builds` runs `task ci:build`; on pushes to `main`, `dev`, `releases/**`, it also performs version writing, build artifact archiving, provenance attestation, and tag workflow.
-- `📚 Docs Deploy` runs pnpm/turbo lint, docs test, and docs build when docs-related paths are pushed to `main` or `dev`, then deploys to GitHub Pages.
-- The auto-format job in `🧪 Python CI` on pushes to `main` and `dev` runs `task ci:fix` and may auto-commit format fixes.
+PRs trigger GitHub Actions; pushes to `main` and `dev` also trigger the main CI workflows. The repository ships nine workflows under `.github/workflows/`:
+
+- `🧪 Python CI` (`🧪-python.yml`) — runs Static Analysis (`task ci:static`) and Tests & Type Check (Pyright, ty, pytest across the multi-database matrix). On pushes to `main` and `dev`, an auto-format job runs `task ci:fix` and may auto-commit format fixes. An informational `ignore-comment-audit` job posts a PR comment when new inline ignore comments are detected in changed Python files.
+- `🧪 Frontend CI` (`🧪-frontend.yml`) — runs Docs Check (Turbo lint, type check, link validation, docs test) when frontend paths change.
+- `📚 Docs Deploy` (`📚-docs.yml`) — on pushes to `main` and `dev`, runs pnpm/turbo lint, docs test, docs build, a docs smoke test, then deploys to GitHub Pages.
+- `👷 CI-builds` (`👷-ci-builds.yml`) — runs `task ci:build` on PRs and non-`main`/`dev` push branches, followed by a containerized smoke test. On pushes to `main` and `dev`, the `versioned-build` job bumps the development version, writes it to `core/config.py` and `package.json`, builds artifacts, attests SLSA Build L3 provenance, and pushes the version tag.
+- `🚀 Release` (`🚀-release.yml`) — triggered by pushes to `releases/**`. Builds dist artifacts, publishes to PyPI via Trusted Publishing/OIDC, pushes the Docker image to GHCR with `GITHUB_TOKEN`, attests SLSA Build L3 provenance, and creates the GitHub Release from `.github/releases/<version>.md`.
+- `🩺 React Doctor` (`🩺-react-doctor.yml`) — scans `.tsx` changes for security, performance, correctness, accessibility, bundle-size, and architecture issues.
+- `🎭 Playwright` (`🎭-playwright.yml`) — runs docs end-to-end tests (`pnpm --filter docs run test:e2e`) on docs/frontend changes.
+- `🧹 Clear Workflow` (`🧹-clear-workflow.yml`) — manually dispatched workflow that deletes non-running workflow run history.
+- `🏷️ Top Issues` (`🏷️-issues-top.yml`) — daily scheduled job that labels and surfaces top issues, bugs, features, and pull requests.
 
 If CI fails, open the failed job's logs first and locate the specific command, rule, and line number. When fixing CI, only change the minimal scope that caused the failure, and re-run the corresponding local command to verify.
 

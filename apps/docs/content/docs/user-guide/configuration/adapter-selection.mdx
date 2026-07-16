@@ -15,6 +15,30 @@ LINGCHUAdapter = "~onebot.v11"
 
 Default selection. Make sure NoneBot has loaded the OneBot V11 adapter. Other adapter IDs (such as Milky, QQ, or OneBot V12) are not implemented; configuring them raises `PlatformAdapterUnknownError`.
 
+### Environment Variable Form
+
+Lingchu Bot also reads the `LINGCHU_ADAPTER` environment variable, which is convenient for containerized deployments and CI where editing `.env` or TOML is impractical. The underlying `lingchu_adapter` field accepts a single adapter string, a `+`-separated string of multiple IDs, or a list of strings:
+
+```bash
+# Single adapter
+LINGCHU_ADAPTER=~onebot.v11
+
+# Multiple adapters in string form
+LINGCHU_ADAPTER=~onebot.v11+~another_adapter
+```
+
+When set via NoneBot's dotenv/TOML config, a JSON array literal is also accepted:
+
+```toml
+LINGCHUAdapter = ["~onebot.v11", "~another_adapter"]
+```
+
+Configuration priority (highest first):
+
+1. OS environment variables (`LINGCHU_ADAPTER` in `os.environ`)
+2. NoneBot dotenv file (`.env`, where `LINGCHUAdapter` or `LINGCHU_ADAPTER` may appear)
+3. NoneBot `global_config` (resolved through the `lingchu_adapter` alias)
+
 <Callout type="warn" title="Conflict prevention">
 
 Explicitly configuring multiple known adapters for the same platform fails startup:
