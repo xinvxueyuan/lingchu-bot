@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import aiofiles
 import pytest
 
+from src.plugins.nonebot_plugin_lingchu_bot.core import http_security
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import profile
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.profile import (
     onebot11_set_group_avatar,
@@ -213,7 +214,12 @@ async def test_resolve_image_path_downloads_and_caches_url(
             return None
 
     fake_driver = SimpleNamespace(get_session=SessionContext)
-    monkeypatch.setattr(profile, "get_driver", lambda: fake_driver)
+    monkeypatch.setattr(http_security, "get_driver", lambda: fake_driver)
+    monkeypatch.setattr(
+        http_security,
+        "resolve_host_addresses",
+        AsyncMock(return_value=("93.184.216.34",)),
+    )
 
     image = MagicMock()
     image.raw = None
@@ -241,7 +247,12 @@ async def test_resolve_image_path_returns_none_when_driver_has_no_session(
     monkeypatch.setattr(profile, "plugin_config", fake_config)
 
     fake_driver = SimpleNamespace()
-    monkeypatch.setattr(profile, "get_driver", lambda: fake_driver)
+    monkeypatch.setattr(http_security, "get_driver", lambda: fake_driver)
+    monkeypatch.setattr(
+        http_security,
+        "resolve_host_addresses",
+        AsyncMock(return_value=("93.184.216.34",)),
+    )
 
     image = MagicMock()
     image.raw = None

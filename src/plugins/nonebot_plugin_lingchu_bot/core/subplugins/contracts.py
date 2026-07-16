@@ -27,6 +27,7 @@ from ...services.llm import (
     supports_web_search,
 )
 from ...services.llm.runtime import LLMRuntime, get_llm_runtime
+from ..http_security import download_public_http_bytes
 from ..runtime_config import runtime_config
 
 if TYPE_CHECKING:
@@ -223,6 +224,7 @@ __all__ = [
     "complete_subplugin_chat",
     "complete_subplugin_chat_default",
     "complete_subplugin_web_search",
+    "download_public_http_bytes",
     "ensure_subplugin_config_file",
     "get_configured_locale",
     "get_subplugin_llm_runtime",

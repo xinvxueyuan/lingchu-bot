@@ -7,18 +7,19 @@ from typing import Any
 import aiofiles
 import aiofiles.os
 from arclet.alconna import Alconna, Args
-from nonebot import get_driver, require
-from nonebot.drivers import Request
+from nonebot import require
 
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from nonebot_plugin_alconna.uniseg import Image as UniImage
 
 from ....core.config import plugin_config
+from ....core.http_security import download_public_http_bytes
 from .triggers import COMMAND_TRIGGERS
 
 _SET_GROUP_NAME = COMMAND_TRIGGERS["set_group_name"]
 _SET_GROUP_AVATAR = COMMAND_TRIGGERS["set_group_avatar"]
+_AVATAR_IMAGE_DOWNLOAD_MAX_BYTES = 10 * 1024 * 1024
 
 
 async def _resolve_image_path(image: UniImage | None) -> Path | None:
@@ -41,20 +42,18 @@ async def _resolve_image_path(image: UniImage | None) -> Path | None:
 
     url = getattr(image, "url", None)
     if url is not None:
-        driver = get_driver()
-        get_session = getattr(driver, "get_session", None)
-        if get_session is not None:
-            async with get_session() as session:
-                request = Request("GET", url)
-                response = await session.request(request)
-                content = response.content
-                cache_dir = plugin_config.cache_dir / "announcement_images"
-                await aiofiles.os.makedirs(cache_dir, exist_ok=True)
-                md5 = hashlib.md5(content).hexdigest()
-                cache_path = cache_dir / f"{md5}.png"
-                async with aiofiles.open(cache_path, "wb") as f:
-                    await f.write(content)
-                return cache_path
+        content = await download_public_http_bytes(
+            str(url),
+            max_bytes=_AVATAR_IMAGE_DOWNLOAD_MAX_BYTES,
+        )
+        if content is not None:
+            cache_dir = plugin_config.cache_dir / "announcement_images"
+            await aiofiles.os.makedirs(cache_dir, exist_ok=True)
+            md5 = hashlib.md5(content).hexdigest()
+            cache_path = cache_dir / f"{md5}.png"
+            async with aiofiles.open(cache_path, "wb") as f:
+                await f.write(content)
+            return cache_path
 
     return None
 

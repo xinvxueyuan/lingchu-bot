@@ -7,6 +7,7 @@ from nonebot.exception import FinishedException
 from nonebot_plugin_alconna.uniseg import Image as UniImage
 import pytest
 
+from src.plugins.nonebot_plugin_lingchu_bot.core import http_security
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.contracts import (
     SubpluginLLMError,
 )
@@ -240,9 +241,14 @@ async def test_uniseg_image_reader_supports_path_and_url(
             return None
 
     monkeypatch.setattr(
-        handler,
+        http_security,
         "get_driver",
         lambda: SimpleNamespace(get_session=SessionContext),
+    )
+    monkeypatch.setattr(
+        http_security,
+        "resolve_host_addresses",
+        AsyncMock(return_value=("93.184.216.34",)),
     )
     assert (
         await handler._read_uniseg_image(

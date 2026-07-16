@@ -233,10 +233,11 @@ class TestRemoteMute:
     ) -> None:
         """测试成功的远程禁言。"""
         mock_bot.get_group_list.return_value = mock_group_list
-        mock_bot.get_group_member_info.return_value = {
-            "role": "admin",
-            "user_id": _TARGET_USER_ID,
-        }
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "admin", "user_id": int(mock_bot.self_id)},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+        ]
         mock_bot.set_group_ban.return_value = {}
 
         with (
@@ -326,6 +327,50 @@ class TestRemoteMute:
                     event=mock_event,
                 )
             mock_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_remote_mute_rejects_protected_target_in_target_group(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+    ) -> None:
+        """远程禁言按目标群校验受保护对象。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "admin", "user_id": int(mock_bot.self_id)},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+        ]
+        mock_bot.set_group_ban.return_value = {}
+
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                return_value=(_TARGET_USER_ID, "测试用户"),
+            ),
+            patch(
+                f"{remote_module.__name__}.find_active_subject_policy",
+                new_callable=AsyncMock,
+                return_value=object(),
+            ),
+            patch(
+                f"{remote_module.__name__}.operator_is_superuser_onebot11",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch.object(remote_mute_cmd, "finish", new_callable=AsyncMock),
+        ):
+            await onebot11_remote_mute(
+                group_id=_GROUP_ID_1,
+                user=At("user", str(_TARGET_USER_ID)),
+                duration=60,
+                bot=mock_bot,
+                event=mock_event,
+                reason="测试原因",
+            )
+
+        mock_bot.set_group_ban.assert_not_called()
 
 
 class TestRemoteUnmute:
@@ -428,10 +473,11 @@ class TestRemoteKick:
     ) -> None:
         """测试成功的远程踢出。"""
         mock_bot.get_group_list.return_value = mock_group_list
-        mock_bot.get_group_member_info.return_value = {
-            "role": "admin",
-            "user_id": _TARGET_USER_ID,
-        }
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "admin", "user_id": int(mock_bot.self_id)},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+        ]
         mock_bot.set_group_kick.return_value = {}
 
         with (
@@ -469,10 +515,11 @@ class TestRemoteBlock:
     ) -> None:
         """测试成功的远程拉黑。"""
         mock_bot.get_group_list.return_value = mock_group_list
-        mock_bot.get_group_member_info.return_value = {
-            "role": "admin",
-            "user_id": _TARGET_USER_ID,
-        }
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "admin", "user_id": int(mock_bot.self_id)},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+            {"role": "member", "user_id": _TARGET_USER_ID},
+        ]
         mock_bot.set_group_kick.return_value = {}
 
         with (
