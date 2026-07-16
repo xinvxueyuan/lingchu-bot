@@ -74,6 +74,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 - 提交前运行 `git status` 并检查 `git diff` / staged diff，绝不盲提。
 - 自动化中显式调用 PowerShell 时，使用 `pwsh.exe -NoProfile`。
 - 按下文保持 AGENTS、Claude、中文镜像同步。
+- SubAgent 任务完成后，编排者 MUST 运行 `git status --short` 并删除任何 SubAgent 创建的临时文件（如 `_tmp_*`、`_writetest*`、临时脚本、探针文件）。SubAgent 不会自行清理；编排者负责工作区卫生边界。
 
 ## E — Expectations
 
@@ -362,6 +363,9 @@ task ci
 - NoneBot event narrowing 使用 `isinstance(event, GroupMessageEvent)`。
 - 按真实 API shape mock adapter 返回值。
 - `assert_called_once_with()` 是精确匹配；optional kwargs 用 `mock.call_args.kwargs` 检查存在性。
+- SubAgent 会产生临时文件（`_tmp_cov.sh`、`_writetest.txt`、探针脚本等）且从不自行清理。编排者 MUST 在 SubAgent 批次结束后运行 `git status --short`，并在 staging/commit 前 `rm -f` 所有临时文件，否则 pre-commit 钩子会因意外文件失败，提交也会携带垃圾。
+- 在测试中重写 `list.__getitem__` 时，必须匹配 typeshed 签名：`def __getitem__(self, index: SupportsIndex | slice, /) -> list[object]`。使用 `int | slice` 或省略 `/` 会触发 `reportIncompatibleMethodOverride`。重写 `BaseException.args` 容易签名不兼容（与读写 property 冲突）；敌对 args 测试优先用 `__getattribute__` 拦截。
+- 使用 `yield` 的 pytest fixture MUST 声明返回类型 `collections.abc.Iterator[None]`（或 `Generator[None, None, None]`），绝不能用 `-> None`。Pyright strict 模式会把 generator 函数的 `-> None` 当作返回类型错误，husky pre-commit Phase 4 钩子会阻断提交。
 
 #### Docs Site And Frontend
 

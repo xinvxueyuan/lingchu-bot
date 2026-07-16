@@ -8,6 +8,9 @@ import pytest
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     block as block_module,
 )
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import (
+    block as block_cmd_module,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.block import (
     block_member_cmd,
     clear_blocklist_cmd,
@@ -368,3 +371,49 @@ async def test_onebot11_unblock_member_with_direct_user_id(
     assert remove_mock.call_args.kwargs["scope"] == "group"
     assert remove_mock.call_args.kwargs["user_id"] == _TEST_USER_ID_UNBLOCK
     assert "删除记录: 1" in finish_text(mock_finish)
+
+
+# ================= __getattr__ 懒加载导出测试 =================
+
+
+class TestLazyExports:
+    """commands.block 模块 __getattr__ 懒加载导出测试（覆盖行 97-100）。"""
+
+    def test_lazy_export_returns_handler_and_caches(self) -> None:
+        """访问懒导出名时通过 __getattr__ 返回处理器并写入 globals 缓存。"""
+        cached = block_cmd_module.__dict__.pop("onebot11_block_member", None)
+        try:
+            value = block_cmd_module.onebot11_block_member
+            assert callable(value)
+            assert block_cmd_module.__dict__["onebot11_block_member"] is value
+        finally:
+            if cached is not None:
+                block_cmd_module.__dict__["onebot11_block_member"] = cached
+
+    def test_lazy_export_caches_all_handlers(self) -> None:
+        """所有懒导出名都能正确解析到适配器处理器。"""
+        names = (
+            "onebot11_block_member",
+            "onebot11_global_block_member",
+            "onebot11_unblock_member",
+            "onebot11_global_unblock_member",
+            "onebot11_clear_blocklist",
+            "onebot11_global_clear_blocklist",
+            "onebot11_kick_blocklisted_message",
+            "onebot11_reject_blocklisted_group_request",
+        )
+        originals = {name: block_cmd_module.__dict__.pop(name, None) for name in names}
+        try:
+            for name in names:
+                value = getattr(block_cmd_module, name)
+                assert callable(value), f"{name} 应为可调用处理器"
+                assert name in block_cmd_module.__dict__
+        finally:
+            for name, original in originals.items():
+                if original is not None:
+                    block_cmd_module.__dict__[name] = original
+
+    def test_unknown_attribute_raises_attribute_error(self) -> None:
+        """访问未导出的属性名时抛出 AttributeError。"""
+        with pytest.raises(AttributeError):
+            _ = block_cmd_module.not_a_real_export

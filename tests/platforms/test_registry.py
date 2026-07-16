@@ -1,14 +1,22 @@
+from unittest.mock import patch
+
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.platforms import (
+    PlatformAdapterConflictError,
     PlatformAdapterNotLoadedError,
     PlatformAdapterUnknownError,
     PlatformCapability,
     get_platform_profile,
+    get_protocol_implementations,
+    get_supported_adapter_names,
     get_supported_adapters,
     is_adapter_enabled,
+    is_known_adapter,
     iter_platform_profiles,
+    parse_configured_adapters,
     resolve_adapter_id,
+    resolve_enabled_adapters,
     validate_platform_adapter_selection,
 )
 
@@ -112,3 +120,160 @@ def test_qq_profile_has_permission_module() -> None:
 
     assert profile is not None
     assert profile.permission_module == "..platforms.qq.permissions"
+
+
+# ---------------------------------------------------------------------------
+# Coverage gap tests
+# ---------------------------------------------------------------------------
+
+
+def test_iter_platform_profiles_returns_all_when_including_unimplemented() -> None:
+    """implemented_only=False 时走 else 分支，返回全部 profiles。"""
+    all_profiles = iter_platform_profiles(implemented_only=False)
+    implemented_profiles = iter_platform_profiles()
+
+    assert len(all_profiles) >= 1
+    assert all_profiles == implemented_profiles
+
+
+def test_parse_configured_adapters_accepts_list_input() -> None:
+    """非字符串输入走 tuple(configured) 分支。"""
+    result = parse_configured_adapters(["onebot.v11", "~onebot.v11"])
+
+    assert result == ("~onebot.v11", "~onebot.v11")
+
+
+def test_parse_configured_adapters_skips_empty_segments() -> None:
+    """空字符串片段应被跳过（覆盖 continue 分支）。"""
+    result = parse_configured_adapters("~onebot.v11++~onebot.v11")
+
+    assert result == ("~onebot.v11", "~onebot.v11")
+
+
+def test_parse_configured_adapters_prefixes_tilde_when_missing() -> None:
+    """无 ~ 前缀的输入会被自动补上。"""
+    assert parse_configured_adapters("onebot.v11") == ("~onebot.v11",)
+
+
+def test_resolve_adapter_id_returns_none_for_empty_or_whitespace() -> None:
+    """空字符串或纯空白应返回 None（覆盖 _resolve_known_adapter_id 早返回）。"""
+    assert resolve_adapter_id("") is None
+    assert resolve_adapter_id("   ") is None
+
+
+def test_resolve_enabled_adapters_returns_configured_adapter() -> None:
+    """resolve_enabled_adapters 直接调用返回配置的 adapter。"""
+    assert resolve_enabled_adapters("~onebot.v11") == {"~onebot.v11"}
+    assert resolve_enabled_adapters(None) == {"~onebot.v11"}
+
+
+def test_is_known_adapter_returns_true_for_known_names() -> None:
+    """已知适配器名返回 True（覆盖 is_known_adapter 主体）。"""
+    assert is_known_adapter("OneBot V11")
+    assert is_known_adapter("onebot11")
+    assert is_known_adapter("~onebot.v11")
+
+
+def test_is_known_adapter_returns_false_for_unknown_name() -> None:
+    """未知适配器名返回 False。"""
+    assert not is_known_adapter("NonexistentAdapter")
+    assert not is_known_adapter("~unknown.adapter")
+
+
+def test_get_supported_adapter_names_returns_sorted_display_names() -> None:
+    """get_supported_adapter_names 返回排序后的展示名。"""
+    names = get_supported_adapter_names()
+
+    assert isinstance(names, tuple)
+    assert names == tuple(sorted(names))
+    assert "onebot v11" in names
+    assert "onebot11" in names
+
+
+def test_get_protocol_implementations_returns_all_when_no_filter() -> None:
+    """无 filter 时返回所有 protocol 实现（覆盖 adapter_id is None 分支）。"""
+    impls = get_protocol_implementations()
+
+    assert len(impls) >= 2
+    protocol_ids = {impl.protocol_id for impl in impls}
+    assert "default" in protocol_ids
+    assert "napcat" in protocol_ids
+
+
+def test_get_protocol_implementations_filters_by_known_adapter_id() -> None:
+    """按已知 adapter_id 过滤 protocol 实现（覆盖过滤分支）。"""
+    impls = get_protocol_implementations("~onebot.v11")
+
+    assert all(impl.adapter_id == "~onebot.v11" for impl in impls)
+    assert len(impls) >= 1
+
+
+def test_get_protocol_implementations_returns_empty_for_unknown_adapter_id() -> None:
+    """未知 adapter_id 返回空元组。"""
+    assert get_protocol_implementations("~unknown.adapter") == ()
+
+
+def test_platform_adapter_conflict_error_includes_available_adapters_for_known_platform() -> (
+    None
+):
+    """PlatformAdapterConflictError 对已知 platform_id 走 if profile 分支。"""
+    error = PlatformAdapterConflictError(
+        platform_id="qq",
+        adapters=frozenset({"~onebot.v11", "~onebot.v12"}),
+        source="test",
+    )
+
+    assert error.platform_id == "qq"
+    assert error.adapters == frozenset({"~onebot.v11", "~onebot.v12"})
+    assert error.source == "test"
+    message = str(error)
+    assert "~onebot.v11" in message
+    assert "LINGCHUAdapter" in message
+
+
+def test_platform_adapter_conflict_error_falls_back_for_unknown_platform() -> None:
+    """PlatformAdapterConflictError 对未知 platform_id 走 else 分支。"""
+    error = PlatformAdapterConflictError(
+        platform_id="unknown_platform",
+        adapters=frozenset({"~adapter.a", "~adapter.b"}),
+        source="test",
+    )
+
+    assert error.platform_id == "unknown_platform"
+    message = str(error)
+    assert "~adapter.a" in message
+    assert "~adapter.b" in message
+
+
+def test_platform_adapter_not_loaded_error_with_unknown_adapter_id() -> None:
+    """PlatformAdapterNotLoadedError 对未知 adapter_id 走 profile is None 分支。"""
+    error = PlatformAdapterNotLoadedError(
+        adapter_id="~unknown.adapter",
+        registered_adapters=frozenset(),
+    )
+
+    assert error.adapter_id == "~unknown.adapter"
+    assert error.registered_adapters == frozenset()
+    message = str(error)
+    assert "~unknown.adapter" in message
+    assert "none" in message
+
+
+def test_profile_enabled_adapter_raises_conflict_when_multiple_adapters_match_profile() -> (
+    None
+):
+    """_profile_enabled_adapter 在多个适配器匹配同一 profile 时抛出 conflict error。"""
+    from src.plugins.nonebot_plugin_lingchu_bot.platforms import registry
+
+    qq_profile = registry.PLATFORM_PROFILES[0]
+    fake_index = {"~onebot.v12": qq_profile}
+    with patch.dict(registry._ADAPTER_PROFILE_INDEX, fake_index, clear=False):
+        with pytest.raises(PlatformAdapterConflictError) as exc_info:
+            registry._profile_enabled_adapter(
+                qq_profile,
+                ("~onebot.v11", "~onebot.v12"),
+                source="test",
+            )
+
+        assert exc_info.value.platform_id == "qq"
+        assert exc_info.value.adapters == frozenset({"~onebot.v11", "~onebot.v12"})

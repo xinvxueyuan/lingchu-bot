@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (6691 symbols, 12358 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (7073 symbols, 13018 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -121,6 +121,7 @@ Operating rules:
 - Before any commit, run `git status` and review `git diff` / staged diff. Never commit blindly.
 - When invoking PowerShell from automation, use `pwsh.exe -NoProfile`.
 - Keep AGENTS, Claude, and Chinese mirrors aligned as described below.
+- After SubAgent tasks complete, the orchestrator MUST run `git status --short` and remove any scratch files (e.g. `_tmp_*`, `_writetest*`, scratch scripts, probe files) the SubAgents created. SubAgents do not clean up after themselves; the orchestrator owns the worktree hygiene boundary.
 
 ## E — Expectations
 
@@ -410,6 +411,9 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - Use `isinstance(event, GroupMessageEvent)` for NoneBot event narrowing.
 - Mock adapter return shapes according to the real API shape.
 - `assert_called_once_with()` is exact; for optional kwargs, assert presence through `mock.call_args.kwargs`.
+- SubAgents spawn scratch files (`_tmp_cov.sh`, `_writetest.txt`, probe scripts) and never self-clean. The orchestrator MUST run `git status --short` after SubAgent batches and `rm -f` any scratch file before staging or commit, otherwise pre-commit hooks fail on unintended files and the commit carries garbage.
+- When overriding `list.__getitem__` in tests, match the typeshed signature: `def __getitem__(self, index: SupportsIndex | slice, /) -> list[object]`. Using `int | slice` or omitting the `/` triggers `reportIncompatibleMethodOverride`. Override `BaseException.args` is brittle (signature mismatch with the read-write property); prefer `__getattribute__` interception for hostile-args tests.
+- Pytest fixtures using `yield` MUST declare return type `collections.abc.Iterator[None]` (or `Generator[None, None, None]`), never `-> None`. Pyright in strict mode flags `-> None` on generator functions as a return-type error and the husky pre-commit Phase 4 hook blocks the commit.
 
 #### Docs Site And Frontend
 

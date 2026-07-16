@@ -10,11 +10,19 @@ from src.plugins.nonebot_plugin_lingchu_bot.hooks import adapters
 from src.plugins.nonebot_plugin_lingchu_bot.hooks.adapters import (
     NormalizedMessageEvent,
     PlatformContext,
+    _adapter_identity,
+    _adapter_name,
+    _conversation_id,
     _first_attr,
     _json_summary,
     _jsonable,
+    _message_type,
+    _plain_text,
+    _raw_message,
     _safe_call,
     _stringify,
+    _truncate,
+    _user_id,
     normalize_message_event,
     resolve_platform_context,
 )
@@ -155,3 +163,170 @@ def test_jsonable_and_summary() -> None:
             raise TypeError
 
     assert isinstance(_jsonable(BrokenModel()), str)
+
+
+def test_truncate_returns_none_for_none() -> None:
+    assert _truncate(None) is None
+
+
+def test_truncate_respects_explicit_limit() -> None:
+    assert _truncate("hello world", limit=5) == "hello..."
+
+
+def test_safe_call_swallows_exceptions() -> None:
+    obj = MagicMock()
+    obj.bad_method.side_effect = ValueError("bad")
+    assert _safe_call(obj, "bad_method") is None
+
+
+def test_adapter_name_returns_unknown_when_get_name_missing() -> None:
+    bot = MagicMock()
+    bot.adapter = SimpleNamespace()
+    assert _adapter_name(bot) == "unknown"
+
+
+def test_adapter_name_returns_unknown_when_get_name_raises() -> None:
+    bot = MagicMock()
+    bot.adapter.get_name.side_effect = TypeError("bad")
+    assert _adapter_name(bot) == "unknown"
+
+
+def test_adapter_identity_returns_none_when_profile_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(adapters, "resolve_adapter_id", MagicMock(return_value="~fake"))
+    monkeypatch.setattr(adapters, "get_platform_profile", MagicMock(return_value=None))
+    assert _adapter_identity("fake") is None
+
+
+def test_message_type_falls_back_to_event_data() -> None:
+    event = make_event(message_type=None)
+    event.post_type = None
+    event.data = SimpleNamespace(message_type="group", post_type=None)
+    assert _message_type(event) == "group"
+
+
+def test_conversation_id_falls_back_to_event_data() -> None:
+    event = make_event(group_id=None)
+    event.guild_id = None
+    event.channel_id = None
+    event.peer_id = None
+    event.session_id = None
+    event.data = SimpleNamespace(group_id="g1")
+    assert _conversation_id(event) == "g1"
+
+
+def test_conversation_id_falls_back_to_session_id() -> None:
+    event = make_event(group_id=None)
+    event.guild_id = None
+    event.channel_id = None
+    event.peer_id = None
+    event.session_id = None
+    event.data = SimpleNamespace()
+    event.get_session_id.return_value = "session-1"
+    assert _conversation_id(event) == "session-1"
+
+
+def test_user_id_falls_back_to_event_attr() -> None:
+    event = make_event()
+    event.get_user_id.return_value = None
+    event.user_id = "u1"
+    assert _user_id(event) == "u1"
+
+
+def test_user_id_falls_back_to_event_data() -> None:
+    event = make_event()
+    event.get_user_id.return_value = None
+    event.user_id = None
+    event.sender_id = None
+    event.data = SimpleNamespace(user_id="du1")
+    assert _user_id(event) == "du1"
+
+
+def test_plain_text_uses_get_message_when_plaintext_empty(
+    monkeypatch: pytest.MonkeyPatch,
+    enabled_config: SimpleNamespace,
+) -> None:
+    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    event = make_event()
+    event.get_plaintext.return_value = ""
+    assert _plain_text(event) == "hello"
+
+
+def test_plain_text_uses_event_message_attr(
+    monkeypatch: pytest.MonkeyPatch,
+    enabled_config: SimpleNamespace,
+) -> None:
+    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    event = make_event()
+    event.get_plaintext.return_value = ""
+    event.get_message.return_value = None
+    event.message = "text-msg"
+    assert _plain_text(event) == "text-msg"
+
+
+def test_plain_text_uses_event_data_message(
+    monkeypatch: pytest.MonkeyPatch,
+    enabled_config: SimpleNamespace,
+) -> None:
+    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    event = make_event()
+    event.get_plaintext.return_value = ""
+    event.get_message.return_value = None
+    event.message = None
+    event.data = SimpleNamespace(message="data-msg", segments=[])
+    assert _plain_text(event) == "data-msg"
+
+
+def test_plain_text_returns_none_when_no_message(
+    monkeypatch: pytest.MonkeyPatch,
+    enabled_config: SimpleNamespace,
+) -> None:
+    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    event = make_event()
+    event.get_plaintext.return_value = ""
+    event.get_message.return_value = None
+    event.message = None
+    event.data = SimpleNamespace()
+    assert _plain_text(event) is None
+
+
+def test_jsonable_returns_repr_when_depth_exceeded() -> None:
+    assert _jsonable("deep", depth=9) == repr("deep")
+
+
+def test_jsonable_slotted_object_without_dict() -> None:
+    class Slotted:
+        __slots__ = ()
+
+    result = _jsonable(Slotted())
+    assert isinstance(result, str)
+    assert "Slotted" in result
+
+
+def test_json_summary_returns_none_for_none() -> None:
+    assert _json_summary(None) is None
+
+
+def test_json_summary_falls_back_when_jsonable_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(adapters, "_jsonable", MagicMock(side_effect=TypeError("boom")))
+    result = _json_summary("x")
+    assert isinstance(result, str)
+    assert result == '"x"'
+
+
+def test_raw_message_falls_back_to_event_message_attr() -> None:
+    event = make_event()
+    event.get_message.return_value = None
+    event.message = "raw-msg"
+    assert _raw_message(event) == '"raw-msg"'
+
+
+def test_raw_message_falls_back_to_event_data() -> None:
+    event = make_event()
+    event.get_message.return_value = None
+    event.message = None
+    event.data = SimpleNamespace(message="data-raw", segments=[])
+    assert _raw_message(event) == '"data-raw"'
