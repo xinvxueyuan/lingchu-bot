@@ -14,10 +14,12 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.mute import (
     member_unmute_cmd,
     onebot11_mute,
     onebot11_recall_message,
+    onebot11_set_default_mute_duration,
     onebot11_unmute,
     onebot11_whole_mute,
     onebot11_whole_unmute,
     recall_message_cmd,
+    set_default_mute_duration_cmd,
     whole_mute_cmd,
     whole_unmute_cmd,
 )
@@ -110,6 +112,55 @@ class TestOneBot11Mute:
             duration=0,
         )
         assert "已解禁:" in finish_text(mock_finish)
+
+    @pytest.mark.asyncio
+    async def test_onebot11_set_default_mute_duration_updates_config(
+        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    ) -> None:
+        config_manager = MagicMock()
+        config_manager.get_config = AsyncMock(return_value=MagicMock(enabled=True))
+        config_manager.update_config = AsyncMock()
+
+        with (
+            patch.object(
+                mute_module, "get_handle_config_manager", return_value=config_manager
+            ),
+            patch.object(set_default_mute_duration_cmd, "finish") as mock_finish,
+        ):
+            await onebot11_set_default_mute_duration(
+                duration=600,
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+            )
+
+        config_manager.update_config.assert_awaited_once_with(
+            "member_mute",
+            {"defaults": {"mute_duration": 600}},
+        )
+        assert finish_text(mock_finish) == "默认禁言时长已更新为 600 秒"
+
+    @pytest.mark.asyncio
+    async def test_onebot11_set_default_mute_duration_rejects_duration_above_limit(
+        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    ) -> None:
+        config_manager = MagicMock()
+        config_manager.get_config = AsyncMock(return_value=MagicMock(enabled=True))
+        config_manager.update_config = AsyncMock()
+
+        with (
+            patch.object(
+                mute_module, "get_handle_config_manager", return_value=config_manager
+            ),
+            patch.object(set_default_mute_duration_cmd, "finish") as mock_finish,
+        ):
+            await onebot11_set_default_mute_duration(
+                duration=mute_module.MUTE_DURATION_MAX + 1,
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+            )
+
+        config_manager.update_config.assert_not_awaited()
+        assert "禁言时长不能超过" in finish_text(mock_finish)
 
     @pytest.mark.asyncio
     async def test_onebot11_whole_mute_calls_set_group_whole_ban(

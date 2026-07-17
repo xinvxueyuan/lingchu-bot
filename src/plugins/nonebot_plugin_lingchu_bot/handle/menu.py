@@ -346,6 +346,15 @@ _DEFAULT_MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         _QQ_BOTH,
     ),
     MenuFeature(
+        "set-default-mute-duration",
+        "set_default_mute_duration",
+        "speech-management",
+        LocalizedText("设置默认禁言时长", "Set default mute duration"),
+        LocalizedText("<时长秒数>", "<duration seconds>"),
+        PlatformCapability.MEMBER_MODERATION,
+        _QQ_BOTH,
+    ),
+    MenuFeature(
         "member-unmute",
         "member_unmute",
         "speech-management",

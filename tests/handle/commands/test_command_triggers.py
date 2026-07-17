@@ -29,6 +29,12 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         "chinese_aliases": {"禁言用户", "禁言群成员", "禁言成员", "禁", "封禁"},
         "english_aliases": {"ban", "mute-member", "ban-member"},
     },
+    "set_default_mute_duration": {
+        "primary": "设置默认禁言",
+        "english": "set-default-mute",
+        "chinese_aliases": {"默认禁言时长", "设置默认禁言时长"},
+        "english_aliases": {"default-mute-duration"},
+    },
     "member_unmute": {
         "primary": "解禁",
         "english": "unmute",
