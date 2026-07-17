@@ -751,6 +751,17 @@ class RobustAsyncTOMLDB:
         if self._watch_task is not None and not self._watch_task.done():
             raise WatchAlreadyRunningError
 
+        # 同步捕获初始 mtime 作为基线，避免在 watch loop 异步 stat 之前
+        # 调用方已经覆盖文件导致基线错位。
+        try:
+            stat_result = await aiofiles.os.stat(self.file_path)
+            self._watch_mtime = stat_result.st_mtime
+        except FileNotFoundError:
+            self._watch_mtime = 0.0
+        except OSError:
+            logger.exception("Initial watch stat failed")
+            self._watch_mtime = 0.0
+
         self._watch_task = asyncio.create_task(self._watch_loop(callback, interval))
 
     async def _watch_loop(
