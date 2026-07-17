@@ -196,6 +196,12 @@ _DEFAULT_COMMAND_TRIGGERS = {
         chinese_aliases=frozenset({"禁言用户", "禁言群成员", "禁言成员", "禁", "封禁"}),
         english_aliases=frozenset({"ban", "mute-member", "ban-member"}),
     ),
+    "set_default_mute_duration": CommandTrigger(
+        chinese="设置默认禁言",
+        english="set-default-mute",
+        chinese_aliases=frozenset({"默认禁言时长", "设置默认禁言时长"}),
+        english_aliases=frozenset({"default-mute-duration"}),
+    ),
     "member_unmute": CommandTrigger(
         chinese="解禁",
         english="unmute",
