@@ -79,6 +79,7 @@ class PlatformIdentityGroup(Model):
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     parent_group_id: Mapped[str | None] = mapped_column(compat_string(128), index=True)
     display_name: Mapped[str] = mapped_column(compat_string(128))
+    mcp_permission_level: Mapped[str | None] = mapped_column(compat_string(16))
     builtin: Mapped[bool] = mapped_column(CompatBoolean, default=False, index=True)
     managed_by: Mapped[str | None] = mapped_column(compat_string(64), index=True)
     created_at: Mapped[datetime] = mapped_column(

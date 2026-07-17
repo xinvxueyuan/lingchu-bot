@@ -297,6 +297,24 @@ LLM_SCHEMA_TEXT: Final = """{
     }},
     "observability": {"type": "object", "additionalProperties": false, "description": "Safe allowlisted stable-call logging.", "properties": {
       "enabled": {"type": "boolean", "default": true}
+    }},
+    "mcp": {"type": "object", "additionalProperties": false, "description": "Explicit reviewed MCP Agent runtime. Ordinary LLM calls remain tool-free.", "properties": {
+      "enabled": {"type": "boolean", "default": false},
+      "review_profile": {"type": "string", "minLength": 1},
+      "max_tool_rounds": {"type": "integer", "minimum": 1, "maximum": 5, "default": 5},
+      "max_parallel_tools": {"type": "integer", "minimum": 1, "maximum": 4, "default": 4},
+      "tool_timeout": {"type": "number", "exclusiveMinimum": 0, "maximum": 300, "default": 15},
+      "result_limit_bytes": {"type": "integer", "minimum": 1024, "maximum": 1048576, "default": 65536},
+      "request_timeout": {"type": "number", "exclusiveMinimum": 0, "maximum": 900, "default": 90},
+      "servers": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["name", "transport"], "properties": {
+        "name": {"type": "string", "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9_-]*$"},
+        "transport": {"type": "string", "enum": ["stdio", "streamable_http"]},
+        "command": {"type": "string", "minLength": 1},
+        "args": {"type": "array", "items": {"type": "string"}},
+        "url": {"type": "string", "format": "uri"},
+        "headers_env": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+        "allow_private_network": {"type": "boolean", "default": false}
+      }} }
     }}
   }
 }

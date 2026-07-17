@@ -136,6 +136,36 @@ allow_credentials_to_custom_base_url = false
 
 运行时不执行提供商返回的工具调用。`LLMEvent` 暴露 `tool_call_delta` 事件以便调用方观察工具调用流，但运行时绝不会代表模型调用工具、回调或本地函数。
 
+## 显式审查的 MCP Agent
+
+MCP 仅通过 `MCPAgentRuntime` 提供；普通 `LLMRuntime.respond()` 与 `stream()` 始终不带工具。该功能默认禁用，且只在 `llm.toml` 中配置：
+
+```toml
+[mcp]
+enabled = true
+review_profile = "reviewer"
+max_tool_rounds = 5
+max_parallel_tools = 4
+
+[[mcp.servers]]
+name = "local_docs"
+transport = "stdio"
+command = "uvx"
+args = ["example-mcp-server"]
+
+[[mcp.servers]]
+name = "remote_docs"
+transport = "streamable_http"
+url = "https://mcp.example.com/mcp"
+headers_env = "LINGCHU_MCP_HEADERS_JSON"
+```
+
+系统只暴露 MCP Tools，不支持 Resources、Prompts、Sampling 与旧版 SSE。模型侧名称统一为 `<server>.<tool>`。单轮最多并行四个调用，完整请求最多执行五轮。
+
+在任何 LLM 调用之前，现有身份组系统先授予适用范围内的最高 MCP 权限：`read`、`write_err`（可能无法撤销的变更）或 `critical`（可能造成系统级破坏）。独立且不带工具的审查 profile 会判定每个提案并可拒绝执行。审查失败时默认拒绝，并把未通过结果告知主 LLM。
+
+`write_err` 必须先持久化执行前审计。`critical` 还要求 `critical` 预授权，以及同一操作者、同一 NoneBot 会话回复一次性 `confirm`。确认与准确的服务、工具和参数哈希绑定，按工具超时过期，重启后失效，并在工具独占执行前被消费。MCP 元数据与结果始终按有界的不可信数据处理。
+
 ### 有界不可变数据
 
 `security.py` 强制使用有界、不可变、JSON-like 的数据：
@@ -155,6 +185,8 @@ allow_credentials_to_custom_base_url = false
 | `initialize_llm_runtime()` | 初始化一次，与重载和关闭串行 |
 | `reload_llm_runtime()` | 发布一个已校验的候选运行时，再关闭旧运行时 |
 | `shutdown_llm_runtime()` | 分离并关闭进程运行时 |
+| `reload_mcp_agent_runtime()` | 原子发布已校验的 MCP 配置，并关闭旧 transport |
+| `shutdown_mcp_agent_runtime()` | 使待确认项失效，并关闭 MCP session/transport |
 
 ### 热重载语义
 

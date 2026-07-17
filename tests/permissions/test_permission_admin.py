@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock
 
 import pytest
@@ -13,7 +14,11 @@ from src.plugins.nonebot_plugin_lingchu_bot.permissions.admin import (
     remove_identity_group_member,
     update_platform_identity_group,
 )
-from src.plugins.nonebot_plugin_lingchu_bot.permissions.types import PermissionContext
+from src.plugins.nonebot_plugin_lingchu_bot.permissions.types import (
+    IdentityGroupCreate,
+    MCPPermissionLevel,
+    PermissionContext,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.repositories import permissions as repo
 
 
@@ -24,7 +29,9 @@ async def test_non_superuser_cannot_create_group(
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=False))
 
     with pytest.raises(PermissionDeniedError):
-        await create_platform_identity_group("userA", "qq", "qq.custom", "自定义")
+        await create_platform_identity_group(
+            "userA", IdentityGroupCreate("qq", "qq.custom", "自定义")
+        )
 
 
 @pytest.mark.asyncio
@@ -34,12 +41,34 @@ async def test_superuser_can_create_group(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
     monkeypatch.setattr(repo, "upsert_identity_group", upsert)
 
-    result = await create_platform_identity_group("userA", "qq", "qq.custom", "自定义")
+    result = await create_platform_identity_group(
+        "userA",
+        IdentityGroupCreate(
+            "qq", "qq.custom", "自定义", mcp_permission_level="critical"
+        ),
+    )
 
     assert result is created
     assert upsert.await_args is not None
     assert upsert.await_args.kwargs["builtin"] is False
     assert upsert.await_args.kwargs["managed_by"] == "userA"
+    assert upsert.await_args.kwargs["mcp_permission_level"] == "critical"
+
+
+@pytest.mark.asyncio
+async def test_create_group_rejects_invalid_mcp_permission(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
+    request = IdentityGroupCreate(
+        "qq",
+        "qq.custom",
+        "自定义",
+        mcp_permission_level=cast("MCPPermissionLevel", "root"),
+    )
+
+    with pytest.raises(ValueError, match="Invalid MCP permission level"):
+        await create_platform_identity_group("userA", request)
 
 
 @pytest.mark.asyncio
@@ -96,7 +125,7 @@ async def test_update_unknown_group_raises(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.mark.asyncio
-async def test_update_group_filters_allowed_fields(
+async def test_update_group_rejects_unknown_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     original = SimpleNamespace(group_id="qq.custom", builtin=False)
@@ -110,19 +139,15 @@ async def test_update_group_filters_allowed_fields(
     update_mock = AsyncMock(return_value=(1, True))
     monkeypatch.setattr(repo, "update_identity_group", update_mock)
 
-    result = await update_platform_identity_group(
-        "userA",
-        "qq.custom",
-        display_name="new",
-        parent_group_id="qq.parent",
-        invalid_field="ignored",
-    )
+    with pytest.raises(ValueError, match="Unknown identity group fields"):
+        await update_platform_identity_group(
+            "userA",
+            "qq.custom",
+            display_name="new",
+            invalid_field="ignored",
+        )
 
-    assert result is updated
-    update_mock.assert_awaited_once_with(
-        "qq.custom",
-        {"display_name": "new", "parent_group_id": "qq.parent"},
-    )
+    update_mock.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -139,9 +164,7 @@ async def test_update_group_skips_when_no_allowed_fields(
     update_mock = AsyncMock(return_value=(1, True))
     monkeypatch.setattr(repo, "update_identity_group", update_mock)
 
-    result = await update_platform_identity_group(
-        "userA", "qq.custom", invalid_field="ignored"
-    )
+    result = await update_platform_identity_group("userA", "qq.custom")
 
     assert result is group
     update_mock.assert_not_awaited()
@@ -326,7 +349,9 @@ async def test_create_group_with_permission_context_actor(
         uid="userA",
     )
 
-    result = await create_platform_identity_group(context, "qq", "qq.custom", "自定义")
+    result = await create_platform_identity_group(
+        context, IdentityGroupCreate("qq", "qq.custom", "自定义")
+    )
 
     assert result is created
     assert upsert.await_args is not None

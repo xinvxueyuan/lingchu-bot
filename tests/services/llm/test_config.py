@@ -53,6 +53,158 @@ def test_empty_profiles_uses_legacy(legacy: RuntimeConfig, tmp_path: Path) -> No
     assert resolved.api_key == "legacy-key"
 
 
+def test_mcp_configuration_loads_named_servers(
+    legacy: RuntimeConfig, tmp_path: Path
+) -> None:
+    path = tmp_path / "llm.toml"
+    path.write_text(
+        'default_profile = "default"\n'
+        '[profiles.default]\nmodel = "gpt"\n'
+        '[mcp]\nenabled = true\nreview_profile = "default"\n'
+        '[[mcp.servers]]\nname = "local-tools"\ntransport = "stdio"\n'
+        'command = "uvx"\nargs = ["example-server"]\n'
+        '[[mcp.servers]]\nname = "remote_docs"\n'
+        'transport = "streamable_http"\nurl = "https://mcp.example/rpc"\n'
+        'headers_env = "MCP_HEADERS"\n'
+    )
+
+    with patch.object(module, "get_llm_config_file", return_value=path):
+        config = load_llm_runtime_config(legacy=legacy)
+
+    assert config.mcp.enabled is True
+    assert config.mcp.review_profile == "default"
+    assert [server.name for server in config.mcp.servers] == [
+        "local-tools",
+        "remote_docs",
+    ]
+    assert config.mcp.servers[0].args == ("example-server",)
+    assert config.mcp.servers[1].headers_env == "MCP_HEADERS"
+
+
+@pytest.mark.parametrize(
+    "server_config",
+    [
+        'name = "local"\ntransport = "stdio"\n',
+        'name = "local"\ntransport = "stdio"\ncommand = "uvx"\n'
+        'url = "https://mcp.example/rpc"\n',
+        'name = "remote"\ntransport = "streamable_http"\n',
+        'name = "remote"\ntransport = "streamable_http"\n'
+        'url = "http://127.0.0.1/rpc"\n',
+        'name = "remote"\ntransport = "streamable_http"\n'
+        'url = "https://mcp.example/rpc"\ncommand = "bad"\n',
+        'name = "Dotted.Name"\ntransport = "stdio"\ncommand = "uvx"\n',
+    ],
+)
+def test_mcp_server_transport_configuration_is_strict(
+    legacy: RuntimeConfig, tmp_path: Path, server_config: str
+) -> None:
+    path = tmp_path / "llm.toml"
+    path.write_text(
+        '[profiles.default]\nmodel = "gpt"\n'
+        '[mcp]\nenabled = true\nreview_profile = "default"\n'
+        "[[mcp.servers]]\n" + server_config
+    )
+
+    with (
+        patch.object(module, "get_llm_config_file", return_value=path),
+        pytest.raises(ValueError, match="invalid LLM configuration"),
+    ):
+        load_llm_runtime_config(legacy=legacy)
+
+
+def test_mcp_server_names_are_unique(legacy: RuntimeConfig, tmp_path: Path) -> None:
+    path = tmp_path / "llm.toml"
+    path.write_text(
+        '[profiles.default]\nmodel = "gpt"\n'
+        '[mcp]\nenabled = true\nreview_profile = "default"\n'
+        '[[mcp.servers]]\nname = "same"\ntransport = "stdio"\ncommand = "one"\n'
+        '[[mcp.servers]]\nname = "same"\ntransport = "stdio"\ncommand = "two"\n'
+    )
+
+    with (
+        patch.object(module, "get_llm_config_file", return_value=path),
+        pytest.raises(ValueError, match="invalid LLM configuration"),
+    ):
+        load_llm_runtime_config(legacy=legacy)
+
+
+def test_mcp_server_name_length_is_bounded(
+    legacy: RuntimeConfig, tmp_path: Path
+) -> None:
+    path = tmp_path / "llm.toml"
+    path.write_text(
+        '[profiles.default]\nmodel = "gpt"\n'
+        '[mcp]\nenabled = true\nreview_profile = "default"\n'
+        f'[[mcp.servers]]\nname = "{"s" * 65}"\n'
+        'transport = "stdio"\ncommand = "server"\n'
+    )
+
+    with (
+        patch.object(module, "get_llm_config_file", return_value=path),
+        pytest.raises(ValueError, match="invalid LLM configuration"),
+    ):
+        load_llm_runtime_config(legacy=legacy)
+
+
+def test_mcp_defaults_are_bounded(legacy: RuntimeConfig, tmp_path: Path) -> None:
+    path = tmp_path / "llm.toml"
+    path.write_text(
+        '[profiles.reviewer]\nmodel = "gpt"\n'
+        '[mcp]\nenabled = true\nreview_profile = "reviewer"\n'
+    )
+
+    with patch.object(module, "get_llm_config_file", return_value=path):
+        mcp = load_llm_runtime_config(legacy=legacy).mcp
+
+    assert mcp.max_tool_rounds == 5
+    assert mcp.max_parallel_tools == 4
+    assert mcp.tool_timeout == 15.0
+    assert mcp.result_limit_bytes == 65536
+    assert mcp.request_timeout == 90.0
+
+
+@pytest.mark.parametrize(
+    "setting",
+    ["max_tool_rounds = 6", "max_parallel_tools = 5"],
+)
+def test_mcp_hard_limits_cannot_be_raised(
+    legacy: RuntimeConfig, tmp_path: Path, setting: str
+) -> None:
+    path = tmp_path / "llm.toml"
+    path.write_text(
+        '[profiles.reviewer]\nmodel = "gpt"\n'
+        '[mcp]\nenabled = true\nreview_profile = "reviewer"\n'
+        f"{setting}\n"
+    )
+
+    with (
+        patch.object(module, "get_llm_config_file", return_value=path),
+        pytest.raises(ValueError, match="invalid LLM configuration"),
+    ):
+        load_llm_runtime_config(legacy=legacy)
+
+
+@pytest.mark.parametrize("review_profile", [None, "missing"])
+def test_enabled_mcp_requires_existing_review_profile(
+    legacy: RuntimeConfig,
+    tmp_path: Path,
+    review_profile: str | None,
+) -> None:
+    path = tmp_path / "llm.toml"
+    review_line = (
+        f'review_profile = "{review_profile}"\n' if review_profile is not None else ""
+    )
+    path.write_text(
+        '[profiles.default]\nmodel = "gpt"\n[mcp]\nenabled = true\n' + review_line
+    )
+
+    with (
+        patch.object(module, "get_llm_config_file", return_value=path),
+        pytest.raises(ValueError, match="invalid LLM configuration"),
+    ):
+        load_llm_runtime_config(legacy=legacy)
+
+
 def test_explicit_profile_without_api_key_env_does_not_inherit_legacy_key(
     legacy: RuntimeConfig, tmp_path: Path
 ) -> None:

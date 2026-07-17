@@ -237,8 +237,12 @@ clients and invalidates capability caches.
 - These switches acknowledge an operator-controlled trust boundary. The HTTP
   egress layer must still revalidate DNS results and redirects because static
   configuration validation does not perform blocking DNS resolution.
-- Model tool calls are returned as data. Lingchu does not automatically execute
-requested tools, shell commands, URLs, or provider actions.
+- Ordinary LLM calls return model tool calls as data and never execute them.
+  MCP execution exists only through the explicit reviewed Agent configured by
+  `[mcp]` in `llm.toml`; it requires identity-group preauthorization, a separate
+  tool-free review profile, durable audit for state changes, and same-session
+  one-time confirmation for `critical` calls. Set `enabled = false` to disable
+  all MCP discovery and execution.
 
 Both SDKs stay lazy: importing Lingchu or starting without a usable LLM profile
 does not import OpenAI or LiteLLM. Missing optional dependencies fail only when

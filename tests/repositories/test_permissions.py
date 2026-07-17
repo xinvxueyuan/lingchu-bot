@@ -206,6 +206,7 @@ async def test_upsert_identity_group_calls_upsert_with_correct_values() -> None:
             group_id="g1",
             platform_id="qq",
             display_name="Group 1",
+            mcp_permission_level="write_err",
             builtin=True,
             managed_by="plugin",
         )
@@ -216,12 +217,30 @@ async def test_upsert_identity_group_calls_upsert_with_correct_values() -> None:
     assert insert_values["group_id"] == "g1"
     assert insert_values["platform_id"] == "qq"
     assert insert_values["display_name"] == "Group 1"
+    assert insert_values["mcp_permission_level"] == "write_err"
     assert insert_values["builtin"] is True
     assert insert_values["managed_by"] == "plugin"
     assert upsert_mock.call_args.kwargs["conflict_fields"] == ["group_id"]
     update_values = upsert_mock.call_args.kwargs["update_values"]
     assert update_values["builtin"] is True
     assert update_values["managed_by"] == "plugin"
+    assert update_values["mcp_permission_level"] == "write_err"
+
+
+@pytest.mark.asyncio
+async def test_upsert_identity_group_preserves_level_when_unspecified() -> None:
+    upsert_mock = AsyncMock(return_value=_identity_group())
+
+    with patch.object(repo, "upsert", upsert_mock):
+        await repo.upsert_identity_group(
+            group_id="builtin",
+            platform_id="qq",
+            display_name="Builtin",
+            builtin=True,
+        )
+
+    assert upsert_mock.call_args.args[1]["mcp_permission_level"] is None
+    assert "mcp_permission_level" not in upsert_mock.call_args.kwargs["update_values"]
 
 
 @pytest.mark.asyncio

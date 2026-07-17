@@ -8,14 +8,21 @@ import ipaddress
 import os
 import tomllib
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, Self, cast
 from urllib.parse import urlparse
 
 import aiofiles
 import aiofiles.os
 from nonebot import require
 from nonebot_plugin_localstore import get_plugin_config_file
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from .security import (
     contains_control_plane_key,
@@ -48,6 +55,7 @@ BIDI_ISOLATE_START = 0x2066
 BIDI_ISOLATE_END = 0x2069
 HTTP_PORT = 80
 HTTPS_PORT = 443
+MAX_MCP_SERVER_NAME_LENGTH = 64
 
 
 class _LLMConfigError(ValueError):
@@ -165,12 +173,60 @@ class _ObservabilityModel(BaseModel):
     enabled: bool = True
 
 
+class _MCPServerModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(
+        max_length=MAX_MCP_SERVER_NAME_LENGTH,
+        pattern=r"^[a-z0-9][a-z0-9_-]*$",
+    )
+    transport: Literal["stdio", "streamable_http"]
+    command: str | None = None
+    args: list[str] = Field(default_factory=list)
+    url: str | None = None
+    headers_env: str | None = Field(default=None, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$")
+    allow_private_network: bool = False
+
+    @model_validator(mode="after")
+    def validate_transport(self) -> Self:
+        if self.transport == "stdio":
+            if not self.command or self.url or self.headers_env:
+                raise INVALID_CONFIGURATION
+            _safe_text(self.command)
+            for arg in self.args:
+                _safe_text(arg)
+        elif self.command or self.args or not self.url:
+            raise INVALID_CONFIGURATION
+        else:
+            _check_url(self.url, allow_private=self.allow_private_network)
+        return self
+
+
+class _MCPModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = False
+    review_profile: str | None = None
+    servers: list[_MCPServerModel] = Field(default_factory=list)
+    max_tool_rounds: int = Field(default=5, ge=1, le=5)
+    max_parallel_tools: int = Field(default=4, ge=1, le=4)
+    tool_timeout: float = Field(default=15.0, gt=0, le=300)
+    result_limit_bytes: int = Field(default=65536, ge=1024, le=1048576)
+    request_timeout: float = Field(default=90.0, gt=0, le=900)
+
+
 class _RootModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
     default_profile: str | None = None
     profiles: dict[str, _ProfileModel] = Field(default_factory=dict)
     router: _RouterModel = Field(default_factory=_RouterModel)
     observability: _ObservabilityModel = Field(default_factory=_ObservabilityModel)
+    mcp: _MCPModel = Field(default_factory=_MCPModel)
+
+    @model_validator(mode="after")
+    def validate_mcp(self) -> Self:
+        server_names = [server.name for server in self.mcp.servers]
+        if len(server_names) != len(set(server_names)):
+            raise INVALID_CONFIGURATION
+        return self
 
 
 @dataclass(frozen=True, slots=True)
@@ -217,11 +273,35 @@ class LLMObservabilityConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class MCPServerConfig:
+    name: str
+    transport: Literal["stdio", "streamable_http"]
+    command: str | None = None
+    args: tuple[str, ...] = ()
+    url: str | None = None
+    headers_env: str | None = None
+    allow_private_network: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class MCPRuntimeConfig:
+    enabled: bool = False
+    review_profile: str | None = None
+    servers: tuple[MCPServerConfig, ...] = ()
+    max_tool_rounds: int = 5
+    max_parallel_tools: int = 4
+    tool_timeout: float = 15.0
+    result_limit_bytes: int = 65536
+    request_timeout: float = 90.0
+
+
+@dataclass(frozen=True, slots=True)
 class LLMRuntimeConfig:
     default_profile: str
     profiles: Mapping[str, LLMProfileConfig]
     router: LiteLLMRouterConfig
     observability: LLMObservabilityConfig
+    mcp: MCPRuntimeConfig = field(default_factory=MCPRuntimeConfig)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "profiles", MappingProxyType(dict(self.profiles)))
@@ -307,6 +387,8 @@ def load_llm_runtime_config(*, legacy: RuntimeConfig) -> LLMRuntimeConfig:
     default = root.default_profile or next(iter(source))
     if default not in source:
         raise MISSING_DEFAULT_PROFILE
+    if root.mcp.enabled and root.mcp.review_profile not in source:
+        raise INVALID_CONFIGURATION
     profiles: dict[str, LLMProfileConfig] = {}
     for name, p in source.items():
         if not name.strip():
@@ -333,6 +415,21 @@ def load_llm_runtime_config(*, legacy: RuntimeConfig) -> LLMRuntimeConfig:
         profiles,
         LiteLLMRouterConfig(root.router.model_dump()),
         LLMObservabilityConfig(root.observability.model_dump()),
+        MCPRuntimeConfig(
+            enabled=root.mcp.enabled,
+            review_profile=root.mcp.review_profile,
+            max_tool_rounds=root.mcp.max_tool_rounds,
+            max_parallel_tools=root.mcp.max_parallel_tools,
+            tool_timeout=root.mcp.tool_timeout,
+            result_limit_bytes=root.mcp.result_limit_bytes,
+            request_timeout=root.mcp.request_timeout,
+            servers=tuple(
+                MCPServerConfig(
+                    **server.model_dump(exclude={"args"}), args=tuple(server.args)
+                )
+                for server in root.mcp.servers
+            ),
+        ),
     )
 
 

@@ -136,6 +136,36 @@ A separate `_ROUTER_CONTROL_KEYS` set in `backends.py` rejects LiteLLM Router ca
 
 The runtime does not execute tool calls returned by the provider. `LLMEvent` exposes `tool_call_delta` events so callers can observe tool-call streaming, but the runtime never invokes tools, callbacks, or local functions on behalf of the model.
 
+## Explicit reviewed MCP Agent
+
+MCP is available only through `MCPAgentRuntime`; ordinary `LLMRuntime.respond()` and `stream()` remain tool-free. The feature is disabled by default and configured only in `llm.toml`:
+
+```toml
+[mcp]
+enabled = true
+review_profile = "reviewer"
+max_tool_rounds = 5
+max_parallel_tools = 4
+
+[[mcp.servers]]
+name = "local_docs"
+transport = "stdio"
+command = "uvx"
+args = ["example-mcp-server"]
+
+[[mcp.servers]]
+name = "remote_docs"
+transport = "streamable_http"
+url = "https://mcp.example.com/mcp"
+headers_env = "LINGCHU_MCP_HEADERS_JSON"
+```
+
+Only MCP tools are exposed. Resources, prompts, sampling, and legacy SSE are not supported. Model-facing names use `<server>.<tool>`. One round may contain at most four calls and the full request may run at most five rounds.
+
+Before any LLM call, the existing identity-group system grants the highest applicable MCP permission: `read`, `write_err` (possibly irreversible changes), or `critical` (possible system-level damage). A separate tool-free review profile classifies every proposed call and may deny it. Review failure is fail-closed and the main LLM receives a denial result.
+
+`write_err` requires a durable pre-execution audit. `critical` additionally requires `critical` preauthorization and a one-time `confirm` reply from the same actor and NoneBot session. The confirmation is bound to the exact server, tool, and argument hash, expires with the tool timeout, is invalid after restart, and is consumed before the call executes alone. MCP metadata and results are always treated as bounded untrusted data.
+
 ### Bounded immutable data
 
 `security.py` enforces bounded, immutable, JSON-like data:
@@ -155,6 +185,8 @@ A single managed `LLMRuntime` instance is held by `_managed_state` in `runtime.p
 | `initialize_llm_runtime()` | Initialize once, serialized with reload and shutdown |
 | `reload_llm_runtime()` | Publish a validated candidate, then close the previous runtime |
 | `shutdown_llm_runtime()` | Detach and close the process runtime |
+| `reload_mcp_agent_runtime()` | Atomically publish validated MCP configuration and close old transports |
+| `shutdown_mcp_agent_runtime()` | Invalidate pending confirmations and close MCP sessions/transports |
 
 ### Hot reload semantics
 

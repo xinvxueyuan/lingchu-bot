@@ -6,6 +6,7 @@ import asyncio
 
 from nonebot import get_driver, logger
 
+from ...services.llm.mcp_lifecycle import shutdown_mcp_agent_runtime
 from ...services.llm.runtime import shutdown_llm_runtime
 from ...services.message_store import shutdown_message_store
 from ...services.scheduler import shutdown_scheduler_service
@@ -25,6 +26,7 @@ async def on_shutdown() -> None:
     """Shut down Lingchu runtime services when the NoneBot driver stops."""
     services = (
         ("scheduler", shutdown_scheduler_service),
+        ("MCP Agent runtime", shutdown_mcp_agent_runtime),
         ("LLM runtime", shutdown_llm_runtime),
         ("message store", shutdown_message_store),
     )
