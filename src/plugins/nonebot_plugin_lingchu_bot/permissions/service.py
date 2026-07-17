@@ -2,13 +2,23 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypeIs
 
 from ..core.runtime_config import runtime_config
 from ..platforms import get_platform_profile, resolve_adapter_id
 from ..repositories import permissions as repo
 from .platforms import resolve_runtime_identity_groups
-from .types import PermissionContext, PermissionDecision
+from .types import MCPPermissionLevel, PermissionContext, PermissionDecision
+
+_MCP_PERMISSION_RANK: dict[MCPPermissionLevel, int] = {
+    "read": 0,
+    "write_err": 1,
+    "critical": 2,
+}
+
+
+def _is_mcp_permission_level(value: str | None) -> TypeIs[MCPPermissionLevel]:
+    return value in _MCP_PERMISSION_RANK
 
 
 async def resolve_user_identity(platform_id: str, account_id: str) -> Any | None:
@@ -86,16 +96,7 @@ async def check_permission_for_context(
             matched_groups=frozenset({repo.SUPERUSERS_GROUP_ID}),
         )
 
-    direct_groups = (
-        set(context.runtime_group_ids)
-        if platform_runtime_passthrough_enabled(context)
-        else set()
-    )
-    for membership in await repo.list_memberships(uid=context.uid):
-        if _membership_matches_context(membership, context):
-            direct_groups.add(membership.group_id)
-
-    effective_groups = await _with_ancestor_groups(direct_groups)
+    effective_groups = await _effective_group_ids(context)
     if not effective_groups:
         return PermissionDecision(
             allowed=False,
@@ -115,6 +116,24 @@ async def check_permission_for_context(
             matched_groups=allowed_groups,
         )
     return PermissionDecision(allowed=False, reason="missing_grant", uid=context.uid)
+
+
+async def resolve_mcp_permission(
+    context: PermissionContext,
+) -> MCPPermissionLevel | None:
+    if context.uid is None:
+        return None
+    if await repo.is_superuser(context.uid):
+        return "critical"
+
+    effective_groups = await _effective_group_ids(context)
+    groups = await repo.list_identity_groups()
+    levels: list[MCPPermissionLevel] = []
+    for group in groups:
+        level = group.mcp_permission_level
+        if group.group_id in effective_groups and _is_mcp_permission_level(level):
+            levels.append(level)
+    return max(levels, key=_MCP_PERMISSION_RANK.__getitem__, default=None)
 
 
 def platform_runtime_passthrough_enabled(context: PermissionContext) -> bool:
@@ -199,3 +218,17 @@ async def _with_ancestor_groups(group_ids: set[str]) -> frozenset[str]:
             expanded.add(parent_group_id)
             stack.append(parent_group_id)
     return frozenset(expanded)
+
+
+async def _effective_group_ids(context: PermissionContext) -> frozenset[str]:
+    if context.uid is None:
+        return frozenset()
+    direct_groups: set[str] = (
+        set(context.runtime_group_ids)
+        if platform_runtime_passthrough_enabled(context)
+        else set()
+    )
+    for membership in await repo.list_memberships(uid=context.uid):
+        if _membership_matches_context(membership, context):
+            direct_groups.add(membership.group_id)
+    return await _with_ancestor_groups(direct_groups)

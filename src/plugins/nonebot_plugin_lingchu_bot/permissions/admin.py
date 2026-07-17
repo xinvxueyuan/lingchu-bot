@@ -6,11 +6,16 @@ from typing import Any
 
 from ..database.models import IdentityMembership, PlatformIdentityGroup
 from ..repositories import permissions as repo
-from .types import PermissionContext
+from .types import IdentityGroupCreate, PermissionContext
 
 
 class PermissionDeniedError(PermissionError):
     """Raised when an actor is not allowed to administer permissions."""
+
+
+def _validate_mcp_permission_level(value: object) -> None:
+    if value not in {None, "read", "write_err", "critical"}:
+        raise ValueError(f"Invalid MCP permission level: {value}")
 
 
 async def assert_superuser(actor: str | PermissionContext) -> None:
@@ -21,18 +26,17 @@ async def assert_superuser(actor: str | PermissionContext) -> None:
 
 async def create_platform_identity_group(
     actor: str | PermissionContext,
-    platform_id: str,
-    group_id: str,
-    display_name: str,
-    parent_group_id: str | None = None,
+    request: IdentityGroupCreate,
 ) -> PlatformIdentityGroup:
     await assert_superuser(actor)
+    _validate_mcp_permission_level(request.mcp_permission_level)
     actor_uid = actor.uid if isinstance(actor, PermissionContext) else str(actor)
     return await repo.upsert_identity_group(
-        group_id=group_id,
-        platform_id=platform_id,
-        display_name=display_name,
-        parent_group_id=parent_group_id,
+        group_id=request.group_id,
+        platform_id=request.platform_id,
+        display_name=request.display_name,
+        parent_group_id=request.parent_group_id,
+        mcp_permission_level=request.mcp_permission_level,
         builtin=False,
         managed_by=actor_uid,
     )
@@ -50,8 +54,13 @@ async def update_platform_identity_group(
     if group.builtin:
         raise ValueError(f"Builtin identity group cannot be updated: {group_id}")
 
-    allowed_fields = {"display_name", "parent_group_id"}
-    values = {key: value for key, value in fields.items() if key in allowed_fields}
+    allowed_fields = {"display_name", "parent_group_id", "mcp_permission_level"}
+    unknown_fields = fields.keys() - allowed_fields
+    if unknown_fields:
+        raise ValueError(f"Unknown identity group fields: {sorted(unknown_fields)}")
+    values = dict(fields)
+    mcp_permission_level = values.get("mcp_permission_level")
+    _validate_mcp_permission_level(mcp_permission_level)
     if values:
         await repo.update_identity_group(group_id, values)
     updated = await repo.get_identity_group(group_id)

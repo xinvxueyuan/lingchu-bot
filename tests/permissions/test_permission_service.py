@@ -10,6 +10,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.permissions.service import (
     check_permission,
     check_permission_for_context,
     platform_runtime_passthrough_enabled,
+    resolve_mcp_permission,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.permissions.types import PermissionContext
 from src.plugins.nonebot_plugin_lingchu_bot.repositories import permissions as repo
@@ -170,6 +171,82 @@ async def test_check_permission_denies_when_no_effective_groups(
     assert decision.allowed is False
     assert decision.reason == "missing_grant"
     assert decision.uid == "userA"
+
+
+@pytest.mark.asyncio
+async def test_resolve_mcp_permission_returns_none_without_grant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=False))
+    monkeypatch.setattr(repo, "list_memberships", AsyncMock(return_value=[]))
+    monkeypatch.setattr(repo, "list_identity_groups", AsyncMock(return_value=[]))
+
+    assert await resolve_mcp_permission(_make_context()) is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_mcp_permission_superuser_is_critical(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
+
+    assert await resolve_mcp_permission(_make_context()) == "critical"
+
+
+@pytest.mark.asyncio
+async def test_resolve_mcp_permission_uses_highest_effective_group_level(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = _make_context(runtime_group_ids=frozenset({"qq.runtime"}))
+    monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=False))
+    monkeypatch.setattr(
+        repo,
+        "list_memberships",
+        AsyncMock(
+            return_value=[
+                SimpleNamespace(
+                    group_id="qq.scoped",
+                    scope_type="group",
+                    scope_id="10001",
+                ),
+                SimpleNamespace(
+                    group_id="qq.other",
+                    scope_type="group",
+                    scope_id="99999",
+                ),
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        repo,
+        "list_identity_groups",
+        AsyncMock(
+            return_value=[
+                SimpleNamespace(
+                    group_id="qq.runtime",
+                    parent_group_id="qq.parent",
+                    mcp_permission_level="read",
+                ),
+                SimpleNamespace(
+                    group_id="qq.parent",
+                    parent_group_id=None,
+                    mcp_permission_level="critical",
+                ),
+                SimpleNamespace(
+                    group_id="qq.scoped",
+                    parent_group_id=None,
+                    mcp_permission_level="write_err",
+                ),
+                SimpleNamespace(
+                    group_id="qq.other",
+                    parent_group_id=None,
+                    mcp_permission_level="critical",
+                ),
+            ]
+        ),
+    )
+
+    assert await resolve_mcp_permission(context) == "critical"
 
 
 @pytest.mark.asyncio

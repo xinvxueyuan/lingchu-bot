@@ -51,6 +51,7 @@ dependencies = [
 ai = [
     "openai>=2.45.0",
     "litellm>=1.92.0",
+    "mcp>=1.28.1,<2.0.0",
 ]
 novelai = [
     "argon2-cffi>=25.1.0",
@@ -381,6 +382,12 @@ allowed-confusables = [
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/services/llm/events.py" = [
     "BLE001", # provider stream objects may raise from hostile attribute access
+]
+"src/plugins/nonebot_plugin_lingchu_bot/services/llm/mcp.py" = [
+    "BLE001", # optional MCP transports and sessions may raise arbitrary SDK exceptions at normalization boundaries
+]
+"src/plugins/nonebot_plugin_lingchu_bot/services/llm/agent.py" = [
+    "BLE001", # LLM and MCP collaborators may raise arbitrary provider exceptions at fail-closed boundaries
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/services/llm/runtime.py" = [
     "A002",   # `input` is the public facade parameter named by the runtime specification
