@@ -34,20 +34,15 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
-# Oracle 通过 unique index 实现 UniqueConstraint；显式再 ``create_index``
-# 同一列会触发 ORA-01408。``job_id`` 在 Oracle 上由唯一约束提供索引，
-# 其余方言保留显式非唯一索引以加速按 ``job_id`` 的查询。
+# ``job_id`` 由 ``UniqueConstraint`` 在所有方言上都已建立唯一索引，
+# 迁移不再额外创建 ``ix_lingchu_scheduled_jobs_job_id``，避免与
+# 模型的 schema 声明冲突（同时绕开 Oracle ORA-01408）。
 _SCHEDULED_JOBS_INDEX_COLUMNS: tuple[str, ...] = (
-    "job_id",
     "handler_key",
     "enabled",
     "created_at",
     "updated_at",
 )
-
-
-def _oracle_index_columns() -> tuple[str, ...]:
-    return tuple(c for c in _SCHEDULED_JOBS_INDEX_COLUMNS if c != "job_id")
 
 
 def upgrade(name: str = "") -> None:
@@ -76,13 +71,7 @@ def upgrade(name: str = "") -> None:
         ),
         info={"bind_key": "nonebot_plugin_lingchu_bot"},
     )
-    dialect = op.get_bind().dialect.name
-    index_columns = (
-        _oracle_index_columns()
-        if dialect == "oracle"
-        else _SCHEDULED_JOBS_INDEX_COLUMNS
-    )
-    for column in index_columns:
+    for column in _SCHEDULED_JOBS_INDEX_COLUMNS:
         op.create_index(
             op.f(f"ix_lingchu_scheduled_jobs_{column}"),
             "lingchu_scheduled_jobs",
@@ -95,13 +84,7 @@ def downgrade(name: str = "") -> None:
     if name:
         return
 
-    dialect = op.get_bind().dialect.name
-    index_columns = (
-        _oracle_index_columns()
-        if dialect == "oracle"
-        else _SCHEDULED_JOBS_INDEX_COLUMNS
-    )
-    for column in tuple(reversed(index_columns)):
+    for column in tuple(reversed(_SCHEDULED_JOBS_INDEX_COLUMNS)):
         op.drop_index(
             op.f(f"ix_lingchu_scheduled_jobs_{column}"),
             table_name="lingchu_scheduled_jobs",
