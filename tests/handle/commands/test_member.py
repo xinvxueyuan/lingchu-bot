@@ -12,9 +12,11 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default 
     common as onebot11_common_module,
     member as onebot11_member_module,
 )
+from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.kick import (
+    kick_member_cmd,
+    onebot11_kick_member,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.member import (
-    kick_group_member_cmd,
-    onebot11_kick_group_member,
     onebot11_set_group_member_admin,
     onebot11_set_group_member_card,
     onebot11_set_group_member_special_title,
@@ -181,7 +183,7 @@ async def test_onebot11_unset_group_member_admin_calls_v11_api(
 
 
 @pytest.mark.asyncio
-async def test_onebot11_kick_group_member_calls_v11_api(
+async def test_onebot11_kick_member_calls_v11_api(
     mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
 ) -> None:
     mock_onebot11_bot.set_group_kick = AsyncMock()
@@ -191,15 +193,8 @@ async def test_onebot11_kick_group_member_calls_v11_api(
         side_effect=[{"role": "member"}, {"role": "admin"}]
     )
 
-    with (
-        patch.object(kick_group_member_cmd, "finish") as mock_finish,
-        patch.object(
-            onebot11_member_module,
-            "find_active_block",
-            new=AsyncMock(return_value={"user_id": 987654321}),
-        ),
-    ):
-        await onebot11_kick_group_member(
+    with patch.object(kick_member_cmd, "finish") as mock_finish:
+        await onebot11_kick_member(
             user=mock_at,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
@@ -210,7 +205,7 @@ async def test_onebot11_kick_group_member_calls_v11_api(
         user_id=987654321,
         reject_add_request=False,
     )
-    assert "已踢出群成员: 测试用户(987654321)" in finish_text(mock_finish)
+    assert "已踢出群成员" in finish_text(mock_finish)
 
 
 @pytest.mark.asyncio

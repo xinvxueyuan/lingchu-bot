@@ -47,7 +47,6 @@ from .common import (
     check_bot_privilege,
     check_self_target,
     default_admin_reason,
-    default_block_reason,
     format_user_display_name,
     operator_is_superuser_onebot11,
     record_audit_fire_and_forget,
@@ -254,12 +253,20 @@ async def _check_remote_target_privilege(
 async def onebot11_remote_mute(
     group_id: int | str,
     user: At | int,
-    duration: int,
+    duration: int | None,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     reason: str | None = None,
 ) -> Any:
     """远程禁言处理器"""
+    config = await get_handle_config_manager().get_config("remote_mute")
+    if not config.enabled:
+        return await remote_mute_cmd.finish(await _("该功能已禁用"))
+    actual_duration = (
+        duration if duration is not None else config.defaults.get("mute_duration", 60)
+    )
+    default_reason_text = config.defaults.get("default_reason", "管理员操作")
+
     # 1. 解析群聊标识符
     resolved_group_id = await _resolve_group_id(bot, group_id, remote_mute_cmd)
     if resolved_group_id is None:
@@ -267,11 +274,11 @@ async def onebot11_remote_mute(
     group_id_int = resolved_group_id
 
     # 2. 参数合法性检查
-    if duration < MUTE_DURATION_MIN:
+    if actual_duration < MUTE_DURATION_MIN:
         return await remote_mute_cmd.finish(
             (await _("禁言时长不能小于 {min} 秒")).format(min=MUTE_DURATION_MIN)
         )
-    if duration > MUTE_DURATION_MAX:
+    if actual_duration > MUTE_DURATION_MAX:
         return await remote_mute_cmd.finish(
             (await _("禁言时长不能超过 {max} 秒（30天）")).format(max=MUTE_DURATION_MAX)
         )
@@ -300,7 +307,7 @@ async def onebot11_remote_mute(
     # 6. 执行禁言操作
     try:
         await bot.set_group_ban(
-            group_id=group_id_int, user_id=target_user_id, duration=duration
+            group_id=group_id_int, user_id=target_user_id, duration=actual_duration
         )
     except OneBot11ActionFailed as e:
         logger.error(f"远程禁言失败，操作被拒绝: {e!r}")
@@ -313,14 +320,14 @@ async def onebot11_remote_mute(
         CommandAudit(
             action="remote_mute",
             target_user_id=target_user_id,
-            duration=duration,
-            reason=reason,
+            duration=actual_duration,
+            reason=reason if reason is not None else default_reason_text,
             group_id=group_id_int,
         ),
     )
 
     # 8. 格式化反馈消息
-    reason_text = await default_block_reason(reason)
+    reason_text = await _(default_reason_text) if reason is None else reason
     name_display = format_user_display_name(target_user_id, target_name)
     message = await _(
         "已远程禁言: \n"
@@ -334,7 +341,7 @@ async def onebot11_remote_mute(
         message.format(
             group_id=group_id_int,
             name_display=name_display,
-            duration=duration,
+            duration=actual_duration,
             reason=reason_text,
             target_user_id=target_user_id,
         )
@@ -600,6 +607,14 @@ async def onebot11_remote_block(
     reason: str | None = None,
 ) -> Any:
     """远程拉黑群成员处理器"""
+    config = await get_handle_config_manager().get_config("remote_block")
+    if not config.enabled:
+        return await remote_block_cmd.finish(await _("该功能已禁用"))
+    actual_duration = (
+        duration if duration is not None else config.defaults.get("block_duration")
+    )
+    default_reason_text = config.defaults.get("default_reason", "违反群规")
+
     # 1. 解析群聊标识符
     resolved_group_id = await _resolve_group_id(bot, group_id, remote_block_cmd)
     if resolved_group_id is None:
@@ -624,13 +639,13 @@ async def onebot11_remote_block(
         return None
 
     # 4. 存储黑名单记录并踢出用户
-    reason_text = await default_block_reason(reason)
+    reason_text = await _(default_reason_text) if reason is None else reason
     try:
         await store_block_record(
             scope="group",
             group_id=group_id_int,
             user_id=target_user_id,
-            duration=duration,
+            duration=actual_duration,
             reason=reason_text,
             bot=bot,
             operator_id=event.user_id,
@@ -650,14 +665,16 @@ async def onebot11_remote_block(
         CommandAudit(
             action="remote_block",
             target_user_id=target_user_id,
-            duration=duration,
-            reason=reason,
+            duration=actual_duration,
+            reason=reason_text,
             group_id=group_id_int,
         ),
     )
 
     # 6. 格式化反馈消息
-    duration_text = await _("永久") if duration is None else f"{duration} 秒"
+    duration_text = (
+        await _("永久") if actual_duration is None else f"{actual_duration} 秒"
+    )
     name_display = format_user_display_name(target_user_id, target_name)
     message = (
         await _(

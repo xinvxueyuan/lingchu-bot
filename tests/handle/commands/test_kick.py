@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -61,14 +60,7 @@ async def test_onebot11_kick_member_with_at(
         side_effect=[{"role": "member"}, {"role": "admin"}]
     )
 
-    with (
-        patch.object(
-            kick_module,
-            "find_active_block",
-            AsyncMock(return_value=SimpleNamespace(reason="测试黑名单")),
-        ),
-        patch.object(kick_member_cmd, "finish") as mock_finish,
-    ):
+    with patch.object(kick_member_cmd, "finish") as mock_finish:
         await kick_module.onebot11_kick_member(
             user=mock_at,
             reason=None,
@@ -102,14 +94,7 @@ async def test_onebot11_kick_member_with_direct_user_id(
         ]
     )
 
-    with (
-        patch.object(
-            kick_module,
-            "find_active_block",
-            AsyncMock(return_value=SimpleNamespace(reason="测试黑名单")),
-        ),
-        patch.object(kick_member_cmd, "finish") as mock_finish,
-    ):
+    with patch.object(kick_member_cmd, "finish") as mock_finish:
         await kick_module.onebot11_kick_member(
             user=_TEST_KICK_USER_ID,
             reason="测试原因",
@@ -127,17 +112,17 @@ async def test_onebot11_kick_member_with_direct_user_id(
 
 
 @pytest.mark.asyncio
-async def test_onebot11_kick_member_not_in_blocklist(
+async def test_onebot11_kick_member_does_not_require_blocklist(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
     mock_at: MagicMock,
 ) -> None:
-    """测试用户不在黑名单中时拒绝踢出"""
+    """直接踢人不依赖黑名单记录。"""
     mock_onebot11_bot.set_group_kick = AsyncMock()
-    with (
-        patch.object(kick_module, "find_active_block", AsyncMock(return_value=None)),
-        patch.object(kick_member_cmd, "finish") as mock_finish,
-    ):
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        side_effect=[{"role": "member"}, {"role": "admin"}]
+    )
+    with patch.object(kick_member_cmd, "finish") as mock_finish:
         await kick_module.onebot11_kick_member(
             user=mock_at,
             reason=None,
@@ -145,39 +130,8 @@ async def test_onebot11_kick_member_not_in_blocklist(
             event=mock_onebot11_event,
         )
 
-    assert "不在黑名单中" in finish_text(mock_finish)
-    # 确保没有调用踢出 API
-    mock_onebot11_bot.set_group_kick.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_onebot11_kick_member_database_error(
-    mock_onebot11_bot: MagicMock,
-    mock_onebot11_event: MagicMock,
-    mock_at: MagicMock,
-) -> None:
-    """测试查询黑名单时数据库异常"""
-    from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import DatabaseError
-
-    mock_onebot11_bot.set_group_kick = AsyncMock()
-    with (
-        patch.object(
-            kick_module,
-            "find_active_block",
-            AsyncMock(side_effect=DatabaseError("数据库连接失败")),
-        ),
-        patch.object(kick_member_cmd, "finish") as mock_finish,
-    ):
-        await kick_module.onebot11_kick_member(
-            user=mock_at,
-            reason=None,
-            bot=mock_onebot11_bot,
-            event=mock_onebot11_event,
-        )
-
-    assert "查询黑名单失败" in finish_text(mock_finish)
-    # 确保没有调用踢出 API
-    mock_onebot11_bot.set_group_kick.assert_not_called()
+    mock_onebot11_bot.set_group_kick.assert_awaited_once()
+    assert "已踢出群成员" in finish_text(mock_finish)
 
 
 @pytest.mark.asyncio
@@ -239,14 +193,7 @@ async def test_onebot11_kick_member_action_failed(
         side_effect=[{"role": "member"}, {"role": "admin"}]
     )
 
-    with (
-        patch.object(
-            kick_module,
-            "find_active_block",
-            AsyncMock(return_value=SimpleNamespace(reason="测试黑名单")),
-        ),
-        patch.object(kick_member_cmd, "finish") as mock_finish,
-    ):
+    with patch.object(kick_member_cmd, "finish") as mock_finish:
         await kick_module.onebot11_kick_member(
             user=mock_at,
             reason=None,

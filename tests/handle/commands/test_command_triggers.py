@@ -29,6 +29,12 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         "chinese_aliases": {"禁言用户", "禁言群成员", "禁言成员", "禁", "封禁"},
         "english_aliases": {"ban", "mute-member", "ban-member"},
     },
+    "manage_handle_defaults": {
+        "primary": "设置功能默认值",
+        "english": "set-handle-default",
+        "chinese_aliases": {"功能默认值", "查看功能默认值"},
+        "english_aliases": {"handle-defaults", "list-handle-defaults"},
+    },
     "set_default_mute_duration": {
         "primary": "设置默认禁言",
         "english": "set-default-mute",
@@ -125,9 +131,9 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         "english_aliases": {"unset-admin", "revoke-admin"},
     },
     "kick_member": {
-        "primary": "踢出群成员",
+        "primary": "踢出",
         "english": "kick-member",
-        "chinese_aliases": {"踢出", "踢人", "移出群成员"},
+        "chinese_aliases": {"踢", "踢出群成员", "踢人", "移出群成员"},
         "english_aliases": {"kick", "remove-member"},
     },
     "block_member": {

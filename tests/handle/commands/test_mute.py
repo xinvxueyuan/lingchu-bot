@@ -140,6 +140,46 @@ class TestOneBot11Mute:
         assert finish_text(mock_finish) == "默认禁言时长已更新为 600 秒"
 
     @pytest.mark.asyncio
+    async def test_onebot11_mute_uses_configured_default_duration(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_at: MagicMock,
+    ) -> None:
+        config_manager = MagicMock()
+        config_manager.get_config = AsyncMock(
+            return_value=MagicMock(
+                enabled=True,
+                defaults={"mute_duration": 600, "default_reason": "管理员操作"},
+            )
+        )
+        mock_onebot11_bot.set_group_ban = AsyncMock()
+        mock_onebot11_bot.get_group_member_info = AsyncMock(
+            side_effect=[{"role": "member"}, {"role": "admin"}]
+        )
+
+        with (
+            patch.object(
+                mute_module, "get_handle_config_manager", return_value=config_manager
+            ),
+            patch.object(member_mute_cmd, "finish") as mock_finish,
+        ):
+            await onebot11_mute(
+                user=mock_at,
+                duration=None,
+                reason=None,
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+            )
+
+        mock_onebot11_bot.set_group_ban.assert_awaited_once_with(
+            group_id=mock_onebot11_event.group_id,
+            user_id=987654321,
+            duration=600,
+        )
+        assert "时长: 600 秒" in finish_text(mock_finish)
+
+    @pytest.mark.asyncio
     async def test_onebot11_set_default_mute_duration_rejects_duration_above_limit(
         self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
     ) -> None:

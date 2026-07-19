@@ -14,7 +14,6 @@ _SET_MEMBER_CARD = COMMAND_TRIGGERS["set_member_card"]
 _SET_MEMBER_TITLE = COMMAND_TRIGGERS["set_member_title"]
 _SET_MEMBER_ADMIN = COMMAND_TRIGGERS["set_member_admin"]
 _UNSET_MEMBER_ADMIN = COMMAND_TRIGGERS["unset_member_admin"]
-_KICK_MEMBER = COMMAND_TRIGGERS["kick_member"]
 
 set_group_member_card_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
@@ -60,24 +59,12 @@ unset_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
-kick_group_member_cmd: type[AlconnaMatcher] = on_alconna(
-    command=Alconna(
-        _KICK_MEMBER.primary,
-        Args["user", At | int],
-    ),
-    aliases=_KICK_MEMBER.aliases,
-    priority=5,
-    block=True,
-    use_cmd_sep=True,
-    use_cmd_start=True,
-)
 
 _LAZY_EXPORTS = {
     "onebot11_set_group_member_card": "..adapters.onebot11.default.member",
     "onebot11_set_group_member_special_title": "..adapters.onebot11.default.member",
     "onebot11_set_group_member_admin": "..adapters.onebot11.default.member",
     "onebot11_unset_group_member_admin": "..adapters.onebot11.default.member",
-    "onebot11_kick_group_member": "..adapters.onebot11.default.member",
 }
 
 

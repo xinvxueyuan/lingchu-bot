@@ -7,6 +7,7 @@ from nonebot.adapters.onebot.v11.event import (
 )
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
 
+from ......core.runtime_config import get_handle_config_manager
 from ......i18n import _async as _
 from ......services.protocol_restart_feedback import (
     clear_pending_restart_feedback_for,
@@ -58,7 +59,13 @@ async def onebot11_restart_protocol_endpoint(
     event: OneBot11GroupMessageEvent,
     platform: str | None = None,
 ) -> Any:
-    if not _is_current_onebot11_platform(platform):
+    config = await get_handle_config_manager().get_config("restart_protocol_endpoint")
+    if not config.enabled:
+        return await restart_protocol_endpoint_cmd.finish(await _("该功能已禁用"))
+    actual_platform = platform or str(
+        config.defaults.get("default_platform", "当前平台")
+    )
+    if not _is_current_onebot11_platform(actual_platform):
         return await restart_protocol_endpoint_cmd.finish(
             await _("当前仅支持重启当前 QQ OneBot V11 协议端")
         )

@@ -87,7 +87,7 @@ def test_mass_announcement_defaults_are_registered() -> None:
 def test_restart_protocol_endpoint_defaults_are_registered() -> None:
     assert HANDLE_DEFAULTS_REGISTRY["restart_protocol_endpoint"] == {
         "enabled": True,
-        "defaults": {},
+        "defaults": {"default_platform": "当前平台"},
         "policies": {},
     }
 
@@ -158,8 +158,7 @@ class TestGetConfigFallback:
         assert config.enabled is True
         assert "require_reason" in config.defaults
         assert config.defaults["require_reason"] is False
-        assert "audit_level" in config.defaults
-        assert config.defaults["audit_level"] == "low"
+        assert "audit_level" not in config.defaults
         assert config.policies == {}
 
     async def test_get_config_no_exception_when_file_missing(

@@ -4,6 +4,7 @@ from . import (
     announcement as announcement,
     block as block,
     bot_state as bot_state,
+    handle_defaults as handle_defaults,
     kick as kick,
     lifecycle as lifecycle,
     member as member,
