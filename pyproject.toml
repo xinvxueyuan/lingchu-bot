@@ -303,6 +303,13 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/database/models/blocklist.py" = ["TC003", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/database/models/registry.py" = ["TC003", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/database/models/identity.py" = ["TC003", "E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/database/models/mcp_authorization.py" = [
+    "TC003", # nonebot-plugin-orm evaluates datetime annotations at runtime
+    "E402",  # nonebot require() must precede the ORM plugin import
+]
+"src/plugins/nonebot_plugin_lingchu_bot/services/mcp_server/config.py" = [
+    "E402",  # nonebot require() must precede localstore plugin imports
+]
 # TC003: stdlib imports (Coroutine, Path, Callable) used at runtime or in annotations
 # evaluated by NoneBot; files lack `from __future__ import annotations`.
 "src/plugins/nonebot_plugin_lingchu_bot/core/async_utils.py" = ["TC003"]

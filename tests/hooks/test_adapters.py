@@ -71,7 +71,7 @@ def test_resolve_platform_context_known_adapter() -> None:
     assert ctx.platform_id == "qq"
     assert ctx.adapter_id == "~onebot.v11"
     assert ctx.bot_id == "bot-1"
-    assert ctx.protocol_id is None
+    assert ctx.protocol_id == "default"
 
 
 def test_resolve_platform_context_unknown_adapter() -> None:
@@ -91,7 +91,7 @@ def test_normalize_message_event_truncates_text(
     assert isinstance(normalized, NormalizedMessageEvent)
     assert normalized.identity.platform_id == "qq"
     assert normalized.identity.adapter_id == "~onebot.v11"
-    assert normalized.identity.protocol_id is None
+    assert normalized.identity.protocol_id == "default"
     assert normalized.identity.bot_id == "bot-1"
     assert normalized.identity.conversation_id == "group-1"
     assert normalized.identity.message_id == "msg-1"

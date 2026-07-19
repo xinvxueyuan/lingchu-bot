@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy import and_, or_
+
 from ..database.models import (
     AuditRecord,
     MessageRecord,
@@ -238,6 +240,133 @@ async def list_recent_messages(
         order_by=["-created_at"],
         limit=limit,
     )
+
+
+async def list_conversation_messages(
+    *,
+    platform_id: str,
+    adapter_id: str,
+    protocol_id: str,
+    framework_id: str,
+    bot_id: str,
+    conversation_type: str,
+    conversation_id: str,
+    limit: int,
+) -> list[MessageRecord | QQOneBotV11NoneBotEventRecord]:
+    """List one exact conversation before applying a bounded page."""
+    model = event_record_model_for(
+        platform_id=platform_id,
+        adapter_id=adapter_id,
+        framework_id=framework_id,
+    )
+    return await list_items(
+        model,
+        {
+            "platform_id": platform_id,
+            "adapter_id": adapter_id,
+            "protocol_id": protocol_id,
+            "framework_id": framework_id,
+            "bot_id": bot_id,
+            "message_type": conversation_type,
+            "conversation_id": conversation_id,
+        },
+        order_by=["-created_at", "-id"],
+        limit=limit,
+    )
+
+
+async def list_conversation_message_page(
+    *,
+    platform_id: str,
+    adapter_id: str,
+    protocol_id: str,
+    framework_id: str,
+    bot_id: str,
+    conversation_type: str,
+    conversation_id: str,
+    limit: int,
+    after_received_at: datetime | None,
+    after_record_id: str | None,
+    window_received_at: datetime | None,
+    window_record_id: str | None,
+) -> tuple[
+    list[MessageRecord | QQOneBotV11NoneBotEventRecord],
+    bool,
+]:
+    """Read one exact conversation within a frozen keyset window."""
+    model = event_record_model_for(
+        platform_id=platform_id,
+        adapter_id=adapter_id,
+        framework_id=framework_id,
+    )
+    filters: dict[str, Any] = {
+        "platform_id": platform_id,
+        "adapter_id": adapter_id,
+        "protocol_id": protocol_id,
+        "framework_id": framework_id,
+        "bot_id": bot_id,
+        "message_type": conversation_type,
+        "conversation_id": conversation_id,
+    }
+    try:
+        after_id = int(after_record_id) if after_record_id is not None else None
+        window_id = int(window_record_id) if window_record_id is not None else None
+    except ValueError:
+        return ([], False)
+    anchor_exists = True
+    if after_received_at is not None and after_id is not None:
+        anchor_exists = bool(
+            await list_items(
+                model,
+                filters,
+                conditions=[
+                    model.created_at == after_received_at,
+                    model.id == after_id,
+                ],
+                limit=1,
+            )
+        )
+    conditions = []
+    if window_received_at is not None and window_id is not None:
+        conditions.append(
+            or_(
+                model.created_at < window_received_at,
+                and_(
+                    model.created_at == window_received_at,
+                    model.id <= window_id,
+                ),
+            )
+        )
+    if after_received_at is not None and after_id is not None:
+        conditions.append(
+            or_(
+                model.created_at < after_received_at,
+                and_(
+                    model.created_at == after_received_at,
+                    model.id < after_id,
+                ),
+            )
+        )
+    records = await list_items(
+        model,
+        filters,
+        conditions=conditions,
+        order_by=["-created_at", "-id"],
+        limit=limit,
+    )
+    if anchor_exists and after_received_at is not None and after_id is not None:
+        anchor_exists = bool(
+            await list_items(
+                model,
+                filters,
+                conditions=[
+                    model.created_at == after_received_at,
+                    model.id == after_id,
+                ],
+                limit=1,
+            )
+        )
+    return (records, anchor_exists)
 
 
 async def cleanup_expired_messages(*, retention_days: int) -> tuple[int, bool]:

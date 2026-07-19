@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -25,6 +26,34 @@ def _message_record(*, record_id: int = 1) -> MagicMock:
 
 def _audit_record() -> MagicMock:
     return MagicMock(spec=AuditRecord)
+
+
+@pytest.mark.asyncio
+async def test_message_page_revalidates_anchor_after_cleanup_race() -> None:
+    anchor = _message_record(record_id=50)
+    page_record = _message_record(record_id=40)
+    list_mock = AsyncMock(side_effect=[[anchor], [page_record], []])
+    after = datetime(2026, 7, 18, 7, 5, tzinfo=UTC)
+
+    with patch.object(message_store, "list_items", list_mock):
+        records, anchor_exists = await message_store.list_conversation_message_page(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id="napcat",
+            framework_id="nonebot",
+            bot_id="bot-1",
+            conversation_type="group",
+            conversation_id="group-1",
+            limit=3,
+            after_received_at=after,
+            after_record_id="50",
+            window_received_at=datetime(2026, 7, 18, 7, 10, tzinfo=UTC),
+            window_record_id="80",
+        )
+
+    assert records == [page_record]
+    assert anchor_exists is False
+    assert list_mock.await_count == 3
 
 
 @pytest.mark.asyncio
@@ -422,6 +451,67 @@ async def test_list_recent_messages_includes_protocol_id_filter_when_provided() 
 
     filters = list_items_mock.call_args.args[1]
     assert filters["protocol_id"] == "napcat"
+
+
+@pytest.mark.asyncio
+async def test_list_conversation_messages_applies_resource_before_pagination() -> None:
+    list_items_mock = AsyncMock(return_value=[])
+
+    with patch.object(message_store, "list_items", list_items_mock):
+        await message_store.list_conversation_messages(
+            platform_id="qq",
+            adapter_id="~onebot.v11",
+            protocol_id="napcat",
+            framework_id="nonebot",
+            bot_id="bot-1",
+            conversation_type="group",
+            conversation_id="group-1",
+            limit=10,
+        )
+
+    list_items_mock.assert_awaited_once()
+    assert list_items_mock.call_args.args[0] is QQOneBotV11NoneBotEventRecord
+    assert list_items_mock.call_args.args[1] == {
+        "platform_id": "qq",
+        "adapter_id": "~onebot.v11",
+        "protocol_id": "napcat",
+        "framework_id": "nonebot",
+        "bot_id": "bot-1",
+        "message_type": "group",
+        "conversation_id": "group-1",
+    }
+    assert list_items_mock.call_args.kwargs == {
+        "order_by": ["-created_at", "-id"],
+        "limit": 10,
+    }
+
+
+@pytest.mark.asyncio
+async def test_list_conversation_messages_keeps_other_platform_partition_keys() -> None:
+    list_items_mock = AsyncMock(return_value=[])
+
+    with patch.object(message_store, "list_items", list_items_mock):
+        await message_store.list_conversation_messages(
+            platform_id="matrix",
+            adapter_id="matrix.v1",
+            protocol_id="matrix-client-server",
+            framework_id="nonebot",
+            bot_id="bot-2",
+            conversation_type="room",
+            conversation_id="room-2",
+            limit=20,
+        )
+
+    assert list_items_mock.call_args.args[0] is MessageRecord
+    assert list_items_mock.call_args.args[1] == {
+        "platform_id": "matrix",
+        "adapter_id": "matrix.v1",
+        "protocol_id": "matrix-client-server",
+        "framework_id": "nonebot",
+        "bot_id": "bot-2",
+        "message_type": "room",
+        "conversation_id": "room-2",
+    }
 
 
 @pytest.mark.asyncio

@@ -10,6 +10,7 @@ from .identity import (
     PlatformAccount,
     PlatformIdentityGroup,
 )
+from .mcp_authorization import MCPResourceGrant, MCPServicePrincipal
 from .message import (
     AuditRecord,
     MessageRecord,
@@ -27,6 +28,8 @@ __all__ = (
     "BlocklistEntry",
     "IdentityMembership",
     "IdentityUser",
+    "MCPResourceGrant",
+    "MCPServicePrincipal",
     "MessageRecord",
     "PermissionGrant",
     "Platform",
