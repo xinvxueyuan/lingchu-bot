@@ -12,6 +12,7 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At
 
+from ......core.handle_default_values import update_handle_default
 from ......core.runtime_config import get_handle_config_manager, runtime_config
 from ......i18n import _async as _
 from ......permissions.subject_policy import find_active_subject_policy
@@ -307,7 +308,7 @@ async def _recall_records(
 @selected_adapter_handle(member_mute_cmd, "~onebot.v11", "member_mute")
 async def onebot11_mute(
     user: At | int,
-    duration: int,
+    duration: int | None,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     reason: str | None = None,
@@ -320,8 +321,9 @@ async def onebot11_mute(
     # 读取配置参数
     default_reason_text = config.defaults.get("default_reason", "管理员操作")
 
-    # duration 参数由命令解析器保证为 int
-    actual_duration = duration
+    actual_duration = (
+        duration if duration is not None else config.defaults.get("mute_duration", 300)
+    )
 
     # 1. 参数合法性检查
     if actual_duration < MUTE_DURATION_MIN:
@@ -414,9 +416,11 @@ async def onebot11_set_default_mute_duration(
             (await _("禁言时长不能超过 {max} 秒（30天）")).format(max=MUTE_DURATION_MAX)
         )
 
-    await config_manager.update_config(
+    await update_handle_default(
         "member_mute",
-        {"defaults": {"mute_duration": duration}},
+        "mute_duration",
+        str(duration),
+        config_manager=config_manager,
     )
 
     await record_audit_fire_and_forget(

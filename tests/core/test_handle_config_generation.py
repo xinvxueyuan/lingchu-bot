@@ -118,8 +118,7 @@ async def test_kick_member_config_content(patched_localstore: Path):
     defaults = config_dict["defaults"]
     assert "require_reason" in defaults
     assert defaults["require_reason"] is False
-    assert "audit_level" in defaults
-    assert defaults["audit_level"] == "low"
+    assert "audit_level" not in defaults
 
     # Verify policies
     assert "policies" in config_dict

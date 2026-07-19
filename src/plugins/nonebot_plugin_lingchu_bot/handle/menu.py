@@ -205,8 +205,8 @@ _DEFAULT_MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         "kick-member",
         "kick_member",
         "member-management",
-        LocalizedText("踢出群成员", "Kick a group member"),
-        LocalizedText("@用户", "@user"),
+        LocalizedText("踢出", "Kick a group member"),
+        LocalizedText("@用户 [原因]", "@user [reason]"),
         PlatformCapability.MEMBER_MODERATION,
         _QQ_BOTH,
     ),
@@ -572,6 +572,15 @@ _DEFAULT_MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         LocalizedText("[平台]", "[platform]"),
         PlatformCapability.APPLICATION_OPERATION,
         (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
+        "manage-handle-defaults",
+        "manage_handle_defaults",
+        "application-operation",
+        LocalizedText("设置功能默认值", "Set handle defaults"),
+        LocalizedText("[功能] [字段] [值]", "[handle] [field] [value]"),
+        PlatformCapability.APPLICATION_OPERATION,
+        _QQ_BOTH,
     ),
 )
 MENU_FEATURES: tuple[MenuFeature, ...] = _DEFAULT_MENU_FEATURES

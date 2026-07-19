@@ -2,6 +2,6 @@
 
 KICK_MEMBER_DEFAULTS = {
     "enabled": True,
-    "defaults": {"require_reason": False, "audit_level": "low"},
+    "defaults": {"require_reason": False},
     "policies": {},
 }

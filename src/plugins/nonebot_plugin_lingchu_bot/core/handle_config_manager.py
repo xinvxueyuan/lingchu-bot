@@ -152,8 +152,17 @@ class HandleConfigManager:
             )
             config_dict = default_config
 
-        # Apply updates
-        config_dict.update(updates)
+        # Apply updates while preserving sibling default/policy values. Runtime
+        # management commands update a single field rather than replacing the
+        # complete section.
+        for section, update in updates.items():
+            if section in {"defaults", "policies"} and isinstance(update, dict):
+                existing = config_dict.get(section, {})
+                if not isinstance(existing, dict):
+                    existing = {}
+                config_dict[section] = existing | update
+            else:
+                config_dict[section] = update
 
         # Validate before persisting
         if not self.validate_config(command_key, config_dict):
