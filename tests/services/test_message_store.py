@@ -76,6 +76,7 @@ async def test_handle_event_received_records_event(
     record_kwargs = record_event.await_args.kwargs
     assert record_kwargs["platform_id"] == "qq"
     assert record_kwargs["adapter_id"] == "~onebot.v11"
+    assert record_kwargs["protocol_id"] == "default"
     assert record_kwargs["bot_id"] == "bot-1"
     assert record_kwargs["conversation_id"] == "group-1"
     assert record_kwargs["message_id"] == "msg-1"
@@ -126,7 +127,7 @@ async def test_handle_matcher_result_records_handled(
     identity = MessageIdentity(
         platform_id="qq",
         adapter_id="~onebot.v11",
-        protocol_id=None,
+        protocol_id="default",
         framework_id="nonebot",
         bot_id="bot-1",
         conversation_id="group-1",
@@ -157,7 +158,7 @@ async def test_handle_matcher_result_records_blocked_and_failed(
     identity = MessageIdentity(
         platform_id="qq",
         adapter_id="~onebot.v11",
-        protocol_id=None,
+        protocol_id="default",
         framework_id="nonebot",
         bot_id="bot-1",
         conversation_id="group-1",
@@ -185,7 +186,7 @@ async def test_handle_matcher_result_skips_when_disabled(
     identity = MessageIdentity(
         platform_id="qq",
         adapter_id="~onebot.v11",
-        protocol_id=None,
+        protocol_id="default",
         framework_id="nonebot",
         bot_id="bot-1",
         conversation_id="group-1",
@@ -210,7 +211,7 @@ async def test_handle_matcher_result_swallows_database_errors(
     identity = MessageIdentity(
         platform_id="qq",
         adapter_id="~onebot.v11",
-        protocol_id=None,
+        protocol_id="default",
         framework_id="nonebot",
         bot_id="bot-1",
         conversation_id="group-1",
