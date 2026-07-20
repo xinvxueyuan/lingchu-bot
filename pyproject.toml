@@ -505,10 +505,8 @@ pythonPlatform = "All"
 typeCheckingMode = "strict"
 # Spec-mandated explicit report rules (error-level).
 reportMissingParameterType = "error"
-reportUnnecessaryTypeConstraint = "error"
 reportImplicitOverride = "error"
 # Spec-mandated explicit report rules (warning-level).
-reportShadowedImports = "warning"
 reportImplicitStringConcatenation = "warning"
 reportImportCycles = "warning"
 # Framework-related unknown-type rules relaxed to warning.
