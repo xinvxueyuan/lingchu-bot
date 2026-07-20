@@ -437,6 +437,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - Run migrations before non-SQLite tests.
 - `ensure_toml_dict_file_async()` only creates missing files; use `write_toml_dict_file_async()` to overwrite.
 - Runtime config defaults must be JSON-serializable; dump Pydantic defaults with `mode="json"` when needed.
+- Migration authoring: `nb orm revision -m "msg" --branch-label nonebot_plugin_lingchu_bot` autogenerates by default (no `--autogenerate` flag). Taskfile aliases: `task db:revision -- MSG="..."`, `task db:check`, `task db:upgrade`. Autogenerate emits `sa.Boolean` / `sa.DateTime(timezone=True)` / `sa.Text` / `sa.String` — manually rewrite to `CompatBoolean` / `CompatDateTimeTZ` / `CompatText` / `compat_string(length)` from `database/_dialect_compat.py` for six-backend compatibility. Autogenerate cannot detect column/table renames (emits drop+add, loses data) — author rename migrations manually with `op.alter_column`. CI runs `nb orm check` after `nb orm upgrade` to enforce model/migration sync. Without --branch-label the file lands in ./migrations/versions/ instead of the plugin migrations dir.
 
 #### Cross-Database Compatibility (added with MariaDB / Oracle / SQL Server support)
 

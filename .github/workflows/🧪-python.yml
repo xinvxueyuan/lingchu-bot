@@ -280,6 +280,9 @@ jobs:
       - name: Run migrations
         run: uv run nb orm upgrade
 
+      - name: Verify migration/model consistency
+        run: uv run nb orm check
+
       - name: Type Check (Pyright)
         run: uv run -m pyright
 
