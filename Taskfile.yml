@@ -317,6 +317,24 @@ tasks:
       - uv run pybabel update -i src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot -d src/plugins/nonebot_plugin_lingchu_bot/i18n/locales -D messages
       - uv run pybabel compile -d src/plugins/nonebot_plugin_lingchu_bot/i18n/locales -D messages
 
+  db:revision:
+    desc: 基于 ORM 模型变更自动生成迁移脚本（autogenerate，输出到插件 migrations 目录）
+    preconditions:
+      - sh: test -n "{{.MSG}}"
+        msg: 'MSG 参数必填，用法: task db:revision -- MSG="描述变更"'
+    cmds:
+      - ENVIRONMENT=dev nb orm revision -m "{{.MSG}}" --branch-label nonebot_plugin_lingchu_bot
+
+  db:check:
+    desc: 检查是否有未应用的数据库迁移
+    cmds:
+      - ENVIRONMENT=dev nb orm check
+
+  db:upgrade:
+    desc: 应用待执行的数据库迁移
+    cmds:
+      - ENVIRONMENT=dev nb orm upgrade
+
   gitmoji:
     desc: 显示 gitmoji + Conventional Commits 中文速查表
     cmds:

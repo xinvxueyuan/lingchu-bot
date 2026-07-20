@@ -388,6 +388,7 @@ task ci
 - 非 SQLite 测试前先运行 migrations。
 - `ensure_toml_dict_file_async()` 只创建缺失文件；覆盖写入用 `write_toml_dict_file_async()`。
 - Runtime config defaults 必须 JSON-serializable；需要时用 Pydantic `mode="json"` dump。
+- 迁移生成工作流：`nb orm revision -m "msg" --branch-label nonebot_plugin_lingchu_bot` 默认开启 autogenerate（无 `--autogenerate` 标志）。Taskfile 别名：`task db:revision -- MSG="..."`、`task db:check`、`task db:upgrade`。autogenerate 产出的是 `sa.Boolean` / `sa.DateTime(timezone=True)` / `sa.Text` / `sa.String`，必须手动改写为 `database/_dialect_compat.py` 中的 `CompatBoolean` / `CompatDateTimeTZ` / `CompatText` / `compat_string(length)` 以兼容六种数据库。autogenerate 无法识别列/表重命名（会生成 drop+add，丢数据），重命名需手动用 `op.alter_column` 编写迁移。CI 在 `nb orm upgrade` 后运行 `nb orm check` 强制模型与迁移同步。不带 --branch-label 时文件会落到 ./migrations/versions/ 而非插件迁移目录。
 
 #### 跨数据库方言适配（随 MariaDB / Oracle / SQL Server 支持新增）
 
