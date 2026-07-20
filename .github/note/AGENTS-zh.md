@@ -206,7 +206,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 | ----------------------------------------- | ---------------------------------------------------------------------- |
 | 计划/领域：对照代码库 grill 计划，构建 CONTEXT.md + ADRs | `grill-with-docs` skill                                                |
 | 计划/领域：磨砺领域语言和术语                           | `domain-modeling` skill                                                |
-| 计划/领域：不带文档产物的轻量压力测试                       | `grilling` / `grill-me` skill                                          |
+| 计划/领域：不带文档产物的轻量压力测试                       | `grilling` skill                                          |
 | 将计划/对话转为 spec                             | `to-spec` skill                                                        |
 | 将 spec 拆成带阻塞边的 tracer-bullet tickets       | `to-tickets` skill                                                     |
 | 测试驱动开发（红-绿-重构，垂直切片）                      | `tdd` skill                                                            |
@@ -244,7 +244,7 @@ prek                     ← 阶段 5：COMMIT
                            Git hooks：lint + format + type + test
 ```
 
-轻量替代：`grilling` / `grill-me` 在只需要压力测试、不需要文档产物时替代 `grill-with-docs` + `domain-modeling`。
+轻量替代：`grilling` 在只需要压力测试、不需要文档产物时替代 `grill-with-docs` + `domain-modeling`。
 
 ### Development Commands
 

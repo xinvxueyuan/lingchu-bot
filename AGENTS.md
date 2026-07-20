@@ -254,7 +254,7 @@ For handle, QQ command, adapter handler, matcher, `command_key`, menu, trigger, 
 | --- | --- |
 | Plan/domain: grill a plan against codebase, build CONTEXT.md + ADRs | `grill-with-docs` skill |
 | Plan/domain: sharpen domain language and terminology | `domain-modeling` skill |
-| Plan/domain: lighter pressure-test without docs artifacts | `grilling` / `grill-me` skill |
+| Plan/domain: lighter pressure-test without docs artifacts | `grilling` skill |
 | Turn plan/conversation into a spec | `to-spec` skill |
 | Break spec into tracer-bullet tickets with blocking edges | `to-tickets` skill |
 | Test-driven development (red-green-refactor, vertical slices) | `tdd` skill |
@@ -292,7 +292,7 @@ prek                     ← phase 5: COMMIT
                            Git hooks: lint + format + type + test
 ```
 
-Lighter alternatives: `grilling` / `grill-me` replace `grill-with-docs` + `domain-modeling` when you only need a pressure-test without docs artifacts.
+Lighter alternatives: `grilling` replace `grill-with-docs` + `domain-modeling` when you only need a pressure-test without docs artifacts.
 
 ### Development Commands
 
