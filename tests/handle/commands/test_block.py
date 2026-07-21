@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -30,10 +30,35 @@ _TEST_USER_ID_UNBLOCK = 444555666
 _TEST_BLOCK_DURATION = 60
 
 
+@pytest.fixture
+def mock_session() -> Mock:
+    """Provide a mock AsyncSession for block handler Depends() injection pilot."""
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
+
+
 @pytest.fixture(autouse=True)
 def _mock_record_audit_fire_and_forget():
     """避免审计记录触发后台任务和数据库调用。"""
     with patch.object(block_module, "record_audit_fire_and_forget", new=AsyncMock()):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _mock_check_target_privilege():
+    """绕过 check_target_privilege 的真实 DB 调用（find_active_subject_policy）。
+
+    block_member 命令在 protected_subject_feature_keys 默认列表内，会触发
+    find_active_subject_policy → get_one(session, ...) 的真实查询。使用 mock_session
+    时 get_one 返回 coroutine 对象而非 None，导致 AttributeError。这里将
+    check_target_privilege 直接 mock 为返回 True（通过权限检查），让测试聚焦于
+    store_block_record / remove_block / clear_blocklist 的 session 透传断言。
+    """
+    with patch.object(
+        block_module, "check_target_privilege", new=AsyncMock(return_value=True)
+    ):
         yield
 
 
@@ -42,13 +67,12 @@ async def test_onebot11_block_member_stores_record_and_kicks(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
     mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     mock_onebot11_bot.set_group_kick = AsyncMock()
-    # check_target_privilege: 目标为普通成员（通过）
+    # check_target_privilege: 已由 autouse fixture mock 为返回 True
     # check_bot_privilege: 机器人为管理员（通过）
-    mock_onebot11_bot.get_group_member_info = AsyncMock(
-        side_effect=[{"role": "member"}, {"role": "admin"}]
-    )
+    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=[{"role": "admin"}])
 
     with (
         patch.object(block_module, "store_block_record", AsyncMock()) as upsert_mock,
@@ -60,9 +84,11 @@ async def test_onebot11_block_member_stores_record_and_kicks(
             reason=None,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     upsert_mock.assert_awaited_once()
+    assert upsert_mock.call_args.args[0] is mock_session
     assert upsert_mock.call_args.kwargs["scope"] == "group"
     assert upsert_mock.call_args.kwargs["reason"] == "违反群规"
     assert upsert_mock.call_args.kwargs["duration"] is None
@@ -79,13 +105,12 @@ async def test_onebot11_global_block_member_uses_global_scope_and_kicks(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
     mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     mock_onebot11_bot.set_group_kick = AsyncMock()
-    # check_target_privilege: 目标为普通成员（通过）
+    # check_target_privilege: 已由 autouse fixture mock 为返回 True
     # check_bot_privilege: 机器人为管理员（通过）
-    mock_onebot11_bot.get_group_member_info = AsyncMock(
-        side_effect=[{"role": "member"}, {"role": "admin"}]
-    )
+    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=[{"role": "admin"}])
 
     with (
         patch.object(block_module, "store_block_record", AsyncMock()) as upsert_mock,
@@ -97,8 +122,10 @@ async def test_onebot11_global_block_member_uses_global_scope_and_kicks(
             reason="spam",
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
+    assert upsert_mock.call_args.args[0] is mock_session
     assert upsert_mock.call_args.kwargs["scope"] == "global"
     assert upsert_mock.call_args.kwargs["reason"] == "spam"
     assert upsert_mock.call_args.kwargs["duration"] == _TEST_BLOCK_DURATION
@@ -114,6 +141,7 @@ async def test_onebot11_unblock_member_removes_group_entry(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
     mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     with (
         patch.object(
@@ -128,8 +156,10 @@ async def test_onebot11_unblock_member_removes_group_entry(
             reason=None,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
+    assert remove_mock.call_args.args[0] is mock_session
     assert remove_mock.call_args.kwargs["scope"] == "group"
     assert "删除记录: 1" in finish_text(mock_finish)
 
@@ -139,6 +169,7 @@ async def test_onebot11_global_unblock_member_removes_global_entry(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
     mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     with (
         patch.object(
@@ -153,8 +184,10 @@ async def test_onebot11_global_unblock_member_removes_global_entry(
             reason="appeal",
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
+    assert remove_mock.call_args.args[0] is mock_session
     assert remove_mock.call_args.kwargs["scope"] == "global"
 
 
@@ -162,6 +195,7 @@ async def test_onebot11_global_unblock_member_removes_global_entry(
 async def test_onebot11_clear_blocklist_clears_group_scope(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
+    mock_session: Mock,
 ) -> None:
     with (
         patch.object(
@@ -175,8 +209,10 @@ async def test_onebot11_clear_blocklist_clears_group_scope(
             reason=None,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
+    assert clear_mock.call_args.args[0] is mock_session
     assert clear_mock.call_args.kwargs["scope"] == "group"
     assert "删除记录: 2" in finish_text(mock_finish)
 
@@ -185,6 +221,7 @@ async def test_onebot11_clear_blocklist_clears_group_scope(
 async def test_onebot11_global_clear_blocklist_clears_global_scope(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
+    mock_session: Mock,
 ) -> None:
     with (
         patch.object(
@@ -198,8 +235,10 @@ async def test_onebot11_global_clear_blocklist_clears_global_scope(
             reason="reset",
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
+    assert clear_mock.call_args.args[0] is mock_session
     assert clear_mock.call_args.kwargs["scope"] == "global"
 
 
@@ -207,19 +246,22 @@ async def test_onebot11_global_clear_blocklist_clears_global_scope(
 async def test_blocklisted_group_message_triggers_kick(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
+    mock_session: Mock,
 ) -> None:
     mock_onebot11_bot.set_group_kick = AsyncMock()
+    find_block_mock = AsyncMock(
+        return_value=SimpleNamespace(reason="blocked"),
+    )
 
-    with patch.object(
-        block_module,
-        "find_active_block",
-        AsyncMock(return_value=SimpleNamespace(reason="blocked")),
-    ):
+    with patch.object(block_module, "find_active_block", find_block_mock):
         await block_module.onebot11_kick_blocklisted_message(
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
+    find_block_mock.assert_awaited_once()
+    assert find_block_mock.call_args.args[0] is mock_session
     mock_onebot11_bot.set_group_kick.assert_awaited_once_with(
         group_id=mock_onebot11_event.group_id,
         user_id=mock_onebot11_event.user_id,
@@ -231,25 +273,27 @@ async def test_blocklisted_group_message_triggers_kick(
 async def test_non_blocklisted_group_message_does_not_kick(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
+    mock_session: Mock,
 ) -> None:
     mock_onebot11_bot.set_group_kick = AsyncMock()
+    find_block_mock = AsyncMock(return_value=None)
 
-    with patch.object(
-        block_module,
-        "find_active_block",
-        AsyncMock(return_value=None),
-    ):
+    with patch.object(block_module, "find_active_block", find_block_mock):
         await block_module.onebot11_kick_blocklisted_message(
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
+    find_block_mock.assert_awaited_once()
+    assert find_block_mock.call_args.args[0] is mock_session
     mock_onebot11_bot.set_group_kick.assert_not_awaited()
 
 
 @pytest.mark.asyncio
 async def test_blocklisted_group_add_request_is_rejected(
     mock_onebot11_bot: MagicMock,
+    mock_session: Mock,
 ) -> None:
     event = SimpleNamespace(
         sub_type="add",
@@ -258,17 +302,19 @@ async def test_blocklisted_group_add_request_is_rejected(
         flag="flag-1",
     )
     mock_onebot11_bot.set_group_add_request = AsyncMock()
+    find_block_mock = AsyncMock(
+        return_value=SimpleNamespace(reason="blocked"),
+    )
 
-    with patch.object(
-        block_module,
-        "find_active_block",
-        AsyncMock(return_value=SimpleNamespace(reason="blocked")),
-    ):
+    with patch.object(block_module, "find_active_block", find_block_mock):
         await block_module.onebot11_reject_blocklisted_group_request(
             bot=mock_onebot11_bot,
             event=event,
+            session=mock_session,
         )
 
+    find_block_mock.assert_awaited_once()
+    assert find_block_mock.call_args.args[0] is mock_session
     mock_onebot11_bot.set_group_add_request.assert_awaited_once_with(
         flag="flag-1",
         sub_type="add",
@@ -278,7 +324,10 @@ async def test_blocklisted_group_add_request_is_rejected(
 
 
 @pytest.mark.asyncio
-async def test_invite_request_is_ignored(mock_onebot11_bot: MagicMock) -> None:
+async def test_invite_request_is_ignored(
+    mock_onebot11_bot: MagicMock,
+    mock_session: Mock,
+) -> None:
     event = SimpleNamespace(
         sub_type="invite",
         group_id=123456789,
@@ -291,6 +340,7 @@ async def test_invite_request_is_ignored(mock_onebot11_bot: MagicMock) -> None:
         await block_module.onebot11_reject_blocklisted_group_request(
             bot=mock_onebot11_bot,
             event=event,
+            session=mock_session,
         )
 
     find_mock.assert_not_awaited()
@@ -307,16 +357,16 @@ def test_block_command_triggers_are_minimal() -> None:
 async def test_onebot11_block_member_with_direct_user_id(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
+    mock_session: Mock,
 ) -> None:
     """测试直接传入 user_id (int) 进行拉黑操作"""
     mock_onebot11_bot.set_group_kick = AsyncMock()
     # resolve_user: 获取用户名片
-    # check_target_privilege: 目标为普通成员（通过）
+    # check_target_privilege: 已由 autouse fixture mock 为返回 True
     # check_bot_privilege: 机器人为管理员（通过）
     mock_onebot11_bot.get_group_member_info = AsyncMock(
         side_effect=[
             {"card": "测试用户", "nickname": "TestUser"},
-            {"role": "member"},
             {"role": "admin"},
         ]
     )
@@ -331,9 +381,11 @@ async def test_onebot11_block_member_with_direct_user_id(
             reason=None,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     upsert_mock.assert_awaited_once()
+    assert upsert_mock.call_args.args[0] is mock_session
     assert upsert_mock.call_args.kwargs["user_id"] == _TEST_USER_ID_BLOCK
     mock_onebot11_bot.set_group_kick.assert_awaited_once_with(
         group_id=mock_onebot11_event.group_id,
@@ -347,6 +399,7 @@ async def test_onebot11_block_member_with_direct_user_id(
 async def test_onebot11_unblock_member_with_direct_user_id(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
+    mock_session: Mock,
 ) -> None:
     """测试直接传入 user_id (int) 进行删黑操作"""
     mock_onebot11_bot.get_group_member_info = AsyncMock(
@@ -366,8 +419,10 @@ async def test_onebot11_unblock_member_with_direct_user_id(
             reason=None,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
+    assert remove_mock.call_args.args[0] is mock_session
     assert remove_mock.call_args.kwargs["scope"] == "group"
     assert remove_mock.call_args.kwargs["user_id"] == _TEST_USER_ID_UNBLOCK
     assert "删除记录: 1" in finish_text(mock_finish)

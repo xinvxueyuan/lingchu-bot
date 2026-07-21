@@ -9,7 +9,11 @@ from datetime import timedelta
 import json
 from typing import TYPE_CHECKING, Literal, Protocol, cast
 
+from nonebot import require
 from pydantic import BaseModel
+
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import get_session
 
 from ...permissions import resolve_mcp_permission as _resolve_mcp_permission
 from .mcp import MCPToolTimeoutError
@@ -40,6 +44,15 @@ type ToolCallStatus = Literal[
 type PermissionResolver = Callable[
     [PermissionContext], Awaitable[MCPPermissionLevel | None]
 ]
+
+
+async def _default_permission_resolver(
+    context: PermissionContext,
+) -> MCPPermissionLevel | None:
+    """Open a scoped session and resolve MCP permission level for a context."""
+    async with get_session() as session:
+        return await _resolve_mcp_permission(session, context)
+
 
 _RISK_ORDER = {"read": 0, "write_err": 1, "critical": 2}
 _REVIEW_INSTRUCTION = " ".join((
@@ -147,7 +160,7 @@ class MCPAgentRuntime:
         llm: LLMResponder,
         mcp: MCPCaller,
         *,
-        permission_resolver: PermissionResolver = _resolve_mcp_permission,
+        permission_resolver: PermissionResolver = _default_permission_resolver,
         audit_recorder: AuditRecorder | None = None,
         confirmation_manager: CriticalConfirmationManager | None = None,
     ) -> None:

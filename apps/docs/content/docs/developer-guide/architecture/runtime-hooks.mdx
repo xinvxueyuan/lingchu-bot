@@ -65,62 +65,44 @@ The API audit handler records platform API calls after they complete.
 
 All field extraction helpers, such as `_conversation_id`, `_user_id`, `_message_id`, and `_plain_text`, live in this module so handlers do not duplicate adapter-specific logic.
 
-## Handler registry
-
-`hooks/registry.py` provides an in-memory registry for typed hook handlers.
-
-<TypeTable
-  type={{
-    register_handler: {
-      type: "(hook_type, handler, *, enabled=True) -> handler",
-      description: "Register a handler for a capability category. Disabled handlers are tracked but not yielded by iterators.",
-    },
-    iter_handlers: {
-      type: "(hook_type=None) -> Iterator[HookHandler]",
-      description: "Yield enabled handlers, optionally filtered by category.",
-    },
-    get_handlers_by_type: {
-      type: "(hook_type) -> tuple[HookHandler, ...]",
-      description: "Return enabled handlers for a specific category.",
-    },
-  }}
-/>
-
-The registry is typed against `HookContext`, `EventContext`, and the `HookHandler` protocol defined in `hooks/interfaces.py`.
-
 ## Adding a new hook handler
 
 To add a new runtime hook handler:
 
-1. **Choose a context type** from `hooks/interfaces.py`:
-   - `PlatformContext` for bot-level identity.
-   - `HookContext` for generic handlers.
-   - `EventContext` for event-driven handlers.
+1. **Pick the NoneBot2 native decorator** that matches the lifecycle you want to hook into. Each handler module registers its decorators at import time, so the only entrypoint the plugin needs is `from . import hooks`.
 
-2. **Implement the handler** as an async callable matching `HookHandler[T_contra]`:
+   | Capability | NoneBot2 decorator | Reference module |
+   | --- | --- | --- |
+   | Driver startup / shutdown | `@driver.on_startup`, `@driver.on_shutdown` | `hooks/handlers/lifecycle.py` |
+   | Bot connect / disconnect | `@driver.on_bot_connect`, `@driver.on_bot_disconnect` | `hooks/handlers/bot_connection.py` |
+   | Event / matcher processing | `@event_preprocessor`, `@event_postprocessor`, `@run_preprocessor`, `@run_postprocessor` | `hooks/handlers/message_store.py` |
+   | Bot API call | `@Bot.on_calling_api`, `@Bot.on_called_api` | `hooks/handlers/api_audit.py` |
+
+2. **Implement the handler** with the NoneBot2 decorator signature. Use `resolve_platform_context(bot)` from `hooks/adapters.py` when you need an adapter-neutral identity, and `normalize_message_event(bot, event)` when you need a stable message envelope:
 
    ```python
-   from hooks.interfaces import EventContext, HookHandler
+   from nonebot import get_driver
+   from nonebot.adapters import Bot
 
-   async def my_handler(context: EventContext) -> None:
+   from ..adapters import resolve_platform_context
+
+   driver = get_driver()
+
+
+   @driver.on_bot_connect
+   async def on_bot_connect(bot: Bot) -> None:
+       ctx = resolve_platform_context(bot)
+       if ctx is None:
+           return
        ...
    ```
 
-3. **Create a module** under `hooks/handlers/`, for example `hooks/handlers/my_feature.py`. Register NoneBot decorators in that module and keep business calls in `services/` or `repositories/`.
+3. **Create a module** under `hooks/handlers/`, for example `hooks/handlers/my_feature.py`. Register the NoneBot2 decorators in that module and keep business calls in `services/` or `repositories/`.
 
 4. **Export the module** from `hooks/handlers/__init__.py` so `from . import hooks` loads it:
 
    ```python
    from . import my_feature as my_feature
-   ```
-
-5. **Add a registry entry** if the handler should be discoverable by capability:
-
-   ```python
-   from hooks.interfaces import HookType
-   from hooks.registry import register_handler
-
-   register_handler(HookType.MESSAGE_STORE, my_handler)
    ```
 
 <Callout title="Avoid side-effect imports">

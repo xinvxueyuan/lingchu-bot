@@ -5,13 +5,16 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Mapping
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from ..core.runtime_config import get_runtime_config
+from ..core.config import get_runtime_config
 from ..handle.menu import MENU_FEATURES
 from ..platforms import iter_platform_profiles
 from ..repositories import permissions as repo
 from .platforms import iter_default_identity_groups
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +23,14 @@ class PermissionConfigError(RuntimeError):
     """Permission configuration is invalid and startup must stop."""
 
 
-async def validate_and_seed_permission_system() -> None:
+async def validate_and_seed_permission_system(
+    session: AsyncSession | async_scoped_session,
+) -> None:
     superusers = _resolve_superusers_config()
     _validate_superusers(superusers)
 
-    await repo.seed_identity_groups(iter_default_identity_groups())
-    await _sync_superusers(superusers)
+    await repo.seed_identity_groups(session, iter_default_identity_groups())
+    await _sync_superusers(session, superusers)
 
 
 def _resolve_superusers_config() -> dict[str, dict[str, str]]:
@@ -94,10 +99,14 @@ def _validate_platform_account_id(platform_id: str, account_id: Any) -> str:
     return value
 
 
-async def _sync_superusers(superusers: Mapping[str, Mapping[str, str]]) -> None:
+async def _sync_superusers(
+    session: AsyncSession | async_scoped_session,
+    superusers: Mapping[str, Mapping[str, str]],
+) -> None:
     for uid, accounts in superusers.items():
-        await repo.upsert_identity_user(uid, uid)
+        await repo.upsert_identity_user(session, uid, uid)
         await repo.upsert_membership(
+            session,
             uid=uid,
             group_id=repo.SUPERUSERS_GROUP_ID,
             source=repo.SUPERUSER_SOURCE,
@@ -108,6 +117,7 @@ async def _sync_superusers(superusers: Mapping[str, Mapping[str, str]]) -> None:
                 account_id,
             )
             await repo.bind_platform_account(
+                session,
                 uid=uid,
                 platform_id=platform_id,
                 account_id=normalized_account_id,
@@ -117,6 +127,7 @@ async def _sync_superusers(superusers: Mapping[str, Mapping[str, str]]) -> None:
     grant_results = await asyncio.gather(
         *(
             repo.grant_command(
+                session,
                 group_id=repo.SUPERUSERS_GROUP_ID,
                 command_key=feature.command_key,
             )

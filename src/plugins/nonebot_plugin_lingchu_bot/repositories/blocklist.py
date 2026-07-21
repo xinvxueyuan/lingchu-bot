@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import or_
 
 from ..database.models import BlocklistEntry
 from ..database.orm_crud import delete, get_one, upsert
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 
 BlockScope = Literal["group", "global"]
 
@@ -47,7 +50,10 @@ def expires_at_from_duration(duration: int | None) -> datetime | None:
     return datetime.now(UTC) + timedelta(seconds=duration)
 
 
-async def upsert_block(request: BlocklistUpsert) -> BlocklistEntry:
+async def upsert_block(
+    session: AsyncSession | async_scoped_session,
+    request: BlocklistUpsert,
+) -> BlocklistEntry:
     now = datetime.now(UTC)
     scope_key = scope_key_for(request.scope, request.group_id)
     values = {
@@ -68,6 +74,7 @@ async def upsert_block(request: BlocklistUpsert) -> BlocklistEntry:
         "updated_at": now,
     }
     entry = await upsert(
+        session,
         BlocklistEntry,
         values,
         conflict_fields=[
@@ -87,11 +94,12 @@ async def upsert_block(request: BlocklistUpsert) -> BlocklistEntry:
             "updated_at": now,
         },
     )
-    await _sync_blocked_policy_upsert(request)
+    await _sync_blocked_policy_upsert(session, request)
     return entry
 
 
 async def remove_block(
+    session: AsyncSession | async_scoped_session,
     *,
     platform_id: str,
     adapter_id: str,
@@ -111,8 +119,9 @@ async def remove_block(
     }
     if protocol_id is not None:
         filters["protocol_id"] = protocol_id
-    result = await delete(BlocklistEntry, filters)
+    result = await delete(session, BlocklistEntry, filters)
     await _sync_blocked_policy_remove(
+        session,
         platform_id=platform_id,
         adapter_id=adapter_id,
         protocol_id=protocol_id,
@@ -125,6 +134,7 @@ async def remove_block(
 
 
 async def clear_blocklist(
+    session: AsyncSession | async_scoped_session,
     *,
     platform_id: str,
     adapter_id: str,
@@ -142,8 +152,9 @@ async def clear_blocklist(
     }
     if protocol_id is not None:
         filters["protocol_id"] = protocol_id
-    result = await delete(BlocklistEntry, filters)
+    result = await delete(session, BlocklistEntry, filters)
     await _sync_blocked_policy_clear(
+        session,
         platform_id=platform_id,
         adapter_id=adapter_id,
         protocol_id=protocol_id,
@@ -155,6 +166,7 @@ async def clear_blocklist(
 
 
 async def find_active_block(
+    session: AsyncSession | async_scoped_session,
     *,
     platform_id: str,
     adapter_id: str,
@@ -164,6 +176,7 @@ async def find_active_block(
     user_id: str | int,
 ) -> BlocklistEntry | None:
     global_entry = await _find_active_block_for_scope(
+        session,
         platform_id=platform_id,
         adapter_id=adapter_id,
         protocol_id=protocol_id,
@@ -175,6 +188,7 @@ async def find_active_block(
     if global_entry is not None:
         return global_entry
     return await _find_active_block_for_scope(
+        session,
         platform_id=platform_id,
         adapter_id=adapter_id,
         protocol_id=protocol_id,
@@ -186,6 +200,7 @@ async def find_active_block(
 
 
 async def _find_active_block_for_scope(
+    session: AsyncSession | async_scoped_session,
     *,
     platform_id: str,
     adapter_id: str,
@@ -205,20 +220,23 @@ async def _find_active_block_for_scope(
     }
     if protocol_id is not None:
         filters["protocol_id"] = protocol_id
-    entry = await get_one(BlocklistEntry, filters)
+    entry = await get_one(session, BlocklistEntry, filters)
     if entry is None:
         return None
     if entry.expires_at is None:
         return entry
     if entry.expires_at > datetime.now(UTC):
         return entry
-    await delete(BlocklistEntry, filters)
+    await delete(session, BlocklistEntry, filters)
     return None
 
 
-async def cleanup_expired_blocks() -> tuple[int, bool]:
+async def cleanup_expired_blocks(
+    session: AsyncSession | async_scoped_session,
+) -> tuple[int, bool]:
     now = datetime.now(UTC)
     return await delete(
+        session,
         BlocklistEntry,
         {},
         conditions=[
@@ -234,10 +252,14 @@ def active_block_condition() -> object:
     return or_(BlocklistEntry.expires_at.is_(None), BlocklistEntry.expires_at > now)
 
 
-async def _sync_blocked_policy_upsert(request: BlocklistUpsert) -> None:
+async def _sync_blocked_policy_upsert(
+    session: AsyncSession | async_scoped_session,
+    request: BlocklistUpsert,
+) -> None:
     from ..permissions.subject_policy import SubjectPolicyUpsert, upsert_subject_policy
 
     await upsert_subject_policy(
+        session,
         SubjectPolicyUpsert(
             policy_type="blocked",
             platform_id=request.platform_id,
@@ -250,11 +272,12 @@ async def _sync_blocked_policy_upsert(request: BlocklistUpsert) -> None:
             operator_id=request.operator_id,
             reason=request.reason,
             expires_at=request.expires_at,
-        )
+        ),
     )
 
 
 async def _sync_blocked_policy_remove(
+    session: AsyncSession | async_scoped_session,
     *,
     platform_id: str,
     adapter_id: str,
@@ -267,6 +290,7 @@ async def _sync_blocked_policy_remove(
     from ..permissions.subject_policy import remove_subject_policy
 
     await remove_subject_policy(
+        session,
         policy_type="blocked",
         platform_id=platform_id,
         adapter_id=adapter_id,
@@ -279,6 +303,7 @@ async def _sync_blocked_policy_remove(
 
 
 async def _sync_blocked_policy_clear(
+    session: AsyncSession | async_scoped_session,
     *,
     platform_id: str,
     adapter_id: str,
@@ -290,6 +315,7 @@ async def _sync_blocked_policy_clear(
     from ..permissions.subject_policy import clear_subject_policy
 
     await clear_subject_policy(
+        session,
         policy_type="blocked",
         platform_id=platform_id,
         adapter_id=adapter_id,

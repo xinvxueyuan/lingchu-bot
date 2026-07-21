@@ -1,13 +1,16 @@
-from nonebot import get_adapters, logger
+from nonebot import get_adapters, logger, require
+
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import get_session
 
 from ..core.bot_state import load_bot_state
-from ..core.config import plugin_config
-from ..core.menu_config import ensure_menu_config_file_async, load_menu_config
-from ..core.runtime_config import (
+from ..core.config import (
     ensure_runtime_config_file_async,
     get_handle_config_manager,
     initialize_handle_config_manager,
+    plugin_config,
 )
+from ..core.menu_config import ensure_menu_config_file_async, load_menu_config
 from ..core.schemas import install_schemas
 from ..handle import menu as menu_module
 from ..handle.menu import import_handle as menu_import_handle
@@ -143,8 +146,9 @@ async def startup() -> None:
             )
         )
     await warm_translation_cache()
-    await seed_registry_tables()
-    await validate_and_seed_permission_system()
+    async with get_session() as session:
+        await seed_registry_tables(session)
+        await validate_and_seed_permission_system(session)
     await group_import_handle()
     await menu_import_handle()
     await initialize_message_store()

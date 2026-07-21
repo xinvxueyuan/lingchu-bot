@@ -30,9 +30,9 @@ class MCPAgentRuntimeNotInitializedError(RuntimeError):
 
 def _build_mcp_agent_runtime() -> tuple[MCPAgentRuntime, MCPRuntime]:
     """Build and validate a candidate without publishing it."""
-    from ...core.runtime_config import runtime_config
+    from ...core.config import plugin_config
 
-    config = load_llm_runtime_config(legacy=runtime_config)
+    config = load_llm_runtime_config(legacy=plugin_config)
     mcp = MCPRuntime(config.mcp)
     agent = MCPAgentRuntime(
         get_llm_runtime(),

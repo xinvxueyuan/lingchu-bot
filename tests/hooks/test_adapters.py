@@ -82,7 +82,7 @@ def test_normalize_message_event_truncates_text(
     monkeypatch: pytest.MonkeyPatch,
     enabled_config: SimpleNamespace,
 ) -> None:
-    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    monkeypatch.setattr(adapters, "plugin_config", enabled_config)
     event = make_event()
     event.get_plaintext.return_value = "hello world"
 
@@ -105,7 +105,7 @@ def test_normalize_message_event_handles_missing_message_id(
     monkeypatch: pytest.MonkeyPatch,
     enabled_config: SimpleNamespace,
 ) -> None:
-    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    monkeypatch.setattr(adapters, "plugin_config", enabled_config)
     event = make_event(message_id=None)
     event.data = SimpleNamespace(peer_id="group-1", segments=[])
 
@@ -120,7 +120,7 @@ def test_normalize_message_event_prefers_group_id_over_session_id(
     monkeypatch: pytest.MonkeyPatch,
     enabled_config: SimpleNamespace,
 ) -> None:
-    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    monkeypatch.setattr(adapters, "plugin_config", enabled_config)
     event = make_event(group_id=868258211)
     event.get_session_id.return_value = "group_868258211_3128682634"
 
@@ -247,7 +247,7 @@ def test_plain_text_uses_get_message_when_plaintext_empty(
     monkeypatch: pytest.MonkeyPatch,
     enabled_config: SimpleNamespace,
 ) -> None:
-    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    monkeypatch.setattr(adapters, "plugin_config", enabled_config)
     event = make_event()
     event.get_plaintext.return_value = ""
     assert _plain_text(event) == "hello"
@@ -257,7 +257,7 @@ def test_plain_text_uses_event_message_attr(
     monkeypatch: pytest.MonkeyPatch,
     enabled_config: SimpleNamespace,
 ) -> None:
-    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    monkeypatch.setattr(adapters, "plugin_config", enabled_config)
     event = make_event()
     event.get_plaintext.return_value = ""
     event.get_message.return_value = None
@@ -269,7 +269,7 @@ def test_plain_text_uses_event_data_message(
     monkeypatch: pytest.MonkeyPatch,
     enabled_config: SimpleNamespace,
 ) -> None:
-    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    monkeypatch.setattr(adapters, "plugin_config", enabled_config)
     event = make_event()
     event.get_plaintext.return_value = ""
     event.get_message.return_value = None
@@ -282,7 +282,7 @@ def test_plain_text_returns_none_when_no_message(
     monkeypatch: pytest.MonkeyPatch,
     enabled_config: SimpleNamespace,
 ) -> None:
-    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    monkeypatch.setattr(adapters, "plugin_config", enabled_config)
     event = make_event()
     event.get_plaintext.return_value = ""
     event.get_message.return_value = None

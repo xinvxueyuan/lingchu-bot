@@ -13,6 +13,9 @@ from nonebot import require
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import get_session
+
 from ..database.orm_crud import DatabaseError
 from ..repositories import scheduler_jobs as repository
 
@@ -61,7 +64,9 @@ def _schedule_runtime_job(
 
 async def execute_persistent_job(job_id: str) -> None:
     """Load a persisted scheduler job and dispatch its registered handler."""
-    job = await repository.get_job_spec(job_id)
+    async with get_session() as session:
+        job = await repository.get_job_spec(session, job_id)
+
     if job is None or not job.enabled:
         return
 
@@ -95,18 +100,20 @@ async def register_persistent_job(
     if handler_key not in _handlers:
         raise ValueError(f"unknown scheduler handler: {handler_key}")
 
-    await repository.save_job_spec(
-        job_id=job_id,
-        handler_key=handler_key,
-        trigger_type=trigger_type,
-        trigger_kwargs=trigger_kwargs,
-        args=args,
-        kwargs=kwargs,
-        enabled=enabled,
-        coalesce=coalesce,
-        max_instances=max_instances,
-        misfire_grace_time=misfire_grace_time,
-    )
+    async with get_session() as session:
+        await repository.save_job_spec(
+            session,
+            job_id=job_id,
+            handler_key=handler_key,
+            trigger_type=trigger_type,
+            trigger_kwargs=trigger_kwargs,
+            args=args,
+            kwargs=kwargs,
+            enabled=enabled,
+            coalesce=coalesce,
+            max_instances=max_instances,
+            misfire_grace_time=misfire_grace_time,
+        )
     if not enabled:
         return
 
@@ -123,7 +130,8 @@ async def register_persistent_job(
 async def initialize_scheduler_service() -> None:
     """Rehydrate enabled persisted jobs into the runtime scheduler."""
     try:
-        jobs = await repository.list_enabled_job_specs()
+        async with get_session() as session:
+            jobs = await repository.list_enabled_job_specs(session)
     except DatabaseError:
         logger.exception("Failed to load persisted scheduler jobs")
         return
@@ -156,7 +164,8 @@ async def remove_persistent_job(job_id: str) -> tuple[int, bool]:
         scheduler.remove_job(job_id)
     except JobLookupError:
         logger.debug("Runtime scheduler job %s was not present", job_id)
-    return await repository.delete_job_spec(job_id)
+    async with get_session() as session:
+        return await repository.delete_job_spec(session, job_id)
 
 
 async def shutdown_scheduler_service() -> None:

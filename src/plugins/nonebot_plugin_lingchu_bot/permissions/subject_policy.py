@@ -4,13 +4,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import or_
 
 from ..database.models import SubjectPolicyEntry
 from ..database.orm_crud import delete, get_one, upsert
 from ..repositories.blocklist import GLOBAL_SCOPE_KEY, BlockScope, scope_key_for
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 
 SubjectPolicyType = Literal["blocked", "protected"]
 
@@ -36,7 +39,10 @@ def expires_at_from_duration(duration: int | None) -> datetime | None:
     return datetime.now(UTC) + timedelta(seconds=duration)
 
 
-async def upsert_subject_policy(request: SubjectPolicyUpsert) -> SubjectPolicyEntry:
+async def upsert_subject_policy(
+    session: AsyncSession | async_scoped_session,
+    request: SubjectPolicyUpsert,
+) -> SubjectPolicyEntry:
     now = datetime.now(UTC)
     scope_key = scope_key_for(request.scope, request.group_id)
     values = {
@@ -58,6 +64,7 @@ async def upsert_subject_policy(request: SubjectPolicyUpsert) -> SubjectPolicyEn
         "updated_at": now,
     }
     return await upsert(
+        session,
         SubjectPolicyEntry,
         values,
         conflict_fields=[
@@ -80,6 +87,7 @@ async def upsert_subject_policy(request: SubjectPolicyUpsert) -> SubjectPolicyEn
 
 
 async def remove_subject_policy(
+    session: AsyncSession | async_scoped_session,
     *,
     policy_type: SubjectPolicyType,
     platform_id: str,
@@ -101,10 +109,11 @@ async def remove_subject_policy(
     }
     if protocol_id is not None:
         filters["protocol_id"] = protocol_id
-    return await delete(SubjectPolicyEntry, filters)
+    return await delete(session, SubjectPolicyEntry, filters)
 
 
 async def clear_subject_policy(
+    session: AsyncSession | async_scoped_session,
     *,
     policy_type: SubjectPolicyType,
     platform_id: str,
@@ -124,10 +133,11 @@ async def clear_subject_policy(
     }
     if protocol_id is not None:
         filters["protocol_id"] = protocol_id
-    return await delete(SubjectPolicyEntry, filters)
+    return await delete(session, SubjectPolicyEntry, filters)
 
 
 async def find_active_subject_policy(
+    session: AsyncSession | async_scoped_session,
     *,
     policy_type: SubjectPolicyType,
     platform_id: str,
@@ -138,6 +148,7 @@ async def find_active_subject_policy(
     user_id: str | int,
 ) -> SubjectPolicyEntry | None:
     global_entry = await _find_active_subject_policy_for_scope(
+        session,
         policy_type=policy_type,
         platform_id=platform_id,
         adapter_id=adapter_id,
@@ -150,6 +161,7 @@ async def find_active_subject_policy(
     if global_entry is not None:
         return global_entry
     return await _find_active_subject_policy_for_scope(
+        session,
         policy_type=policy_type,
         platform_id=platform_id,
         adapter_id=adapter_id,
@@ -162,6 +174,7 @@ async def find_active_subject_policy(
 
 
 async def _find_active_subject_policy_for_scope(
+    session: AsyncSession | async_scoped_session,
     *,
     policy_type: SubjectPolicyType,
     platform_id: str,
@@ -185,12 +198,12 @@ async def _find_active_subject_policy_for_scope(
     }
     if protocol_id is not None:
         filters["protocol_id"] = protocol_id
-    entry = await get_one(SubjectPolicyEntry, filters)
+    entry = await get_one(session, SubjectPolicyEntry, filters)
     if entry is None:
         return None
     if entry.expires_at is None or entry.expires_at > datetime.now(UTC):
         return entry
-    await delete(SubjectPolicyEntry, filters)
+    await delete(session, SubjectPolicyEntry, filters)
     return None
 
 

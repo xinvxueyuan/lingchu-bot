@@ -19,6 +19,12 @@ from src.plugins.nonebot_plugin_lingchu_bot.core import (
 from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_defaults import (
     HANDLE_DEFAULTS_REGISTRY,
 )
+from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_defaults.mass_announcement import (
+    MassAnnouncementConfig,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_defaults.restart_protocol_endpoint import (
+    RestartProtocolEndpointConfig,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_manager import (
     HandleConfig,
     HandleConfigManager,
@@ -77,19 +83,22 @@ def config_manager() -> Iterator[HandleConfigManager]:
 
 
 def test_mass_announcement_defaults_are_registered() -> None:
-    assert HANDLE_DEFAULTS_REGISTRY["mass_announcement"] == {
-        "enabled": True,
-        "defaults": {},
-        "policies": {},
-    }
+    assert HANDLE_DEFAULTS_REGISTRY["mass_announcement"] is MassAnnouncementConfig
+    instance = MassAnnouncementConfig()
+    assert instance.enabled is True
+    assert instance.defaults == {}
+    assert instance.policies == {}
 
 
 def test_restart_protocol_endpoint_defaults_are_registered() -> None:
-    assert HANDLE_DEFAULTS_REGISTRY["restart_protocol_endpoint"] == {
-        "enabled": True,
-        "defaults": {},
-        "policies": {},
-    }
+    assert (
+        HANDLE_DEFAULTS_REGISTRY["restart_protocol_endpoint"]
+        is RestartProtocolEndpointConfig
+    )
+    instance = RestartProtocolEndpointConfig()
+    assert instance.enabled is True
+    assert instance.defaults == {}
+    assert instance.policies == {}
 
 
 # SubTask 8.1: HandleConfig dataclass 字段结构测试
@@ -300,7 +309,8 @@ class TestEnsureConfigFiles:
 
         import rtoml
 
-        for command_key, expected_defaults in HANDLE_DEFAULTS_REGISTRY.items():
+        for command_key, model_cls in HANDLE_DEFAULTS_REGISTRY.items():
+            expected_defaults = model_cls().model_dump(mode="json")
             file_path = patched_localstore / f"{command_key}.toml"
             async with aiofiles.open(file_path, encoding="utf-8") as f:
                 content = await f.read()
@@ -350,93 +360,68 @@ class TestEnsureConfigFiles:
         assert config_dict["policies"]["custom_policy"] == "value"
 
 
-# SubTask 8.5: validate_config schema 校验测试
-class TestValidateConfig:
-    """Test validate_config schema validation."""
+# SubTask 10.2: pydantic 校验路径测试（替代原 validate_config 方法）
+@pytest.mark.asyncio
+class TestPydanticValidation:
+    """Test pydantic validation through update_config."""
 
-    async def test_validate_config_accepts_valid_config(
+    async def test_update_config_rejects_invalid_defaults_type(
         self,
         config_manager: HandleConfigManager,
+        patched_localstore: Path,
     ) -> None:
-        """Test that validate_config accepts valid configuration dictionaries."""
+        """Test that update_config raises ValueError when defaults has wrong type."""
         await install_schemas()
 
         command_key = "kick_member"
-        valid_config = {
+        invalid_updates: dict[str, Any] = {
             "enabled": True,
-            "defaults": {"require_reason": False, "audit_level": "low"},
+            "defaults": "not-a-dict",  # Should be a dict, not a string
             "policies": {},
         }
 
-        is_valid = config_manager.validate_config(command_key, valid_config)
-        assert is_valid is True
+        with pytest.raises(ValueError, match="validation failed"):
+            await config_manager.update_config(command_key, invalid_updates)
 
-    async def test_validate_config_rejects_missing_enabled_field(
+    async def test_update_config_accepts_valid_config(
         self,
         config_manager: HandleConfigManager,
+        patched_localstore: Path,
     ) -> None:
-        """Test that validate_config rejects config missing 'enabled' field."""
+        """Test that update_config accepts a valid full configuration."""
         await install_schemas()
 
         command_key = "kick_member"
-        invalid_config = {
-            "defaults": {"require_reason": False, "audit_level": "low"},
-            "policies": {},
+        valid_updates = {
+            "enabled": False,
+            "defaults": {"require_reason": True, "audit_level": "high"},
+            "policies": {"custom": "value"},
         }
 
-        is_valid = config_manager.validate_config(command_key, invalid_config)
-        assert is_valid is False
+        await config_manager.update_config(command_key, valid_updates)
+        config = await config_manager.get_config(command_key)
+        assert config.enabled is False
+        assert config.defaults["require_reason"] is True
+        assert config.defaults["audit_level"] == "high"
+        assert config.policies["custom"] == "value"
 
-    async def test_validate_config_rejects_wrong_type_enabled(
+    async def test_update_config_fills_missing_defaults_fields(
         self,
         config_manager: HandleConfigManager,
+        patched_localstore: Path,
     ) -> None:
-        """Test that validate_config rejects config with wrong type for 'enabled'."""
+        """Test that pydantic fills in missing defaults fields from model defaults."""
         await install_schemas()
 
         command_key = "kick_member"
-        invalid_config = {
-            "enabled": "true",  # Should be bool, not string
-            "defaults": {"require_reason": False, "audit_level": "low"},
-            "policies": {},
-        }
+        # Only provide one defaults field; pydantic should fill audit_level
+        await config_manager.update_config(
+            command_key, {"defaults": {"require_reason": True}}
+        )
 
-        is_valid = config_manager.validate_config(command_key, invalid_config)
-        assert is_valid is False
-
-    async def test_validate_config_accepts_missing_defaults_field(
-        self,
-        config_manager: HandleConfigManager,
-    ) -> None:
-        """Test that validate_config accepts config missing optional 'defaults'."""
-        await install_schemas()
-
-        command_key = "kick_member"
-        # defaults is optional in schema (only enabled is required)
-        valid_config = {
-            "enabled": True,
-            "policies": {},
-        }
-
-        is_valid = config_manager.validate_config(command_key, valid_config)
-        assert is_valid is True
-
-    async def test_validate_config_accepts_missing_policies_field(
-        self,
-        config_manager: HandleConfigManager,
-    ) -> None:
-        """Test that validate_config accepts config missing optional 'policies'."""
-        await install_schemas()
-
-        command_key = "kick_member"
-        # policies is optional in schema (only enabled is required)
-        valid_config = {
-            "enabled": True,
-            "defaults": {"require_reason": False, "audit_level": "low"},
-        }
-
-        is_valid = config_manager.validate_config(command_key, valid_config)
-        assert is_valid is True
+        config = await config_manager.get_config(command_key)
+        assert config.defaults["require_reason"] is True
+        assert config.defaults["audit_level"] == "low"
 
 
 # SubTask 8.6: 配置更新不影响其他模块测试

@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.permissions import subject_policy
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
 
 
 def _entry(*, expires_at: datetime | None = None) -> MagicMock:
@@ -13,12 +19,24 @@ def _entry(*, expires_at: datetime | None = None) -> MagicMock:
     return item
 
 
+@pytest.fixture
+def mock_session() -> Mock:
+    """Provide a mock AsyncSession for subject_policy repository tests."""
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
+
+
 @pytest.mark.asyncio
-async def test_protected_subject_prefers_global_scope() -> None:
+async def test_protected_subject_prefers_global_scope(
+    mock_session: Mock,
+) -> None:
     get_one_mock = AsyncMock(return_value=_entry())
 
     with patch.object(subject_policy, "get_one", get_one_mock):
         result = await subject_policy.find_active_subject_policy(
+            mock_session,
             policy_type="protected",
             platform_id="qq",
             adapter_id="~onebot.v11",
@@ -29,12 +47,13 @@ async def test_protected_subject_prefers_global_scope() -> None:
 
     assert result is not None
     assert get_one_mock.await_count == 1
-    assert get_one_mock.call_args.args[1]["policy_type"] == "protected"
-    assert get_one_mock.call_args.args[1]["scope"] == "global"
+    assert get_one_mock.call_args.args[0] is mock_session
+    assert get_one_mock.call_args.args[2]["policy_type"] == "protected"
+    assert get_one_mock.call_args.args[2]["scope"] == "global"
 
 
 @pytest.mark.asyncio
-async def test_expired_subject_policy_is_deleted() -> None:
+async def test_expired_subject_policy_is_deleted(mock_session: Mock) -> None:
     expired = _entry(expires_at=datetime.now(UTC) - timedelta(seconds=1))
     get_one_mock = AsyncMock(side_effect=[expired, None])
     delete_mock = AsyncMock(return_value=(1, True))
@@ -44,6 +63,7 @@ async def test_expired_subject_policy_is_deleted() -> None:
         patch.object(subject_policy, "delete", delete_mock),
     ):
         result = await subject_policy.find_active_subject_policy(
+            mock_session,
             policy_type="protected",
             platform_id="qq",
             adapter_id="~onebot.v11",
@@ -78,7 +98,9 @@ def test_expires_at_from_duration_positive_returns_future() -> None:
 
 
 @pytest.mark.asyncio
-async def test_upsert_subject_policy_global_scope_without_operator() -> None:
+async def test_upsert_subject_policy_global_scope_without_operator(
+    mock_session: Mock,
+) -> None:
     entry = MagicMock()
     upsert_mock = AsyncMock(return_value=entry)
     request = subject_policy.SubjectPolicyUpsert(
@@ -95,11 +117,12 @@ async def test_upsert_subject_policy_global_scope_without_operator() -> None:
     )
 
     with patch.object(subject_policy, "upsert", upsert_mock):
-        result = await subject_policy.upsert_subject_policy(request)
+        result = await subject_policy.upsert_subject_policy(mock_session, request)
 
     assert result is entry
     assert upsert_mock.await_args is not None
-    values = upsert_mock.await_args.args[1]
+    assert upsert_mock.await_args.args[0] is mock_session
+    values = upsert_mock.await_args.args[2]
     assert values["scope"] == "global"
     assert values["scope_key"] == "*"
     assert values["group_id"] is None
@@ -120,7 +143,9 @@ async def test_upsert_subject_policy_global_scope_without_operator() -> None:
 
 
 @pytest.mark.asyncio
-async def test_upsert_subject_policy_group_scope_with_operator() -> None:
+async def test_upsert_subject_policy_group_scope_with_operator(
+    mock_session: Mock,
+) -> None:
     entry = MagicMock()
     upsert_mock = AsyncMock(return_value=entry)
     expires = datetime.now(UTC) + timedelta(seconds=120)
@@ -139,11 +164,11 @@ async def test_upsert_subject_policy_group_scope_with_operator() -> None:
     )
 
     with patch.object(subject_policy, "upsert", upsert_mock):
-        result = await subject_policy.upsert_subject_policy(request)
+        result = await subject_policy.upsert_subject_policy(mock_session, request)
 
     assert result is entry
     assert upsert_mock.await_args is not None
-    values = upsert_mock.await_args.args[1]
+    values = upsert_mock.await_args.args[2]
     assert values["scope"] == "group"
     assert values["scope_key"] == "123"
     assert values["group_id"] == "123"
@@ -157,11 +182,12 @@ async def test_upsert_subject_policy_group_scope_with_operator() -> None:
 
 
 @pytest.mark.asyncio
-async def test_remove_subject_policy_with_protocol_id() -> None:
+async def test_remove_subject_policy_with_protocol_id(mock_session: Mock) -> None:
     delete_mock = AsyncMock(return_value=(1, True))
 
     with patch.object(subject_policy, "delete", delete_mock):
         result = await subject_policy.remove_subject_policy(
+            mock_session,
             policy_type="blocked",
             platform_id="qq",
             adapter_id="~onebot.v11",
@@ -174,7 +200,7 @@ async def test_remove_subject_policy_with_protocol_id() -> None:
 
     assert result == (1, True)
     assert delete_mock.await_args is not None
-    filters = delete_mock.await_args.args[1]
+    filters = delete_mock.await_args.args[2]
     assert filters["protocol_id"] == "default"
     assert filters["scope"] == "group"
     assert filters["scope_key"] == "123"
@@ -183,11 +209,12 @@ async def test_remove_subject_policy_with_protocol_id() -> None:
 
 
 @pytest.mark.asyncio
-async def test_remove_subject_policy_without_protocol_id() -> None:
+async def test_remove_subject_policy_without_protocol_id(mock_session: Mock) -> None:
     delete_mock = AsyncMock(return_value=(0, True))
 
     with patch.object(subject_policy, "delete", delete_mock):
         result = await subject_policy.remove_subject_policy(
+            mock_session,
             policy_type="blocked",
             platform_id="qq",
             adapter_id="~onebot.v11",
@@ -199,17 +226,18 @@ async def test_remove_subject_policy_without_protocol_id() -> None:
 
     assert result == (0, True)
     assert delete_mock.await_args is not None
-    filters = delete_mock.await_args.args[1]
+    filters = delete_mock.await_args.args[2]
     assert "protocol_id" not in filters
     assert filters["scope_key"] == "*"
 
 
 @pytest.mark.asyncio
-async def test_clear_subject_policy_with_protocol_id() -> None:
+async def test_clear_subject_policy_with_protocol_id(mock_session: Mock) -> None:
     delete_mock = AsyncMock(return_value=(2, True))
 
     with patch.object(subject_policy, "delete", delete_mock):
         result = await subject_policy.clear_subject_policy(
+            mock_session,
             policy_type="blocked",
             platform_id="qq",
             adapter_id="~onebot.v11",
@@ -221,18 +249,19 @@ async def test_clear_subject_policy_with_protocol_id() -> None:
 
     assert result == (2, True)
     assert delete_mock.await_args is not None
-    filters = delete_mock.await_args.args[1]
+    filters = delete_mock.await_args.args[2]
     assert filters["protocol_id"] == "napcat"
     assert "user_id" not in filters
     assert filters["scope_key"] == "123"
 
 
 @pytest.mark.asyncio
-async def test_clear_subject_policy_without_protocol_id() -> None:
+async def test_clear_subject_policy_without_protocol_id(mock_session: Mock) -> None:
     delete_mock = AsyncMock(return_value=(0, False))
 
     with patch.object(subject_policy, "delete", delete_mock):
         result = await subject_policy.clear_subject_policy(
+            mock_session,
             policy_type="protected",
             platform_id="qq",
             adapter_id="~onebot.v11",
@@ -243,19 +272,22 @@ async def test_clear_subject_policy_without_protocol_id() -> None:
 
     assert result == (0, False)
     assert delete_mock.await_args is not None
-    filters = delete_mock.await_args.args[1]
+    filters = delete_mock.await_args.args[2]
     assert "protocol_id" not in filters
     assert "user_id" not in filters
     assert filters["scope_key"] == "*"
 
 
 @pytest.mark.asyncio
-async def test_find_active_subject_policy_with_protocol_id() -> None:
+async def test_find_active_subject_policy_with_protocol_id(
+    mock_session: Mock,
+) -> None:
     entry = _entry()
     get_one_mock = AsyncMock(return_value=entry)
 
     with patch.object(subject_policy, "get_one", get_one_mock):
         result = await subject_policy.find_active_subject_policy(
+            mock_session,
             policy_type="protected",
             platform_id="qq",
             adapter_id="~onebot.v11",
@@ -267,17 +299,20 @@ async def test_find_active_subject_policy_with_protocol_id() -> None:
 
     assert result is entry
     assert get_one_mock.await_args is not None
-    filters = get_one_mock.await_args.args[1]
+    filters = get_one_mock.await_args.args[2]
     assert filters["protocol_id"] == "default"
 
 
 @pytest.mark.asyncio
-async def test_find_active_subject_policy_falls_back_to_group_scope() -> None:
+async def test_find_active_subject_policy_falls_back_to_group_scope(
+    mock_session: Mock,
+) -> None:
     group_entry = _entry()
     get_one_mock = AsyncMock(side_effect=[None, group_entry])
 
     with patch.object(subject_policy, "get_one", get_one_mock):
         result = await subject_policy.find_active_subject_policy(
+            mock_session,
             policy_type="protected",
             platform_id="qq",
             adapter_id="~onebot.v11",
@@ -288,19 +323,22 @@ async def test_find_active_subject_policy_falls_back_to_group_scope() -> None:
 
     assert result is group_entry
     assert get_one_mock.await_count == 2
-    second_filters = get_one_mock.await_args_list[1].args[1]
+    second_filters = get_one_mock.await_args_list[1].args[2]
     assert second_filters["scope"] == "group"
     assert second_filters["scope_key"] == "123"
 
 
 @pytest.mark.asyncio
-async def test_find_active_subject_policy_with_protocol_id_group_scope() -> None:
+async def test_find_active_subject_policy_with_protocol_id_group_scope(
+    mock_session: Mock,
+) -> None:
     """protocol_id filter is applied in the group-scope fallback path too."""
     group_entry = _entry()
     get_one_mock = AsyncMock(side_effect=[None, group_entry])
 
     with patch.object(subject_policy, "get_one", get_one_mock):
         result = await subject_policy.find_active_subject_policy(
+            mock_session,
             policy_type="protected",
             platform_id="qq",
             adapter_id="~onebot.v11",
@@ -312,8 +350,8 @@ async def test_find_active_subject_policy_with_protocol_id_group_scope() -> None
 
     assert result is group_entry
     assert get_one_mock.await_count == 2
-    global_filters = get_one_mock.await_args_list[0].args[1]
-    group_filters = get_one_mock.await_args_list[1].args[1]
+    global_filters = get_one_mock.await_args_list[0].args[2]
+    group_filters = get_one_mock.await_args_list[1].args[2]
     assert global_filters["protocol_id"] == "napcat"
     assert group_filters["protocol_id"] == "napcat"
 

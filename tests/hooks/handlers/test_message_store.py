@@ -56,10 +56,10 @@ def enabled_config() -> SimpleNamespace:
 def patched_runtime_config(
     monkeypatch: pytest.MonkeyPatch, enabled_config: SimpleNamespace
 ):
-    """Patch ``runtime_config`` in all modules that imported the name."""
-    monkeypatch.setattr(handler_module, "runtime_config", enabled_config)
-    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
-    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    """Patch ``plugin_config`` in all modules that imported the name."""
+    monkeypatch.setattr(handler_module, "plugin_config", enabled_config)
+    monkeypatch.setattr(message_store, "plugin_config", enabled_config)
+    monkeypatch.setattr(adapters, "plugin_config", enabled_config)
     return enabled_config
 
 

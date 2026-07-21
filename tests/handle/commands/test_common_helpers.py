@@ -1,7 +1,7 @@
 """测试 common.py 中新增的权限检查和审计函数。"""
 
 from typing import Any, cast
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from nonebot.adapters.onebot.v11.exception import ActionFailed as Onebot11ActionFailed
 import pytest
@@ -30,6 +30,25 @@ _GROUP_ID = 123456789
 _TARGET_USER_ID = 999
 
 
+class _FakeSessionContext:
+    """Async context manager that yields a fixed mock session."""
+
+    def __init__(self, session: Any) -> None:
+        self._session = session
+
+    async def __aenter__(self) -> Any:
+        return self._session
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+
+@pytest.fixture
+def mock_session() -> MagicMock:
+    """Provide a mock AsyncSession for common helpers that require a session."""
+    return MagicMock(name="async_session")
+
+
 # ================= check_target_privilege 测试 =================
 
 
@@ -38,7 +57,10 @@ class TestCheckTargetPrivilege:
 
     @pytest.mark.asyncio
     async def test_member_target_passes(
-        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: MagicMock,
     ) -> None:
         """目标为普通成员时通过检查。"""
         mock_onebot11_bot.get_group_member_info = AsyncMock(
@@ -48,7 +70,11 @@ class TestCheckTargetPrivilege:
         matcher.finish = AsyncMock()
 
         result = await check_target_privilege(
-            mock_onebot11_bot, mock_onebot11_event, _TARGET_USER_ID, matcher
+            mock_session,
+            mock_onebot11_bot,
+            mock_onebot11_event,
+            _TARGET_USER_ID,
+            matcher,
         )
 
         assert result is True
@@ -56,7 +82,10 @@ class TestCheckTargetPrivilege:
 
     @pytest.mark.asyncio
     async def test_admin_target_rejects_non_owner_operator(
-        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: MagicMock,
     ) -> None:
         """目标为管理员且操作者为普通成员时拒绝。"""
         mock_onebot11_bot.get_group_member_info = AsyncMock(
@@ -66,7 +95,11 @@ class TestCheckTargetPrivilege:
         matcher.finish = AsyncMock()
 
         result = await check_target_privilege(
-            mock_onebot11_bot, mock_onebot11_event, _TARGET_USER_ID, matcher
+            mock_session,
+            mock_onebot11_bot,
+            mock_onebot11_event,
+            _TARGET_USER_ID,
+            matcher,
         )
 
         assert result is False
@@ -74,7 +107,10 @@ class TestCheckTargetPrivilege:
 
     @pytest.mark.asyncio
     async def test_admin_target_passes_for_owner_operator(
-        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: MagicMock,
     ) -> None:
         """目标为管理员且操作者为群主时通过。"""
         mock_onebot11_bot.get_group_member_info = AsyncMock(
@@ -84,7 +120,11 @@ class TestCheckTargetPrivilege:
         matcher.finish = AsyncMock()
 
         result = await check_target_privilege(
-            mock_onebot11_bot, mock_onebot11_event, _TARGET_USER_ID, matcher
+            mock_session,
+            mock_onebot11_bot,
+            mock_onebot11_event,
+            _TARGET_USER_ID,
+            matcher,
         )
 
         assert result is True
@@ -92,7 +132,10 @@ class TestCheckTargetPrivilege:
 
     @pytest.mark.asyncio
     async def test_admin_target_passes_for_superuser_operator(
-        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: MagicMock,
     ) -> None:
         """目标为管理员且操作者为超级用户时通过。"""
         mock_onebot11_bot.get_group_member_info = AsyncMock(
@@ -107,7 +150,11 @@ class TestCheckTargetPrivilege:
             mock_get_driver.return_value.config = mock_config
 
             result = await check_target_privilege(
-                mock_onebot11_bot, mock_onebot11_event, _TARGET_USER_ID, matcher
+                mock_session,
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                _TARGET_USER_ID,
+                matcher,
             )
 
         assert result is True
@@ -115,7 +162,10 @@ class TestCheckTargetPrivilege:
 
     @pytest.mark.asyncio
     async def test_protected_target_rejects_non_superuser(
-        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: MagicMock,
     ) -> None:
         """白名单保护目标拒绝非 SUPERUSERS。"""
         matcher = MagicMock()
@@ -133,7 +183,11 @@ class TestCheckTargetPrivilege:
             ),
         ):
             result = await check_target_privilege(
-                mock_onebot11_bot, mock_onebot11_event, _TARGET_USER_ID, matcher
+                mock_session,
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                _TARGET_USER_ID,
+                matcher,
             )
 
         assert result is False
@@ -142,7 +196,10 @@ class TestCheckTargetPrivilege:
 
     @pytest.mark.asyncio
     async def test_protected_target_passes_for_repository_superuser(
-        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: MagicMock,
     ) -> None:
         """白名单保护目标只允许仓库 SUPERUSERS 绕过。"""
         matcher = MagicMock()
@@ -160,7 +217,11 @@ class TestCheckTargetPrivilege:
             ),
         ):
             result = await check_target_privilege(
-                mock_onebot11_bot, mock_onebot11_event, _TARGET_USER_ID, matcher
+                mock_session,
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                _TARGET_USER_ID,
+                matcher,
             )
 
         assert result is True
@@ -172,7 +233,9 @@ class TestOperatorIsSuperuserOnebot11:
     """仓库 SUPERUSERS 解析测试。"""
 
     @pytest.mark.asyncio
-    async def test_returns_true_for_bound_superuser(self) -> None:
+    async def test_returns_true_for_bound_superuser(
+        self, mock_session: MagicMock
+    ) -> None:
         user = MagicMock(uid="uid-1")
         with (
             patch(
@@ -184,19 +247,21 @@ class TestOperatorIsSuperuserOnebot11:
                 AsyncMock(return_value=True),
             ) as is_superuser,
         ):
-            result = await operator_is_superuser_onebot11(123)
+            result = await operator_is_superuser_onebot11(mock_session, 123)
 
         assert result is True
-        get_user.assert_awaited_once_with("qq", "123")
-        is_superuser.assert_awaited_once_with("uid-1")
+        get_user.assert_awaited_once_with(mock_session, "qq", "123")
+        is_superuser.assert_awaited_once_with(mock_session, "uid-1")
 
     @pytest.mark.asyncio
-    async def test_returns_false_without_bound_uid(self) -> None:
+    async def test_returns_false_without_bound_uid(
+        self, mock_session: MagicMock
+    ) -> None:
         with patch(
             "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.permission_repo.get_user_by_platform_account",
             AsyncMock(return_value=None),
         ):
-            result = await operator_is_superuser_onebot11(123)
+            result = await operator_is_superuser_onebot11(mock_session, 123)
 
         assert result is False
 
@@ -279,10 +344,16 @@ class TestRecordCommandAudit:
         self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
     ) -> None:
         """正常记录审计日志。"""
-        with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.repositories.message_store.record_api_call",
-            AsyncMock(),
-        ) as mock_record:
+        with (
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.get_session",
+                return_value=_FakeSessionContext(MagicMock()),
+            ),
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.repositories.message_store.record_api_call",
+                AsyncMock(),
+            ) as mock_record,
+        ):
             await record_command_audit(
                 mock_onebot11_bot,
                 mock_onebot11_event,
@@ -295,7 +366,7 @@ class TestRecordCommandAudit:
             )
 
         mock_record.assert_called_once()
-        audit_event = mock_record.call_args.args[0]
+        audit_event = mock_record.call_args.args[1]
         assert audit_event.api_name == "command:member_mute"
         assert audit_event.audit_type == "command"
         assert "target=999" in audit_event.data_summary
@@ -307,9 +378,15 @@ class TestRecordCommandAudit:
         self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
     ) -> None:
         """数据库异常时静默处理，不抛出异常。"""
-        with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.repositories.message_store.record_api_call",
-            AsyncMock(side_effect=DatabaseError("连接失败")),
+        with (
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.get_session",
+                return_value=_FakeSessionContext(MagicMock()),
+            ),
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.repositories.message_store.record_api_call",
+                AsyncMock(side_effect=DatabaseError("连接失败")),
+            ),
         ):
             await record_command_audit(
                 mock_onebot11_bot,
@@ -425,6 +502,10 @@ class TestRecordAuditFireAndForget:
                 side_effect=_spy,
             ),
             patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.get_session",
+                return_value=_FakeSessionContext(MagicMock()),
+            ),
+            patch(
                 "src.plugins.nonebot_plugin_lingchu_bot.repositories.message_store.record_api_call",
                 AsyncMock(),
             ) as mock_record,
@@ -444,7 +525,7 @@ class TestRecordAuditFireAndForget:
             assert name == "audit:remote_mute"
             await coro
 
-        audit_event = mock_record.call_args.args[0]
+        audit_event = mock_record.call_args.args[1]
         assert "group=987654321" in audit_event.data_summary
 
 
@@ -706,6 +787,7 @@ class TestPermissionWrapperBody:
         command.finish = AsyncMock()
         bot = MagicMock()
         event = MagicMock()
+        session = Mock()
 
         async def handler(*_args: Any, **_kwargs: Any) -> Any:
             return "allowed-result"
@@ -715,10 +797,10 @@ class TestPermissionWrapperBody:
         with patch.object(common_module, "check_permission", new=AsyncMock()) as check:
             check.return_value = decision
             wrapped = _permission_wrapper(command, handler, "test_cmd")
-            result = await wrapped(bot=bot, event=event)
+            result = await wrapped(bot=bot, event=event, session=session)
 
         assert result == "allowed-result"
-        check.assert_awaited_once_with("test_cmd", bot, event)
+        check.assert_awaited_once_with(session, "test_cmd", bot, event)
         command.finish.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -728,6 +810,7 @@ class TestPermissionWrapperBody:
         command.finish = AsyncMock()
         bot = MagicMock()
         event = MagicMock()
+        session = Mock()
 
         async def handler(*_args: Any, **_kwargs: Any) -> Any:
             return "should-not-reach"
@@ -737,11 +820,11 @@ class TestPermissionWrapperBody:
         with patch.object(common_module, "check_permission", new=AsyncMock()) as check:
             check.return_value = decision
             wrapped = _permission_wrapper(command, handler, "test_cmd")
-            result = await wrapped(bot=bot, event=event)
+            result = await wrapped(bot=bot, event=event, session=session)
 
         assert result is None
         command.finish.assert_awaited_once()
-        check.assert_awaited_once_with("test_cmd", bot, event)
+        check.assert_awaited_once_with(session, "test_cmd", bot, event)
 
     @pytest.mark.asyncio
     async def test_wrapper_finds_bot_and_event_from_args(self) -> None:
@@ -751,6 +834,7 @@ class TestPermissionWrapperBody:
         bot = MagicMock()
         bot.adapter = "stub-adapter"
         event = _StubEvent()
+        session = Mock()
 
         called = False
 
@@ -764,7 +848,7 @@ class TestPermissionWrapperBody:
         with patch.object(common_module, "check_permission", new=AsyncMock()) as check:
             check.return_value = decision
             wrapped = _permission_wrapper(command, handler, "test_cmd")
-            result = await wrapped(bot, event)
+            result = await wrapped(bot, event, session=session)
 
         assert result == "ok"
         assert called is True

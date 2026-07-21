@@ -31,7 +31,7 @@ if TYPE_CHECKING:
         ChatCompletionMessageParam,
     )
 
-    from ...core.runtime_config import RuntimeConfig
+    from ...core.config import RuntimeConfig
 
 runtime_config: RuntimeConfig | None = None
 
@@ -93,7 +93,7 @@ def _ephemeral_profile(options: LLMOptions, *, model: str | None = None) -> LLMP
 def _default_options() -> LLMOptions:
     config = runtime_config
     if config is None:
-        from ...core.runtime_config import runtime_config as config
+        from ...core.config import plugin_config as config
 
     return LLMOptions(
         provider=config.ai_provider,

@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -390,7 +390,7 @@ async def test_onebot11_menu_reads_version_info_and_finishes() -> None:
     )
 
     with patch.object(menu_cmd, "finish") as mock_finish:
-        await onebot11_menu(bot=bot)
+        await onebot11_menu(bot=bot, session=Mock())
 
     bot.get_version_info.assert_awaited_once()
     assert "群聊管理" in finish_text(mock_finish)
@@ -412,7 +412,7 @@ async def test_onebot11_menu_page_reads_version_info_and_finishes() -> None:
     command = menu_page_cmds["group-chat-management"]
 
     with patch.object(command, "finish") as mock_finish:
-        await onebot11_menu_pages["group-chat-management"](bot=bot)
+        await onebot11_menu_pages["group-chat-management"](bot=bot, session=Mock())
 
     bot.get_version_info.assert_awaited_once()
     assert "设置群头像" in finish_text(mock_finish)
@@ -427,7 +427,7 @@ async def test_onebot11_menu_fails_closed_when_detection_fails() -> None:
         patch.object(onebot_menu_module.logger, "debug") as mock_debug,
         patch.object(menu_cmd, "finish") as mock_finish,
     ):
-        await onebot11_menu(bot=bot)
+        await onebot11_menu(bot=bot, session=Mock())
 
     mock_debug.assert_called_once()
     assert "发送群公告" not in finish_text(mock_finish)

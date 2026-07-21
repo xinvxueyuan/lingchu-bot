@@ -3,21 +3,28 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from ..database.models import Adapter, Platform, ProtocolImplementation
 from ..database.orm_crud import upsert
 from ..platforms import export_registry_for_seeding
 
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
+
 logger = logging.getLogger(__name__)
 
 
-async def seed_registry_tables() -> None:
+async def seed_registry_tables(
+    session: AsyncSession | async_scoped_session,
+) -> None:
     """Sync platform/adapter/protocol metadata from registry.py to database."""
     data = export_registry_for_seeding()
 
     for platform_data in data["platforms"]:
         try:
             await upsert(
+                session,
                 Platform,
                 {
                     "platform_id": platform_data["platform_id"],
@@ -36,6 +43,7 @@ async def seed_registry_tables() -> None:
     for adapter_data in data["adapters"]:
         try:
             await upsert(
+                session,
                 Adapter,
                 {
                     "adapter_id": adapter_data["adapter_id"],
@@ -54,6 +62,7 @@ async def seed_registry_tables() -> None:
     for impl_data in data["protocol_implementations"]:
         try:
             await upsert(
+                session,
                 ProtocolImplementation,
                 {
                     "protocol_id": impl_data["protocol_id"],

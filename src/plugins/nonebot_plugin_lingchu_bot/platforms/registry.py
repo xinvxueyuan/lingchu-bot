@@ -11,7 +11,7 @@ from enum import StrEnum
 import json
 from typing import Any, Final, cast
 
-from ..core.runtime_config import get_runtime_config
+from ..core.config import get_runtime_config
 
 type AdapterConfig = str | list[str] | tuple[str, ...] | None
 _UNSET: Final = object()

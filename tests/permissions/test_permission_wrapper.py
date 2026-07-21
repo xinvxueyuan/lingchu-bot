@@ -1,6 +1,6 @@
 from collections.abc import Awaitable, Callable
 from typing import Any, cast
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -55,7 +55,7 @@ async def test_selected_adapter_handle_denies_before_business_handler(
 
     assert returned is handler
     assert command.registered is not None
-    await command.registered(bot=FakeBot(), event=FakeEvent())
+    await command.registered(bot=FakeBot(), event=FakeEvent(), session=Mock())
 
     handler.assert_not_awaited()
     command.finished.assert_awaited_once_with("权限不足")
@@ -79,7 +79,9 @@ async def test_selected_adapter_handle_allows_business_handler(
     )
 
     assert command.registered is not None
-    result = await command.registered(bot=FakeBot(), event=FakeEvent(), value=1)
+    result = await command.registered(
+        bot=FakeBot(), event=FakeEvent(), session=Mock(), value=1
+    )
 
     assert result == "ok"
     handler.assert_awaited_once()

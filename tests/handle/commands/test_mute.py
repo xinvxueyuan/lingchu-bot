@@ -1,11 +1,14 @@
 """测试禁言命令 - 边界行为覆盖"""
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from nonebot_plugin_alconna.uniseg import At
 import pytest
 
+from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_manager import (
+    HandleConfig,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     mute as mute_module,
 )
@@ -50,6 +53,15 @@ def mock_at() -> MagicMock:
     return at
 
 
+@pytest.fixture
+def mock_session() -> Mock:
+    """Provide a mock AsyncSession for mute handler Depends() injection."""
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
+
+
 class TestOneBot11Mute:
     """OneBot11 禁言 API 映射测试。"""
 
@@ -59,18 +71,48 @@ class TestOneBot11Mute:
         with patch.object(mute_module, "record_audit_fire_and_forget", new=AsyncMock()):
             yield
 
+    @pytest.fixture(autouse=True)
+    def _mock_check_target_privilege(self):
+        """绕过 check_target_privilege 的真实 DB 调用（find_active_subject_policy）。
+
+        member_mute 命令在 protected_subject_feature_keys 默认列表内，会触发
+        find_active_subject_policy → get_one(session, ...) 的真实查询。使用 mock_session
+        时 get_one 返回 coroutine 对象而非 None，导致 AttributeError。这里将
+        check_target_privilege 直接 mock 为返回 True（通过权限检查），让测试聚焦于
+        set_group_ban 等 OneBot API 调用断言。
+        """
+        with patch.object(
+            mute_module, "check_target_privilege", new=AsyncMock(return_value=True)
+        ):
+            yield
+
+    @pytest.fixture(autouse=True)
+    def _mock_handle_config_manager(self):
+        """Mock get_handle_config_manager 返回启用的配置。"""
+        enabled_config = HandleConfig(enabled=True, defaults={}, policies={})
+
+        class MockManager:
+            async def get_config(self, command_key: str) -> HandleConfig:
+                return enabled_config
+
+        with patch.object(
+            mute_module, "get_handle_config_manager", return_value=MockManager()
+        ):
+            yield
+
     @pytest.mark.asyncio
     async def test_onebot11_mute_calls_set_group_ban(
         self,
         mock_onebot11_bot: MagicMock,
         mock_onebot11_event: MagicMock,
         mock_at: MagicMock,
+        mock_session: Mock,
     ) -> None:
         mock_onebot11_bot.set_group_ban = AsyncMock()
-        # check_target_privilege: 目标为普通成员（通过）
+        # check_target_privilege: 已由 autouse fixture mock 为返回 True
         # check_bot_privilege: 机器人为管理员（通过）
         mock_onebot11_bot.get_group_member_info = AsyncMock(
-            side_effect=[{"role": "member"}, {"role": "admin"}]
+            side_effect=[{"role": "admin"}]
         )
 
         with patch.object(member_mute_cmd, "finish") as mock_finish:
@@ -80,6 +122,7 @@ class TestOneBot11Mute:
                 reason="违规",
                 bot=mock_onebot11_bot,
                 event=mock_onebot11_event,
+                session=mock_session,
             )
 
         mock_onebot11_bot.set_group_ban.assert_called_once_with(
@@ -96,12 +139,16 @@ class TestOneBot11Mute:
         mock_onebot11_bot: MagicMock,
         mock_onebot11_event: MagicMock,
         mock_at: MagicMock,
+        mock_session: Mock,
     ) -> None:
         mock_onebot11_bot.set_group_ban = AsyncMock()
 
         with patch.object(member_unmute_cmd, "finish") as mock_finish:
             await onebot11_unmute(
-                user=mock_at, bot=mock_onebot11_bot, event=mock_onebot11_event
+                user=mock_at,
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+                session=mock_session,
             )
 
         mock_onebot11_bot.set_group_ban.assert_called_once_with(
@@ -113,7 +160,10 @@ class TestOneBot11Mute:
 
     @pytest.mark.asyncio
     async def test_onebot11_whole_mute_calls_set_group_whole_ban(
-        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
     ) -> None:
         mock_onebot11_bot.set_group_whole_ban = AsyncMock()
         # check_bot_privilege: 机器人为管理员（通过）
@@ -122,7 +172,11 @@ class TestOneBot11Mute:
         )
 
         with patch.object(whole_mute_cmd, "finish") as mock_finish:
-            await onebot11_whole_mute(bot=mock_onebot11_bot, event=mock_onebot11_event)
+            await onebot11_whole_mute(
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+                session=mock_session,
+            )
 
         mock_onebot11_bot.set_group_whole_ban.assert_called_once_with(
             group_id=mock_onebot11_event.group_id, enable=True
@@ -131,13 +185,18 @@ class TestOneBot11Mute:
 
     @pytest.mark.asyncio
     async def test_onebot11_whole_unmute_calls_set_group_whole_ban(
-        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
     ) -> None:
         mock_onebot11_bot.set_group_whole_ban = AsyncMock()
 
         with patch.object(whole_unmute_cmd, "finish") as mock_finish:
             await onebot11_whole_unmute(
-                bot=mock_onebot11_bot, event=mock_onebot11_event
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+                session=mock_session,
             )
 
         mock_onebot11_bot.set_group_whole_ban.assert_called_once_with(
@@ -150,6 +209,7 @@ class TestOneBot11Mute:
         self,
         mock_onebot11_bot: MagicMock,
         mock_onebot11_event: MagicMock,
+        mock_session: Mock,
     ) -> None:
         first_record = MagicMock(
             message_id="101",
@@ -225,6 +285,7 @@ class TestOneBot11Mute:
             patch.object(recall_message_cmd, "finish") as mock_finish,
         ):
             await onebot11_recall_message(
+                session=mock_session,
                 target=None,
                 count=2,
                 bot=mock_onebot11_bot,
@@ -232,6 +293,7 @@ class TestOneBot11Mute:
             )
 
         assert list_recent.await_count == RECALL_QUERY_COUNT
+        assert list_recent.call_args.args[0] is mock_session
         assert list_recent.call_args.kwargs["bot_id"] == mock_onebot11_bot.self_id
         mock_onebot11_bot.delete_msg.assert_any_await(message_id=101)
         mock_onebot11_bot.delete_msg.assert_any_await(message_id=103)
@@ -243,6 +305,7 @@ class TestOneBot11Mute:
         self,
         mock_onebot11_bot: MagicMock,
         mock_onebot11_event: MagicMock,
+        mock_session: Mock,
     ) -> None:
         record = MagicMock(
             message_id="101",
@@ -281,6 +344,7 @@ class TestOneBot11Mute:
             patch.object(recall_message_cmd, "finish") as mock_finish,
         ):
             await onebot11_recall_message(
+                session=mock_session,
                 target=None,
                 count=1,
                 bot=mock_onebot11_bot,
@@ -288,6 +352,7 @@ class TestOneBot11Mute:
             )
 
         assert list_recent.await_count == RECALL_QUERY_COUNT
+        assert list_recent.await_args_list[0].args[0] is mock_session
         assert "conversation_id" not in list_recent.await_args_list[0].kwargs
         assert list_recent.await_args_list[1].kwargs["conversation_id"] == str(
             mock_onebot11_event.group_id
@@ -301,6 +366,7 @@ class TestOneBot11Mute:
         mock_onebot11_bot: MagicMock,
         mock_onebot11_event: MagicMock,
         mock_at: MagicMock,
+        mock_session: Mock,
     ) -> None:
         record = MagicMock(
             message_id="101",
@@ -338,12 +404,14 @@ class TestOneBot11Mute:
             patch.object(recall_message_cmd, "finish") as mock_finish,
         ):
             await onebot11_recall_message(
+                session=mock_session,
                 target=mock_at,
                 count=1,
                 bot=mock_onebot11_bot,
                 event=mock_onebot11_event,
             )
 
+        assert list_recent.call_args.args[0] is mock_session
         assert list_recent.call_args.kwargs["user_id"] == "987654321"
         assert list_recent.await_count == RECALL_QUERY_COUNT
         mock_onebot11_bot.delete_msg.assert_awaited_once_with(message_id=101)

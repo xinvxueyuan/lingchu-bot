@@ -1,6 +1,6 @@
 """测试群成员设置与踢出命令 - OneBot11 群 API 映射覆盖"""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OB11ActionFailed
 import pytest
@@ -26,11 +26,39 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.member import (
 from tests.handle.commands.conftest import finish_text
 
 
+@pytest.fixture
+def mock_session() -> Mock:
+    """Provide a mock AsyncSession for member handler Depends() injection."""
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
+
+
 @pytest.fixture(autouse=True)
 def _mock_record_audit_fire_and_forget():
     """避免审计记录触发后台任务和数据库调用。"""
     with patch.object(
         onebot11_member_module, "record_audit_fire_and_forget", new=AsyncMock()
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _mock_check_target_privilege():
+    """绕过 check_target_privilege 的真实 DB 调用（find_active_subject_policy）。
+
+    set_member_card / set_member_title / set_member_admin / unset_member_admin /
+    kick_member 命令均在 protected_subject_feature_keys 默认列表内，会触发
+    find_active_subject_policy → get_one(session, ...) 的真实查询。使用 mock_session
+    时 get_one 返回 coroutine 对象而非 None，导致 AttributeError。这里将
+    check_target_privilege 直接 mock 为返回 True（通过权限检查），让测试聚焦于
+    set_group_card / set_group_admin / set_group_kick 等 OneBot API 调用断言。
+    """
+    with patch.object(
+        onebot11_member_module,
+        "check_target_privilege",
+        new=AsyncMock(return_value=True),
     ):
         yield
 
@@ -54,14 +82,15 @@ def _mock_handle_config_manager():
 
 @pytest.mark.asyncio
 async def test_onebot11_set_group_member_card_calls_v11_api(
-    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     mock_onebot11_bot.set_group_card = AsyncMock()
-    # check_target_privilege: 目标为普通成员（通过）
+    # check_target_privilege: 已由 autouse fixture mock 为返回 True
     # check_bot_privilege: 机器人为管理员（通过）
-    mock_onebot11_bot.get_group_member_info = AsyncMock(
-        side_effect=[{"role": "member"}, {"role": "admin"}]
-    )
+    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=[{"role": "admin"}])
 
     with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
         await onebot11_set_group_member_card(
@@ -69,6 +98,7 @@ async def test_onebot11_set_group_member_card_calls_v11_api(
             card="新名片",
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     mock_onebot11_bot.set_group_card.assert_called_once_with(
@@ -79,14 +109,15 @@ async def test_onebot11_set_group_member_card_calls_v11_api(
 
 @pytest.mark.asyncio
 async def test_onebot11_set_group_member_special_title_calls_v11_api(
-    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     mock_onebot11_bot.set_group_special_title = AsyncMock()
-    # check_target_privilege: 目标为普通成员（通过）
+    # check_target_privilege: 已由 autouse fixture mock 为返回 True
     # check_bot_privilege: 机器人为管理员（通过）
-    mock_onebot11_bot.get_group_member_info = AsyncMock(
-        side_effect=[{"role": "member"}, {"role": "admin"}]
-    )
+    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=[{"role": "admin"}])
 
     with patch.object(set_group_member_special_title_cmd, "finish") as mock_finish:
         await onebot11_set_group_member_special_title(
@@ -94,6 +125,7 @@ async def test_onebot11_set_group_member_special_title_calls_v11_api(
             special_title="精英",
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     mock_onebot11_bot.set_group_special_title.assert_called_once_with(
@@ -107,20 +139,22 @@ async def test_onebot11_set_group_member_special_title_calls_v11_api(
 
 @pytest.mark.asyncio
 async def test_onebot11_set_group_member_admin_calls_v11_api(
-    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     mock_onebot11_bot.set_group_admin = AsyncMock()
-    # check_target_privilege: 目标为普通成员（通过）
+    # check_target_privilege: 已由 autouse fixture mock 为返回 True
     # check_bot_privilege: 机器人为管理员（通过）
-    mock_onebot11_bot.get_group_member_info = AsyncMock(
-        side_effect=[{"role": "member"}, {"role": "admin"}]
-    )
+    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=[{"role": "admin"}])
 
     with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await onebot11_set_group_member_admin(
             user=mock_at,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     mock_onebot11_bot.set_group_admin.assert_called_once_with(
@@ -131,11 +165,21 @@ async def test_onebot11_set_group_member_admin_calls_v11_api(
 
 @pytest.mark.asyncio
 async def test_onebot11_set_group_member_admin_rejects_protected_target(
-    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     mock_onebot11_bot.set_group_admin = AsyncMock()
+    # 还原真实 check_target_privilege 以测试受保护目标拒绝路径
+    real_check_target_privilege = onebot11_common_module.check_target_privilege
 
     with (
+        patch.object(
+            onebot11_member_module,
+            "check_target_privilege",
+            new=real_check_target_privilege,
+        ),
         patch.object(set_group_member_admin_cmd, "finish") as mock_finish,
         patch.object(
             onebot11_common_module,
@@ -152,6 +196,7 @@ async def test_onebot11_set_group_member_admin_rejects_protected_target(
             user=mock_at,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     mock_onebot11_bot.set_group_admin.assert_not_called()
@@ -160,18 +205,22 @@ async def test_onebot11_set_group_member_admin_rejects_protected_target(
 
 @pytest.mark.asyncio
 async def test_onebot11_unset_group_member_admin_calls_v11_api(
-    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     mock_onebot11_bot.set_group_admin = AsyncMock()
-    # check_target_privilege: 目标为普通成员（通过）
+    # check_target_privilege: 已由 autouse fixture mock 为返回 True
     # check_bot_privilege: 机器人为管理员（通过）
-    mock_onebot11_bot.get_group_member_info = AsyncMock(
-        side_effect=[{"role": "member"}, {"role": "admin"}]
-    )
+    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=[{"role": "admin"}])
 
     with patch.object(set_group_member_admin_cmd, "finish") as mock_finish:
         await onebot11_unset_group_member_admin(
-            user=mock_at, bot=mock_onebot11_bot, event=mock_onebot11_event
+            user=mock_at,
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+            session=mock_session,
         )
 
     mock_onebot11_bot.set_group_admin.assert_called_once_with(
@@ -182,29 +231,33 @@ async def test_onebot11_unset_group_member_admin_calls_v11_api(
 
 @pytest.mark.asyncio
 async def test_onebot11_kick_group_member_calls_v11_api(
-    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     mock_onebot11_bot.set_group_kick = AsyncMock()
-    # check_target_privilege: 目标为普通成员（通过）
+    # check_target_privilege: 已由 autouse fixture mock 为返回 True
     # check_bot_privilege: 机器人为管理员（通过）
-    mock_onebot11_bot.get_group_member_info = AsyncMock(
-        side_effect=[{"role": "member"}, {"role": "admin"}]
-    )
+    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=[{"role": "admin"}])
 
     with (
+        patch.object(set_group_member_card_cmd, "finish"),
         patch.object(kick_group_member_cmd, "finish") as mock_finish,
         patch.object(
             onebot11_member_module,
             "find_active_block",
             new=AsyncMock(return_value={"user_id": 987654321}),
-        ),
+        ) as find_block_mock,
     ):
         await onebot11_kick_group_member(
             user=mock_at,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
+    assert find_block_mock.call_args.args[0] is mock_session
     mock_onebot11_bot.set_group_kick.assert_called_once_with(
         group_id=mock_onebot11_event.group_id,
         user_id=987654321,
@@ -215,19 +268,21 @@ async def test_onebot11_kick_group_member_calls_v11_api(
 
 @pytest.mark.asyncio
 async def test_target_user_onebot11_falls_back_to_api_nickname(
-    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     """At.display 与消息段名称都不存在时，通过 API 获取昵称。"""
     mock_onebot11_bot.set_group_card = AsyncMock()
     mock_at.display = None
     mock_onebot11_event.message = []
     # resolve_user: 获取用户名片
-    # check_target_privilege: 目标为普通成员（通过）
+    # check_target_privilege: 已由 autouse fixture mock 为返回 True
     # check_bot_privilege: 机器人为管理员（通过）
     mock_onebot11_bot.get_group_member_info = AsyncMock(
         side_effect=[
             {"card": "", "nickname": "API昵称"},
-            {"role": "member"},
             {"role": "admin"},
         ]
     )
@@ -238,6 +293,7 @@ async def test_target_user_onebot11_falls_back_to_api_nickname(
             card="新名片",
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     assert "API昵称(987654321)" in finish_text(mock_finish)
@@ -245,14 +301,20 @@ async def test_target_user_onebot11_falls_back_to_api_nickname(
 
 @pytest.mark.asyncio
 async def test_target_user_onebot11_api_failure_falls_back_to_id(
-    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_at: MagicMock
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     """API 调用失败时回退到用户 ID。"""
     mock_onebot11_bot.set_group_card = AsyncMock()
     mock_at.display = None
     mock_onebot11_event.message = []
+    # resolve_user: API 失败（API nickname 回退到 ID）
+    # check_target_privilege: 已由 autouse fixture mock 为返回 True
+    # check_bot_privilege: 机器人为管理员（通过）
     mock_onebot11_bot.get_group_member_info = AsyncMock(
-        side_effect=[OB11ActionFailed(), OB11ActionFailed(), {"role": "admin"}]
+        side_effect=[OB11ActionFailed(), {"role": "admin"}]
     )
 
     with patch.object(set_group_member_card_cmd, "finish") as mock_finish:
@@ -261,6 +323,7 @@ async def test_target_user_onebot11_api_failure_falls_back_to_id(
             card="新名片",
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     assert "已设置群名片: 987654321 -> 新名片" in finish_text(mock_finish)

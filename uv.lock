@@ -1205,7 +1205,6 @@ source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
     { name = "babel" },
-    { name = "jsonschema" },
     { name = "nonebot-adapter-onebot" },
     { name = "nonebot-plugin-alconna" },
     { name = "nonebot-plugin-apscheduler" },
@@ -1315,7 +1314,6 @@ requires-dist = [
     { name = "argon2-cffi", marker = "extra == 'novelai'", specifier = ">=25.1.0" },
     { name = "babel", specifier = ">=2.18.0" },
     { name = "jinja2", marker = "extra == 'webui'", specifier = ">=3.1.6" },
-    { name = "jsonschema", specifier = ">=4.23.0" },
     { name = "litellm", marker = "extra == 'ai'", specifier = ">=1.92.0" },
     { name = "mcp", marker = "extra == 'ai'", specifier = ">=1.28.1,<2.0.0" },
     { name = "msgpack", marker = "extra == 'novelai'", specifier = ">=1.1.1" },

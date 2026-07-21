@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.database.models import BlocklistEntry
 from src.plugins.nonebot_plugin_lingchu_bot.repositories import blocklist
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
 
 GET_ONE_GROUP_LOOKUP_COUNT = 2
 
@@ -16,6 +20,15 @@ def _entry(*, expires_at: datetime | None = None) -> MagicMock:
     item.expires_at = expires_at
     item.reason = "blocked"
     return item
+
+
+@pytest.fixture
+def mock_session() -> Mock:
+    """Provide a mock AsyncSession for blocklist repository tests."""
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
 
 
 def test_scope_key_for_group_and_global() -> None:
@@ -33,7 +46,7 @@ def test_expires_at_from_duration_defaults_to_permanent() -> None:
 
 
 @pytest.mark.asyncio
-async def test_upsert_block_accepts_structured_request() -> None:
+async def test_upsert_block_accepts_structured_request(mock_session: Mock) -> None:
     upsert_mock = AsyncMock(return_value=_entry())
 
     with (
@@ -41,6 +54,7 @@ async def test_upsert_block_accepts_structured_request() -> None:
         patch.object(blocklist, "_sync_blocked_policy_upsert", AsyncMock()),
     ):
         await blocklist.upsert_block(
+            mock_session,
             blocklist.BlocklistUpsert(
                 platform_id="qq",
                 adapter_id="~onebot.v11",
@@ -51,16 +65,18 @@ async def test_upsert_block_accepts_structured_request() -> None:
                 operator_id=789,
                 reason="bad",
                 expires_at=None,
-            )
+            ),
         )
 
-    _, insert_values = upsert_mock.call_args.args[:2]
+    _, _, insert_values = upsert_mock.call_args.args[:3]
     assert insert_values["scope_key"] == "123"
     assert insert_values["user_id"] == "456"
 
 
 @pytest.mark.asyncio
-async def test_upsert_block_uses_scope_identity_and_update_values() -> None:
+async def test_upsert_block_uses_scope_identity_and_update_values(
+    mock_session: Mock,
+) -> None:
     upsert_mock = AsyncMock(return_value=_entry())
 
     with (
@@ -68,6 +84,7 @@ async def test_upsert_block_uses_scope_identity_and_update_values() -> None:
         patch.object(blocklist, "_sync_blocked_policy_upsert", AsyncMock()),
     ):
         await blocklist.upsert_block(
+            mock_session,
             blocklist.BlocklistUpsert(
                 platform_id="qq",
                 adapter_id="~onebot.v11",
@@ -78,10 +95,10 @@ async def test_upsert_block_uses_scope_identity_and_update_values() -> None:
                 operator_id=789,
                 reason="bad",
                 expires_at=None,
-            )
+            ),
         )
 
-    _, insert_values = upsert_mock.call_args.args[:2]
+    _, _, insert_values = upsert_mock.call_args.args[:3]
     assert insert_values["scope"] == "group"
     assert insert_values["scope_key"] == "123"
     assert insert_values["group_id"] == "123"
@@ -99,7 +116,9 @@ async def test_upsert_block_uses_scope_identity_and_update_values() -> None:
 
 
 @pytest.mark.asyncio
-async def test_upsert_block_passes_protocol_id_through_to_upsert() -> None:
+async def test_upsert_block_passes_protocol_id_through_to_upsert(
+    mock_session: Mock,
+) -> None:
     upsert_mock = AsyncMock(return_value=_entry())
 
     with (
@@ -107,6 +126,7 @@ async def test_upsert_block_passes_protocol_id_through_to_upsert() -> None:
         patch.object(blocklist, "_sync_blocked_policy_upsert", AsyncMock()),
     ):
         await blocklist.upsert_block(
+            mock_session,
             blocklist.BlocklistUpsert(
                 platform_id="qq",
                 adapter_id="~onebot.v11",
@@ -118,17 +138,17 @@ async def test_upsert_block_passes_protocol_id_through_to_upsert() -> None:
                 operator_id=789,
                 reason="bad",
                 expires_at=None,
-            )
+            ),
         )
 
-    _, insert_values = upsert_mock.call_args.args[:2]
+    _, _, insert_values = upsert_mock.call_args.args[:3]
     assert insert_values["protocol_id"] == "napcat"
     assert "protocol_id" in upsert_mock.call_args.kwargs["conflict_fields"]
     assert upsert_mock.call_args.kwargs["update_values"]["protocol_id"] == "napcat"
 
 
 @pytest.mark.asyncio
-async def test_upsert_block_defaults_protocol_id_to_none() -> None:
+async def test_upsert_block_defaults_protocol_id_to_none(mock_session: Mock) -> None:
     upsert_mock = AsyncMock(return_value=_entry())
 
     with (
@@ -136,6 +156,7 @@ async def test_upsert_block_defaults_protocol_id_to_none() -> None:
         patch.object(blocklist, "_sync_blocked_policy_upsert", AsyncMock()),
     ):
         await blocklist.upsert_block(
+            mock_session,
             blocklist.BlocklistUpsert(
                 platform_id="qq",
                 adapter_id="~onebot.v11",
@@ -146,16 +167,16 @@ async def test_upsert_block_defaults_protocol_id_to_none() -> None:
                 operator_id=789,
                 reason="bad",
                 expires_at=None,
-            )
+            ),
         )
 
-    _, insert_values = upsert_mock.call_args.args[:2]
+    _, _, insert_values = upsert_mock.call_args.args[:3]
     assert insert_values["protocol_id"] is None
     assert upsert_mock.call_args.kwargs["update_values"]["protocol_id"] is None
 
 
 @pytest.mark.asyncio
-async def test_upsert_block_preserves_none_operator_id() -> None:
+async def test_upsert_block_preserves_none_operator_id(mock_session: Mock) -> None:
     upsert_mock = AsyncMock(return_value=_entry())
 
     with (
@@ -163,6 +184,7 @@ async def test_upsert_block_preserves_none_operator_id() -> None:
         patch.object(blocklist, "_sync_blocked_policy_upsert", AsyncMock()),
     ):
         await blocklist.upsert_block(
+            mock_session,
             blocklist.BlocklistUpsert(
                 platform_id="qq",
                 adapter_id="~onebot.v11",
@@ -173,16 +195,16 @@ async def test_upsert_block_preserves_none_operator_id() -> None:
                 operator_id=None,
                 reason="bad",
                 expires_at=None,
-            )
+            ),
         )
 
-    _, insert_values = upsert_mock.call_args.args[:2]
+    _, _, insert_values = upsert_mock.call_args.args[:3]
     assert insert_values["operator_id"] is None
     assert upsert_mock.call_args.kwargs["update_values"]["operator_id"] is None
 
 
 @pytest.mark.asyncio
-async def test_upsert_block_syncs_blocked_subject_policy() -> None:
+async def test_upsert_block_syncs_blocked_subject_policy(mock_session: Mock) -> None:
     upsert_mock = AsyncMock(return_value=_entry())
     sync_mock = AsyncMock()
     request = blocklist.BlocklistUpsert(
@@ -202,13 +224,15 @@ async def test_upsert_block_syncs_blocked_subject_policy() -> None:
         patch.object(blocklist, "upsert", upsert_mock),
         patch.object(blocklist, "_sync_blocked_policy_upsert", sync_mock),
     ):
-        await blocklist.upsert_block(request)
+        await blocklist.upsert_block(mock_session, request)
 
-    sync_mock.assert_awaited_once_with(request)
+    sync_mock.assert_awaited_once_with(mock_session, request)
 
 
 @pytest.mark.asyncio
-async def test_remove_and_clear_use_expected_scope_filters() -> None:
+async def test_remove_and_clear_use_expected_scope_filters(
+    mock_session: Mock,
+) -> None:
     delete_mock = AsyncMock(return_value=(1, True))
 
     with (
@@ -217,6 +241,7 @@ async def test_remove_and_clear_use_expected_scope_filters() -> None:
         patch.object(blocklist, "_sync_blocked_policy_clear", AsyncMock()),
     ):
         await blocklist.remove_block(
+            mock_session,
             platform_id="qq",
             adapter_id="~onebot.v11",
             bot_id="bot-1",
@@ -225,6 +250,7 @@ async def test_remove_and_clear_use_expected_scope_filters() -> None:
             user_id=456,
         )
         await blocklist.clear_blocklist(
+            mock_session,
             platform_id="qq",
             adapter_id="~onebot.v11",
             bot_id="bot-1",
@@ -232,8 +258,8 @@ async def test_remove_and_clear_use_expected_scope_filters() -> None:
             group_id=123,
         )
 
-    first_filters = delete_mock.call_args_list[0].args[1]
-    second_filters = delete_mock.call_args_list[1].args[1]
+    first_filters = delete_mock.call_args_list[0].args[2]
+    second_filters = delete_mock.call_args_list[1].args[2]
     assert first_filters["scope"] == "global"
     assert first_filters["scope_key"] == "*"
     assert first_filters["user_id"] == "456"
@@ -243,7 +269,9 @@ async def test_remove_and_clear_use_expected_scope_filters() -> None:
 
 
 @pytest.mark.asyncio
-async def test_remove_block_includes_protocol_id_filter_when_provided() -> None:
+async def test_remove_block_includes_protocol_id_filter_when_provided(
+    mock_session: Mock,
+) -> None:
     delete_mock = AsyncMock(return_value=(1, True))
 
     with (
@@ -251,6 +279,7 @@ async def test_remove_block_includes_protocol_id_filter_when_provided() -> None:
         patch.object(blocklist, "_sync_blocked_policy_remove", AsyncMock()),
     ):
         await blocklist.remove_block(
+            mock_session,
             platform_id="qq",
             adapter_id="~onebot.v11",
             protocol_id="napcat",
@@ -260,16 +289,17 @@ async def test_remove_block_includes_protocol_id_filter_when_provided() -> None:
             user_id=456,
         )
 
-    filters = delete_mock.call_args.args[1]
+    filters = delete_mock.call_args.args[2]
     assert filters["protocol_id"] == "napcat"
 
 
 @pytest.mark.asyncio
-async def test_find_active_block_prefers_global_entry() -> None:
+async def test_find_active_block_prefers_global_entry(mock_session: Mock) -> None:
     get_one_mock = AsyncMock(return_value=_entry())
 
     with patch.object(blocklist, "get_one", get_one_mock):
         result = await blocklist.find_active_block(
+            mock_session,
             platform_id="qq",
             adapter_id="~onebot.v11",
             bot_id="bot-1",
@@ -279,15 +309,18 @@ async def test_find_active_block_prefers_global_entry() -> None:
 
     assert result is not None
     assert get_one_mock.await_count == 1
-    assert get_one_mock.call_args.args[1]["scope"] == "global"
+    assert get_one_mock.call_args.args[2]["scope"] == "global"
 
 
 @pytest.mark.asyncio
-async def test_find_active_block_falls_back_to_group_entry() -> None:
+async def test_find_active_block_falls_back_to_group_entry(
+    mock_session: Mock,
+) -> None:
     get_one_mock = AsyncMock(side_effect=[None, _entry()])
 
     with patch.object(blocklist, "get_one", get_one_mock):
         result = await blocklist.find_active_block(
+            mock_session,
             platform_id="qq",
             adapter_id="~onebot.v11",
             bot_id="bot-1",
@@ -297,11 +330,13 @@ async def test_find_active_block_falls_back_to_group_entry() -> None:
 
     assert result is not None
     assert get_one_mock.await_count == GET_ONE_GROUP_LOOKUP_COUNT
-    assert get_one_mock.call_args_list[1].args[1]["scope"] == "group"
+    assert get_one_mock.call_args_list[1].args[2]["scope"] == "group"
 
 
 @pytest.mark.asyncio
-async def test_find_active_block_lazily_deletes_expired_entries() -> None:
+async def test_find_active_block_lazily_deletes_expired_entries(
+    mock_session: Mock,
+) -> None:
     expired = _entry(expires_at=datetime.now(UTC) - timedelta(seconds=1))
     get_one_mock = AsyncMock(side_effect=[expired, None])
     delete_mock = AsyncMock(return_value=(1, True))
@@ -311,6 +346,7 @@ async def test_find_active_block_lazily_deletes_expired_entries() -> None:
         patch.object(blocklist, "delete", delete_mock),
     ):
         result = await blocklist.find_active_block(
+            mock_session,
             platform_id="qq",
             adapter_id="~onebot.v11",
             bot_id="bot-1",
@@ -323,7 +359,9 @@ async def test_find_active_block_lazily_deletes_expired_entries() -> None:
 
 
 @pytest.mark.asyncio
-async def test_clear_blocklist_includes_protocol_id_filter_when_provided() -> None:
+async def test_clear_blocklist_includes_protocol_id_filter_when_provided(
+    mock_session: Mock,
+) -> None:
     delete_mock = AsyncMock(return_value=(1, True))
 
     with (
@@ -331,6 +369,7 @@ async def test_clear_blocklist_includes_protocol_id_filter_when_provided() -> No
         patch.object(blocklist, "_sync_blocked_policy_clear", AsyncMock()),
     ):
         await blocklist.clear_blocklist(
+            mock_session,
             platform_id="qq",
             adapter_id="~onebot.v11",
             protocol_id="napcat",
@@ -339,7 +378,7 @@ async def test_clear_blocklist_includes_protocol_id_filter_when_provided() -> No
             group_id=123,
         )
 
-    filters = delete_mock.call_args.args[1]
+    filters = delete_mock.call_args.args[2]
     assert filters["protocol_id"] == "napcat"
 
 
@@ -353,6 +392,7 @@ async def test_find_active_block_passes_protocol_id_and_returns_unexpired_entry(
 
     with patch.object(blocklist, "get_one", get_one_mock):
         result = await blocklist.find_active_block(
+            MagicMock(),
             platform_id="qq",
             adapter_id="~onebot.v11",
             protocol_id="napcat",
@@ -362,15 +402,17 @@ async def test_find_active_block_passes_protocol_id_and_returns_unexpired_entry(
         )
 
     assert result is entry
-    assert get_one_mock.call_args_list[0].args[1]["protocol_id"] == "napcat"
+    assert get_one_mock.call_args_list[0].args[2]["protocol_id"] == "napcat"
 
 
 @pytest.mark.asyncio
-async def test_cleanup_expired_blocks_delegates_to_delete_with_conditions() -> None:
+async def test_cleanup_expired_blocks_delegates_to_delete_with_conditions(
+    mock_session: Mock,
+) -> None:
     delete_mock = AsyncMock(return_value=(3, True))
 
     with patch.object(blocklist, "delete", delete_mock):
-        result = await blocklist.cleanup_expired_blocks()
+        result = await blocklist.cleanup_expired_blocks(mock_session)
 
     assert result == (3, True)
     delete_mock.assert_awaited_once()
@@ -388,6 +430,7 @@ def test_active_block_condition_returns_or_clause() -> None:
 @pytest.mark.asyncio
 async def test_sync_blocked_policy_upsert_invokes_upsert_subject_policy(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     from src.plugins.nonebot_plugin_lingchu_bot.permissions import subject_policy
 
@@ -407,11 +450,12 @@ async def test_sync_blocked_policy_upsert_invokes_upsert_subject_policy(
         expires_at=None,
     )
 
-    await blocklist._sync_blocked_policy_upsert(request)
+    await blocklist._sync_blocked_policy_upsert(mock_session, request)
 
     upsert_mock.assert_awaited_once()
     assert upsert_mock.await_args is not None
-    call_arg = upsert_mock.await_args.args[0]
+    assert upsert_mock.await_args.args[0] is mock_session
+    call_arg = upsert_mock.await_args.args[1]
     assert call_arg.policy_type == "blocked"
     assert call_arg.platform_id == "qq"
     assert call_arg.protocol_id == "napcat"
@@ -421,6 +465,7 @@ async def test_sync_blocked_policy_upsert_invokes_upsert_subject_policy(
 @pytest.mark.asyncio
 async def test_sync_blocked_policy_remove_invokes_remove_subject_policy(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     from src.plugins.nonebot_plugin_lingchu_bot.permissions import subject_policy
 
@@ -428,6 +473,7 @@ async def test_sync_blocked_policy_remove_invokes_remove_subject_policy(
     monkeypatch.setattr(subject_policy, "remove_subject_policy", remove_mock)
 
     await blocklist._sync_blocked_policy_remove(
+        mock_session,
         platform_id="qq",
         adapter_id="~onebot.v11",
         protocol_id="napcat",
@@ -439,6 +485,7 @@ async def test_sync_blocked_policy_remove_invokes_remove_subject_policy(
 
     remove_mock.assert_awaited_once()
     assert remove_mock.await_args is not None
+    assert remove_mock.await_args.args[0] is mock_session
     kwargs = remove_mock.await_args.kwargs
     assert kwargs["policy_type"] == "blocked"
     assert kwargs["platform_id"] == "qq"
@@ -448,6 +495,7 @@ async def test_sync_blocked_policy_remove_invokes_remove_subject_policy(
 @pytest.mark.asyncio
 async def test_sync_blocked_policy_clear_invokes_clear_subject_policy(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     from src.plugins.nonebot_plugin_lingchu_bot.permissions import subject_policy
 
@@ -455,6 +503,7 @@ async def test_sync_blocked_policy_clear_invokes_clear_subject_policy(
     monkeypatch.setattr(subject_policy, "clear_subject_policy", clear_mock)
 
     await blocklist._sync_blocked_policy_clear(
+        mock_session,
         platform_id="qq",
         adapter_id="~onebot.v11",
         protocol_id="napcat",
@@ -465,6 +514,7 @@ async def test_sync_blocked_policy_clear_invokes_clear_subject_policy(
 
     clear_mock.assert_awaited_once()
     assert clear_mock.await_args is not None
+    assert clear_mock.await_args.args[0] is mock_session
     kwargs = clear_mock.await_args.kwargs
     assert kwargs["policy_type"] == "blocked"
     assert kwargs["platform_id"] == "qq"

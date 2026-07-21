@@ -1,12 +1,17 @@
+import contextlib
 from dataclasses import dataclass
 from typing import Any
 
-from ....core.runtime_config import (
+from ....core.config import (
     get_runtime_config_file,
-    runtime_config,
+    plugin_config,
     runtime_config_defaults,
 )
-from ....database.toml_store import RobustAsyncTOMLDB
+from ....database.toml_store import (
+    DatabaseError,
+    load_toml_dict_async,
+    write_toml_dict_file_async,
+)
 from ....i18n import get_configured_locale, normalize_locale
 
 
@@ -128,7 +133,7 @@ def _optional_str_set(value: Any) -> frozenset[str] | None:
 def _runtime_overrides() -> dict[str, CommandTriggerOverride]:
     return {
         str(command_key): _override_from_raw(raw)
-        for command_key, raw in runtime_config.command_trigger_overrides.items()
+        for command_key, raw in plugin_config.command_trigger_overrides.items()
     }
 
 
@@ -146,11 +151,14 @@ def _override_to_json(value: CommandTriggerOverride) -> dict[str, Any]:
 
 
 async def list_command_trigger_overrides() -> dict[str, CommandTriggerOverride]:
-    async with RobustAsyncTOMLDB(
-        get_runtime_config_file(),
-        default=runtime_config_defaults(),
-    ) as db:
-        raw = await db.read("command_trigger_overrides", {})
+    path = get_runtime_config_file()
+    try:
+        data = await load_toml_dict_async(
+            path, default=runtime_config_defaults(), merge_default=True
+        )
+    except DatabaseError:
+        return {}
+    raw = data.get("command_trigger_overrides", {})
     if not isinstance(raw, dict):
         return {}
     return {str(key): _override_from_raw(value) for key, value in raw.items()}
@@ -160,27 +168,44 @@ async def upsert_command_trigger_override(
     command_key: str,
     override: CommandTriggerOverride,
 ) -> dict[str, CommandTriggerOverride]:
+    path = get_runtime_config_file()
+    try:
+        data = await load_toml_dict_async(
+            path, default=runtime_config_defaults(), merge_default=True
+        )
+    except DatabaseError:
+        data = runtime_config_defaults()
     existing = await list_command_trigger_overrides()
     merged = dict(existing)
     merged[command_key] = override
     build_command_triggers(_DEFAULT_COMMAND_TRIGGERS, merged)
-    async with RobustAsyncTOMLDB(
-        get_runtime_config_file(),
-        default=runtime_config_defaults(),
-    ) as db:
-        await db.set(
-            f"command_trigger_overrides.{command_key}",
-            _override_to_json(override),
-        )
+    overrides = data.setdefault("command_trigger_overrides", {})
+    if not isinstance(overrides, dict):
+        overrides = {}
+        data["command_trigger_overrides"] = overrides
+    overrides[command_key] = _override_to_json(override)
+    with contextlib.suppress(DatabaseError):
+        await write_toml_dict_file_async(path, data)
     return merged
 
 
 async def delete_command_trigger_override(command_key: str) -> bool:
-    async with RobustAsyncTOMLDB(
-        get_runtime_config_file(),
-        default=runtime_config_defaults(),
-    ) as db:
-        return await db.delete(f"command_trigger_overrides.{command_key}")
+    path = get_runtime_config_file()
+    try:
+        data = await load_toml_dict_async(
+            path, default=runtime_config_defaults(), merge_default=True
+        )
+    except DatabaseError:
+        return False
+    overrides = data.get("command_trigger_overrides", {})
+    if not isinstance(overrides, dict) or command_key not in overrides:
+        return False
+    del overrides[command_key]
+    try:
+        await write_toml_dict_file_async(path, data)
+    except DatabaseError:
+        return False
+    return True
 
 
 _DEFAULT_COMMAND_TRIGGERS = {

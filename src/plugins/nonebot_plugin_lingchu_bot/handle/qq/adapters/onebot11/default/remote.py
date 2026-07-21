@@ -14,7 +14,10 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At, Image as UniImage
 
-from ......core.runtime_config import get_handle_config_manager, runtime_config
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import async_scoped_session
+
+from ......core.config import get_handle_config_manager, plugin_config
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......permissions.subject_policy import find_active_subject_policy
@@ -193,15 +196,17 @@ async def _resolve_and_validate_user(
 
 
 async def _is_remote_protected_target(
+    session: async_scoped_session,
     bot: OneBot11Bot,
     group_id: int,
     target_user_id: int,
     cmd_matcher: Any,
 ) -> bool:
     command_key = getattr(cmd_matcher, "_lingchu_command_key", None)
-    if command_key not in runtime_config.protected_subject_feature_keys:
+    if command_key not in plugin_config.protected_subject_feature_keys:
         return False
     protected = await find_active_subject_policy(
+        session,
         policy_type="protected",
         platform_id=QQ_PLATFORM_ID,
         adapter_id=ONEBOT_V11_ADAPTER_ID,
@@ -213,14 +218,17 @@ async def _is_remote_protected_target(
 
 
 async def _check_remote_target_privilege(
+    session: async_scoped_session,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     group_id: int,
     target_user_id: int,
     cmd_matcher: Any,
 ) -> bool:
-    if await _is_remote_protected_target(bot, group_id, target_user_id, cmd_matcher):
-        if await operator_is_superuser_onebot11(event.user_id):
+    if await _is_remote_protected_target(
+        session, bot, group_id, target_user_id, cmd_matcher
+    ):
+        if await operator_is_superuser_onebot11(session, event.user_id):
             return True
         await cmd_matcher.finish(await _("目标用户受白名单保护，无法执行"))
         return False
@@ -257,6 +265,7 @@ async def onebot11_remote_mute(
     duration: int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     """远程禁言处理器"""
@@ -293,7 +302,7 @@ async def onebot11_remote_mute(
         return None
 
     if not await _check_remote_target_privilege(
-        bot, event, group_id_int, target_user_id, remote_mute_cmd
+        session, bot, event, group_id_int, target_user_id, remote_mute_cmd
     ):
         return None
 
@@ -347,6 +356,7 @@ async def onebot11_remote_unmute(
     user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     """远程解禁处理器"""
@@ -424,6 +434,7 @@ async def onebot11_remote_whole_mute(
     group_id: int | str,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
 ) -> Any:
     """远程全体禁言处理器"""
     # 1. 解析群聊标识符
@@ -466,6 +477,7 @@ async def onebot11_remote_whole_unmute(
     group_id: int | str,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
 ) -> Any:
     """远程全体解禁处理器"""
     # 检查功能是否启用（全体解禁共用remote_mute配置）
@@ -510,6 +522,7 @@ async def onebot11_remote_kick(
     user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     """远程踢出群成员处理器"""
@@ -536,13 +549,14 @@ async def onebot11_remote_kick(
         return None
 
     if not await _check_remote_target_privilege(
-        bot, event, group_id_int, target_user_id, remote_kick_cmd
+        session, bot, event, group_id_int, target_user_id, remote_kick_cmd
     ):
         return None
 
     # 5. 检查目标用户是否在黑名单中
     try:
         entry = await find_active_block(
+            session,
             platform_id=QQ_PLATFORM_ID,
             adapter_id=ONEBOT_V11_ADAPTER_ID,
             bot_id=bot_id(bot),
@@ -597,6 +611,7 @@ async def onebot11_remote_block(
     duration: int | None,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     """远程拉黑群成员处理器"""
@@ -619,7 +634,7 @@ async def onebot11_remote_block(
     target_user_id, target_name = user_result
 
     if not await _check_remote_target_privilege(
-        bot, event, group_id_int, target_user_id, remote_block_cmd
+        session, bot, event, group_id_int, target_user_id, remote_block_cmd
     ):
         return None
 
@@ -627,6 +642,7 @@ async def onebot11_remote_block(
     reason_text = await default_block_reason(reason)
     try:
         await store_block_record(
+            session,
             scope="group",
             group_id=group_id_int,
             user_id=target_user_id,
@@ -685,6 +701,7 @@ async def onebot11_remote_unblock(
     user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     """远程删黑处理器"""
@@ -709,6 +726,7 @@ async def onebot11_remote_unblock(
     reason_text = await default_admin_reason(reason)
     try:
         result = await remove_block(
+            session,
             platform_id=QQ_PLATFORM_ID,
             adapter_id=ONEBOT_V11_ADAPTER_ID,
             bot_id=bot_id(bot),
@@ -765,6 +783,7 @@ async def onebot11_remote_announcement(
     content: str,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     image: UniImage | None = None,
 ) -> Any:
     """远程公告处理器"""
@@ -932,6 +951,7 @@ async def onebot11_mass_announcement(
     content: str,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     targets: str | None = None,
     image: UniImage | None = None,
 ) -> Any:

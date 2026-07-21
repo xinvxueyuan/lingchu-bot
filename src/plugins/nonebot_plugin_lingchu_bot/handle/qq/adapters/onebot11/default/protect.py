@@ -9,7 +9,10 @@ from nonebot.adapters.onebot.v11.event import (
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At
 
-from ......core.runtime_config import get_handle_config_manager
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import async_scoped_session
+
+from ......core.config import get_handle_config_manager
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......permissions.subject_policy import (
@@ -50,14 +53,19 @@ async def _finish_database_error(
     )
 
 
-async def _require_superuser(command: Any, event: OneBot11GroupMessageEvent) -> bool:
-    if await operator_is_superuser_onebot11(event.user_id):
+async def _require_superuser(
+    session: async_scoped_session,
+    command: Any,
+    event: OneBot11GroupMessageEvent,
+) -> bool:
+    if await operator_is_superuser_onebot11(session, event.user_id):
         return True
     await command.finish(await _("权限不足"))
     return False
 
 
 async def _protect_member(
+    session: async_scoped_session,
     *,
     command: Any,
     scope: BlockScope,
@@ -66,12 +74,13 @@ async def _protect_member(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
-    if not await _require_superuser(command, event):
+    if not await _require_superuser(session, command, event):
         return None
     target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
     reason_text = await default_admin_reason(reason)
     try:
         await upsert_subject_policy(
+            session,
             SubjectPolicyUpsert(
                 policy_type="protected",
                 platform_id=QQ_PLATFORM_ID,
@@ -83,7 +92,7 @@ async def _protect_member(
                 operator_id=event.user_id,
                 reason=reason_text,
                 expires_at=None,
-            )
+            ),
         )
     except DatabaseError as error:
         return await _finish_database_error(command, await _("拉白"), error)
@@ -123,6 +132,7 @@ async def onebot11_protect_member(
     user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     # 检查功能是否启用
@@ -134,6 +144,7 @@ async def onebot11_protect_member(
     whitelist_scope = config.defaults.get("whitelist_scope", "group")
 
     return await _protect_member(
+        session,
         command=protect_member_cmd,
         scope=whitelist_scope,
         user=user,
@@ -152,6 +163,7 @@ async def onebot11_global_protect_member(
     user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     # 检查功能是否启用（global版本共用protect_member配置）
@@ -160,6 +172,7 @@ async def onebot11_global_protect_member(
         return await global_protect_member_cmd.finish(await _("该功能已禁用"))
 
     return await _protect_member(
+        session,
         command=global_protect_member_cmd,
         scope="global",
         user=user,
@@ -170,6 +183,7 @@ async def onebot11_global_protect_member(
 
 
 async def _unprotect_member(
+    session: async_scoped_session,
     *,
     command: Any,
     scope: BlockScope,
@@ -178,12 +192,13 @@ async def _unprotect_member(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
-    if not await _require_superuser(command, event):
+    if not await _require_superuser(session, command, event):
         return None
     target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
     reason_text = await default_admin_reason(reason)
     try:
         result = await remove_subject_policy(
+            session,
             policy_type="protected",
             platform_id=QQ_PLATFORM_ID,
             adapter_id=ONEBOT_V11_ADAPTER_ID,
@@ -233,6 +248,7 @@ async def onebot11_unprotect_member(
     user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     # 检查功能是否启用（取消保护共用protect_member配置）
@@ -241,6 +257,7 @@ async def onebot11_unprotect_member(
         return await unprotect_member_cmd.finish(await _("该功能已禁用"))
 
     return await _unprotect_member(
+        session,
         command=unprotect_member_cmd,
         scope="group",
         user=user,
@@ -259,6 +276,7 @@ async def onebot11_global_unprotect_member(
     user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     # 检查功能是否启用（取消保护共用protect_member配置）
@@ -267,6 +285,7 @@ async def onebot11_global_unprotect_member(
         return await global_unprotect_member_cmd.finish(await _("该功能已禁用"))
 
     return await _unprotect_member(
+        session,
         command=global_unprotect_member_cmd,
         scope="global",
         user=user,

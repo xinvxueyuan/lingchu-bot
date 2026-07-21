@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..database.models import (
     AuditRecord,
@@ -13,6 +13,9 @@ from ..database.models import (
     QQOneBotV11NoneBotEventRecord,
 )
 from ..database.orm_crud import create, delete, get_one, list_items, update, upsert
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +79,7 @@ def _event_category_from_type(event_type: str) -> str | None:
 
 
 async def record_event_received(
+    session: AsyncSession | async_scoped_session,
     *,
     platform_id: str,
     adapter_id: str,
@@ -120,8 +124,9 @@ async def record_event_received(
         "updated_at": now,
     }
     if message_id is None:
-        return await create(model, **insert_values)
+        return await create(session, model, **insert_values)
     return await upsert(
+        session,
         model,
         insert_values,
         conflict_fields=[
@@ -136,6 +141,7 @@ async def record_event_received(
 
 
 async def record_matcher_result(
+    session: AsyncSession | async_scoped_session,
     *,
     platform_id: str,
     adapter_id: str,
@@ -164,10 +170,11 @@ async def record_matcher_result(
         adapter_id=adapter_id,
         framework_id=framework_id,
     )
-    record = await get_one(model, filters)
+    record = await get_one(session, model, filters)
     if record is None:
         return False
     await update(
+        session,
         model,
         {"id": record.id},
         {
@@ -180,6 +187,7 @@ async def record_matcher_result(
 
 
 async def record_api_call(
+    session: AsyncSession | async_scoped_session,
     event: AuditEvent,
 ) -> AuditRecord | QQOneBotV11NoneBotAuditRecord:
     """Record a platform API or lifecycle event as an audit record."""
@@ -189,6 +197,7 @@ async def record_api_call(
         framework_id=event.framework_id,
     )
     return await create(
+        session,
         model,
         platform_id=event.platform_id,
         adapter_id=event.adapter_id,
@@ -205,6 +214,7 @@ async def record_api_call(
 
 
 async def list_recent_messages(
+    session: AsyncSession | async_scoped_session,
     *,
     platform_id: str = "qq",
     adapter_id: str | None = None,
@@ -233,6 +243,7 @@ async def list_recent_messages(
         framework_id=framework_id,
     )
     return await list_items(
+        session,
         model,
         filters,
         order_by=["-created_at"],
@@ -240,27 +251,35 @@ async def list_recent_messages(
     )
 
 
-async def cleanup_expired_messages(*, retention_days: int) -> tuple[int, bool]:
+async def cleanup_expired_messages(
+    session: AsyncSession | async_scoped_session,
+    *,
+    retention_days: int,
+) -> tuple[int, bool]:
     """Delete expired message and audit records."""
     if retention_days <= 0:
         return (0, True)
     cutoff = datetime.now(UTC) - timedelta(days=retention_days)
     msg_count, msg_known = await delete(
+        session,
         MessageRecord,
         {},
         conditions=[MessageRecord.created_at < cutoff],
     )
     audit_count, audit_known = await delete(
+        session,
         AuditRecord,
         {},
         conditions=[AuditRecord.created_at < cutoff],
     )
     partition_msg_count, partition_msg_known = await delete(
+        session,
         QQOneBotV11NoneBotEventRecord,
         {},
         conditions=[QQOneBotV11NoneBotEventRecord.created_at < cutoff],
     )
     partition_audit_count, partition_audit_known = await delete(
+        session,
         QQOneBotV11NoneBotAuditRecord,
         {},
         conditions=[QQOneBotV11NoneBotAuditRecord.created_at < cutoff],

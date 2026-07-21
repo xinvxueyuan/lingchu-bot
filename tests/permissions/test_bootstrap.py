@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -29,7 +29,7 @@ async def test_sync_superusers_grants_all_menu_features() -> None:
         patch.object(repo, "bind_platform_account", AsyncMock()),
         patch.object(repo, "grant_command", grant_mock),
     ):
-        await bootstrap._sync_superusers(_superusers())
+        await bootstrap._sync_superusers(Mock(), _superusers())
 
     granted_keys = {call.kwargs["command_key"] for call in grant_mock.call_args_list}
     expected_keys = {feature.command_key for feature in MENU_FEATURES}
@@ -47,7 +47,7 @@ async def test_sync_superusers_grants_with_superuser_group_id() -> None:
         patch.object(repo, "bind_platform_account", AsyncMock()),
         patch.object(repo, "grant_command", grant_mock),
     ):
-        await bootstrap._sync_superusers(_superusers())
+        await bootstrap._sync_superusers(Mock(), _superusers())
 
     for call in grant_mock.call_args_list:
         assert call.kwargs["group_id"] == repo.SUPERUSERS_GROUP_ID
@@ -63,7 +63,7 @@ async def test_sync_superusers_continues_after_grant_failure() -> None:
         patch.object(repo, "bind_platform_account", AsyncMock()),
         patch.object(repo, "grant_command", grant_mock),
     ):
-        await bootstrap._sync_superusers(_superusers())
+        await bootstrap._sync_superusers(Mock(), _superusers())
 
     assert grant_mock.call_count == len(MENU_FEATURES)
 
@@ -83,7 +83,7 @@ async def test_sync_superusers_continues_when_one_feature_fails() -> None:
         patch.object(repo, "bind_platform_account", AsyncMock()),
         patch.object(repo, "grant_command", grant_mock),
     ):
-        await bootstrap._sync_superusers(_superusers())
+        await bootstrap._sync_superusers(Mock(), _superusers())
 
     assert grant_mock.call_count == len(MENU_FEATURES)
 
@@ -92,13 +92,19 @@ async def test_sync_superusers_continues_when_one_feature_fails() -> None:
 async def test_sync_superusers_preserves_dependency_chain_order() -> None:
     calls: list[str] = []
 
-    async def record_upsert_identity_user(uid: str, _nickname: str) -> None:
+    async def record_upsert_identity_user(
+        _session: object, uid: str, _nickname: str
+    ) -> None:
         calls.append(f"upsert_identity_user:{uid}")
 
-    async def record_upsert_membership(*, uid: str, **_kwargs: object) -> None:
+    async def record_upsert_membership(
+        _session: object, *, uid: str, **_kwargs: object
+    ) -> None:
         calls.append(f"upsert_membership:{uid}")
 
-    async def record_bind_platform_account(*, uid: str, **_kwargs: object) -> None:
+    async def record_bind_platform_account(
+        _session: object, *, uid: str, **_kwargs: object
+    ) -> None:
         calls.append(f"bind_platform_account:{uid}")
 
     with (
@@ -107,7 +113,7 @@ async def test_sync_superusers_preserves_dependency_chain_order() -> None:
         patch.object(repo, "bind_platform_account", record_bind_platform_account),
         patch.object(repo, "grant_command", AsyncMock()),
     ):
-        await bootstrap._sync_superusers(_superusers())
+        await bootstrap._sync_superusers(Mock(), _superusers())
 
     upsert_user_idx = calls.index("upsert_identity_user:user1")
     membership_idx = calls.index("upsert_membership:user1")
@@ -310,20 +316,22 @@ def test_validate_platform_account_id_returns_stripped_str_for_non_qq_platform()
 async def test_validate_and_seed_permission_system_calls_seed_and_sync() -> None:
     """成功路径：调用 seed_identity_groups 与 _sync_superusers。"""
     superusers = {"user1": {"qq": "42"}}
+    mock_session = Mock()
     with (
         patch.object(bootstrap, "_resolve_superusers_config", return_value=superusers),
         patch.object(bootstrap, "_sync_superusers", AsyncMock()) as sync_mock,
         patch.object(repo, "seed_identity_groups", AsyncMock()) as seed_mock,
     ):
-        await bootstrap.validate_and_seed_permission_system()
+        await bootstrap.validate_and_seed_permission_system(mock_session)
 
     seed_mock.assert_awaited_once()
-    sync_mock.assert_awaited_once_with(superusers)
+    sync_mock.assert_awaited_once_with(mock_session, superusers)
 
 
 @pytest.mark.asyncio
 async def test_validate_and_seed_permission_system_stops_on_config_error() -> None:
     """_resolve_superusers_config 抛错时不再继续 seed/sync。"""
+    mock_session = Mock()
     with (
         patch.object(
             bootstrap,
@@ -337,7 +345,7 @@ async def test_validate_and_seed_permission_system_stops_on_config_error() -> No
             match="LINGCHU_SUPERUSERS is required",
         ),
     ):
-        await bootstrap.validate_and_seed_permission_system()
+        await bootstrap.validate_and_seed_permission_system(mock_session)
 
     seed_mock.assert_not_awaited()
     sync_mock.assert_not_awaited()

@@ -38,7 +38,7 @@ from .types import LLMEvent, LLMProfile, LLMResponse, LLMUsage
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable
 
-    from ...core.runtime_config import RuntimeConfig
+    from ...core.config import RuntimeConfig
 
 type RuntimeState = Literal["NEW", "RUNNING", "CLOSING", "CLOSED"]
 
@@ -1012,10 +1012,10 @@ async def _finish_cleanup_before_cancellation(cleanup: Awaitable[None]) -> None:
 
 def _build_managed_runtime(*, generation: int) -> LLMRuntime:
     """Build and structurally validate a candidate without publishing it."""
-    from ...core.runtime_config import runtime_config
+    from ...core.config import plugin_config
 
-    config = load_llm_runtime_config(legacy=runtime_config)
-    return LLMRuntime(config, legacy=runtime_config, generation=generation)
+    config = load_llm_runtime_config(legacy=plugin_config)
+    return LLMRuntime(config, legacy=plugin_config, generation=generation)
 
 
 def get_llm_runtime() -> LLMRuntime:

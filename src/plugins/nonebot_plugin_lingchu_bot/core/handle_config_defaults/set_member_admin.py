@@ -1,7 +1,20 @@
 """Default configuration for set_member_admin handle."""
 
-SET_MEMBER_ADMIN_DEFAULTS = {
-    "enabled": True,
-    "defaults": {},
-    "policies": {},
-}
+from __future__ import annotations
+
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class SetMemberAdminConfig(BaseModel):
+    """Configuration for set_member_admin handle."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = True
+    defaults: dict[str, Any] = Field(default_factory=dict)
+    policies: dict[str, Any] = Field(default_factory=dict)
+
+
+__all__ = ["SetMemberAdminConfig"]

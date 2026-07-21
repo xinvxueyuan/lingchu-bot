@@ -63,10 +63,11 @@ def _permission_wrapper(
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
         bot = kwargs.get("bot") or _first_arg_with_attr(args, "adapter")
         event = kwargs.get("event") or kwargs.get("_event") or _first_event_arg(args)
-        if bot is None or event is None:
+        session = kwargs.get("session")
+        if bot is None or event is None or session is None:
             return await func(*args, **kwargs)
 
-        decision = await check_permission(command_key, bot, event)
+        decision = await check_permission(session, command_key, bot, event)
         if not decision.allowed:
             await command.finish(await _("权限不足"))
             return None

@@ -39,7 +39,7 @@ require("nonebot_plugin_localstore")
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ...core.runtime_config import RuntimeConfig
+    from ...core.config import RuntimeConfig
 
 LLM_CONFIG_FILENAME = "llm.toml"
 MAX_JSON_DEPTH = 8

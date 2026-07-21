@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from nonebot import require
 
 require("nonebot_plugin_orm")
-from nonebot_plugin_orm import Model, get_session
+from nonebot_plugin_orm import Model
 from sqlalchemy import (
     Select,
     delete as sqlalchemy_delete,
@@ -31,12 +31,12 @@ from ._base import (
 )
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
     from sqlalchemy.sql.elements import ColumnElement
 
 
 async def _retry_create_after_conflict[T: Model](
-    s: AsyncSession,
+    s: AsyncSession | async_scoped_session,
     stmt: Select[tuple[T]],
     model: type[T],
     data: dict[str, Any],
@@ -60,12 +60,12 @@ async def _retry_create_after_conflict[T: Model](
         "retrying create once (possible concurrent rollback)"
     )
     try:
-        obj = model(**data)
-        s.add(obj)
-        await s.commit()
-        await s.refresh(obj)
+        async with s.begin_nested():
+            obj = model(**data)
+            s.add(obj)
+            await s.flush()
+            await s.refresh(obj)
     except IntegrityError as e2:
-        await s.rollback()
         if _is_fk_constraint_violation(e2):
             raise DatabaseError("Foreign key violation on retry") from e2
         try:
@@ -79,19 +79,20 @@ async def _retry_create_after_conflict[T: Model](
             ) from e2
         return existing2, False
     except SQLAlchemyError as e2:
-        await s.rollback()
         raise DatabaseError("Retry create failed") from e2
-    else:
-        return obj, True
+    return obj, True
 
 
 async def _create_with_retry[T: Model](
-    s: AsyncSession,
+    s: AsyncSession | async_scoped_session,
     stmt: Select[tuple[T]],
     model: type[T],
     data: dict[str, Any],
 ) -> tuple[T, bool]:
     """创建记录，并在唯一约束冲突时回查或重试。
+
+    使用 savepoint（``async with s.begin_nested():``）包裹 INSERT 尝试，
+    失败时由 savepoint 回滚待写入状态，主事务保持可用，便于后续回查或重试。
 
     Args:
         s: 异步会话 / Async session.
@@ -107,12 +108,11 @@ async def _create_with_retry[T: Model](
     """
     obj = model(**data)
     s.add(obj)
-
     try:
-        await s.commit()
-        await s.refresh(obj)
+        async with s.begin_nested():
+            await s.flush()
+            await s.refresh(obj)
     except IntegrityError as e:
-        await s.rollback()
         if _is_fk_constraint_violation(e):
             raise DatabaseError("Foreign key violation during insert") from e
         try:
@@ -128,14 +128,12 @@ async def _create_with_retry[T: Model](
         )
         return existing, False
     except SQLAlchemyError as e:
-        await s.rollback()
         raise DatabaseError("Failed to create record") from e
-    else:
-        return obj, True
+    return obj, True
 
 
 async def _update_existing[T: Model](
-    s: AsyncSession,
+    s: AsyncSession | async_scoped_session,
     model: type[T],
     cs: list[ColumnElement[bool]],
     obj: T,
@@ -164,19 +162,23 @@ async def _update_existing[T: Model](
 
     try:
         await s.execute(stmt_update)
-        await s.commit()
+        await s.flush()
         await s.refresh(obj)
     except SQLAlchemyError as e:
-        await s.rollback()
         raise DatabaseError("Failed to update record") from e
 
     return obj
 
 
-async def create[T: Model](model: type[T], **fields: Any) -> T:
+async def create[T: Model](
+    session: AsyncSession | async_scoped_session,
+    model: type[T],
+    **fields: Any,
+) -> T:
     """创建一条新记录。
 
     Args:
+        session: 异步会话 / Async session.
         model: ORM 模型类 / ORM model class.
         fields: 用于实例化模型的字段 / Fields used to instantiate the model.
 
@@ -187,19 +189,18 @@ async def create[T: Model](model: type[T], **fields: Any) -> T:
         DatabaseError: 创建或刷新失败时 / On create or refresh failure.
     """
     fields = _validate_column_values(model, fields)
-    async with get_session() as s:
-        obj = model(**fields)
-        s.add(obj)
-        try:
-            await s.commit()
-            await s.refresh(obj)
-        except SQLAlchemyError as e:
-            await s.rollback()
-            raise DatabaseError("Failed to create record") from e
-        return obj
+    obj = model(**fields)
+    session.add(obj)
+    try:
+        await session.flush()
+        await session.refresh(obj)
+    except SQLAlchemyError as e:
+        raise DatabaseError("Failed to create record") from e
+    return obj
 
 
 async def get_one[T: Model](
+    session: AsyncSession | async_scoped_session,
     model: type[T],
     filters: dict[str, Any],
     *,
@@ -208,6 +209,7 @@ async def get_one[T: Model](
     """获取符合条件的单条记录。
 
     Args:
+        session: 异步会话 / Async session.
         model: ORM 模型类 / ORM model class.
         filters: 筛选条件 / Filter conditions.
         conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
@@ -224,18 +226,18 @@ async def get_one[T: Model](
         conditions,
         require_non_empty=True,
     )
-    async with get_session() as s:
-        try:
-            stmt = select(model)
-            stmt = stmt.where(*cs)
-            stmt = stmt.limit(1)
-            res = await s.execute(stmt)
-            return res.scalar_one_or_none()
-        except SQLAlchemyError as e:
-            raise DatabaseError("Failed to query record") from e
+    try:
+        stmt = select(model)
+        stmt = stmt.where(*cs)
+        stmt = stmt.limit(1)
+        res = await session.execute(stmt)
+        return res.scalar_one_or_none()
+    except SQLAlchemyError as e:
+        raise DatabaseError("Failed to query record") from e
 
 
 async def get_or_create[T: Model](
+    session: AsyncSession | async_scoped_session,
     model: type[T],
     defaults: dict[str, Any] | None = None,
     *,
@@ -245,6 +247,7 @@ async def get_or_create[T: Model](
     """获取一条记录，不存在则创建。
 
     Args:
+        session: 异步会话 / Async session.
         model: ORM 模型类 / ORM model class.
         defaults: 创建时补充使用的字段 / Extra fields used when creating.
         filters: 用于查找已有记录的字段 / Lookup fields.
@@ -262,27 +265,27 @@ async def get_or_create[T: Model](
         conditions,
         require_non_empty=True,
     )
-    async with get_session() as s:
-        stmt = select(model)
-        stmt = stmt.where(*cs)
-        stmt = stmt.limit(1)
-        try:
-            res = await s.execute(stmt)
-            obj = res.scalar_one_or_none()
-        except SQLAlchemyError as e:
-            raise DatabaseError("Query failed in get_or_create") from e
+    stmt = select(model)
+    stmt = stmt.where(*cs)
+    stmt = stmt.limit(1)
+    try:
+        res = await session.execute(stmt)
+        obj = res.scalar_one_or_none()
+    except SQLAlchemyError as e:
+        raise DatabaseError("Query failed in get_or_create") from e
 
-        if obj is not None:
-            return obj, False
+    if obj is not None:
+        return obj, False
 
-        data = dict(filters)
-        if defaults:
-            data.update(defaults)
-        data = _validate_column_values(model, data)
-        return await _create_with_retry(s, stmt, model, data)
+    data = dict(filters)
+    if defaults:
+        data.update(defaults)
+    data = _validate_column_values(model, data)
+    return await _create_with_retry(session, stmt, model, data)
 
 
 async def update_or_create[T: Model](
+    session: AsyncSession | async_scoped_session,
     model: type[T],
     filters: dict[str, Any],
     defaults: dict[str, Any] | None = None,
@@ -292,6 +295,7 @@ async def update_or_create[T: Model](
     """先更新，找不到则创建。
 
     Args:
+        session: 异步会话 / Async session.
         model: ORM 模型类 / ORM model class.
         filters: 查找已有记录的条件 / Conditions for locating the record.
         defaults: 找到记录时用于更新的字段，未找到时用于创建的字段。
@@ -328,29 +332,29 @@ async def update_or_create[T: Model](
         conditions,
         require_non_empty=True,
     )
-    async with get_session() as s:
-        stmt = select(model)
-        stmt = stmt.where(*cs)
-        stmt = stmt.limit(1)
-        try:
-            res = await s.execute(stmt)
-            obj = res.scalar_one_or_none()
-        except SQLAlchemyError as e:
-            raise DatabaseError("Query failed in update_or_create") from e
+    stmt = select(model)
+    stmt = stmt.where(*cs)
+    stmt = stmt.limit(1)
+    try:
+        res = await session.execute(stmt)
+        obj = res.scalar_one_or_none()
+    except SQLAlchemyError as e:
+        raise DatabaseError("Query failed in update_or_create") from e
 
-        if obj is not None:
-            update_values = _validate_column_values(model, defaults or {})
-            updated = await _update_existing(s, model, cs, obj, update_values)
-            return updated, False
+    if obj is not None:
+        update_values = _validate_column_values(model, defaults or {})
+        updated = await _update_existing(session, model, cs, obj, update_values)
+        return updated, False
 
-        data = dict(filters)
-        if defaults:
-            data.update(defaults)
-        data = _validate_column_values(model, data)
-        return await _create_with_retry(s, stmt, model, data)
+    data = dict(filters)
+    if defaults:
+        data.update(defaults)
+    data = _validate_column_values(model, data)
+    return await _create_with_retry(session, stmt, model, data)
 
 
 async def update[T: Model](
+    session: AsyncSession | async_scoped_session,
     model: type[T],
     filters: dict[str, Any],
     values: dict[str, Any],
@@ -360,6 +364,7 @@ async def update[T: Model](
     """更新符合条件的记录。
 
     Args:
+        session: 异步会话 / Async session.
         model: ORM 模型类 / ORM model class.
         filters: 筛选条件 / Filter conditions.
         values: 要更新的字段和值 / Fields and values to update.
@@ -382,22 +387,20 @@ async def update[T: Model](
         conditions,
         require_non_empty=True,
     )
-    async with get_session() as s:
-        stmt = sqlalchemy_update(model)
-        stmt = stmt.where(*cs).values(**update_values)
+    stmt = sqlalchemy_update(model)
+    stmt = stmt.where(*cs).values(**update_values)
 
-        try:
-            result = await s.execute(stmt)
-            await s.commit()
-        except SQLAlchemyError as e:
-            await s.rollback()
-            raise DatabaseError("Failed to update records") from e
-        else:
-            rc = getattr(result, "rowcount", None)
-            return (int(rc), True) if rc is not None else (ROWCOUNT_UNKNOWN, False)
+    try:
+        result = await session.execute(stmt)
+        await session.flush()
+    except SQLAlchemyError as e:
+        raise DatabaseError("Failed to update records") from e
+    rc = getattr(result, "rowcount", None)
+    return (int(rc), True) if rc is not None else (ROWCOUNT_UNKNOWN, False)
 
 
 async def delete[T: Model](
+    session: AsyncSession | async_scoped_session,
     model: type[T],
     filters: dict[str, Any],
     *,
@@ -406,6 +409,7 @@ async def delete[T: Model](
     """删除符合条件的记录。
 
     Args:
+        session: 异步会话 / Async session.
         model: ORM 模型类 / ORM model class.
         filters: 删除条件 / Delete conditions.
         conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
@@ -423,22 +427,20 @@ async def delete[T: Model](
         conditions,
         require_non_empty=True,
     )
-    async with get_session() as s:
-        stmt = sqlalchemy_delete(model)
-        stmt = stmt.where(*cs)
+    stmt = sqlalchemy_delete(model)
+    stmt = stmt.where(*cs)
 
-        try:
-            result = await s.execute(stmt)
-            await s.commit()
-        except SQLAlchemyError as e:
-            await s.rollback()
-            raise DatabaseError("Failed to delete records") from e
-        else:
-            rc = getattr(result, "rowcount", None)
-            return (int(rc), True) if rc is not None else (ROWCOUNT_UNKNOWN, False)
+    try:
+        result = await session.execute(stmt)
+        await session.flush()
+    except SQLAlchemyError as e:
+        raise DatabaseError("Failed to delete records") from e
+    rc = getattr(result, "rowcount", None)
+    return (int(rc), True) if rc is not None else (ROWCOUNT_UNKNOWN, False)
 
 
 async def exists[T: Model](
+    session: AsyncSession | async_scoped_session,
     model: type[T],
     filters: dict[str, Any] | None = None,
     *,
@@ -447,6 +449,7 @@ async def exists[T: Model](
     """判断是否存在符合条件的记录。
 
     Args:
+        session: 异步会话 / Async session.
         model: ORM 模型类 / ORM model class.
         filters: 判断条件 / Existence check conditions.
         conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
@@ -463,19 +466,19 @@ async def exists[T: Model](
         conditions,
         require_non_empty=False,
     )
-    async with get_session() as s:
-        try:
-            stmt = select(1).select_from(model)
-            if cs:
-                stmt = stmt.where(*cs)
-            stmt = stmt.limit(1)
-            res = await s.execute(stmt)
-            return res.scalar_one_or_none() is not None
-        except SQLAlchemyError as e:
-            raise DatabaseError("Failed to check existence") from e
+    try:
+        stmt = select(1).select_from(model)
+        if cs:
+            stmt = stmt.where(*cs)
+        stmt = stmt.limit(1)
+        res = await session.execute(stmt)
+        return res.scalar_one_or_none() is not None
+    except SQLAlchemyError as e:
+        raise DatabaseError("Failed to check existence") from e
 
 
 async def count[T: Model](
+    session: AsyncSession | async_scoped_session,
     model: type[T],
     filters: dict[str, Any] | None = None,
     *,
@@ -484,6 +487,7 @@ async def count[T: Model](
     """统计符合条件的记录数量。
 
     Args:
+        session: 异步会话 / Async session.
         model: ORM 模型类 / ORM model class.
         filters: 筛选条件 / Filter conditions.
         conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
@@ -500,12 +504,11 @@ async def count[T: Model](
         conditions,
         require_non_empty=False,
     )
-    async with get_session() as s:
-        try:
-            stmt = select(func.count("*")).select_from(model)
-            if cs:
-                stmt = stmt.where(*cs)
-            res = await s.execute(stmt)
-            return int(res.scalar_one())
-        except SQLAlchemyError as e:
-            raise DatabaseError("Failed to count records") from e
+    try:
+        stmt = select(func.count("*")).select_from(model)
+        if cs:
+            stmt = stmt.where(*cs)
+        res = await session.execute(stmt)
+        return int(res.scalar_one())
+    except SQLAlchemyError as e:
+        raise DatabaseError("Failed to count records") from e

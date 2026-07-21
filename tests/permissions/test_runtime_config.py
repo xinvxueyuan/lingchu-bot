@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
@@ -7,6 +7,14 @@ from src.plugins.nonebot_plugin_lingchu_bot.permissions.service import (
     check_permission,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.repositories import permissions as repo
+
+
+@pytest.fixture
+def mock_session() -> Mock:
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
 
 
 @pytest.fixture
@@ -28,6 +36,7 @@ def event() -> SimpleNamespace:
 @pytest.mark.asyncio
 async def test_platform_runtime_groups_can_be_disabled_by_config(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
     bot: SimpleNamespace,
 ) -> None:
     monkeypatch.setattr(
@@ -59,7 +68,7 @@ async def test_platform_runtime_groups_can_be_disabled_by_config(
         lambda _context: False,
     )
 
-    decision = await check_permission("member_mute", bot, event())
+    decision = await check_permission(mock_session, "member_mute", bot, event())
 
     assert decision.allowed is False
     assert decision.reason == "missing_grant"
