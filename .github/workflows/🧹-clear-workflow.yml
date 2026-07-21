@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Delete all non-running workflow runs
         # pinned from actions/github-script@v9.0.0
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71
         with:
           script: |
             // 获取所有工作流运行记录（处理分页）

@@ -118,7 +118,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 - **前端格式化**：Prettier（`.prettierrc.json`）用于 JS/TS/TSX/CSS/JSON。Markdown 文件被排除 — `markdownlint-cli2` 负责 `.md`，`eslint-plugin-mdx` 负责 `.mdx`（双 linter 策略）。
 - **前端检查**：ESLint 10 flat config。`apps/docs` 使用 `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript` + `eslint-plugin-mdx`。`eslint-config-prettier` 作为最后一项追加，禁用与 Prettier 冲突的格式化规则。
 - **TypeScript**：TS 6，`strict: true`，`target: ES2025`，`module: ESNext`，`moduleResolution: Bundler`（在 `packages/typescript-config/base.json` 中）。
-- **工具版本**：ruff>=0.15.21, pyright>=1.1.410, ty>=0.0.58, prek>=0.4.4, ESLint 10.x, TypeScript 6.x。
+- **工具版本**：ruff>=0.15.22, pyright>=1.1.411, ty>=0.0.61, prek>=0.4.10, ESLint 10.x, TypeScript 6.x。
 - **格式化工作流**：`task format` 运行 Ruff format → Prettier → markdownlint --fix。`task fix` 运行 Ruff check --fix → Ruff format → Prettier → ty check --fix → markdownlint --fix。
 - **已移除的无用脚手架**：`packages/eslint-config/` 和 `packages/ui/`（Turborepo 模板残留，未被任何 app 引用）。`apps/docs` 有自己的 `eslint.config.mjs`。
 - **忽略注释治理**：`src/` 中禁止内联 `# noqa`、`# type: ignore`、`# pyright: ignore`、`# ty: ignore` 和文件级 `# ruff: noqa`。所有合法抑制 MUST 集中在 `pyproject.toml` `[tool.ruff.lint.per-file-ignores]` 中，每个条目附带 `# comment` 理由。模块级 `# pyright: reportMissingImports=false` 仅用于可选依赖导入。前端 `@ts-ignore` 通过 `@typescript-eslint/ban-ts-comment` 禁用；改用 `@ts-expect-error` 并附带描述。Pre-commit Phase 2.5 对 staged `src/*.py` 中新增的 `# noqa` 发出告警；CI `ignore-comment-audit` job 在 PR 中对回归发评论。
