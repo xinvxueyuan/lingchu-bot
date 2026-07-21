@@ -27,7 +27,7 @@ import json
 import os
 from pathlib import Path
 import platform
-from typing import TYPE_CHECKING, Any, Final, Literal, cast
+from typing import TYPE_CHECKING, Any, Final, Literal
 
 from nonebot import get_driver, require
 from nonebot.compat import type_validate_python
@@ -394,8 +394,8 @@ class Config(BaseModel):
 
         """
         system: str = platform.system()
-        if system in ["Windows", "Linux", "Darwin"]:
-            return cast(typ="Literal['Windows', 'Linux', 'Darwin']", val=system)
+        if system in ("Windows", "Linux", "Darwin"):
+            return system
         return "Other"
 
     @property
