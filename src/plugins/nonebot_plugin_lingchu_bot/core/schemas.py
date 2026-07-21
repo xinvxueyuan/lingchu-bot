@@ -1,13 +1,18 @@
 """JSON Schema resources for runtime TOML files.
 
-This module is the single source of truth for the JSON Schema definitions
-that describe ``config.toml`` and ``bot_state.toml``. The schema texts
-are stored as plain Python string literals and written to the
-``nonebot_plugin_localstore``-managed ``config_dir`` and ``data_dir`` at
-startup by :func:`install_schemas`, so that the schema files live next
-to the runtime TOML files they describe. Editors that resolve
+This module is the single source of truth for the JSON Schema basenames
+that describe ``config.toml``, ``bot_state.toml``, ``menu.toml``,
+``<command_key>.toml`` and ``llm.toml``. The schema files are written to
+the ``nonebot_plugin_localstore``-managed ``config_dir`` and ``data_dir``
+at startup by :func:`install_schemas`, so that the schema files live
+next to the runtime TOML files they describe. Editors that resolve
 ``$schema`` basenames will then locate the sibling schema in the same
 localstore directory.
+
+Schemas backed by a pydantic ``BaseModel`` are generated at write time
+via ``model_json_schema()``; schemas without a pydantic model
+(:data:`MENU_SCHEMA_TEXT`, :data:`LLM_SCHEMA_TEXT`) remain as plain
+Python string literals.
 
 Paths are resolved exclusively through ``get_plugin_config_dir`` and
 ``get_plugin_data_dir`` — no hard-coded relative or absolute paths are
@@ -23,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Final
 import aiofiles
 import aiofiles.os
 from nonebot import logger, require
+from pydantic import BaseModel, ConfigDict, Field
 
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_dir, get_plugin_data_dir
@@ -35,163 +41,6 @@ BOT_STATE_SCHEMA_BASENAME: Final = "bot_state.schema.json"
 MENU_SCHEMA_BASENAME: Final = "menu.schema.json"
 HANDLE_CONFIG_SCHEMA_BASENAME: Final = "handle_config.schema.json"
 LLM_SCHEMA_BASENAME: Final = "llm.schema.json"
-
-CONFIG_SCHEMA_TEXT: Final = """{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Lingchu Bot Runtime Config",
-  "description": "Lightweight runtime settings for the Lingchu Bot plugin. Values here are low-priority defaults; NoneBot global_config, environment variables and dotenv files override them at runtime.",
-  "type": "object",
-  "additionalProperties": true,
-  "properties": {
-    "superuser_key": {
-      "type": "string",
-      "description": "Runtime superuser key used by permission checks."
-    },
-    "message_store_enabled": {
-      "type": "boolean",
-      "description": "Enable message-store hooks."
-    },
-    "message_store_retention_days": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "How many days of messages to keep in the store."
-    },
-    "message_store_summary_limit": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Maximum number of messages summarised in a single request."
-    },
-    "message_store_record_api_calls": {
-      "type": "boolean",
-      "description": "Record adapter API calls into the message store."
-    },
-    "message_store_cleanup_enabled": {
-      "type": "boolean",
-      "description": "Run periodic cleanup against the message store."
-    },
-    "ai_provider": {
-      "type": "string",
-      "enum": ["litellm", "openai"],
-      "description": "LLM SDK backend. Use litellm by default; switch to openai as a direct SDK fallback."
-    },
-    "ai_model": {
-      "type": "string",
-      "description": "Default chat completion model passed to the selected LLM provider."
-    },
-    "ai_base_url": {
-      "type": "string",
-      "description": "Optional OpenAI-compatible API base URL passed to the selected LLM provider."
-    },
-    "ai_timeout": {
-      "type": "number",
-      "exclusiveMinimum": 0,
-      "description": "LLM request timeout in seconds."
-    },
-    "ai_api_key": {
-      "type": "string",
-      "description": "LLM provider API key. Prefer setting via the LINGCHU_AI_API_KEY environment variable over writing it into the TOML config file."
-    },
-    "recall_message_default_count": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 100,
-      "description": "Default number of messages to recall when the user does not specify a count."
-    },
-    "permission_platform_runtime_passthrough": {
-      "oneOf": [
-        { "type": "boolean" },
-        {
-          "type": "object",
-          "additionalProperties": { "type": "boolean" }
-        }
-      ],
-      "description": "Toggle permission-platform runtime passthrough globally or per platform id."
-    },
-    "command_trigger_overrides": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": true
-      },
-      "description": "Per-command trigger overrides keyed by command name."
-    },
-    "menu_page_trigger_overrides": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": true
-      },
-      "description": "Per-menu-page trigger overrides keyed by menu page id."
-    },
-    "protected_subject_feature_keys": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "Command feature keys covered by the handle whitelist gate. Targets in protected subject policy cannot be managed by these commands unless the operator is in the repository-backed SUPERUSERS group."
-    },
-    "lingchu_superusers": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": {
-          "oneOf": [
-            { "type": "string" },
-            { "type": "integer" }
-          ]
-        }
-      },
-      "description": "Mapping of logical lingchu user id to per-platform account id (string or integer)."
-    },
-    "lingchu_adapter": {
-      "oneOf": [
-        { "type": "string" },
-        {
-          "type": "array",
-          "items": { "type": "string" }
-        }
-      ],
-      "description": "Adapter selector for the lingchu ecosystem. Accepts a single id or a list of ids; omit the key to fall back to all registered adapters."
-    }
-  }
-}
-"""
-
-BOT_STATE_SCHEMA_TEXT: Final = """{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Lingchu Bot Runtime State",
-  "description": "Two-tier bot state persisted by the Lingchu Bot plugin. Global flags apply to every platform; per-platform entries override the global values.",
-  "type": "object",
-  "additionalProperties": true,
-  "properties": {
-    "global": {
-      "type": "object",
-      "description": "Global state shared by every platform.",
-      "additionalProperties": false,
-      "properties": {
-        "handle_active": {
-          "type": "boolean",
-          "description": "When false, all platforms are gated off regardless of per-platform overrides."
-        },
-        "silent_mode": {
-          "type": "boolean",
-          "description": "When true, every platform is silenced regardless of per-platform overrides."
-        }
-      }
-    },
-    "platforms": {
-      "type": "object",
-      "description": "Per-platform overrides keyed by platform id (e.g. \"qq\", \"telegram\").",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "handle_active": { "type": "boolean" },
-          "silent_mode": { "type": "boolean" }
-        }
-      }
-    }
-  }
-}
-"""
 
 MENU_SCHEMA_TEXT: Final = """{
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -252,31 +101,6 @@ MENU_SCHEMA_TEXT: Final = """{
 }
 """
 
-HANDLE_CONFIG_SCHEMA_TEXT: Final = """{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Lingchu Bot Handle Config",
-  "description": "Standard handle-level configuration schema",
-  "type": "object",
-  "required": ["enabled"],
-  "properties": {
-    "enabled": {
-      "type": "boolean",
-      "default": true,
-      "description": "Whether this handle is enabled."
-    },
-    "defaults": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Default values for handle-specific configuration fields."
-    },
-    "policies": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Policy configuration for this handle."
-    }
-  }
-}
-"""
 LLM_SCHEMA_TEXT: Final = """{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Lingchu Bot LLM Configuration",
@@ -321,63 +145,74 @@ LLM_SCHEMA_TEXT: Final = """{
 """
 
 
-def generate_handle_schema(command_key: str, defaults_fields: dict[str, Any]) -> str:
-    """Generate a specialized handle configuration schema based on the generic template.
+class _HandleConfigSchemaModel(BaseModel):
+    """Generic handle config schema model.
 
-    This function creates a JSON Schema for a specific handle by extending the
-    base ``HANDLE_CONFIG_SCHEMA_TEXT`` with custom fields in the ``defaults`` object.
-
-    Args:
-        command_key: The unique identifier for the command/handle.
-        defaults_fields: A dictionary mapping field names to their JSON Schema definitions.
-            Each entry will be added as a property in the ``defaults`` object.
-
-    Returns:
-        A JSON string representing the specialized schema for this handle.
-
-    Example:
-        >>> schema = generate_handle_schema("recall", {
-        ...     "count": {"type": "integer", "minimum": 1, "maximum": 100},
-        ...     "silent": {"type": "boolean", "default": false}
-        ... })
+    Used only to generate the generic ``handle_config.schema.json``.
+    Each handle's actual config is validated by its own pydantic model
+    registered in ``HANDLE_DEFAULTS_REGISTRY``; this model captures the
+    shared ``enabled`` / ``defaults`` / ``policies`` shape.
     """
-    schema_obj = json.loads(HANDLE_CONFIG_SCHEMA_TEXT)
 
-    # Update title to reflect the specific handle
-    schema_obj["title"] = f"Lingchu Bot Handle Config - {command_key}"
-    schema_obj["description"] = f"Configuration schema for the {command_key} handle"
+    model_config = ConfigDict(extra="ignore")
 
-    # Add custom fields to defaults properties
-    if defaults_fields:
-        schema_obj["properties"]["defaults"]["properties"] = defaults_fields
+    enabled: bool = True
+    defaults: dict[str, Any] = Field(default_factory=dict)
+    policies: dict[str, Any] = Field(default_factory=dict)
 
-    return json.dumps(schema_obj, indent=2, ensure_ascii=False)
+
+async def _write_schema(path: Path, schema: dict[str, Any]) -> None:
+    """Write a pydantic-generated JSON schema to disk with indentation."""
+    content = json.dumps(schema, indent=2, ensure_ascii=False)
+    async with aiofiles.open(path, "w", encoding="utf-8") as f:
+        await f.write(content)
+
+
+async def _write_schema_text(path: Path, schema_text: str) -> None:
+    """Write a hand-authored JSON schema string to disk verbatim."""
+    async with aiofiles.open(path, "w", encoding="utf-8") as f:
+        await f.write(schema_text)
 
 
 async def install_schemas() -> None:
-    """Write JSON Schema files to localstore dirs; idempotent, propagates I/O errors."""
+    """Write JSON Schema files to localstore dirs; idempotent, propagates I/O errors.
+
+    Schemas backed by a pydantic ``BaseModel`` are generated via
+    ``model_json_schema()``; schemas without a pydantic model
+    (:data:`MENU_SCHEMA_TEXT`, :data:`LLM_SCHEMA_TEXT`) are written as
+    hand-authored string literals.
+    """
     config_dir: Path = get_plugin_config_dir()
-    config_path: Path = config_dir / CONFIG_SCHEMA_BASENAME
-    menu_path: Path = config_dir / MENU_SCHEMA_BASENAME
-    handle_config_path: Path = config_dir / HANDLE_CONFIG_SCHEMA_BASENAME
-    llm_path: Path = config_dir / LLM_SCHEMA_BASENAME
-    data_path: Path = get_plugin_data_dir() / BOT_STATE_SCHEMA_BASENAME
+    data_dir: Path = get_plugin_data_dir()
 
-    await aiofiles.os.makedirs(config_path.parent, exist_ok=True)
-    await aiofiles.os.makedirs(data_path.parent, exist_ok=True)
+    await aiofiles.os.makedirs(config_dir, exist_ok=True)
+    await aiofiles.os.makedirs(data_dir, exist_ok=True)
 
-    async with aiofiles.open(config_path, "w", encoding="utf-8") as f:
-        await f.write(CONFIG_SCHEMA_TEXT)
-    async with aiofiles.open(menu_path, "w", encoding="utf-8") as f:
-        await f.write(MENU_SCHEMA_TEXT)
-    async with aiofiles.open(handle_config_path, "w", encoding="utf-8") as f:
-        await f.write(HANDLE_CONFIG_SCHEMA_TEXT)
-    async with aiofiles.open(llm_path, "w", encoding="utf-8") as f:
-        await f.write(LLM_SCHEMA_TEXT)
-    async with aiofiles.open(data_path, "w", encoding="utf-8") as f:
-        await f.write(BOT_STATE_SCHEMA_TEXT)
+    # CONFIG_SCHEMA from Config (local import to avoid circular dependency).
+    from .config import Config
 
-    logger.debug(
-        "Lingchu configuration schemas installed: "
-        f"config={config_path}, menu={menu_path}, handle={handle_config_path}, state={data_path}"
+    await _write_schema(
+        config_dir / CONFIG_SCHEMA_BASENAME,
+        Config.model_json_schema(),
     )
+
+    # BOT_STATE_SCHEMA from BotStateFile (defined in bot_state.py; local import).
+    from .bot_state import BotStateFile
+
+    await _write_schema(
+        data_dir / BOT_STATE_SCHEMA_BASENAME,
+        BotStateFile.model_json_schema(),
+    )
+
+    # HANDLE_CONFIG_SCHEMA from the generic handle config shape model.
+    await _write_schema(
+        config_dir / HANDLE_CONFIG_SCHEMA_BASENAME,
+        _HandleConfigSchemaModel.model_json_schema(),
+    )
+
+    # MENU_SCHEMA and LLM_SCHEMA: no public pydantic model exists, so the
+    # hand-authored JSON Schema string literals are written verbatim.
+    await _write_schema_text(config_dir / MENU_SCHEMA_BASENAME, MENU_SCHEMA_TEXT)
+    await _write_schema_text(config_dir / LLM_SCHEMA_BASENAME, LLM_SCHEMA_TEXT)
+
+    logger.debug("Lingchu configuration schemas installed")

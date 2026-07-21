@@ -12,7 +12,10 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At
 
-from ......core.runtime_config import get_handle_config_manager, runtime_config
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import async_scoped_session
+
+from ......core.config import get_handle_config_manager, plugin_config
 from ......i18n import _async as _
 from ......permissions.subject_policy import find_active_subject_policy
 from ......repositories import message_store as message_repository
@@ -88,13 +91,15 @@ async def _verified_recall_message(
 
 
 async def _is_recall_protected_target(
+    session: async_scoped_session,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     target_user_id: int,
 ) -> bool:
-    if "recall_message" not in runtime_config.protected_subject_feature_keys:
+    if "recall_message" not in plugin_config.protected_subject_feature_keys:
         return False
     protected = await find_active_subject_policy(
+        session,
         policy_type="protected",
         platform_id="qq",
         adapter_id="~onebot.v11",
@@ -106,6 +111,7 @@ async def _is_recall_protected_target(
 
 
 async def _can_recall_sender(
+    session: async_scoped_session,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     sender_id: int,
@@ -115,7 +121,7 @@ async def _can_recall_sender(
     bot_self = bot_self_id_safe(bot)
     if bot_self is not None and sender_id == bot_self:
         return False
-    if await _is_recall_protected_target(bot, event, sender_id):
+    if await _is_recall_protected_target(session, bot, event, sender_id):
         return False
     try:
         member_info = await bot.get_group_member_info(
@@ -181,6 +187,7 @@ def _merge_recall_candidates(
 
 
 async def _list_recall_candidate_records(
+    session: async_scoped_session,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     *,
@@ -195,10 +202,12 @@ async def _list_recall_candidate_records(
         "user_id": str(target_user_id) if target_user_id is not None else None,
     }
     broad_records = await message_repository.list_recent_messages(
+        session,
         **common_filters,
         limit=min(fetch_limit * 2, 500),
     )
     group_records = await message_repository.list_recent_messages(
+        session,
         **common_filters,
         conversation_id=str(event.group_id),
         limit=fetch_limit,
@@ -243,6 +252,7 @@ class RecallResult:
 
 
 async def _recall_record_message(
+    session: async_scoped_session,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     record: Any,
@@ -264,7 +274,9 @@ async def _recall_record_message(
     sender_id = _sender_id_from_message(message)
     if sender_id is None:
         sender_id = _message_id_int(getattr(record, "user_id", None))
-    if sender_id is None or not await _can_recall_sender(bot, event, sender_id):
+    if sender_id is None or not await _can_recall_sender(
+        session, bot, event, sender_id
+    ):
         return "skipped"
     try:
         await bot.delete_msg(message_id=message_id)
@@ -275,6 +287,7 @@ async def _recall_record_message(
 
 
 async def _recall_records(
+    session: async_scoped_session,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     records: list[Any],
@@ -288,6 +301,7 @@ async def _recall_records(
         if result.recalled >= recall_count:
             break
         status = await _recall_record_message(
+            session,
             bot,
             event,
             record,
@@ -309,6 +323,7 @@ async def onebot11_mute(
     duration: int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     # 检查功能是否启用
@@ -343,7 +358,9 @@ async def onebot11_mute(
     if not await check_self_target(target_user_id, bot, event, member_mute_cmd, "禁言"):
         return None
 
-    if not await check_target_privilege(bot, event, target_user_id, member_mute_cmd):
+    if not await check_target_privilege(
+        session, bot, event, target_user_id, member_mute_cmd
+    ):
         return None
 
     # 4. 机器人权限预检
@@ -395,6 +412,7 @@ async def onebot11_mute(
 async def onebot11_whole_mute(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
 ) -> Any:
     # 检查功能是否启用（全体禁言共用member_mute配置）
     config = await get_handle_config_manager().get_config("member_mute")
@@ -423,6 +441,7 @@ async def onebot11_unmute(
     user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
 ) -> Any:
     # 检查功能是否启用（解禁共用member_mute配置）
     config = await get_handle_config_manager().get_config("member_mute")
@@ -475,6 +494,7 @@ async def onebot11_unmute(
 async def onebot11_whole_unmute(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
 ) -> Any:
     # 检查功能是否启用（全体解禁共用member_mute配置）
     config = await get_handle_config_manager().get_config("member_mute")
@@ -495,6 +515,7 @@ async def onebot11_whole_unmute(
 
 @selected_adapter_handle(recall_message_cmd, "~onebot.v11", "recall_message")
 async def onebot11_recall_message(
+    session: async_scoped_session,
     target: At | int | None = None,
     count: int | None = None,
     bot: OneBot11Bot | None = None,
@@ -530,12 +551,14 @@ async def onebot11_recall_message(
         return None
 
     records = await _list_recall_candidate_records(
+        session,
         bot,
         event,
         target_user_id=target_user_id,
         recall_count=recall_count,
     )
     result = await _recall_records(
+        session,
         bot,
         event,
         records,

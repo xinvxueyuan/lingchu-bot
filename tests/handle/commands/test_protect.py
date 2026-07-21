@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -20,6 +20,15 @@ from tests.handle.commands.conftest import finish_text
 
 _TEST_USER_ID = 111222333
 _MOCK_AT_TARGET = 987654321
+
+
+@pytest.fixture
+def mock_session() -> Mock:
+    """Provide a mock AsyncSession for protect handler Depends() injection."""
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
 
 
 @pytest.fixture(autouse=True)
@@ -43,6 +52,7 @@ async def test_onebot11_protect_member_upserts_group_policy(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
     mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     with (
         patch.object(protect_module, "upsert_subject_policy", AsyncMock()) as upsert,
@@ -53,9 +63,11 @@ async def test_onebot11_protect_member_upserts_group_policy(
             reason=None,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
-    request = upsert.call_args.args[0]
+    assert upsert.call_args.args[0] is mock_session
+    request = upsert.call_args.args[1]
     assert request.policy_type == "protected"
     assert request.scope == "group"
     assert request.group_id == mock_onebot11_event.group_id
@@ -70,6 +82,7 @@ async def test_onebot11_global_protect_member_upserts_global_policy(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
     mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     with (
         patch.object(protect_module, "upsert_subject_policy", AsyncMock()) as upsert,
@@ -80,9 +93,11 @@ async def test_onebot11_global_protect_member_upserts_global_policy(
             reason="vip",
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
-    request = upsert.call_args.args[0]
+    assert upsert.call_args.args[0] is mock_session
+    request = upsert.call_args.args[1]
     assert request.policy_type == "protected"
     assert request.scope == "global"
     assert request.reason == "vip"
@@ -93,6 +108,7 @@ async def test_onebot11_unprotect_member_removes_group_policy(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
     mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     with (
         patch.object(
@@ -107,8 +123,10 @@ async def test_onebot11_unprotect_member_removes_group_policy(
             reason=None,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
+    assert remove.call_args.args[0] is mock_session
     assert remove.call_args.kwargs["policy_type"] == "protected"
     assert remove.call_args.kwargs["scope"] == "group"
     assert remove.call_args.kwargs["user_id"] == _MOCK_AT_TARGET
@@ -120,6 +138,7 @@ async def test_onebot11_global_unprotect_member_removes_global_policy(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
     mock_at: MagicMock,
+    mock_session: Mock,
 ) -> None:
     with (
         patch.object(
@@ -134,8 +153,10 @@ async def test_onebot11_global_unprotect_member_removes_global_policy(
             reason="reset",
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
+    assert remove.call_args.args[0] is mock_session
     assert remove.call_args.kwargs["policy_type"] == "protected"
     assert remove.call_args.kwargs["scope"] == "global"
 
@@ -144,6 +165,7 @@ async def test_onebot11_global_unprotect_member_removes_global_policy(
 async def test_non_superuser_cannot_protect_member(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
+    mock_session: Mock,
 ) -> None:
     with (
         patch.object(
@@ -159,6 +181,7 @@ async def test_non_superuser_cannot_protect_member(
             reason=None,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     upsert.assert_not_awaited()

@@ -10,7 +10,10 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At
 
-from ......core.runtime_config import get_handle_config_manager
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import async_scoped_session
+
+from ......core.config import get_handle_config_manager
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......repositories.blocklist import find_active_block
@@ -31,6 +34,7 @@ from .common import (
 
 
 async def _kick_member(
+    session: async_scoped_session,
     *,
     command: type[Any],
     user: At | int,
@@ -46,12 +50,13 @@ async def _kick_member(
     if not await check_self_target(target_user_id, bot, event, command, "踢出"):
         return None
 
-    if not await check_target_privilege(bot, event, target_user_id, command):
+    if not await check_target_privilege(session, bot, event, target_user_id, command):
         return None
 
     # 检查目标用户是否在黑名单中
     try:
         entry = await find_active_block(
+            session,
             platform_id=QQ_PLATFORM_ID,
             adapter_id=ONEBOT_V11_ADAPTER_ID,
             bot_id=bot_id(bot),
@@ -105,6 +110,7 @@ async def onebot11_kick_member(
     user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     """OneBot V11 踢出群成员处理器"""
@@ -117,6 +123,7 @@ async def onebot11_kick_member(
     # require_reason = config.defaults.get("require_reason", False)
 
     return await _kick_member(
+        session,
         command=kick_member_cmd,
         user=user,
         reason=reason,

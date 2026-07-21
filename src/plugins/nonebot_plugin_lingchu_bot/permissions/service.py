@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any, TypeIs
+from typing import TYPE_CHECKING, Any, TypeIs
 
-from ..core.runtime_config import runtime_config
+from ..core.config import plugin_config
 from ..platforms import get_platform_profile, resolve_adapter_id
 from ..repositories import permissions as repo
 from .platforms import resolve_runtime_identity_groups
 from .types import MCPPermissionLevel, PermissionContext, PermissionDecision
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 
 _MCP_PERMISSION_RANK: dict[MCPPermissionLevel, int] = {
     "read": 0,
@@ -21,19 +24,25 @@ def _is_mcp_permission_level(value: str | None) -> TypeIs[MCPPermissionLevel]:
     return value in _MCP_PERMISSION_RANK
 
 
-async def resolve_user_identity(platform_id: str, account_id: str) -> Any | None:
-    return await repo.get_user_by_platform_account(platform_id, account_id)
+async def resolve_user_identity(
+    session: AsyncSession | async_scoped_session,
+    platform_id: str,
+    account_id: str,
+) -> Any | None:
+    return await repo.get_user_by_platform_account(session, platform_id, account_id)
 
 
 async def bind_platform_account(
+    session: AsyncSession | async_scoped_session,
     uid: str,
     platform_id: str,
     account_id: str | int,
     *,
     nickname: str | None = None,
 ) -> Any:
-    await repo.upsert_identity_user(uid, nickname)
+    await repo.upsert_identity_user(session, uid, nickname)
     return await repo.bind_platform_account(
+        session,
         uid=uid,
         platform_id=platform_id,
         account_id=str(account_id),
@@ -41,7 +50,11 @@ async def bind_platform_account(
     )
 
 
-async def resolve_permission_context(bot: Any, event: Any) -> PermissionContext:
+async def resolve_permission_context(
+    session: AsyncSession | async_scoped_session,
+    bot: Any,
+    event: Any,
+) -> PermissionContext:
     adapter_name = _adapter_name(bot)
     adapter_id = resolve_adapter_id(adapter_name) if adapter_name is not None else None
     profile = get_platform_profile(adapter_id or "") if adapter_id is not None else None
@@ -51,7 +64,7 @@ async def resolve_permission_context(bot: Any, event: Any) -> PermissionContext:
 
     uid = None
     if account_id is not None:
-        user = await resolve_user_identity(platform_id, account_id)
+        user = await resolve_user_identity(session, platform_id, account_id)
         uid = getattr(user, "uid", None) if user is not None else None
 
     base_context = PermissionContext(
@@ -75,20 +88,24 @@ async def resolve_permission_context(bot: Any, event: Any) -> PermissionContext:
 
 
 async def check_permission(
-    command_key: str, bot: Any, event: Any
+    session: AsyncSession | async_scoped_session,
+    command_key: str,
+    bot: Any,
+    event: Any,
 ) -> PermissionDecision:
-    context = await resolve_permission_context(bot, event)
-    return await check_permission_for_context(command_key, context)
+    context = await resolve_permission_context(session, bot, event)
+    return await check_permission_for_context(session, command_key, context)
 
 
 async def check_permission_for_context(
+    session: AsyncSession | async_scoped_session,
     command_key: str,
     context: PermissionContext,
 ) -> PermissionDecision:
     if context.uid is None:
         return PermissionDecision(allowed=False, reason="anonymous")
 
-    if await repo.is_superuser(context.uid):
+    if await repo.is_superuser(session, context.uid):
         return PermissionDecision(
             allowed=True,
             reason="superuser",
@@ -96,7 +113,7 @@ async def check_permission_for_context(
             matched_groups=frozenset({repo.SUPERUSERS_GROUP_ID}),
         )
 
-    effective_groups = await _effective_group_ids(context)
+    effective_groups = await _effective_group_ids(session, context)
     if not effective_groups:
         return PermissionDecision(
             allowed=False,
@@ -104,7 +121,9 @@ async def check_permission_for_context(
             uid=context.uid,
         )
 
-    grants = await repo.list_grants(group_ids=effective_groups, command_key=command_key)
+    grants = await repo.list_grants(
+        session, group_ids=effective_groups, command_key=command_key
+    )
     allowed_groups = frozenset(
         grant.group_id for grant in grants if grant.effect == repo.ALLOW_EFFECT
     )
@@ -119,15 +138,16 @@ async def check_permission_for_context(
 
 
 async def resolve_mcp_permission(
+    session: AsyncSession | async_scoped_session,
     context: PermissionContext,
 ) -> MCPPermissionLevel | None:
     if context.uid is None:
         return None
-    if await repo.is_superuser(context.uid):
+    if await repo.is_superuser(session, context.uid):
         return "critical"
 
-    effective_groups = await _effective_group_ids(context)
-    groups = await repo.list_identity_groups()
+    effective_groups = await _effective_group_ids(session, context)
+    groups = await repo.list_identity_groups(session)
     levels: list[MCPPermissionLevel] = []
     for group in groups:
         level = group.mcp_permission_level
@@ -137,7 +157,7 @@ async def resolve_mcp_permission(
 
 
 def platform_runtime_passthrough_enabled(context: PermissionContext) -> bool:
-    setting = runtime_config.permission_platform_runtime_passthrough
+    setting = plugin_config.permission_platform_runtime_passthrough
     if isinstance(setting, bool):
         return setting
     platform_value = setting.get(context.platform_id)
@@ -147,16 +167,17 @@ def platform_runtime_passthrough_enabled(context: PermissionContext) -> bool:
 
 
 async def allowed_command_keys(
+    session: AsyncSession | async_scoped_session,
     bot: Any,
     event: Any,
     command_keys: frozenset[str],
 ) -> frozenset[str]:
-    context = await resolve_permission_context(bot, event)
-    if context.uid is not None and await repo.is_superuser(context.uid):
+    context = await resolve_permission_context(session, bot, event)
+    if context.uid is not None and await repo.is_superuser(session, context.uid):
         return command_keys
     allowed: set[str] = set()
     for command_key in command_keys:
-        decision = await check_permission_for_context(command_key, context)
+        decision = await check_permission_for_context(session, command_key, context)
         if decision.allowed:
             allowed.add(command_key)
     return frozenset(allowed)
@@ -204,10 +225,15 @@ def _membership_matches_context(membership: Any, context: PermissionContext) -> 
     )
 
 
-async def _with_ancestor_groups(group_ids: set[str]) -> frozenset[str]:
+async def _with_ancestor_groups(
+    session: AsyncSession | async_scoped_session,
+    group_ids: set[str],
+) -> frozenset[str]:
     if not group_ids:
         return frozenset()
-    groups = {group.group_id: group for group in await repo.list_identity_groups()}
+    groups = {
+        group.group_id: group for group in await repo.list_identity_groups(session)
+    }
     expanded = set(group_ids)
     stack = list(group_ids)
     while stack:
@@ -220,7 +246,10 @@ async def _with_ancestor_groups(group_ids: set[str]) -> frozenset[str]:
     return frozenset(expanded)
 
 
-async def _effective_group_ids(context: PermissionContext) -> frozenset[str]:
+async def _effective_group_ids(
+    session: AsyncSession | async_scoped_session,
+    context: PermissionContext,
+) -> frozenset[str]:
     if context.uid is None:
         return frozenset()
     direct_groups: set[str] = (
@@ -228,7 +257,7 @@ async def _effective_group_ids(context: PermissionContext) -> frozenset[str]:
         if platform_runtime_passthrough_enabled(context)
         else set()
     )
-    for membership in await repo.list_memberships(uid=context.uid):
+    for membership in await repo.list_memberships(session, uid=context.uid):
         if _membership_matches_context(membership, context):
             direct_groups.add(membership.group_id)
-    return await _with_ancestor_groups(direct_groups)
+    return await _with_ancestor_groups(session, direct_groups)

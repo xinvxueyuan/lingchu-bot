@@ -7,7 +7,7 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any
 
-from ..core.runtime_config import runtime_config
+from ..core.config import plugin_config
 from ..platforms import get_platform_profile, resolve_adapter_id
 from .interfaces import PlatformContext
 
@@ -49,7 +49,7 @@ class NormalizedMessageEvent:
 def _truncate(value: str | None, limit: int | None = None) -> str | None:
     if value is None:
         return None
-    size = limit if limit is not None else runtime_config.message_store_summary_limit
+    size = limit if limit is not None else plugin_config.message_store_summary_limit
     if size <= 0 or len(value) <= size:
         return value
     return f"{value[:size]}..."

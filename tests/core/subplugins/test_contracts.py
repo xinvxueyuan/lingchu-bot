@@ -207,7 +207,7 @@ def test_get_subplugin_trigger_for_novelai_image() -> None:
 def test_resolve_default_llm_options_reads_runtime_config(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """resolve_default_llm_options builds LLMOptions from runtime_config fields."""
+    """resolve_default_llm_options builds LLMOptions from plugin_config fields."""
     fake_config = SimpleNamespace(
         ai_provider="openai",
         ai_model="gpt-4",
@@ -215,7 +215,7 @@ def test_resolve_default_llm_options_reads_runtime_config(
         ai_api_key="secret",
         ai_timeout=30.0,
     )
-    monkeypatch.setattr(contracts, "runtime_config", fake_config)
+    monkeypatch.setattr(contracts, "plugin_config", fake_config)
 
     options = contracts.resolve_default_llm_options()
 

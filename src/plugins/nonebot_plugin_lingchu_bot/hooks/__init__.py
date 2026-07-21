@@ -11,7 +11,6 @@ from . import (
     adapters as adapters,
     handlers as handlers,
     interfaces as interfaces,
-    registry as registry,
 )
 
-__all__ = ["adapters", "handlers", "interfaces", "registry"]
+__all__ = ["adapters", "handlers", "interfaces"]

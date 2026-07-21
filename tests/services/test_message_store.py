@@ -12,6 +12,19 @@ from src.plugins.nonebot_plugin_lingchu_bot.hooks.adapters import MessageIdentit
 from src.plugins.nonebot_plugin_lingchu_bot.services import message_store
 
 
+class _FakeSessionContext:
+    """Async context manager that yields a fixed mock session."""
+
+    def __init__(self, session: Any) -> None:
+        self._session = session
+
+    async def __aenter__(self) -> Any:
+        return self._session
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+
 def make_bot(adapter_name: str = "OneBot V11") -> MagicMock:
     bot = MagicMock()
     bot.self_id = "bot-1"
@@ -53,10 +66,22 @@ def enabled_config() -> SimpleNamespace:
 def patched_runtime_config(
     monkeypatch: pytest.MonkeyPatch, enabled_config: SimpleNamespace
 ):
-    """Patch ``runtime_config`` in all modules that imported the name."""
-    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
-    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    """Patch ``plugin_config`` in all modules that imported the name."""
+    monkeypatch.setattr(message_store, "plugin_config", enabled_config)
+    monkeypatch.setattr(adapters, "plugin_config", enabled_config)
     return enabled_config
+
+
+@pytest.fixture(autouse=True)
+def patched_session(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    """Patch ``get_session`` in ``message_store`` to yield a mock session."""
+    session = MagicMock(name="async_session")
+    monkeypatch.setattr(
+        message_store,
+        "get_session",
+        lambda: _FakeSessionContext(session),
+    )
+    return session
 
 
 async def test_handle_event_received_records_event(
@@ -226,6 +251,7 @@ async def test_handle_matcher_result_swallows_database_errors(
 async def test_handle_api_called_records_result(
     monkeypatch: pytest.MonkeyPatch,
     patched_runtime_config: SimpleNamespace,
+    patched_session: MagicMock,
 ) -> None:
     _ = patched_runtime_config
     record_api = AsyncMock()
@@ -243,7 +269,8 @@ async def test_handle_api_called_records_result(
 
     record_api.assert_awaited_once()
     assert record_api.await_args is not None
-    audit_event = record_api.await_args.args[0]
+    assert record_api.await_args.args[0] is patched_session
+    audit_event = record_api.await_args.args[1]
     assert audit_event.api_name == "send_message"
     assert audit_event.adapter_id == "~onebot.v11"
     assert audit_event.data_summary == "{'message': 'hello'}"
@@ -318,6 +345,7 @@ async def test_handle_api_called_swallows_database_errors(
 async def test_record_bot_lifecycle_records_connected(
     monkeypatch: pytest.MonkeyPatch,
     patched_runtime_config: SimpleNamespace,
+    patched_session: MagicMock,
 ) -> None:
     _ = patched_runtime_config
     record_api = AsyncMock()
@@ -328,7 +356,8 @@ async def test_record_bot_lifecycle_records_connected(
     assert result is True
     record_api.assert_awaited_once()
     assert record_api.await_args is not None
-    audit_event = record_api.await_args.args[0]
+    assert record_api.await_args.args[0] is patched_session
+    audit_event = record_api.await_args.args[1]
     assert audit_event.api_name == "bot_connected"
     assert audit_event.audit_type == "lifecycle"
     assert audit_event.adapter_id == "~onebot.v11"
@@ -472,6 +501,7 @@ async def test_cleanup_expired_messages_skips_when_cleanup_disabled(
 async def test_cleanup_expired_messages_returns_count_when_successful(
     monkeypatch: pytest.MonkeyPatch,
     patched_runtime_config: SimpleNamespace,
+    patched_session: MagicMock,
 ) -> None:
     _ = patched_runtime_config
     cleanup_mock = AsyncMock(return_value=(7, True))
@@ -482,9 +512,10 @@ async def test_cleanup_expired_messages_returns_count_when_successful(
     result = await message_store.cleanup_expired_messages()
 
     assert result == (7, True)
-    cleanup_mock.assert_awaited_once()
-    assert cleanup_mock.await_args is not None
-    assert cleanup_mock.await_args.kwargs["retention_days"] == 30
+    cleanup_mock.assert_awaited_once_with(
+        patched_session,
+        retention_days=30,
+    )
 
 
 async def test_cleanup_expired_messages_swallows_database_errors(

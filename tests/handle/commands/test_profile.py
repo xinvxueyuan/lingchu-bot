@@ -6,7 +6,7 @@ from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import aiofiles
 import pytest
@@ -31,9 +31,20 @@ def create_mock_image(raw: bytes | None = None) -> MagicMock:
     return image
 
 
+@pytest.fixture
+def mock_session() -> Mock:
+    """Provide a mock AsyncSession for profile handler Depends() injection."""
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
+
+
 @pytest.mark.asyncio
 async def test_onebot11_set_group_name_calls_v11_api(
-    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_session: Mock,
 ) -> None:
     mock_onebot11_bot.set_group_name = AsyncMock()
 
@@ -42,6 +53,7 @@ async def test_onebot11_set_group_name_calls_v11_api(
             new_group_name="新群名",
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     mock_onebot11_bot.set_group_name.assert_called_once_with(
@@ -52,7 +64,10 @@ async def test_onebot11_set_group_name_calls_v11_api(
 
 @pytest.mark.asyncio
 async def test_onebot11_set_group_avatar_calls_napcat_api(
-    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, tmp_path: Path
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_session: Mock,
+    tmp_path: Path,
 ) -> None:
     mock_onebot11_bot.get_version_info = AsyncMock(
         return_value={
@@ -78,6 +93,7 @@ async def test_onebot11_set_group_avatar_calls_napcat_api(
             image=create_mock_image(raw=b"fake"),
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     mock_onebot11_bot.call_api.assert_called_once_with(
@@ -90,7 +106,9 @@ async def test_onebot11_set_group_avatar_calls_napcat_api(
 
 @pytest.mark.asyncio
 async def test_onebot11_set_group_avatar_rejects_unsupported_impl(
-    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_session: Mock,
 ) -> None:
     mock_onebot11_bot.get_version_info = AsyncMock(
         return_value={
@@ -114,6 +132,7 @@ async def test_onebot11_set_group_avatar_rejects_unsupported_impl(
             image=create_mock_image(raw=b"fake"),
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     mock_onebot11_bot.call_api.assert_not_called()

@@ -44,7 +44,6 @@ dependencies = [
     "babel>=2.18.0",
     "rtoml>=0.13.0",
     "packaging>=24.2",
-    "jsonschema>=4.23.0",
 ]
 
 [project.optional-dependencies]
@@ -253,6 +252,7 @@ allowed-confusables = [
     "PLR2004", # magic-value-comparison (tests often use magic values for assertions)
     "E501",    # line-too-long (test assertions can be verbose)
     "F841",    # unused-variable (fixtures may assign variables for clarity)
+    "PLR0913", # too-many-arguments (handler migration adds session fixture to fixture-heavy tests)
     "TC002",   # typing-only-third-party-import (e.g. pytest used as @pytest.mark decorator)
     "TC003",   # typing-only-standard-library-import (tests don't need TYPE_CHECKING optimization)
     "TC005",   # empty-type-checking-block (test files may have empty TYPE_CHECKING blocks)
@@ -315,6 +315,14 @@ allowed-confusables = [
 # ARG001: NoneBot handler signatures require bot/event params even when unused
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/napcat/announcement.py" = ["ARG001"]
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/bot_state.py" = ["ARG001"]
+# ARG001: session injected via Depends(async_scoped_session) for consistent DI shape
+# even when the handler does not currently issue DB queries (keeps handler signatures
+# uniform across the adapter and ready for future repository calls).
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py" = ["ARG001"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py" = ["ARG001"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py" = ["ARG001"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py" = ["ARG001"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py" = ["ARG001"]
 # TC001/TC002/TC003: NoneBot evaluates type hints at runtime via get_type_hints();
 # Bot/Event/Path imports must remain at module level for handler registration.
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/napcat/**.py" = ["TC001", "TC002", "TC003"]
@@ -388,6 +396,7 @@ allowed-confusables = [
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/services/llm/agent.py" = [
     "BLE001", # LLM and MCP collaborators may raise arbitrary provider exceptions at fail-closed boundaries
+    "E402",   # nonebot2 require() must precede cross-plugin imports at module level
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/services/llm/runtime.py" = [
     "A002",   # `input` is the public facade parameter named by the runtime specification
@@ -396,11 +405,15 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/services/llm/security.py" = [
     "BLE001", # redaction must remain total for hostile objects and broken repr implementations
 ]
+"src/plugins/nonebot_plugin_lingchu_bot/services/llm/mcp_audit.py" = [
+    "E402",   # nonebot2 require() must precede cross-plugin imports at module level
+]
 "src/plugins/nonebot_plugin_lingchu_bot/services/llm/types.py" = [
     "BLE001", # safe representation helpers must tolerate hostile sized objects
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/services/protocol_restart_feedback.py" = ["BLE001"]
-"src/plugins/nonebot_plugin_lingchu_bot/start/startup.py" = ["BLE001"]
+# E402: nonebot2 require() must precede cross-plugin imports at module level
+"src/plugins/nonebot_plugin_lingchu_bot/start/startup.py" = ["BLE001", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/platforms/qq/permissions.py" = ["BLE001"]
 "src/plugins/nonebot_plugin_lingchu_bot/database/toml_store/_async_db.py" = ["TRY003", "BLE001"]
 
@@ -418,13 +431,6 @@ allowed-confusables = [
 
 # Combined entries for files needing multiple rule suppressions
 # E402: nonebot2 require() must precede cross-plugin imports at module level
-"src/plugins/nonebot_plugin_lingchu_bot/core/runtime_config.py" = [
-    "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
-    "TRY003",  # vanilla exceptions for config validation
-    "TRY004",  # TypeError for invalid config types
-    "PLW0603",  # module-level state management
-    "C901",  # complex validation logic
-]
 "src/plugins/nonebot_plugin_lingchu_bot/repositories/scheduler_jobs.py" = [
     "PLR0913",  # parameter-heavy job spec API
     "TRY003",  # vanilla exceptions for validation
@@ -439,6 +445,9 @@ allowed-confusables = [
     "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
     "PLR0913",  # parameter-heavy scheduler API
     "TRY003",  # vanilla exceptions for validation
+]
+"src/plugins/nonebot_plugin_lingchu_bot/services/message_store.py" = [
+    "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_bulk.py" = [
     "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
@@ -458,11 +467,22 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/permissions/admin.py" = [
     "TC001",  # runtime first-party imports needed by NoneBot
     "TRY003",  # vanilla exceptions for validation
+    "PLR0913",  # admin APIs gained a session parameter during the external session migration
 ]
 
 # E402: nonebot2 require() must precede cross-plugin imports at module level.
 # Preferred fix is function-level require() (per AGENTS.md) as a follow-up refactor.
-"src/plugins/nonebot_plugin_lingchu_bot/core/config.py" = ["E402", "TC003"]
+# TRY003/TRY004: vanilla exceptions (ValueError/TypeError) for config validation.
+# PLW0603: module-level state management (singletons for runtime config).
+# C901: complex validation logic (lingchu_superusers / protected_subject_feature_keys).
+"src/plugins/nonebot_plugin_lingchu_bot/core/config.py" = [
+    "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
+    "TC003",  # runtime stdlib imports needed by NoneBot
+    "TRY003",  # vanilla exceptions for config validation
+    "TRY004",  # TypeError for invalid config types
+    "PLW0603",  # module-level state management
+    "C901",  # complex validation logic
+]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/contracts.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/llm_chat/config.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/llm_chat/handler.py" = ["E402"]

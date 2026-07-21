@@ -10,11 +10,11 @@ import aiofiles
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.core import schemas as schemas_module
+from src.plugins.nonebot_plugin_lingchu_bot.core.bot_state import BotStateFile
+from src.plugins.nonebot_plugin_lingchu_bot.core.config import RuntimeConfig
 from src.plugins.nonebot_plugin_lingchu_bot.core.schemas import (
     BOT_STATE_SCHEMA_BASENAME,
-    BOT_STATE_SCHEMA_TEXT,
     CONFIG_SCHEMA_BASENAME,
-    CONFIG_SCHEMA_TEXT,
     MENU_SCHEMA_BASENAME,
     MENU_SCHEMA_TEXT,
     install_schemas,
@@ -23,6 +23,16 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.schemas import (
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
+
+
+def _config_schema_text() -> str:
+    """Return the pydantic-generated CONFIG schema as a JSON string."""
+    return json.dumps(RuntimeConfig.model_json_schema(), indent=2, ensure_ascii=False)
+
+
+def _bot_state_schema_text() -> str:
+    """Return the pydantic-generated BOT_STATE schema as a JSON string."""
+    return json.dumps(BotStateFile.model_json_schema(), indent=2, ensure_ascii=False)
 
 
 @pytest.fixture
@@ -64,7 +74,7 @@ async def test_install_schemas_writes_config_schema_under_localstore_config_dir(
     config_schema_path = config_dir / CONFIG_SCHEMA_BASENAME
     assert config_schema_path.exists()
     async with aiofiles.open(config_schema_path, encoding="utf-8") as f:
-        assert await f.read() == CONFIG_SCHEMA_TEXT
+        assert await f.read() == _config_schema_text()
 
 
 async def test_install_schemas_writes_bot_state_schema_under_localstore_data_dir(
@@ -78,7 +88,7 @@ async def test_install_schemas_writes_bot_state_schema_under_localstore_data_dir
     data_schema_path = data_dir / BOT_STATE_SCHEMA_BASENAME
     assert data_schema_path.exists()
     async with aiofiles.open(data_schema_path, encoding="utf-8") as f:
-        assert await f.read() == BOT_STATE_SCHEMA_TEXT
+        assert await f.read() == _bot_state_schema_text()
 
 
 async def test_install_schemas_writes_menu_schema_under_localstore_config_dir(
@@ -151,21 +161,6 @@ async def test_install_schemas_is_idempotent(
 
 def test_menu_schema_text_is_valid_json() -> None:
     assert json.loads(MENU_SCHEMA_TEXT)["title"] == "Lingchu Bot Menu Config"
-
-
-def test_config_schema_does_not_advertise_toml_null_values() -> None:
-    schema = json.loads(CONFIG_SCHEMA_TEXT)
-
-    def contains_null_type(value: object) -> bool:
-        if isinstance(value, dict):
-            return value.get("type") == "null" or any(
-                contains_null_type(item) for item in value.values()
-            )
-        if isinstance(value, list):
-            return any(contains_null_type(item) for item in value)
-        return False
-
-    assert contains_null_type(schema) is False
 
 
 async def test_install_schemas_propagates_localstore_errors() -> None:

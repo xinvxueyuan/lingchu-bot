@@ -12,7 +12,7 @@ Lingchu Bot stores runtime data through two cooperating layers: `nonebot_plugin_
 
 The default database backend is SQLite via `aiosqlite`, provided by `nonebot_plugin_orm`. No explicit connection URL is required for local development — the ORM plugin creates a SQLite database file under the localstore data directory.
 
-All relational access goes through `nonebot_plugin_orm` sessions. The project does not introduce custom engine management; `database/orm_crud/` wraps `get_session()` from the ORM plugin into typed async helpers.
+All relational access goes through `nonebot_plugin_orm` sessions. The project does not introduce custom engine management; `database/orm_crud/` exposes typed async helpers that take an externally-owned `AsyncSession` as their first positional parameter (see [Session ownership](#session-ownership-and-handler-injection) below).
 
 ## Six supported backends
 
@@ -119,13 +119,16 @@ For unique-constraint or index rebuilds, follow `migrations/cf2c06d51a17_blockli
 
 ## TOML store and localstore
 
-`database/toml_store/` provides an asynchronous TOML-backed key-value client used for lightweight runtime configuration that does not justify a relational table. It cooperates with `nonebot_plugin_localstore`:
+`database/toml_store/` provides asynchronous TOML-backed helpers used for lightweight runtime configuration that does not justify a relational table. It cooperates with `nonebot_plugin_localstore`:
 
 - File paths are resolved through `get_plugin_config_file()`, `get_plugin_data_file()`, or `get_plugin_cache_file()` — never hard-coded `Path("...")`.
-- The main client is `RobustAsyncTOMLDB`, supporting nested key paths, atomic writes, optional file watching, and explicit close semantics.
-- Module-level helpers: `ensure_toml_dict_file_async()`, `ensure_toml_dict_file_sync()`, `load_toml_dict_async()`, `load_toml_dict_sync()`, `write_toml_dict_file_async()`.
+- Three core async helpers cover all runtime needs:
+  - `load_toml_dict_async(path, default=..., merge_default=...)` — read a TOML table without blocking the event loop.
+  - `write_toml_dict_file_async(path, data, schema_basename=...)` — atomically overwrite a TOML file via `tempfile + os.replace`, optionally injecting a `#:schema` directive.
+  - `ensure_toml_dict_file_async(path, default, schema_basename=...)` — create the file with defaults only if it is missing; never overwrites an existing file.
+- Synchronous counterparts (`load_toml_dict_sync`, `ensure_toml_dict_file_sync`) are available for import-time setup.
 
-`ensure_toml_dict_file_async()` only creates missing files; use `write_toml_dict_file_async()` to overwrite an existing file. Runtime config defaults must be JSON-serializable; dump Pydantic defaults with `mode="json"` when writing them to TOML.
+All writes use atomic replacement (`mkstemp` + `aiofiles.os.replace`) so a crash mid-write leaves the original file intact. `ensure_toml_dict_file_async()` only creates missing files; use `write_toml_dict_file_async()` to overwrite an existing file. Runtime config defaults must be JSON-serializable; dump Pydantic defaults with `mode="json"` when writing them to TOML.
 
 ## ORM helpers
 
@@ -138,6 +141,71 @@ For unique-constraint or index rebuilds, follow `migrations/cf2c06d51a17_blockli
 | `_bulk.py` | `bulk_create`, `upsert`, `list_items`, `async_iterate_safe` |
 
 `bulk_create(..., partial=True)` uses per-row savepoints so a failing row is skipped and reported instead of aborting the whole batch. `async_iterate_safe()` streams large result sets with `yield_per` and an async callback, optionally collecting items.
+
+## Session ownership and handler injection
+
+Every `database/orm_crud/*.py` and `repositories/*.py` function takes `session: AsyncSession | async_scoped_session` as its first positional parameter. The helpers do not call `get_session()` themselves, do not `commit`, and do not `rollback` — the caller owns the transaction boundary. This keeps test fixtures simple (pass a mock session) and avoids nested sessions inside NoneBot request handling.
+
+### Handler pattern with `async_scoped_session`
+
+NoneBot matcher handlers obtain a scoped session through the `async_scoped_session` type alias exported by `nonebot_plugin_orm`. `Depends` is already embedded in the `Annotated` metadata of this alias, so the correct handler signature is a plain type annotation — do **not** write `= Depends(async_scoped_session)`:
+
+```python
+from nonebot import require, on_command
+from nonebot.adapters import Bot, Event
+from nonebot_plugin_orm import async_scoped_session
+
+require("nonebot_plugin_orm")
+
+from ..repositories.blocklist import upsert_block  # noqa: E402 (post-require import)
+
+
+@on_command("block")
+async def handle_block(
+    bot: Bot,
+    event: Event,
+    session: async_scoped_session,
+) -> None:
+    await upsert_block(
+        session,
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        subject_id=str(event.get_user_id()),
+    )
+    await session.commit()
+```
+
+The scoped session is opened by `nonebot_plugin_orm` for the duration of the matcher run and is removed automatically when the handler returns. Always `await session.commit()` before returning if the handler wrote data — repository functions do not commit on their own.
+
+### Wrapper functions and `@wraps`
+
+Decorators that wrap handler functions (for example `_permission_wrapper` in `handle/qq/commands/common.py`) MUST apply `functools.wraps` so `inspect.signature(wrapper)` follows the wrapped function. NoneBot reads the wrapper signature to know which kwargs (`bot`, `event`, `session`) to inject. Inside the wrapper, extract the session via `session = kwargs.get("session")` rather than re-opening `get_session()`.
+
+### Background tasks and fire-and-forget helpers
+
+Background tasks own their session lifecycle because they are not NoneBot handler dependencies. `services/scheduler.py` and `services/message_store.py` retain the explicit pattern:
+
+```python
+async with get_session() as session:
+    await repository_function(session, ...)
+```
+
+Fire-and-forget helpers that wrap a session-first repository function while preserving a Protocol/Callable signature (for example `_default_permission_resolver` in `services/llm/agent.py`, `_default_audit_writer` in `services/llm/mcp_audit.py`) open their own scoped session internally. This keeps the seam local — callers keep calling `resolver(context)` while the helper satisfies the new repository API.
+
+### Test fixtures
+
+Handler tests use a `mock_session` fixture that combines `AsyncMock` (for async session methods) with `MagicMock` (for the synchronous `add` / `add_all` APIs):
+
+```python
+@pytest.fixture
+def mock_session() -> Mock:
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
+```
+
+When asserting on repository calls, remember that `args[0]` is now `session` (the first positional parameter). For example, `mock.call_args.args[1]` is the model instance, `args[2]` is the first user-supplied argument.
 
 <Callout title="Blocking paths">
 

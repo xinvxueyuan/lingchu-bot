@@ -2,7 +2,7 @@
 
 import hashlib
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 
 from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
 from nonebot.adapters.onebot.v11.event import (
@@ -50,10 +50,35 @@ onebot11_remote_whole_mute = remote_module.onebot11_remote_whole_mute
 onebot11_remote_whole_unmute = remote_module.onebot11_remote_whole_unmute
 
 
+@pytest.fixture
+def mock_session() -> Mock:
+    """Provide a mock AsyncSession for remote handler Depends() injection."""
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
+
+
 @pytest.fixture(autouse=True)
 def _mock_record_audit_fire_and_forget():
     """避免审计记录触发后台任务和数据库调用。"""
     with patch.object(remote_module, "record_audit_fire_and_forget", new=AsyncMock()):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _mock_find_active_subject_policy():
+    """绕过 find_active_subject_policy 的真实 DB 调用。
+
+    remote_mute/remote_kick/remote_block 命令在 protected_subject_feature_keys
+    默认列表内，会触发 find_active_subject_policy(session, ...) 的真实查询。
+    使用 mock_session 时该查询无法执行，这里将 find_active_subject_policy
+    直接 mock 为返回 None（未受保护），让测试聚焦于业务路径。显式测试受保护
+    路径的用例可在 with patch(...) 中覆盖此 mock。
+    """
+    with patch.object(
+        remote_module, "find_active_subject_policy", new=AsyncMock(return_value=None)
+    ):
         yield
 
 
@@ -231,6 +256,7 @@ class TestRemoteMute:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """测试成功的远程禁言。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -255,6 +281,7 @@ class TestRemoteMute:
                 duration=60,
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 reason="测试原因",
             )
             mock_bot.set_group_ban.assert_called_once_with(
@@ -267,6 +294,7 @@ class TestRemoteMute:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """测试禁言时长过短。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -281,6 +309,7 @@ class TestRemoteMute:
                     duration=0,
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -290,6 +319,7 @@ class TestRemoteMute:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """测试禁言时长过长。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -304,6 +334,7 @@ class TestRemoteMute:
                     duration=31 * 24 * 60 * 60,  # 31 天
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -312,6 +343,7 @@ class TestRemoteMute:
         self,
         mock_bot: MagicMock,
         mock_event: MagicMock,
+        mock_session: Mock,
     ) -> None:
         """测试机器人不在目标群聊中。"""
         mock_bot.get_group_list.return_value = []
@@ -326,6 +358,7 @@ class TestRemoteMute:
                     duration=60,
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -335,6 +368,7 @@ class TestRemoteMute:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """远程禁言按目标群校验受保护对象。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -368,6 +402,7 @@ class TestRemoteMute:
                 duration=60,
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 reason="测试原因",
             )
 
@@ -383,6 +418,7 @@ class TestRemoteUnmute:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """测试成功的远程解禁。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -405,6 +441,7 @@ class TestRemoteUnmute:
                 user=At("user", str(_TARGET_USER_ID)),
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 reason="测试原因",
             )
             mock_bot.set_group_ban.assert_called_once_with(
@@ -421,6 +458,7 @@ class TestRemoteWholeMute:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """测试成功的远程全体禁言。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -431,6 +469,7 @@ class TestRemoteWholeMute:
                 group_id=_GROUP_ID_1,
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
             )
             mock_bot.set_group_whole_ban.assert_called_once_with(
                 group_id=_GROUP_ID_1, enable=True
@@ -446,6 +485,7 @@ class TestRemoteWholeUnmute:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """测试成功的远程全体解禁。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -456,6 +496,7 @@ class TestRemoteWholeUnmute:
                 group_id=_GROUP_ID_1,
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
             )
             mock_bot.set_group_whole_ban.assert_called_once_with(
                 group_id=_GROUP_ID_1, enable=False
@@ -471,6 +512,7 @@ class TestRemoteKick:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """测试成功的远程踢出。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -499,6 +541,7 @@ class TestRemoteKick:
                 user=At("user", str(_TARGET_USER_ID)),
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 reason="测试原因",
             )
             mock_bot.set_group_kick.assert_called_once()
@@ -513,6 +556,7 @@ class TestRemoteBlock:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """测试成功的远程拉黑。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -541,6 +585,7 @@ class TestRemoteBlock:
                 duration=3600,
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 reason="测试原因",
             )
             mock_bot.set_group_kick.assert_called_once()
@@ -555,6 +600,7 @@ class TestRemoteUnblock:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """测试成功的远程删黑。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -581,6 +627,7 @@ class TestRemoteUnblock:
                 user=At("user", str(_TARGET_USER_ID)),
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 reason="测试原因",
             )
 
@@ -594,6 +641,7 @@ class TestRemoteAnnouncement:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """测试成功的远程公告。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -612,6 +660,7 @@ class TestRemoteAnnouncement:
                 content="测试公告内容",
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 image=None,
             )
             mock_bot.call_api.assert_called_once_with(
@@ -626,6 +675,7 @@ class TestRemoteAnnouncement:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """测试空内容的远程公告。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -639,6 +689,7 @@ class TestRemoteAnnouncement:
                     content="   ",
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                     image=None,
                 )
             mock_finish.assert_called_once()
@@ -649,6 +700,7 @@ class TestRemoteAnnouncement:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """测试使用群名称而非 ID 的远程公告。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -667,6 +719,7 @@ class TestRemoteAnnouncement:
                 content="测试公告内容",
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 image=None,
             )
             mock_bot.call_api.assert_called_once()
@@ -677,6 +730,7 @@ class TestRemoteAnnouncement:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -710,6 +764,7 @@ class TestRemoteAnnouncement:
                 content="测试公告内容",
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 image=image,
             )
 
@@ -731,6 +786,7 @@ class TestMassAnnouncement:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """未传目标时默认群发到机器人加入的全部群。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -750,6 +806,7 @@ class TestMassAnnouncement:
                 content="测试公告内容",
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 targets=None,
                 image=None,
             )
@@ -767,6 +824,7 @@ class TestMassAnnouncement:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """显式传多个目标时逐群发送。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -786,6 +844,7 @@ class TestMassAnnouncement:
                 content="测试公告内容",
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 targets="111111111,222222222",
                 image=None,
             )
@@ -802,6 +861,7 @@ class TestMassAnnouncement:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """单个目标发送失败时继续发送后续目标并汇总失败。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -821,6 +881,7 @@ class TestMassAnnouncement:
                 content="测试公告内容",
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 targets="111111111,222222222",
                 image=None,
             )
@@ -837,6 +898,7 @@ class TestMassAnnouncement:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         """公告内容为空时直接拒绝。"""
         mock_bot.get_group_list.return_value = mock_group_list
@@ -850,6 +912,7 @@ class TestMassAnnouncement:
                     content="   ",
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                     targets="111111111",
                     image=None,
                 )
@@ -862,6 +925,7 @@ class TestMassAnnouncement:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -894,6 +958,7 @@ class TestMassAnnouncement:
                 content="测试公告内容",
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 targets="111111111,222222222",
                 image=image,
             )
@@ -1038,12 +1103,12 @@ class TestIsRemoteProtectedTarget:
 
     @pytest.mark.asyncio
     async def test_returns_false_when_command_key_not_protected(
-        self, mock_bot: MagicMock
+        self, mock_bot: MagicMock, mock_session: Mock
     ) -> None:
         matcher = MagicMock()
         matcher._lingchu_command_key = None
         result = await remote_module._is_remote_protected_target(
-            mock_bot, _GROUP_ID_1, _TARGET_USER_ID, matcher
+            mock_session, mock_bot, _GROUP_ID_1, _TARGET_USER_ID, matcher
         )
         assert result is False
 
@@ -1053,7 +1118,7 @@ class TestCheckRemoteTargetPrivilege:
 
     @pytest.mark.asyncio
     async def test_returns_true_when_protected_and_operator_is_superuser(
-        self, mock_bot: MagicMock, mock_event: MagicMock
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
     ) -> None:
         with (
             patch(
@@ -1068,25 +1133,30 @@ class TestCheckRemoteTargetPrivilege:
             ),
         ):
             result = await remote_module._check_remote_target_privilege(
-                mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, remote_mute_cmd
+                mock_session,
+                mock_bot,
+                mock_event,
+                _GROUP_ID_1,
+                _TARGET_USER_ID,
+                remote_mute_cmd,
             )
         assert result is True
 
     @pytest.mark.asyncio
     async def test_returns_true_when_target_member_info_action_failed(
-        self, mock_bot: MagicMock, mock_event: MagicMock
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
     ) -> None:
         matcher = MagicMock()
         matcher._lingchu_command_key = None
         mock_bot.get_group_member_info.side_effect = OneBot11ActionFailed()
         result = await remote_module._check_remote_target_privilege(
-            mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
+            mock_session, mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
         )
         assert result is True
 
     @pytest.mark.asyncio
     async def test_returns_true_when_target_admin_and_operator_can_manage(
-        self, mock_bot: MagicMock, mock_event: MagicMock
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
     ) -> None:
         matcher = MagicMock()
         matcher._lingchu_command_key = None
@@ -1099,13 +1169,18 @@ class TestCheckRemoteTargetPrivilege:
             return_value=True,
         ):
             result = await remote_module._check_remote_target_privilege(
-                mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
+                mock_session,
+                mock_bot,
+                mock_event,
+                _GROUP_ID_1,
+                _TARGET_USER_ID,
+                matcher,
             )
         assert result is True
 
     @pytest.mark.asyncio
     async def test_finishes_when_operator_info_action_failed(
-        self, mock_bot: MagicMock, mock_event: MagicMock
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
     ) -> None:
         matcher = MagicMock()
         matcher._lingchu_command_key = None
@@ -1117,13 +1192,18 @@ class TestCheckRemoteTargetPrivilege:
             mock_finish.side_effect = Exception("finish called")
             with pytest.raises(Exception, match="finish called"):
                 await remote_module._check_remote_target_privilege(
-                    mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
+                    mock_session,
+                    mock_bot,
+                    mock_event,
+                    _GROUP_ID_1,
+                    _TARGET_USER_ID,
+                    matcher,
                 )
             mock_finish.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_finishes_when_operator_cannot_manage_privileged_target(
-        self, mock_bot: MagicMock, mock_event: MagicMock
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
     ) -> None:
         matcher = MagicMock()
         matcher._lingchu_command_key = None
@@ -1141,7 +1221,12 @@ class TestCheckRemoteTargetPrivilege:
             mock_finish.side_effect = Exception("finish called")
             with pytest.raises(Exception, match="finish called"):
                 await remote_module._check_remote_target_privilege(
-                    mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
+                    mock_session,
+                    mock_bot,
+                    mock_event,
+                    _GROUP_ID_1,
+                    _TARGET_USER_ID,
+                    matcher,
                 )
             mock_finish.assert_called_once()
 
@@ -1164,6 +1249,7 @@ class TestRemoteMuteActionFailed:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_group_member_info.side_effect = [
@@ -1190,6 +1276,7 @@ class TestRemoteMuteActionFailed:
                     duration=60,
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -1203,6 +1290,7 @@ class TestRemoteUnmuteActionFailed:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_group_member_info.return_value = {
@@ -1227,6 +1315,7 @@ class TestRemoteUnmuteActionFailed:
                     user=At("user", str(_TARGET_USER_ID)),
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -1240,6 +1329,7 @@ class TestRemoteWholeMuteActionFailed:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.set_group_whole_ban.side_effect = OneBot11ActionFailed()
@@ -1249,7 +1339,10 @@ class TestRemoteWholeMuteActionFailed:
             mock_finish.side_effect = Exception("finish called")
             with pytest.raises(Exception, match="finish called"):
                 await onebot11_remote_whole_mute(
-                    group_id=_GROUP_ID_1, bot=mock_bot, event=mock_event
+                    group_id=_GROUP_ID_1,
+                    bot=mock_bot,
+                    event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -1259,7 +1352,7 @@ class TestRemoteWholeUnmuteErrorPaths:
 
     @pytest.mark.asyncio
     async def test_remote_whole_unmute_disabled_finishes(
-        self, mock_bot: MagicMock, mock_event: MagicMock
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
     ) -> None:
         with (
             patch(
@@ -1273,7 +1366,10 @@ class TestRemoteWholeUnmuteErrorPaths:
             mock_finish.side_effect = Exception("finish called")
             with pytest.raises(Exception, match="finish called"):
                 await onebot11_remote_whole_unmute(
-                    group_id=_GROUP_ID_1, bot=mock_bot, event=mock_event
+                    group_id=_GROUP_ID_1,
+                    bot=mock_bot,
+                    event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -1283,6 +1379,7 @@ class TestRemoteWholeUnmuteErrorPaths:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_group_member_info.return_value = {"role": "admin"}
@@ -1293,7 +1390,10 @@ class TestRemoteWholeUnmuteErrorPaths:
             mock_finish.side_effect = Exception("finish called")
             with pytest.raises(Exception, match="finish called"):
                 await onebot11_remote_whole_unmute(
-                    group_id=_GROUP_ID_1, bot=mock_bot, event=mock_event
+                    group_id=_GROUP_ID_1,
+                    bot=mock_bot,
+                    event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -1307,6 +1407,7 @@ class TestRemoteKickErrorPaths:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_group_member_info.side_effect = [
@@ -1336,6 +1437,7 @@ class TestRemoteKickErrorPaths:
                     user=At("user", str(_TARGET_USER_ID)),
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -1345,6 +1447,7 @@ class TestRemoteKickErrorPaths:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_group_member_info.side_effect = [
@@ -1374,6 +1477,7 @@ class TestRemoteKickErrorPaths:
                     user=At("user", str(_TARGET_USER_ID)),
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -1383,6 +1487,7 @@ class TestRemoteKickErrorPaths:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_group_member_info.side_effect = [
@@ -1413,6 +1518,7 @@ class TestRemoteKickErrorPaths:
                     user=At("user", str(_TARGET_USER_ID)),
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -1426,6 +1532,7 @@ class TestRemoteBlockErrorPaths:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_group_member_info.side_effect = [
@@ -1456,6 +1563,7 @@ class TestRemoteBlockErrorPaths:
                     duration=3600,
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -1465,6 +1573,7 @@ class TestRemoteBlockErrorPaths:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_group_member_info.side_effect = [
@@ -1495,6 +1604,7 @@ class TestRemoteBlockErrorPaths:
                     duration=3600,
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -1504,7 +1614,7 @@ class TestRemoteUnblockErrorPaths:
 
     @pytest.mark.asyncio
     async def test_remote_unblock_bot_not_in_group_finishes(
-        self, mock_bot: MagicMock, mock_event: MagicMock
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
     ) -> None:
         mock_bot.get_group_list.return_value = []
         with patch.object(
@@ -1517,6 +1627,7 @@ class TestRemoteUnblockErrorPaths:
                     user=At("user", str(_TARGET_USER_ID)),
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -1526,6 +1637,7 @@ class TestRemoteUnblockErrorPaths:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         with (
@@ -1545,6 +1657,7 @@ class TestRemoteUnblockErrorPaths:
                     user=At("user", str(_TARGET_USER_ID)),
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -1554,6 +1667,7 @@ class TestRemoteUnblockErrorPaths:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         with (
@@ -1578,6 +1692,7 @@ class TestRemoteUnblockErrorPaths:
                     user=At("user", str(_TARGET_USER_ID)),
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                 )
             mock_finish.assert_called_once()
 
@@ -1597,7 +1712,7 @@ class TestRemoteAnnouncementErrorPaths:
 
     @pytest.mark.asyncio
     async def test_remote_announcement_disabled_finishes(
-        self, mock_bot: MagicMock, mock_event: MagicMock
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
     ) -> None:
         with (
             patch(
@@ -1615,6 +1730,7 @@ class TestRemoteAnnouncementErrorPaths:
                     content="x",
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                     image=None,
                 )
             mock_finish.assert_called_once()
@@ -1625,6 +1741,7 @@ class TestRemoteAnnouncementErrorPaths:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_version_info.return_value = _napcat_version_info()
@@ -1645,6 +1762,7 @@ class TestRemoteAnnouncementErrorPaths:
                     content="x",
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                     image=None,
                 )
             mock_finish.assert_called_once()
@@ -1655,6 +1773,7 @@ class TestRemoteAnnouncementErrorPaths:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_version_info.return_value = _napcat_version_info()
@@ -1675,6 +1794,7 @@ class TestRemoteAnnouncementErrorPaths:
                     content="x",
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                     image=None,
                 )
             mock_finish.assert_called_once()
@@ -1753,7 +1873,7 @@ class TestMassAnnouncementErrorPaths:
 
     @pytest.mark.asyncio
     async def test_mass_announcement_disabled_finishes(
-        self, mock_bot: MagicMock, mock_event: MagicMock
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
     ) -> None:
         with (
             patch(
@@ -1770,6 +1890,7 @@ class TestMassAnnouncementErrorPaths:
                     content="x",
                     bot=mock_bot,
                     event=mock_event,
+                    session=mock_session,
                     targets=None,
                     image=None,
                 )
@@ -1781,6 +1902,7 @@ class TestMassAnnouncementErrorPaths:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_version_info.return_value = _napcat_version_info()
@@ -1799,6 +1921,7 @@ class TestMassAnnouncementErrorPaths:
                 content="x",
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 targets="111111111",
                 image=None,
             )
@@ -1811,6 +1934,7 @@ class TestMassAnnouncementErrorPaths:
         mock_bot: MagicMock,
         mock_event: MagicMock,
         mock_group_list: list[dict],
+        mock_session: Mock,
     ) -> None:
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_version_info.return_value = _napcat_version_info()
@@ -1829,6 +1953,7 @@ class TestMassAnnouncementErrorPaths:
                 content="x",
                 bot=mock_bot,
                 event=mock_event,
+                session=mock_session,
                 targets="111111111",
                 image=None,
             )

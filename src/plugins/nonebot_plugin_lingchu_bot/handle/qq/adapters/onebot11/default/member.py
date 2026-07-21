@@ -10,7 +10,10 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At
 
-from ......core.runtime_config import get_handle_config_manager
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import async_scoped_session
+
+from ......core.config import get_handle_config_manager
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......repositories.blocklist import find_active_block
@@ -48,6 +51,7 @@ async def onebot11_set_group_member_card(
     card: str,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
 ) -> Any:
     # 1. 输入数据清洗：去除首尾空白字符
     card = card.strip()
@@ -67,7 +71,7 @@ async def onebot11_set_group_member_card(
         return await set_group_member_card_cmd.finish(await _("不能修改机器人的群名片"))
 
     if not await check_target_privilege(
-        bot, event, target_user_id, set_group_member_card_cmd
+        session, bot, event, target_user_id, set_group_member_card_cmd
     ):
         return None
 
@@ -110,6 +114,7 @@ async def onebot11_set_group_member_special_title(
     special_title: str,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
 ) -> Any:
     # 检查功能是否启用
     config = await get_handle_config_manager().get_config("set_member_title")
@@ -136,7 +141,7 @@ async def onebot11_set_group_member_special_title(
         )
 
     if not await check_target_privilege(
-        bot, event, target_user_id, set_group_member_special_title_cmd
+        session, bot, event, target_user_id, set_group_member_special_title_cmd
     ):
         return None
 
@@ -179,6 +184,7 @@ async def onebot11_set_group_member_admin(
     user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     *,
     is_set: bool = True,
 ) -> Any:
@@ -193,7 +199,7 @@ async def onebot11_set_group_member_admin(
         )
 
     if not await check_target_privilege(
-        bot, event, target_user_id, set_group_member_admin_cmd
+        session, bot, event, target_user_id, set_group_member_admin_cmd
     ):
         return None
 
@@ -236,9 +242,10 @@ async def onebot11_unset_group_member_admin(
     user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
 ) -> Any:
     return await onebot11_set_group_member_admin(
-        user=user, is_set=False, bot=bot, event=event
+        user=user, is_set=False, bot=bot, event=event, session=session
     )
 
 
@@ -247,6 +254,7 @@ async def onebot11_kick_group_member(
     user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
 ) -> Any:
     # 检查功能是否启用（kick_member配置已在kick.py中实现，此处共用）
     config = await get_handle_config_manager().get_config("kick_member")
@@ -265,12 +273,13 @@ async def onebot11_kick_group_member(
         return await kick_group_member_cmd.finish(await _("不能踢出机器人"))
 
     if not await check_target_privilege(
-        bot, event, target_user_id, kick_group_member_cmd
+        session, bot, event, target_user_id, kick_group_member_cmd
     ):
         return None
 
     try:
         entry = await find_active_block(
+            session,
             platform_id=QQ_PLATFORM_ID,
             adapter_id=ONEBOT_V11_ADAPTER_ID,
             bot_id=bot_id(bot),

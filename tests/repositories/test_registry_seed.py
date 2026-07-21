@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -16,6 +16,9 @@ from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import DatabaseErr
 from src.plugins.nonebot_plugin_lingchu_bot.repositories import (
     registry as registry_repo,
 )
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
 
 UPSERT_CALL_COUNT = 3
 
@@ -49,16 +52,30 @@ def _seed_data() -> dict[str, list[dict[str, object]]]:
     }
 
 
-def _find_upsert_call_for_model(call_args_list: list, model: type) -> Any:
+def _find_upsert_call_for_model(
+    call_args_list: list,
+    model: type,
+) -> Any:
     """Return the first upsert call targeting ``model`` (order-independent)."""
     for call in call_args_list:
-        if call.args[0] is model:
+        if call.args[1] is model:
             return call
     pytest.fail(f"No upsert call found for {model.__name__}")
 
 
+@pytest.fixture
+def mock_session() -> Mock:
+    """Provide a mock AsyncSession for registry repository tests."""
+    sess = AsyncMock()
+    sess.add = AsyncMock()
+    sess.add_all = AsyncMock()
+    return sess
+
+
 @pytest.mark.asyncio
-async def test_seed_registry_tables_calls_upsert_for_each_entry() -> None:
+async def test_seed_registry_tables_calls_upsert_for_each_entry(
+    mock_session: Mock,
+) -> None:
     upsert_mock = AsyncMock()
 
     with (
@@ -67,16 +84,18 @@ async def test_seed_registry_tables_calls_upsert_for_each_entry() -> None:
             registry_repo, "export_registry_for_seeding", return_value=_seed_data()
         ),
     ):
-        await registry_repo.seed_registry_tables()
+        await registry_repo.seed_registry_tables(mock_session)
 
     assert upsert_mock.call_count == UPSERT_CALL_COUNT
     # Order-independent: every model type must have been upserted.
-    called_models = {call.args[0] for call in upsert_mock.call_args_list}
+    called_models = {call.args[1] for call in upsert_mock.call_args_list}
     assert called_models == {Platform, Adapter, ProtocolImplementation}
 
 
 @pytest.mark.asyncio
-async def test_seed_registry_tables_upserts_platform_with_correct_args() -> None:
+async def test_seed_registry_tables_upserts_platform_with_correct_args(
+    mock_session: Mock,
+) -> None:
     upsert_mock = AsyncMock()
 
     with (
@@ -85,10 +104,11 @@ async def test_seed_registry_tables_upserts_platform_with_correct_args() -> None
             registry_repo, "export_registry_for_seeding", return_value=_seed_data()
         ),
     ):
-        await registry_repo.seed_registry_tables()
+        await registry_repo.seed_registry_tables(mock_session)
 
     platform_call = _find_upsert_call_for_model(upsert_mock.call_args_list, Platform)
-    assert platform_call.args[1] == {
+    assert platform_call.args[0] is mock_session
+    assert platform_call.args[2] == {
         "platform_id": "qq",
         "display_name": "QQ",
         "capabilities": "[]",
@@ -98,7 +118,9 @@ async def test_seed_registry_tables_upserts_platform_with_correct_args() -> None
 
 
 @pytest.mark.asyncio
-async def test_seed_registry_tables_upserts_adapter_with_correct_args() -> None:
+async def test_seed_registry_tables_upserts_adapter_with_correct_args(
+    mock_session: Mock,
+) -> None:
     upsert_mock = AsyncMock()
 
     with (
@@ -107,10 +129,11 @@ async def test_seed_registry_tables_upserts_adapter_with_correct_args() -> None:
             registry_repo, "export_registry_for_seeding", return_value=_seed_data()
         ),
     ):
-        await registry_repo.seed_registry_tables()
+        await registry_repo.seed_registry_tables(mock_session)
 
     adapter_call = _find_upsert_call_for_model(upsert_mock.call_args_list, Adapter)
-    assert adapter_call.args[1] == {
+    assert adapter_call.args[0] is mock_session
+    assert adapter_call.args[2] == {
         "adapter_id": "~onebot.v11",
         "platform_id": "qq",
         "display_name": "onebot v11",
@@ -120,7 +143,9 @@ async def test_seed_registry_tables_upserts_adapter_with_correct_args() -> None:
 
 
 @pytest.mark.asyncio
-async def test_seed_registry_tables_upserts_protocol_with_correct_args() -> None:
+async def test_seed_registry_tables_upserts_protocol_with_correct_args(
+    mock_session: Mock,
+) -> None:
     upsert_mock = AsyncMock()
 
     with (
@@ -129,12 +154,13 @@ async def test_seed_registry_tables_upserts_protocol_with_correct_args() -> None
             registry_repo, "export_registry_for_seeding", return_value=_seed_data()
         ),
     ):
-        await registry_repo.seed_registry_tables()
+        await registry_repo.seed_registry_tables(mock_session)
 
     protocol_call = _find_upsert_call_for_model(
         upsert_mock.call_args_list, ProtocolImplementation
     )
-    assert protocol_call.args[1] == {
+    assert protocol_call.args[0] is mock_session
+    assert protocol_call.args[2] == {
         "protocol_id": "default",
         "adapter_id": "~onebot.v11",
         "display_name": "Default",
@@ -144,7 +170,9 @@ async def test_seed_registry_tables_upserts_protocol_with_correct_args() -> None
 
 
 @pytest.mark.asyncio
-async def test_seed_registry_tables_swallows_database_errors() -> None:
+async def test_seed_registry_tables_swallows_database_errors(
+    mock_session: Mock,
+) -> None:
     upsert_mock = AsyncMock(side_effect=DatabaseError("boom"))
 
     with (
@@ -153,17 +181,21 @@ async def test_seed_registry_tables_swallows_database_errors() -> None:
             registry_repo, "export_registry_for_seeding", return_value=_seed_data()
         ),
     ):
-        await registry_repo.seed_registry_tables()
+        await registry_repo.seed_registry_tables(mock_session)
 
     assert upsert_mock.call_count == UPSERT_CALL_COUNT
 
 
 @pytest.mark.asyncio
-async def test_seed_registry_tables_continues_after_platform_error() -> None:
+async def test_seed_registry_tables_continues_after_platform_error(
+    mock_session: Mock,
+) -> None:
     """One failing entry must not abort the rest of the batch (order-independent)."""
     platform_error = DatabaseError("platform boom")
 
-    def _raise_on_platform(model: type, *_args: object, **_kwargs: object) -> None:
+    def _raise_on_platform(
+        _session: object, model: type, *_args: object, **_kwargs: object
+    ) -> None:
         if model is Platform:
             raise platform_error
 
@@ -175,18 +207,20 @@ async def test_seed_registry_tables_continues_after_platform_error() -> None:
             registry_repo, "export_registry_for_seeding", return_value=_seed_data()
         ),
     ):
-        await registry_repo.seed_registry_tables()
+        await registry_repo.seed_registry_tables(mock_session)
 
     assert upsert_mock.call_count == UPSERT_CALL_COUNT
     # Adapter and protocol were still upserted despite the platform failure.
-    called_models = {call.args[0] for call in upsert_mock.call_args_list}
+    called_models = {call.args[1] for call in upsert_mock.call_args_list}
     assert Adapter in called_models
     assert ProtocolImplementation in called_models
     assert Platform in called_models
 
 
 @pytest.mark.asyncio
-async def test_seed_registry_tables_continues_after_one_item_fails_in_batch() -> None:
+async def test_seed_registry_tables_continues_after_one_item_fails_in_batch(
+    mock_session: Mock,
+) -> None:
     """Within a single category, one failure must not abort the remaining items."""
     seed_data = _seed_data()
     seed_data["platforms"] = [
@@ -213,7 +247,10 @@ async def test_seed_registry_tables_continues_after_one_item_fails_in_batch() ->
     telegram_error = DatabaseError("telegram boom")
 
     def _raise_on_telegram(
-        model: type, insert_values: dict[str, Any], **_kwargs: object
+        _session: object,
+        model: type,
+        insert_values: dict[str, Any],
+        **_kwargs: object,
     ) -> None:
         if model is Platform and insert_values.get("platform_id") == "telegram":
             raise telegram_error
@@ -226,7 +263,7 @@ async def test_seed_registry_tables_continues_after_one_item_fails_in_batch() ->
             registry_repo, "export_registry_for_seeding", return_value=seed_data
         ),
     ):
-        await registry_repo.seed_registry_tables()
+        await registry_repo.seed_registry_tables(mock_session)
 
     # All items attempted: 3 platforms + 1 adapter + 1 protocol.
     expected_count = (
@@ -236,8 +273,8 @@ async def test_seed_registry_tables_continues_after_one_item_fails_in_batch() ->
     )
     assert upsert_mock.call_count == expected_count
     platform_ids = [
-        call.args[1].get("platform_id")
+        call.args[2].get("platform_id")
         for call in upsert_mock.call_args_list
-        if call.args[0] is Platform
+        if call.args[1] is Platform
     ]
     assert set(platform_ids) == {"qq", "discord", "telegram"}

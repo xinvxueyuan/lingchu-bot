@@ -9,15 +9,20 @@ Resolution semantics:
 - ``silent_mode``: global OR platform. Global ON silences all platforms.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 
 from nonebot import logger, require
+from nonebot.compat import type_validate_python
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_data_file
 
 from ..database.toml_store import (
+    DatabaseError,
     ensure_toml_dict_file_async,
     load_toml_dict_async,
     write_toml_dict_file_async,
@@ -27,14 +32,51 @@ from .schemas import BOT_STATE_SCHEMA_BASENAME
 
 _BOT_STATE_FILENAME = "bot_state.toml"
 
-_DEFAULT_STATE: dict[str, Any] = {
-    "global": {
-        "handle_active": True,
-        "silent_mode": False,
-    },
-    "platforms": {},
-}
 
+class BotStateGlobal(BaseModel):
+    """Global bot state flags shared by every platform."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    handle_active: bool = True
+    silent_mode: bool = False
+
+
+class BotStatePlatform(BaseModel):
+    """Per-platform state overrides.
+
+    Fields use ``bool | None = None`` to represent "not set"; the getter
+    functions treat a missing key as the default value (``True`` for
+    ``handle_active``, ``False`` for ``silent_mode``). ``None`` values
+    are stripped before populating the in-memory cache so the existing
+    getters continue to work unchanged.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    handle_active: bool | None = None
+    silent_mode: bool | None = None
+
+
+class BotStateFile(BaseModel):
+    """Two-tier bot state persisted to ``bot_state.toml``.
+
+    The ``global_`` field uses the alias ``"global"`` because ``global``
+    is a Python keyword; ``populate_by_name=True`` allows the field to
+    be populated by either the alias or the field name during validation.
+    Serialization uses ``by_alias=True`` so the TOML file stores
+    ``[global]`` rather than ``[global_]``.
+    """
+
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    global_: BotStateGlobal = Field(default_factory=BotStateGlobal, alias="global")
+    platforms: dict[str, BotStatePlatform] = Field(default_factory=dict)
+
+
+# In-memory cache (kept for compatibility with existing getters/setters).
+# ``platforms`` stores ``dict[str, dict[str, Any]]`` with ``None`` values
+# stripped so the existing getters can use ``dict.get(key, default)``.
 _state: dict[str, Any] = {
     "global_handle_active": True,
     "global_silent_mode": False,
@@ -52,22 +94,38 @@ def _get_state_file_path() -> Path:
     return get_plugin_data_file(_BOT_STATE_FILENAME)
 
 
+def _bot_state_defaults() -> dict[str, Any]:
+    """Return the default bot state as a JSON-serializable dict (alias form)."""
+    return BotStateFile().model_dump(mode="json", by_alias=True)
+
+
 async def load_bot_state() -> None:
     """Load bot state from TOML file into memory. Called at startup."""
     path = _get_state_file_path()
+    defaults = _bot_state_defaults()
     await ensure_toml_dict_file_async(
         path,
-        _DEFAULT_STATE,
+        defaults,
         schema_basename=BOT_STATE_SCHEMA_BASENAME,
     )
-    data = await load_toml_dict_async(path, default=_DEFAULT_STATE, merge_default=True)
+    try:
+        data = await load_toml_dict_async(path, default=defaults, merge_default=True)
+        model = type_validate_python(BotStateFile, data)
+    except (DatabaseError, ValidationError) as exc:
+        logger.error(f"Failed to load bot state, using defaults: {exc}")
+        model = BotStateFile()
 
-    global_state = data.get("global", {})
-    _state["global_handle_active"] = global_state.get("handle_active", True)
-    _state["global_silent_mode"] = global_state.get("silent_mode", False)
-
-    platforms = data.get("platforms", {})
-    _state["platforms"] = platforms if isinstance(platforms, dict) else {}
+    global_state = model.global_
+    _state["global_handle_active"] = global_state.handle_active
+    _state["global_silent_mode"] = global_state.silent_mode
+    _state["platforms"] = {
+        platform_id: {
+            key: value
+            for key, value in platform.model_dump(mode="json").items()
+            if value is not None
+        }
+        for platform_id, platform in model.platforms.items()
+    }
 
     logger.info(
         f"Lingchu bot state loaded: handle_active={_state['global_handle_active']}, "
@@ -79,17 +137,21 @@ async def load_bot_state() -> None:
 async def _save_bot_state() -> None:
     """Persist in-memory state to bot_state.toml."""
     path = _get_state_file_path()
-    data = {
+    # ``model_validate`` accepts the ``"global"`` alias (a Python keyword)
+    # without requiring a ``global_=`` keyword argument, which pydantic
+    # supports at runtime via ``populate_by_name=True`` but pyright cannot
+    # statically verify.
+    model = BotStateFile.model_validate({
         "global": {
             "handle_active": _state["global_handle_active"],
             "silent_mode": _state["global_silent_mode"],
         },
         "platforms": _state["platforms"],
-    }
+    })
     try:
         await write_toml_dict_file_async(
             path,
-            data,
+            model.model_dump(mode="json", by_alias=True),
             schema_basename=BOT_STATE_SCHEMA_BASENAME,
         )
     except Exception:

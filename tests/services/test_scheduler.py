@@ -13,6 +13,19 @@ from src.plugins.nonebot_plugin_lingchu_bot.services import (
 )
 
 
+class _FakeSessionContext:
+    """Async context manager that yields a fixed mock session."""
+
+    def __init__(self, session: Any) -> None:
+        self._session = session
+
+    async def __aenter__(self) -> Any:
+        return self._session
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+
 class FakeScheduler:
     def __init__(self) -> None:
         self.added: list[dict[str, Any]] = []
@@ -50,8 +63,21 @@ def clear_registry() -> None:
     scheduler_service.clear_scheduler_handlers()
 
 
+@pytest.fixture(autouse=True)
+def patched_session(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    """Patch ``get_session`` in ``scheduler_service`` to yield a mock session."""
+    session = MagicMock(name="async_session")
+    monkeypatch.setattr(
+        scheduler_service,
+        "get_session",
+        lambda: _FakeSessionContext(session),
+    )
+    return session
+
+
 async def test_register_persistent_job_saves_and_schedules(
     monkeypatch: pytest.MonkeyPatch,
+    patched_session: MagicMock,
 ) -> None:
     fake_scheduler = FakeScheduler()
     save_job_spec = AsyncMock()
@@ -75,6 +101,7 @@ async def test_register_persistent_job_saves_and_schedules(
     )
 
     save_job_spec.assert_awaited_once_with(
+        patched_session,
         job_id="cleanup",
         handler_key="cleanup",
         trigger_type="cron",
@@ -322,6 +349,7 @@ async def test_execute_persistent_job_logs_missing_handler(
 
 async def test_remove_persistent_job_removes_runtime_and_persisted_job(
     monkeypatch: pytest.MonkeyPatch,
+    patched_session: MagicMock,
 ) -> None:
     fake_scheduler = FakeScheduler()
     delete_job_spec = AsyncMock(return_value=(1, True))
@@ -334,12 +362,13 @@ async def test_remove_persistent_job_removes_runtime_and_persisted_job(
 
     assert result == (1, True)
     assert fake_scheduler.removed == ["cleanup"]
-    delete_job_spec.assert_awaited_once_with("cleanup")
+    delete_job_spec.assert_awaited_once_with(patched_session, "cleanup")
 
 
 async def test_remove_persistent_job_ignores_missing_runtime_job(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
+    patched_session: MagicMock,
 ) -> None:
     fake_scheduler = FakeScheduler()
     fake_scheduler.missing_jobs.add("cleanup")
@@ -353,7 +382,7 @@ async def test_remove_persistent_job_ignores_missing_runtime_job(
     result = await scheduler_service.remove_persistent_job("cleanup")
 
     assert result == (0, False)
-    delete_job_spec.assert_awaited_once_with("cleanup")
+    delete_job_spec.assert_awaited_once_with(patched_session, "cleanup")
     assert "Runtime scheduler job cleanup was not present" in caplog.text
 
 

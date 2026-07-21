@@ -13,7 +13,6 @@ utility, with fixtures providing reusable mock objects and session configuration
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 from datetime import datetime
 import logging
 from typing import TYPE_CHECKING, Any
@@ -51,7 +50,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Generator
+    from collections.abc import Generator
     from unittest.mock import Mock
 
 # ---------------------------------------------------------------------------
@@ -115,6 +114,41 @@ class FakeModel(Model):
             setattr(self, k, v)
 
 
+class _SavepointMock:
+    """Mock that mimics SQLAlchemy's ``StartableContext`` for ``begin_nested``.
+
+    SQLAlchemy's ``AsyncSession.begin_nested()`` is a regular ``def`` that
+    returns a ``StartableContext`` which is BOTH awaitable (supports
+    ``await ctx``) AND an async context manager (supports ``async with ctx:``).
+    This class replicates that dual behavior so a single mock works for both
+    ``_bulk.py`` (which does ``savepoint = await session.begin_nested()``) and
+    ``_single.py`` (which does ``async with s.begin_nested():``). Also exposes
+    ``commit`` and ``rollback`` as ``AsyncMock`` attributes for partial-mode
+    ``bulk_create`` tests.
+
+    ``__aexit__`` always returns ``False`` so exceptions raised inside
+    ``async with s.begin_nested():`` blocks propagate to the outer ``try``
+    (matching real SAVEPOINT semantics where rollback does not suppress the
+    exception).
+    """
+
+    def __init__(self) -> None:
+        self.commit: AsyncMock = AsyncMock()
+        self.rollback: AsyncMock = AsyncMock()
+
+    def __await__(self) -> Any:
+        async def _return_self() -> _SavepointMock:
+            return self
+
+        return _return_self().__await__()
+
+    async def __aenter__(self) -> None:
+        return None
+
+    async def __aexit__(self, *args: object) -> bool:
+        return False
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -170,7 +204,12 @@ def mock_async_session() -> Mock:
     """Provide a mock AsyncSession for database operations.
 
     Creates an AsyncMock object that simulates SQLAlchemy's AsyncSession behavior,
-    including nested transaction support via savepoints.
+    including nested transaction support via savepoints. ``begin_nested`` is
+    configured as a sync ``MagicMock`` returning a ``_SavepointMock``, mirroring
+    SQLAlchemy's real ``AsyncSession.begin_nested`` (a regular ``def`` that
+    returns a ``StartableContext``). The ``_SavepointMock`` supports both
+    ``await session.begin_nested()`` (used in ``_bulk.py``) and
+    ``async with session.begin_nested():`` (used in ``_single.py``).
 
     Returns:
         Mock: An AsyncMock configured with typical database session methods.
@@ -178,51 +217,9 @@ def mock_async_session() -> Mock:
     sess = AsyncMock()
     sess.add = MagicMock()
     sess.add_all = MagicMock()
-    savepoint = AsyncMock()
-    sess.begin_nested.return_value = savepoint
+    savepoint = _SavepointMock()
+    sess.begin_nested = MagicMock(return_value=savepoint)
     return sess
-
-
-@pytest.fixture(autouse=True)
-def _patch_get_session(mock_async_session: Mock) -> Generator[None]:
-    """Automatically patch get_session to use the mock session in all tests.
-
-    Replaces the real get_session function with one that returns a mock session,
-    ensuring all database operations in tests use the same controlled mock object.
-
-    Args:
-        mock_async_session (Mock): The mock AsyncSession fixture to inject.
-
-    Yields:
-        None: Yields during test execution, restores get_session afterward.
-    """
-    with (
-        patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._single.get_session",
-            new=lambda: _fake_session_ctx(mock_async_session),
-        ),
-        patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud._bulk.get_session",
-            new=lambda: _fake_session_ctx(mock_async_session),
-        ),
-    ):
-        yield
-
-
-@asynccontextmanager
-async def _fake_session_ctx(mock_session: Mock) -> AsyncIterator[Mock]:
-    """Simulate an async context manager for database sessions.
-
-    Provides the async context protocol expected by the database client, yielding
-    the mock session for use within the context.
-
-    Args:
-        mock_session (Mock): The mock AsyncSession to yield.
-
-    Yields:
-        Mock: The mock session object for use in async with blocks.
-    """
-    yield mock_session
 
 
 @pytest.fixture
@@ -546,7 +543,7 @@ class TestCreate:
     ) -> None:
         """Test successful record creation.
 
-        Verifies that a new record is created, committed, and refreshed with
+        Verifies that a new record is created, flushed, and refreshed with
         all mock session methods called as expected.
 
         Args:
@@ -556,11 +553,11 @@ class TestCreate:
         Raises:
             AssertionError: If session methods not called or object not created.
         """
-        mock_async_session.commit = AsyncMock()
+        mock_async_session.flush = AsyncMock()
         mock_async_session.refresh = AsyncMock()
-        obj = await create(mock_model, name="alice")
+        obj = await create(mock_async_session, mock_model, name="alice")
         mock_async_session.add.assert_called_once()
-        mock_async_session.commit.assert_awaited_once()
+        mock_async_session.flush.assert_awaited_once()
         mock_async_session.refresh.assert_awaited_once()
         assert obj.name == "alice"
 
@@ -570,8 +567,9 @@ class TestCreate:
     ) -> None:
         """Test create operation with database error.
 
-        Verifies that database errors during creation raise DatabaseError
-        and trigger rollback.
+        Verifies that database errors during creation raise DatabaseError.
+        Transaction rollback is the caller's responsibility (no internal
+        rollback expected).
 
         Args:
             mock_model (type[FakeModel]): The mock model fixture.
@@ -580,10 +578,9 @@ class TestCreate:
         Raises:
             pytest.raises.Exception: If DatabaseError is not raised on failure.
         """
-        mock_async_session.commit.side_effect = SQLAlchemyError()
+        mock_async_session.flush = AsyncMock(side_effect=SQLAlchemyError())
         with pytest.raises(expected_exception=DatabaseError, match="create record"):
-            await create(model=mock_model, name="bob")
-        mock_async_session.rollback.assert_awaited_once()
+            await create(mock_async_session, model=mock_model, name="bob")
 
 
 class TestGetOne:
@@ -612,7 +609,9 @@ class TestGetOne:
         mock_async_session.execute.return_value.scalar_one_or_none.return_value = (
             fake_obj
         )
-        result: FakeModel | None = await get_one(model=mock_model, filters={"id": ID_1})
+        result: FakeModel | None = await get_one(
+            mock_async_session, model=mock_model, filters={"id": ID_1}
+        )
         assert result is fake_obj
 
     @pytest.mark.asyncio
@@ -632,7 +631,10 @@ class TestGetOne:
         """
         mock_async_session.execute.return_value = MagicMock()
         mock_async_session.execute.return_value.scalar_one_or_none.return_value = None
-        assert await get_one(model=mock_model, filters={"id": ID_999}) is None
+        assert (
+            await get_one(mock_async_session, model=mock_model, filters={"id": ID_999})
+            is None
+        )
 
     @pytest.mark.asyncio
     async def test_query_failure(
@@ -651,7 +653,7 @@ class TestGetOne:
         """
         mock_async_session.execute.side_effect = SQLAlchemyError()
         with pytest.raises(expected_exception=DatabaseError, match="query record"):
-            await get_one(model=mock_model, filters={"id": 1})
+            await get_one(mock_async_session, model=mock_model, filters={"id": 1})
 
     @pytest.mark.asyncio
     async def test_requires_filter_or_condition(
@@ -660,7 +662,7 @@ class TestGetOne:
         _ = mock_async_session
 
         with pytest.raises(expected_exception=ValueError, match="condition"):
-            await get_one(model=mock_model, filters={})
+            await get_one(mock_async_session, model=mock_model, filters={})
 
     @pytest.mark.asyncio
     async def test_accepts_direct_conditions(
@@ -674,6 +676,7 @@ class TestGetOne:
         )
 
         result = await get_one(
+            mock_async_session,
             model=mock_model,
             filters={},
             conditions=[direct_condition],
@@ -710,7 +713,7 @@ class TestGetOrCreate:
         mock_async_session.execute.return_value.scalar_one_or_none.return_value = (
             existing
         )
-        obj, created = await get_or_create(mock_model, id=ID_1)
+        obj, created = await get_or_create(mock_async_session, mock_model, id=ID_1)
         assert obj is existing
         assert created is False
 
@@ -732,10 +735,10 @@ class TestGetOrCreate:
         """
         mock_async_session.execute.return_value = MagicMock()
         mock_async_session.execute.return_value.scalar_one_or_none.return_value = None
-        mock_async_session.commit = AsyncMock()
+        mock_async_session.flush = AsyncMock()
         mock_async_session.refresh = AsyncMock()
         obj, created = await get_or_create(
-            model=mock_model, id=ID_2, defaults={"name": "new"}
+            mock_async_session, model=mock_model, id=ID_2, defaults={"name": "new"}
         )
         assert created is True
         assert obj.id == ID_2
@@ -747,7 +750,7 @@ class TestGetOrCreate:
     ) -> None:
         """Test handling of unique constraint conflicts with eventual success.
 
-        Verifies that when a unique constraint violation occurs, the operation
+        Verifies that when a unique constraint violation occurs, the savepoint
         rolls back, re-queries to find the inserted record, and returns it.
 
         Args:
@@ -757,22 +760,20 @@ class TestGetOrCreate:
         Raises:
             AssertionError: If conflict not properly resolved.
         """
-        mock_async_session.execute.return_value = MagicMock()
-        mock_async_session.execute.return_value.scalar_one_or_none.return_value = None
-        mock_async_session.commit.side_effect = IntegrityError(
-            "duplicate", params=(), orig=Exception("unique")
-        )
         existing = FakeModel(id=ID_3, name="old")
         mock_async_session.execute.side_effect = [
             MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
             MagicMock(scalar_one_or_none=MagicMock(return_value=existing)),
         ]
+        mock_async_session.flush = AsyncMock(
+            side_effect=IntegrityError("duplicate", params=(), orig=Exception("unique"))
+        )
+        mock_async_session.refresh = AsyncMock()
         obj, created = await get_or_create(
-            model=mock_model, id=ID_3, defaults={"name": "dup"}
+            mock_async_session, model=mock_model, id=ID_3, defaults={"name": "dup"}
         )
         assert obj is existing
         assert created is False
-        assert mock_async_session.rollback.called
 
     @pytest.mark.asyncio
     async def test_foreign_key_violation(
@@ -792,9 +793,9 @@ class TestGetOrCreate:
         mock_async_session.execute.return_value = MagicMock()
         mock_async_session.execute.return_value.scalar_one_or_none.return_value = None
         fk_err = IntegrityError(statement="", params=(), orig=Exception("foreign key"))
-        mock_async_session.commit.side_effect = fk_err
+        mock_async_session.flush = AsyncMock(side_effect=fk_err)
         with pytest.raises(expected_exception=DatabaseError, match="Foreign key"):
-            await get_or_create(model=mock_model, id=ID_4)
+            await get_or_create(mock_async_session, model=mock_model, id=ID_4)
 
     @pytest.mark.asyncio
     async def test_retry_after_conflict_no_record(
@@ -802,8 +803,8 @@ class TestGetOrCreate:
     ) -> None:
         """Test retry logic when unique conflict resolution query returns None.
 
-        Verifies that the operation retries record creation after rollback if
-        re-query finds no record.
+        Verifies that the operation retries record creation inside a new
+        savepoint if the re-query after the first conflict finds no record.
 
         Args:
             mock_model (type[FakeModel]): The mock model fixture.
@@ -812,19 +813,16 @@ class TestGetOrCreate:
         Raises:
             AssertionError: If retry logic not executed correctly.
         """
-        mock_async_session.execute.return_value = MagicMock()
-        mock_async_session.execute.return_value.scalar_one_or_none.return_value = None
         err = IntegrityError("duplicate", params=(), orig=Exception("unique"))
         res_none = MagicMock()
         res_none.scalar_one_or_none.return_value = None
         mock_async_session.execute.side_effect = [res_none, res_none]
-        mock_async_session.commit.side_effect = [err, None]
+        mock_async_session.flush = AsyncMock(side_effect=[err, None])
         mock_async_session.refresh = AsyncMock()
         _obj, created = await get_or_create(
-            model=mock_model, id=ID_5, defaults={"name": "x"}
+            mock_async_session, model=mock_model, id=ID_5, defaults={"name": "x"}
         )
         assert created is True
-        assert mock_async_session.rollback.call_count >= 1
 
     @pytest.mark.asyncio
     async def test_requires_lookup_condition(
@@ -833,7 +831,7 @@ class TestGetOrCreate:
         _ = mock_async_session
 
         with pytest.raises(expected_exception=ValueError, match="condition"):
-            await get_or_create(model=mock_model)
+            await get_or_create(mock_async_session, model=mock_model)
 
 
 class TestUpdateOrCreate:
@@ -864,16 +862,17 @@ class TestUpdateOrCreate:
         res_first.scalar_one_or_none.return_value = existing
         mock_async_session.execute.return_value = MagicMock()
         mock_async_session.execute.side_effect = [res_first, MagicMock(rowcount=1)]
-        mock_async_session.commit = AsyncMock()
+        mock_async_session.flush = AsyncMock()
         mock_async_session.refresh = AsyncMock()
         obj, created = await update_or_create(
+            mock_async_session,
             model=mock_model,
             filters={"id": ID_10},
             defaults={"name": "new"},
         )
         assert obj is existing
         assert created is False
-        mock_async_session.commit.assert_awaited()
+        mock_async_session.flush.assert_awaited()
         mock_async_session.refresh.assert_awaited_with(existing)
 
     @pytest.mark.asyncio
@@ -896,10 +895,13 @@ class TestUpdateOrCreate:
         res_first.scalar_one_or_none.return_value = None
         mock_async_session.execute.return_value = MagicMock()
         mock_async_session.execute.side_effect = [res_first]
-        mock_async_session.commit = AsyncMock()
+        mock_async_session.flush = AsyncMock()
         mock_async_session.refresh = AsyncMock()
         _obj, created = await update_or_create(
-            model=mock_model, filters={"id": ID_20}, defaults={"name": "new"}
+            mock_async_session,
+            model=mock_model,
+            filters={"id": ID_20},
+            defaults={"name": "new"},
         )
         assert created is True
         assert _obj.id == ID_20
@@ -924,7 +926,9 @@ class TestUpdateOrCreate:
         with pytest.raises(
             expected_exception=DatabaseError, match="Query failed in update_or_create"
         ):
-            await update_or_create(model=mock_model, filters={"id": 1})
+            await update_or_create(
+                mock_async_session, model=mock_model, filters={"id": 1}
+            )
 
     @pytest.mark.asyncio
     async def test_requires_lookup_condition(
@@ -933,7 +937,7 @@ class TestUpdateOrCreate:
         _ = mock_async_session
 
         with pytest.raises(expected_exception=ValueError, match="condition"):
-            await update_or_create(model=mock_model, filters={})
+            await update_or_create(mock_async_session, model=mock_model, filters={})
 
 
 class TestUpdate:
@@ -955,16 +959,19 @@ class TestUpdate:
             mock_async_session (Mock): The mock AsyncSession fixture.
 
         Raises:
-            AssertionError: If rowcount incorrect or commit not called.
+            AssertionError: If rowcount incorrect or flush not called.
         """
         mock_async_session.execute.return_value = MagicMock()
         mock_async_session.execute.return_value.rowcount = ROWCOUNT_SUCCESS
         rc, known = await update(
-            model=mock_model, filters={"active": True}, values={"active": False}
+            mock_async_session,
+            model=mock_model,
+            filters={"active": True},
+            values={"active": False},
         )
         assert rc == ROWCOUNT_SUCCESS
         assert known is True
-        mock_async_session.commit.assert_awaited_once()
+        mock_async_session.flush.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_update_no_values(
@@ -984,7 +991,9 @@ class TestUpdate:
             AssertionError: If rowcount not zero or known not True.
         """
         _ = mock_async_session
-        rc, known = await update(model=mock_model, filters={"id": 1}, values={})
+        rc, known = await update(
+            mock_async_session, model=mock_model, filters={"id": 1}, values={}
+        )
         assert rc == 0
         assert known is True
 
@@ -1008,7 +1017,10 @@ class TestUpdate:
         del result_mock.rowcount
         mock_async_session.execute.return_value = result_mock
         rc, known = await update(
-            model=mock_model, filters={"id": ID_1}, values={"name": "x"}
+            mock_async_session,
+            model=mock_model,
+            filters={"id": ID_1},
+            values={"name": "x"},
         )
         assert rc == ROWCOUNT_UNKNOWN
         assert known is False
@@ -1039,6 +1051,7 @@ class TestUpdate:
             pytest.raises(expected_exception=ValueError, match="Unknown column"),
         ):
             await update(
+                mock_async_session,
                 model=mock_model,
                 filters={"id": ID_1},
                 values={"age": 30, "name": "ok"},
@@ -1050,7 +1063,9 @@ class TestUpdate:
         self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
         with pytest.raises(expected_exception=ValueError, match="condition"):
-            await update(model=mock_model, filters={}, values={"name": "x"})
+            await update(
+                mock_async_session, model=mock_model, filters={}, values={"name": "x"}
+            )
         mock_async_session.execute.assert_not_called()
 
     @pytest.mark.asyncio
@@ -1061,6 +1076,7 @@ class TestUpdate:
         mock_async_session.execute.return_value = MagicMock(rowcount=1)
 
         rc, known = await update(
+            mock_async_session,
             model=mock_model,
             filters={},
             values={"name": "ok"},
@@ -1087,7 +1103,12 @@ class TestUpdate:
         """
         mock_async_session.execute.side_effect = SQLAlchemyError()
         with pytest.raises(expected_exception=DatabaseError, match="update records"):
-            await update(model=mock_model, filters={"id": ID_1}, values={"name": "x"})
+            await update(
+                mock_async_session,
+                model=mock_model,
+                filters={"id": ID_1},
+                values={"name": "x"},
+            )
 
 
 class TestDelete:
@@ -1109,13 +1130,16 @@ class TestDelete:
             mock_async_session (Mock): The mock AsyncSession fixture.
 
         Raises:
-            AssertionError: If rowcount incorrect or commit not called.
+            AssertionError: If rowcount incorrect or flush not called.
         """
         mock_async_session.execute.return_value = MagicMock()
         mock_async_session.execute.return_value.rowcount = ROWCOUNT_DELETE
-        rc, known = await delete(model=mock_model, filters={"id": 1})
+        rc, known = await delete(
+            mock_async_session, model=mock_model, filters={"id": 1}
+        )
         assert rc == ROWCOUNT_DELETE
         assert known is True
+        mock_async_session.flush.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_delete_db_error(
@@ -1134,14 +1158,14 @@ class TestDelete:
         """
         mock_async_session.execute.side_effect = SQLAlchemyError()
         with pytest.raises(expected_exception=DatabaseError, match="delete records"):
-            await delete(model=mock_model, filters={"id": 1})
+            await delete(mock_async_session, model=mock_model, filters={"id": 1})
 
     @pytest.mark.asyncio
     async def test_delete_empty_filters_rejected(
         self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
         with pytest.raises(expected_exception=ValueError, match="condition"):
-            await delete(model=mock_model, filters={})
+            await delete(mock_async_session, model=mock_model, filters={})
         mock_async_session.execute.assert_not_called()
 
     @pytest.mark.asyncio
@@ -1152,6 +1176,7 @@ class TestDelete:
         mock_async_session.execute.return_value = MagicMock(rowcount=ROWCOUNT_DELETE)
 
         rc, known = await delete(
+            mock_async_session,
             model=mock_model,
             filters={},
             conditions=[direct_condition],
@@ -1184,7 +1209,10 @@ class TestExists:
         """
         mock_async_session.execute.return_value = MagicMock()
         mock_async_session.execute.return_value.scalar_one_or_none.return_value = ID_1
-        assert await exists(model=mock_model, filters={"id": ID_1}) is True
+        assert (
+            await exists(mock_async_session, model=mock_model, filters={"id": ID_1})
+            is True
+        )
 
     @pytest.mark.asyncio
     async def test_exists_false(
@@ -1203,7 +1231,10 @@ class TestExists:
         """
         mock_async_session.execute.return_value = MagicMock()
         mock_async_session.execute.return_value.scalar_one_or_none.return_value = None
-        assert await exists(model=mock_model, filters={"id": ID_999}) is False
+        assert (
+            await exists(mock_async_session, model=mock_model, filters={"id": ID_999})
+            is False
+        )
 
     @pytest.mark.asyncio
     async def test_exists_db_error(
@@ -1222,14 +1253,14 @@ class TestExists:
         """
         mock_async_session.execute.side_effect = SQLAlchemyError()
         with pytest.raises(expected_exception=DatabaseError, match="check existence"):
-            await exists(model=mock_model, filters={"id": 1})
+            await exists(mock_async_session, model=mock_model, filters={"id": 1})
 
     @pytest.mark.asyncio
     async def test_exists_unknown_filter_rejected(
         self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
         with pytest.raises(expected_exception=ValueError, match="Unknown column"):
-            await exists(model=mock_model, filters={"ghost": 1})
+            await exists(mock_async_session, model=mock_model, filters={"ghost": 1})
         mock_async_session.execute.assert_not_called()
 
 
@@ -1245,8 +1276,8 @@ class TestBulkCreate:
     ) -> None:
         """Test bulk creation with full commit (all-or-nothing).
 
-        Verifies that all records are created and committed together, with
-        all records refreshed.
+        Verifies that all records are created and flushed together, with
+        all records refreshed when ``commit=True``.
 
         Args:
             mock_model (type[FakeModel]): The mock model fixture.
@@ -1255,9 +1286,9 @@ class TestBulkCreate:
         Raises:
             AssertionError: If objects not created or refresh not called.
         """
-        mock_async_session.commit = AsyncMock()
         mock_async_session.refresh = AsyncMock()
         objs, fails = await bulk_create(
+            mock_async_session,
             model=mock_model,
             objs=[{"name": "a"}, {"name": "b"}],
             commit=True,
@@ -1265,7 +1296,7 @@ class TestBulkCreate:
         )
         assert len(objs) == COLLS_LEN_2
         assert fails == []
-        assert mock_async_session.commit.called
+        mock_async_session.flush.assert_awaited_once()
         assert mock_async_session.refresh.call_count == REFRESH_COUNT_2
 
     @pytest.mark.asyncio
@@ -1284,12 +1315,13 @@ class TestBulkCreate:
         Raises:
             AssertionError: If partial creation not working correctly.
         """
-        savepoint_ok = AsyncMock()
-        savepoint_fail = AsyncMock()
+        savepoint_ok = _SavepointMock()
+        savepoint_fail = _SavepointMock()
         savepoint_fail.commit.side_effect = SQLAlchemyError("fail")
         mock_async_session.begin_nested.side_effect = [savepoint_ok, savepoint_fail]
         mock_async_session.refresh = AsyncMock()
         objs, fails = await bulk_create(
+            mock_async_session,
             model=mock_model,
             objs=[{"name": "ok"}, {"name": "bad"}],
             commit=True,
@@ -1299,17 +1331,18 @@ class TestBulkCreate:
         assert objs[0].name == "ok"
         assert len(fails) == COLLS_LEN_1
         assert fails[0][0] == ID_1
-        mock_async_session.commit.assert_awaited_once()
+        mock_async_session.flush.assert_awaited_once()
         mock_async_session.refresh.assert_awaited_once_with(objs[0])
 
     @pytest.mark.asyncio
     async def test_bulk_create_partial_flushes_without_commit(
         self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
-        savepoint = AsyncMock()
+        savepoint = _SavepointMock()
         mock_async_session.begin_nested.return_value = savepoint
 
         objs, fails = await bulk_create(
+            mock_async_session,
             model=mock_model,
             objs=[{"name": "ok"}],
             commit=False,
@@ -1326,6 +1359,7 @@ class TestBulkCreate:
         self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
         objs, fails = await bulk_create(
+            mock_async_session,
             model=mock_model,
             objs=[{"name": "a"}],
             commit=False,
@@ -1338,33 +1372,10 @@ class TestBulkCreate:
         mock_async_session.commit.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_bulk_create_partial_outer_commit_failure(
+    async def test_bulk_create_partial_outer_flush_failure(
         self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
-        savepoint = AsyncMock()
-        mock_async_session.begin_nested.return_value = savepoint
-        mock_async_session.commit.side_effect = SQLAlchemyError("outer fail")
-
-        with pytest.raises(
-            expected_exception=DatabaseError, match="Bulk create failed"
-        ):
-            await bulk_create(
-                model=mock_model,
-                objs=[{"name": "ok"}],
-                commit=True,
-                partial=True,
-            )
-
-        mock_async_session.rollback.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_bulk_create_non_partial_failure(
-        self, mock_model: type[FakeModel], mock_async_session: Mock
-    ) -> None:
-        """Test bulk creation failure in non-partial mode.
-
-        Verifies that the entire operation is rolled back when any error
-        occurs in non-partial mode.
+        """Partial-mode bulk_create raises DatabaseError when finalize flush fails.
 
         Args:
             mock_model (type[FakeModel]): The mock model fixture.
@@ -1373,14 +1384,48 @@ class TestBulkCreate:
         Raises:
             pytest.raises.Exception: If DatabaseError not raised.
         """
-        mock_async_session.commit.side_effect = SQLAlchemyError("bulk fail")
+        savepoint = _SavepointMock()
+        mock_async_session.begin_nested.return_value = savepoint
+        mock_async_session.flush.side_effect = SQLAlchemyError("outer fail")
+
         with pytest.raises(
             expected_exception=DatabaseError, match="Bulk create failed"
         ):
             await bulk_create(
-                model=mock_model, objs=[{"name": "x"}], commit=True, partial=False
+                mock_async_session,
+                model=mock_model,
+                objs=[{"name": "ok"}],
+                commit=True,
+                partial=True,
             )
-        mock_async_session.rollback.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_bulk_create_non_partial_failure(
+        self, mock_model: type[FakeModel], mock_async_session: Mock
+    ) -> None:
+        """Test bulk creation failure in non-partial mode.
+
+        Verifies that a flush failure raises DatabaseError; rollback is the
+        caller's responsibility, not the CRUD layer's.
+
+        Args:
+            mock_model (type[FakeModel]): The mock model fixture.
+            mock_async_session (Mock): The mock AsyncSession fixture.
+
+        Raises:
+            pytest.raises.Exception: If DatabaseError not raised.
+        """
+        mock_async_session.flush.side_effect = SQLAlchemyError("bulk fail")
+        with pytest.raises(
+            expected_exception=DatabaseError, match="Bulk create failed"
+        ):
+            await bulk_create(
+                mock_async_session,
+                model=mock_model,
+                objs=[{"name": "x"}],
+                commit=True,
+                partial=False,
+            )
 
 
 class TestUpsert:
@@ -1424,6 +1469,7 @@ class TestUpsert:
             create=True,
         ) as sqlite_insert:
             result = await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1, "name": "new"},
                 conflict_fields=["id"],
@@ -1434,7 +1480,7 @@ class TestUpsert:
         call_kwargs = stmt.on_conflict_do_update.call_args.kwargs
         assert call_kwargs["index_elements"] == [mock_model.id]
         assert set(call_kwargs["set_"]) == {"name"}
-        mock_async_session.commit.assert_awaited_once()
+        mock_async_session.flush.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_postgresql_upsert_accepts_constraint(
@@ -1452,6 +1498,7 @@ class TestUpsert:
             create=True,
         ) as postgresql_insert:
             result = await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1, "name": "new"},
                 constraint="uq_fake",
@@ -1478,6 +1525,7 @@ class TestUpsert:
         ]
 
         result = await upsert(
+            mock_async_session,
             model=mock_model,
             insert_values={"id": ID_1, "name": "new"},
             conflict_fields=["id"],
@@ -1495,8 +1543,8 @@ class TestUpsert:
         assert "WHEN NOT MATCHED THEN INSERT" in merge_sql_text
         assert "t.id = s.c1" in merge_sql_text
         assert merge_params == {"p1": ID_1, "p2": "new"}
-        # Commit is awaited exactly once after the MERGE
-        mock_async_session.commit.assert_awaited_once()
+        # Flush is awaited exactly once after the MERGE
+        mock_async_session.flush.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_mssql_upsert_runs_merge_sql(
@@ -1512,6 +1560,7 @@ class TestUpsert:
         ]
 
         result = await upsert(
+            mock_async_session,
             model=mock_model,
             insert_values={"id": ID_1, "name": "new"},
             conflict_fields=["id"],
@@ -1530,7 +1579,7 @@ class TestUpsert:
         assert "WHEN NOT MATCHED THEN INSERT" in merge_sql_text
         assert "t.id = s.c1" in merge_sql_text
         assert merge_params == {"p1": ID_1, "p2": "new"}
-        mock_async_session.commit.assert_awaited_once()
+        mock_async_session.flush.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_oracle_upsert_merge_insert_includes_python_defaults(
@@ -1550,6 +1599,7 @@ class TestUpsert:
         ]
 
         result = await upsert(
+            mock_async_session,
             model=PlatformIdentityGroup,
             insert_values={
                 "group_id": "system.superusers",
@@ -1599,6 +1649,7 @@ class TestUpsert:
         ]
 
         result = await upsert(
+            mock_async_session,
             model=PlatformIdentityGroup,
             insert_values={
                 "group_id": "system.superusers",
@@ -1642,6 +1693,7 @@ class TestUpsert:
         ]
 
         result = await upsert(
+            mock_async_session,
             model=IdentityUser,
             insert_values={"uid": "user1", "nickname": "user1"},
             conflict_fields=["uid"],
@@ -1675,6 +1727,7 @@ class TestUpsert:
         ]
 
         result = await upsert(
+            mock_async_session,
             model=IdentityUser,
             insert_values={"uid": "user1", "nickname": "user1"},
             conflict_fields=["uid"],
@@ -1702,6 +1755,7 @@ class TestUpsert:
 
         with pytest.raises(expected_exception=ValueError, match="constraint"):
             await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1, "name": "new"},
                 constraint="uq_fake",
@@ -1716,6 +1770,7 @@ class TestUpsert:
 
         with pytest.raises(expected_exception=ValueError, match="constraint"):
             await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1, "name": "new"},
                 constraint="uq_fake",
@@ -1725,18 +1780,17 @@ class TestUpsert:
     async def test_oracle_upsert_db_error(
         self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
-        """Oracle upsert rolls back and raises DatabaseError on failure."""
+        """Oracle upsert raises DatabaseError on failure; rollback is the caller's job."""
         self._set_dialect(mock_async_session, "oracle")
         mock_async_session.execute.side_effect = SQLAlchemyError()
 
         with pytest.raises(expected_exception=DatabaseError, match="Upsert failed"):
             await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1, "name": "new"},
                 conflict_fields=["id"],
             )
-
-        mock_async_session.rollback.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_oracle_upsert_unique_conflict_fetches_existing_row(
@@ -1756,14 +1810,13 @@ class TestUpsert:
         ]
 
         result = await upsert(
+            mock_async_session,
             model=mock_model,
             insert_values={"id": ID_1, "name": "new"},
             conflict_fields=["id"],
         )
 
         assert result is obj
-        mock_async_session.rollback.assert_awaited_once()
-        mock_async_session.commit.assert_not_awaited()
         assert mock_async_session.execute.await_count == 2
 
     @pytest.mark.asyncio
@@ -1784,30 +1837,27 @@ class TestUpsert:
 
         with pytest.raises(expected_exception=DatabaseError, match="Upsert failed"):
             await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1, "name": "new"},
                 conflict_fields=["id"],
             )
-
-        mock_async_session.rollback.assert_awaited_once()
-        mock_async_session.commit.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_mssql_upsert_db_error(
         self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
-        """SQL Server upsert rolls back and raises DatabaseError on failure."""
+        """SQL Server upsert raises DatabaseError on failure; rollback is caller's job."""
         self._set_dialect(mock_async_session, "mssql")
         mock_async_session.execute.side_effect = SQLAlchemyError()
 
         with pytest.raises(expected_exception=DatabaseError, match="Upsert failed"):
             await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1, "name": "new"},
                 conflict_fields=["id"],
             )
-
-        mock_async_session.rollback.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_mysql_upsert_uses_on_duplicate_key_update(
@@ -1830,6 +1880,7 @@ class TestUpsert:
             create=True,
         ) as mysql_insert_mock:
             result = await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1, "name": "new"},
                 conflict_fields=["id"],
@@ -1841,7 +1892,7 @@ class TestUpsert:
         stmt.on_duplicate_key_update.assert_called_once()
         call_kwargs = stmt.on_duplicate_key_update.call_args.kwargs
         assert set(call_kwargs) == {"name"}
-        mock_async_session.commit.assert_awaited_once()
+        mock_async_session.flush.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_mysql_upsert_uses_explicit_update_values(
@@ -1864,6 +1915,7 @@ class TestUpsert:
             create=True,
         ):
             result = await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1, "name": "new"},
                 conflict_fields=["id"],
@@ -1882,6 +1934,7 @@ class TestUpsert:
 
         with pytest.raises(expected_exception=ValueError, match="constraint"):
             await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1, "name": "new"},
                 constraint="uq_fake",
@@ -1891,7 +1944,7 @@ class TestUpsert:
     async def test_mysql_upsert_db_error(
         self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
-        """Test MySQL upsert rolls back and raises DatabaseError on failure."""
+        """Test MySQL upsert raises DatabaseError on failure; rollback is caller's job."""
         self._set_dialect(mock_async_session, "mysql")
         stmt = MagicMock()
         stmt.values.return_value = stmt
@@ -1907,12 +1960,11 @@ class TestUpsert:
             pytest.raises(expected_exception=DatabaseError, match="Upsert failed"),
         ):
             await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1, "name": "new"},
                 conflict_fields=["id"],
             )
-
-        mock_async_session.rollback.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_upsert_requires_conflict_target(
@@ -1922,6 +1974,7 @@ class TestUpsert:
 
         with pytest.raises(expected_exception=ValueError, match="conflict"):
             await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1, "name": "new"},
             )
@@ -1934,6 +1987,7 @@ class TestUpsert:
 
         with pytest.raises(expected_exception=ValueError, match="Unknown column"):
             await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1, "ghost": "bad"},
                 conflict_fields=["id"],
@@ -1947,6 +2001,7 @@ class TestUpsert:
 
         with pytest.raises(expected_exception=ValueError, match="update"):
             await upsert(
+                mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1},
                 conflict_fields=["id"],
@@ -1978,7 +2033,7 @@ class TestListItems:
         mock_async_session.execute.return_value = MagicMock()
         scalars: Any = mock_async_session.execute.return_value.scalars.return_value
         scalars.all.return_value = objs
-        result: list[FakeModel] = await list_items(model=mock_model)
+        result: list[FakeModel] = await list_items(mock_async_session, model=mock_model)
         assert result == objs
 
     @pytest.mark.asyncio
@@ -2000,6 +2055,7 @@ class TestListItems:
         scalars: Any = mock_async_session.execute.return_value.scalars.return_value
         scalars.all.return_value = []
         await list_items(
+            mock_async_session,
             model=mock_model,
             filters={"active": True},
             order_by=["-id"],
@@ -2025,14 +2081,14 @@ class TestListItems:
         """
         mock_async_session.execute.side_effect = SQLAlchemyError()
         with pytest.raises(expected_exception=DatabaseError, match="list records"):
-            await list_items(model=mock_model)
+            await list_items(mock_async_session, model=mock_model)
 
     @pytest.mark.asyncio
     async def test_unknown_filter_rejected(
         self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
         with pytest.raises(expected_exception=ValueError, match="Unknown column"):
-            await list_items(model=mock_model, filters={"ghost": 1})
+            await list_items(mock_async_session, model=mock_model, filters={"ghost": 1})
         mock_async_session.execute.assert_not_called()
 
 
@@ -2065,7 +2121,7 @@ class TestAsyncIterateSafe:
 
         mock_async_session.stream.return_value = async_stream()
         results: list[FakeModel] = await async_iterate_safe(
-            model=mock_model, collect=True
+            mock_async_session, model=mock_model, collect=True
         )
         assert results == [objs[0], objs[1]]
 
@@ -2096,12 +2152,12 @@ class TestAsyncIterateSafe:
                 yield (obj,)
 
         mock_async_session.stream.return_value = async_stream()
-        await async_iterate_safe(model=mock_model, callback=cb)
+        await async_iterate_safe(mock_async_session, model=mock_model, callback=cb)
         assert collected == ["a", "b"]
 
     @pytest.mark.asyncio
     async def test_callback_and_collect_mutually_exclusive(
-        self, mock_model: type[FakeModel]
+        self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
         """Test that callback and collect options are mutually exclusive.
 
@@ -2109,13 +2165,17 @@ class TestAsyncIterateSafe:
 
         Args:
             mock_model (type[FakeModel]): The mock model fixture.
+            mock_async_session (Mock): The mock AsyncSession fixture.
 
         Raises:
             pytest.raises.Exception: If ValueError not raised for conflicting options.
         """
         with pytest.raises(expected_exception=ValueError, match="mutually exclusive"):
             await async_iterate_safe(
-                model=mock_model, callback=AsyncMock(), collect=True
+                mock_async_session,
+                model=mock_model,
+                callback=AsyncMock(),
+                collect=True,
             )
 
     @pytest.mark.asyncio
@@ -2135,7 +2195,7 @@ class TestAsyncIterateSafe:
         """
         mock_async_session.stream.side_effect = SQLAlchemyError()
         with pytest.raises(expected_exception=DatabaseError, match="iterate records"):
-            await async_iterate_safe(model=mock_model, collect=True)
+            await async_iterate_safe(mock_async_session, model=mock_model, collect=True)
 
     @pytest.mark.asyncio
     async def test_unknown_filter_rejected(
@@ -2143,7 +2203,10 @@ class TestAsyncIterateSafe:
     ) -> None:
         with pytest.raises(expected_exception=ValueError, match="Unknown column"):
             await async_iterate_safe(
-                model=mock_model, filters={"ghost": 1}, collect=True
+                mock_async_session,
+                model=mock_model,
+                filters={"ghost": 1},
+                collect=True,
             )
         mock_async_session.stream.assert_not_called()
 
@@ -2171,7 +2234,10 @@ class TestCount:
         """
         mock_async_session.execute.return_value = MagicMock()
         mock_async_session.execute.return_value.scalar_one.return_value = COUNT_EXPECTED
-        assert await count(model=mock_model, filters={"active": True}) == COUNT_EXPECTED
+        assert (
+            await count(mock_async_session, model=mock_model, filters={"active": True})
+            == COUNT_EXPECTED
+        )
 
     @pytest.mark.asyncio
     async def test_count_db_error(
@@ -2190,12 +2256,12 @@ class TestCount:
         """
         mock_async_session.execute.side_effect = SQLAlchemyError()
         with pytest.raises(expected_exception=DatabaseError, match="count records"):
-            await count(model=mock_model)
+            await count(mock_async_session, model=mock_model)
 
     @pytest.mark.asyncio
     async def test_unknown_filter_rejected(
         self, mock_model: type[FakeModel], mock_async_session: Mock
     ) -> None:
         with pytest.raises(expected_exception=ValueError, match="Unknown column"):
-            await count(model=mock_model, filters={"ghost": 1})
+            await count(mock_async_session, model=mock_model, filters={"ghost": 1})
         mock_async_session.execute.assert_not_called()

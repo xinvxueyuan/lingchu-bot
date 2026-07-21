@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.plugins.nonebot_plugin_lingchu_bot.core.runtime_config import RuntimeConfig
+from src.plugins.nonebot_plugin_lingchu_bot.core.config import RuntimeConfig
 from src.plugins.nonebot_plugin_lingchu_bot.services.llm import config as module
 from src.plugins.nonebot_plugin_lingchu_bot.services.llm.config import (
     LiteLLMRouterConfig,
@@ -30,9 +30,33 @@ def test_json_extensions_reject_unicode_control_and_bidi(payload: str) -> None:
         module._json_value({"key": payload})
 
 
+def _make_runtime_config(
+    tmp_path: Path,
+    /,
+    **overrides: object,
+) -> RuntimeConfig:
+    """Build a RuntimeConfig without triggering localstore plugin detection.
+
+    ``Config`` merged the original ``RuntimeConfig`` fields with the
+    infrastructure path fields (``data_dir`` / ``config_dir`` / ``cache_dir``)
+    whose ``default_factory`` calls into ``nonebot_plugin_localstore``. That
+    helper requires a plugin caller frame, which test code cannot provide, so
+    tests must pass explicit paths.
+    """
+    defaults: dict[str, object] = {
+        "data_dir": tmp_path / "data",
+        "config_dir": tmp_path / "config",
+        "cache_dir": tmp_path / "cache",
+    }
+    defaults.update(overrides)
+    return RuntimeConfig(**defaults)  # type: ignore[arg-type]
+
+
 @pytest.fixture
-def legacy() -> RuntimeConfig:
-    return RuntimeConfig(ai_model="legacy-model", ai_api_key="legacy-key")
+def legacy(tmp_path: Path) -> RuntimeConfig:
+    return _make_runtime_config(
+        tmp_path, ai_model="legacy-model", ai_api_key="legacy-key"
+    )
 
 
 async def test_missing_file_creates_minimal_template(tmp_path: Path) -> None:
@@ -283,7 +307,7 @@ def test_existing_invalid_file_is_not_overwritten(tmp_path: Path) -> None:
         patch.object(module, "get_llm_config_file", return_value=path),
         pytest.raises(ValueError),
     ):
-        load_llm_runtime_config(legacy=RuntimeConfig())
+        load_llm_runtime_config(legacy=_make_runtime_config(tmp_path))
     assert path.read_text() == before
 
 
@@ -457,7 +481,8 @@ def test_custom_url_rejects_credential_headers_and_query_without_opt_in(
 def test_implicit_legacy_profile_treats_existing_url_and_key_as_legacy_opt_in(
     tmp_path: Path,
 ) -> None:
-    legacy = RuntimeConfig(
+    legacy = _make_runtime_config(
+        tmp_path,
         ai_model="legacy",
         ai_base_url="https://legacy.example/v1",
         ai_api_key="legacy-key",

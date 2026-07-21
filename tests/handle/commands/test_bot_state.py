@@ -10,7 +10,7 @@
 """
 
 from typing import Any, cast
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from nonebot.exception import FinishedException
 import pytest
@@ -81,6 +81,15 @@ def _mock_fire_and_forget() -> Any:
         yield
     for coro, _name in captured:
         coro.close()
+
+
+@pytest.fixture
+def mock_session() -> Mock:
+    """Provide a mock AsyncSession for handler session injection."""
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
 
 
 # ================= 状态标志测试 =================
@@ -492,6 +501,7 @@ class TestSilentSuppression:
         self,
         mock_onebot11_bot: MagicMock,
         mock_onebot11_event: MagicMock,
+        mock_session: Mock,
     ) -> None:
         """测试静默模式下全体禁言仍执行 API 但抑制 finish 消息。"""
         mock_onebot11_bot.set_group_whole_ban = AsyncMock()
@@ -508,7 +518,11 @@ class TestSilentSuppression:
             patch.object(whole_mute_cmd, "finish") as mock_finish,
             pytest.raises(FinishedException),
         ):
-            await wrapped(bot=mock_onebot11_bot, event=mock_onebot11_event)
+            await wrapped(
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+                session=mock_session,
+            )
 
         mock_onebot11_bot.set_group_whole_ban.assert_called_once()
         mock_finish.assert_not_called()

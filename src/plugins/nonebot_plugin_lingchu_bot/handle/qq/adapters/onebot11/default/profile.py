@@ -9,9 +9,12 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import Image as UniImage
+
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import async_scoped_session
 from packaging.version import InvalidVersion, parse
 
-from ......core.runtime_config import get_handle_config_manager
+from ......core.config import get_handle_config_manager
 from ......i18n import _async as _
 from ....commands.common import selected_adapter_handle
 from ....commands.profile import (
@@ -30,6 +33,7 @@ async def onebot11_set_group_name(
     new_group_name: str,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
 ) -> Any:
     # 检查功能是否启用
     config = await get_handle_config_manager().get_config("set_group_name")
@@ -69,6 +73,7 @@ async def onebot11_set_group_avatar(
     image: UniImage | None,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
 ) -> Any:
     # 检查功能是否启用
     config = await get_handle_config_manager().get_config("set_group_avatar")

@@ -11,7 +11,10 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At
 
-from ......core.runtime_config import get_handle_config_manager
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import async_scoped_session
+
+from ......core.config import get_handle_config_manager
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......repositories.blocklist import (
@@ -73,6 +76,7 @@ async def _kick_blocked_user(
 
 
 async def _block_member(
+    session: async_scoped_session,
     *,
     command: Any,
     scope: BlockScope,
@@ -94,7 +98,7 @@ async def _block_member(
     target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
 
     # 目标用户权限预检
-    if not await check_target_privilege(bot, event, target_user_id, command):
+    if not await check_target_privilege(session, bot, event, target_user_id, command):
         return None
 
     # 机器人权限预检
@@ -109,6 +113,7 @@ async def _block_member(
 
     try:
         await store_block_record(
+            session,
             scope=scope,
             group_id=event.group_id,
             user_id=target_user_id,
@@ -166,9 +171,11 @@ async def onebot11_block_member(
     duration: int | None,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     return await _block_member(
+        session,
         command=block_member_cmd,
         scope="group",
         user=user,
@@ -189,9 +196,11 @@ async def onebot11_global_block_member(
     duration: int | None,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     return await _block_member(
+        session,
         command=global_block_member_cmd,
         scope="global",
         user=user,
@@ -203,6 +212,7 @@ async def onebot11_global_block_member(
 
 
 async def _unblock_member(
+    session: async_scoped_session,
     *,
     command: Any,
     scope: BlockScope,
@@ -215,6 +225,7 @@ async def _unblock_member(
     reason_text = await default_admin_reason(reason)
     try:
         result = await remove_block(
+            session,
             platform_id=QQ_PLATFORM_ID,
             adapter_id=ONEBOT_V11_ADAPTER_ID,
             bot_id=bot_id(bot),
@@ -264,9 +275,11 @@ async def onebot11_unblock_member(
     user: At,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     return await _unblock_member(
+        session,
         command=unblock_member_cmd,
         scope="group",
         user=user,
@@ -285,9 +298,11 @@ async def onebot11_global_unblock_member(
     user: At,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     return await _unblock_member(
+        session,
         command=global_unblock_member_cmd,
         scope="global",
         user=user,
@@ -298,6 +313,7 @@ async def onebot11_global_unblock_member(
 
 
 async def _clear_blocklist(
+    session: async_scoped_session,
     *,
     command: Any,
     scope: BlockScope,
@@ -308,6 +324,7 @@ async def _clear_blocklist(
     reason_text = await default_admin_reason(reason)
     try:
         result = await clear_blocklist(
+            session,
             platform_id=QQ_PLATFORM_ID,
             adapter_id=ONEBOT_V11_ADAPTER_ID,
             bot_id=bot_id(bot),
@@ -335,9 +352,11 @@ async def _clear_blocklist(
 async def onebot11_clear_blocklist(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     return await _clear_blocklist(
+        session,
         command=clear_blocklist_cmd,
         scope="group",
         reason=reason,
@@ -354,9 +373,11 @@ async def onebot11_clear_blocklist(
 async def onebot11_global_clear_blocklist(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     reason: str | None = None,
 ) -> Any:
     return await _clear_blocklist(
+        session,
         command=global_clear_blocklist_cmd,
         scope="global",
         reason=reason,
@@ -369,9 +390,11 @@ async def onebot11_global_clear_blocklist(
 async def onebot11_kick_blocklisted_message(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
 ) -> None:
     try:
         entry = await find_active_block(
+            session,
             platform_id=QQ_PLATFORM_ID,
             adapter_id=ONEBOT_V11_ADAPTER_ID,
             bot_id=bot_id(bot),
@@ -391,6 +414,7 @@ async def onebot11_kick_blocklisted_message(
 async def onebot11_reject_blocklisted_group_request(
     bot: OneBot11Bot,
     event: OneBot11GroupRequestEvent,
+    session: async_scoped_session,
 ) -> None:
     if event.sub_type != "add":
         return
@@ -401,6 +425,7 @@ async def onebot11_reject_blocklisted_group_request(
 
     try:
         entry = await find_active_block(
+            session,
             platform_id=QQ_PLATFORM_ID,
             adapter_id=ONEBOT_V11_ADAPTER_ID,
             bot_id=bot_id(bot),

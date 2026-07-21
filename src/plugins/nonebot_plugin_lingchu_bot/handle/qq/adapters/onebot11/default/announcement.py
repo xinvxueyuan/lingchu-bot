@@ -9,9 +9,12 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import Image as UniImage
+
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import async_scoped_session
 from packaging.version import InvalidVersion, parse
 
-from ......core.runtime_config import get_handle_config_manager
+from ......core.config import get_handle_config_manager
 from ......i18n import _async as _
 from ....commands.announcement import (
     AnnouncementImagePath,
@@ -79,6 +82,7 @@ async def onebot_v11_send_group_announcement(
     image: UniImage | None,
     bot: OneBot11,
     event: OneBBot11_GroupMessageEvent,
+    session: async_scoped_session,
 ) -> None:
     # 检查功能是否启用
     config = await get_handle_config_manager().get_config("send_announcement")

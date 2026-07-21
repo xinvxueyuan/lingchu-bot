@@ -65,62 +65,44 @@ API 审计钩子记录平台 API 调用完成后的摘要。
 
 字段提取辅助函数（如 `_conversation_id`、`_user_id`、`_message_id`、`_plain_text`）也集中在此模块，避免 handler 重复编写适配器专属逻辑。
 
-## Handler 注册表
-
-`hooks/registry.py` 提供类型化的内存 handler 注册表。
-
-<TypeTable
-  type={{
-    register_handler: {
-      type: "(hook_type, handler, *, enabled=True) -> handler",
-      description: "按能力分类注册 handler。禁用的 handler 会被记录，但不会被迭代器产出。",
-    },
-    iter_handlers: {
-      type: "(hook_type=None) -> Iterator[HookHandler]",
-      description: "产出已启用的 handler，可按分类过滤。",
-    },
-    get_handlers_by_type: {
-      type: "(hook_type) -> tuple[HookHandler, ...]",
-      description: "返回某一分类下已启用的 handler。",
-    },
-  }}
-/>
-
-注册表类型基于 `hooks/interfaces.py` 中定义的 `HookContext`、`EventContext` 和 `HookHandler` 协议。
-
 ## 新增钩子处理器
 
 新增运行时钩子处理器的步骤如下：
 
-1. **从 `hooks/interfaces.py` 选择上下文类型**：
-   - `PlatformContext`：用于 Bot 级别身份。
-   - `HookContext`：用于通用处理器。
-   - `EventContext`：用于事件驱动处理器。
+1. **选择匹配目标生命周期的 NoneBot2 原生装饰器**。每个 handler 模块在导入时注册自身的装饰器，因此插件入口只需 `from . import hooks`。
 
-2. **实现 handler**：实现为符合 `HookHandler[T_contra]` 的异步可调用对象：
+   | 能力 | NoneBot2 装饰器 | 参考模块 |
+   | --- | --- | --- |
+   | 驱动器启动 / 关闭 | `@driver.on_startup`、`@driver.on_shutdown` | `hooks/handlers/lifecycle.py` |
+   | Bot 连接 / 断开 | `@driver.on_bot_connect`、`@driver.on_bot_disconnect` | `hooks/handlers/bot_connection.py` |
+   | 事件 / matcher 处理 | `@event_preprocessor`、`@event_postprocessor`、`@run_preprocessor`、`@run_postprocessor` | `hooks/handlers/message_store.py` |
+   | Bot API 调用 | `@Bot.on_calling_api`、`@Bot.on_called_api` | `hooks/handlers/api_audit.py` |
+
+2. **实现 handler**：按 NoneBot2 装饰器签名实现。需要适配器无关身份时调用 `hooks/adapters.py` 中的 `resolve_platform_context(bot)`，需要稳定消息封装时调用 `normalize_message_event(bot, event)`：
 
    ```python
-   from hooks.interfaces import EventContext, HookHandler
+   from nonebot import get_driver
+   from nonebot.adapters import Bot
 
-   async def my_handler(context: EventContext) -> None:
+   from ..adapters import resolve_platform_context
+
+   driver = get_driver()
+
+
+   @driver.on_bot_connect
+   async def on_bot_connect(bot: Bot) -> None:
+       ctx = resolve_platform_context(bot)
+       if ctx is None:
+           return
        ...
    ```
 
-3. **在 `hooks/handlers/` 下创建模块**，例如 `hooks/handlers/my_feature.py`。在该模块中注册 NoneBot 装饰器，业务调用保留在 `services/` 或 `repositories/` 中。
+3. **在 `hooks/handlers/` 下创建模块**，例如 `hooks/handlers/my_feature.py`。在该模块中注册 NoneBot2 装饰器，业务调用保留在 `services/` 或 `repositories/` 中。
 
 4. **在 `hooks/handlers/__init__.py` 导出模块**，确保 `from . import hooks` 能加载它：
 
    ```python
    from . import my_feature as my_feature
-   ```
-
-5. **如需按能力发现，向注册表登记**：
-
-   ```python
-   from hooks.interfaces import HookType
-   from hooks.registry import register_handler
-
-   register_handler(HookType.MESSAGE_STORE, my_handler)
    ```
 
 <Callout title="避免副作用导入">

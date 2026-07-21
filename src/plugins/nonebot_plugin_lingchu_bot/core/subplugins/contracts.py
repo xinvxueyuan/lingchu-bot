@@ -27,8 +27,8 @@ from ...services.llm import (
     supports_web_search,
 )
 from ...services.llm.runtime import LLMRuntime, get_llm_runtime
+from ..config import plugin_config
 from ..http_security import download_public_http_bytes
-from ..runtime_config import runtime_config
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -101,11 +101,11 @@ def get_subplugin_trigger(command_key: str) -> SubpluginTrigger:
 def resolve_default_llm_options() -> LLMOptions:
     """Return the parent's default LLM options from runtime_config."""
     return LLMOptions(
-        provider=runtime_config.ai_provider,
-        model=runtime_config.ai_model,
-        base_url=runtime_config.ai_base_url,
-        api_key=runtime_config.ai_api_key,
-        timeout=runtime_config.ai_timeout,
+        provider=plugin_config.ai_provider,
+        model=plugin_config.ai_model,
+        base_url=plugin_config.ai_base_url,
+        api_key=plugin_config.ai_api_key,
+        timeout=plugin_config.ai_timeout,
     )
 
 

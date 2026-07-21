@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -8,14 +9,27 @@ import pytest
 from src.plugins.nonebot_plugin_lingchu_bot.database.models import ScheduledJob
 from src.plugins.nonebot_plugin_lingchu_bot.repositories import scheduler_jobs
 
+if TYPE_CHECKING:
+    from unittest.mock import Mock
+
+
+@pytest.fixture
+def mock_session() -> Mock:
+    """Provide a mock AsyncSession for scheduler_jobs repository tests."""
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
+
 
 @pytest.mark.asyncio
-async def test_save_job_spec_upserts_by_job_id() -> None:
+async def test_save_job_spec_upserts_by_job_id(mock_session: Mock) -> None:
     job = MagicMock(spec=ScheduledJob)
     upsert_mock = AsyncMock(return_value=job)
 
     with patch.object(scheduler_jobs, "upsert", upsert_mock):
         result = await scheduler_jobs.save_job_spec(
+            mock_session,
             job_id="cleanup-messages",
             handler_key="message_store.cleanup_expired_messages",
             trigger_type="cron",
@@ -30,8 +44,9 @@ async def test_save_job_spec_upserts_by_job_id() -> None:
 
     assert result is job
     upsert_mock.assert_awaited_once()
-    assert upsert_mock.call_args.args[0] is ScheduledJob
-    values = upsert_mock.call_args.args[1]
+    assert upsert_mock.call_args.args[0] is mock_session
+    assert upsert_mock.call_args.args[1] is ScheduledJob
+    values = upsert_mock.call_args.args[2]
     assert values["job_id"] == "cleanup-messages"
     assert values["handler_key"] == "message_store.cleanup_expired_messages"
     assert values["trigger_type"] == "cron"
@@ -60,18 +75,19 @@ async def test_save_job_spec_upserts_by_job_id() -> None:
 
 
 @pytest.mark.asyncio
-async def test_save_job_spec_defaults_args_and_kwargs() -> None:
+async def test_save_job_spec_defaults_args_and_kwargs(mock_session: Mock) -> None:
     upsert_mock = AsyncMock(return_value=MagicMock(spec=ScheduledJob))
 
     with patch.object(scheduler_jobs, "upsert", upsert_mock):
         await scheduler_jobs.save_job_spec(
+            mock_session,
             job_id="cleanup-messages",
             handler_key="message_store.cleanup_expired_messages",
             trigger_type="cron",
             trigger_kwargs={"hour": "3"},
         )
 
-    values = upsert_mock.call_args.args[1]
+    values = upsert_mock.call_args.args[2]
     assert values["args"] == "[]"
     assert values["kwargs"] == "{}"
     assert values["enabled"] is True
@@ -81,30 +97,32 @@ async def test_save_job_spec_defaults_args_and_kwargs() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_job_spec_filters_by_job_id() -> None:
+async def test_get_job_spec_filters_by_job_id(mock_session: Mock) -> None:
     job = MagicMock(spec=ScheduledJob)
     get_one_mock = AsyncMock(return_value=job)
 
     with patch.object(scheduler_jobs, "get_one", get_one_mock):
-        result = await scheduler_jobs.get_job_spec("cleanup-messages")
+        result = await scheduler_jobs.get_job_spec(mock_session, "cleanup-messages")
 
     assert result is job
     get_one_mock.assert_awaited_once_with(
+        mock_session,
         ScheduledJob,
         {"job_id": "cleanup-messages"},
     )
 
 
 @pytest.mark.asyncio
-async def test_list_enabled_job_specs_filters_enabled() -> None:
+async def test_list_enabled_job_specs_filters_enabled(mock_session: Mock) -> None:
     jobs = [MagicMock(spec=ScheduledJob)]
     list_items_mock = AsyncMock(return_value=jobs)
 
     with patch.object(scheduler_jobs, "list_items", list_items_mock):
-        result = await scheduler_jobs.list_enabled_job_specs()
+        result = await scheduler_jobs.list_enabled_job_specs(mock_session)
 
     assert result == jobs
     list_items_mock.assert_awaited_once_with(
+        mock_session,
         ScheduledJob,
         filters={"enabled": True},
         limit=1000,
@@ -113,14 +131,15 @@ async def test_list_enabled_job_specs_filters_enabled() -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete_job_spec_filters_by_job_id() -> None:
+async def test_delete_job_spec_filters_by_job_id(mock_session: Mock) -> None:
     delete_mock = AsyncMock(return_value=(1, True))
 
     with patch.object(scheduler_jobs, "delete", delete_mock):
-        result = await scheduler_jobs.delete_job_spec("cleanup-messages")
+        result = await scheduler_jobs.delete_job_spec(mock_session, "cleanup-messages")
 
     assert result == (1, True)
     delete_mock.assert_awaited_once_with(
+        mock_session,
         ScheduledJob,
         {"job_id": "cleanup-messages"},
     )

@@ -525,7 +525,7 @@ async def test_parent_llm_failure_returns_localized_prompt_error(
         (NovelAIProviderError(), "generation_failed"),
     ],
 )
-async def test_generation_errors_are_localized(  # noqa: PLR0913
+async def test_generation_errors_are_localized(
     monkeypatch: pytest.MonkeyPatch,
     mock_finish: AsyncMock,
     intent: PromptIntent,

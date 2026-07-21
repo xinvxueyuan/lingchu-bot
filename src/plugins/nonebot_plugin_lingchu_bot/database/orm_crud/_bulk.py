@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from nonebot import require
 
 require("nonebot_plugin_orm")
-from nonebot_plugin_orm import Model, get_session
+from nonebot_plugin_orm import Model
 from sqlalchemy import select, text
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
@@ -26,25 +26,25 @@ from ._base import (
 )
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
     from sqlalchemy.sql.elements import ColumnElement
 
 
 async def _finalize_bulk_create[T: Model](
-    session: AsyncSession,
+    session: AsyncSession | async_scoped_session,
     instances: Sequence[T],
     *,
     commit: bool,
 ) -> None:
+    """Flush 批量创建的对象，并在 commit=True 时刷新以加载服务端默认值。"""
+    await session.flush()
     if commit:
-        await session.commit()
         for obj in instances:
             await session.refresh(obj)
-    else:
-        await session.flush()
 
 
 async def bulk_create[T: Model](
+    session: AsyncSession | async_scoped_session,
     model: type[T],
     objs: list[dict[str, Any]],
     *,
@@ -54,9 +54,10 @@ async def bulk_create[T: Model](
     """批量创建多条记录。
 
     Args:
+        session: 异步会话 / Async session.
         model: ORM 模型类 / ORM model class.
         objs: 待创建字段字典列表 / List of field dictionaries.
-        commit: 是否立即提交 / Whether to commit immediately.
+        commit: 是否在 flush 后刷新对象 / Whether to refresh objects after flush.
         partial: 是否允许部分成功 / Whether to skip failed rows and continue.
 
     Returns:
@@ -66,40 +67,37 @@ async def bulk_create[T: Model](
         DatabaseError: partial 为 False 且批量创建失败时。
     """
     validated_objs = [_validate_column_values(model, fields) for fields in objs]
-    async with get_session() as s:
-        if not partial:
-            instances = [model(**fields) for fields in validated_objs]
-            s.add_all(instances)
-            try:
-                await _finalize_bulk_create(s, instances, commit=commit)
-            except SQLAlchemyError as e:
-                await s.rollback()
-                raise DatabaseError("Bulk create failed") from e
-            return instances, []
-
-        # Partial mode: individual savepoints
-        created: list[T] = []
-        failed: list[tuple[int, str]] = []
-        for idx, fields in enumerate(validated_objs):
-            savepoint = await s.begin_nested()
-            try:
-                obj = model(**fields)
-                s.add(obj)
-                await savepoint.commit()
-                created.append(obj)
-            except SQLAlchemyError as exc:
-                await savepoint.rollback()
-                msg = f"{type(exc).__name__}: {exc}"
-                logger.warning(
-                    "Skipped item %d in bulk_create (partial=True): %s", idx, msg
-                )
-                failed.append((idx, msg))
+    if not partial:
+        instances = [model(**fields) for fields in validated_objs]
+        session.add_all(instances)
         try:
-            await _finalize_bulk_create(s, created, commit=commit)
+            await _finalize_bulk_create(session, instances, commit=commit)
         except SQLAlchemyError as e:
-            await s.rollback()
             raise DatabaseError("Bulk create failed") from e
-        return created, failed
+        return instances, []
+
+    # Partial mode: individual savepoints
+    created: list[T] = []
+    failed: list[tuple[int, str]] = []
+    for idx, fields in enumerate(validated_objs):
+        savepoint = await session.begin_nested()
+        try:
+            obj = model(**fields)
+            session.add(obj)
+            await savepoint.commit()
+            created.append(obj)
+        except SQLAlchemyError as exc:
+            await savepoint.rollback()
+            msg = f"{type(exc).__name__}: {exc}"
+            logger.warning(
+                "Skipped item %d in bulk_create (partial=True): %s", idx, msg
+            )
+            failed.append((idx, msg))
+    try:
+        await _finalize_bulk_create(session, created, commit=commit)
+    except SQLAlchemyError as e:
+        raise DatabaseError("Bulk create failed") from e
+    return created, failed
 
 
 def _validate_upsert_conflict_target[T: Model](
@@ -247,7 +245,7 @@ def _prepare_merge_insert_values[T: Model](
 
 
 def _merge_target_identifiers[T: Model](
-    s: AsyncSession,
+    s: AsyncSession | async_scoped_session,
     model: type[T],
     keys: Sequence[str],
 ) -> tuple[str, dict[str, str]]:
@@ -361,6 +359,7 @@ def _build_merge_sql(
 
 
 async def upsert[T: Model](
+    session: AsyncSession | async_scoped_session,
     model: type[T],
     insert_values: dict[str, Any],
     *,
@@ -371,6 +370,7 @@ async def upsert[T: Model](
     """执行方言级原子 upsert（SQLite/PostgreSQL/MySQL/MariaDB/Oracle/SQL Server）。
 
     Args:
+        session: 异步会话 / Async session.
         model: ORM 模型类 / ORM model class.
         insert_values: 插入字段 / Values used for INSERT.
         conflict_fields: 唯一冲突字段 / Conflict-target columns.
@@ -402,65 +402,63 @@ async def upsert[T: Model](
         update_values,
     )
 
-    async with get_session() as s:
-        dialect_name = _get_session_dialect_name(s)
+    dialect_name = _get_session_dialect_name(session)
 
-        if dialect_name in {"mysql", "mariadb"}:
-            return await _mysql_upsert(
-                s,
-                model,
-                insert_values,
-                columns,
-                conflict_keys,
-                update_keys,
-                explicit_update_values,
-                constraint,
-            )
+    if dialect_name in {"mysql", "mariadb"}:
+        return await _mysql_upsert(
+            session,
+            model,
+            insert_values,
+            columns,
+            conflict_keys,
+            update_keys,
+            explicit_update_values,
+            constraint,
+        )
 
-        if dialect_name == "oracle":
-            return await _oracle_upsert(
-                s,
-                model,
-                insert_values,
-                columns,
-                conflict_keys,
-                update_keys,
-                explicit_update_values,
-                constraint,
-            )
+    if dialect_name == "oracle":
+        return await _oracle_upsert(
+            session,
+            model,
+            insert_values,
+            columns,
+            conflict_keys,
+            update_keys,
+            explicit_update_values,
+            constraint,
+        )
 
-        if dialect_name == "mssql":
-            return await _mssql_upsert(
-                s,
-                model,
-                insert_values,
-                columns,
-                conflict_keys,
-                update_keys,
-                explicit_update_values,
-                constraint,
-            )
+    if dialect_name == "mssql":
+        return await _mssql_upsert(
+            session,
+            model,
+            insert_values,
+            columns,
+            conflict_keys,
+            update_keys,
+            explicit_update_values,
+            constraint,
+        )
 
-        insert_stmt = _dialect_insert_statement(model, dialect_name, constraint)
-        stmt = insert_stmt.values(**insert_values)
-        set_values = _upsert_set_values(stmt, update_keys, explicit_update_values)
-        conflict_kwargs = _upsert_conflict_kwargs(columns, conflict_keys, constraint)
+    insert_stmt = _dialect_insert_statement(model, dialect_name, constraint)
+    stmt = insert_stmt.values(**insert_values)
+    set_values = _upsert_set_values(stmt, update_keys, explicit_update_values)
+    conflict_kwargs = _upsert_conflict_kwargs(columns, conflict_keys, constraint)
 
-        stmt = stmt.on_conflict_do_update(**conflict_kwargs, set_=set_values)
-        stmt = stmt.returning(model)
+    stmt = stmt.on_conflict_do_update(**conflict_kwargs, set_=set_values)
+    stmt = stmt.returning(model)
 
-        try:
-            result = await s.execute(stmt)
-            obj = result.scalar_one()
-            await s.commit()
-        except SQLAlchemyError as e:
-            await s.rollback()
-            raise DatabaseError("Upsert failed") from e
-        return obj
+    try:
+        result = await session.execute(stmt)
+        obj = result.scalar_one()
+        await session.flush()
+    except SQLAlchemyError as e:
+        raise DatabaseError("Upsert failed") from e
+    return obj
 
 
 async def _mysql_upsert[T: Model](
-    s: AsyncSession,
+    s: AsyncSession | async_scoped_session,
     model: type[T],
     insert_values: dict[str, Any],
     columns: dict[str, Any],
@@ -497,9 +495,8 @@ async def _mysql_upsert[T: Model](
 
     try:
         await s.execute(stmt)
-        await s.commit()
+        await s.flush()
     except SQLAlchemyError as e:
-        await s.rollback()
         raise DatabaseError("Upsert failed") from e
 
     # MySQL 不支持 RETURNING，通过 conflict_keys 做一次 SELECT 取回最新行。
@@ -539,7 +536,7 @@ def _is_oracle_unique_constraint_violation(error: SQLAlchemyError) -> bool:
 
 
 async def _oracle_upsert[T: Model](
-    s: AsyncSession,
+    s: AsyncSession | async_scoped_session,
     model: type[T],
     insert_values: dict[str, Any],
     columns: dict[str, Any],
@@ -583,9 +580,8 @@ async def _oracle_upsert[T: Model](
 
     try:
         await s.execute(stmt, params)
-        await s.commit()
+        await s.flush()
     except SQLAlchemyError as e:
-        await s.rollback()
         if not _is_oracle_unique_constraint_violation(e):
             raise DatabaseError("Upsert failed") from e
         unique_conflict_error = e
@@ -611,7 +607,7 @@ async def _oracle_upsert[T: Model](
 
 
 async def _mssql_upsert[T: Model](
-    s: AsyncSession,
+    s: AsyncSession | async_scoped_session,
     model: type[T],
     insert_values: dict[str, Any],
     columns: dict[str, Any],
@@ -659,9 +655,8 @@ async def _mssql_upsert[T: Model](
         # hanging forever when HOLDLOCK range locks conflict.
         await s.execute(text("SET LOCK_TIMEOUT 5000"))
         await s.execute(stmt, params)
-        await s.commit()
+        await s.flush()
     except SQLAlchemyError as e:
-        await s.rollback()
         raise DatabaseError("Upsert failed") from e
 
     where_clauses = [
@@ -681,6 +676,7 @@ async def _mssql_upsert[T: Model](
 
 
 async def list_items[T: Model](
+    session: AsyncSession | async_scoped_session,
     model: type[T],
     filters: dict[str, Any] | None = None,
     order_by: Sequence[str] | None = None,
@@ -692,6 +688,7 @@ async def list_items[T: Model](
     """列出符合条件的记录。
 
     Args:
+        session: 异步会话 / Async session.
         model: ORM 模型类 / ORM model class.
         filters: 筛选条件 / Filter conditions.
         order_by: 排序字段 / Sort fields.
@@ -711,25 +708,25 @@ async def list_items[T: Model](
         conditions,
         require_non_empty=False,
     )
-    async with get_session() as s:
-        try:
-            stmt = select(model)
-            if cs:
-                stmt = stmt.where(*cs)
-            os = _orders(model, order_by)
-            if os:
-                stmt = stmt.order_by(*os)
-            if offset:
-                stmt = stmt.offset(offset)
-            if limit:
-                stmt = stmt.limit(limit)
-            res = await s.execute(stmt)
-            return list(res.scalars().all())
-        except SQLAlchemyError as e:
-            raise DatabaseError("Failed to list records") from e
+    try:
+        stmt = select(model)
+        if cs:
+            stmt = stmt.where(*cs)
+        os = _orders(model, order_by)
+        if os:
+            stmt = stmt.order_by(*os)
+        if offset:
+            stmt = stmt.offset(offset)
+        if limit:
+            stmt = stmt.limit(limit)
+        res = await session.execute(stmt)
+        return list(res.scalars().all())
+    except SQLAlchemyError as e:
+        raise DatabaseError("Failed to list records") from e
 
 
 async def async_iterate_safe[T: Model](
+    session: AsyncSession | async_scoped_session,
     model: type[T],
     *,
     filters: dict[str, Any] | None = None,
@@ -742,6 +739,7 @@ async def async_iterate_safe[T: Model](
     """安全遍历大型结果集。
 
     Args:
+        session: 异步会话 / Async session.
         model: ORM 模型类 / ORM model class.
         filters: 筛选条件 / Filter conditions.
         conditions: 额外的 SQLAlchemy 列条件 / Extra SQLAlchemy column conditions.
@@ -769,21 +767,20 @@ async def async_iterate_safe[T: Model](
         require_non_empty=False,
     )
     results: list[T] = []
-    async with get_session() as s:
-        try:
-            stmt = select(model)
-            if cs:
-                stmt = stmt.where(*cs)
-            os = _orders(model, order_by)
-            if os:
-                stmt = stmt.order_by(*os)
-            stream = await s.stream(stmt, execution_options={"yield_per": batch_size})
-            async for row in stream:
-                item = row[0]
-                if callback is not None:
-                    await callback(item)
-                if collect:
-                    results.append(item)
-        except SQLAlchemyError as e:
-            raise DatabaseError("Failed to iterate records") from e
+    try:
+        stmt = select(model)
+        if cs:
+            stmt = stmt.where(*cs)
+        os = _orders(model, order_by)
+        if os:
+            stmt = stmt.order_by(*os)
+        stream = await session.stream(stmt, execution_options={"yield_per": batch_size})
+        async for row in stream:
+            item = row[0]
+            if callback is not None:
+                await callback(item)
+            if collect:
+                results.append(item)
+    except SQLAlchemyError as e:
+        raise DatabaseError("Failed to iterate records") from e
     return results

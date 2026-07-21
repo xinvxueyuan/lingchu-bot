@@ -8,6 +8,11 @@ import json
 import logging
 from typing import TYPE_CHECKING, Protocol
 
+from nonebot import require
+
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import get_session
+
 from ...repositories import message_store
 from .security import thaw_value
 
@@ -24,11 +29,17 @@ class AuditWriter(Protocol):
     def __call__(self, event: message_store.AuditEvent) -> Awaitable[object]: ...
 
 
+async def _default_audit_writer(event: message_store.AuditEvent) -> object:
+    """Open a scoped session and persist the audit event."""
+    async with get_session() as session:
+        return await message_store.record_api_call(session, event)
+
+
 @dataclass(frozen=True, slots=True)
 class MCPAuditRecorder:
     """Translate MCP decisions into the existing durable audit boundary."""
 
-    writer: AuditWriter = message_store.record_api_call
+    writer: AuditWriter = _default_audit_writer
 
     async def before_call(
         self,

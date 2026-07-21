@@ -13,7 +13,7 @@ from nonebot.message import (
 from nonebot.typing import T_State
 
 from ...core.async_utils import fire_and_forget
-from ...core.runtime_config import runtime_config
+from ...core.config import plugin_config
 from ...services.message_store import (
     STATE_KEY,
     handle_event_received,
@@ -29,7 +29,7 @@ async def message_store_preprocessor(
     state: T_State,
 ) -> None:
     """Store incoming event metadata before matcher processing."""
-    if not runtime_config.message_store_enabled:
+    if not plugin_config.message_store_enabled:
         return
     normalized = normalize_message_event(bot, event)
     if normalized is None:
@@ -69,7 +69,7 @@ async def message_store_run_postprocessor(
 ) -> None:
     """Update message processing status after a matcher run."""
     _ = (bot, event)
-    if not runtime_config.message_store_enabled:
+    if not plugin_config.message_store_enabled:
         return
     identity = state.get(STATE_KEY)
     if not isinstance(identity, MessageIdentity):

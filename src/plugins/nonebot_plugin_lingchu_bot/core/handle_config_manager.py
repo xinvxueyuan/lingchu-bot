@@ -7,11 +7,11 @@ including loading, updating, validation, and persistence of handle configs.
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
 from typing import Any, ClassVar, Final, cast
 
-import jsonschema
 from nonebot import logger, require
+from nonebot.compat import type_validate_python
+from pydantic import BaseModel, ValidationError
 
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
@@ -22,7 +22,7 @@ from ..database.toml_store import (
     write_toml_dict_file_async,
 )
 from .handle_config_defaults import HANDLE_DEFAULTS_REGISTRY
-from .schemas import HANDLE_CONFIG_SCHEMA_BASENAME, HANDLE_CONFIG_SCHEMA_TEXT
+from .schemas import HANDLE_CONFIG_SCHEMA_BASENAME
 
 
 @dataclass(frozen=True)
@@ -44,36 +44,25 @@ class HandleConfigManager:
     """Manager for handle-level configurations.
 
     This class provides centralized access to handle configurations with
-    automatic caching, fallback to defaults, and JSON Schema validation.
+    automatic caching, fallback to defaults, and pydantic-based validation.
 
     The configuration priority is: code defaults < TOML file overrides.
+    Each handle's pydantic model (registered in ``HANDLE_DEFAULTS_REGISTRY``)
+    declares field defaults that are used when the TOML file is missing
+    fields, and validates the merged configuration via
+    ``type_validate_python``.
     """
 
     _cache: ClassVar[dict[str, HandleConfig]] = {}
     _SCHEMA_REF: Final[str] = HANDLE_CONFIG_SCHEMA_BASENAME
 
-    @staticmethod
-    def _merge_registered_defaults(
-        command_key: str, config_dict: dict[str, Any]
-    ) -> dict[str, Any]:
-        registered = HANDLE_DEFAULTS_REGISTRY[command_key]
-        merged = dict(registered)
-        merged.update(config_dict)
-        for section in ("defaults", "policies"):
-            registered_section = registered.get(section, {})
-            loaded_section = config_dict.get(section, {})
-            if isinstance(registered_section, dict) and isinstance(
-                loaded_section, dict
-            ):
-                merged[section] = registered_section | loaded_section
-        return merged
-
     async def get_config(self, command_key: str) -> HandleConfig:
         """Get handle configuration for a specific command.
 
-        Loads configuration from the TOML file managed by localstore.
-        Falls back to defaults from HANDLE_DEFAULTS_REGISTRY if the file
-        does not exist or fails to load.
+        Loads configuration from the TOML file managed by localstore,
+        merges it with the pydantic model defaults, and validates the
+        result via ``type_validate_python``. Falls back to the model
+        defaults if the file is missing or fails to load/validate.
 
         Args:
             command_key: The unique identifier for the handle command.
@@ -90,8 +79,9 @@ class HandleConfigManager:
         if command_key not in HANDLE_DEFAULTS_REGISTRY:
             raise ValueError(f"command_key not registered: {command_key}")
 
+        model_cls = HANDLE_DEFAULTS_REGISTRY[command_key]
         file_path = get_plugin_config_file(f"{command_key}.toml")
-        default_config = dict(HANDLE_DEFAULTS_REGISTRY[command_key])
+        default_config = model_cls().model_dump(mode="json")
 
         try:
             config_dict = await load_toml_dict_async(
@@ -99,33 +89,31 @@ class HandleConfigManager:
                 default=default_config,
                 merge_default=True,
             )
-            config_dict = self._merge_registered_defaults(command_key, config_dict)
+            model = type_validate_python(model_cls, config_dict)
         except Exception:
             logger.error(
                 f"Failed to load handle config for {command_key}, "
                 f"falling back to defaults. Path: {file_path}"
             )
-            # Fallback to defaults
-            config_dict = default_config
+            model = model_cls()
 
-        # Extract fields with safe defaults and proper typing
-        enabled = cast("bool", config_dict.get("enabled", True))
-        defaults = cast("dict[str, Any]", config_dict.get("defaults", {}))
-        policies = cast("dict[str, Any]", config_dict.get("policies", {}))
-
-        config = HandleConfig(enabled=enabled, defaults=defaults, policies=policies)
+        config = self._build_handle_config(model)
         self._cache[command_key] = config
         return config
 
     async def update_config(self, command_key: str, updates: dict[str, Any]) -> None:
         """Update handle configuration with partial changes.
 
-        Reads existing configuration, applies updates, validates against
-        the JSON Schema, persists to disk, and updates the memory cache.
+        Reads existing configuration, applies shallow updates, validates the
+        merged result via ``type_validate_python``, persists the validated
+        configuration to disk, and updates the memory cache.
 
         Args:
             command_key: The unique identifier for the handle command.
-            updates: Dictionary of partial updates to apply.
+            updates: Dictionary of partial updates to apply. Top-level keys
+                (``enabled``, ``defaults``, ``policies``) replace the
+                existing values shallowly; nested defaults are re-merged
+                by the pydantic model's field defaults during validation.
 
         Raises:
             ValueError: If command_key is not registered or validation fails.
@@ -134,8 +122,9 @@ class HandleConfigManager:
         if command_key not in HANDLE_DEFAULTS_REGISTRY:
             raise ValueError(f"command_key not registered: {command_key}")
 
+        model_cls = HANDLE_DEFAULTS_REGISTRY[command_key]
         file_path = get_plugin_config_file(f"{command_key}.toml")
-        default_config = dict(HANDLE_DEFAULTS_REGISTRY[command_key])
+        default_config = model_cls().model_dump(mode="json")
 
         # Load existing config or use defaults
         try:
@@ -144,7 +133,6 @@ class HandleConfigManager:
                 default=default_config,
                 merge_default=True,
             )
-            config_dict = self._merge_registered_defaults(command_key, config_dict)
         except Exception:
             logger.error(
                 f"Failed to load handle config for {command_key} during update, "
@@ -152,27 +140,25 @@ class HandleConfigManager:
             )
             config_dict = default_config
 
-        # Apply updates
+        # Apply updates (shallow)
         config_dict.update(updates)
 
-        # Validate before persisting
-        if not self.validate_config(command_key, config_dict):
-            raise ValueError(f"validation failed: {command_key}")
+        # Validate via pydantic before persisting
+        try:
+            model = type_validate_python(model_cls, config_dict)
+        except ValidationError as exc:
+            raise ValueError(f"validation failed: {command_key}") from exc
 
-        # Persist to disk
+        # Persist validated configuration to disk
+        validated_dict = model.model_dump(mode="json")
         await write_toml_dict_file_async(
             file_path,
-            config_dict,
+            validated_dict,
             schema_basename=self._SCHEMA_REF,
         )
 
         # Update cache
-        enabled = cast("bool", config_dict.get("enabled", True))
-        defaults = cast("dict[str, Any]", config_dict.get("defaults", {}))
-        policies = cast("dict[str, Any]", config_dict.get("policies", {}))
-        self._cache[command_key] = HandleConfig(
-            enabled=enabled, defaults=defaults, policies=policies
-        )
+        self._cache[command_key] = self._build_handle_config(model)
 
         logger.info(f"Handle config updated and persisted for {command_key}")
 
@@ -190,13 +176,13 @@ class HandleConfigManager:
     async def ensure_config_files(self) -> None:
         """Ensure configuration files exist for all registered handles.
 
-        Creates missing files with schema directives and default values.
-        Existing files are not modified.
+        Creates missing files with schema directives and default values
+        derived from each handle's pydantic model. Existing files are
+        not modified.
         """
-        for command_key in HANDLE_DEFAULTS_REGISTRY:
+        for command_key, model_cls in HANDLE_DEFAULTS_REGISTRY.items():
             file_path = get_plugin_config_file(f"{command_key}.toml")
-            defaults = HANDLE_DEFAULTS_REGISTRY[command_key]
-            config_dict = dict(defaults)
+            config_dict = model_cls().model_dump(mode="json")
 
             try:
                 await ensure_toml_dict_file_async(
@@ -211,37 +197,6 @@ class HandleConfigManager:
                     f"Path: {file_path}"
                 )
 
-    def validate_config(self, command_key: str, config_dict: dict[str, Any]) -> bool:
-        """Validate handle configuration against JSON Schema.
-
-        Args:
-            command_key: The unique identifier for the handle command.
-            config_dict: Configuration dictionary to validate.
-
-        Returns:
-            True if validation passes, False otherwise.
-
-        Note:
-            This method does not throw exceptions on validation failure.
-            Errors are logged instead.
-        """
-        try:
-            schema = json.loads(HANDLE_CONFIG_SCHEMA_TEXT)
-            jsonschema.validate(config_dict, schema)
-        except jsonschema.ValidationError as e:
-            logger.error(
-                f"Handle config validation failed for {command_key}: {e.message}"
-            )
-            return False
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse schema JSON: {e}")
-            return False
-        except Exception:
-            logger.error(f"Unexpected error during validation for {command_key}")
-            return False
-        else:
-            return True
-
     def clear_cache(self) -> None:
         """Clear the internal configuration cache.
 
@@ -249,6 +204,24 @@ class HandleConfigManager:
         """
         self._cache.clear()
         logger.debug("Handle config cache cleared")
+
+    @staticmethod
+    def _build_handle_config(model: BaseModel) -> HandleConfig:
+        """Build a ``HandleConfig`` dataclass from a validated pydantic model.
+
+        Args:
+            model: A validated pydantic model instance with ``enabled``,
+                ``defaults``, and ``policies`` fields.
+
+        Returns:
+            A frozen ``HandleConfig`` dataclass populated from the model.
+        """
+        dumped: dict[str, Any] = model.model_dump(mode="json")
+        return HandleConfig(
+            enabled=cast("bool", dumped.get("enabled", True)),
+            defaults=cast("dict[str, Any]", dumped.get("defaults", {})),
+            policies=cast("dict[str, Any]", dumped.get("policies", {})),
+        )
 
 
 __all__ = [

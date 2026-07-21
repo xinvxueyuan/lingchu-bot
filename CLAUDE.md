@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (7509 symbols, 13824 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (7539 symbols, 13431 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -215,8 +215,10 @@ When modifying business logic, especially adapter-layer code, check all relevant
 | Docs | `apps/docs/content/docs/` |
 | Menu | `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py` |
 | Runtime config | `config.toml`, `bot_state.toml`, `menu.toml`, schema text in `core/schemas.py` |
-| Handle config files | `handle_config_defaults/`, `<command_key>.toml` in localstore config_dir |
+| Handle config files | `handle_config_defaults/<command>.py` (MUST declare a `pydantic.BaseModel` subclass and register via `register_handle_defaults()`), `<command_key>.toml` in localstore config_dir |
+| Schema files | `core/schemas.py` `install_schemas()` regenerates `<basename>.schema.json` from `model_json_schema()`; no hand-written JSON Schema text |
 | Triggers | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` |
+| Handler session injection | New matcher handlers add `session: async_scoped_session` (type only, no `= Depends(...)`); pass `session` as first arg to repository/permission calls |
 | Agent context | `AGENTS.md`, `CLAUDE.md`, `.github/note/AGENTS-zh.md` |
 
 For handle, QQ command, adapter handler, matcher, `command_key`, menu, trigger, permission, or config-coupled work, inspect `src/plugins/nonebot_plugin_lingchu_bot/handle/` and adjacent tests directly — the previous `engineering-workflow` skill reference has been removed.
@@ -245,6 +247,8 @@ For handle, QQ command, adapter handler, matcher, `command_key`, menu, trigger, 
 - Use `CommandAudit` for command audit payloads, then call `record_audit_fire_and_forget()` or `record_command_audit()`.
 - Do not add long parameter lists for platform, adapter, bot, group, target, reason, and duration; create a request object.
 - Use `fire_and_forget(coro, *, name="...")` only for discardable background work whose result is not needed by the caller.
+- **Session-first parameter convention**: All `database/orm_crud/*.py` and `repositories/*.py` functions MUST accept `session: AsyncSession | async_scoped_session` as the first positional parameter. Functions MUST NOT open their own `get_session()` (only background tasks in `services/scheduler.py` and `services/message_store.py` retain `async with get_session() as s:` because they own their lifecycle). Functions MUST NOT `commit`/`rollback` — the caller controls the transaction boundary.
+- **Fire-and-forget audit/permission helpers**: When a handler-side helper (e.g. `_default_permission_resolver`, `_default_audit_writer`) wraps a repository function whose signature now requires `session`, the helper MUST open its own scoped session (`async with get_session() as session:`) to satisfy the Protocol/Callable type the caller still expects. Do not push the session parameter into the Protocol signature; keep the boundary seam local to the helper.
 
 ## T — Tools
 
@@ -390,6 +394,24 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - OneBot V11 group `event.get_session_id()` can include both group and user IDs. Group-scoped history must use `group_id` as `conversation_id`.
 - For OneBot V11 image APIs, verify file field format against current adapter and NapCat docs before changing calls.
 - WSL2 + Docker Desktop bind mount requires the WSL distro root to be in Docker Desktop's File Sharing allow-list. When it is missing, the container sees an empty directory at the bind target while `docker inspect` still reports the source path. Detect with `docker exec <ctr> mount | grep <src>`: a `fuse.bind` or plain `bind` line is correct; `overlay` (lower=`/tmp/docker-desktop-root-ro`) means the bridge returned an empty view. Fix by adding `\\wsl.localhost\<distro>\` (or `\\wsl$\<distro>\` on older WSL) under Docker Desktop → Settings → Resources → File sharing, then **Apply & restart** and recreate the container. The Windows-side `docker` daemon does not see WSL paths through plain bind; do not assume the integration is "already on" — WSL Integration and File Sharing are two distinct settings.
+
+#### Pydantic Config And Schema Generation
+
+- Each `core/handle_config_defaults/<command>.py` MUST declare a `pydantic.BaseModel` subclass and register via `register_handle_defaults()`; the `HANDLE_DEFAULTS_REGISTRY` type is `dict[str, type[BaseModel]]`. Do not return bare `dict` defaults — pydantic owns validation and JSON Schema emission.
+- `HandleConfigManager.get_config()` / `update_config()` use `type_validate_python(model_cls, toml_dict)` for round-trip validation; `validate_config()` is removed (pydantic raises on invalid input).
+- `core/schemas.py::install_schemas()` iterates the pydantic model registry and writes `<basename>.schema.json` via `model_json_schema()`. No hand-written `*_SCHEMA_TEXT` constants remain (only `MENU_SCHEMA_TEXT` / `LLM_SCHEMA_TEXT` are retained because they back dataclass / private `_RootModel` surfaces outside this pydantic-ization scope).
+- `core/bot_state.py` uses `BotStateFile(BaseModel)` with `Field(alias="global")` + `populate_by_name=True` to bridge the `global` Python keyword; `_save_bot_state()` serializes with `model_dump(mode="json", by_alias=True)`.
+- `core/runtime_config.py` is merged into `core/config.py`; `RuntimeConfig = Config` alias is kept for LLM service-layer `TYPE_CHECKING` imports. All `runtime_config.xxx` singletons are now `plugin_config.xxx`.
+- `HandleConfig` dataclass still holds `dict[str, Any]` (frozen dataclass interface preserved); `_build_handle_config` bridges the pydantic ↔ dict boundary via `model_dump(mode="json")`. Migrating `HandleConfig` itself to hold pydantic instances is intentionally deferred to avoid churning downstream consumers.
+
+#### Handler Session Injection
+
+- nonebot_plugin_orm's `async_scoped_session` is `Annotated[sa_async.async_scoped_session[sa_async.AsyncSession], Depends(coroutine(get_scoped_session))]` — `Depends` is already embedded in the `Annotated` metadata. The correct handler signature is `async def handler(session: async_scoped_session, ...)` (type annotation only); writing `session: async_scoped_session = Depends(async_scoped_session)` triggers pyright strict errors and is wrong.
+- Handler signatures that need NoneBot dependency injection (bot, event, session) MUST use `@wraps(func)` on any wrapper so `inspect.signature(wrapper)` follows the wrapped function — NoneBot reads the signature to know which kwargs to inject.
+- Inside wrappers (e.g. `_permission_wrapper`), extract the injected session via `session = kwargs.get("session")`; do not re-open `get_session()`.
+- Test fixtures for handlers use `mock_session = AsyncMock()` with `sess.add = MagicMock()` / `sess.add_all = MagicMock()` (sync mocks for sync API), then call the handler with `session=mock_session`. For `mock.call_args` assertions, remember that `args[0]` is now `session` (repository/permission functions take session as first positional arg).
+- Background tasks (`services/scheduler.py`, `services/message_store.py`) keep `async with get_session() as session:` because they own their lifecycle and are not NoneBot handler dependencies.
+- `services/llm/agent.py::_default_permission_resolver` and `services/llm/mcp_audit.py::_default_audit_writer` are local wrappers that open a scoped session before calling the underlying session-first function; this keeps the `PermissionResolver` / `AuditWriter` Protocol signatures unchanged while satisfying the new repository API.
 
 #### Supply Chain
 

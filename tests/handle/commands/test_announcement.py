@@ -2,7 +2,7 @@
 
 import hashlib
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import aiofiles
 import pytest
@@ -24,10 +24,20 @@ def create_mock_image(raw: bytes | None = None) -> MagicMock:
     return image
 
 
+@pytest.fixture
+def mock_session() -> Mock:
+    """Provide a mock AsyncSession for announcement handler Depends() injection."""
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
+
+
 @pytest.mark.asyncio
 async def test_onebot11_send_group_announcement_calls_extension_api_without_image(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
+    mock_session: Mock,
 ) -> None:
     """无图片时，_send_group_notice 不应传入 image 参数。"""
     mock_onebot11_bot.get_version_info = AsyncMock(
@@ -46,6 +56,7 @@ async def test_onebot11_send_group_announcement_calls_extension_api_without_imag
             image=None,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     mock_onebot11_bot.call_api.assert_called_once_with(
@@ -61,6 +72,7 @@ async def test_onebot11_send_group_announcement_calls_extension_api_without_imag
 async def test_onebot11_send_group_announcement_calls_extension_api_with_image(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
+    mock_session: Mock,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -91,6 +103,7 @@ async def test_onebot11_send_group_announcement_calls_extension_api_with_image(
             image=image,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     call_kwargs = mock_onebot11_bot.call_api.call_args.kwargs
@@ -107,7 +120,9 @@ async def test_onebot11_send_group_announcement_calls_extension_api_with_image(
 
 @pytest.mark.asyncio
 async def test_onebot11_send_group_announcement_rejects_unsupported_impl(
-    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_session: Mock,
 ) -> None:
     mock_onebot11_bot.get_version_info = AsyncMock(
         return_value={
@@ -125,6 +140,7 @@ async def test_onebot11_send_group_announcement_rejects_unsupported_impl(
             image=None,
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
+            session=mock_session,
         )
 
     mock_onebot11_bot.call_api.assert_not_called()

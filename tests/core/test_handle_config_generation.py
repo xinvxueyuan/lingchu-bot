@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import aiofiles
+from nonebot.compat import type_validate_python
 import pytest
 import rtoml
 
@@ -257,20 +258,23 @@ async def test_schema_validation_for_all_handles(
     config_manager: HandleConfigManager,
     patched_localstore: Path,
 ):
-    """Test that all generated configurations pass JSON Schema validation."""
+    """Test that all generated configurations pass pydantic validation."""
     # Install schemas and ensure config files exist
     await install_schemas()
     await config_manager.ensure_config_files()
 
-    for command_key in HANDLE_DEFAULTS_REGISTRY:
+    for command_key, model_cls in HANDLE_DEFAULTS_REGISTRY.items():
         file_path = patched_localstore / f"{command_key}.toml"
         async with aiofiles.open(file_path, encoding="utf-8") as f:
             content = await f.read()
         config_dict = rtoml.loads(content)
 
-        # Validate using manager method
-        is_valid = config_manager.validate_config(command_key, config_dict)
-        assert is_valid, f"Config for {command_key} should pass schema validation"
+        # Validate via pydantic; raises ValidationError on failure
+        model = type_validate_python(model_cls, config_dict)
+        dumped = model.model_dump(mode="json")
+        assert dumped["enabled"] is True, (
+            f"Config for {command_key} should have enabled=True"
+        )
 
 
 async def test_toml_format_is_parseable(patched_localstore: Path):
@@ -299,7 +303,8 @@ async def test_config_matches_defaults(patched_localstore: Path):
     config_manager = HandleConfigManager()
     await config_manager.ensure_config_files()
 
-    for command_key, expected_defaults in HANDLE_DEFAULTS_REGISTRY.items():
+    for command_key, model_cls in HANDLE_DEFAULTS_REGISTRY.items():
+        expected_defaults = model_cls().model_dump(mode="json")
         file_path = patched_localstore / f"{command_key}.toml"
         async with aiofiles.open(file_path, encoding="utf-8") as f:
             content = await f.read()

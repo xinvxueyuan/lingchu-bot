@@ -37,10 +37,10 @@ def enabled_config() -> SimpleNamespace:
 def patched_runtime_config(
     monkeypatch: pytest.MonkeyPatch, enabled_config: SimpleNamespace
 ):
-    """Patch ``runtime_config`` in all modules that imported the name."""
-    monkeypatch.setattr(handler_module, "runtime_config", enabled_config)
-    monkeypatch.setattr(message_store, "runtime_config", enabled_config)
-    monkeypatch.setattr(adapters, "runtime_config", enabled_config)
+    """Patch ``plugin_config`` in all modules that imported the name."""
+    monkeypatch.setattr(handler_module, "plugin_config", enabled_config)
+    monkeypatch.setattr(message_store, "plugin_config", enabled_config)
+    monkeypatch.setattr(adapters, "plugin_config", enabled_config)
     return enabled_config
 
 
@@ -81,7 +81,7 @@ async def test_on_called_api_records_result(
     await coro
     record_api.assert_awaited_once()
     assert record_api.await_args is not None
-    audit_event = record_api.await_args.args[0]
+    audit_event = record_api.await_args.args[1]
     assert audit_event.api_name == "send_message"
     assert audit_event.adapter_id == "~onebot.v11"
     assert audit_event.data_summary == "{'message': 'hello'}"

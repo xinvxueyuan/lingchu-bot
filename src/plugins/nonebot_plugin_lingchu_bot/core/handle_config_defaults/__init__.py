@@ -1,70 +1,78 @@
 """Handle configuration defaults registry.
 
 This module provides a centralized registry for default configurations
-of different handle commands. Each handle can register its default
-configuration using the `register_handle_defaults` function.
+of different handle commands. Each handle registers its pydantic model
+class using the `register_handle_defaults` function. The model class
+serves as both the default-value source (via `model_cls().model_dump()`)
+and the validation schema (via `type_validate_python(model_cls, data)`).
 """
 
-from typing import Any
+from __future__ import annotations
 
-HANDLE_DEFAULTS_REGISTRY: dict[str, dict[str, Any]] = {}
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
+
+HANDLE_DEFAULTS_REGISTRY: dict[str, type[BaseModel]] = {}
 
 
-def register_handle_defaults(command_key: str, defaults: dict[str, Any]) -> None:
-    """Register default configuration for a handle command.
+def register_handle_defaults(command_key: str, model_cls: type[BaseModel]) -> None:
+    """Register a pydantic model class as the default handle configuration.
 
     Args:
         command_key: The unique identifier for the handle command.
-        defaults: The default configuration dictionary containing
-            'enabled', 'defaults', and 'policies' keys.
+        model_cls: A pydantic ``BaseModel`` subclass declaring the handle's
+            ``enabled``, ``defaults``, and ``policies`` fields. The model's
+            field defaults are used as the configuration fallback values,
+            and the model itself is used to validate TOML content via
+            ``type_validate_python``.
 
     Raises:
         ValueError: If command_key is already registered.
     """
     if command_key in HANDLE_DEFAULTS_REGISTRY:
         raise ValueError(f"duplicate key: {command_key}")
-    HANDLE_DEFAULTS_REGISTRY[command_key] = defaults
+    HANDLE_DEFAULTS_REGISTRY[command_key] = model_cls
 
 
 # Import and register default configurations
-from .block_member import BLOCK_MEMBER_DEFAULTS
-from .kick_member import KICK_MEMBER_DEFAULTS
-from .mass_announcement import MASS_ANNOUNCEMENT_DEFAULTS
-from .member_mute import MEMBER_MUTE_DEFAULTS
-from .protect_member import PROTECT_MEMBER_DEFAULTS
-from .recall_message import RECALL_MESSAGE_DEFAULTS
-from .remote_announcement import REMOTE_ANNOUNCEMENT_DEFAULTS
-from .remote_block import REMOTE_BLOCK_DEFAULTS
-from .remote_kick import REMOTE_KICK_DEFAULTS
-from .remote_mute import REMOTE_MUTE_DEFAULTS
-from .restart_protocol_endpoint import RESTART_PROTOCOL_ENDPOINT_DEFAULTS
-from .send_announcement import SEND_ANNOUNCEMENT_DEFAULTS
-from .set_group_avatar import SET_GROUP_AVATAR_DEFAULTS
-from .set_group_name import SET_GROUP_NAME_DEFAULTS
-from .set_member_admin import SET_MEMBER_ADMIN_DEFAULTS
-from .set_member_card import SET_MEMBER_CARD_DEFAULTS
-from .set_member_title import SET_MEMBER_TITLE_DEFAULTS
+from .block_member import BlockMemberConfig
+from .kick_member import KickMemberConfig
+from .mass_announcement import MassAnnouncementConfig
+from .member_mute import MemberMuteConfig
+from .protect_member import ProtectMemberConfig
+from .recall_message import RecallMessageConfig
+from .remote_announcement import RemoteAnnouncementConfig
+from .remote_block import RemoteBlockConfig
+from .remote_kick import RemoteKickConfig
+from .remote_mute import RemoteMuteConfig
+from .restart_protocol_endpoint import RestartProtocolEndpointConfig
+from .send_announcement import SendAnnouncementConfig
+from .set_group_avatar import SetGroupAvatarConfig
+from .set_group_name import SetGroupNameConfig
+from .set_member_admin import SetMemberAdminConfig
+from .set_member_card import SetMemberCardConfig
+from .set_member_title import SetMemberTitleConfig
 
 # Register all default configurations
-register_handle_defaults("kick_member", KICK_MEMBER_DEFAULTS)
-register_handle_defaults("protect_member", PROTECT_MEMBER_DEFAULTS)
-register_handle_defaults("block_member", BLOCK_MEMBER_DEFAULTS)
-register_handle_defaults("member_mute", MEMBER_MUTE_DEFAULTS)
-register_handle_defaults("recall_message", RECALL_MESSAGE_DEFAULTS)
-register_handle_defaults("remote_mute", REMOTE_MUTE_DEFAULTS)
-register_handle_defaults("remote_kick", REMOTE_KICK_DEFAULTS)
-register_handle_defaults("remote_block", REMOTE_BLOCK_DEFAULTS)
-register_handle_defaults("remote_announcement", REMOTE_ANNOUNCEMENT_DEFAULTS)
-register_handle_defaults("mass_announcement", MASS_ANNOUNCEMENT_DEFAULTS)
-register_handle_defaults(
-    "restart_protocol_endpoint", RESTART_PROTOCOL_ENDPOINT_DEFAULTS
-)
-register_handle_defaults("send_announcement", SEND_ANNOUNCEMENT_DEFAULTS)
-register_handle_defaults("set_member_card", SET_MEMBER_CARD_DEFAULTS)
-register_handle_defaults("set_member_title", SET_MEMBER_TITLE_DEFAULTS)
-register_handle_defaults("set_member_admin", SET_MEMBER_ADMIN_DEFAULTS)
-register_handle_defaults("set_group_name", SET_GROUP_NAME_DEFAULTS)
-register_handle_defaults("set_group_avatar", SET_GROUP_AVATAR_DEFAULTS)
+register_handle_defaults("kick_member", KickMemberConfig)
+register_handle_defaults("protect_member", ProtectMemberConfig)
+register_handle_defaults("block_member", BlockMemberConfig)
+register_handle_defaults("member_mute", MemberMuteConfig)
+register_handle_defaults("recall_message", RecallMessageConfig)
+register_handle_defaults("remote_mute", RemoteMuteConfig)
+register_handle_defaults("remote_kick", RemoteKickConfig)
+register_handle_defaults("remote_block", RemoteBlockConfig)
+register_handle_defaults("remote_announcement", RemoteAnnouncementConfig)
+register_handle_defaults("mass_announcement", MassAnnouncementConfig)
+register_handle_defaults("restart_protocol_endpoint", RestartProtocolEndpointConfig)
+register_handle_defaults("send_announcement", SendAnnouncementConfig)
+register_handle_defaults("set_member_card", SetMemberCardConfig)
+register_handle_defaults("set_member_title", SetMemberTitleConfig)
+register_handle_defaults("set_member_admin", SetMemberAdminConfig)
+register_handle_defaults("set_group_name", SetGroupNameConfig)
+register_handle_defaults("set_group_avatar", SetGroupAvatarConfig)
 
 __all__ = [
     "HANDLE_DEFAULTS_REGISTRY",

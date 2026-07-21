@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from nonebot import logger, require
 from nonebot.adapters.onebot.v11 import Bot as Onebot11Bot
@@ -14,7 +16,10 @@ from nonebot.adapters.onebot.v11.exception import (
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At
 
-from ......core.runtime_config import runtime_config
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import get_session
+
+from ......core.config import plugin_config
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......permissions.subject_policy import find_active_subject_policy
@@ -26,6 +31,9 @@ from ......repositories.blocklist import (
     upsert_block,
 )
 from ....commands.common import GroupCommand
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 
 QQ_PLATFORM_ID: Final[str] = "qq"
 ONEBOT_V11_ADAPTER_ID: Final[str] = "~onebot.v11"
@@ -178,6 +186,7 @@ async def check_self_target(
 
 
 async def store_block_record(
+    session: AsyncSession | async_scoped_session,
     *,
     scope: BlockScope,
     group_id: int,
@@ -189,6 +198,7 @@ async def store_block_record(
 ) -> None:
     """存储黑名单记录（本地和远程统一入口）"""
     await upsert_block(
+        session,
         BlocklistUpsert(
             platform_id=QQ_PLATFORM_ID,
             adapter_id=ONEBOT_V11_ADAPTER_ID,
@@ -199,11 +209,12 @@ async def store_block_record(
             operator_id=operator_id,
             reason=reason,
             expires_at=expires_at_from_duration(duration),
-        )
+        ),
     )
 
 
 async def check_target_privilege(
+    session: AsyncSession | async_scoped_session,
     bot: Onebot11Bot,
     event: Onebot11GroupMessageEvent,
     target_user_id: int,
@@ -213,8 +224,8 @@ async def check_target_privilege(
 
     如果目标用户是管理员或群主，且操作者不是群主或超级用户，则拒绝操作。
     """
-    if await _is_protected_target(bot, event, target_user_id, cmd_matcher):
-        if await operator_is_superuser_onebot11(event.user_id):
+    if await _is_protected_target(session, bot, event, target_user_id, cmd_matcher):
+        if await operator_is_superuser_onebot11(session, event.user_id):
             return True
         await cmd_matcher.finish(await _("目标用户受白名单保护，无法执行"))
         return False
@@ -249,15 +260,17 @@ async def check_target_privilege(
 
 
 async def _is_protected_target(
+    session: AsyncSession | async_scoped_session,
     bot: Onebot11Bot,
     event: Onebot11GroupMessageEvent,
     target_user_id: int,
     cmd_matcher: Any,
 ) -> bool:
     command_key = getattr(cmd_matcher, "_lingchu_command_key", None)
-    if command_key not in runtime_config.protected_subject_feature_keys:
+    if command_key not in plugin_config.protected_subject_feature_keys:
         return False
     protected = await find_active_subject_policy(
+        session,
         policy_type="protected",
         platform_id=QQ_PLATFORM_ID,
         adapter_id=ONEBOT_V11_ADAPTER_ID,
@@ -268,14 +281,18 @@ async def _is_protected_target(
     return protected is not None
 
 
-async def operator_is_superuser_onebot11(operator_user_id: int) -> bool:
+async def operator_is_superuser_onebot11(
+    session: AsyncSession | async_scoped_session,
+    operator_user_id: int,
+) -> bool:
     try:
         user = await permission_repo.get_user_by_platform_account(
+            session,
             QQ_PLATFORM_ID,
             str(operator_user_id),
         )
         uid = getattr(user, "uid", None) if user is not None else None
-        return bool(uid and await permission_repo.is_superuser(str(uid)))
+        return bool(uid and await permission_repo.is_superuser(session, str(uid)))
     except DatabaseError:
         logger.exception("验证 SUPERUSERS 权限失败: user_id=%s", operator_user_id)
         return False
@@ -336,19 +353,21 @@ async def record_command_audit(
         data_summary += f", reason={audit.reason}"
 
     try:
-        await record_api_call(
-            AuditEvent(
-                platform_id=QQ_PLATFORM_ID,
-                adapter_id=ONEBOT_V11_ADAPTER_ID,
-                protocol_id=None,
-                bot_id=bot_id(bot),
-                api_name=f"command:{audit.action}",
-                data_summary=data_summary,
-                result_summary="success",
-                exception_summary=None,
-                audit_type="command",
+        async with get_session() as s:
+            await record_api_call(
+                s,
+                AuditEvent(
+                    platform_id=QQ_PLATFORM_ID,
+                    adapter_id=ONEBOT_V11_ADAPTER_ID,
+                    protocol_id=None,
+                    bot_id=bot_id(bot),
+                    api_name=f"command:{audit.action}",
+                    data_summary=data_summary,
+                    result_summary="success",
+                    exception_summary=None,
+                    audit_type="command",
+                ),
             )
-        )
     except DatabaseError:
         logger.exception(f"记录命令审计失败: action={audit.action}")
 

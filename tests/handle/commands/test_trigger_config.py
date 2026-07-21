@@ -1,5 +1,5 @@
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -66,17 +66,18 @@ def test_command_trigger_overrides_reject_duplicates() -> None:
         )
 
 
-def _patch_triggers_toml_db(
+def _patch_triggers_toml_helpers(
     monkeypatch: pytest.MonkeyPatch,
-    read_return: Any,
-) -> MagicMock:
-    fake_db = MagicMock()
-    fake_db.__aenter__.return_value = fake_db
-    fake_db.read = AsyncMock(return_value=read_return)
-    fake_db.set = AsyncMock()
-    fake_db.delete = AsyncMock(return_value=True)
-    monkeypatch.setattr(triggers, "RobustAsyncTOMLDB", MagicMock(return_value=fake_db))
-    return fake_db
+    load_return: Any,
+) -> tuple[AsyncMock, AsyncMock]:
+    if isinstance(load_return, Exception):
+        load_mock = AsyncMock(side_effect=load_return)
+    else:
+        load_mock = AsyncMock(return_value=load_return)
+    write_mock = AsyncMock()
+    monkeypatch.setattr(triggers, "load_toml_dict_async", load_mock)
+    monkeypatch.setattr(triggers, "write_toml_dict_file_async", write_mock)
+    return load_mock, write_mock
 
 
 def test_build_command_triggers_skips_override_for_unknown_command_key() -> None:
@@ -229,9 +230,13 @@ def test_override_to_json_omits_none_fields() -> None:
 async def test_list_command_trigger_overrides_returns_empty_when_raw_not_dict(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _patch_triggers_toml_db(monkeypatch, read_return=["not", "a", "dict"])
+    load_mock, write_mock = _patch_triggers_toml_helpers(
+        monkeypatch, load_return={"command_trigger_overrides": ["not", "a", "dict"]}
+    )
 
     assert await list_command_trigger_overrides() == {}
+    load_mock.assert_awaited_once()
+    write_mock.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -239,7 +244,9 @@ async def test_list_command_trigger_overrides_parses_dict_raw(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     raw = {"menu": {"chinese": "功能表", "english_aliases": ["help-me"]}}
-    fake_db = _patch_triggers_toml_db(monkeypatch, read_return=raw)
+    load_mock, write_mock = _patch_triggers_toml_helpers(
+        monkeypatch, load_return={"command_trigger_overrides": raw}
+    )
 
     result = await list_command_trigger_overrides()
 
@@ -248,14 +255,15 @@ async def test_list_command_trigger_overrides_parses_dict_raw(
         chinese="功能表",
         english_aliases=frozenset({"help-me"}),
     )
-    fake_db.read.assert_awaited_once_with("command_trigger_overrides", {})
+    load_mock.assert_awaited_once()
+    write_mock.assert_not_awaited()
 
 
 @pytest.mark.asyncio
 async def test_upsert_command_trigger_override_merges_and_writes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    fake_db = _patch_triggers_toml_db(monkeypatch, read_return={})
+    load_mock, write_mock = _patch_triggers_toml_helpers(monkeypatch, load_return={})
     override = CommandTriggerOverride(
         chinese="我的菜单",
         english="my-menu",
@@ -266,33 +274,41 @@ async def test_upsert_command_trigger_override_merges_and_writes(
     result = await upsert_command_trigger_override("menu", override)
 
     assert result["menu"] == override
-    fake_db.set.assert_awaited_once_with(
-        "command_trigger_overrides.menu",
-        {
-            "chinese": "我的菜单",
-            "english": "my-menu",
-            "chinese_aliases": ["我的帮助"],
-            "english_aliases": ["my-help"],
-        },
-    )
+    load_mock.assert_awaited()
+    write_mock.assert_awaited_once()
+    written_data = write_mock.call_args.args[1]
+    assert written_data["command_trigger_overrides"]["menu"] == {
+        "chinese": "我的菜单",
+        "english": "my-menu",
+        "chinese_aliases": ["我的帮助"],
+        "english_aliases": ["my-help"],
+    }
 
 
 @pytest.mark.asyncio
 async def test_delete_command_trigger_override_returns_db_result(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    fake_db = _patch_triggers_toml_db(monkeypatch, read_return={})
+    raw = {"menu": {"chinese": "功能表", "english_aliases": ["help-me"]}}
+    load_mock, write_mock = _patch_triggers_toml_helpers(
+        monkeypatch, load_return={"command_trigger_overrides": raw}
+    )
 
     assert await delete_command_trigger_override("menu") is True
-    fake_db.delete.assert_awaited_once_with("command_trigger_overrides.menu")
+    load_mock.assert_awaited_once()
+    write_mock.assert_awaited_once()
+    written_data = write_mock.call_args.args[1]
+    assert "menu" not in written_data["command_trigger_overrides"]
 
 
 @pytest.mark.asyncio
 async def test_delete_command_trigger_override_returns_false_when_key_absent(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    fake_db = _patch_triggers_toml_db(monkeypatch, read_return={})
-    fake_db.delete = AsyncMock(return_value=False)
+    load_mock, write_mock = _patch_triggers_toml_helpers(
+        monkeypatch, load_return={"command_trigger_overrides": {}}
+    )
 
     assert await delete_command_trigger_override("unknown") is False
-    fake_db.delete.assert_awaited_once_with("command_trigger_overrides.unknown")
+    load_mock.assert_awaited_once()
+    write_mock.assert_not_awaited()

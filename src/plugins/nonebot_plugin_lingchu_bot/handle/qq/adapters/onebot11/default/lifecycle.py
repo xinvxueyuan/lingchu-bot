@@ -1,11 +1,14 @@
 from typing import Any
 
-from nonebot import logger
+from nonebot import logger, require
 from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
 from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent as OneBot11GroupMessageEvent,
 )
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
+
+require("nonebot_plugin_orm")
+from nonebot_plugin_orm import async_scoped_session
 
 from ......i18n import _async as _
 from ......services.protocol_restart_feedback import (
@@ -38,6 +41,7 @@ def _is_current_onebot11_platform(platform: str | None) -> bool:
 async def onebot11_quit_group(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
 ) -> Any:
     # 1. 执行退出群操作
     try:
@@ -56,6 +60,7 @@ async def onebot11_quit_group(
 async def onebot11_restart_protocol_endpoint(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
     platform: str | None = None,
 ) -> Any:
     if not _is_current_onebot11_platform(platform):

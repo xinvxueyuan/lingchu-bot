@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 from typing import cast
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
@@ -22,26 +22,39 @@ from src.plugins.nonebot_plugin_lingchu_bot.permissions.types import (
 from src.plugins.nonebot_plugin_lingchu_bot.repositories import permissions as repo
 
 
+@pytest.fixture
+def mock_session() -> Mock:
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
+
+
 @pytest.mark.asyncio
 async def test_non_superuser_cannot_create_group(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=False))
 
     with pytest.raises(PermissionDeniedError):
         await create_platform_identity_group(
-            "userA", IdentityGroupCreate("qq", "qq.custom", "自定义")
+            mock_session, "userA", IdentityGroupCreate("qq", "qq.custom", "自定义")
         )
 
 
 @pytest.mark.asyncio
-async def test_superuser_can_create_group(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_superuser_can_create_group(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
+) -> None:
     created = SimpleNamespace(group_id="qq.custom")
     upsert = AsyncMock(return_value=created)
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
     monkeypatch.setattr(repo, "upsert_identity_group", upsert)
 
     result = await create_platform_identity_group(
+        mock_session,
         "userA",
         IdentityGroupCreate(
             "qq", "qq.custom", "自定义", mcp_permission_level="critical"
@@ -58,6 +71,7 @@ async def test_superuser_can_create_group(monkeypatch: pytest.MonkeyPatch) -> No
 @pytest.mark.asyncio
 async def test_create_group_rejects_invalid_mcp_permission(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
     request = IdentityGroupCreate(
@@ -68,11 +82,14 @@ async def test_create_group_rejects_invalid_mcp_permission(
     )
 
     with pytest.raises(ValueError, match="Invalid MCP permission level"):
-        await create_platform_identity_group("userA", request)
+        await create_platform_identity_group(mock_session, "userA", request)
 
 
 @pytest.mark.asyncio
-async def test_builtin_group_cannot_be_updated(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_builtin_group_cannot_be_updated(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
+) -> None:
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
     monkeypatch.setattr(
         repo,
@@ -81,11 +98,16 @@ async def test_builtin_group_cannot_be_updated(monkeypatch: pytest.MonkeyPatch) 
     )
 
     with pytest.raises(ValueError, match="Builtin"):
-        await update_platform_identity_group("userA", "qq.group", display_name="x")
+        await update_platform_identity_group(
+            mock_session, "userA", "qq.group", display_name="x"
+        )
 
 
 @pytest.mark.asyncio
-async def test_group_in_use_cannot_be_deleted(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_group_in_use_cannot_be_deleted(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
+) -> None:
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
     monkeypatch.setattr(
         repo,
@@ -96,11 +118,14 @@ async def test_group_in_use_cannot_be_deleted(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(repo, "list_grants", AsyncMock(return_value=[]))
 
     with pytest.raises(ValueError, match="still in use"):
-        await delete_platform_identity_group("userA", "qq.custom")
+        await delete_platform_identity_group(mock_session, "userA", "qq.custom")
 
 
 @pytest.mark.asyncio
-async def test_superuser_can_add_member(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_superuser_can_add_member(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
+) -> None:
     membership = SimpleNamespace(uid="userB", group_id="qq.custom")
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
     monkeypatch.setattr(
@@ -110,23 +135,31 @@ async def test_superuser_can_add_member(monkeypatch: pytest.MonkeyPatch) -> None
     )
     monkeypatch.setattr(repo, "upsert_membership", AsyncMock(return_value=membership))
 
-    result = await add_identity_group_member("userA", "userB", "qq.custom")
+    result = await add_identity_group_member(
+        mock_session, "userA", "userB", "qq.custom"
+    )
 
     assert result is membership
 
 
 @pytest.mark.asyncio
-async def test_update_unknown_group_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_update_unknown_group_raises(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
+) -> None:
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
     monkeypatch.setattr(repo, "get_identity_group", AsyncMock(return_value=None))
 
     with pytest.raises(ValueError, match="Unknown identity group"):
-        await update_platform_identity_group("userA", "qq.unknown", display_name="x")
+        await update_platform_identity_group(
+            mock_session, "userA", "qq.unknown", display_name="x"
+        )
 
 
 @pytest.mark.asyncio
 async def test_update_group_rejects_unknown_fields(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     original = SimpleNamespace(group_id="qq.custom", builtin=False)
     updated = SimpleNamespace(group_id="qq.custom", builtin=False, display_name="new")
@@ -141,6 +174,7 @@ async def test_update_group_rejects_unknown_fields(
 
     with pytest.raises(ValueError, match="Unknown identity group fields"):
         await update_platform_identity_group(
+            mock_session,
             "userA",
             "qq.custom",
             display_name="new",
@@ -153,6 +187,7 @@ async def test_update_group_rejects_unknown_fields(
 @pytest.mark.asyncio
 async def test_update_group_skips_when_no_allowed_fields(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     group = SimpleNamespace(group_id="qq.custom", builtin=False)
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
@@ -164,7 +199,7 @@ async def test_update_group_skips_when_no_allowed_fields(
     update_mock = AsyncMock(return_value=(1, True))
     monkeypatch.setattr(repo, "update_identity_group", update_mock)
 
-    result = await update_platform_identity_group("userA", "qq.custom")
+    result = await update_platform_identity_group(mock_session, "userA", "qq.custom")
 
     assert result is group
     update_mock.assert_not_awaited()
@@ -173,6 +208,7 @@ async def test_update_group_skips_when_no_allowed_fields(
 @pytest.mark.asyncio
 async def test_update_group_raises_when_none_after_update(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     group = SimpleNamespace(group_id="qq.custom", builtin=False)
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
@@ -186,23 +222,29 @@ async def test_update_group_raises_when_none_after_update(
     )
 
     with pytest.raises(ValueError, match="Unknown identity group after update"):
-        await update_platform_identity_group("userA", "qq.custom", display_name="new")
+        await update_platform_identity_group(
+            mock_session, "userA", "qq.custom", display_name="new"
+        )
 
 
 @pytest.mark.asyncio
 async def test_delete_unknown_group_returns_zero(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
     monkeypatch.setattr(repo, "get_identity_group", AsyncMock(return_value=None))
 
-    result = await delete_platform_identity_group("userA", "qq.unknown")
+    result = await delete_platform_identity_group(mock_session, "userA", "qq.unknown")
 
     assert result == (0, True)
 
 
 @pytest.mark.asyncio
-async def test_delete_builtin_group_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_delete_builtin_group_raises(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
+) -> None:
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
     monkeypatch.setattr(
         repo,
@@ -211,11 +253,14 @@ async def test_delete_builtin_group_raises(monkeypatch: pytest.MonkeyPatch) -> N
     )
 
     with pytest.raises(ValueError, match="Builtin"):
-        await delete_platform_identity_group("userA", "qq.group")
+        await delete_platform_identity_group(mock_session, "userA", "qq.group")
 
 
 @pytest.mark.asyncio
-async def test_delete_group_success(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_delete_group_success(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
+) -> None:
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
     monkeypatch.setattr(
         repo,
@@ -227,15 +272,16 @@ async def test_delete_group_success(monkeypatch: pytest.MonkeyPatch) -> None:
     delete_mock = AsyncMock(return_value=(1, True))
     monkeypatch.setattr(repo, "delete_identity_group", delete_mock)
 
-    result = await delete_platform_identity_group("userA", "qq.custom")
+    result = await delete_platform_identity_group(mock_session, "userA", "qq.custom")
 
     assert result == (1, True)
-    delete_mock.assert_awaited_once_with("qq.custom")
+    delete_mock.assert_awaited_once_with(mock_session, "qq.custom")
 
 
 @pytest.mark.asyncio
 async def test_delete_group_grants_in_use_raises(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
     monkeypatch.setattr(
@@ -247,34 +293,42 @@ async def test_delete_group_grants_in_use_raises(
     monkeypatch.setattr(repo, "list_grants", AsyncMock(return_value=[object()]))
 
     with pytest.raises(ValueError, match="still in use"):
-        await delete_platform_identity_group("userA", "qq.custom")
+        await delete_platform_identity_group(mock_session, "userA", "qq.custom")
 
 
 @pytest.mark.asyncio
 async def test_add_member_unknown_group_raises(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
     monkeypatch.setattr(repo, "get_identity_group", AsyncMock(return_value=None))
 
     with pytest.raises(ValueError, match="Unknown identity group"):
-        await add_identity_group_member("userA", "userB", "qq.unknown")
+        await add_identity_group_member(mock_session, "userA", "userB", "qq.unknown")
 
 
 @pytest.mark.asyncio
 async def test_remove_member_calls_delete_membership(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
     delete_mock = AsyncMock(return_value=(1, True))
     monkeypatch.setattr(repo, "delete_membership", delete_mock)
 
     result = await remove_identity_group_member(
-        "userA", "userB", "qq.custom", scope_type="group", scope_id="10001"
+        mock_session,
+        "userA",
+        "userB",
+        "qq.custom",
+        scope_type="group",
+        scope_id="10001",
     )
 
     assert result == (1, True)
     delete_mock.assert_awaited_once_with(
+        mock_session,
         uid="userB",
         group_id="qq.custom",
         scope_type="group",
@@ -285,6 +339,7 @@ async def test_remove_member_calls_delete_membership(
 @pytest.mark.asyncio
 async def test_list_members_calls_list_memberships(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     memberships = [SimpleNamespace(uid="userB", group_id="qq.custom")]
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
@@ -292,11 +347,12 @@ async def test_list_members_calls_list_memberships(
     monkeypatch.setattr(repo, "list_memberships", list_mock)
 
     result = await list_identity_group_members(
-        "userA", "qq.custom", scope_type="group", scope_id="10001"
+        mock_session, "userA", "qq.custom", scope_type="group", scope_id="10001"
     )
 
     assert result is memberships
     list_mock.assert_awaited_once_with(
+        mock_session,
         group_id="qq.custom",
         scope_type="group",
         scope_id="10001",
@@ -306,6 +362,7 @@ async def test_list_members_calls_list_memberships(
 @pytest.mark.asyncio
 async def test_assert_superuser_accepts_permission_context(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     """assert_superuser resolves uid from PermissionContext actor."""
     monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
@@ -316,19 +373,20 @@ async def test_assert_superuser_accepts_permission_context(
         uid="userA",
     )
 
-    await assert_superuser(context)
+    await assert_superuser(mock_session, context)
 
 
 @pytest.mark.asyncio
 async def test_assert_superuser_rejects_empty_uid(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     """Empty uid is rejected before querying the repository."""
     is_super = AsyncMock(return_value=True)
     monkeypatch.setattr(repo, "is_superuser", is_super)
 
     with pytest.raises(PermissionDeniedError):
-        await assert_superuser("")
+        await assert_superuser(mock_session, "")
 
     is_super.assert_not_awaited()
 
@@ -336,6 +394,7 @@ async def test_assert_superuser_rejects_empty_uid(
 @pytest.mark.asyncio
 async def test_create_group_with_permission_context_actor(
     monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
 ) -> None:
     """create_platform_identity_group resolves managed_by from PermissionContext."""
     created = SimpleNamespace(group_id="qq.custom")
@@ -350,7 +409,7 @@ async def test_create_group_with_permission_context_actor(
     )
 
     result = await create_platform_identity_group(
-        context, IdentityGroupCreate("qq", "qq.custom", "自定义")
+        mock_session, context, IdentityGroupCreate("qq", "qq.custom", "自定义")
     )
 
     assert result is created

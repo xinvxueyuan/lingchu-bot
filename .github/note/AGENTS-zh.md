@@ -167,8 +167,10 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 | Docs                | `apps/docs/content/docs/`                                                |
 | Menu                | `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py`                  |
 | Runtime config      | `config.toml`、`bot_state.toml`、`menu.toml`、`core/schemas.py` schema 文本   |
-| Handle config files | `handle_config_defaults/`、localstore config\_dir 中的 `<command_key>.toml` |
+| Handle config files | `handle_config_defaults/<command>.py`（MUST 声明 `pydantic.BaseModel` 子类并通过 `register_handle_defaults()` 注册）、localstore config\_dir 中的 `<command_key>.toml` |
+| Schema files        | `core/schemas.py` 的 `install_schemas()` 通过 `model_json_schema()` 重新生成 `<basename>.schema.json`；禁止手写 JSON Schema 文本 |
 | Triggers            | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py`  |
+| Handler session injection | 新 matcher handler 添加 `session: async_scoped_session`（仅类型注解，不要写 `= Depends(...)`）；调用 repository/permission 时把 `session` 作为首参 |
 | Agent context       | `AGENTS.md`、`CLAUDE.md`、`.github/note/AGENTS-zh.md`                      |
 
 涉及 handle、QQ command、adapter handler、matcher、`command_key`、menu、trigger、permission、config 耦合的工作，直接检查 `src/plugins/nonebot_plugin_lingchu_bot/handle/` 及相邻 tests —— 原 `engineering-workflow` skill 引用已移除。
@@ -197,6 +199,8 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 - Command audit payload 使用 `CommandAudit`，再调用 `record_audit_fire_and_forget()` 或 `record_command_audit()`。
 - 不新增 platform、adapter、bot、group、target、reason、duration 等长参数列表；创建 request object。
 - `fire_and_forget(coro, *, name="...")` 只用于调用方不需要结果的可丢弃后台工作。
+- **Session 首参约定**：所有 `database/orm_crud/*.py` 和 `repositories/*.py` 函数 MUST 把 `session: AsyncSession | async_scoped_session` 作为第一个位置参数。函数内 MUST NOT 自己 `get_session()`（仅 `services/scheduler.py` 和 `services/message_store.py` 的后台任务保留 `async with get_session() as s:`，因为它们自管生命周期）。函数内 MUST NOT `commit`/`rollback` —— 事务边界由调用方控制。
+- **Fire-and-forget 审计/权限 helper**：当 handler 侧 helper（如 `_default_permission_resolver`、`_default_audit_writer`）包装的 repository 函数已要求 `session` 时，helper MUST 自己开 scoped session（`async with get_session() as session:`）以满足调用方仍在使用的 Protocol/Callable 类型。不要把 session 参数推到 Protocol 签名上，把边界缝留在 helper 内部。
 
 ## T — Tools
 
@@ -342,6 +346,24 @@ task ci
 - OneBot V11 群 `event.get_session_id()` 可能同时包含群和用户 ID。群级历史必须用 `group_id` 作为 `conversation_id`。
 - OneBot V11 图片 API 变更前，先用当前 adapter 和 NapCat 文档确认 file field 格式。
 - WSL2 + Docker Desktop bind mount 要求 WSL 发行版根目录必须加入 Docker Desktop File Sharing 白名单。漏配时容器内 bind 目标是空目录，但 `docker inspect` 仍报源路径正确。判断方法：`docker exec <ctr> mount | grep <src>`，出现 `fuse.bind` 或纯 `bind` 是正常；`overlay`（lower=`/tmp/docker-desktop-root-ro`）说明桥接层返回了空视图。修法：在 Docker Desktop → Settings → Resources → File sharing 加 `\\wsl.localhost\<distro>\`（旧版 WSL 写 `\\wsl$\<distro>\`），点 **Apply & restart** 后重建容器。Windows 侧 docker daemon 不会通过普通 bind 看到 WSL 路径；WSL Integration 与 File Sharing 是两个独立开关，不能假设"已经开了"。
+
+#### Pydantic Config And Schema Generation
+
+- 每个 `core/handle_config_defaults/<command>.py` MUST 声明一个 `pydantic.BaseModel` 子类并通过 `register_handle_defaults()` 注册；`HANDLE_DEFAULTS_REGISTRY` 类型为 `dict[str, type[BaseModel]]`。不要返回裸 `dict` 默认值 —— 校验和 JSON Schema 生成由 pydantic 承担。
+- `HandleConfigManager.get_config()` / `update_config()` 用 `type_validate_python(model_cls, toml_dict)` 做往返校验；`validate_config()` 已删除（pydantic 在非法输入时直接抛异常）。
+- `core/schemas.py::install_schemas()` 遍历 pydantic model registry，通过 `model_json_schema()` 写出 `<basename>.schema.json`。手写的 `*_SCHEMA_TEXT` 常量已全部移除（仅保留 `MENU_SCHEMA_TEXT` / `LLM_SCHEMA_TEXT`：前者基于 dataclass，后者基于私有 `_RootModel`，均不在本次 pydantic 化范围内）。
+- `core/bot_state.py` 使用 `BotStateFile(BaseModel)`，通过 `Field(alias="global")` + `populate_by_name=True` 桥接 `global` Python 关键字；`_save_bot_state()` 用 `model_dump(mode="json", by_alias=True)` 序列化。
+- `core/runtime_config.py` 已合并入 `core/config.py`；保留 `RuntimeConfig = Config` 别名供 LLM 服务层 `TYPE_CHECKING` 引用。所有 `runtime_config.xxx` 单例访问统一为 `plugin_config.xxx`。
+- `HandleConfig` dataclass 仍持 `dict[str, Any]`（frozen dataclass 接口保留）；`_build_handle_config` 通过 `model_dump(mode="json")` 桥接 pydantic ↔ dict 边界。将 `HandleConfig` 自身改为持 pydantic 实例的工作有意延后，以避免波及下游消费者。
+
+#### Handler Session Injection
+
+- nonebot_plugin_orm 的 `async_scoped_session` 是 `Annotated[sa_async.async_scoped_session[sa_async.AsyncSession], Depends(coroutine(get_scoped_session))]` —— `Depends` 已嵌入 `Annotated` 元数据。正确签名是 `async def handler(session: async_scoped_session, ...)`（仅类型注解）；写 `session: async_scoped_session = Depends(async_scoped_session)` 会触发 pyright strict 错误，且是错误的。
+- 需要 NoneBot 依赖注入（bot、event、session）的 handler 签名 MUST 在任何 wrapper 上使用 `@wraps(func)`，让 `inspect.signature(wrapper)` 跟随被包装函数 —— NoneBot 通过 signature 决定注入哪些 kwargs。
+- 在 wrapper 内部（如 `_permission_wrapper`），通过 `session = kwargs.get("session")` 提取已注入的 session；不要重新 `get_session()`。
+- handler 测试 fixture 使用 `mock_session = AsyncMock()`，并把 `sess.add = MagicMock()` / `sess.add_all = MagicMock()`（同步 API 用同步 mock）；调用 handler 时传 `session=mock_session`。断言 `mock.call_args` 时注意 `args[0]` 现在是 `session`（repository/permission 函数首参为 session）。
+- 后台任务（`services/scheduler.py`、`services/message_store.py`）保留 `async with get_session() as session:`，因为它们自管生命周期，不属于 NoneBot handler 依赖。
+- `services/llm/agent.py::_default_permission_resolver` 和 `services/llm/mcp_audit.py::_default_audit_writer` 是本地 wrapper，在调用底层 session-first 函数前自己开 scoped session；这样既满足新的 repository API，又保持 `PermissionResolver` / `AuditWriter` Protocol 签名不变。
 
 #### Supply Chain
 

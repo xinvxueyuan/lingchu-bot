@@ -7,7 +7,7 @@ from typing import Any
 from nonebot.adapters import Bot
 
 from ...core.async_utils import fire_and_forget
-from ...core.runtime_config import runtime_config
+from ...core.config import plugin_config
 from ...services.message_store import handle_api_called
 from ..adapters import resolve_platform_context
 
@@ -32,8 +32,8 @@ async def on_called_api(
 ) -> None:
     """Record platform API call results when configured."""
     if (
-        not runtime_config.message_store_enabled
-        or not runtime_config.message_store_record_api_calls
+        not plugin_config.message_store_enabled
+        or not plugin_config.message_store_record_api_calls
     ):
         return
     platform_context = resolve_platform_context(bot)

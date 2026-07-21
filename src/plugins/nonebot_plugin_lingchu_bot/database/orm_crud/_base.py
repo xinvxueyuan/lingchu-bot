@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.inspection import inspect
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
     from sqlalchemy.sql.elements import ColumnElement, UnaryExpression
 
 logger = logging.getLogger(__name__)
@@ -204,7 +204,7 @@ def _validate_column_values[T: Model](
     return dict(values)
 
 
-def _get_session_dialect_name(s: AsyncSession) -> str:
+def _get_session_dialect_name(s: AsyncSession | async_scoped_session) -> str:
     """获取当前会话绑定的数据库方言名称。"""
     bind = s.get_bind()
     return str(bind.dialect.name)
