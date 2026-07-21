@@ -185,7 +185,7 @@ async def test_run_postprocessor_updates_status(
     identity = MessageIdentity(
         platform_id="qq",
         adapter_id="~onebot.v11",
-        protocol_id=None,
+        protocol_id="default",
         framework_id="nonebot",
         bot_id="bot-1",
         conversation_id="group-1",
@@ -224,7 +224,7 @@ async def test_run_postprocessor_blocked_status(
     identity = MessageIdentity(
         platform_id="qq",
         adapter_id="~onebot.v11",
-        protocol_id=None,
+        protocol_id="default",
         framework_id="nonebot",
         bot_id="bot-1",
         conversation_id="group-1",
@@ -259,7 +259,7 @@ async def test_run_postprocessor_failed_status(
     identity = MessageIdentity(
         platform_id="qq",
         adapter_id="~onebot.v11",
-        protocol_id=None,
+        protocol_id="default",
         framework_id="nonebot",
         bot_id="bot-1",
         conversation_id="group-1",

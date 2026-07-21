@@ -22,7 +22,7 @@ def _validate_mcp_permission_level(value: object) -> None:
 
 
 async def assert_superuser(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     actor: str | PermissionContext,
 ) -> None:
     uid = actor.uid if isinstance(actor, PermissionContext) else str(actor)
@@ -31,7 +31,7 @@ async def assert_superuser(
 
 
 async def create_platform_identity_group(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     actor: str | PermissionContext,
     request: IdentityGroupCreate,
 ) -> PlatformIdentityGroup:
@@ -51,7 +51,7 @@ async def create_platform_identity_group(
 
 
 async def update_platform_identity_group(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     actor: str | PermissionContext,
     group_id: str,
     **fields: Any,
@@ -79,7 +79,7 @@ async def update_platform_identity_group(
 
 
 async def delete_platform_identity_group(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     actor: str | PermissionContext,
     group_id: str,
 ) -> tuple[int, bool]:
@@ -97,7 +97,7 @@ async def delete_platform_identity_group(
 
 
 async def add_identity_group_member(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     actor: str | PermissionContext,
     uid: str,
     group_id: str,
@@ -119,7 +119,7 @@ async def add_identity_group_member(
 
 
 async def remove_identity_group_member(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     actor: str | PermissionContext,
     uid: str,
     group_id: str,
@@ -138,7 +138,7 @@ async def remove_identity_group_member(
 
 
 async def list_identity_group_members(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     actor: str | PermissionContext,
     group_id: str,
     *,

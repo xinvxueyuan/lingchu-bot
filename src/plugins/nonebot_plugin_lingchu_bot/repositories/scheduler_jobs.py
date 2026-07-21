@@ -22,7 +22,7 @@ def _json_load(value: str) -> Any:
 
 
 async def save_job_spec(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     job_id: str,
     handler_key: str,
@@ -62,14 +62,14 @@ async def save_job_spec(
 
 
 async def get_job_spec(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     job_id: str,
 ) -> ScheduledJob | None:
     return await get_one(session, ScheduledJob, {"job_id": job_id})
 
 
 async def list_enabled_job_specs(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
 ) -> list[ScheduledJob]:
     return await list_items(
         session,
@@ -81,7 +81,7 @@ async def list_enabled_job_specs(
 
 
 async def delete_job_spec(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     job_id: str,
 ) -> tuple[int, bool]:
     return await delete(session, ScheduledJob, {"job_id": job_id})

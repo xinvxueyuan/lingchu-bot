@@ -204,7 +204,9 @@ def _validate_column_values[T: Model](
     return dict(values)
 
 
-def _get_session_dialect_name(s: AsyncSession | async_scoped_session) -> str:
+def _get_session_dialect_name(
+    s: AsyncSession | async_scoped_session[AsyncSession],
+) -> str:
     """获取当前会话绑定的数据库方言名称。"""
     bind = s.get_bind()
     return str(bind.dialect.name)

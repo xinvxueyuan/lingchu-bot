@@ -40,7 +40,7 @@ def expires_at_from_duration(duration: int | None) -> datetime | None:
 
 
 async def upsert_subject_policy(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     request: SubjectPolicyUpsert,
 ) -> SubjectPolicyEntry:
     now = datetime.now(UTC)
@@ -87,7 +87,7 @@ async def upsert_subject_policy(
 
 
 async def remove_subject_policy(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     policy_type: SubjectPolicyType,
     platform_id: str,
@@ -113,7 +113,7 @@ async def remove_subject_policy(
 
 
 async def clear_subject_policy(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     policy_type: SubjectPolicyType,
     platform_id: str,
@@ -137,7 +137,7 @@ async def clear_subject_policy(
 
 
 async def find_active_subject_policy(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     policy_type: SubjectPolicyType,
     platform_id: str,
@@ -174,7 +174,7 @@ async def find_active_subject_policy(
 
 
 async def _find_active_subject_policy_for_scope(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     policy_type: SubjectPolicyType,
     platform_id: str,

@@ -27,7 +27,7 @@ _MCP_PERMISSION_UNSET = object()
 
 
 async def upsert_identity_user(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     uid: str,
     nickname: str | None = None,
 ) -> IdentityUser:
@@ -44,7 +44,7 @@ async def upsert_identity_user(
 
 
 async def bind_platform_account(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     uid: str,
     platform_id: str,
@@ -72,7 +72,7 @@ async def bind_platform_account(
 
 
 async def get_user_by_platform_account(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     platform_id: str,
     account_id: str,
 ) -> IdentityUser | None:
@@ -87,7 +87,7 @@ async def get_user_by_platform_account(
 
 
 async def get_platform_account(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     platform_id: str,
     account_id: str,
 ) -> PlatformAccount | None:
@@ -99,7 +99,7 @@ async def get_platform_account(
 
 
 async def upsert_identity_group(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     group_id: str,
     platform_id: str,
@@ -139,7 +139,7 @@ async def upsert_identity_group(
 
 
 async def seed_identity_groups(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     seeds: Iterable[PlatformIdentityGroupSeed],
 ) -> None:
     await upsert_identity_group(
@@ -161,14 +161,14 @@ async def seed_identity_groups(
 
 
 async def get_identity_group(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     group_id: str,
 ) -> PlatformIdentityGroup | None:
     return await get_one(session, PlatformIdentityGroup, {"group_id": group_id})
 
 
 async def update_identity_group(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     group_id: str,
     values: dict[str, object],
 ) -> tuple[int, bool]:
@@ -181,14 +181,14 @@ async def update_identity_group(
 
 
 async def delete_identity_group(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     group_id: str,
 ) -> tuple[int, bool]:
     return await delete(session, PlatformIdentityGroup, {"group_id": group_id})
 
 
 async def list_identity_groups(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     platform_id: str | None = None,
 ) -> list[PlatformIdentityGroup]:
     filters = {"platform_id": platform_id} if platform_id is not None else None
@@ -201,7 +201,7 @@ async def list_identity_groups(
 
 
 async def upsert_membership(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     uid: str,
     group_id: str,
@@ -234,7 +234,7 @@ async def upsert_membership(
 
 
 async def delete_membership(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     uid: str,
     group_id: str,
@@ -254,7 +254,7 @@ async def delete_membership(
 
 
 async def list_memberships(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     uid: str | None = None,
     group_id: str | None = None,
@@ -279,7 +279,7 @@ async def list_memberships(
 
 
 async def is_superuser(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     uid: str,
 ) -> bool:
     membership = await get_one(
@@ -296,7 +296,7 @@ async def is_superuser(
 
 
 async def grant_command(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     group_id: str,
     command_key: str,
@@ -312,7 +312,7 @@ async def grant_command(
 
 
 async def revoke_command(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     group_id: str,
     command_key: str,
@@ -325,7 +325,7 @@ async def revoke_command(
 
 
 async def list_grants(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     group_ids: Iterable[str] | None = None,
     command_key: str | None = None,

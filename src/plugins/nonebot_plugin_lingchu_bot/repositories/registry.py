@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 async def seed_registry_tables(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
 ) -> None:
     """Sync platform/adapter/protocol metadata from registry.py to database."""
     data = export_registry_for_seeding()

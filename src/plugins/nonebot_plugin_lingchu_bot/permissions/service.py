@@ -25,7 +25,7 @@ def _is_mcp_permission_level(value: str | None) -> TypeIs[MCPPermissionLevel]:
 
 
 async def resolve_user_identity(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     platform_id: str,
     account_id: str,
 ) -> Any | None:
@@ -33,7 +33,7 @@ async def resolve_user_identity(
 
 
 async def bind_platform_account(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     uid: str,
     platform_id: str,
     account_id: str | int,
@@ -51,7 +51,7 @@ async def bind_platform_account(
 
 
 async def resolve_permission_context(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     bot: Any,
     event: Any,
 ) -> PermissionContext:
@@ -88,7 +88,7 @@ async def resolve_permission_context(
 
 
 async def check_permission(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     command_key: str,
     bot: Any,
     event: Any,
@@ -98,7 +98,7 @@ async def check_permission(
 
 
 async def check_permission_for_context(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     command_key: str,
     context: PermissionContext,
 ) -> PermissionDecision:
@@ -138,7 +138,7 @@ async def check_permission_for_context(
 
 
 async def resolve_mcp_permission(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     context: PermissionContext,
 ) -> MCPPermissionLevel | None:
     if context.uid is None:
@@ -167,7 +167,7 @@ def platform_runtime_passthrough_enabled(context: PermissionContext) -> bool:
 
 
 async def allowed_command_keys(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     bot: Any,
     event: Any,
     command_keys: frozenset[str],
@@ -226,7 +226,7 @@ def _membership_matches_context(membership: Any, context: PermissionContext) -> 
 
 
 async def _with_ancestor_groups(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     group_ids: set[str],
 ) -> frozenset[str]:
     if not group_ids:
@@ -247,7 +247,7 @@ async def _with_ancestor_groups(
 
 
 async def _effective_group_ids(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     context: PermissionContext,
 ) -> frozenset[str]:
     if context.uid is None:

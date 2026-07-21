@@ -33,11 +33,11 @@ def test_load_subplugins_loads_each_discovered_package(
     first = tmp_path / "alpha"
     second = tmp_path / "beta"
     loaded = object()
-    calls: list[Path] = []
+    calls: list[str] = []
 
-    def fake_load_plugin(path: Path) -> Any:
-        calls.append(path)
-        return loaded if path == first else None
+    def fake_load_plugin(module_name: str) -> Any:
+        calls.append(module_name)
+        return loaded if module_name.endswith(".alpha") else None
 
     monkeypatch.setattr(
         "src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.loader.discover_subplugin_dirs",
@@ -49,7 +49,10 @@ def test_load_subplugins_loads_each_discovered_package(
     )
 
     assert load_subplugins() == {loaded}
-    assert calls == [first, second]
+    assert calls == [
+        "src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.alpha",
+        "src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.beta",
+    ]
 
 
 def test_discovery_is_empty_without_child_packages(tmp_path: Path) -> None:

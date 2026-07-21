@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 SUMMARY_LIMIT = 500
 RAW_PAYLOAD_MAX_DEPTH = 8
+DEFAULT_PROTOCOL_ID = "default"
 
 
 @dataclass(frozen=True, slots=True)
@@ -250,7 +251,7 @@ def resolve_platform_context(bot: Bot) -> PlatformContext | None:
         platform_id=platform_id,
         adapter_id=adapter_id,
         bot_id=_stringify(getattr(bot, "self_id", None), limit=128) or "unknown",
-        protocol_id=None,
+        protocol_id=DEFAULT_PROTOCOL_ID,
     )
 
 
@@ -265,7 +266,7 @@ def normalize_message_event(bot: Bot, event: Event) -> NormalizedMessageEvent | 
     identity = MessageIdentity(
         platform_id=platform_id,
         adapter_id=adapter_id,
-        protocol_id=None,
+        protocol_id=DEFAULT_PROTOCOL_ID,
         framework_id="nonebot",
         bot_id=bot_id,
         conversation_id=_conversation_id(event),
@@ -284,6 +285,7 @@ def normalize_message_event(bot: Bot, event: Event) -> NormalizedMessageEvent | 
 
 
 __all__ = [
+    "DEFAULT_PROTOCOL_ID",
     "MessageIdentity",
     "NormalizedMessageEvent",
     "_adapter_identity",

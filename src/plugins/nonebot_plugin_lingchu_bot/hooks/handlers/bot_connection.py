@@ -6,6 +6,10 @@ from nonebot import get_driver
 from nonebot.adapters import Bot
 
 from ...core.async_utils import fire_and_forget
+from ...services.mcp_server.runtime import (
+    connect_inbound_mcp_bot,
+    disconnect_inbound_mcp_bot,
+)
 from ...services.message_store import record_bot_lifecycle
 from ...services.protocol_restart_feedback import send_pending_restart_feedback
 
@@ -15,6 +19,7 @@ driver = get_driver()
 @driver.on_bot_connect
 async def on_bot_connect(bot: Bot) -> None:
     """Record bot lifecycle and send pending restart feedback on connect."""
+    connect_inbound_mcp_bot(bot)
     fire_and_forget(
         record_bot_lifecycle(bot, "bot_connected"), name="record_bot_lifecycle"
     )
@@ -26,6 +31,7 @@ async def on_bot_connect(bot: Bot) -> None:
 @driver.on_bot_disconnect
 async def on_bot_disconnect(bot: Bot) -> None:
     """Record bot lifecycle on disconnect."""
+    disconnect_inbound_mcp_bot(bot)
     fire_and_forget(
         record_bot_lifecycle(bot, "bot_disconnected"), name="record_bot_lifecycle"
     )

@@ -1,0 +1,60 @@
+---
+icon: Server
+title: 入站 MCP Server
+---
+
+Lingchu Bot 可以在现有 NoneBot ASGI 应用上提供默认关闭、受 OAuth 保护的 MCP v1 资源服务器。它不会充当授权服务器，也不会公开任意适配器 API。
+
+## 静态目录
+
+- 工具：`bots.list`、`messages.list_recent`、`messages.send`
+- 资源：`lingchu://server/info` 和 `lingchu://bots/{platform_id}/{adapter_id}/{protocol_id}/{bot_id}`
+
+每个消息操作都必须同时满足 OAuth Capability Scope 和精确 Resource Grant。
+
+## 配置
+
+首次启动会在插件配置目录创建 `mcp-server.toml`。所有安全字段就绪前请保持关闭。
+
+```toml title="mcp-server.toml"
+enabled = true
+route = "/mcp"
+issuer = "https://id.example.com/"
+audience = "https://bot.example.com/mcp"
+jwks_url = "https://id.example.com/.well-known/jwks.json"
+identity_kind = "subject"
+cursor_secret_env = "LINGCHU_MCP_CURSOR_SECRET"
+read_rate_per_minute = 120
+send_rate_per_minute = 20
+conversation_send_rate_per_minute = 6
+principal_concurrency = 8
+conversation_write_concurrency = 2
+max_page_size = 200
+```
+
+指定的环境变量至少需要 32 个 UTF-8 字节，不要把密钥写入 TOML。修改后重启 Bot。启用状态下缺少必需设置时会拒绝启动。对公网服务时，应在可信反向代理终止 TLS，并只转发配置路由。
+
+JWT 必须通过配置的 HTTPS JWKS 端点完成 RS256 或 ES256 验签。必需 claims 包括精确 `iss`、匹配的 `aud`、未来的 `exp`、非空 `client_id` 和 `scope`；可选 `nbf` 不能晚于当前时间。`identity_kind = "subject"` 时还要求 `sub`；`client_id` 模式改为映射该 claim。
+
+Scope 为 `bots:list`、`messages:read` 和 `messages:send`。Scope 本身不授予任何资源访问权。
+
+## 授权管理
+
+在仓库根目录运行 CLI。每条命令都使用项目 ORM Repository，并提交一个事务。
+
+```bash
+uv run python scripts/mcp_admin.py principal-create \
+  --principal-id deploy-agent --issuer https://id.example.com/ \
+  --identity-kind subject --identity-value oauth-subject-123 \
+  --display-name "部署代理"
+
+uv run python scripts/mcp_admin.py grant-create \
+  --grant-id deploy-agent-group-100 --principal-id deploy-agent \
+  --platform qq --adapter '~onebot.v11' --protocol default \
+  --bot-id 123456789 --conversation-type group \
+  --conversation-id 100000001
+```
+
+其他命令包括 `principal-enable`、`principal-disable`、`grant-revoke` 和 `grant-list`。标识必须精确匹配，拒绝通配符。
+
+读取要求持久化的读取前审计。发送要求持久化的发送前审计、平台调用前立即复查授权及结果后审计。可能已经投递的超时返回 `uncertain`。支持保持顺序的文本和公网 HTTPS 图片，并拒绝不安全下载目标。
