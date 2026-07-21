@@ -24,7 +24,7 @@ class PermissionConfigError(RuntimeError):
 
 
 async def validate_and_seed_permission_system(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
 ) -> None:
     superusers = _resolve_superusers_config()
     _validate_superusers(superusers)
@@ -100,7 +100,7 @@ def _validate_platform_account_id(platform_id: str, account_id: Any) -> str:
 
 
 async def _sync_superusers(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     superusers: Mapping[str, Mapping[str, str]],
 ) -> None:
     for uid, accounts in superusers.items():

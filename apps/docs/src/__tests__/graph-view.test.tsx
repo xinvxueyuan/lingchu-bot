@@ -34,6 +34,7 @@ describe("GraphView", () => {
     await act(async () => {
       const result = render(<GraphView graph={mockGraph} />);
       container = result.container;
+      await Promise.resolve();
     });
     const wrapper = container.querySelector(String.raw`.h-\[600px\]`);
     expect(wrapper).toBeInTheDocument();
@@ -45,6 +46,7 @@ describe("GraphView", () => {
     await act(async () => {
       const result = render(<GraphView graph={emptyGraph} />);
       container = result.container;
+      await Promise.resolve();
     });
     expect(container.querySelector(String.raw`.h-\[600px\]`)).toBeInTheDocument();
   });
@@ -52,6 +54,7 @@ describe("GraphView", () => {
   it("should render ForceGraph when mounted on client", async () => {
     await act(async () => {
       render(<GraphView graph={mockGraph} />);
+      await Promise.resolve();
     });
     expect(screen.getByTestId("force-graph")).toBeInTheDocument();
   });

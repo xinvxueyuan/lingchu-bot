@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 async def _finalize_bulk_create[T: Model](
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     instances: Sequence[T],
     *,
     commit: bool,
@@ -44,7 +44,7 @@ async def _finalize_bulk_create[T: Model](
 
 
 async def bulk_create[T: Model](
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     objs: list[dict[str, Any]],
     *,
@@ -245,7 +245,7 @@ def _prepare_merge_insert_values[T: Model](
 
 
 def _merge_target_identifiers[T: Model](
-    s: AsyncSession | async_scoped_session,
+    s: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     keys: Sequence[str],
 ) -> tuple[str, dict[str, str]]:
@@ -359,7 +359,7 @@ def _build_merge_sql(
 
 
 async def upsert[T: Model](
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     insert_values: dict[str, Any],
     *,
@@ -458,7 +458,7 @@ async def upsert[T: Model](
 
 
 async def _mysql_upsert[T: Model](
-    s: AsyncSession | async_scoped_session,
+    s: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     insert_values: dict[str, Any],
     columns: dict[str, Any],
@@ -536,7 +536,7 @@ def _is_oracle_unique_constraint_violation(error: SQLAlchemyError) -> bool:
 
 
 async def _oracle_upsert[T: Model](
-    s: AsyncSession | async_scoped_session,
+    s: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     insert_values: dict[str, Any],
     columns: dict[str, Any],
@@ -607,7 +607,7 @@ async def _oracle_upsert[T: Model](
 
 
 async def _mssql_upsert[T: Model](
-    s: AsyncSession | async_scoped_session,
+    s: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     insert_values: dict[str, Any],
     columns: dict[str, Any],
@@ -676,7 +676,7 @@ async def _mssql_upsert[T: Model](
 
 
 async def list_items[T: Model](
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     filters: dict[str, Any] | None = None,
     order_by: Sequence[str] | None = None,
@@ -726,7 +726,7 @@ async def list_items[T: Model](
 
 
 async def async_iterate_safe[T: Model](
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     *,
     filters: dict[str, Any] | None = None,

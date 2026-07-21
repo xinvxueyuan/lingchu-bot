@@ -1,4 +1,4 @@
-import DOMPurify from "dompurify";
+import purify from "dompurify";
 
 export function getMermaidConfig(resolvedTheme?: string) {
   return {
@@ -15,7 +15,7 @@ export function getMermaidConfig(resolvedTheme?: string) {
 }
 
 export function sanitizeMermaidSvg(svg: string) {
-  return DOMPurify.sanitize(svg, {
+  return purify.sanitize(svg, {
     RETURN_TRUSTED_TYPE: false,
     USE_PROFILES: { svg: true, svgFilters: true },
     ADD_TAGS: ["style"],

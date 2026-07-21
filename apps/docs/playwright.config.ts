@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Playwright sets FORCE_COLOR for child processes; avoid Node's conflict warning.
+delete process.env["NO_COLOR"];
+
 const port = 3100;
 const host = "127.0.0.1";
 const baseURL = `http://${host}:${port}`;

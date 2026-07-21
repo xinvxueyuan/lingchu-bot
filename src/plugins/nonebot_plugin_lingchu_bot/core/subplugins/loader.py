@@ -25,5 +25,5 @@ def load_subplugins() -> set[Plugin]:
     return {
         plugin
         for path in discover_subplugin_dirs()
-        if (plugin := nonebot.load_plugin(path)) is not None
+        if (plugin := nonebot.load_plugin(f"{__package__}.{path.name}")) is not None
     }

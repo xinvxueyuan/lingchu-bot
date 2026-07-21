@@ -186,7 +186,7 @@ async def check_self_target(
 
 
 async def store_block_record(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     scope: BlockScope,
     group_id: int,
@@ -214,7 +214,7 @@ async def store_block_record(
 
 
 async def check_target_privilege(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     bot: Onebot11Bot,
     event: Onebot11GroupMessageEvent,
     target_user_id: int,
@@ -260,7 +260,7 @@ async def check_target_privilege(
 
 
 async def _is_protected_target(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     bot: Onebot11Bot,
     event: Onebot11GroupMessageEvent,
     target_user_id: int,
@@ -282,7 +282,7 @@ async def _is_protected_target(
 
 
 async def operator_is_superuser_onebot11(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     operator_user_id: int,
 ) -> bool:
     try:

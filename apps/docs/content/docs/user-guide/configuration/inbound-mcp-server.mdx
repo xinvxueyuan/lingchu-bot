@@ -1,0 +1,60 @@
+---
+icon: Server
+title: Inbound MCP server
+---
+
+Lingchu Bot can expose a disabled-by-default OAuth-protected MCP v1 resource server on the existing NoneBot ASGI app. It never acts as an authorization server or exposes arbitrary adapter APIs.
+
+## Static catalog
+
+- Tools: `bots.list`, `messages.list_recent`, `messages.send`
+- Resources: `lingchu://server/info` and `lingchu://bots/{platform_id}/{adapter_id}/{protocol_id}/{bot_id}`
+
+Every message operation requires both an OAuth capability scope and an exact Resource Grant.
+
+## Configuration
+
+First startup creates `mcp-server.toml` in the plugin configuration directory. Keep it disabled until every security field is ready.
+
+```toml title="mcp-server.toml"
+enabled = true
+route = "/mcp"
+issuer = "https://id.example.com/"
+audience = "https://bot.example.com/mcp"
+jwks_url = "https://id.example.com/.well-known/jwks.json"
+identity_kind = "subject"
+cursor_secret_env = "LINGCHU_MCP_CURSOR_SECRET"
+read_rate_per_minute = 120
+send_rate_per_minute = 20
+conversation_send_rate_per_minute = 6
+principal_concurrency = 8
+conversation_write_concurrency = 2
+max_page_size = 200
+```
+
+The named environment variable must contain at least 32 UTF-8 bytes. Never store that secret in TOML. Restart the bot after editing the file. An enabled server fails closed when required settings are absent. Terminate public TLS at a trusted reverse proxy and forward only the configured route.
+
+JWTs must pass RS256 or ES256 verification through the configured HTTPS JWKS endpoint. Required claims are exact `iss`, matching `aud`, future `exp`, non-empty `client_id`, and `scope`; optional `nbf` cannot be in the future. `identity_kind = "subject"` also requires `sub`; `client_id` mode maps that claim instead.
+
+Scopes are `bots:list`, `messages:read`, and `messages:send`. Scopes alone grant no resource access.
+
+## Authorization administration
+
+Run the CLI from the repository root. Each command uses the project ORM repositories and commits one transaction.
+
+```bash
+uv run python scripts/mcp_admin.py principal-create \
+  --principal-id deploy-agent --issuer https://id.example.com/ \
+  --identity-kind subject --identity-value oauth-subject-123 \
+  --display-name "Deployment agent"
+
+uv run python scripts/mcp_admin.py grant-create \
+  --grant-id deploy-agent-group-100 --principal-id deploy-agent \
+  --platform qq --adapter '~onebot.v11' --protocol default \
+  --bot-id 123456789 --conversation-type group \
+  --conversation-id 100000001
+```
+
+Other commands are `principal-enable`, `principal-disable`, `grant-revoke`, and `grant-list`. Identifiers are exact and wildcards are rejected.
+
+Reads require durable pre-read audit. Sends require durable pre-send audit, an immediate authorization recheck, and a post-result audit. Timeouts that may have delivered return `uncertain`. Ordered text and public HTTPS images are supported; unsafe download destinations are rejected.

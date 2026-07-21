@@ -8,6 +8,10 @@ from nonebot import get_driver, logger
 
 from ...services.llm.mcp_lifecycle import shutdown_mcp_agent_runtime
 from ...services.llm.runtime import shutdown_llm_runtime
+from ...services.mcp_server.runtime import (
+    initialize_inbound_mcp_runtime,
+    shutdown_inbound_mcp_runtime,
+)
 from ...services.message_store import shutdown_message_store
 from ...services.scheduler import shutdown_scheduler_service
 from ...start.startup import startup
@@ -19,12 +23,14 @@ driver = get_driver()
 async def on_startup() -> None:
     """Initialize Lingchu runtime services when the NoneBot driver starts."""
     await startup()
+    await initialize_inbound_mcp_runtime()
 
 
 @driver.on_shutdown
 async def on_shutdown() -> None:
     """Shut down Lingchu runtime services when the NoneBot driver stops."""
     services = (
+        ("inbound MCP server", shutdown_inbound_mcp_runtime),
         ("scheduler", shutdown_scheduler_service),
         ("MCP Agent runtime", shutdown_mcp_agent_runtime),
         ("LLM runtime", shutdown_llm_runtime),

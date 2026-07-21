@@ -31,7 +31,7 @@ function mockPage(overrides: {
     url,
     data: {
       title,
-      getText: async () => text,
+      getText: () => Promise.resolve(text),
     },
   } as unknown as Page;
 }

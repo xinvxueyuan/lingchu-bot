@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 
 async def _retry_create_after_conflict[T: Model](
-    s: AsyncSession | async_scoped_session,
+    s: AsyncSession | async_scoped_session[AsyncSession],
     stmt: Select[tuple[T]],
     model: type[T],
     data: dict[str, Any],
@@ -84,7 +84,7 @@ async def _retry_create_after_conflict[T: Model](
 
 
 async def _create_with_retry[T: Model](
-    s: AsyncSession | async_scoped_session,
+    s: AsyncSession | async_scoped_session[AsyncSession],
     stmt: Select[tuple[T]],
     model: type[T],
     data: dict[str, Any],
@@ -133,7 +133,7 @@ async def _create_with_retry[T: Model](
 
 
 async def _update_existing[T: Model](
-    s: AsyncSession | async_scoped_session,
+    s: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     cs: list[ColumnElement[bool]],
     obj: T,
@@ -171,7 +171,7 @@ async def _update_existing[T: Model](
 
 
 async def create[T: Model](
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     **fields: Any,
 ) -> T:
@@ -200,7 +200,7 @@ async def create[T: Model](
 
 
 async def get_one[T: Model](
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     filters: dict[str, Any],
     *,
@@ -237,7 +237,7 @@ async def get_one[T: Model](
 
 
 async def get_or_create[T: Model](
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     defaults: dict[str, Any] | None = None,
     *,
@@ -285,7 +285,7 @@ async def get_or_create[T: Model](
 
 
 async def update_or_create[T: Model](
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     filters: dict[str, Any],
     defaults: dict[str, Any] | None = None,
@@ -354,7 +354,7 @@ async def update_or_create[T: Model](
 
 
 async def update[T: Model](
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     filters: dict[str, Any],
     values: dict[str, Any],
@@ -400,7 +400,7 @@ async def update[T: Model](
 
 
 async def delete[T: Model](
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     filters: dict[str, Any],
     *,
@@ -440,7 +440,7 @@ async def delete[T: Model](
 
 
 async def exists[T: Model](
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     filters: dict[str, Any] | None = None,
     *,
@@ -478,7 +478,7 @@ async def exists[T: Model](
 
 
 async def count[T: Model](
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     model: type[T],
     filters: dict[str, Any] | None = None,
     *,

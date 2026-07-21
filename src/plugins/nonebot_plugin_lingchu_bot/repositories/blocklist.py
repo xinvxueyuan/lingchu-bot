@@ -51,7 +51,7 @@ def expires_at_from_duration(duration: int | None) -> datetime | None:
 
 
 async def upsert_block(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     request: BlocklistUpsert,
 ) -> BlocklistEntry:
     now = datetime.now(UTC)
@@ -99,7 +99,7 @@ async def upsert_block(
 
 
 async def remove_block(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     platform_id: str,
     adapter_id: str,
@@ -134,7 +134,7 @@ async def remove_block(
 
 
 async def clear_blocklist(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     platform_id: str,
     adapter_id: str,
@@ -166,7 +166,7 @@ async def clear_blocklist(
 
 
 async def find_active_block(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     platform_id: str,
     adapter_id: str,
@@ -200,7 +200,7 @@ async def find_active_block(
 
 
 async def _find_active_block_for_scope(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     platform_id: str,
     adapter_id: str,
@@ -232,7 +232,7 @@ async def _find_active_block_for_scope(
 
 
 async def cleanup_expired_blocks(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
 ) -> tuple[int, bool]:
     now = datetime.now(UTC)
     return await delete(
@@ -253,7 +253,7 @@ def active_block_condition() -> object:
 
 
 async def _sync_blocked_policy_upsert(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     request: BlocklistUpsert,
 ) -> None:
     from ..permissions.subject_policy import SubjectPolicyUpsert, upsert_subject_policy
@@ -277,7 +277,7 @@ async def _sync_blocked_policy_upsert(
 
 
 async def _sync_blocked_policy_remove(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     platform_id: str,
     adapter_id: str,
@@ -303,7 +303,7 @@ async def _sync_blocked_policy_remove(
 
 
 async def _sync_blocked_policy_clear(
-    session: AsyncSession | async_scoped_session,
+    session: AsyncSession | async_scoped_session[AsyncSession],
     *,
     platform_id: str,
     adapter_id: str,
