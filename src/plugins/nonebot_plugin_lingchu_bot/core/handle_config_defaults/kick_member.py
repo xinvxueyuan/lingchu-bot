@@ -13,6 +13,7 @@ class KickMemberDefaults(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     require_reason: bool = False
+    default_reason: str = "管理员操作"
     audit_level: str = "low"
 
 

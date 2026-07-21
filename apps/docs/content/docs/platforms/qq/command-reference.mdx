@@ -45,6 +45,11 @@ Default submenu commands:
 mute @user [duration seconds] [reason]
 ```
 
+When the duration or reason is omitted, Lingchu uses the corresponding
+`member_mute.toml` handle default. Administrators can update all supported
+handle defaults at runtime with `set-handle-default <handle> <field> <value>`.
+Use `set-default-mute <seconds>` as the member-mute shortcut.
+
 - Duration default: `60` seconds.
 - Reason default: `违反群规「默认」`.
 
@@ -124,7 +129,7 @@ English: `block`, `global-block`, `unblock`, `global-unblock`, `clear-blocklist`
 | Set member special title | `设置群头衔 @用户 <头衔>` | `set-member-title @user <title>` |
 | Set member admin | `设置群管理员 @用户 [true/false]` | `set-member-admin @user [true/false]` |
 | Unset member admin | `取消群管理员 @用户` | `unset-member-admin @user` |
-| Kick blocklisted member | `踢出群成员 <用户ID或@提及> [原因]` | `kick-member <user_id_or_mention> [reason]` |
+| Kick member | `踢出 <用户ID或@提及> [原因]` | `kick-member <user_id_or_mention> [reason]` |
 | Send announcement | `发送群公告 <内容> [图片]` | `send-announcement <content> [image]` |
 | Leave current group | `退出群` | `leave-group` |
 

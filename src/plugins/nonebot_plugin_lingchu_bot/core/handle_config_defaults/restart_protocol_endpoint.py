@@ -13,7 +13,9 @@ class RestartProtocolEndpointConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     enabled: bool = True
-    defaults: dict[str, Any] = Field(default_factory=dict)
+    defaults: dict[str, Any] = Field(
+        default_factory=lambda: {"default_platform": "当前平台"}
+    )
     policies: dict[str, Any] = Field(default_factory=dict)
 
 

@@ -144,7 +144,7 @@ async def test_verifier_rejects_hostile_numeric_dates(numeric_date: object) -> N
         ("iss", "https://attacker.example.com"),
         ("aud", "https://other.example.com/mcp"),
         ("exp", 1),
-        ("nbf", int(time()) + 300),
+        pytest.param("nbf", int(time()) + 300, id="nbf-future"),
     ],
 )
 async def test_verifier_rejects_invalid_security_claims(

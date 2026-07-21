@@ -77,7 +77,9 @@ async def _protect_member(
     if not await _require_superuser(session, command, event):
         return None
     target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
-    reason_text = await default_admin_reason(reason)
+    config = await get_handle_config_manager().get_config("protect_member")
+    default_reason_text = config.defaults.get("default_reason", "管理员操作")
+    reason_text = await _(default_reason_text) if reason is None else reason
     try:
         await upsert_subject_policy(
             session,
