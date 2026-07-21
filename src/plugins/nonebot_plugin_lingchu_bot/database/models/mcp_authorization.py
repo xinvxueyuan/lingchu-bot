@@ -32,7 +32,10 @@ class MCPServicePrincipal(Model):
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     principal_id: Mapped[str] = mapped_column(compat_string(64), unique=True)
-    issuer: Mapped[str] = mapped_column(compat_string(512), index=True)
+    # 256 chars fits OAuth issuer URLs comfortably while keeping the
+    # (issuer, identity_kind, identity_value) unique index below MySQL/MariaDB's
+    # 3072-byte limit (256+16+256 = 528 chars x 4 bytes/utf8mb4 = 2112 bytes).
+    issuer: Mapped[str] = mapped_column(compat_string(256), index=True)
     identity_kind: Mapped[str] = mapped_column(compat_string(16), index=True)
     identity_value: Mapped[str] = mapped_column(compat_string(256), index=True)
     display_name: Mapped[str] = mapped_column(compat_string(128))
