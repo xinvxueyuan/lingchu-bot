@@ -1365,13 +1365,13 @@ dev = [
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "respx", specifier = ">=0.23.1" },
     { name = "ruff", specifier = ">=0.15.21" },
-    { name = "ty", specifier = ">=0.0.58" },
+    { name = "ty", specifier = ">=0.0.61" },
 ]
 git = [{ name = "prek", specifier = ">=0.4.4" }]
 lint = [
     { name = "pyright", specifier = ">=1.1.410" },
     { name = "ruff", specifier = ">=0.15.21" },
-    { name = "ty", specifier = ">=0.0.58" },
+    { name = "ty", specifier = ">=0.0.61" },
 ]
 script = [{ name = "poethepoet", specifier = ">=0.44.0" }]
 test = [

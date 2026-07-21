@@ -83,7 +83,7 @@ git = [
     # "bump-my-version>=1.3.0",
     "prek>=0.4.4",
 ]
-lint = ["ruff>=0.15.21", "pyright>=1.1.410", "ty>=0.0.58"]
+lint = ["ruff>=0.15.21", "pyright>=1.1.410", "ty>=0.0.61"]
 test = [
     "argon2-cffi>=25.1.0",
     "nb-cli>=1.4.0",
