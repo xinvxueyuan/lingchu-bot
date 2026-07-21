@@ -30,8 +30,8 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: 📥 Checkout
-        # pinned from actions/checkout@v6.0.3
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 0
 
@@ -65,12 +65,12 @@ jobs:
     needs: validate
     steps:
       - name: 📥 Checkout
-        # pinned from actions/checkout@v6.0.3
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
       - name: ⚡ Setup Node
-        # pinned from actions/setup-node@v6.4.0
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        # pinned from actions/setup-node@v6.5.0
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 24
 
@@ -88,8 +88,8 @@ jobs:
           command: pnpm install --frozen-lockfile
 
       - name: ⚡ Install uv
-        # pinned from astral-sh/setup-uv@v8.2.0
-        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39
+        # pinned from astral-sh/setup-uv@v8.3.2
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
         with:
           github-token: ${{ github.token }}
           enable-cache: true
@@ -139,7 +139,7 @@ jobs:
 
       - name: 📦 Publish to PyPI
         # pinned from pypa/gh-action-pypi-publish@release/v1
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b
+        uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247
 
   publish-image:
     name: 🐳 Publish GHCR image
@@ -154,8 +154,8 @@ jobs:
       attestations: write
     steps:
       - name: 📥 Checkout
-        # pinned from actions/checkout@v6.0.3
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
       - name: 🧹 Remove non-distribution infrastructure
         run: bash scripts/clean-release-infra.sh
@@ -206,8 +206,8 @@ jobs:
       contents: write
     steps:
       - name: 📥 Checkout
-        # pinned from actions/checkout@v6.0.3
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 0
 

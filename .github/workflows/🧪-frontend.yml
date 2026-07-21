@@ -60,8 +60,8 @@ jobs:
       - name: Checkout
         # 本地 composite action (`./.github/actions/detect-changes`) 在
         # `uses:` 解析时就需要 action.yml，必须先 checkout。
-        # pinned from actions/checkout@v6.0.3
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 0
       - id: detect
@@ -73,10 +73,10 @@ jobs:
     if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       - name: Setup Node
-        # pinned from actions/setup-node@v6.4.0
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        # pinned from actions/setup-node@v6.5.0
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 24
       - name: Setup pnpm

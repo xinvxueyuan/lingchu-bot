@@ -7,7 +7,7 @@ exclude = '''(?x)^(
 
 [[repos]]
 repo = "https://github.com/pre-commit/pre-commit-hooks"
-rev = "v6.0.0"
+rev = "3e8a8703264a2f4a69428a0aa4dcb512790b2c8c"  # pinned from pre-commit/pre-commit-hooks@v6.0.0
 hooks = [
   { id = "trailing-whitespace" },
   { id = "end-of-file-fixer" },
@@ -30,7 +30,7 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/astral-sh/ruff-pre-commit"
-rev = "v0.15.21"
+rev = "2700fd5671c633760d912769c041bfcde2b9a01b"  # pinned from astral-sh/ruff-pre-commit@v0.15.22
 hooks = [
   { id = "ruff", args = ["--fix"] },
   { id = "ruff-format" },
@@ -38,7 +38,7 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/astral-sh/ty-pre-commit"
-rev = "v0.0.61"
+rev = "1395c6934313bf0c086f3034f10c10747e7efc10"  # pinned from astral-sh/ty-pre-commit@v0.0.61
 hooks = [
   { id = "ty" },
 ]
