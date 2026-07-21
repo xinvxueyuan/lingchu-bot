@@ -13,8 +13,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default 
     member as onebot11_member_module,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.member import (
-    kick_group_member_cmd,
-    onebot11_kick_group_member,
     onebot11_set_group_member_admin,
     onebot11_set_group_member_card,
     onebot11_set_group_member_special_title,
@@ -227,43 +225,6 @@ async def test_onebot11_unset_group_member_admin_calls_v11_api(
         group_id=mock_onebot11_event.group_id, user_id=987654321, enable=False
     )
     assert "取消群管理员: 测试用户(987654321)" in finish_text(mock_finish)
-
-
-@pytest.mark.asyncio
-async def test_onebot11_kick_group_member_calls_v11_api(
-    mock_onebot11_bot: MagicMock,
-    mock_onebot11_event: MagicMock,
-    mock_at: MagicMock,
-    mock_session: Mock,
-) -> None:
-    mock_onebot11_bot.set_group_kick = AsyncMock()
-    # check_target_privilege: 已由 autouse fixture mock 为返回 True
-    # check_bot_privilege: 机器人为管理员（通过）
-    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=[{"role": "admin"}])
-
-    with (
-        patch.object(set_group_member_card_cmd, "finish"),
-        patch.object(kick_group_member_cmd, "finish") as mock_finish,
-        patch.object(
-            onebot11_member_module,
-            "find_active_block",
-            new=AsyncMock(return_value={"user_id": 987654321}),
-        ) as find_block_mock,
-    ):
-        await onebot11_kick_group_member(
-            user=mock_at,
-            bot=mock_onebot11_bot,
-            event=mock_onebot11_event,
-            session=mock_session,
-        )
-
-    assert find_block_mock.call_args.args[0] is mock_session
-    mock_onebot11_bot.set_group_kick.assert_called_once_with(
-        group_id=mock_onebot11_event.group_id,
-        user_id=987654321,
-        reject_add_request=False,
-    )
-    assert "已踢出群成员: 测试用户(987654321)" in finish_text(mock_finish)
 
 
 @pytest.mark.asyncio

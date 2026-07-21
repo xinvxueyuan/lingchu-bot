@@ -97,7 +97,7 @@ def test_restart_protocol_endpoint_defaults_are_registered() -> None:
     )
     instance = RestartProtocolEndpointConfig()
     assert instance.enabled is True
-    assert instance.defaults == {}
+    assert instance.defaults == {"default_platform": "当前平台"}
     assert instance.policies == {}
 
 

@@ -26,7 +26,7 @@ _MASS_ANNOUNCEMENT = COMMAND_TRIGGERS["mass_announcement"]
 remote_mute_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(
         _REMOTE_MUTE.primary,
-        Args["group_id", (int, str)]["user", At | int]["duration?", int, 60][
+        Args["group_id", (int, str)]["user", At | int]["duration?", int, None][
             "reason?", str, None
         ],
     ),

@@ -16,6 +16,7 @@ require("nonebot_plugin_orm")
 from nonebot_plugin_orm import async_scoped_session
 
 from ......core.config import get_handle_config_manager, plugin_config
+from ......core.handle_default_values import update_handle_default
 from ......i18n import _async as _
 from ......permissions.subject_policy import find_active_subject_policy
 from ......repositories import message_store as message_repository
@@ -24,6 +25,7 @@ from ....commands.mute import (
     member_mute_cmd,
     member_unmute_cmd,
     recall_message_cmd,
+    set_default_mute_duration_cmd,
     whole_mute_cmd,
     whole_unmute_cmd,
 )
@@ -320,7 +322,7 @@ async def _recall_records(
 @selected_adapter_handle(member_mute_cmd, "~onebot.v11", "member_mute")
 async def onebot11_mute(
     user: At | int,
-    duration: int,
+    duration: int | None,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     session: async_scoped_session,
@@ -334,8 +336,9 @@ async def onebot11_mute(
     # 读取配置参数
     default_reason_text = config.defaults.get("default_reason", "管理员操作")
 
-    # duration 参数由命令解析器保证为 int
-    actual_duration = duration
+    actual_duration = (
+        duration if duration is not None else config.defaults.get("mute_duration", 300)
+    )
 
     # 1. 参数合法性检查
     if actual_duration < MUTE_DURATION_MIN:
@@ -406,6 +409,44 @@ async def onebot11_mute(
             target_user_id=target_user_id,
         )
     )
+
+
+@selected_adapter_handle(
+    set_default_mute_duration_cmd, "~onebot.v11", "set_default_mute_duration"
+)
+async def onebot11_set_default_mute_duration(
+    duration: int,
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
+) -> Any:
+    """Update the configured default duration for member mutes."""
+    config_manager = get_handle_config_manager()
+    config = await config_manager.get_config("member_mute")
+    if not config.enabled:
+        return await set_default_mute_duration_cmd.finish(await _("该功能已禁用"))
+    if duration < MUTE_DURATION_MIN:
+        return await set_default_mute_duration_cmd.finish(
+            (await _("禁言时长不能小于 {min} 秒")).format(min=MUTE_DURATION_MIN)
+        )
+    if duration > MUTE_DURATION_MAX:
+        return await set_default_mute_duration_cmd.finish(
+            (await _("禁言时长不能超过 {max} 秒（30天）")).format(max=MUTE_DURATION_MAX)
+        )
+
+    await update_handle_default(
+        "member_mute",
+        "mute_duration",
+        str(duration),
+        config_manager=config_manager,
+    )
+    await record_audit_fire_and_forget(
+        bot,
+        event,
+        CommandAudit(action="set_default_mute_duration", duration=duration),
+    )
+    message = await _("默认禁言时长已更新为 {duration} 秒")
+    return await set_default_mute_duration_cmd.finish(message.format(duration=duration))
 
 
 @selected_adapter_handle(whole_mute_cmd, "~onebot.v11", "whole_mute")

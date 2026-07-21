@@ -221,6 +221,18 @@ _DEFAULT_COMMAND_TRIGGERS = {
         chinese_aliases=frozenset({"禁言用户", "禁言群成员", "禁言成员", "禁", "封禁"}),
         english_aliases=frozenset({"ban", "mute-member", "ban-member"}),
     ),
+    "manage_handle_defaults": CommandTrigger(
+        chinese="设置功能默认值",
+        english="set-handle-default",
+        chinese_aliases=frozenset({"功能默认值", "查看功能默认值"}),
+        english_aliases=frozenset({"handle-defaults", "list-handle-defaults"}),
+    ),
+    "set_default_mute_duration": CommandTrigger(
+        chinese="设置默认禁言",
+        english="set-default-mute",
+        chinese_aliases=frozenset({"默认禁言时长", "设置默认禁言时长"}),
+        english_aliases=frozenset({"default-mute-duration"}),
+    ),
     "member_unmute": CommandTrigger(
         chinese="解禁",
         english="unmute",
@@ -311,9 +323,9 @@ _DEFAULT_COMMAND_TRIGGERS = {
         english_aliases=frozenset({"unset-admin", "revoke-admin"}),
     ),
     "kick_member": CommandTrigger(
-        chinese="踢出群成员",
+        chinese="踢出",
         english="kick-member",
-        chinese_aliases=frozenset({"踢出", "踢人", "移出群成员"}),
+        chinese_aliases=frozenset({"踢", "踢出群成员", "踢人", "移出群成员"}),
         english_aliases=frozenset({"kick", "remove-member"}),
     ),
     "block_member": CommandTrigger(

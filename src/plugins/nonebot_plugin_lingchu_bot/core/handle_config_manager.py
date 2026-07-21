@@ -104,16 +104,17 @@ class HandleConfigManager:
     async def update_config(self, command_key: str, updates: dict[str, Any]) -> None:
         """Update handle configuration with partial changes.
 
-        Reads existing configuration, applies shallow updates, validates the
+        Reads existing configuration, merges ``defaults`` and ``policies``
+        field-by-field, validates the
         merged result via ``type_validate_python``, persists the validated
         configuration to disk, and updates the memory cache.
 
         Args:
             command_key: The unique identifier for the handle command.
             updates: Dictionary of partial updates to apply. Top-level keys
-                (``enabled``, ``defaults``, ``policies``) replace the
-                existing values shallowly; nested defaults are re-merged
-                by the pydantic model's field defaults during validation.
+            (``enabled``, ``defaults``, ``policies``) are applied to the
+                existing configuration. ``defaults`` and ``policies`` retain
+                sibling values when a nested field is updated.
 
         Raises:
             ValueError: If command_key is not registered or validation fails.
@@ -140,8 +141,17 @@ class HandleConfigManager:
             )
             config_dict = default_config
 
-        # Apply updates (shallow)
-        config_dict.update(updates)
+        # Preserve sibling values when a runtime command updates one default
+        # or policy field. A top-level replacement is still intentional for
+        # other sections, such as ``enabled``.
+        for section, update in updates.items():
+            if section in {"defaults", "policies"} and isinstance(update, dict):
+                existing = config_dict.get(section, {})
+                config_dict[section] = (
+                    existing | update if isinstance(existing, dict) else update
+                )
+            else:
+                config_dict[section] = update
 
         # Validate via pydantic before persisting
         try:

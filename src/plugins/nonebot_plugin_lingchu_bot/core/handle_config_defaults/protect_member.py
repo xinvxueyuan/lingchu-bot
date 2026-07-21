@@ -13,6 +13,7 @@ class ProtectMemberDefaults(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     whitelist_scope: str = "group"
+    default_reason: str = "管理员操作"
 
 
 class ProtectMemberConfig(BaseModel):

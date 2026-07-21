@@ -12,6 +12,7 @@ from nonebot_plugin_alconna.uniseg import At
 from .triggers import COMMAND_TRIGGERS
 
 _MEMBER_MUTE = COMMAND_TRIGGERS["member_mute"]
+_SET_DEFAULT_MUTE_DURATION = COMMAND_TRIGGERS["set_default_mute_duration"]
 _WHOLE_MUTE = COMMAND_TRIGGERS["whole_mute"]
 _MEMBER_UNMUTE = COMMAND_TRIGGERS["member_unmute"]
 _WHOLE_UNMUTE = COMMAND_TRIGGERS["whole_unmute"]
@@ -23,6 +24,17 @@ member_mute_cmd: type[AlconnaMatcher] = on_alconna(
         Args["user", At | int]["duration?", int, None]["reason?", str, None],
     ),
     aliases=_MEMBER_MUTE.aliases,
+    priority=5,
+    block=True,
+    use_cmd_sep=True,
+    use_cmd_start=True,
+)
+set_default_mute_duration_cmd: type[AlconnaMatcher] = on_alconna(
+    command=Alconna(
+        _SET_DEFAULT_MUTE_DURATION.primary,
+        Args["duration", int],
+    ),
+    aliases=_SET_DEFAULT_MUTE_DURATION.aliases,
     priority=5,
     block=True,
     use_cmd_sep=True,
@@ -73,6 +85,7 @@ recall_message_cmd: type[AlconnaMatcher] = on_alconna(
 
 _LAZY_EXPORTS = {
     "onebot11_mute": "..adapters.onebot11.default.mute",
+    "onebot11_set_default_mute_duration": "..adapters.onebot11.default.mute",
     "onebot11_whole_mute": "..adapters.onebot11.default.mute",
     "onebot11_unmute": "..adapters.onebot11.default.mute",
     "onebot11_whole_unmute": "..adapters.onebot11.default.mute",

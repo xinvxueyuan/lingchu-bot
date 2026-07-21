@@ -45,6 +45,10 @@ menu
 mute @user [duration seconds] [reason]
 ```
 
+省略时长或原因时，灵初会使用 `member_mute.toml` 中对应的 handle 默认值。管理员可用
+`设置功能默认值 <功能> <字段> <值>` 在运行时更新所有受支持的功能默认值；成员禁言也保留
+`设置默认禁言 <秒数>` 快捷命令。
+
 - 时长默认：`60` 秒。
 - 原因默认：`违反群规「默认」`。
 
@@ -124,7 +128,7 @@ recall [@user] [count]
 | 设置群成员专属头衔 | `设置群头衔 @用户 <头衔>` | `set-member-title @user <title>` |
 | 设置群管理员 | `设置群管理员 @用户 [true/false]` | `set-member-admin @user [true/false]` |
 | 取消群管理员 | `取消群管理员 @用户` | `unset-member-admin @user` |
-| 踢出黑名单成员 | `踢出群成员 <用户ID或@提及> [原因]` | `kick-member <user_id_or_mention> [reason]` |
+| 踢出成员 | `踢出 <用户ID或@提及> [原因]` | `kick-member <user_id_or_mention> [reason]` |
 | 发送群公告 | `发送群公告 <内容> [图片]` | `send-announcement <content> [image]` |
 | 退出当前群 | `退出群` | `leave-group` |
 
