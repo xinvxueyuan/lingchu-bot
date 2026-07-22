@@ -351,7 +351,8 @@ Prefer granular checks during development. Full `task check && task test` is for
 
 ### Git Hooks
 
-- Pre-commit runs Prek auto-fix, markdownlint, Ruff, Pyright, ty, pytest, docs lint/type/test/e2e smoke, React Doctor for `.tsx`, and non-blocking GitNexus analysis based on changed file classes.
+- Pre-commit runs Prek auto-fix, markdownlint, Ruff, Pyright, ty, pytest, docs lint/type/test/e2e smoke, React Doctor for `.tsx`.
+- Post-commit runs non-blocking `gitnexus analyze --force` (full rebuild, not incremental — see `.trae/specs/fix-gitnexus-post-commit-fts/` for why incremental was abandoned).
 - Commit messages use gitmoji + Conventional Commits and auto-append Signed-off-by.
 - Hook CLI resolution order is local `node_modules/.bin`, global PATH, global `.cmd` shim through `cmd.exe /c`, `pnpm dlx`, then `npx -y`.
 - Set `$env:HUSKY='0'` only when explicitly needed, such as automated commits.
