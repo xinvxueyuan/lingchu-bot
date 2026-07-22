@@ -4,7 +4,6 @@ import asyncio
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 import os
-import threading
 from types import SimpleNamespace
 from typing import Any, SupportsIndex, cast, override
 from unittest.mock import AsyncMock
@@ -43,12 +42,8 @@ def runtime_config(*profiles: LLMProfileConfig) -> LLMRuntimeConfig:
     )
 
 
-def legacy() -> SimpleNamespace:
-    return SimpleNamespace(ai_api_key="secret", ai_base_url=None)
-
-
 def test_profile_selection_and_backend_cache_are_stable() -> None:
-    runtime = LLMRuntime(runtime_config(), legacy=cast("Any", legacy()), generation=3)
+    runtime = LLMRuntime(runtime_config(), generation=3)
 
     assert runtime.state == "NEW"
     assert runtime.profile().name == "default"
@@ -59,7 +54,7 @@ def test_profile_selection_and_backend_cache_are_stable() -> None:
 
 
 def test_concurrent_profile_and_backend_acquisition_returns_one_instance() -> None:
-    runtime = LLMRuntime(runtime_config(), legacy=cast("Any", legacy()))
+    runtime = LLMRuntime(runtime_config())
 
     with ThreadPoolExecutor(max_workers=8) as executor:
         profiles = list(executor.map(lambda _: runtime.profile(), range(32)))
@@ -83,7 +78,7 @@ async def test_rotated_credential_retires_stale_backend_before_replacement_use(
         )
     )
     monkeypatch.setenv("LLM_RUNTIME_ROTATION_KEY", "first-secret")
-    runtime = LLMRuntime(config, legacy=cast("Any", legacy()))
+    runtime = LLMRuntime(config)
     stale = runtime.openai()
     stale.close = AsyncMock()
 
@@ -109,7 +104,7 @@ async def test_rotation_without_running_loop_is_closed_during_final_close(
         )
     )
     monkeypatch.setenv("LLM_RUNTIME_FINAL_ROTATION_KEY", "first-secret")
-    runtime = LLMRuntime(config, legacy=cast("Any", legacy()))
+    runtime = LLMRuntime(config)
 
     def rotate() -> tuple[Any, Any]:
         stale = runtime.openai()
@@ -139,7 +134,7 @@ def test_rotation_from_closed_loop_is_retired_by_final_close(
         )
     )
     monkeypatch.setenv("LLM_RUNTIME_CROSS_LOOP_KEY", "first-secret")
-    runtime = LLMRuntime(config, legacy=cast("Any", legacy()))
+    runtime = LLMRuntime(config)
     calls = 0
 
     async def rotate_in_first_loop() -> None:
@@ -162,31 +157,20 @@ def test_rotation_from_closed_loop_is_retired_by_final_close(
     assert runtime.state == "CLOSED"
 
 
-def test_live_foreign_loop_close_is_rejected_then_rebinds_after_owner_closes() -> None:
-    runtime = LLMRuntime(runtime_config(), legacy=cast("Any", legacy()))
+def test_open_foreign_loop_close_is_rejected_then_rebinds_after_owner_closes() -> None:
+    runtime = LLMRuntime(runtime_config())
     backend = runtime.openai()
     backend.close = AsyncMock()
-    owner_started = threading.Event()
-    release_owner = threading.Event()
-
-    async def hold_owner_loop() -> None:
-        await runtime._drain_retirements()
-        owner_started.set()
-        await asyncio.to_thread(release_owner.wait)
-
-    thread = threading.Thread(target=lambda: asyncio.run(hold_owner_loop()))
-    thread.start()
-    assert owner_started.wait(timeout=5)
+    owner_loop = asyncio.new_event_loop()
+    runtime._async_loop = owner_loop
     try:
         with pytest.raises(RuntimeError, match="another active event loop"):
             asyncio.run(runtime.close())
         assert runtime.state == "RUNNING"
         backend.close.assert_not_awaited()
     finally:
-        release_owner.set()
-        thread.join(timeout=5)
+        owner_loop.close()
 
-    assert not thread.is_alive()
     asyncio.run(runtime.close())
     backend.close.assert_awaited_once_with()
     assert runtime.state == "CLOSED"
@@ -194,7 +178,7 @@ def test_live_foreign_loop_close_is_rejected_then_rebinds_after_owner_closes() -
 
 @pytest.mark.asyncio
 async def test_close_is_idempotent_and_rejects_new_acquisition() -> None:
-    runtime = LLMRuntime(runtime_config(), legacy=cast("Any", legacy()))
+    runtime = LLMRuntime(runtime_config())
     backend = runtime.openai()
 
     await runtime.close()
@@ -207,7 +191,7 @@ async def test_close_is_idempotent_and_rejects_new_acquisition() -> None:
 
 @pytest.mark.asyncio
 async def test_control_plane_parameters_are_rejected_before_sdk_access() -> None:
-    runtime = LLMRuntime(runtime_config(), legacy=cast("Any", legacy()))
+    runtime = LLMRuntime(runtime_config())
 
     with pytest.raises(LLMConfigurationError, match="control-plane"):
         await runtime.respond("hello", api_key="attacker-controlled")
@@ -239,7 +223,7 @@ async def test_control_plane_parameters_are_rejected_before_sdk_access() -> None
 async def test_all_stable_control_plane_parameters_are_rejected(
     parameter: str,
 ) -> None:
-    runtime = LLMRuntime(runtime_config(), legacy=cast("Any", legacy()))
+    runtime = LLMRuntime(runtime_config())
 
     with pytest.raises(LLMConfigurationError, match="control-plane"):
         await runtime.respond("hello", **{parameter: cast("Any", object())})
@@ -257,7 +241,7 @@ async def test_stable_calls_defensively_reject_nested_profile_control_options() 
             provider_options={"nested": {"callbacks": ["capture"]}},
         )
     )
-    runtime = LLMRuntime(configured, legacy=cast("Any", legacy()))
+    runtime = LLMRuntime(configured)
 
     with pytest.raises(LLMConfigurationError, match="control-plane"):
         await runtime.respond("hello")
@@ -267,7 +251,7 @@ async def test_stable_calls_defensively_reject_nested_profile_control_options() 
 
 @pytest.mark.asyncio
 async def test_close_cancellation_does_not_cancel_owned_resource_cleanup() -> None:
-    runtime = LLMRuntime(runtime_config(), legacy=cast("Any", legacy()))
+    runtime = LLMRuntime(runtime_config())
     started = asyncio.Event()
     release = asyncio.Event()
 
@@ -300,7 +284,7 @@ async def test_close_cancellation_does_not_cancel_owned_resource_cleanup() -> No
 
 @pytest.mark.asyncio
 async def test_backend_close_cancelled_error_preserves_ownership_for_retry() -> None:
-    runtime = LLMRuntime(runtime_config(), legacy=cast("Any", legacy()))
+    runtime = LLMRuntime(runtime_config())
 
     class Backend:
         calls = 0
@@ -497,7 +481,7 @@ def test_member_getattr_base_exception_returns_false_none() -> None:
 @pytest.mark.asyncio
 async def test_stream_rejects_control_plane_parameters_before_sdk_access() -> None:
     """Cover stream() control-plane parameter rejection (line 663)."""
-    runtime = LLMRuntime(runtime_config(), legacy=cast("Any", legacy()))
+    runtime = LLMRuntime(runtime_config())
     with pytest.raises(LLMConfigurationError, match="control-plane"):
         await anext(runtime.stream("hello", api_key="attacker-controlled"))
 
@@ -627,6 +611,15 @@ def test_lifecycle_coordinator_claim_returns_false_for_inactive_ticket() -> None
     assert coordinator._claim(ticket) is False
 
 
+def test_lifecycle_coordinator_claim_returns_false_while_busy() -> None:
+    """Cover _LifecycleCoordinator._claim busy return False."""
+    coordinator = runtime_module._LifecycleCoordinator()
+    ticket = runtime_module._LifecycleTicket()
+    coordinator._busy = True
+    assert coordinator._claim(ticket) is False
+    assert ticket.claimed is False
+
+
 def test_lifecycle_coordinator_cancel_resets_claimed_ticket() -> None:
     """Cover _LifecycleCoordinator._cancel claimed ticket path (lines 965-970)."""
     coordinator = runtime_module._LifecycleCoordinator()
@@ -663,6 +656,22 @@ def test_lifecycle_coordinator_release_unclaimed_ticket_returns_early() -> None:
 
 
 @pytest.mark.asyncio
+async def test_lifecycle_coordinator_acquire_waits_for_release() -> None:
+    """Cover acquire waiting without blocking the event loop."""
+    coordinator = runtime_module._LifecycleCoordinator()
+    first = await coordinator.acquire()
+    task = asyncio.create_task(coordinator.acquire())
+
+    await asyncio.sleep(0)
+
+    assert not task.done()
+    coordinator.release(first)
+    second = await asyncio.wait_for(task, timeout=1)
+    assert second.claimed is True
+    coordinator.release(second)
+
+
+@pytest.mark.asyncio
 async def test_lifecycle_coordinator_acquire_raises_on_claim_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -684,9 +693,10 @@ async def test_lifecycle_coordinator_acquire_raises_cancelled_when_not_claimed(
     """Cover acquire not-claimed -> CancelledError (line 981)."""
     coordinator = runtime_module._LifecycleCoordinator()
 
-    def false_claim(_ticket: Any) -> bool:
+    def inactive_claim(ticket: Any) -> bool:
+        ticket.active = False
         return False
 
-    monkeypatch.setattr(coordinator, "_claim", false_claim)
+    monkeypatch.setattr(coordinator, "_claim", inactive_claim)
     with pytest.raises(asyncio.CancelledError):
         await coordinator.acquire()

@@ -7,7 +7,6 @@ from nonebot.exception import FinishedException
 from nonebot_plugin_alconna.uniseg import Image as UniImage
 import pytest
 
-from src.plugins.nonebot_plugin_lingchu_bot.core import http_security
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.contracts import (
     SubpluginLLMError,
 )
@@ -218,43 +217,41 @@ async def test_full_api_action_dispatches_to_domain_client(
 
 async def test_uniseg_image_reader_supports_path_and_url(
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
 ) -> None:
     png = b"\x89PNG\r\n\x1a\n" + b"\0" * 8 + (3).to_bytes(4) + (5).to_bytes(4)
-    image_path = tmp_path / "image.png"
-    image_path.write_bytes(png)
+    image_path = Path("image.png")
     config = NovelAIConfig(token="token")
-    assert (
-        await handler._read_uniseg_image(UniImage(path=image_path), config=config)
-        == png
-    )
+    stream = SimpleNamespace(read=AsyncMock(return_value=png))
 
-    class SessionContext:
+    class OpenContext:
         async def __aenter__(self) -> Any:
-            return SimpleNamespace(
-                request=AsyncMock(
-                    return_value=SimpleNamespace(status_code=200, content=png)
-                )
-            )
+            return stream
 
         async def __aexit__(self, *args: object) -> None:
             return None
 
-    monkeypatch.setattr(
-        http_security,
-        "get_driver",
-        lambda: SimpleNamespace(get_session=SessionContext),
+    open_file = Mock(return_value=OpenContext())
+    monkeypatch.setattr(handler.aiofiles, "open", open_file)
+
+    assert (
+        await handler._read_uniseg_image(UniImage(path=image_path), config=config)
+        == png
     )
-    monkeypatch.setattr(
-        http_security,
-        "resolve_host_addresses",
-        AsyncMock(return_value=("93.184.216.34",)),
-    )
+    open_file.assert_called_once_with(image_path, "rb")
+    stream.read.assert_awaited_once_with(config.image_download_max_bytes + 1)
+
+    download = AsyncMock(return_value=png)
+    monkeypatch.setattr(handler, "download_public_http_bytes", download)
     assert (
         await handler._read_uniseg_image(
             UniImage(url="https://example.test/image.png"), config=config
         )
         == png
+    )
+    download.assert_awaited_once_with(
+        "https://example.test/image.png",
+        max_bytes=config.image_download_max_bytes,
+        request_timeout=config.timeout,
     )
     with pytest.raises(ValueError):
         await handler._read_uniseg_image(UniImage(), config=config)

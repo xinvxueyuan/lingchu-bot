@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from importlib import import_module
 import subprocess
 import sys
 from typing import NoReturn
@@ -27,6 +28,5 @@ def lingchu(ctx: click.Context, args: tuple[str, ...]) -> NoReturn:
 
 def install() -> None:
     """Register the Lingchu command on nb-cli's public Click group."""
-    from nb_cli.cli import cli
-
+    cli = import_module("nb_cli.cli").cli
     cli.add_command(lingchu)

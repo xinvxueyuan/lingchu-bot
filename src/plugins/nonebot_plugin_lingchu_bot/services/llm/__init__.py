@@ -5,14 +5,6 @@ from __future__ import annotations
 from importlib import import_module
 from typing import TYPE_CHECKING
 
-from .compat import (
-    ChatMessage,
-    LLMOptions,
-    WebSearchResult,
-    complete_chat,
-    complete_with_web_search,
-    supports_web_search,
-)
 from .errors import (
     EmptyLLMContentError,
     LLMError,
@@ -61,12 +53,10 @@ def __getattr__(name: str) -> object:
 __all__ = [
     "CapabilityRegistry",
     "CapabilityResult",
-    "ChatMessage",
     "EmptyLLMContentError",
     "LLMCallRecord",
     "LLMError",
     "LLMEvent",
-    "LLMOptions",
     "LLMProfile",
     "LLMProviderError",
     "LLMResponse",
@@ -77,10 +67,6 @@ __all__ = [
     "MCPAgentRuntime",
     "MissingLLMContentError",
     "StructuredLLMObserver",
-    "WebSearchResult",
-    "complete_chat",
-    "complete_with_web_search",
     "get_mcp_agent_runtime",
     "project_stream_event",
-    "supports_web_search",
 ]

@@ -1,7 +1,7 @@
 ---
 icon: Sparkles
 title: LLM 服务
-description: 托管 LLM 运行时，在 OpenAI 与 LiteLLM 之上提供稳定响应门面。
+description: 托管 LLM 运行时，在 OpenAI 与 LiteLLM 之上提供稳定响应接口。
 ---
 
 # LLM 服务
@@ -14,21 +14,21 @@ LLM 服务位于 `services/llm/` 下，按职责拆分为多个模块。
 
 | 模块 | 职责 |
 | --- | --- |
-| `services/llm/runtime.py` | 托管生命周期、profile 缓存、稳定的 `respond` / `stream` 门面、热重载 |
+| `services/llm/runtime.py` | 托管生命周期、profile 缓存、稳定的 `respond` / `stream` 接口、热重载 |
 | `services/llm/config.py` | 基于 localstore 的 `llm.toml` 解析、profile 解析、URL 与凭据校验 |
 | `services/llm/backends.py` | 包装原生 SDK 客户端的惰性 `OpenAIBackend` 与 `LiteLLMBackend` |
 | `services/llm/capabilities.py` | 顾问式、模型感知的能力探测，带进程级缓存 |
 | `services/llm/security.py` | 有界不可变数据辅助、日志脱敏与控制面键检测 |
 | `services/llm/types.py` | 稳定不可变值对象（`LLMProfile`、`LLMResponse`、`LLMEvent`、`LLMUsage`） |
-| `services/llm/compat.py` | 旧版 `complete_chat` / `complete_with_web_search` 兼容门面 |
 | `services/llm/events.py` | 将提供商原生流事件无损投影为 `LLMEvent` |
 | `services/llm/observability.py` | 用于调用可观测性的结构化 `LLMCallRecord` 发射 |
 
-公共包 `services/llm/__init__.py` 重新导出稳定门面，并通过 `__getattr__` 惰性加载运行时较重的符号，因此导入该包永远不会触发 `openai` 或 `litellm` 的导入。
+公共包 `services/llm/__init__.py` 重新导出稳定接口，并通过 `__getattr__` 惰性加载运行时较重的符号，因此导入该包永远不会触发 `openai` 或 `litellm` 的导入。
 
 ## 配置
 
-LLM 配置从通过 `nonebot_plugin_localstore.get_plugin_config_file()` 解析的 `llm.toml` 加载。当文件缺失时，启动期由 `ensure_llm_config_file_async()` 创建一个最小化的 `default_profile = "default"` 和空 `[profiles]` 表。
+LLM 配置从通过 `nonebot_plugin_localstore.get_plugin_config_file()` 解析的
+`llm.toml` 加载。AI 功能需要由操作员维护该文件，并声明显式 `[profiles]` 条目。
 
 ### 基于 profile 的配置
 
@@ -65,19 +65,8 @@ allow_credentials_to_custom_base_url = false
 
 顶层 `[router]` 表可配置一个隔离的 LiteLLM `Router`（仅当 `enabled = true` 时激活），`[observability]` 表可切换结构化调用记录。
 
-### 旧版 `LINGCHU_AI_*` 隐式 profile
-
-当 `llm.toml` 未声明 `[profiles]` 时，运行时回退到 `core/runtime_config.py` 中基于环境变量的旧版字段：
-
-| 旧版字段 | 环境变量 |
-| --- | --- |
-| `ai_provider` | `LINGCHU_AI_PROVIDER` |
-| `ai_model` | `LINGCHU_AI_MODEL` |
-| `ai_base_url` | `LINGCHU_AI_BASE_URL` |
-| `ai_timeout` | `LINGCHU_AI_TIMEOUT` |
-| `ai_api_key` | `LINGCHU_AI_API_KEY` |
-
-这些字段被投影为一个隐式 `default` profile，且 `inherits_legacy_api_key = true`，因此 API Key 仍从 `LINGCHU_AI_API_KEY` 解析。仅当显式 profile 声明了自己的 `api_key_env` 时，才支持显式 `[profiles]` 表与旧版字段混用。
+`llm.toml` 必须声明显式 profile。部署级 LLM 字段不再作为兜底来源，也不会合成
+隐式 `default` profile。
 
 ## 稳定接口
 
@@ -102,8 +91,6 @@ allow_credentials_to_custom_base_url = false
 
 `unknown` 永远不会阻止原生调用。结果按 `(backend, model, base_url 指纹, SDK 版本, capability)` 缓存，并在配置重载后由 `invalidate_capability_cache()` 失效。OpenAI 后端始终返回 `unknown`，因为 OpenAI 模型元数据不具备权威性。
 
-`compat.py` 中的旧版 `supports_web_search(options)` 辅助函数将三态结果投影为布尔值（仅当 `supported` 时为 `true`），便于调用方在发起原生 web 搜索补全前短路。
-
 ## 安全
 
 ### 私有网络防护
@@ -114,7 +101,7 @@ allow_credentials_to_custom_base_url = false
 
 ### 凭据防护
 
-默认情况下，运行时不会将凭据发往自定义 `base_url`。当 `base_url` 已设置、`inherits_legacy_api_key` 为 `false`、且 `allow_credentials_to_custom_base_url` 为 `false` 时：
+默认情况下，运行时不会将凭据发往自定义 `base_url`。当 `base_url` 已设置且 `allow_credentials_to_custom_base_url` 为 `false` 时：
 
 - 该 profile 的 API Key 被置为 `None`，且
 - 含有凭据类键或授权值的 `default_headers` / `default_query` 会被拒绝。

@@ -10,7 +10,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.core import config as config_module
 from src.plugins.nonebot_plugin_lingchu_bot.core.config import (
     Config,
     InvalidInContainersError,
-    RuntimeConfig,
     UnexpectedInContainersTypeError,
     get_runtime_config,
 )
@@ -157,10 +156,6 @@ def test_in_containers_raises_for_string_value(tmp_path: Path) -> None:
 def test_in_containers_raises_for_unexpected_type(tmp_path: Path) -> None:
     with pytest.raises(UnexpectedInContainersTypeError):
         _config_with(tmp_path, LINGCHU_IN_CONTAINERS=123)
-
-
-def test_runtime_config_remains_a_compatibility_alias() -> None:
-    assert RuntimeConfig is Config
 
 
 def test_get_runtime_config_delegates_to_nonebot_plugin_config(

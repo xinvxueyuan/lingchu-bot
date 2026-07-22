@@ -178,9 +178,8 @@ Lingchu Bot uses pydantic as the source of truth for deployment, mutable runtime
 
 | Surface | Pydantic model | Notes |
 | --- | --- | --- |
-| Plugin env / `.env` | `core/config.py::Config` (extends `DeploymentSettings`) | NoneBot `get_plugin_config()` is the only deployment-field resolver; `RuntimeConfig = Config` remains a compatibility alias. |
+| Plugin env / `.env` | `core/config.py::Config` (extends `DeploymentSettings`) | NoneBot `get_plugin_config()` is the only deployment-field resolver. |
 | Online-editable settings | `_lingchu_bot_contracts::MutableRuntimeSettings` | Persisted by `core/mutable_settings.py` in localstore-owned `runtime-overrides.toml`. |
-| Legacy migration input | `_lingchu_bot_contracts::RuntimeSettings` | Used only by `lingchu config migrate`; runtime code does not load it. |
 | Per-command handle config | `core/handle_config_defaults/<command>.py::<Model>(BaseModel)` | Registered via `register_handle_defaults()`; `HANDLE_DEFAULTS_REGISTRY` is `dict[str, type[BaseModel]]`. `HandleConfigManager.get_config()` / `update_config()` use `type_validate_python(model_cls, toml_dict)`. `HandleConfig` dataclass still holds `dict[str, Any]` to preserve the frozen-dataclass interface; `_build_handle_config` bridges the pydantic ↔ dict boundary via `model_dump(mode="json")`. |
 | Bot state | `core/bot_state.py::BotStateFile(BaseModel)` | Uses `Field(alias="global")` + `populate_by_name=True` to bridge the `global` Python keyword; `_save_bot_state()` serializes with `model_dump(mode="json", by_alias=True)`. |
 | JSON Schema files | Generated explicitly with `lingchu schema install` | CLI tooling calls pydantic `model_json_schema()` on request; startup never installs them. |

@@ -11,8 +11,6 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal, Self, cast
 from urllib.parse import urlparse
 
-import aiofiles
-import aiofiles.os
 from nonebot import require
 from nonebot_plugin_localstore import get_plugin_config_file
 from pydantic import (
@@ -38,8 +36,6 @@ require("nonebot_plugin_localstore")
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from ...core.config import RuntimeConfig
 
 LLM_CONFIG_FILENAME = "llm.toml"
 MAX_JSON_DEPTH = 8
@@ -246,7 +242,6 @@ class LLMProfileConfig:
     litellm_generation: Literal["responses", "chat"] = "responses"
     allow_private_network: bool = False
     allow_credentials_to_custom_base_url: bool = False
-    inherits_legacy_api_key: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "default_headers", freeze_value(self.default_headers))
@@ -313,11 +308,12 @@ def get_llm_config_file() -> Path:
 
 async def ensure_llm_config_file_async() -> Path:
     path = get_llm_config_file()
-    await aiofiles.os.makedirs(path.parent, exist_ok=True)
-    if not await aiofiles.os.path.exists(path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
         with suppress(FileExistsError):
-            async with aiofiles.open(path, "w", encoding="utf-8") as f:
-                await f.write('default_profile = "default"\n[profiles]\n')
+            path.write_text(
+                'default_profile = "default"\n[profiles]\n', encoding="utf-8"
+            )
     return path
 
 
@@ -367,7 +363,7 @@ def _normalize_url(url: str | None) -> str | None:
     return f"{parsed.scheme.casefold()}://{netloc}{parsed.path.rstrip('/')}"
 
 
-def load_llm_runtime_config(*, legacy: RuntimeConfig) -> LLMRuntimeConfig:
+def load_llm_runtime_config() -> LLMRuntimeConfig:
     # Sync I/O: startup-time API called once before the event loop is in use.
     path = get_llm_config_file()
     try:
@@ -375,15 +371,9 @@ def load_llm_runtime_config(*, legacy: RuntimeConfig) -> LLMRuntimeConfig:
         root = _RootModel.model_validate(raw)
     except (OSError, tomllib.TOMLDecodeError, ValidationError, ValueError):
         raise INVALID_CONFIGURATION from None
-    uses_implicit_legacy_profile = not root.profiles
-    source = root.profiles or {
-        "default": _ProfileModel(
-            model=legacy.ai_model,
-            backend=legacy.ai_provider,
-            base_url=legacy.ai_base_url,
-            timeout=legacy.ai_timeout,
-        )
-    }
+    source = root.profiles
+    if not source:
+        raise INVALID_CONFIGURATION
     default = root.default_profile or next(iter(source))
     if default not in source:
         raise MISSING_DEFAULT_PROFILE
@@ -407,7 +397,6 @@ def load_llm_runtime_config(*, legacy: RuntimeConfig) -> LLMRuntimeConfig:
             litellm_generation=cast(
                 "Literal['responses', 'chat']", values.pop("litellm_generation")
             ),
-            inherits_legacy_api_key=uses_implicit_legacy_profile,
             **values,
         )
     return LLMRuntimeConfig(
@@ -433,23 +422,12 @@ def load_llm_runtime_config(*, legacy: RuntimeConfig) -> LLMRuntimeConfig:
     )
 
 
-def resolve_profile(
-    config: LLMRuntimeConfig, *, legacy: RuntimeConfig, name: str | None = None
-) -> LLMProfile:
+def resolve_profile(config: LLMRuntimeConfig, *, name: str | None = None) -> LLMProfile:
     profile = config.profiles[name or config.default_profile]
-    if profile.api_key_env:
-        key = os.environ.get(profile.api_key_env)
-    elif profile.inherits_legacy_api_key:
-        key = legacy.ai_api_key
-    else:
-        key = None
+    key = os.environ.get(profile.api_key_env) if profile.api_key_env else None
     if profile.api_key_env and not key:
         raise MISSING_API_KEY
-    if (
-        profile.base_url
-        and not profile.inherits_legacy_api_key
-        and not profile.allow_credentials_to_custom_base_url
-    ):
+    if profile.base_url and not profile.allow_credentials_to_custom_base_url:
         if contains_sensitive_mapping_entry(profile.default_headers) or (
             contains_sensitive_mapping_entry(profile.default_query)
         ):

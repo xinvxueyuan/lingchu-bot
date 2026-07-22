@@ -10,7 +10,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import inspect
 import os
 from pathlib import Path
@@ -20,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 import nonebot
 from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
+from nonebug import NONEBOT_START_LIFESPAN
 import pytest
 from pytest_asyncio import is_async_test
 
@@ -79,17 +79,22 @@ def _serialize_startup_for_shared_database(driver: object) -> int:
 
     async def locked_startup(self: object) -> None:
         _ = self
-        lock_file = await asyncio.to_thread(_acquire_shared_startup_lock)
+        lock_file = _acquire_shared_startup_lock()
         try:
             result = original_startup()
             if inspect.isawaitable(result):
                 await result
         finally:
-            await asyncio.to_thread(_release_shared_startup_lock, lock_file)
+            _release_shared_startup_lock(lock_file)
 
     lifespan_obj: Any = lifespan
     lifespan_obj.startup = MethodType(locked_startup, lifespan)
     return len(startup_funcs)
+
+
+def _disable_nonebug_auto_lifespan(config: pytest.Config) -> None:
+    """Keep nonebug from starting the full driver lifespan for every test run."""
+    config.stash[NONEBOT_START_LIFESPAN] = False
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -106,6 +111,7 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers", "i18n: tests that run against multiple locales (zh_CN and en_US)"
     )
+    _disable_nonebug_auto_lifespan(config)
 
     try:
         nonebot.get_driver()

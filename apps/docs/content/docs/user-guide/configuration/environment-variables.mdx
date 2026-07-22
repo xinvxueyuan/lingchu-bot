@@ -73,13 +73,10 @@ See [Superuser Identity](./superuser) for detailed configuration.
 
 ## LLM service
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LINGCHU_AI_PROVIDER` | `litellm` | LLM provider backend. One of: `litellm`, `openai` |
-| `LINGCHU_AI_MODEL` | `gpt-4o-mini` | Default LLM model name |
-| `LINGCHU_AI_BASE_URL` | (unset) | Optional OpenAI-compatible base URL (for DeepSeek, Qwen, Moonshot, Zhipu, OpenRouter, Ollama, etc.). Leave unset for OpenAI default |
-| `LINGCHU_AI_TIMEOUT` | `60.0` | Request timeout in seconds. Must be `> 0` |
-| `LINGCHU_AI_API_KEY` | (unset) | Legacy / default LLM API key. A non-empty profiles table in localstore-backed `llm.toml` takes precedence over all `LINGCHU_AI_*` fields |
+LLM backends are configured in localstore-backed `llm.toml` profiles. Put
+provider credentials in deployment environment variables such as
+`OPENAI_API_KEY`, then reference the variable name from profile `api_key_env`.
+Deployment-level LLM variables are no longer a fallback source.
 
 ## Recall settings
 

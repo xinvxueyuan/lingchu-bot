@@ -31,8 +31,7 @@ def make_runtime(profile: LLMProfileConfig) -> LLMRuntime:
         router=LiteLLMRouterConfig(),
         observability=LLMObservabilityConfig(),
     )
-    legacy = SimpleNamespace(ai_api_key="secret", ai_base_url=None)
-    return LLMRuntime(config, legacy=cast("Any", legacy))
+    return LLMRuntime(config)
 
 
 @pytest.mark.asyncio

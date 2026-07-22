@@ -25,9 +25,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, Final
 
-from _lingchu_bot_contracts import RuntimeSettings
-import aiofiles
-import aiofiles.os
+from _lingchu_bot_contracts import DeploymentSettings
 from nonebot import logger, require
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -162,17 +160,21 @@ class _HandleConfigSchemaModel(BaseModel):
     policies: dict[str, Any] = Field(default_factory=dict)
 
 
-async def _write_schema(path: Path, schema: dict[str, Any]) -> None:
+def _write_schema(path: Path, schema: dict[str, Any]) -> None:
     """Write a pydantic-generated JSON schema to disk with indentation."""
     content = json.dumps(schema, indent=2, ensure_ascii=False)
-    async with aiofiles.open(path, "w", encoding="utf-8") as f:
-        await f.write(content)
+    path.write_text(content, encoding="utf-8")
 
 
-async def _write_schema_text(path: Path, schema_text: str) -> None:
+def _write_schema_text(path: Path, schema_text: str) -> None:
     """Write a hand-authored JSON schema string to disk verbatim."""
-    async with aiofiles.open(path, "w", encoding="utf-8") as f:
-        await f.write(schema_text)
+    path.write_text(schema_text, encoding="utf-8")
+
+
+def _ensure_schema_dirs(config_dir: Path, data_dir: Path) -> None:
+    """Ensure schema target directories exist."""
+    config_dir.mkdir(parents=True, exist_ok=True)
+    data_dir.mkdir(parents=True, exist_ok=True)
 
 
 async def install_schemas() -> None:
@@ -186,32 +188,31 @@ async def install_schemas() -> None:
     config_dir: Path = get_plugin_config_dir()
     data_dir: Path = get_plugin_data_dir()
 
-    await aiofiles.os.makedirs(config_dir, exist_ok=True)
-    await aiofiles.os.makedirs(data_dir, exist_ok=True)
+    _ensure_schema_dirs(config_dir, data_dir)
 
-    # CONFIG_SCHEMA from the import-safe runtime settings contract.
-    await _write_schema(
+    # CONFIG_SCHEMA from the import-safe deployment settings contract.
+    _write_schema(
         config_dir / CONFIG_SCHEMA_BASENAME,
-        RuntimeSettings.model_json_schema(),
+        DeploymentSettings.model_json_schema(),
     )
 
     # BOT_STATE_SCHEMA from BotStateFile (defined in bot_state.py; local import).
     from .bot_state import BotStateFile
 
-    await _write_schema(
+    _write_schema(
         data_dir / BOT_STATE_SCHEMA_BASENAME,
         BotStateFile.model_json_schema(),
     )
 
     # HANDLE_CONFIG_SCHEMA from the generic handle config shape model.
-    await _write_schema(
+    _write_schema(
         config_dir / HANDLE_CONFIG_SCHEMA_BASENAME,
         _HandleConfigSchemaModel.model_json_schema(),
     )
 
     # MENU_SCHEMA and LLM_SCHEMA: no public pydantic model exists, so the
     # hand-authored JSON Schema string literals are written verbatim.
-    await _write_schema_text(config_dir / MENU_SCHEMA_BASENAME, MENU_SCHEMA_TEXT)
-    await _write_schema_text(config_dir / LLM_SCHEMA_BASENAME, LLM_SCHEMA_TEXT)
+    _write_schema_text(config_dir / MENU_SCHEMA_BASENAME, MENU_SCHEMA_TEXT)
+    _write_schema_text(config_dir / LLM_SCHEMA_BASENAME, LLM_SCHEMA_TEXT)
 
     logger.debug("Lingchu configuration schemas installed")

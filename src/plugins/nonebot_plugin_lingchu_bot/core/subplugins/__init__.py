@@ -1,7 +1,6 @@
 """Nested subplugin discovery and parent-child contracts."""
 
 from .contracts import (
-    LLMOptions,
     LocalizedText,
     MenuAvailability,
     MenuFeature,
@@ -20,13 +19,11 @@ from .contracts import (
     register_subplugin_handler,
     register_subplugin_menu_feature,
     reset_subplugin_menu_features,
-    resolve_default_llm_options,
 )
 from .loader import SUBPLUGIN_MODULES, load_subplugins
 
 __all__ = [
     "SUBPLUGIN_MODULES",
-    "LLMOptions",
     "LocalizedText",
     "MenuAvailability",
     "MenuFeature",
@@ -46,5 +43,4 @@ __all__ = [
     "register_subplugin_handler",
     "register_subplugin_menu_feature",
     "reset_subplugin_menu_features",
-    "resolve_default_llm_options",
 ]

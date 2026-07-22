@@ -418,15 +418,16 @@ allowed-confusables = [
 # BLE001: startup/probe code uses intentional fail-closed/fail-soft exception handling
 # E402: nonebot2 require() must precede cross-plugin imports at module level
 "src/plugins/nonebot_plugin_lingchu_bot/core/bot_state.py" = ["BLE001", "E402", "TC003"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/contracts.py" = [
+    "BLE001", # provider web-search annotations and soft-failing probes are untrusted
+    "E402",   # nonebot2 require() must precede cross-plugin imports at module level
+]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/search.py" = ["BLE001"]
 "src/plugins/nonebot_plugin_lingchu_bot/services/llm/backends.py" = [
     "BLE001", # closing one provider client must not skip remaining owned clients
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/services/llm/capabilities.py" = [
     "BLE001", # advisory probes fail closed across arbitrary optional SDK failures
-]
-"src/plugins/nonebot_plugin_lingchu_bot/services/llm/compat.py" = [
-    "BLE001", # compatibility search and annotation enrichment is intentionally fail-open
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/services/llm/events.py" = [
     "BLE001", # provider stream objects may raise from hostile attribute access
@@ -523,7 +524,6 @@ allowed-confusables = [
     "PLW0603",  # module-level state management
     "C901",  # complex validation logic
 ]
-"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/contracts.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/llm_chat/config.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/llm_chat/handler.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/llm_chat/__init__.py" = ["E402"]

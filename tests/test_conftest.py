@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+
+from nonebug import NONEBOT_START_LIFESPAN
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -12,6 +14,7 @@ if TYPE_CHECKING:
     import pytest
 
 from tests.conftest import (
+    _disable_nonebug_auto_lifespan,
     _serialize_startup_for_shared_database,
     _should_serialize_startup_for_shared_database,
 )
@@ -39,6 +42,14 @@ def test_startup_serialized_for_xdist_external_database() -> None:
         )
         is True
     )
+
+
+def test_nonebug_auto_lifespan_is_disabled() -> None:
+    config = cast("pytest.Config", SimpleNamespace(stash={}))
+
+    _disable_nonebug_auto_lifespan(config)
+
+    assert config.stash[NONEBOT_START_LIFESPAN] is False
 
 
 def test_serialize_startup_for_shared_database_wraps_startup_hooks(

@@ -160,11 +160,7 @@ Online-editable command, menu-trigger, and platform-permission overrides are sto
 | Protected Subjects | `LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS` | Side-effect command keys blocked when their target user is protected. |
 | Database | `SQLALCHEMY_DATABASE_URL` | SQLAlchemy database URL; supports SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server. Unset uses default SQLite. |
 | Database | `ALEMBIC_STARTUP_CHECK` | Set to `true` in production to enforce schema migration checks on startup. |
-| LLM Service | `LINGCHU_AI_PROVIDER` | Legacy/default LLM backend: `litellm` or `openai`. |
-| LLM Service | `LINGCHU_AI_MODEL` | Legacy/default model id (`gpt-4o-mini`). |
-| LLM Service | `LINGCHU_AI_BASE_URL` | Legacy/default OpenAI-compatible base URL. |
-| LLM Service | `LINGCHU_AI_TIMEOUT` | Legacy/default request timeout in seconds. |
-| LLM Service | `LINGCHU_AI_API_KEY` | Legacy/default API key; prefer profile `api_key_env`. |
+| LLM Secrets | Provider-specific variables referenced by `llm.toml` profiles | Keep provider API keys in the deployment environment, for example `OPENAI_API_KEY`. |
 | Announcement Images | `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` | Host-side cache directory for announcement images (defaults to localstore cache). |
 | Announcement Images | `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` | Protocol-side directory NapCat sees inside the container. |
 
@@ -183,14 +179,14 @@ chinese = "成员管理"
 english = "member-management"
 ```
 
-Use `lingchu config init`, `lingchu config validate`, and `lingchu schema install` to manage this file explicitly. Migrate an old combined file with `lingchu config migrate --source config.toml --env-file .env --residual runtime-overrides.toml --dry-run`, inspect the redacted plan, then rerun without `--dry-run`. Use `--force` only to replace conflicting managed environment keys. The same commands are available through `nb lingchu`. Legacy `.json5` files are not read or migrated.
+Use `lingchu config init`, `lingchu config validate`, and `lingchu schema install` to manage this file explicitly. The old combined `config.toml` migration command has been removed; move deployment settings to NoneBot environment variables and mutable settings to `runtime-overrides.toml` manually. Legacy `.json5` files are not read or migrated.
 
 ### Managed LLM profiles
 
-Lingchu also creates `llm.toml` in the plugin configuration directory. A
-non-empty `[profiles]` table takes precedence over deployment `ai_*` environment fields; an empty table uses those deployment fields as an implicit `default`
-profile. Keep credentials out of TOML by naming an environment variable with
-`api_key_env`:
+Lingchu also reads `llm.toml` from the plugin configuration directory. Declare
+at least one explicit profile; deployment-level LLM fields are no longer a
+fallback source. Keep credentials out of TOML by naming an
+environment variable with `api_key_env`:
 
 ```toml
 #:schema ./llm.schema.json
@@ -204,7 +200,7 @@ litellm_generation = "responses"
 timeout = 60
 max_retries = 2
 
-[profiles.compatible]
+[profiles.litellm_chat]
 backend = "litellm"
 model = "openai/gpt-4o-mini"
 api_key_env = "OPENAI_API_KEY"
@@ -235,11 +231,10 @@ private IP literals unless `allow_private_network = true`. Credentials are not
 sent to a custom base URL unless
 `allow_credentials_to_custom_base_url = true`. These are explicit trust
 switches, not recommendations; deployments must also enforce DNS and redirect
-policy at the network layer. The synthesized implicit legacy profile treats an
-existing legacy URL/key pair as legacy opt-in; explicit profiles never inherit
-that exception. Stable `provider_options` reject credential, endpoint, callback,
-logger, retry, and Router control keys. Lingchu passes tool definitions and native
-results through but never executes model-requested tools automatically.
+policy at the network layer. Stable `provider_options` reject credential,
+endpoint, callback, logger, retry, and Router control keys. Lingchu passes tool
+definitions and native results through but never executes model-requested tools
+automatically.
 
 ## Commands at a glance
 
