@@ -94,27 +94,6 @@ run_python_checks
 # Phase 6d: Docs Playwright Chromium 冒烟 | Phase 7: React Doctor
 run_frontend_checks
 
-# ── Phase 8: 非阻断分析 ─────────────────────────────────────────────
-# Gitnexus 优先本地 node_modules/.bin（devDep 已装时零下载零 pnpm 开销），
-# 其次 pnpm exec，最后才走 pnpm dlx 缓存
-if [ -n "$GITNEXUS_RESOLVED" ]; then
-    run_resolved "$GITNEXUS_RESOLVED" analyze || true
-elif [ -n "$PNPM_RUNNER" ]; then
-    run_pnpm exec gitnexus analyze || true
-else
-    echo "⚠️  未找到 gitnexus / pnpm，跳过 Gitnexus 分析。"
-fi
-
-# Gitnexus 可能更新 CLAUDE.md / AGENTS.md，自动暂存变更（git add 对未变更文件是空操作）
-# 由原 6 次 git 子进程减为 3 次
-WT_DIFF=$("$GIT_CMD" diff --name-only -- CLAUDE.md AGENTS.md 2>/dev/null)
-CACHED_DIFF=$("$GIT_CMD" diff --cached --name-only -- CLAUDE.md AGENTS.md 2>/dev/null)
-UNTRACKED=$("$GIT_CMD" ls-files --others --exclude-standard -- CLAUDE.md AGENTS.md 2>/dev/null)
-ALL_CHANGED=$(printf '%s\n%s\n%s\n' "$WT_DIFF" "$CACHED_DIFF" "$UNTRACKED" | awk 'NF' | sort -u || true)
-if [ -n "$ALL_CHANGED" ]; then
-    echo "ℹ️  检测到 Gitnexus 更新了 $ALL_CHANGED，正在暂存..."
-    # shellcheck disable=SC2086
-    "$GIT_CMD" add -- $ALL_CHANGED
-fi
-
 echo "✅ 所有检查通过！"
+
+# Gitnexus 分析已移至 post-commit 钩子，避免索引落后一个提交
