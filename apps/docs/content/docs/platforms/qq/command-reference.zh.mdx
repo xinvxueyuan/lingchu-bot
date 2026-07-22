@@ -225,20 +225,16 @@ shutdown
 chat <text>
 ```
 
-与 AI 聊天。机器人调用配置的 LLM 服务（`ai_provider` / `ai_model` / `ai_base_url` / `ai_api_key`）生成回复。
+与 AI 聊天。机器人调用 `llm.toml` 中配置的默认 profile 生成回复。
 
 - 系统提示词：默认 `"你是一个友好的群聊助手。"`，可通过 `chat.toml` 的 `defaults.system_prompt` 自定义。
 - 功能开关：`chat.toml` 的 `enabled` 字段控制启用/禁用。
 
 <Callout type="info" title="LLM 配置">
 
-聊天命令依赖运行时 LLM 配置。请通过 NoneBot 环境变量或其 `.env` 文件设置这些部署字段：
-
-- `ai_provider`：`litellm`（默认）或 `openai`
-- `ai_model`：模型名称（默认 `gpt-4o-mini`）
-- `ai_base_url`：OpenAI 兼容端点 URL（可选）
-- `ai_api_key`：API 密钥（建议通过 `LINGCHU_AI_API_KEY` 环境变量设置）
-- `ai_timeout`：请求超时秒数（默认 `60`）
+聊天命令依赖显式 `llm.toml` profile。请在该 profile 中配置提供商、模型、端点、
+超时和 generation 选项。密钥保存在 `OPENAI_API_KEY` 这类环境变量中，并通过
+`api_key_env` 引用变量名。
 
 </Callout>
 
@@ -248,8 +244,8 @@ chat <text>
 生图 <描述> [选项]
 ```
 
-可移除的 `core/subplugins/novelai_image` 子插件使用用户全局配置的 `ai_*`
-模型理解并翻译请求，再选择性地通过联网搜索和 TIPO 丰富提示词，最后生成一张
+可移除的 `core/subplugins/novelai_image` 子插件使用托管默认 LLM profile
+理解并翻译请求，再选择性地通过联网搜索和 TIPO 丰富提示词，最后生成一张
 NovelAI Diffusion V4.5 图片。英文 locale 使用
 `novelai-image <description> [options]`。
 
@@ -278,7 +274,7 @@ NovelAI Diffusion V4.5 图片。英文 locale 使用
 文字”等自然语言中提取提示。无效的显式值会中止命令并返回本地化校验消息；
 无效的推断值会回退到 TOML 默认值。
 
-同一个全局 LLM 会自动判断是否需要当前或权威的视觉事实，例如真实地点、产品、
+同一个托管 LLM 会自动判断是否需要当前或权威的视觉事实，例如真实地点、产品、
 近期事件、具名角色或精确服装。生成的搜索查询会发送给已配置的 LLM 提供商，
 因此可能向该提供商披露生图主题；搜索来源和阶段诊断不会发送到群聊。只有所选
 LiteLLM 模型与提供商支持联网搜索时才会执行；不支持或搜索失败时会静默降级为

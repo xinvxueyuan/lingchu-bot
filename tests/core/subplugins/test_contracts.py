@@ -9,24 +9,22 @@ from src.plugins.nonebot_plugin_lingchu_bot.core import subplugins
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins import contracts
 
 
-async def test_complete_subplugin_chat_forwards_explicit_options(
+async def test_complete_subplugin_chat_uses_managed_runtime_profile(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    complete_chat = AsyncMock(return_value="result")
-    monkeypatch.setattr(contracts, "complete_chat", complete_chat)
-    options = contracts.LLMOptions(
-        provider="litellm",
-        model="child-model",
-        base_url=None,
-        api_key=None,
-        timeout=8.0,
+    runtime = MagicMock(spec=contracts.LLMRuntime)
+    runtime.respond = AsyncMock(
+        return_value=SimpleNamespace(text="result", raw=object())
+    )
+    monkeypatch.setattr(
+        contracts, "get_subplugin_llm_runtime", MagicMock(return_value=runtime)
     )
     messages = [{"role": "user", "content": "describe"}]
 
     assert (
-        await contracts.complete_subplugin_chat(messages, options=options) == "result"
+        await contracts.complete_subplugin_chat(messages, profile="child") == "result"
     )
-    complete_chat.assert_awaited_once_with(messages, options=options)
+    runtime.respond.assert_awaited_once_with(messages, profile="child")
 
 
 def test_register_and_collect_subplugin_menu_features() -> None:
@@ -112,14 +110,18 @@ def test_subplugin_llm_error_subclasses_llm_error() -> None:
 async def test_complete_subplugin_chat_default_uses_default_options(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """complete_subplugin_chat_default forwards messages without an options kwarg."""
-    complete_chat = AsyncMock(return_value="result")
-    monkeypatch.setattr(contracts, "complete_chat", complete_chat)
+    """complete_subplugin_chat_default forwards messages to the default profile."""
+    runtime = MagicMock(spec=contracts.LLMRuntime)
+    runtime.respond = AsyncMock(
+        return_value=SimpleNamespace(text="result", raw=object())
+    )
+    monkeypatch.setattr(
+        contracts, "get_subplugin_llm_runtime", MagicMock(return_value=runtime)
+    )
     messages = [{"role": "user", "content": "hi"}]
 
     assert await contracts.complete_subplugin_chat_default(messages) == "result"
-    complete_chat.assert_awaited_once_with(messages)
-    assert "options" not in complete_chat.call_args.kwargs
+    runtime.respond.assert_awaited_once_with(messages, profile=None)
 
 
 def test_default_chat_contract_is_public() -> None:
@@ -143,8 +145,11 @@ async def test_complete_subplugin_chat_default_wraps_llm_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """complete_subplugin_chat_default wraps LLMError as SubpluginLLMError."""
-    complete_chat = AsyncMock(side_effect=contracts.LLMError("boom"))
-    monkeypatch.setattr(contracts, "complete_chat", complete_chat)
+    runtime = MagicMock(spec=contracts.LLMRuntime)
+    runtime.respond = AsyncMock(side_effect=contracts.LLMError("boom"))
+    monkeypatch.setattr(
+        contracts, "get_subplugin_llm_runtime", MagicMock(return_value=runtime)
+    )
 
     with pytest.raises(contracts.SubpluginLLMError) as exc_info:
         await contracts.complete_subplugin_chat_default([
@@ -158,14 +163,42 @@ async def test_complete_subplugin_chat_default_reraises_subplugin_llm_error(
 ) -> None:
     """SubpluginLLMError is re-raised as-is, not double-wrapped."""
     original = contracts.SubpluginLLMError("nested")
-    complete_chat = AsyncMock(side_effect=original)
-    monkeypatch.setattr(contracts, "complete_chat", complete_chat)
+    runtime = MagicMock(spec=contracts.LLMRuntime)
+    runtime.respond = AsyncMock(side_effect=original)
+    monkeypatch.setattr(
+        contracts, "get_subplugin_llm_runtime", MagicMock(return_value=runtime)
+    )
 
     with pytest.raises(contracts.SubpluginLLMError) as exc_info:
         await contracts.complete_subplugin_chat_default([
             {"role": "user", "content": "hi"}
         ])
     assert exc_info.value is original
+
+
+@pytest.mark.parametrize(
+    ("response_text", "expected_error"),
+    [
+        (None, contracts.MissingLLMContentError),
+        ("", contracts.EmptyLLMContentError),
+    ],
+)
+async def test_complete_subplugin_chat_rejects_missing_response_text(
+    monkeypatch: pytest.MonkeyPatch,
+    response_text: str | None,
+    expected_error: type[Exception],
+) -> None:
+    runtime = MagicMock(spec=contracts.LLMRuntime)
+    runtime.respond = AsyncMock(
+        return_value=SimpleNamespace(text=response_text, raw=object())
+    )
+    monkeypatch.setattr(
+        contracts, "get_subplugin_llm_runtime", MagicMock(return_value=runtime)
+    )
+
+    with pytest.raises(contracts.SubpluginLLMError) as exc_info:
+        await contracts.complete_subplugin_chat([{"role": "user", "content": "hi"}])
+    assert isinstance(exc_info.value.__cause__, expected_error)
 
 
 def test_subplugin_trigger_is_frozen_dataclass() -> None:
@@ -203,61 +236,220 @@ def test_get_subplugin_trigger_for_novelai_image() -> None:
     assert trigger.aliases
 
 
-def test_resolve_default_llm_options_reads_runtime_config(
+async def test_subplugin_web_search_contract_uses_runtime_profile(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """resolve_default_llm_options builds LLMOptions from plugin_config fields."""
-    fake_config = SimpleNamespace(
-        ai_provider="openai",
-        ai_model="gpt-4",
-        ai_base_url="http://example.com",
-        ai_api_key="secret",
-        ai_timeout=30.0,
-    )
-    monkeypatch.setattr(contracts, "plugin_config", fake_config)
-
-    options = contracts.resolve_default_llm_options()
-
-    assert isinstance(options, contracts.LLMOptions)
-    assert options.provider == "openai"
-    assert options.model == "gpt-4"
-    assert options.base_url == "http://example.com"
-    assert options.api_key == "secret"
-    assert options.timeout == 30.0
-
-
-async def test_subplugin_web_search_contract_forwards_same_options(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    options = contracts.LLMOptions(
-        provider="litellm",
+    messages = [{"role": "user", "content": "visual facts"}]
+    profile = SimpleNamespace(
+        name="search",
+        backend="litellm",
         model="search-model",
         base_url="https://example.test/v1",
-        api_key="secret",
-        timeout=12.0,
     )
-    messages = [{"role": "user", "content": "visual facts"}]
-    result = contracts.WebSearchResult(
+    raw = SimpleNamespace(
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(
+                    annotations=[
+                        {
+                            "url_citation": {
+                                "url": "https://example.test/source",
+                            }
+                        }
+                    ]
+                )
+            )
+        ]
+    )
+    runtime = MagicMock(spec=contracts.LLMRuntime)
+    runtime.profile = MagicMock(return_value=profile)
+    runtime.litellm = MagicMock(return_value=object())
+    runtime.respond = AsyncMock(
+        return_value=SimpleNamespace(text='["blue coat"]', raw=raw)
+    )
+    monkeypatch.setattr(
+        contracts, "get_subplugin_llm_runtime", MagicMock(return_value=runtime)
+    )
+    monkeypatch.setattr(
+        contracts,
+        "probe_capability",
+        MagicMock(return_value=SimpleNamespace(support="supported")),
+    )
+
+    assert await contracts.complete_subplugin_web_search(
+        messages, profile="search"
+    ) == contracts.WebSearchResult(
         text='["blue coat"]', sources=("https://example.test/source",)
     )
-    complete = AsyncMock(return_value=result)
-    monkeypatch.setattr(contracts, "complete_with_web_search", complete)
-
-    monkeypatch.setattr(contracts, "supports_web_search", MagicMock(return_value=False))
-    assert contracts.subplugin_supports_web_search(options) is False
-    monkeypatch.setattr(contracts, "supports_web_search", MagicMock(return_value=True))
-    assert contracts.subplugin_supports_web_search(options) is True
-    assert (
-        await contracts.complete_subplugin_web_search(messages, options=options)
-        == result
+    runtime.profile.assert_called_once_with("search")
+    runtime.litellm.assert_called_once_with("search")
+    runtime.respond.assert_awaited_once_with(
+        messages, profile="search", tools=[{"type": "web_search"}]
     )
-    complete.assert_awaited_once_with(messages, options=options)
+
+
+async def test_subplugin_web_search_contract_skips_unsupported_profile(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = MagicMock(spec=contracts.LLMRuntime)
+    runtime.profile = MagicMock(
+        return_value=SimpleNamespace(name="default", backend="openai")
+    )
+    runtime.respond = AsyncMock()
+    monkeypatch.setattr(
+        contracts, "get_subplugin_llm_runtime", MagicMock(return_value=runtime)
+    )
+
+    assert await contracts.complete_subplugin_web_search([]) is None
+    runtime.respond.assert_not_awaited()
+
+
+async def test_subplugin_web_search_contract_skips_unsupported_capability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = MagicMock(spec=contracts.LLMRuntime)
+    runtime.profile = MagicMock(
+        return_value=SimpleNamespace(name="search", backend="litellm")
+    )
+    runtime.litellm = MagicMock(return_value=object())
+    runtime.respond = AsyncMock()
+    monkeypatch.setattr(
+        contracts, "get_subplugin_llm_runtime", MagicMock(return_value=runtime)
+    )
+    monkeypatch.setattr(
+        contracts,
+        "probe_capability",
+        MagicMock(return_value=SimpleNamespace(support="unsupported")),
+    )
+
+    assert await contracts.complete_subplugin_web_search([]) is None
+    runtime.respond.assert_not_awaited()
+
+
+async def test_subplugin_web_search_contract_soft_fails_provider_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = MagicMock(spec=contracts.LLMRuntime)
+    runtime.profile = MagicMock(
+        return_value=SimpleNamespace(name="search", backend="litellm")
+    )
+    runtime.litellm = MagicMock(return_value=object())
+    runtime.respond = AsyncMock(side_effect=RuntimeError("provider down"))
+    monkeypatch.setattr(
+        contracts, "get_subplugin_llm_runtime", MagicMock(return_value=runtime)
+    )
+    monkeypatch.setattr(
+        contracts,
+        "probe_capability",
+        MagicMock(return_value=SimpleNamespace(support="supported")),
+    )
+
+    assert await contracts.complete_subplugin_web_search([]) is None
+
+
+def test_web_search_sources_filter_unsafe_and_deduplicate() -> None:
+    annotations = [
+        {"url_citation": {"url": "https://example.test/ok?ref=public"}},
+        {"url_citation": {"url": "https://example.test/ok?ref=public"}},
+        {"url_citation": {"url": "http://localhost/private"}},
+        {"url_citation": {"url": "https://example.test/secret?api_key=hidden"}},
+        {"url_citation": {"url": "https://user@example.test/credentials"}},
+        {"url": "https://example.test/fallback"},
+        {"url": "ftp://example.test/file"},
+        {"url": "https://example.test/fragment#part"},
+        {"url": "https://example.test/control\n"},
+    ]
+    raw = SimpleNamespace(
+        choices=[SimpleNamespace(message={"annotations": annotations})]
+    )
+
+    assert contracts._extract_source_urls(raw) == (
+        "https://example.test/ok?ref=public",
+        "https://example.test/fallback",
+    )
+
+
+def test_web_search_sources_use_provider_specific_annotations() -> None:
+    raw = SimpleNamespace(
+        choices=[
+            SimpleNamespace(
+                message={
+                    "provider_specific_fields": {
+                        "annotations": [
+                            {"url": "https://example.test/provider-specific"}
+                        ]
+                    }
+                }
+            )
+        ]
+    )
+
+    assert contracts._extract_source_urls(raw) == (
+        "https://example.test/provider-specific",
+    )
+
+
+def test_web_search_sources_ignore_malformed_provider_payload() -> None:
+    class BrokenResponse:
+        @property
+        def choices(self) -> object:
+            raise RuntimeError("broken")
+
+    assert contracts._extract_source_urls(BrokenResponse()) == ()
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        object(),
+        SimpleNamespace(choices=[]),
+        SimpleNamespace(choices=[SimpleNamespace(message={})]),
+        SimpleNamespace(choices=[SimpleNamespace(message={"annotations": "bad"})]),
+    ],
+)
+def test_web_search_sources_ignore_missing_or_non_sequence_annotations(
+    raw: object,
+) -> None:
+    assert contracts._extract_source_urls(raw) == ()
+
+
+def test_web_search_sources_are_bounded() -> None:
+    annotations = [
+        {"url": f"https://example.test/source/{index}"}
+        for index in range(contracts.MAX_WEB_SEARCH_SOURCES + 8)
+    ]
+    raw = SimpleNamespace(
+        choices=[SimpleNamespace(message={"annotations": annotations})]
+    )
+
+    sources = contracts._extract_source_urls(raw)
+
+    assert len(sources) == contracts.MAX_WEB_SEARCH_SOURCES
+    assert sources[-1] == (
+        f"https://example.test/source/{contracts.MAX_WEB_SEARCH_SOURCES - 1}"
+    )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "https://example.test/" + ("a" * contracts.MAX_SOURCE_URL_LENGTH),
+        "https://[bad",
+        "https://127.0.0.1/source",
+        "https://metadata.google.internal/source",
+        "https://example.localhost/source",
+        "https://example.test/source?broken",
+        "https://example.test/source?token=public",
+        "https://example.test/source?q=Bearer%20secret",
+    ],
+)
+def test_safe_source_url_rejects_unsafe_values(value: str) -> None:
+    assert contracts._safe_source_url(value) is None
 
 
 def test_web_search_contract_is_public() -> None:
     assert "WebSearchResult" in contracts.__all__
     assert "complete_subplugin_web_search" in contracts.__all__
-    assert "subplugin_supports_web_search" in contracts.__all__
 
 
 def test_ensure_subplugin_config_file_delegates_to_toml_store(

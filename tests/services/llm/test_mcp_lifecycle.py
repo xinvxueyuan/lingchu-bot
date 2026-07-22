@@ -1,97 +1,112 @@
-from __future__ import annotations
-
-from collections.abc import Iterator
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.services.llm import mcp_lifecycle
 
-if TYPE_CHECKING:
-    from src.plugins.nonebot_plugin_lingchu_bot.services.llm.agent import (
-        MCPAgentRuntime,
-    )
-    from src.plugins.nonebot_plugin_lingchu_bot.services.llm.mcp import MCPRuntime
-
-
-@dataclass
-class _FakeMCP:
-    closed: int = 0
-
-    async def close(self) -> None:
-        self.closed += 1
-
 
 @pytest.fixture(autouse=True)
-def _reset_managed_state() -> Iterator[None]:
-    mcp_lifecycle._managed.agent = None
-    mcp_lifecycle._managed.mcp = None
-    yield
+def reset_managed_mcp_agent() -> None:
     mcp_lifecycle._managed.agent = None
     mcp_lifecycle._managed.mcp = None
 
 
-async def test_reload_publishes_candidate_then_closes_previous(
+async def test_initialize_mcp_agent_runtime_builds_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    previous_mcp = _FakeMCP()
-    previous_agent = object()
-    candidate_mcp = _FakeMCP()
-    candidate_agent = object()
-    mcp_lifecycle._managed.agent = cast("MCPAgentRuntime", previous_agent)
-    mcp_lifecycle._managed.mcp = cast("MCPRuntime", previous_mcp)
+    agent = MagicMock()
+    mcp = MagicMock()
+    builder = MagicMock(return_value=(agent, mcp))
+    monkeypatch.setattr(mcp_lifecycle, "_build_mcp_agent_runtime", builder)
+
+    assert await mcp_lifecycle.initialize_mcp_agent_runtime() is agent
+    assert await mcp_lifecycle.initialize_mcp_agent_runtime() is agent
+    builder.assert_called_once_with()
+
+
+def test_get_mcp_agent_runtime_requires_initialization() -> None:
+    with pytest.raises(mcp_lifecycle.MCPAgentRuntimeNotInitializedError):
+        mcp_lifecycle.get_mcp_agent_runtime()
+
+
+def test_get_mcp_agent_runtime_returns_managed_agent() -> None:
+    agent = MagicMock()
+    mcp_lifecycle._managed.agent = agent
+
+    assert mcp_lifecycle.get_mcp_agent_runtime() is agent
+
+
+def test_build_mcp_agent_runtime_wires_parent_runtime_and_policy_managers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = MagicMock()
+    config.mcp = MagicMock()
+    llm_runtime = MagicMock()
+    mcp = MagicMock()
+    agent = MagicMock()
+    audit = MagicMock()
+    confirmation = MagicMock()
+    mcp_runtime_cls = MagicMock(return_value=mcp)
+    agent_runtime_cls = MagicMock(return_value=agent)
+    audit_cls = MagicMock(return_value=audit)
+    confirmation_cls = MagicMock(return_value=confirmation)
+    monkeypatch.setattr(
+        mcp_lifecycle, "load_llm_runtime_config", MagicMock(return_value=config)
+    )
+    monkeypatch.setattr(
+        mcp_lifecycle, "get_llm_runtime", MagicMock(return_value=llm_runtime)
+    )
+    monkeypatch.setattr(mcp_lifecycle, "MCPRuntime", mcp_runtime_cls)
+    monkeypatch.setattr(mcp_lifecycle, "MCPAgentRuntime", agent_runtime_cls)
+    monkeypatch.setattr(mcp_lifecycle, "MCPAuditRecorder", audit_cls)
+    monkeypatch.setattr(mcp_lifecycle, "CriticalConfirmationManager", confirmation_cls)
+
+    assert mcp_lifecycle._build_mcp_agent_runtime() == (agent, mcp)
+    mcp_runtime_cls.assert_called_once_with(config.mcp)
+    agent_runtime_cls.assert_called_once_with(
+        llm_runtime,
+        mcp,
+        audit_recorder=audit,
+        confirmation_manager=confirmation,
+    )
+
+
+async def test_reload_mcp_agent_runtime_publishes_candidate_and_closes_previous(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    previous = MagicMock()
+    previous.close = AsyncMock()
+    candidate = MagicMock()
+    candidate_mcp = MagicMock()
+    mcp_lifecycle._managed.mcp = previous
     monkeypatch.setattr(
         mcp_lifecycle,
         "_build_mcp_agent_runtime",
-        lambda: (
-            cast("MCPAgentRuntime", candidate_agent),
-            cast("MCPRuntime", candidate_mcp),
-        ),
+        MagicMock(return_value=(candidate, candidate_mcp)),
     )
 
-    result = await mcp_lifecycle.reload_mcp_agent_runtime()
-
-    assert result is candidate_agent
-    assert mcp_lifecycle.get_mcp_agent_runtime() is candidate_agent
-    assert previous_mcp.closed == 1
-
-
-async def test_failed_reload_preserves_previous_runtime(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    previous_mcp = _FakeMCP()
-    previous_agent = object()
-    mcp_lifecycle._managed.agent = cast("MCPAgentRuntime", previous_agent)
-    mcp_lifecycle._managed.mcp = cast("MCPRuntime", previous_mcp)
-
-    def _fail() -> tuple[MCPAgentRuntime, MCPRuntime]:
-        raise ValueError("invalid candidate")
-
-    monkeypatch.setattr(mcp_lifecycle, "_build_mcp_agent_runtime", _fail)
-
-    try:
-        await mcp_lifecycle.reload_mcp_agent_runtime()
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("invalid reload must fail")
-
-    assert mcp_lifecycle.get_mcp_agent_runtime() is previous_agent
-    assert previous_mcp.closed == 0
+    assert await mcp_lifecycle.reload_mcp_agent_runtime() is candidate
+    assert mcp_lifecycle._managed.agent is candidate
+    assert mcp_lifecycle._managed.mcp is candidate_mcp
+    previous.close.assert_awaited_once_with()
 
 
-async def test_shutdown_detaches_agent_and_closes_transports() -> None:
-    managed_mcp = _FakeMCP()
-    mcp_lifecycle._managed.agent = cast("MCPAgentRuntime", object())
-    mcp_lifecycle._managed.mcp = cast("MCPRuntime", managed_mcp)
+async def test_shutdown_mcp_agent_runtime_detaches_and_closes_managed_mcp() -> None:
+    agent = MagicMock()
+    mcp = MagicMock()
+    mcp.close = AsyncMock()
+    mcp_lifecycle._managed.agent = agent
+    mcp_lifecycle._managed.mcp = mcp
 
     await mcp_lifecycle.shutdown_mcp_agent_runtime()
 
-    assert managed_mcp.closed == 1
-    try:
-        mcp_lifecycle.get_mcp_agent_runtime()
-    except RuntimeError:
-        pass
-    else:
-        raise AssertionError("shutdown agent must be unavailable")
+    assert mcp_lifecycle._managed.agent is None
+    assert mcp_lifecycle._managed.mcp is None
+    mcp.close.assert_awaited_once_with()
+
+
+async def test_shutdown_mcp_agent_runtime_allows_empty_state() -> None:
+    await mcp_lifecycle.shutdown_mcp_agent_runtime()
+
+    assert mcp_lifecycle._managed.agent is None
+    assert mcp_lifecycle._managed.mcp is None

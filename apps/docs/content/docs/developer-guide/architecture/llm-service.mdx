@@ -1,7 +1,7 @@
 ---
 icon: Sparkles
 title: LLM Service
-description: Managed LLM runtime with stable response facade over OpenAI and LiteLLM.
+description: Managed LLM runtime with a stable response interface over OpenAI and LiteLLM.
 ---
 
 # LLM Service
@@ -14,21 +14,22 @@ The LLM service lives under `services/llm/` and is split into focused modules.
 
 | Module | Responsibility |
 | --- | --- |
-| `services/llm/runtime.py` | Managed lifecycle, profile cache, stable `respond` / `stream` facade, hot reload |
+| `services/llm/runtime.py` | Managed lifecycle, profile cache, stable `respond` / `stream` interface, hot reload |
 | `services/llm/config.py` | Localstore-backed `llm.toml` parsing, profile resolution, URL and credential validation |
 | `services/llm/backends.py` | Lazy `OpenAIBackend` and `LiteLLMBackend` wrappers around native SDK clients |
 | `services/llm/capabilities.py` | Advisory, model-aware capability probes with a process-level cache |
 | `services/llm/security.py` | Bounded immutable data helpers, log redaction, and control-plane key detection |
 | `services/llm/types.py` | Stable immutable value objects (`LLMProfile`, `LLMResponse`, `LLMEvent`, `LLMUsage`) |
-| `services/llm/compat.py` | Legacy `complete_chat` / `complete_with_web_search` compatibility facade |
 | `services/llm/events.py` | Lossless projection of provider-native stream events into `LLMEvent` |
 | `services/llm/observability.py` | Structured `LLMCallRecord` emission for call observability |
 
-The public package `services/llm/__init__.py` re-exports the stable facade and lazily loads runtime-heavy symbols through `__getattr__` so importing the package never imports `openai` or `litellm`.
+The public package `services/llm/__init__.py` re-exports the stable interface and lazily loads runtime-heavy symbols through `__getattr__` so importing the package never imports `openai` or `litellm`.
 
 ## Configuration
 
-LLM configuration is loaded from `llm.toml` resolved through `nonebot_plugin_localstore.get_plugin_config_file()`. The file is created on startup by `ensure_llm_config_file_async()` with a minimal `default_profile = "default"` and an empty `[profiles]` table when missing.
+LLM configuration is loaded from `llm.toml` resolved through
+`nonebot_plugin_localstore.get_plugin_config_file()`. AI features require an
+operator-managed file with explicit `[profiles]` entries.
 
 ### Profile-based configuration
 
@@ -65,19 +66,8 @@ allow_credentials_to_custom_base_url = false
 
 A top-level `[router]` table can configure an isolated LiteLLM `Router` (only `enabled = true` activates it), and an `[observability]` table toggles structured call records.
 
-### Legacy `LINGCHU_AI_*` implicit profile
-
-When `llm.toml` declares no `[profiles]`, the runtime falls back to the legacy environment-backed fields from `core/runtime_config.py`:
-
-| Legacy field | Environment variable |
-| --- | --- |
-| `ai_provider` | `LINGCHU_AI_PROVIDER` |
-| `ai_model` | `LINGCHU_AI_MODEL` |
-| `ai_base_url` | `LINGCHU_AI_BASE_URL` |
-| `ai_timeout` | `LINGCHU_AI_TIMEOUT` |
-| `ai_api_key` | `LINGCHU_AI_API_KEY` |
-
-These are projected into an implicit `default` profile with `inherits_legacy_api_key = true`, so the API key is still resolved from `LINGCHU_AI_API_KEY`. Mixing an explicit `[profiles]` table with legacy fields is supported only when the explicit profile declares its own `api_key_env`.
+`llm.toml` must declare explicit profiles. Deployment-level LLM fields are no
+longer a fallback source, and no implicit `default` profile is synthesized.
 
 ## Stable interface
 
@@ -102,8 +92,6 @@ Both resolve a profile, merge `provider_options` with per-call `params`, and rou
 
 `unknown` never prevents a native call. Results are cached per `(backend, model, base_url fingerprint, SDK version, capability)` and invalidated by `invalidate_capability_cache()` after a configuration reload. OpenAI backends always return `unknown` because OpenAI model metadata is not authoritative.
 
-The legacy `supports_web_search(options)` helper in `compat.py` projects the tri-state result onto a boolean (`true` only when `supported`) so callers can short-circuit before issuing a native web-search completion.
-
 ## Security
 
 ### Private network protection
@@ -114,7 +102,7 @@ The check does not perform DNS resolution. Downstream HTTP clients and network p
 
 ### Credential protection
 
-By default the runtime does not send credentials to a custom `base_url`. When `base_url` is set, `inherits_legacy_api_key` is `false`, and `allow_credentials_to_custom_base_url` is `false`:
+By default the runtime does not send credentials to a custom `base_url`. When `base_url` is set and `allow_credentials_to_custom_base_url` is `false`:
 
 - the API key is set to `None` for that profile, and
 - `default_headers` / `default_query` containing credential-like keys or authorization values are rejected.

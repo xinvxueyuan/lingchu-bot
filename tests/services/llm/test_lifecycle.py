@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import suppress
-from types import SimpleNamespace
-from typing import Any, cast
 
 import pytest
 
@@ -25,7 +23,6 @@ def make_runtime() -> LLMRuntime:
             router=LiteLLMRouterConfig(),
             observability=LLMObservabilityConfig(),
         ),
-        legacy=cast("Any", SimpleNamespace(ai_api_key="secret", ai_base_url=None)),
     )
 
 

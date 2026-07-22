@@ -95,7 +95,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 
 - **Localstore 路径所有权**：所有 mutable data、config、cache、resource、schema 文件必须通过 `nonebot_plugin_localstore` helper 解析，例如 `get_plugin_data_dir()`、`get_plugin_config_dir()`、`get_plugin_cache_dir()`、`get_plugin_data_file()`、`get_plugin_config_file()`、`get_plugin_cache_file()`。
 - **禁止硬编码 mutable 路径**：禁止对 mutable runtime 文件使用 `Path("...")`。
-- **配置与 schema 仅允许显式写入**：禁止打包生成的 JSON schema。启动过程不得创建、迁移或重新生成配置与 schema；只有显式 `lingchu config init|migrate`、`lingchu schema install` 或 bot 管理操作可以写入，并使用 localstore 管理或 CLI 明确指定的路径。
+- **配置与 schema 仅允许显式写入**：禁止打包生成的 JSON schema。启动过程不得创建、迁移或重新生成配置与 schema；只有显式 `lingchu config init`、`lingchu schema install` 或 bot 管理操作可以写入，并使用 localstore 管理或 CLI 明确指定的路径。
 - **Prek 是 hook 唯一来源**：`prek.toml` 是唯一 pre-commit hook 配置（显式声明 ruff/ty 钩子，与 husky 解耦，无重复执行）。不要重新引入 `.pre-commit-config.yaml`。
 - **版本同步**：使用 `Taskfile.yml` 的 `ci:version:write-config` 同步写入 `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` 和根 `package.json`。
 - **发布分支**：正式版本使用 `releases/<version>` 分支，发布前必须保持 `pyproject.toml`、`package.json` 和 `core/config.py` 中的版本一致。
@@ -191,7 +191,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 - `selected_adapter_handle()` 支持 `bypass_gate` 和 `bypass_silent`。
 - “闭嘴”/“说话”绕过 silent mode，但不绕过 shutdown gate。
 - “开机”/“关机”同时绕过 gate 和 silent mode。
-- 启动过程不得创建、迁移或重新生成配置与 schema；缺失的可变配置使用 typed 内存默认值。部署设置属于 NoneBot 配置，`MutableRuntimeSettings` 属于 localstore `runtime-overrides.toml`，合并的 `RuntimeSettings` 仅用于迁移。
+- 启动过程不得创建、迁移或重新生成配置与 schema；缺失的可变配置使用 typed 内存默认值。部署设置属于 NoneBot 配置，`MutableRuntimeSettings` 属于 localstore `runtime-overrides.toml`。
 
 ### Repository API Style
 
@@ -351,9 +351,9 @@ task ci
 
 - 每个 `core/handle_config_defaults/<command>.py` MUST 声明一个 `pydantic.BaseModel` 子类并通过 `register_handle_defaults()` 注册；`HANDLE_DEFAULTS_REGISTRY` 类型为 `dict[str, type[BaseModel]]`。不要返回裸 `dict` 默认值 —— 校验和 JSON Schema 生成由 pydantic 承担。
 - `HandleConfigManager.get_config()` / `update_config()` 用 `type_validate_python(model_cls, toml_dict)` 做往返校验；`validate_config()` 已删除（pydantic 在非法输入时直接抛异常）。
-- `_lingchu_bot_contracts` 分离 `DeploymentSettings`、`MutableRuntimeSettings` 与仅供迁移的 `RuntimeSettings`。CLI init/validate/schema 使用 import-safe mutable model 及其 serialization schema；启动过程对配置与 schema 保持只读。
+- `_lingchu_bot_contracts` 分离 `DeploymentSettings` 与 `MutableRuntimeSettings`；旧合并迁移模型已删除。CLI init/validate/schema 使用 import-safe mutable model 及其 serialization schema；启动过程对配置与 schema 保持只读。
 - `core/bot_state.py` 使用 `BotStateFile(BaseModel)`，通过 `Field(alias="global")` + `populate_by_name=True` 桥接 `global` Python 关键字；`_save_bot_state()` 用 `model_dump(mode="json", by_alias=True)` 序列化。
-- `core/runtime_config.py` 已合并入 `core/config.py`；保留 `RuntimeConfig = Config` 别名供 LLM 服务层 `TYPE_CHECKING` 引用。所有 `runtime_config.xxx` 单例访问统一为 `plugin_config.xxx`。
+- `core/runtime_config.py` 已合并入 `core/config.py`；不再保留兼容别名。所有 `runtime_config.xxx` 单例访问统一为 `plugin_config.xxx`。
 - `HandleConfig` dataclass 仍持 `dict[str, Any]`（frozen dataclass 接口保留）；`_build_handle_config` 通过 `model_dump(mode="json")` 桥接 pydantic ↔ dict 边界。将 `HandleConfig` 自身改为持 pydantic 实例的工作有意延后，以避免波及下游消费者。
 
 #### Handler Session Injection

@@ -38,8 +38,6 @@ from .types import LLMEvent, LLMProfile, LLMResponse, LLMUsage
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable
 
-    from ...core.config import RuntimeConfig
-
 type RuntimeState = Literal["NEW", "RUNNING", "CLOSING", "CLOSED"]
 
 HTTP_RATE_LIMITED = 429
@@ -469,12 +467,10 @@ class LLMRuntime:
         self,
         config: LLMRuntimeConfig,
         *,
-        legacy: RuntimeConfig,
         generation: int = 0,
         observer: StructuredLLMObserver | None = None,
     ) -> None:
         self.config = config
-        self._legacy = legacy
         self.generation = generation
         self._observer = observer or StructuredLLMObserver(
             enabled=bool(config.observability.values.get("enabled", True))
@@ -514,9 +510,7 @@ class LLMRuntime:
             self._ensure_running()
             selected = name or self.config.default_profile
             try:
-                resolved = resolve_profile(
-                    self.config, legacy=self._legacy, name=selected
-                )
+                resolved = resolve_profile(self.config, name=selected)
             except (KeyError, ValueError) as exc:
                 raise _InvalidProfileError from exc
             key = (selected, self.generation, _fingerprint(resolved.api_key))
@@ -947,15 +941,15 @@ class _LifecycleTicket:
 class _LifecycleCoordinator:
     """Serialize async control-plane work across threads and event loops."""
 
+    _POLL_INTERVAL = 0.01
+
     def __init__(self) -> None:
         self._condition = threading.Condition()
         self._busy = False
 
     def _claim(self, ticket: _LifecycleTicket) -> bool:
         with self._condition:
-            while self._busy and ticket.active:
-                self._condition.wait()
-            if not ticket.active:
+            if self._busy or not ticket.active:
                 return False
             self._busy = True
             ticket.claimed = True
@@ -973,13 +967,14 @@ class _LifecycleCoordinator:
         """Claim the coordinator without binding it to the caller's event loop."""
         ticket = _LifecycleTicket()
         try:
-            claimed = await asyncio.to_thread(self._claim, ticket)
+            while ticket.active:
+                if self._claim(ticket):
+                    return ticket
+                await asyncio.sleep(self._POLL_INTERVAL)
         except BaseException:
             self._cancel(ticket)
             raise
-        if not claimed:
-            raise asyncio.CancelledError
-        return ticket
+        raise asyncio.CancelledError
 
     def release(self, ticket: _LifecycleTicket) -> None:
         with self._condition:
@@ -1012,10 +1007,8 @@ async def _finish_cleanup_before_cancellation(cleanup: Awaitable[None]) -> None:
 
 def _build_managed_runtime(*, generation: int) -> LLMRuntime:
     """Build and structurally validate a candidate without publishing it."""
-    from ...core.config import plugin_config
-
-    config = load_llm_runtime_config(legacy=plugin_config)
-    return LLMRuntime(config, legacy=plugin_config, generation=generation)
+    config = load_llm_runtime_config()
+    return LLMRuntime(config, generation=generation)
 
 
 def get_llm_runtime() -> LLMRuntime:

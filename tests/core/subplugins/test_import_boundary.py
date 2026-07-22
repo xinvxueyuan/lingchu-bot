@@ -117,10 +117,10 @@ def test_no_subplugin_imports_from_parent_internals_or_adapters() -> None:
 def test_violation_detection_on_synthetic_source() -> None:
     """The scanner flags 3+ dot relative imports and adapter imports."""
     source = (
-        "from ....services.llm import complete_chat\n"
+        "from ....services.llm import LLMRuntime\n"
         "from nonebot.adapters.onebot.v11 import Bot\n"
         "import nonebot.adapters.onebot.v11\n"
-        "from src.plugins.nonebot_plugin_lingchu_bot.services.llm import complete_chat\n"
+        "from src.plugins.nonebot_plugin_lingchu_bot.services.llm import LLMRuntime\n"
         "import src.plugins.nonebot_plugin_lingchu_bot.services.llm\n"
         "from src.plugins.nonebot_plugin_lingchu_bot.services.llm.runtime import "
         "LLMRuntime\n"

@@ -178,9 +178,8 @@ Lingchu Bot 以 pydantic 作为部署配置、运行时可变设置、handle 与
 
 | 场面 | Pydantic 模型 | 备注 |
 | --- | --- | --- |
-| 插件 env / `.env` | `core/config.py::Config`（继承 `DeploymentSettings`） | NoneBot `get_plugin_config()` 是部署字段的唯一解析入口；`RuntimeConfig = Config` 仅作为兼容别名保留。 |
+| 插件 env / `.env` | `core/config.py::Config`（继承 `DeploymentSettings`） | NoneBot `get_plugin_config()` 是部署字段的唯一解析入口。 |
 | 在线可编辑设置 | `_lingchu_bot_contracts::MutableRuntimeSettings` | 由 `core/mutable_settings.py` 持久化到 localstore 管理的 `runtime-overrides.toml`。 |
-| 旧配置迁移输入 | `_lingchu_bot_contracts::RuntimeSettings` | 仅供 `lingchu config migrate` 使用；运行时代码不会加载它。 |
 | Per-command handle 配置 | `core/handle_config_defaults/<command>.py::<Model>(BaseModel)` | 通过 `register_handle_defaults()` 注册；`HANDLE_DEFAULTS_REGISTRY` 类型为 `dict[str, type[BaseModel]]`。`HandleConfigManager.get_config()` / `update_config()` 使用 `type_validate_python(model_cls, toml_dict)`。`HandleConfig` dataclass 仍持有 `dict[str, Any]` 以保留 frozen-dataclass 接口；`_build_handle_config` 通过 `model_dump(mode="json")` 桥接 pydantic ↔ dict 边界。 |
 | Bot 状态 | `core/bot_state.py::BotStateFile(BaseModel)` | 使用 `Field(alias="global")` + `populate_by_name=True` 桥接 `global` Python 关键字；`_save_bot_state()` 以 `model_dump(mode="json", by_alias=True)` 序列化。 |
 | JSON Schema 文件 | 通过 `lingchu schema install` 显式生成 | CLI 按需调用 pydantic `model_json_schema()`；启动过程不会安装 schema。 |

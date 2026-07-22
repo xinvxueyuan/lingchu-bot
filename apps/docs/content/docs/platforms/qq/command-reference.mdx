@@ -224,20 +224,18 @@ chat <text>
 聊天 <文本>
 ```
 
-Chat with AI. The bot calls the configured LLM service (`ai_provider` / `ai_model` / `ai_base_url` / `ai_api_key`) to generate a response.
+Chat with AI. The bot calls the default profile configured in `llm.toml` to
+generate a response.
 
 - System prompt: defaults to `"你是一个友好的群聊助手。"`, customizable via `defaults.system_prompt` in `chat.toml`.
 - Feature toggle: the `enabled` field in `chat.toml` controls enable/disable.
 
 <Callout type="info" title="LLM Configuration">
 
-The chat command requires runtime LLM configuration. Set these deployment fields through the NoneBot environment or its `.env` files:
-
-- `ai_provider`: `litellm` (default) or `openai`
-- `ai_model`: model name (default `gpt-4o-mini`)
-- `ai_base_url`: OpenAI-compatible endpoint URL (optional)
-- `ai_api_key`: API key (recommended to set via `LINGCHU_AI_API_KEY` environment variable)
-- `ai_timeout`: request timeout in seconds (default `60`)
+The chat command requires an explicit `llm.toml` profile. Set provider,
+model, endpoint, timeout, and generation options in that profile. Store secrets
+in environment variables such as `OPENAI_API_KEY`, then reference the variable
+name with `api_key_env`.
 
 </Callout>
 
@@ -247,8 +245,8 @@ The chat command requires runtime LLM configuration. Set these deployment fields
 novelai-image <description> [options]
 ```
 
-The removable `core/subplugins/novelai_image` child plugin uses the global
-user-configured `ai_*` profile to understand and translate the request. It can
+The removable `core/subplugins/novelai_image` child plugin uses the managed
+default LLM profile to understand and translate the request. It can
 then enrich the prompt with optional web research and TIPO before generating one
 NovelAI Diffusion V4.5 image. Chinese locales use `生图 <描述> [选项]` instead.
 
@@ -278,7 +276,7 @@ The LLM can infer hints such as landscape, portrait, square, a fixed seed, or
 values stop the command with a localized validation message; invalid inferred
 values fall back to the TOML default.
 
-The same global LLM automatically decides whether current or canonical visual
+The same managed LLM automatically decides whether current or canonical visual
 facts would help. For example, it may search for a real place, product, recent
 event, named character, or exact costume. A generated search query is sent to
 the configured LLM provider, so it can disclose the subject of the image
