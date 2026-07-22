@@ -3,8 +3,11 @@ import pytest
 from src.plugins.nonebot_plugin_lingchu_bot.services import llm
 
 
-def test_llm_public_facade_lazy_loads_export() -> None:
-    value = llm.__getattr__("LLMUsage")
+def test_llm_public_facade_lazy_loads_export(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delattr(llm, "LLMUsage", raising=False)
+
+    export_name = "LLMUsage"
+    value = getattr(llm, export_name)
 
     assert value is llm.LLMUsage
 

@@ -419,8 +419,8 @@ allowed-confusables = [
 # E402: nonebot2 require() must precede cross-plugin imports at module level
 "src/plugins/nonebot_plugin_lingchu_bot/core/bot_state.py" = ["BLE001", "E402", "TC003"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/contracts.py" = [
-    "BLE001", # provider web-search annotations and soft-failing probes are untrusted
-    "E402",   # nonebot2 require() must precede cross-plugin imports at module level
+  "BLE001", # provider web-search annotations and soft-failing probes are untrusted
+  "E402",   # nonebot2 require() must precede cross-plugin imports at module level
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/search.py" = ["BLE001"]
 "src/plugins/nonebot_plugin_lingchu_bot/services/llm/backends.py" = [

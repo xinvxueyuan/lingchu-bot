@@ -188,7 +188,8 @@ english = "member-management"
 ```
 
 使用 `lingchu config init`、`lingchu config validate` 与 `lingchu schema install`
-显式管理该文件。旧合并 `config.toml` 的迁移命令已删除；请手动将部署设置迁移到
+显式管理该文件。`config init` 也会在缺失时创建 `llm.toml` 起始模板，且不会覆盖已有
+`llm.toml`。旧合并 `config.toml` 的迁移命令已删除；请手动将部署设置迁移到
 NoneBot 环境变量，将可变设置迁移到 `runtime-overrides.toml`。旧 `.json5` 文件不会被读取或迁移。
 
 ### 托管 LLM profile

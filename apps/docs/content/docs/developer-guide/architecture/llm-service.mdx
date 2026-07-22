@@ -194,6 +194,6 @@ A close failure is propagated after the swap. The new generation remains publish
 
 <Callout title="Optional at startup">
 
-`start/startup.py` wraps `ensure_llm_config_file_async()` and `initialize_llm_runtime()` in a try/except so configuration or backend-local dependency failures never prevent non-AI bot services from starting.
+`start/startup.py` resolves the localstore `llm.toml` path without creating it and wraps `initialize_llm_runtime()` in a try/except, so configuration or backend-local dependency failures never prevent non-AI bot services from starting.
 
 </Callout>

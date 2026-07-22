@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from contextlib import suppress
 from dataclasses import dataclass, field
 import ipaddress
 import os
@@ -307,14 +306,7 @@ def get_llm_config_file() -> Path:
 
 
 async def ensure_llm_config_file_async() -> Path:
-    path = get_llm_config_file()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        with suppress(FileExistsError):
-            path.write_text(
-                'default_profile = "default"\n[profiles]\n', encoding="utf-8"
-            )
-    return path
+    return get_llm_config_file()
 
 
 def _check_url(url: str | None, *, allow_private: bool) -> None:

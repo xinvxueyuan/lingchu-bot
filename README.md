@@ -179,7 +179,7 @@ chinese = "成员管理"
 english = "member-management"
 ```
 
-Use `lingchu config init`, `lingchu config validate`, and `lingchu schema install` to manage this file explicitly. The old combined `config.toml` migration command has been removed; move deployment settings to NoneBot environment variables and mutable settings to `runtime-overrides.toml` manually. Legacy `.json5` files are not read or migrated.
+Use `lingchu config init`, `lingchu config validate`, and `lingchu schema install` to manage this file explicitly. `config init` also creates a missing `llm.toml` starter template without overwriting an existing one. The old combined `config.toml` migration command has been removed; move deployment settings to NoneBot environment variables and mutable settings to `runtime-overrides.toml` manually. Legacy `.json5` files are not read or migrated.
 
 ### Managed LLM profiles
 

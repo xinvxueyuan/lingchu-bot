@@ -12,8 +12,10 @@ import typer
 
 from .config_files import (
     CONFIG_FILENAME,
+    LLM_CONFIG_FILENAME,
     ConfigFileError,
     initialize_config,
+    initialize_llm_config,
     install_config_schema,
     validate_config,
 )
@@ -133,13 +135,16 @@ def config_init(
     *,
     force: Annotated[bool, typer.Option("--force")] = False,
 ) -> None:
-    """Create the mutable runtime TOML defaults without overwriting by default."""
+    """Create explicit localstore TOML defaults without overwriting by default."""
     target = _config_file(path)
     try:
         created = initialize_config(target, force=force)
+        llm_target = target.parent / LLM_CONFIG_FILENAME
+        llm_created = initialize_llm_config(llm_target)
     except OSError as error:
         _fail(error)
     typer.echo(f"created: {target}" if created else f"exists: {target}")
+    typer.echo(f"created: {llm_target}" if llm_created else f"exists: {llm_target}")
 
 
 @config_app.command("validate")
