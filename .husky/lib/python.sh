@@ -58,7 +58,7 @@ run_python_checks() {
     # ── Phase 5: 测试（十秒级）────────────────────────────
     if [ "$NEEDS_PYTHON_CHECK" = true ] && [ -n "$UV_CMD" ]; then
         echo "🧪 正在运行 pytest..."
-        "$UV_CMD" run -m pytest -x -q
+        "$UV_CMD" run -m pytest -x -q --capture=sys
         if [ $? -ne 0 ]; then
             echo "❌ pytest 测试失败，请修复后重新提交。"
             exit 1

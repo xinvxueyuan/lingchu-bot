@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any, cast, override
 
 from src.plugins.nonebot_plugin_lingchu_bot.services import llm
-from src.plugins.nonebot_plugin_lingchu_bot.services.llm import compat
 from src.plugins.nonebot_plugin_lingchu_bot.services.llm.errors import (
     EmptyLLMContentError,
     LLMAuthenticationError,
@@ -98,11 +97,11 @@ def test_error_hierarchy_contains_all_stable_categories() -> None:
     assert all(issubclass(category, LLMError) for category in categories)
 
 
-def test_legacy_errors_keep_identity_and_default_messages() -> None:
-    assert llm.LLMError is compat.LLMError is LLMError
-    assert llm.MissingLLMContentError is compat.MissingLLMContentError
-    assert llm.EmptyLLMContentError is compat.EmptyLLMContentError
-    assert llm.LLMProviderError is compat.LLMProviderError
+def test_public_errors_keep_identity_and_default_messages() -> None:
+    assert llm.LLMError is LLMError
+    assert llm.MissingLLMContentError is MissingLLMContentError
+    assert llm.EmptyLLMContentError is EmptyLLMContentError
+    assert llm.LLMProviderError is LLMProviderError
     assert str(MissingLLMContentError()) == (
         "LLM response did not contain message content"
     )
@@ -120,7 +119,7 @@ def test_error_message_strips_log_injection_controls() -> None:
     assert "forged" in str(error)
 
 
-def test_error_sanitizes_every_legacy_runtime_error_argument() -> None:
+def test_error_sanitizes_every_runtime_error_argument() -> None:
     error = LLMError(
         "safe",
         7,

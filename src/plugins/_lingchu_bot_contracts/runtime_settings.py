@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
@@ -50,27 +50,6 @@ class DeploymentSettings(BaseModel):
             "LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED",
             "message_store_cleanup_enabled",
         ),
-    )
-    ai_provider: Literal["litellm", "openai"] = Field(
-        default="litellm",
-        validation_alias=AliasChoices("LINGCHU_AI_PROVIDER", "ai_provider"),
-    )
-    ai_model: str = Field(
-        default="gpt-4o-mini",
-        validation_alias=AliasChoices("LINGCHU_AI_MODEL", "ai_model"),
-    )
-    ai_base_url: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices("LINGCHU_AI_BASE_URL", "ai_base_url"),
-    )
-    ai_timeout: float = Field(
-        default=60.0,
-        gt=0,
-        validation_alias=AliasChoices("LINGCHU_AI_TIMEOUT", "ai_timeout"),
-    )
-    ai_api_key: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices("LINGCHU_AI_API_KEY", "ai_api_key"),
     )
     recall_message_default_count: int = Field(
         default=10,
@@ -169,9 +148,4 @@ class MutableRuntimeSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class RuntimeSettings(DeploymentSettings, MutableRuntimeSettings):
-    """Legacy combined model used only to validate and migrate old config.toml."""
-
-
 MUTABLE_RUNTIME_FIELDS = frozenset(MutableRuntimeSettings.model_fields)
-DEPLOYMENT_RUNTIME_FIELDS = frozenset(DeploymentSettings.model_fields)

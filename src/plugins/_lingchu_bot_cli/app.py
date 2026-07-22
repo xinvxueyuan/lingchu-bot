@@ -15,7 +15,6 @@ from .config_files import (
     ConfigFileError,
     initialize_config,
     install_config_schema,
-    migrate_config,
     validate_config,
 )
 
@@ -154,27 +153,6 @@ def config_validate(
     except ConfigFileError as error:
         _fail(error)
     typer.echo(f"valid: {target}")
-
-
-@config_app.command("migrate")
-def config_migrate(
-    source: Annotated[Path, typer.Option("--source")],
-    env_file: Annotated[Path, typer.Option("--env-file")],
-    residual: Annotated[Path, typer.Option("--residual")],
-    *,
-    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
-    force: Annotated[bool, typer.Option("--force")] = False,
-) -> None:
-    """Split legacy TOML into NoneBot environment and mutable overrides."""
-    try:
-        result = migrate_config(
-            source, env_file, residual, dry_run=dry_run, force=force
-        )
-    except (ConfigFileError, OSError) as error:
-        _fail(error)
-    action = "would migrate" if result.dry_run else "migrated"
-    typer.echo(f"{action} deployment keys: {', '.join(result.deployment_keys)}")
-    typer.echo(f"{action} residual fields: {', '.join(result.residual_fields)}")
 
 
 @schema_app.command("install")

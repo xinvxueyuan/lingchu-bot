@@ -49,26 +49,6 @@ Deployment fields belong to NoneBot configuration. Only `permission_platform_run
       default: "true",
       description: "Whether to clean expired message records during shutdown",
     },
-    ai_provider: {
-      type: '"litellm" | "openai"',
-      default: '"litellm"',
-      description: "Legacy/default backend used when llm.toml has no profiles",
-    },
-    ai_model: {
-      type: "string",
-      default: '"gpt-4o-mini"',
-      description: "Legacy/default model used when llm.toml has no profiles",
-    },
-    ai_base_url: {
-      type: "string (optional)",
-      default: "omitted",
-      description: "Optional OpenAI-compatible API base URL",
-    },
-    ai_timeout: {
-      type: "number",
-      default: "60",
-      description: "AI request timeout in seconds",
-    },
     recall_message_default_count: {
       type: "number",
       default: "10",
@@ -122,7 +102,7 @@ chinese = "成员管理"
 english = "member-management"
 ```
 
-Manage it explicitly with `lingchu config init`, `lingchu config validate`, and `lingchu schema install`. To migrate an old combined file, first run `lingchu config migrate --source config.toml --env-file .env --residual runtime-overrides.toml --dry-run`, inspect the redacted plan, and rerun without `--dry-run`. `--force` replaces only conflicting managed environment keys. The same commands are available as `nb lingchu ...`. Programmatic updates rewrite TOML and do not preserve custom comments or formatting.
+Manage it explicitly with `lingchu config init`, `lingchu config validate`, and `lingchu schema install`. The old combined `config.toml` migration command has been removed; move deployment settings to NoneBot environment variables and mutable settings to `runtime-overrides.toml` manually. Programmatic updates rewrite TOML and do not preserve custom comments or formatting.
 
 Deployment values can be supplied through NoneBot global configuration:
 
@@ -141,9 +121,8 @@ LINGCHUAdapter=~onebot.v11
 ## llm.toml
 
 The managed LLM runtime owns a separate `llm.toml` and `llm.schema.json` in the
-same localstore configuration directory. A non-empty `[profiles]` table wins
-over deployment `ai_*` environment fields; when `[profiles]` is empty,
-Lingchu constructs an implicit `default` profile from those legacy fields.
+same localstore configuration directory. Declare at least one explicit profile;
+deployment-level LLM fields are no longer a fallback source.
 
 <Callout title="Keep secrets in the environment">
 
@@ -204,9 +183,6 @@ clients and invalidates capability caches.
   profile explicitly sets `allow_private_network = true`.
 - A configured credential is not forwarded to a custom Base URL unless
   `allow_credentials_to_custom_base_url = true`.
-- The synthesized implicit legacy profile treats an existing `ai_base_url` plus
-  `ai_api_key` pair as legacy opt-in. Explicit profiles never inherit this
-  exception, even when their URL matches the legacy URL.
 - Credential-like default headers/query entries and control-plane keys inside
   `provider_options` are rejected unless they use their dedicated trusted
   configuration surface. Native handles remain available to trusted code.
@@ -257,9 +233,8 @@ two bound the in-memory vibe-token cache and chat image downloads.
 
 The prompt pipeline uses the managed default LLM profile for language
 understanding, translation, hint extraction, and optional provider-native web
-search. Configure it in `llm.toml`; the global `ai_*` fields remain the legacy
-fallback only when `llm.toml` has no profiles. All former child-specific LLM
-keys have been removed and are ignored.
+search. Configure it in `llm.toml`; all former global or child-specific LLM
+fallback keys have been removed and are ignored.
 
 TIPO prompt expansion is a separate, optional llama.cpp service:
 

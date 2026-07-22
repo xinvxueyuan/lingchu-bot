@@ -121,8 +121,6 @@ class Config(DeploymentSettings):
         cache_dir: 缓存文件存储目录路径。
         superuser_key: 运行时超级用户密钥。
         message_store_enabled: 是否启用消息存储。
-        ai_provider: AI服务提供方。
-        ai_model: AI模型名称。
         lingchu_superusers: 结构化超级用户平台账号绑定。
         lingchu_adapter: 适配器选择配置。
 
@@ -234,10 +232,6 @@ class Config(DeploymentSettings):
         }
 
 
-# RuntimeConfig 别名（向后兼容LLM服务层类型注解）
-RuntimeConfig = Config
-
-
 def get_runtime_config() -> Config:
     """Return deployment settings resolved by NoneBot configuration."""
     return get_plugin_config(Config)
@@ -317,7 +311,6 @@ __all__ = [
     "Config",
     "ConfigError",
     "InvalidInContainersError",
-    "RuntimeConfig",
     "UnexpectedInContainersTypeError",
     "get_handle_config_manager",
     "get_runtime_config",

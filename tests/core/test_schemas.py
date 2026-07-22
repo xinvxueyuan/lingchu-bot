@@ -6,8 +6,7 @@ import json
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
-from _lingchu_bot_contracts import RuntimeSettings
-import aiofiles
+from _lingchu_bot_contracts import DeploymentSettings
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.core import schemas as schemas_module
@@ -27,7 +26,9 @@ if TYPE_CHECKING:
 
 def _config_schema_text() -> str:
     """Return the pydantic-generated CONFIG schema as a JSON string."""
-    return json.dumps(RuntimeSettings.model_json_schema(), indent=2, ensure_ascii=False)
+    return json.dumps(
+        DeploymentSettings.model_json_schema(), indent=2, ensure_ascii=False
+    )
 
 
 def _bot_state_schema_text() -> str:
@@ -73,8 +74,7 @@ async def test_install_schemas_writes_config_schema_under_localstore_config_dir(
 
     config_schema_path = config_dir / CONFIG_SCHEMA_BASENAME
     assert config_schema_path.exists()
-    async with aiofiles.open(config_schema_path, encoding="utf-8") as f:
-        assert await f.read() == _config_schema_text()
+    assert config_schema_path.read_text(encoding="utf-8") == _config_schema_text()
 
 
 async def test_install_schemas_writes_bot_state_schema_under_localstore_data_dir(
@@ -87,8 +87,7 @@ async def test_install_schemas_writes_bot_state_schema_under_localstore_data_dir
 
     data_schema_path = data_dir / BOT_STATE_SCHEMA_BASENAME
     assert data_schema_path.exists()
-    async with aiofiles.open(data_schema_path, encoding="utf-8") as f:
-        assert await f.read() == _bot_state_schema_text()
+    assert data_schema_path.read_text(encoding="utf-8") == _bot_state_schema_text()
 
 
 async def test_install_schemas_writes_menu_schema_under_localstore_config_dir(
@@ -101,8 +100,7 @@ async def test_install_schemas_writes_menu_schema_under_localstore_config_dir(
 
     menu_schema_path = config_dir / MENU_SCHEMA_BASENAME
     assert menu_schema_path.exists()
-    async with aiofiles.open(menu_schema_path, encoding="utf-8") as f:
-        assert await f.read() == MENU_SCHEMA_TEXT
+    assert menu_schema_path.read_text(encoding="utf-8") == MENU_SCHEMA_TEXT
 
 
 async def test_install_schemas_uses_localstore_paths_only(
@@ -134,29 +132,19 @@ async def test_install_schemas_is_idempotent(
     config_dir, data_dir = patched_localstore
 
     await install_schemas()
-    async with aiofiles.open(
-        config_dir / CONFIG_SCHEMA_BASENAME, encoding="utf-8"
-    ) as f:
-        first_config = await f.read()
-    async with aiofiles.open(config_dir / MENU_SCHEMA_BASENAME, encoding="utf-8") as f:
-        first_menu = await f.read()
-    async with aiofiles.open(
-        data_dir / BOT_STATE_SCHEMA_BASENAME, encoding="utf-8"
-    ) as f:
-        first_data = await f.read()
+    first_config = (config_dir / CONFIG_SCHEMA_BASENAME).read_text(encoding="utf-8")
+    first_menu = (config_dir / MENU_SCHEMA_BASENAME).read_text(encoding="utf-8")
+    first_data = (data_dir / BOT_STATE_SCHEMA_BASENAME).read_text(encoding="utf-8")
 
     await install_schemas()
 
-    async with aiofiles.open(
-        config_dir / CONFIG_SCHEMA_BASENAME, encoding="utf-8"
-    ) as f:
-        assert await f.read() == first_config
-    async with aiofiles.open(config_dir / MENU_SCHEMA_BASENAME, encoding="utf-8") as f:
-        assert await f.read() == first_menu
-    async with aiofiles.open(
-        data_dir / BOT_STATE_SCHEMA_BASENAME, encoding="utf-8"
-    ) as f:
-        assert await f.read() == first_data
+    assert (config_dir / CONFIG_SCHEMA_BASENAME).read_text(
+        encoding="utf-8"
+    ) == first_config
+    assert (config_dir / MENU_SCHEMA_BASENAME).read_text(encoding="utf-8") == first_menu
+    assert (data_dir / BOT_STATE_SCHEMA_BASENAME).read_text(
+        encoding="utf-8"
+    ) == first_data
 
 
 def test_menu_schema_text_is_valid_json() -> None:
