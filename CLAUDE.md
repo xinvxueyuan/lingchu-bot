@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (8580 symbols, 15144 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (8623 symbols, 15131 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -142,7 +142,7 @@ This sync rule starts after `<!-- gitnexus:end -->`. GitNexus marker blocks are 
 
 - **Localstore path ownership**: All mutable data, config, cache, resource, and schema files MUST be resolved through `nonebot_plugin_localstore` helpers such as `get_plugin_data_dir()`, `get_plugin_config_dir()`, `get_plugin_cache_dir()`, `get_plugin_data_file()`, `get_plugin_config_file()`, or `get_plugin_cache_file()`.
 - **No hard-coded mutable paths**: `Path("...")` for mutable runtime files is forbidden.
-- **No packaged schema resources**: Do not use `importlib.resources` or wheel data for JSON schemas. Schema text lives in `src/plugins/nonebot_plugin_lingchu_bot/core/schemas.py` and is installed by `install_schemas()`.
+- **Explicit configuration and schema writes only**: Do not package generated JSON schemas. Startup MUST NOT create, migrate, or regenerate configuration or schema files. Only explicit `lingchu config init|migrate`, `lingchu schema install`, or bot management operations may write them, using localstore-owned or explicitly supplied CLI paths.
 - **Handle default registration**: Handle-level defaults MUST be registered in `handle_config_defaults/` using `register_handle_defaults()` before `HandleConfigManager` can read or update `<command_key>.toml` files.
 - **Prek is hook source of truth**: `prek.toml` is the only pre-commit hook configuration (explicitly declares ruff/ty hooks, decoupled from husky, no duplicate execution). Do not reintroduce `.pre-commit-config.yaml`.
 - **Version sync**: Use `Taskfile.yml` task `ci:version:write-config` to write both `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` and root `package.json`.
@@ -214,9 +214,9 @@ When modifying business logic, especially adapter-layer code, check all relevant
 | i18n | `src/plugins/nonebot_plugin_lingchu_bot/i18n/`; run `task i18n` when user-facing strings change |
 | Docs | `apps/docs/content/docs/` |
 | Menu | `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py` |
-| Runtime config | `config.toml`, `bot_state.toml`, `menu.toml`, schema text in `core/schemas.py` |
+| Runtime config | NoneBot deployment environment, localstore `runtime-overrides.toml`, `bot_state.toml`, `menu.toml`, and `_lingchu_bot_contracts/` |
 | Handle config files | `handle_config_defaults/<command>.py` (MUST declare a `pydantic.BaseModel` subclass and register via `register_handle_defaults()`), `<command_key>.toml` in localstore config_dir |
-| Schema files | `core/schemas.py` `install_schemas()` regenerates `<basename>.schema.json` from `model_json_schema()`; no hand-written JSON Schema text |
+| Schema files | Explicit `lingchu schema install` output from the owning Pydantic model; verify with CLI tests and wheel smoke; startup is schema-write-free |
 | Triggers | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` |
 | Handler session injection | New matcher handlers add `session: async_scoped_session` (type only, no `= Depends(...)`); pass `session` as first arg to repository/permission calls |
 | Agent context | `AGENTS.md`, `CLAUDE.md`, `.github/note/AGENTS-zh.md` |
@@ -239,7 +239,7 @@ For handle, QQ command, adapter handler, matcher, `command_key`, menu, trigger, 
 - `selected_adapter_handle()` supports `bypass_gate` and `bypass_silent`.
 - "闭嘴"/"说话" bypass silent mode but not shutdown gate.
 - "开机"/"关机" bypass both gate and silent mode.
-- `install_schemas()` must run before runtime TOML files reference schema basenames. Its failure is logged and non-fatal.
+- Startup MUST NOT create, migrate, or regenerate configuration or schema files; missing mutable files use typed in-memory defaults. Deployment settings belong to NoneBot configuration, `MutableRuntimeSettings` belongs to localstore `runtime-overrides.toml`, and combined `RuntimeSettings` is migration-only.
 
 ### Repository API Style
 
@@ -399,7 +399,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 
 - Each `core/handle_config_defaults/<command>.py` MUST declare a `pydantic.BaseModel` subclass and register via `register_handle_defaults()`; the `HANDLE_DEFAULTS_REGISTRY` type is `dict[str, type[BaseModel]]`. Do not return bare `dict` defaults — pydantic owns validation and JSON Schema emission.
 - `HandleConfigManager.get_config()` / `update_config()` use `type_validate_python(model_cls, toml_dict)` for round-trip validation; `validate_config()` is removed (pydantic raises on invalid input).
-- `core/schemas.py::install_schemas()` iterates the pydantic model registry and writes `<basename>.schema.json` via `model_json_schema()`. No hand-written `*_SCHEMA_TEXT` constants remain (only `MENU_SCHEMA_TEXT` / `LLM_SCHEMA_TEXT` are retained because they back dataclass / private `_RootModel` surfaces outside this pydantic-ization scope).
+- `_lingchu_bot_contracts` separates `DeploymentSettings`, `MutableRuntimeSettings`, and migration-only `RuntimeSettings`. CLI init/validate/schema use the import-safe mutable model and its serialization schema; startup remains read-only for configuration and schema files.
 - `core/bot_state.py` uses `BotStateFile(BaseModel)` with `Field(alias="global")` + `populate_by_name=True` to bridge the `global` Python keyword; `_save_bot_state()` serializes with `model_dump(mode="json", by_alias=True)`.
 - `core/runtime_config.py` is merged into `core/config.py`; `RuntimeConfig = Config` alias is kept for LLM service-layer `TYPE_CHECKING` imports. All `runtime_config.xxx` singletons are now `plugin_config.xxx`.
 - `HandleConfig` dataclass still holds `dict[str, Any]` (frozen dataclass interface preserved); `_build_handle_config` bridges the pydantic ↔ dict boundary via `model_dump(mode="json")`. Migrating `HandleConfig` itself to hold pydantic instances is intentionally deferred to avoid churning downstream consumers.

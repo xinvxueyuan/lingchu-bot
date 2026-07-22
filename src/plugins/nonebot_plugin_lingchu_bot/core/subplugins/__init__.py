@@ -22,9 +22,10 @@ from .contracts import (
     reset_subplugin_menu_features,
     resolve_default_llm_options,
 )
-from .loader import discover_subplugin_dirs, load_subplugins
+from .loader import SUBPLUGIN_MODULES, load_subplugins
 
 __all__ = [
+    "SUBPLUGIN_MODULES",
     "LLMOptions",
     "LocalizedText",
     "MenuAvailability",
@@ -35,7 +36,6 @@ __all__ = [
     "collect_subplugin_menu_features",
     "complete_subplugin_chat",
     "complete_subplugin_chat_default",
-    "discover_subplugin_dirs",
     "ensure_subplugin_config_file",
     "get_configured_locale",
     "get_subplugin_llm_runtime",

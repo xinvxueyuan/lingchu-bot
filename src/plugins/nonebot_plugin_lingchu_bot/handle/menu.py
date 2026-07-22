@@ -10,7 +10,7 @@ require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from packaging.version import InvalidVersion, Version, parse
 
-from ..core.config import plugin_config
+from ..core.mutable_settings import get_mutable_settings
 from ..i18n import _async as _, get_configured_locale, gettext, normalize_locale
 from ..platforms import QQ_CAPABILITIES, PlatformCapability, resolve_enabled_adapters
 from .qq.adapters import load_adapter_handlers
@@ -167,7 +167,7 @@ def _menu_page_command(page: MenuPage) -> str:
     if command is None:
         return ""
     locale = normalize_locale(get_configured_locale())
-    override = plugin_config.menu_page_trigger_overrides.get(page.id, {})
+    override = get_mutable_settings().menu_page_trigger_overrides.get(page.id, {})
     if locale.lower().startswith("en"):
         value = override.get("english")
         return str(value).strip() if value else command.en_us

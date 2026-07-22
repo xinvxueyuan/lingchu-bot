@@ -71,11 +71,3 @@ class ProviderRegistry:
                 "no platform provider supports the requested bot address",
             )
         return provider
-
-
-class OneBotV11Provider:
-    """Capability shell for the first-release OneBot V11 provider."""
-
-    platform_id = "qq"
-    adapter_id = "~onebot.v11"
-    protocol_ids = frozenset({"default"})

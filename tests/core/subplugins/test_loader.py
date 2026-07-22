@@ -3,57 +3,39 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.loader import (
-    discover_subplugin_dirs,
+    SUBPLUGIN_MODULES,
     load_subplugins,
 )
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     import pytest
 
 
-def test_discover_subplugin_dirs_only_returns_public_packages(tmp_path: Path) -> None:
-    child = tmp_path / "novelai_image"
-    child.mkdir()
-    (child / "__init__.py").write_text("", encoding="utf-8")
-    private = tmp_path / "_private"
-    private.mkdir()
-    (private / "__init__.py").write_text("", encoding="utf-8")
-    (tmp_path / "not_a_package").mkdir()
-    (tmp_path / "loader.py").write_text("", encoding="utf-8")
-
-    assert discover_subplugin_dirs(tmp_path) == (child,)
+def test_declared_subplugins_are_explicit_and_stable() -> None:
+    assert tuple(
+        module.rsplit(".", maxsplit=1)[-1] for module in SUBPLUGIN_MODULES
+    ) == (
+        "llm_chat",
+        "novelai_image",
+    )
 
 
-def test_load_subplugins_loads_each_discovered_package(
-    tmp_path: Path,
+def test_load_subplugins_delegates_to_nonebot_plugin_manager(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    first = tmp_path / "alpha"
-    second = tmp_path / "beta"
-    loaded = object()
-    calls: list[str] = []
+    loaded = {object()}
+    calls: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
 
-    def fake_load_plugin(module_name: str) -> Any:
-        calls.append(module_name)
-        return loaded if module_name.endswith(".alpha") else None
+    def fake_load_all_plugins(
+        module_path: tuple[str, ...], plugin_dir: tuple[str, ...]
+    ) -> Any:
+        calls.append((module_path, plugin_dir))
+        return loaded
 
     monkeypatch.setattr(
-        "src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.loader.discover_subplugin_dirs",
-        lambda: (first, second),
-    )
-    monkeypatch.setattr(
-        "src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.loader.nonebot.load_plugin",
-        fake_load_plugin,
+        "src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.loader.nonebot.load_all_plugins",
+        fake_load_all_plugins,
     )
 
-    assert load_subplugins() == {loaded}
-    assert calls == [
-        "src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.alpha",
-        "src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.beta",
-    ]
-
-
-def test_discovery_is_empty_without_child_packages(tmp_path: Path) -> None:
-    assert discover_subplugin_dirs(tmp_path) == ()
+    assert load_subplugins() is loaded
+    assert calls == [(SUBPLUGIN_MODULES, ())]

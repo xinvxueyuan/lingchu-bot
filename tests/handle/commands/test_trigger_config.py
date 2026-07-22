@@ -1,6 +1,6 @@
-from typing import Any
 from unittest.mock import AsyncMock
 
+from _lingchu_bot_contracts import MutableRuntimeSettings
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import triggers
@@ -66,17 +66,17 @@ def test_command_trigger_overrides_reject_duplicates() -> None:
         )
 
 
-def _patch_triggers_toml_helpers(
+def _patch_triggers_mutable_settings(
     monkeypatch: pytest.MonkeyPatch,
-    load_return: Any,
+    load_return: MutableRuntimeSettings | Exception,
 ) -> tuple[AsyncMock, AsyncMock]:
     if isinstance(load_return, Exception):
         load_mock = AsyncMock(side_effect=load_return)
     else:
         load_mock = AsyncMock(return_value=load_return)
     write_mock = AsyncMock()
-    monkeypatch.setattr(triggers, "load_toml_dict_async", load_mock)
-    monkeypatch.setattr(triggers, "write_toml_dict_file_async", write_mock)
+    monkeypatch.setattr(triggers, "load_mutable_settings", load_mock)
+    monkeypatch.setattr(triggers, "save_mutable_settings", write_mock)
     return load_mock, write_mock
 
 
@@ -227,11 +227,11 @@ def test_override_to_json_omits_none_fields() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_command_trigger_overrides_returns_empty_when_raw_not_dict(
+async def test_list_command_trigger_overrides_returns_empty_for_empty_settings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    load_mock, write_mock = _patch_triggers_toml_helpers(
-        monkeypatch, load_return={"command_trigger_overrides": ["not", "a", "dict"]}
+    load_mock, write_mock = _patch_triggers_mutable_settings(
+        monkeypatch, load_return=MutableRuntimeSettings()
     )
 
     assert await list_command_trigger_overrides() == {}
@@ -244,8 +244,8 @@ async def test_list_command_trigger_overrides_parses_dict_raw(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     raw = {"menu": {"chinese": "功能表", "english_aliases": ["help-me"]}}
-    load_mock, write_mock = _patch_triggers_toml_helpers(
-        monkeypatch, load_return={"command_trigger_overrides": raw}
+    load_mock, write_mock = _patch_triggers_mutable_settings(
+        monkeypatch, load_return=MutableRuntimeSettings(command_trigger_overrides=raw)
     )
 
     result = await list_command_trigger_overrides()
@@ -263,7 +263,9 @@ async def test_list_command_trigger_overrides_parses_dict_raw(
 async def test_upsert_command_trigger_override_merges_and_writes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    load_mock, write_mock = _patch_triggers_toml_helpers(monkeypatch, load_return={})
+    load_mock, write_mock = _patch_triggers_mutable_settings(
+        monkeypatch, load_return=MutableRuntimeSettings()
+    )
     override = CommandTriggerOverride(
         chinese="我的菜单",
         english="my-menu",
@@ -276,8 +278,8 @@ async def test_upsert_command_trigger_override_merges_and_writes(
     assert result["menu"] == override
     load_mock.assert_awaited()
     write_mock.assert_awaited_once()
-    written_data = write_mock.call_args.args[1]
-    assert written_data["command_trigger_overrides"]["menu"] == {
+    written_settings = write_mock.call_args.args[0]
+    assert written_settings.command_trigger_overrides["menu"] == {
         "chinese": "我的菜单",
         "english": "my-menu",
         "chinese_aliases": ["我的帮助"],
@@ -290,23 +292,23 @@ async def test_delete_command_trigger_override_returns_db_result(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     raw = {"menu": {"chinese": "功能表", "english_aliases": ["help-me"]}}
-    load_mock, write_mock = _patch_triggers_toml_helpers(
-        monkeypatch, load_return={"command_trigger_overrides": raw}
+    load_mock, write_mock = _patch_triggers_mutable_settings(
+        monkeypatch, load_return=MutableRuntimeSettings(command_trigger_overrides=raw)
     )
 
     assert await delete_command_trigger_override("menu") is True
     load_mock.assert_awaited_once()
     write_mock.assert_awaited_once()
-    written_data = write_mock.call_args.args[1]
-    assert "menu" not in written_data["command_trigger_overrides"]
+    written_settings = write_mock.call_args.args[0]
+    assert "menu" not in written_settings.command_trigger_overrides
 
 
 @pytest.mark.asyncio
 async def test_delete_command_trigger_override_returns_false_when_key_absent(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    load_mock, write_mock = _patch_triggers_toml_helpers(
-        monkeypatch, load_return={"command_trigger_overrides": {}}
+    load_mock, write_mock = _patch_triggers_mutable_settings(
+        monkeypatch, load_return=MutableRuntimeSettings()
     )
 
     assert await delete_command_trigger_override("unknown") is False

@@ -24,10 +24,9 @@ def _apply_default_startup_mocks(
     log_exception = MagicMock()
     monkeypatch.setattr(startup_module.logger, "exception", log_exception)
 
-    monkeypatch.setattr(startup_module, "install_schemas", AsyncMock())
-    monkeypatch.setattr(startup_module, "ensure_runtime_config_file_async", AsyncMock())
     monkeypatch.setattr(startup_module, "ensure_llm_config_file_async", AsyncMock())
     monkeypatch.setattr(startup_module, "initialize_llm_runtime", AsyncMock())
+    monkeypatch.setattr(startup_module, "initialize_mcp_agent_runtime", AsyncMock())
     monkeypatch.setattr(
         startup_module, "_check_announcement_image_path_bridge", AsyncMock()
     )
@@ -103,18 +102,8 @@ async def test_startup_imports_group_and_menu_handlers(
     group_import = AsyncMock()
     menu_import = AsyncMock(side_effect=lambda: calls.append("menu_import"))
 
-    monkeypatch.setattr(
-        startup_module,
-        "install_schemas",
-        AsyncMock(side_effect=lambda: calls.append("install_schemas")),
-    )
     log_exception = MagicMock()
     monkeypatch.setattr(startup_module.logger, "exception", log_exception)
-    monkeypatch.setattr(
-        startup_module,
-        "ensure_runtime_config_file_async",
-        AsyncMock(side_effect=lambda: calls.append("ensure_runtime_config")),
-    )
 
     async def _initialize_llm_runtime() -> None:
         calls.append("initialize_llm_runtime")
@@ -132,6 +121,11 @@ async def test_startup_imports_group_and_menu_handlers(
         "initialize_llm_runtime",
         _initialize_llm_runtime,
         raising=False,
+    )
+    monkeypatch.setattr(
+        startup_module,
+        "initialize_mcp_agent_runtime",
+        AsyncMock(side_effect=lambda: calls.append("initialize_mcp_agent_runtime")),
     )
     monkeypatch.setattr(
         startup_module,
@@ -208,16 +202,22 @@ async def test_startup_imports_group_and_menu_handlers(
         startup_module.cleanup_expired_messages,
     )
     initialize_scheduler_service.assert_awaited_once()
-    assert calls.index("install_schemas") < calls.index("ensure_runtime_config")
-    assert calls.index("ensure_runtime_config") < calls.index("ensure_llm_config")
     assert calls.index("ensure_llm_config") < calls.index("initialize_llm_runtime")
     assert calls.index("initialize_llm_runtime") < calls.index("ensure_menu_config")
     assert calls.index("ensure_menu_config") < calls.index("menu_import")
     assert calls.index("set_menu_pages") < calls.index("menu_import")
     assert calls.index("set_menu_features") < calls.index("menu_import")
     if llm_error is not None:
+        assert "initialize_mcp_agent_runtime" not in calls
         log_exception.assert_called_once_with(
             "Failed to initialize LLM runtime; AI is unavailable"
+        )
+    else:
+        assert calls.index("initialize_llm_runtime") < calls.index(
+            "initialize_mcp_agent_runtime"
+        )
+        assert calls.index("initialize_mcp_agent_runtime") < calls.index(
+            "ensure_menu_config"
         )
 
 
@@ -321,21 +321,6 @@ async def test_check_announcement_image_path_bridge_silent_when_consistent(
         await startup_module._check_announcement_image_path_bridge()
 
     mock_warning.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_startup_logs_when_install_schemas_fails(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    mocks = _apply_default_startup_mocks(monkeypatch)
-    monkeypatch.setattr(
-        startup_module, "install_schemas", AsyncMock(side_effect=RuntimeError("boom"))
-    )
-
-    await startup_module.startup()
-
-    mocks["log_exception"].assert_any_call("Failed to install TOML schemas")
-    mocks["initialize_scheduler_service"].assert_awaited_once()
 
 
 @pytest.mark.asyncio

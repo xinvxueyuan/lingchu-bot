@@ -1,7 +1,7 @@
 """测试 common.py 中新增的权限检查和审计函数。"""
 
 from typing import Any, cast
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from nonebot.adapters.onebot.v11.exception import ActionFailed as Onebot11ActionFailed
 import pytest
@@ -20,9 +20,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import (
     common as common_module,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.common import (
-    _first_arg_with_attr,
-    _first_event_arg,
-    _permission_wrapper,
     selected_adapter_handle,
 )
 
@@ -532,25 +529,6 @@ class TestRecordAuditFireAndForget:
 # ================= selected_adapter_handle / 装饰器路径测试 =================
 
 
-class _StubAdapter:
-    """带有 adapter 属性的桩对象，用于 _first_arg_with_attr 测试。"""
-
-    adapter = "stub-adapter"
-
-
-class _StubEvent:
-    """带有 user_id 属性的桩对象，用于 _first_event_arg 测试。"""
-
-    user_id = 100
-
-
-class _StubDataEvent:
-    """带有 data 属性的桩对象，用于 _first_event_arg 测试。"""
-
-    def __init__(self) -> None:
-        self.data: list[int] = []
-
-
 class TestSelectedAdapterHandle:
     """selected_adapter_handle 装饰器分支覆盖测试。"""
 
@@ -677,182 +655,6 @@ class TestSelectedAdapterHandle:
 
         assert returned is handler
         command.handle.assert_not_called()
-
-
-# ================= _permission_wrapper 分支测试 =================
-
-
-class TestPermissionWrapper:
-    """_permission_wrapper 内部分支测试。"""
-
-    def test_returns_func_when_command_key_is_none(self) -> None:
-        """command_key 为 None 时直接返回原函数。"""
-        command: Any = MagicMock()
-
-        async def handler(*_args: Any, **_kwargs: Any) -> Any:
-            return "ok"
-
-        result = _permission_wrapper(command, handler, None)
-        assert result is handler
-
-    @pytest.mark.asyncio
-    async def test_wrapper_passes_through_when_bot_and_event_missing(self) -> None:
-        """Wrapper 在缺少 bot/event 时直接调用原函数。"""
-        command: Any = MagicMock()
-        command.finish = AsyncMock()
-
-        called = False
-
-        async def handler(*_args: Any, **_kwargs: Any) -> Any:
-            nonlocal called
-            called = True
-            return "called"
-
-        wrapped = _permission_wrapper(command, handler, "test_cmd")
-        result = await wrapped()
-
-        assert result == "called"
-        assert called is True
-        command.finish.assert_not_awaited()
-
-
-# ================= 私有参数查找工具测试 =================
-
-
-class TestFirstArgWithAttr:
-    """_first_arg_with_attr 工具函数测试。"""
-
-    def test_returns_first_arg_with_attribute(self) -> None:
-        """返回第一个拥有指定属性的参数。"""
-        other = object()
-        stub = _StubAdapter()
-        result = _first_arg_with_attr((other, stub), "adapter")
-        assert result is stub
-
-    def test_returns_none_when_no_arg_has_attribute(self) -> None:
-        """无参数拥有指定属性时返回 None。"""
-        result = _first_arg_with_attr((1, "x", None, []), "adapter")
-        assert result is None
-
-    def test_returns_none_for_empty_args(self) -> None:
-        """空参数元组返回 None。"""
-        result = _first_arg_with_attr((), "adapter")
-        assert result is None
-
-    def test_returns_first_match_when_multiple_have_attribute(self) -> None:
-        """多个参数都拥有属性时返回第一个。"""
-        first = _StubAdapter()
-        second = _StubAdapter()
-        result = _first_arg_with_attr((first, second), "adapter")
-        assert result is first
-
-
-class TestFirstEventArg:
-    """_first_event_arg 工具函数测试。"""
-
-    def test_returns_first_arg_with_user_id(self) -> None:
-        """返回第一个拥有 user_id 属性的参数。"""
-        other = object()
-        event = _StubEvent()
-        result = _first_event_arg((other, event))
-        assert result is event
-
-    def test_returns_first_arg_with_data(self) -> None:
-        """返回第一个拥有 data 属性的参数。"""
-        data_event = _StubDataEvent()
-        result = _first_event_arg((data_event,))
-        assert result is data_event
-
-    def test_returns_none_when_no_event_arg(self) -> None:
-        """无参数拥有 user_id 或 data 属性时返回 None。"""
-        result = _first_event_arg((1, "x", None))
-        assert result is None
-
-    def test_returns_none_for_empty_args(self) -> None:
-        """空参数元组返回 None。"""
-        result = _first_event_arg(())
-        assert result is None
-
-
-# ================= _permission_wrapper 主体调用测试 =================
-
-
-class TestPermissionWrapperBody:
-    """_permission_wrapper 内部 wrapper 主体调用测试（覆盖行 69-73）。"""
-
-    @pytest.mark.asyncio
-    async def test_wrapper_calls_func_when_permission_allowed(self) -> None:
-        """权限检查通过时调用原函数并返回结果。"""
-        command: Any = MagicMock()
-        command.finish = AsyncMock()
-        bot = MagicMock()
-        event = MagicMock()
-        session = Mock()
-
-        async def handler(*_args: Any, **_kwargs: Any) -> Any:
-            return "allowed-result"
-
-        decision = MagicMock()
-        decision.allowed = True
-        with patch.object(common_module, "check_permission", new=AsyncMock()) as check:
-            check.return_value = decision
-            wrapped = _permission_wrapper(command, handler, "test_cmd")
-            result = await wrapped(bot=bot, event=event, session=session)
-
-        assert result == "allowed-result"
-        check.assert_awaited_once_with(session, "test_cmd", bot, event)
-        command.finish.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_wrapper_finishes_when_permission_denied(self) -> None:
-        """权限检查未通过时调用 command.finish 并返回 None。"""
-        command: Any = MagicMock()
-        command.finish = AsyncMock()
-        bot = MagicMock()
-        event = MagicMock()
-        session = Mock()
-
-        async def handler(*_args: Any, **_kwargs: Any) -> Any:
-            return "should-not-reach"
-
-        decision = MagicMock()
-        decision.allowed = False
-        with patch.object(common_module, "check_permission", new=AsyncMock()) as check:
-            check.return_value = decision
-            wrapped = _permission_wrapper(command, handler, "test_cmd")
-            result = await wrapped(bot=bot, event=event, session=session)
-
-        assert result is None
-        command.finish.assert_awaited_once()
-        check.assert_awaited_once_with(session, "test_cmd", bot, event)
-
-    @pytest.mark.asyncio
-    async def test_wrapper_finds_bot_and_event_from_args(self) -> None:
-        """bot/event 从位置参数中解析时仍走权限检查路径。"""
-        command: Any = MagicMock()
-        command.finish = AsyncMock()
-        bot = MagicMock()
-        bot.adapter = "stub-adapter"
-        event = _StubEvent()
-        session = Mock()
-
-        called = False
-
-        async def handler(*_args: Any, **_kwargs: Any) -> Any:
-            nonlocal called
-            called = True
-            return "ok"
-
-        decision = MagicMock()
-        decision.allowed = True
-        with patch.object(common_module, "check_permission", new=AsyncMock()) as check:
-            check.return_value = decision
-            wrapped = _permission_wrapper(command, handler, "test_cmd")
-            result = await wrapped(bot, event, session=session)
-
-        assert result == "ok"
-        assert called is True
-        check.assert_awaited_once()
 
 
 # ================= _state_wrapper 主体调用测试 =================

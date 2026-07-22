@@ -58,7 +58,7 @@ async def test_chat_success(
     )
 
     with pytest.raises(FinishedException):
-        await handler.chat_handler(text=["你好"], bot=MagicMock(), event=MagicMock())
+        await handler.chat_handler(text=["你好"])
 
     complete_subplugin_chat_default.assert_awaited_once()
     assert finish_text(mock_finish) == "你好！有什么可以帮你的吗？"
@@ -78,7 +78,7 @@ async def test_chat_llm_error(
     )
 
     with pytest.raises(FinishedException):
-        await handler.chat_handler(text=["你好"], bot=MagicMock(), event=MagicMock())
+        await handler.chat_handler(text=["你好"])
 
     assert finish_text(mock_finish) == "LLM 服务暂时不可用，请稍后再试"
 
@@ -96,7 +96,7 @@ async def test_chat_disabled(
     )
 
     with pytest.raises(FinishedException):
-        await handler.chat_handler(text=["你好"], bot=MagicMock(), event=MagicMock())
+        await handler.chat_handler(text=["你好"])
 
     complete_subplugin_chat_default.assert_not_awaited()
     assert finish_text(mock_finish) == "该功能已禁用"
@@ -112,9 +112,7 @@ async def test_chat_system_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     with pytest.raises(FinishedException):
-        await handler.chat_handler(
-            text=["你好", "世界"], bot=MagicMock(), event=MagicMock()
-        )
+        await handler.chat_handler(text=["你好", "世界"])
 
     call_kwargs = complete_subplugin_chat_default.call_args
     messages = (

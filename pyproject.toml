@@ -44,7 +44,14 @@ dependencies = [
     "babel>=2.18.0",
     "rtoml>=0.13.0",
     "packaging>=26.2",
+    "typer>=0.26.0",
 ]
+
+[project.scripts]
+lingchu = "_lingchu_bot_cli.app:main"
+
+[project.entry-points.nb]
+lingchu = "_lingchu_bot_cli.nb_plugin:install"
 
 [project.optional-dependencies]
 ai = [
@@ -348,7 +355,21 @@ allowed-confusables = [
 
 # TRY003/TRY004: vanilla exceptions (ValueError/TypeError) are intentional for validation
 # E402: nonebot2 require() must precede cross-plugin imports at module level
+"src/plugins/_lingchu_bot_cli/app.py" = [
+    "TC003", # Typer evaluates Path annotations at runtime when building commands
+]
+"src/plugins/_lingchu_bot_cli/config_files.py" = [
+    "TRY003", # CLI configuration errors include the rejected path and validation detail
+]
+"src/plugins/_lingchu_bot_contracts/runtime_settings.py" = [
+    "C901",   # structured superuser validation intentionally checks nested identifiers in one validator
+    "TRY003", # validation errors retain field-specific operator diagnostics
+    "TRY004", # Pydantic validators historically expose ValueError for malformed config values
+]
 "src/plugins/nonebot_plugin_lingchu_bot/core/menu_config.py" = ["TRY003", "E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/core/mutable_settings.py" = [
+    "E402",  # localstore import must follow nonebot.require
+]
 "src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_manager.py" = ["TRY003", "BLE001", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_defaults/__init__.py" = ["TRY003", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/models.py" = [
@@ -512,7 +533,10 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/announcement.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/block.py" = ["E402", "TC002"]
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/bot_state.py" = ["E402", "TC002"]
-"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/common.py" = ["E402"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/common.py" = [
+    "E402",  # plugin imports must follow nonebot.require calls
+    "TC002",  # NoneBot inspects Bot, Event, and ORM DI annotations at runtime
+]
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/kick.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/lifecycle.py" = ["E402", "TC002"]
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/member.py" = ["E402"]
@@ -662,10 +686,6 @@ build-backend = "uv_build"
 
 
 [tool.uv.build-backend]
-module-name = "nonebot_plugin_lingchu_bot"
+module-name = ["nonebot_plugin_lingchu_bot", "_lingchu_bot_cli", "_lingchu_bot_contracts"]
 module-root = "src/plugins"
 # version = { source = "git" }
-
-# [project.scripts]
-# TODO: add command line entry point
-# lcbot = ""

@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock
 
+from _lingchu_bot_contracts import MutableRuntimeSettings
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.permissions import service as service_module
@@ -378,8 +379,8 @@ def test_platform_runtime_passthrough_bool_true(
 ) -> None:
     monkeypatch.setattr(
         service_module,
-        "plugin_config",
-        SimpleNamespace(permission_platform_runtime_passthrough=True),
+        "get_mutable_settings",
+        lambda: MutableRuntimeSettings(permission_platform_runtime_passthrough=True),
     )
     assert platform_runtime_passthrough_enabled(_make_context()) is True
 
@@ -389,8 +390,8 @@ def test_platform_runtime_passthrough_bool_false(
 ) -> None:
     monkeypatch.setattr(
         service_module,
-        "plugin_config",
-        SimpleNamespace(permission_platform_runtime_passthrough=False),
+        "get_mutable_settings",
+        lambda: MutableRuntimeSettings(permission_platform_runtime_passthrough=False),
     )
     assert platform_runtime_passthrough_enabled(_make_context()) is False
 
@@ -400,8 +401,10 @@ def test_platform_runtime_passthrough_dict_platform_true(
 ) -> None:
     monkeypatch.setattr(
         service_module,
-        "plugin_config",
-        SimpleNamespace(permission_platform_runtime_passthrough={"qq": True}),
+        "get_mutable_settings",
+        lambda: MutableRuntimeSettings(
+            permission_platform_runtime_passthrough={"qq": True}
+        ),
     )
     assert platform_runtime_passthrough_enabled(_make_context()) is True
 
@@ -411,8 +414,10 @@ def test_platform_runtime_passthrough_dict_platform_false(
 ) -> None:
     monkeypatch.setattr(
         service_module,
-        "plugin_config",
-        SimpleNamespace(permission_platform_runtime_passthrough={"qq": False}),
+        "get_mutable_settings",
+        lambda: MutableRuntimeSettings(
+            permission_platform_runtime_passthrough={"qq": False}
+        ),
     )
     assert platform_runtime_passthrough_enabled(_make_context()) is False
 
@@ -422,8 +427,10 @@ def test_platform_runtime_passthrough_dict_missing_platform_defaults_true(
 ) -> None:
     monkeypatch.setattr(
         service_module,
-        "plugin_config",
-        SimpleNamespace(permission_platform_runtime_passthrough={"discord": True}),
+        "get_mutable_settings",
+        lambda: MutableRuntimeSettings(
+            permission_platform_runtime_passthrough={"discord": True}
+        ),
     )
     assert platform_runtime_passthrough_enabled(_make_context()) is True
 

@@ -4,7 +4,6 @@ title: API Audit
 description: Runtime hooks for event, lifecycle, and API call auditing plus command-level audit records.
 ---
 
-# API Audit
 
 Lingchu Bot records structured audit records for every stage of message processing: event receipt, matcher outcome, bot lifecycle, and platform API calls. The audit pipeline is built on the message store runtime hooks and extended with a command-level `CommandAudit` payload used by local and remote group-management handlers.
 
@@ -30,15 +29,15 @@ The event-receipt, matcher-result, lifecycle, and API-call stages are the same p
 
 ## Configuration
 
-All audit configuration is read from `core/runtime_config.py::RuntimeConfig`. Each field accepts both an environment variable and a TOML alias through Pydantic `AliasChoices`.
+Audit deployment settings are read from the NoneBot environment or its `.env` files through `core/config.py::Config`. They are not read from `config.toml`. Online-editable overrides are stored separately in the localstore-owned `runtime-overrides.toml`; currently that file owns trigger and platform-runtime permission overrides, not the audit fields below.
 
-| Field | Env / alias | Default | Purpose |
+| Field | NoneBot environment / `.env` | Default | Purpose |
 | --- | --- | --- | --- |
-| `message_store_enabled` | `LINGCHU_MESSAGE_STORE_ENABLED` / `message_store_enabled` | `true` | Master switch for the whole pipeline (event, lifecycle, API, command) |
-| `message_store_retention_days` | `LINGCHU_MESSAGE_STORE_RETENTION_DAYS` / `message_store_retention_days` | `30` | Days to retain records; `0` disables day-based expiry |
-| `message_store_summary_limit` | `LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT` / `message_store_summary_limit` | `500` | Max length for text, data, and result summaries |
-| `message_store_record_api_calls` | `LINGCHU_MESSAGE_STORE_RECORD_API_CALLS` / `message_store_record_api_calls` | `true` | Whether to record platform API call summaries |
-| `message_store_cleanup_enabled` | `LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED` / `message_store_cleanup_enabled` | `true` | Whether to clean expired records (shutdown + periodic job) |
+| `message_store_enabled` | `LINGCHU_MESSAGE_STORE_ENABLED` | `true` | Master switch for the whole pipeline (event, lifecycle, API, command) |
+| `message_store_retention_days` | `LINGCHU_MESSAGE_STORE_RETENTION_DAYS` | `30` | Days to retain records; `0` disables day-based expiry |
+| `message_store_summary_limit` | `LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT` | `500` | Max length for text, data, and result summaries |
+| `message_store_record_api_calls` | `LINGCHU_MESSAGE_STORE_RECORD_API_CALLS` | `true` | Whether to record platform API call summaries |
+| `message_store_cleanup_enabled` | `LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED` | `true` | Whether to clean expired records (shutdown + periodic job) |
 
 When `message_store_enabled = false`, every handler short-circuits and no records are written. When `message_store_record_api_calls = false`, the `on_called_api` hook and `handle_api_called()` skip API call recording, but event, matcher, lifecycle, and command records are still written.
 
@@ -85,10 +84,10 @@ Group-management handlers (kick, mute, set member card/title/admin, block, remot
 | Field | Type | Purpose |
 | --- | --- | --- |
 | `action` | `str` | Stable action name, for example `set_member_card`, `kick_member` |
-| `target_user_id` | `int | None` | The user the action targets |
-| `reason` | `str | None` | Operator-supplied reason |
-| `duration` | `int | None` | Duration in seconds (for mute actions) |
-| `group_id` | `int | None` | Override group; falls back to `event.group_id` |
+| `target_user_id` | `int \| None` | The user the action targets |
+| `reason` | `str \| None` | Operator-supplied reason |
+| `duration` | `int \| None` | Duration in seconds (for mute actions) |
+| `group_id` | `int \| None` | Override group; falls back to `event.group_id` |
 
 ### Recording functions
 

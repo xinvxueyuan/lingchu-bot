@@ -1,76 +1,45 @@
-"""Tests for the ``ai_api_key`` field on :class:`RuntimeConfig`.
-
-Verifies code defaults, TOML dict loading, and env-var override priority
-(`OS env > dotenv > TOML > code defaults`).
-"""
-
-from __future__ import annotations
+"""Tests for deployment-owned AI settings resolved by NoneBot."""
 
 from pathlib import Path
-from typing import Any
 
-from nonebot.compat import type_validate_python
 import pytest
 
+from src.plugins.nonebot_plugin_lingchu_bot.core import config as config_module
 from src.plugins.nonebot_plugin_lingchu_bot.core.config import (
-    RuntimeConfig,
-    _env_overrides,
+    Config,
+    get_runtime_config,
 )
 
 
-@pytest.fixture
-def config(tmp_path: Path) -> RuntimeConfig:
-    """Build a Config without triggering localstore plugin detection."""
-    return RuntimeConfig(
+def test_ai_api_key_defaults_to_none(tmp_path: Path) -> None:
+    config = Config(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
         cache_dir=tmp_path / "cache",
     )
-
-
-def _config_from_dict(tmp_path: Path, toml_dict: dict[str, Any]) -> RuntimeConfig:
-    """Validate a TOML-style dict into a Config with explicit path fields."""
-    merged: dict[str, Any] = {
-        "data_dir": tmp_path / "data",
-        "config_dir": tmp_path / "config",
-        "cache_dir": tmp_path / "cache",
-        **toml_dict,
-    }
-    return type_validate_python(RuntimeConfig, merged)
-
-
-def test_ai_api_key_defaults_to_none(config: RuntimeConfig) -> None:
-    """Code default for ``ai_api_key`` is ``None``."""
     assert config.ai_api_key is None
 
 
-def test_ai_api_key_loaded_from_dict(tmp_path: Path) -> None:
-    """``ai_api_key`` is populated when validating a TOML-style dict."""
-    config = _config_from_dict(tmp_path, {"ai_api_key": "sk-test123"})
-    assert config.ai_api_key == "sk-test123"
+def test_ai_api_key_accepts_nonebot_aliases(tmp_path: Path) -> None:
+    config = Config.model_validate({
+        "data_dir": tmp_path / "data",
+        "config_dir": tmp_path / "config",
+        "cache_dir": tmp_path / "cache",
+        "LINGCHU_AI_API_KEY": "test-key",
+    })
+    assert config.ai_api_key == "test-key"
 
 
-def test_ai_api_key_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    """``_env_overrides`` reads ``LINGCHU_AI_API_KEY`` from the OS environment."""
-    monkeypatch.setenv("LINGCHU_AI_API_KEY", "sk-env456")
-    try:
-        overrides = _env_overrides({})
-    finally:
-        monkeypatch.delenv("LINGCHU_AI_API_KEY", raising=False)
-
-    assert overrides == {"ai_api_key": "sk-env456"}
-
-
-def test_ai_api_key_env_overrides_toml(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_ai_api_key_comes_from_nonebot_plugin_config(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    """OS env var wins over a TOML dict value when both are present."""
-    monkeypatch.setenv("LINGCHU_AI_API_KEY", "sk-env456")
-    try:
-        toml_dict = {"ai_api_key": "sk-toml-losing"}
-        merged = toml_dict | _env_overrides({})
-    finally:
-        monkeypatch.delenv("LINGCHU_AI_API_KEY", raising=False)
+    expected = Config.model_validate({
+        "data_dir": tmp_path / "data",
+        "config_dir": tmp_path / "config",
+        "cache_dir": tmp_path / "cache",
+        "LINGCHU_AI_API_KEY": "resolved-key",
+    })
+    monkeypatch.setattr(config_module, "get_plugin_config", lambda _model: expected)
 
-    config = _config_from_dict(tmp_path, merged)
-    assert config.ai_api_key == "sk-env456"
+    assert get_runtime_config().ai_api_key == "resolved-key"

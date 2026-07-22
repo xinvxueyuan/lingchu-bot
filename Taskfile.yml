@@ -140,10 +140,16 @@ tasks:
       - uv run -m ty check --fix .
       - pnpm exec markdownlint-cli2 --fix
 
+  ci:wheel-smoke:
+    desc: "[CI] Verify installed CLI entry points from the wheel"
+    cmds:
+      - uv run --locked python scripts/check-wheel-entrypoints.py
+
   ci:build:
     desc: "[CI] Build distribution artifacts"
     cmds:
-      - uv build --clear
+      - uv build --clear --no-sources
+      - task: ci:wheel-smoke
       - pnpm turbo run build
 
   ci:docs:

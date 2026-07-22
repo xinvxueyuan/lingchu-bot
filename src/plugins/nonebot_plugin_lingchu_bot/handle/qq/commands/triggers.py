@@ -2,15 +2,13 @@ import contextlib
 from dataclasses import dataclass
 from typing import Any
 
-from ....core.config import (
-    get_runtime_config_file,
-    plugin_config,
-    runtime_config_defaults,
-)
-from ....database.toml_store import (
-    DatabaseError,
-    load_toml_dict_async,
-    write_toml_dict_file_async,
+from _lingchu_bot_contracts import MutableRuntimeSettings
+
+from ....core.mutable_settings import (
+    MutableSettingsError,
+    load_mutable_settings,
+    load_mutable_settings_sync,
+    save_mutable_settings,
 )
 from ....i18n import get_configured_locale, normalize_locale
 
@@ -131,9 +129,13 @@ def _optional_str_set(value: Any) -> frozenset[str] | None:
 
 
 def _runtime_overrides() -> dict[str, CommandTriggerOverride]:
+    try:
+        raw_overrides = load_mutable_settings_sync().command_trigger_overrides
+    except MutableSettingsError:
+        raw_overrides = {}
     return {
         str(command_key): _override_from_raw(raw)
-        for command_key, raw in plugin_config.command_trigger_overrides.items()
+        for command_key, raw in raw_overrides.items()
     }
 
 
@@ -151,15 +153,9 @@ def _override_to_json(value: CommandTriggerOverride) -> dict[str, Any]:
 
 
 async def list_command_trigger_overrides() -> dict[str, CommandTriggerOverride]:
-    path = get_runtime_config_file()
     try:
-        data = await load_toml_dict_async(
-            path, default=runtime_config_defaults(), merge_default=True
-        )
-    except DatabaseError:
-        return {}
-    raw = data.get("command_trigger_overrides", {})
-    if not isinstance(raw, dict):
+        raw = (await load_mutable_settings()).command_trigger_overrides
+    except MutableSettingsError:
         return {}
     return {str(key): _override_from_raw(value) for key, value in raw.items()}
 
@@ -168,42 +164,40 @@ async def upsert_command_trigger_override(
     command_key: str,
     override: CommandTriggerOverride,
 ) -> dict[str, CommandTriggerOverride]:
-    path = get_runtime_config_file()
     try:
-        data = await load_toml_dict_async(
-            path, default=runtime_config_defaults(), merge_default=True
-        )
-    except DatabaseError:
-        data = runtime_config_defaults()
-    existing = await list_command_trigger_overrides()
+        settings = await load_mutable_settings()
+    except MutableSettingsError:
+        settings = MutableRuntimeSettings()
+    existing = {
+        str(key): _override_from_raw(value)
+        for key, value in settings.command_trigger_overrides.items()
+    }
     merged = dict(existing)
     merged[command_key] = override
     build_command_triggers(_DEFAULT_COMMAND_TRIGGERS, merged)
-    overrides = data.setdefault("command_trigger_overrides", {})
-    if not isinstance(overrides, dict):
-        overrides = {}
-        data["command_trigger_overrides"] = overrides
-    overrides[command_key] = _override_to_json(override)
-    with contextlib.suppress(DatabaseError):
-        await write_toml_dict_file_async(path, data)
+    raw = dict(settings.command_trigger_overrides)
+    raw[command_key] = _override_to_json(override)
+    with contextlib.suppress(MutableSettingsError):
+        await save_mutable_settings(
+            settings.model_copy(update={"command_trigger_overrides": raw})
+        )
     return merged
 
 
 async def delete_command_trigger_override(command_key: str) -> bool:
-    path = get_runtime_config_file()
     try:
-        data = await load_toml_dict_async(
-            path, default=runtime_config_defaults(), merge_default=True
+        settings = await load_mutable_settings()
+    except MutableSettingsError:
+        return False
+    raw = dict(settings.command_trigger_overrides)
+    if command_key not in raw:
+        return False
+    del raw[command_key]
+    try:
+        await save_mutable_settings(
+            settings.model_copy(update={"command_trigger_overrides": raw})
         )
-    except DatabaseError:
-        return False
-    overrides = data.get("command_trigger_overrides", {})
-    if not isinstance(overrides, dict) or command_key not in overrides:
-        return False
-    del overrides[command_key]
-    try:
-        await write_toml_dict_file_async(path, data)
-    except DatabaseError:
+    except MutableSettingsError:
         return False
     return True
 

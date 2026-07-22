@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypeIs
 
-from ..core.config import plugin_config
+from ..core.mutable_settings import get_mutable_settings
 from ..platforms import get_platform_profile, resolve_adapter_id
 from ..repositories import permissions as repo
 from .platforms import resolve_runtime_identity_groups
@@ -157,7 +157,7 @@ async def resolve_mcp_permission(
 
 
 def platform_runtime_passthrough_enabled(context: PermissionContext) -> bool:
-    setting = plugin_config.permission_platform_runtime_passthrough
+    setting = get_mutable_settings().permission_platform_runtime_passthrough
     if isinstance(setting, bool):
         return setting
     platform_value = setting.get(context.platform_id)

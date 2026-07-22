@@ -6,12 +6,12 @@ import json
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+from _lingchu_bot_contracts import RuntimeSettings
 import aiofiles
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.core import schemas as schemas_module
 from src.plugins.nonebot_plugin_lingchu_bot.core.bot_state import BotStateFile
-from src.plugins.nonebot_plugin_lingchu_bot.core.config import RuntimeConfig
 from src.plugins.nonebot_plugin_lingchu_bot.core.schemas import (
     BOT_STATE_SCHEMA_BASENAME,
     CONFIG_SCHEMA_BASENAME,
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 def _config_schema_text() -> str:
     """Return the pydantic-generated CONFIG schema as a JSON string."""
-    return json.dumps(RuntimeConfig.model_json_schema(), indent=2, ensure_ascii=False)
+    return json.dumps(RuntimeSettings.model_json_schema(), indent=2, ensure_ascii=False)
 
 
 def _bot_state_schema_text() -> str:
