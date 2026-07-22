@@ -19,6 +19,7 @@ class Platform(Model):
     """Platform registry entry seeded from registry.py."""
 
     __tablename__ = "lingchu_platforms"
+    __table_args__ = ({"extend_existing": True},)
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     platform_id: Mapped[str] = mapped_column(compat_string(64), unique=True)
@@ -43,6 +44,7 @@ class Adapter(Model):
     """Adapter registry entry seeded from registry.py."""
 
     __tablename__ = "lingchu_adapters"
+    __table_args__ = ({"extend_existing": True},)
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     adapter_id: Mapped[str] = mapped_column(compat_string(64), unique=True)
@@ -72,6 +74,7 @@ class ProtocolImplementation(Model):
             "protocol_id",
             name="uq_lingchu_protocol_implementation_identity",
         ),
+        {"extend_existing": True},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)

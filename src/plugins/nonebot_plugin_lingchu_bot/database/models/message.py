@@ -33,6 +33,7 @@ class MessageRecord(Model):
             "message_id",
             name="uq_lingchu_message_record_identity",
         ),
+        {"extend_existing": True},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
@@ -75,6 +76,7 @@ class AuditRecord(Model):
     """Audit event for API calls and bot lifecycle events."""
 
     __tablename__ = "lingchu_audit_records"
+    __table_args__ = ({"extend_existing": True},)
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
@@ -110,6 +112,7 @@ class QQOneBotV11NoneBotEventRecord(Model):
             "message_id",
             name="uq_lingchu_qq_ob11_nb_event_identity",
         ),
+        {"extend_existing": True},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
@@ -152,6 +155,7 @@ class QQOneBotV11NoneBotAuditRecord(Model):
     """QQ OneBot V11 API and lifecycle audit event in the NoneBot partition."""
 
     __tablename__ = "lingchu_qq_onebot_v11_nonebot_audit_records"
+    __table_args__ = ({"extend_existing": True},)
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)

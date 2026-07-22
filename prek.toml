@@ -2,7 +2,8 @@ exclude = '''(?x)^(
   skills/|
   \.agents/skills/|
   \.claude/skills/|
-  \.trae/skills/
+  \.trae/skills/|
+  \.vscode/
 )'''
 
 [[repos]]

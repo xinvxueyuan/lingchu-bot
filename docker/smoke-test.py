@@ -75,22 +75,19 @@ def _init_nonebot() -> None:
 
     driver.register_adapter(ONEBOT_V11Adapter)
     nonebot.load_from_toml("pyproject.toml")
+    nonebot.load_plugin("nonebot_plugin_lingchu_bot")
 
 
 def _run_migrations() -> bool:
-    """Run ``nb orm upgrade`` so the smoke-test starts with an up-to-date schema."""
-    _LOGGER.info("Running database migrations with 'nb orm upgrade'")
-    process = subprocess.run(
-        ["nb", "orm", "upgrade"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        check=False,
-    )
-    sys.stdout.write(process.stdout)
-    sys.stdout.flush()
-    if process.returncode != 0:
-        _LOGGER.error("Migration failed with exit code %d", process.returncode)
+    """Run ORM migrations so the smoke-test starts with an up-to-date schema."""
+    _LOGGER.info("Running database migrations")
+    try:
+        _init_nonebot()
+        from nonebot_plugin_orm.__main__ import main as orm_main
+
+        orm_main(args=["upgrade"], prog_name="nb orm", standalone_mode=False)
+    except Exception:
+        _LOGGER.exception("Migration failed")
         return False
     _LOGGER.info("Migrations completed successfully")
     return True
@@ -230,19 +227,6 @@ async def _async_main() -> int:
         os.environ.get("SMOKE_TEST_RESULTS_XML", "/app/smoke-test-results.xml")
     )
 
-    _ensure_smoke_env()
-
-    if not _run_migrations():
-        results: list[dict[str, object]] = [
-            {
-                "name": "test_bot_startup",
-                "error": RuntimeError("Database migration failed"),
-                "duration": 0.0,
-            }
-        ]
-        _write_junit_xml(results, output_path)
-        return 1
-
     process = _start_nonebot_subprocess()
     try:
         if not _wait_for_startup(process):
@@ -277,6 +261,22 @@ async def _async_main() -> int:
 def main() -> int:
     """Synchronous wrapper around the async smoke test workflow."""
     _init_logging()
+    _ensure_smoke_env()
+
+    if not _run_migrations():
+        output_path = Path(
+            os.environ.get("SMOKE_TEST_RESULTS_XML", "/app/smoke-test-results.xml")
+        )
+        results: list[dict[str, object]] = [
+            {
+                "name": "test_bot_startup",
+                "error": RuntimeError("Database migration failed"),
+                "duration": 0.0,
+            }
+        ]
+        _write_junit_xml(results, output_path)
+        return 1
+
     return asyncio.run(_async_main())
 
 

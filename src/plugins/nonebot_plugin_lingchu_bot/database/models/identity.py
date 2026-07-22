@@ -19,6 +19,7 @@ class IdentityUser(Model):
     """Lingchu-wide user identity used across platform accounts."""
 
     __tablename__ = "lingchu_identity_users"
+    __table_args__ = ({"extend_existing": True},)
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     uid: Mapped[str] = mapped_column(compat_string(64), unique=True)
@@ -46,6 +47,7 @@ class PlatformAccount(Model):
             "account_id",
             name="uq_lingchu_platform_account_identity",
         ),
+        {"extend_existing": True},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
@@ -73,6 +75,7 @@ class PlatformIdentityGroup(Model):
     """Platform-scoped identity group, including builtin and custom groups."""
 
     __tablename__ = "lingchu_platform_identity_groups"
+    __table_args__ = ({"extend_existing": True},)
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     group_id: Mapped[str] = mapped_column(compat_string(128), unique=True)
@@ -107,6 +110,7 @@ class IdentityMembership(Model):
             "scope_id",
             name="uq_lingchu_identity_membership_identity",
         ),
+        {"extend_existing": True},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
@@ -140,6 +144,7 @@ class PermissionGrant(Model):
             "command_key",
             name="uq_lingchu_permission_grant_identity",
         ),
+        {"extend_existing": True},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)

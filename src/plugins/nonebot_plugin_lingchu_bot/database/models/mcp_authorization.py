@@ -28,6 +28,7 @@ class MCPServicePrincipal(Model):
             "identity_value",
             name="uq_lingchu_mcp_principal_oauth_identity",
         ),
+        {"extend_existing": True},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
@@ -61,6 +62,7 @@ class MCPResourceGrant(Model):
             "conversation_id",
             name="uq_lingchu_mcp_grant_exact_resource",
         ),
+        {"extend_existing": True},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)

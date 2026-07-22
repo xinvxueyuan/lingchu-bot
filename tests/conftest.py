@@ -149,11 +149,19 @@ def pytest_unconfigure(config: pytest.Config) -> None:
     此钩子函数在所有测试执行完毕后调用，负责清理全局驱动状态。
     防止残留的NoneBot驱动实例对后续测试或其他进程造成干扰。
 
+    注意：在 session 作用域的异步测试中，NoneBot driver 和 SQLAlchemy
+    MetaData 必须在整个 session 中保持存活，否则会导致表重复定义错误。
+    因此，此函数仅在其他进程需要时才清理 driver。
+
     Args:
         config: pytest的配置对象。
 
     """
     _ = config
+    # 在 session 作用域的测试中，不要清理 driver，避免 SQLAlchemy 表重复定义
+    # 如果确实需要清理（例如在其他进程运行测试），可以设置环境变量 PYTEST_CLEANUP_DRIVER=1
+    if os.environ.get("PYTEST_CLEANUP_DRIVER") != "1":
+        return
     try:
         nonebot.get_driver()
     except ValueError:
