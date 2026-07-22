@@ -105,6 +105,20 @@ jobs:
       - name: 📦 Build
         run: task ci:build
 
+      - name: 🔍 Verify wheel contents
+        run: |
+          python -c "
+          from zipfile import ZipFile
+          from pathlib import Path
+          wheel = next(Path('dist').glob('*.whl'))
+          with ZipFile(wheel) as z:
+              modules = ['_lingchu_bot_contracts', '_lingchu_bot_cli', 'nonebot_plugin_lingchu_bot']
+              for mod in modules:
+                  if not any(f.startswith(mod) for f in z.namelist()):
+                      raise RuntimeError(f'Module {mod} not found in wheel')
+          print('✓ All modules present in wheel:', ', '.join(modules))
+          "
+
       - name: 📤 Upload dist
         # pinned from actions/upload-artifact@v7.0.1
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
