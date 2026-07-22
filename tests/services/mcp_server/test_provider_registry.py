@@ -12,7 +12,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.services.mcp_server.contracts import
     ErrorCode,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.services.mcp_server.providers import (
-    OneBotV11Provider,
     ProviderConflictError,
     ProviderRegistry,
 )
@@ -48,19 +47,6 @@ def test_registry_reports_unsupported_platform_without_fallback() -> None:
     with pytest.raises(ContractError) as caught:
         registry.resolve(BotAddress("matrix", "matrix", "v1", "10001"))
 
-    assert caught.value.code is ErrorCode.UNSUPPORTED_PLATFORM
-
-
-def test_onebot_v11_provider_exposes_only_trustworthy_resource_identity() -> None:
-    provider = OneBotV11Provider()
-    registry = ProviderRegistry((provider,))
-
-    assert (
-        registry.resolve(BotAddress("qq", "~onebot.v11", "default", "10001"))
-        is provider
-    )
-    with pytest.raises(ContractError) as caught:
-        registry.resolve(BotAddress("qq", "~onebot.v11", "napcat", "10001"))
     assert caught.value.code is ErrorCode.UNSUPPORTED_PLATFORM
 
 

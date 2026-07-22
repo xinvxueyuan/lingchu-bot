@@ -134,14 +134,9 @@ Before connecting to a real platform, prepare the account, network, reverse WebS
 
 ## Configuration
 
-Lingchu creates `config.toml` on first startup in the plugin configuration directory provided by `nonebot-plugin-localstore`. Runtime configuration priority is:
+Deployment fields are resolved by NoneBot from OS environment variables, its `.env` files or global configuration, then code defaults. Lingchu does not implement a second dotenv or TOML override layer. Startup does not create deployment configuration or install JSON Schema files.
 
-1. OS environment variables
-2. NoneBot dotenv / global configuration
-3. `config.toml`
-4. Code defaults
-
-The table below enumerates the environment variables actually read by NoneBot core, `nonebot_plugin_localstore`, `nonebot_plugin_orm`, `core/config.py`, `core/runtime_config.py`, and `i18n/__init__.py`. Boolean values in NoneBot `.env` files must use JSON-style lowercase `true` / `false`, not Python-style `True` / `False`.
+Online-editable command, menu-trigger, and platform-permission overrides are stored separately in localstore-owned `runtime-overrides.toml`. Boolean values in NoneBot `.env` files must use JSON-style lowercase `true` / `false`, not Python-style `True` / `False`.
 
 | Group | Setting | Purpose |
 | --- | --- | --- |
@@ -162,9 +157,6 @@ The table below enumerates the environment variables actually read by NoneBot co
 | Message Store | `LINGCHU_MESSAGE_STORE_RECORD_API_CALLS` | Record platform API call summaries. |
 | Message Store | `LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED` | Enable expired message cleanup. |
 | Recall | `LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT` | Default count for the message recall command (`1`–`100`). |
-| Permissions | `LINGCHU_PERMISSION_PLATFORM_RUNTIME_PASSTHROUGH` | Allow platform roles such as QQ owner / admin / member to satisfy Lingchu permission grants. |
-| Trigger Overrides | `LINGCHU_COMMAND_TRIGGER_OVERRIDES` | Override primary command triggers and aliases by command key. |
-| Trigger Overrides | `LINGCHU_MENU_PAGE_TRIGGER_OVERRIDES` | Override menu page triggers by menu page id. |
 | Protected Subjects | `LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS` | Side-effect command keys blocked when their target user is protected. |
 | Database | `SQLALCHEMY_DATABASE_URL` | SQLAlchemy database URL; supports SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server. Unset uses default SQLite. |
 | Database | `ALEMBIC_STARTUP_CHECK` | Set to `true` in production to enforce schema migration checks on startup. |
@@ -176,33 +168,27 @@ The table below enumerates the environment variables actually read by NoneBot co
 | Announcement Images | `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` | Host-side cache directory for announcement images (defaults to localstore cache). |
 | Announcement Images | `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` | Protocol-side directory NapCat sees inside the container. |
 
-Example `config.toml`:
+Example `runtime-overrides.toml`:
 
 ```toml
-#:schema ./config.schema.json
-superuser_key = "123456789abcdef"
-message_store_enabled = true
-message_store_retention_days = 30
-message_store_summary_limit = 500
-message_store_record_api_calls = true
-message_store_cleanup_enabled = true
-ai_provider = "litellm"
-ai_model = "gpt-4o-mini"
-ai_timeout = 60.0
-recall_message_default_count = 10
+#:schema ./runtime-overrides.schema.json
 permission_platform_runtime_passthrough = true
-protected_subject_feature_keys = ["kick_member", "member_mute", "recall_message", "block_member"]
-lingchu_adapter = "~onebot.v11"
+
+[command_trigger_overrides.member_mute]
+chinese = "禁言"
+english = "mute"
+
+[menu_page_trigger_overrides.member-management]
+chinese = "成员管理"
+english = "member-management"
 ```
 
-TOML has no `null`; omit optional keys to use their `None` defaults. Legacy
-`.json5` files are not read or migrated.
+Use `lingchu config init`, `lingchu config validate`, and `lingchu schema install` to manage this file explicitly. Migrate an old combined file with `lingchu config migrate --source config.toml --env-file .env --residual runtime-overrides.toml --dry-run`, inspect the redacted plan, then rerun without `--dry-run`. Use `--force` only to replace conflicting managed environment keys. The same commands are available through `nb lingchu`. Legacy `.json5` files are not read or migrated.
 
 ### Managed LLM profiles
 
 Lingchu also creates `llm.toml` in the plugin configuration directory. A
-non-empty `[profiles]` table takes precedence over the legacy `ai_*` fields in
-`config.toml`; an empty table keeps the legacy fields as an implicit `default`
+non-empty `[profiles]` table takes precedence over deployment `ai_*` environment fields; an empty table uses those deployment fields as an implicit `default`
 profile. Keep credentials out of TOML by naming an environment variable with
 `api_key_env`:
 

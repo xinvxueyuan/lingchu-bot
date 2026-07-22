@@ -5,13 +5,11 @@ from nonebot_plugin_orm import get_session
 
 from ..core.bot_state import load_bot_state
 from ..core.config import (
-    ensure_runtime_config_file_async,
     get_handle_config_manager,
     initialize_handle_config_manager,
     plugin_config,
 )
 from ..core.menu_config import ensure_menu_config_file_async, load_menu_config
-from ..core.schemas import install_schemas
 from ..handle import menu as menu_module
 from ..handle.menu import import_handle as menu_import_handle
 from ..handle.qq.adapters import import_handle as group_import_handle
@@ -89,12 +87,6 @@ async def _initialize_ai() -> None:
 
 async def startup() -> None:
     """Initialize configuration, optional AI, handlers, stores, and scheduler."""
-    try:
-        await install_schemas()
-    except Exception:
-        # Schema files are editor hints; missing them does not prevent startup.
-        logger.exception("Failed to install TOML schemas")
-    await ensure_runtime_config_file_async()
     try:
         await _initialize_ai()
     except Exception:

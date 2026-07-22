@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import functools
-import inspect
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from nonebot import require
 
@@ -143,54 +141,14 @@ def register_subplugin_handler(
     bypass_gate: bool = False,
     bypass_silent: bool = False,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """Register a subplugin handler with adapter dispatch, permission, and state gating.
-
-    The subplugin handler declares only its command-arg parameters. The contract
-    injects adapter-specific bot/event parameters internally for NoneBot DI.
-    """
-    from nonebot.adapters.onebot.v11 import Bot as _OneBotV11Bot
-    from nonebot.adapters.onebot.v11.event import GroupMessageEvent as _OneBotV11Event
-
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        original_sig = inspect.signature(func)
-        original_params = list(original_sig.parameters.values())
-
-        bot_param = inspect.Parameter(
-            "bot",
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            annotation=_OneBotV11Bot,
-        )
-        event_param = inspect.Parameter(
-            "event",
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            annotation=_OneBotV11Event,
-        )
-        new_params = [*original_params, bot_param, event_param]
-
-        @functools.wraps(func)
-        async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Map positional args to original param names
-            param_names = list(original_sig.parameters.keys())
-            for i, arg in enumerate(args):
-                if i < len(param_names):
-                    kwargs[param_names[i]] = arg
-            # Extract only the original handler's params
-            handler_kwargs = {
-                name: kwargs[name] for name in original_sig.parameters if name in kwargs
-            }
-            return await func(**handler_kwargs)
-
-        cast("Any", wrapper).__signature__ = inspect.Signature(new_params)
-
-        return selected_adapter_handle(
-            matcher,
-            adapter_id,
-            command_key,
-            bypass_gate=bypass_gate,
-            bypass_silent=bypass_silent,
-        )(wrapper)
-
-    return decorator
+    """Register through the shared adapter, permission, and state gates."""
+    return selected_adapter_handle(
+        matcher,
+        adapter_id,
+        command_key,
+        bypass_gate=bypass_gate,
+        bypass_silent=bypass_silent,
+    )
 
 
 _subplugin_menu_features: list[Any] = []

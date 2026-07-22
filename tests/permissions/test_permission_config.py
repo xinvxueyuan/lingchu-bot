@@ -1,148 +1,107 @@
-from typing import Any
 from unittest.mock import AsyncMock
 
+from _lingchu_bot_contracts import MutableRuntimeSettings
 import pytest
 
-from src.plugins.nonebot_plugin_lingchu_bot.permissions import config as perm_config
+from src.plugins.nonebot_plugin_lingchu_bot.permissions import config as config_module
 from src.plugins.nonebot_plugin_lingchu_bot.permissions.config import (
-    PASSTHROUGH_KEY,
     PlatformPermissionMappingUpdate,
     get_platform_runtime_passthrough_config,
     update_platform_runtime_passthrough_config,
 )
 
 
-def _patch_toml_helpers(
-    monkeypatch: pytest.MonkeyPatch,
-    load_return: dict[str, Any] | Exception,
-) -> tuple[AsyncMock, AsyncMock]:
-    if isinstance(load_return, Exception):
-        load_mock = AsyncMock(side_effect=load_return)
-    else:
-        load_mock = AsyncMock(return_value=load_return)
-    write_mock = AsyncMock()
-    monkeypatch.setattr(perm_config, "load_toml_dict_async", load_mock)
-    monkeypatch.setattr(perm_config, "write_toml_dict_file_async", write_mock)
-    return load_mock, write_mock
-
-
 @pytest.mark.asyncio
-async def test_get_returns_bool_when_stored_bool(
+async def test_get_platform_runtime_passthrough_uses_typed_settings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    load_mock, write_mock = _patch_toml_helpers(monkeypatch, {PASSTHROUGH_KEY: False})
-
-    result = await get_platform_runtime_passthrough_config()
-
-    assert result is False
-    load_mock.assert_awaited_once()
-    write_mock.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_get_returns_normalized_dict_when_stored_dict(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    load_mock, write_mock = _patch_toml_helpers(
-        monkeypatch, {PASSTHROUGH_KEY: {"qq": 1, "telegram": 0}}
+    load = AsyncMock(
+        return_value=MutableRuntimeSettings(
+            permission_platform_runtime_passthrough={"qq": False}
+        )
     )
+    monkeypatch.setattr(config_module, "load_mutable_settings", load)
 
-    result = await get_platform_runtime_passthrough_config()
-
-    assert result == {"qq": True, "telegram": False}
-    load_mock.assert_awaited_once()
-    write_mock.assert_not_awaited()
+    assert await get_platform_runtime_passthrough_config() == {"qq": False}
+    load.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_get_returns_true_when_stored_unexpected_type(
+async def test_update_platform_runtime_passthrough_preserves_other_settings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    load_mock, write_mock = _patch_toml_helpers(
-        monkeypatch, {PASSTHROUGH_KEY: [1, 2, 3]}
+    original = MutableRuntimeSettings(
+        command_trigger_overrides={"menu": {"en": "menu"}}
     )
-
-    result = await get_platform_runtime_passthrough_config()
-
-    assert result is True
-    load_mock.assert_awaited_once()
-    write_mock.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_get_returns_true_when_db_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from src.plugins.nonebot_plugin_lingchu_bot.database.toml_store import DatabaseError
-
-    load_mock, write_mock = _patch_toml_helpers(monkeypatch, DatabaseError("test"))
-
-    result = await get_platform_runtime_passthrough_config()
-
-    assert result is True
-    load_mock.assert_awaited_once()
-    write_mock.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_update_sets_global_bool_when_platform_id_none(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    load_mock, write_mock = _patch_toml_helpers(monkeypatch, {})
-
-    request = PlatformPermissionMappingUpdate(platform_id=None, enabled=False)
-
-    result = await update_platform_runtime_passthrough_config(request)
-
-    assert result is False
-    load_mock.assert_awaited_once()
-    write_mock.assert_awaited_once()
-    written_data = write_mock.call_args.args[1]
-    assert written_data[PASSTHROUGH_KEY] is False
-
-
-@pytest.mark.asyncio
-async def test_update_merges_when_platform_id_str_and_current_dict(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    load_mock, write_mock = _patch_toml_helpers(
-        monkeypatch, {PASSTHROUGH_KEY: {"qq": 1, "telegram": 0}}
+    monkeypatch.setattr(
+        config_module, "load_mutable_settings", AsyncMock(return_value=original)
     )
+    save = AsyncMock()
+    monkeypatch.setattr(config_module, "save_mutable_settings", save)
 
-    request = PlatformPermissionMappingUpdate(platform_id="discord", enabled=True)
-
-    result = await update_platform_runtime_passthrough_config(request)
-
-    assert result == {"qq": True, "telegram": False, "discord": True}
-    load_mock.assert_awaited_once()
-    write_mock.assert_awaited_once()
-    written_data = write_mock.call_args.args[1]
-    assert written_data[PASSTHROUGH_KEY] == {
-        "qq": 1,
-        "telegram": 0,
-        "discord": True,
-    }
-
-
-@pytest.mark.asyncio
-async def test_update_converts_to_dict_when_platform_id_str_and_current_bool(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    load_mock, write_mock = _patch_toml_helpers(monkeypatch, {PASSTHROUGH_KEY: True})
-
-    request = PlatformPermissionMappingUpdate(platform_id="qq", enabled=False)
-
-    result = await update_platform_runtime_passthrough_config(request)
+    result = await update_platform_runtime_passthrough_config(
+        PlatformPermissionMappingUpdate(platform_id="qq", enabled=False)
+    )
 
     assert result == {"qq": False}
-    load_mock.assert_awaited_once()
-    write_mock.assert_awaited_once()
-    written_data = write_mock.call_args.args[1]
-    assert written_data[PASSTHROUGH_KEY] == {"qq": False}
+    assert save.await_args is not None
+    saved = save.await_args.args[0]
+    assert isinstance(saved, MutableRuntimeSettings)
+    assert saved.permission_platform_runtime_passthrough == {"qq": False}
+    assert saved.command_trigger_overrides == original.command_trigger_overrides
 
 
-def test_platform_permission_mapping_update_holds_fields() -> None:
-    request = PlatformPermissionMappingUpdate(platform_id="qq", enabled=True)
+@pytest.mark.asyncio
+async def test_update_global_platform_runtime_passthrough(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        config_module,
+        "load_mutable_settings",
+        AsyncMock(return_value=MutableRuntimeSettings()),
+    )
+    save = AsyncMock()
+    monkeypatch.setattr(config_module, "save_mutable_settings", save)
 
-    assert request.platform_id == "qq"
-    assert request.enabled is True
+    result = await update_platform_runtime_passthrough_config(
+        PlatformPermissionMappingUpdate(platform_id=None, enabled=False)
+    )
+
+    assert result is False
+    assert save.await_args is not None
+    assert save.await_args.args[0].permission_platform_runtime_passthrough is False
+
+
+@pytest.mark.asyncio
+async def test_get_platform_runtime_passthrough_uses_default_on_read_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        config_module,
+        "load_mutable_settings",
+        AsyncMock(side_effect=config_module.MutableSettingsError("broken")),
+    )
+
+    assert await get_platform_runtime_passthrough_config() is True
+
+
+@pytest.mark.asyncio
+async def test_update_uses_defaults_and_suppresses_write_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        config_module,
+        "load_mutable_settings",
+        AsyncMock(side_effect=config_module.MutableSettingsError("broken")),
+    )
+    monkeypatch.setattr(
+        config_module,
+        "save_mutable_settings",
+        AsyncMock(side_effect=config_module.MutableSettingsError("write broken")),
+    )
+
+    result = await update_platform_runtime_passthrough_config(
+        PlatformPermissionMappingUpdate(platform_id="qq", enabled=False)
+    )
+
+    assert result == {"qq": False}

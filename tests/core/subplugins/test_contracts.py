@@ -1,5 +1,4 @@
 from dataclasses import FrozenInstanceError
-import inspect
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -334,79 +333,32 @@ def test_image_message_wraps_message_segment_image(
     assert result is sentinel
 
 
-async def test_register_subplugin_handler_filters_bot_event_kwargs(
+def test_register_subplugin_handler_delegates_without_wrapping(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """register_subplugin_handler wraps func to filter bot/event kwargs."""
-    captured: dict[str, object] = {}
-
-    def passthrough(func: object) -> object:
-        return func
-
-    def fake_selected_adapter_handle(
-        matcher: object,
-        adapter_id: str,
-        command_key: str | None,
-        *,
-        bypass_gate: bool,
-        bypass_silent: bool,
-    ) -> object:
-        captured["matcher"] = matcher
-        captured["adapter_id"] = adapter_id
-        captured["command_key"] = command_key
-        captured["bypass_gate"] = bypass_gate
-        captured["bypass_silent"] = bypass_silent
-        return passthrough
-
-    monkeypatch.setattr(
-        contracts, "selected_adapter_handle", fake_selected_adapter_handle
-    )
-
     matcher = object()
-    decorator = contracts.register_subplugin_handler(
-        matcher, "test_cmd", "~onebot.v11", bypass_gate=True, bypass_silent=False
-    )
-    assert callable(decorator)
-
-    received: dict[str, object] = {}
-
-    async def handler(prompt: list[str]) -> str:
-        received["prompt"] = prompt
-        return "ok"
-
-    wrapped = decorator(handler)
-    assert callable(wrapped)
-
-    result = await wrapped(prompt=["hi"], bot=object(), event=object())
-    assert result == "ok"
-    assert received == {"prompt": ["hi"]}
-
-    assert captured["matcher"] is matcher
-    assert captured["adapter_id"] == "~onebot.v11"
-    assert captured["command_key"] == "test_cmd"
-    assert captured["bypass_gate"] is True
-    assert captured["bypass_silent"] is False
-
-
-def test_register_subplugin_handler_appends_bot_event_signature(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The wrapper signature appends bot/event params for NoneBot dependency injection."""
 
     def passthrough(func: object) -> object:
         return func
 
-    monkeypatch.setattr(
-        contracts, "selected_adapter_handle", MagicMock(return_value=passthrough)
-    )
-
-    decorator = contracts.register_subplugin_handler(
-        object(), "test_cmd", "~onebot.v11"
-    )
+    selected = MagicMock(return_value=passthrough)
+    monkeypatch.setattr(contracts, "selected_adapter_handle", selected)
 
     async def handler(prompt: list[str]) -> None:
-        pass
+        _ = prompt
 
-    wrapped = decorator(handler)
-    params = list(inspect.signature(wrapped).parameters.keys())
-    assert params == ["prompt", "bot", "event"]
+    registered = contracts.register_subplugin_handler(
+        matcher,
+        "test_cmd",
+        "~onebot.v11",
+        bypass_gate=True,
+    )(handler)
+
+    assert registered is handler
+    selected.assert_called_once_with(
+        matcher,
+        "~onebot.v11",
+        "test_cmd",
+        bypass_gate=True,
+        bypass_silent=False,
+    )

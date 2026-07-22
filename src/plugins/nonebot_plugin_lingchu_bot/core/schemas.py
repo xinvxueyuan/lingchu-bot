@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, Final
 
+from _lingchu_bot_contracts import RuntimeSettings
 import aiofiles
 import aiofiles.os
 from nonebot import logger, require
@@ -188,12 +189,10 @@ async def install_schemas() -> None:
     await aiofiles.os.makedirs(config_dir, exist_ok=True)
     await aiofiles.os.makedirs(data_dir, exist_ok=True)
 
-    # CONFIG_SCHEMA from Config (local import to avoid circular dependency).
-    from .config import Config
-
+    # CONFIG_SCHEMA from the import-safe runtime settings contract.
     await _write_schema(
         config_dir / CONFIG_SCHEMA_BASENAME,
-        Config.model_json_schema(),
+        RuntimeSettings.model_json_schema(),
     )
 
     # BOT_STATE_SCHEMA from BotStateFile (defined in bot_state.py; local import).

@@ -7,6 +7,8 @@ title: QQ 命令
 
 命令由 `nonebot-plugin-alconna` 注册，默认启用命令起始符和命令分隔符。命令触发词按 locale 互斥选择：中文 locale 启用中文触发词，英文 locale 启用短横线风格英文触发词。两种语言的触发词不会同时启用。
 
+包括 locale 在内的部署默认值来自 NoneBot 环境变量或其 `.env` 文件。通过在线管理命令修改的触发词覆盖是例外：它们存储在 localstore 管理的 `runtime-overrides.toml` 中。
+
 ## 菜单
 
 主命令：
@@ -86,7 +88,7 @@ unmute-all
 recall [@user] [count]
 ```
 
-- 数量默认读取 `config.toml` 的 `recall_message_default_count`（默认 `10`）。
+- 数量默认读取 NoneBot 环境变量或 `.env` 中的 `LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT`（默认 `10`）。
 - 单个数字参数会被视为数量：`撤回 20`。
 - 定向撤回用户消息时先提供 @：`撤回 @用户 20`。
 - 命令从消息存储读取当前群最近消息，跳过触发命令本身，通过 OneBot V11 `get_msg` 校验候选消息，再调用 `delete_msg` 撤回。
@@ -230,7 +232,7 @@ chat <text>
 
 <Callout type="info" title="LLM 配置">
 
-聊天命令依赖运行时 LLM 配置。在 `config.toml` 或环境变量中设置：
+聊天命令依赖运行时 LLM 配置。请通过 NoneBot 环境变量或其 `.env` 文件设置这些部署字段：
 
 - `ai_provider`：`litellm`（默认）或 `openai`
 - `ai_model`：模型名称（默认 `gpt-4o-mini`）

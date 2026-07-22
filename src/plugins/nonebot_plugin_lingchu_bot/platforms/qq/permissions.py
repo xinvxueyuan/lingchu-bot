@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from nonebot.adapters.onebot.v11.exception import ActionFailed, NetworkError
+
+if TYPE_CHECKING:
+    from nonebot.adapters.onebot.v11 import Bot
 
 from ...permissions.types import PermissionContext, PlatformIdentityGroupSeed
 
@@ -59,19 +64,18 @@ async def resolve_runtime_identity_groups(
 
 
 async def _fetch_role_from_api(
-    bot: Any,
+    bot: Bot,
     context: PermissionContext,
 ) -> str | None:
     """Fetch user role via OneBot V11 get_group_member_info API."""
     if context.scope_id is None or context.account_id is None:
         return None
     try:
-        info = await bot.call_api(
-            "get_group_member_info",
+        info = await bot.get_group_member_info(
             group_id=int(context.scope_id),
             user_id=int(context.account_id),
         )
-    except Exception:
+    except (ActionFailed, NetworkError):
         logger.warning(
             "get_group_member_info failed for group=%s user=%s, "
             "falling back to member role",
@@ -79,7 +83,7 @@ async def _fetch_role_from_api(
             context.account_id,
         )
         return "member"
-    role = info.get("role") if isinstance(info, dict) else getattr(info, "role", None)
+    role = info.get("role")
     if role in {"owner", "admin", "member"}:
         return str(role)
     return None
