@@ -193,6 +193,6 @@ headers_env = "LINGCHU_MCP_HEADERS_JSON"
 
 <Callout title="启动时可选">
 
-`start/startup.py` 将 `ensure_llm_config_file_async()` 与 `initialize_llm_runtime()` 包裹在 try/except 中，因此配置或后端本地依赖失败永远不会阻止非 AI 机器人服务启动。
+`start/startup.py` 只解析 localstore 中的 `llm.toml` 路径而不创建文件，并将 `initialize_llm_runtime()` 包裹在 try/except 中，因此配置或后端本地依赖失败永远不会阻止非 AI 机器人服务启动。
 
 </Callout>

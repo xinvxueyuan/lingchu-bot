@@ -16,7 +16,9 @@ if TYPE_CHECKING:
 
 CONFIG_FILENAME = "runtime-overrides.toml"
 CONFIG_SCHEMA_FILENAME = "runtime-overrides.schema.json"
+LLM_CONFIG_FILENAME = "llm.toml"
 _SCHEMA_DIRECTIVE = "#:schema ./runtime-overrides.schema.json\n"
+_LLM_TEMPLATE = 'default_profile = "default"\n[profiles]\n'
 
 
 class ConfigFileError(RuntimeError):
@@ -40,6 +42,17 @@ def initialize_config(path: Path, *, force: bool = False) -> bool:
         if value is not None
     }
     _atomic_write(path, _SCHEMA_DIRECTIVE + rtoml.dumps(defaults))
+    return True
+
+
+def initialize_llm_config(path: Path) -> bool:
+    """Create the default LLM profile template without overwriting any file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with path.open("x", encoding="utf-8") as file:
+            file.write(_LLM_TEMPLATE)
+    except FileExistsError:
+        return False
     return True
 
 

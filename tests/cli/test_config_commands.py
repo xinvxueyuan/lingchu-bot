@@ -33,6 +33,29 @@ def test_config_init_creates_defaults_without_overwriting_user_file(
     assert config_file.read_bytes() == original
 
 
+def test_config_init_creates_llm_template_without_overwriting_existing_file(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "runtime-overrides.toml"
+    llm_file = tmp_path / "llm.toml"
+
+    first = runner.invoke(app, ["config", "init", "--path", str(config_file)])
+
+    assert first.exit_code == 0
+    assert llm_file.read_text(encoding="utf-8") == (
+        'default_profile = "default"\n[profiles]\n'
+    )
+    llm_file.write_text('[profiles.keep]\nmodel = "gpt"\n', encoding="utf-8")
+
+    second = runner.invoke(
+        app, ["config", "init", "--path", str(config_file), "--force"]
+    )
+
+    assert second.exit_code == 0
+    assert f"exists: {llm_file}" in second.stdout
+    assert llm_file.read_text(encoding="utf-8") == '[profiles.keep]\nmodel = "gpt"\n'
+
+
 def test_config_validate_is_read_only_for_valid_file(tmp_path: Path) -> None:
     config_file = tmp_path / "runtime-overrides.toml"
     assert (

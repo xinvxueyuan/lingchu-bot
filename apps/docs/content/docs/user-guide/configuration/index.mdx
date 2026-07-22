@@ -102,7 +102,7 @@ chinese = "成员管理"
 english = "member-management"
 ```
 
-Manage it explicitly with `lingchu config init`, `lingchu config validate`, and `lingchu schema install`. The old combined `config.toml` migration command has been removed; move deployment settings to NoneBot environment variables and mutable settings to `runtime-overrides.toml` manually. Programmatic updates rewrite TOML and do not preserve custom comments or formatting.
+Manage it explicitly with `lingchu config init`, `lingchu config validate`, and `lingchu schema install`. `config init` also creates a missing `llm.toml` starter template without overwriting an existing one. The old combined `config.toml` migration command has been removed; move deployment settings to NoneBot environment variables and mutable settings to `runtime-overrides.toml` manually. Programmatic updates rewrite TOML and do not preserve custom comments or formatting.
 
 Deployment values can be supplied through NoneBot global configuration:
 
