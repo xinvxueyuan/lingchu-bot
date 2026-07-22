@@ -1,9 +1,20 @@
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.schema import CreateTable
 
+from src.plugins.nonebot_plugin_lingchu_bot.database.models import (
+    IdentityMembership,
+    IdentityUser,
+    PlatformAccount,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.hooks.handlers import (
     lifecycle as lifecycle_module,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.repositories import (
+    permissions as permission_repo,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.start import startup as startup_module
 
@@ -219,6 +230,93 @@ async def test_startup_imports_group_and_menu_handlers(
         assert calls.index("initialize_mcp_agent_runtime") < calls.index(
             "ensure_menu_config"
         )
+
+
+@pytest.mark.asyncio
+async def test_startup_commits_registry_and_permission_seeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mocks = _apply_default_startup_mocks(monkeypatch)
+    session = MagicMock()
+    transaction = AsyncMock()
+    session.begin.return_value = transaction
+    session_context = AsyncMock()
+    session_context.__aenter__.return_value = session
+    monkeypatch.setattr(startup_module, "get_session", lambda: session_context)
+    seed_registry = AsyncMock()
+    seed_permissions = AsyncMock()
+    monkeypatch.setattr(startup_module, "seed_registry_tables", seed_registry)
+    monkeypatch.setattr(
+        startup_module,
+        "validate_and_seed_permission_system",
+        seed_permissions,
+    )
+
+    await startup_module.startup()
+
+    session.begin.assert_called_once_with()
+    transaction.__aenter__.assert_awaited_once_with()
+    transaction.__aexit__.assert_awaited_once()
+    seed_registry.assert_awaited_once_with(session)
+    seed_permissions.assert_awaited_once_with(session)
+    mocks["initialize_scheduler_service"].assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_startup_seeded_superuser_is_visible_to_a_new_session(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _apply_default_startup_mocks(monkeypatch)
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'permissions.db'}")
+    tables = (
+        IdentityUser.__table__,
+        PlatformAccount.__table__,
+        IdentityMembership.__table__,
+    )
+    async with engine.begin() as connection:
+        for table in tables:
+            await connection.execute(CreateTable(table))
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    monkeypatch.setattr(startup_module, "get_session", session_factory)
+    monkeypatch.setattr(startup_module, "seed_registry_tables", AsyncMock())
+
+    async def seed_permissions(session: AsyncSession) -> None:
+        await permission_repo.upsert_identity_user(session, "owner", "Owner")
+        await permission_repo.bind_platform_account(
+            session,
+            uid="owner",
+            platform_id="qq",
+            account_id="42",
+            display_name="Owner",
+        )
+        await permission_repo.upsert_membership(
+            session,
+            uid="owner",
+            group_id=permission_repo.SUPERUSERS_GROUP_ID,
+            source=permission_repo.SUPERUSER_SOURCE,
+        )
+
+    monkeypatch.setattr(
+        startup_module,
+        "validate_and_seed_permission_system",
+        seed_permissions,
+    )
+
+    try:
+        await startup_module.startup()
+
+        async with session_factory() as verification_session:
+            user = await permission_repo.get_user_by_platform_account(
+                verification_session,
+                "qq",
+                "42",
+            )
+            assert user is not None
+            assert user.uid == "owner"
+            assert await permission_repo.is_superuser(verification_session, user.uid)
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio
