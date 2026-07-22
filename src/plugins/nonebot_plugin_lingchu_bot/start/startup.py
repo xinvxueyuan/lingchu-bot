@@ -138,7 +138,7 @@ async def startup() -> None:
             )
         )
     await warm_translation_cache()
-    async with get_session() as session:
+    async with get_session() as session, session.begin():
         await seed_registry_tables(session)
         await validate_and_seed_permission_system(session)
     await group_import_handle()
