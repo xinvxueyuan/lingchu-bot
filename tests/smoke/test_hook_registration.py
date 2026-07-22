@@ -29,7 +29,7 @@ async def check_hook_registration() -> None:
     Importing hooks.handlers triggers the parent hooks/__init__.py, which
     registers all runtime hooks with NoneBot as a side effect.
     """
-    from src.plugins.nonebot_plugin_lingchu_bot.hooks.handlers import (
+    from nonebot_plugin_lingchu_bot.hooks.handlers import (
         api_audit,
         bot_connection,
         lifecycle,

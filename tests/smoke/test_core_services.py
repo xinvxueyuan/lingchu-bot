@@ -10,11 +10,11 @@ async def check_core_services() -> None:
     only assert that the service-layer initialization paths execute without
     raising.
     """
-    from src.plugins.nonebot_plugin_lingchu_bot.core.bot_state import load_bot_state
-    from src.plugins.nonebot_plugin_lingchu_bot.services.message_store import (
+    from nonebot_plugin_lingchu_bot.core.bot_state import load_bot_state
+    from nonebot_plugin_lingchu_bot.services.message_store import (
         initialize_message_store,
     )
-    from src.plugins.nonebot_plugin_lingchu_bot.services.scheduler import (
+    from nonebot_plugin_lingchu_bot.services.scheduler import (
         initialize_scheduler_service,
     )
 

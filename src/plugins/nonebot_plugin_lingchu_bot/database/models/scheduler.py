@@ -24,6 +24,7 @@ class ScheduledJob(Model):
             "job_id",
             name="uq_lingchu_scheduled_jobs_job_id",
         ),
+        {"extend_existing": True},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)

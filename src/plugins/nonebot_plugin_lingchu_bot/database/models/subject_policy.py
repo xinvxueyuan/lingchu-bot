@@ -31,6 +31,7 @@ class SubjectPolicyEntry(Model):
             "user_id",
             name="uq_lingchu_subject_policy_identity",
         ),
+        {"extend_existing": True},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)

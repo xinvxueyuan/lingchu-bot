@@ -9,7 +9,10 @@
 #   format                        → ruff format, prettier, markdownlint --fix
 #   fix                           → ruff check --fix, ruff format, prettier, ty --fix, markdownlint --fix
 #   build                         → turbo build
-#   ci                            → check → test → build
+#   ci                            → ci:hooks → check → test → build
+#   hooks:validate                → prek validate-config                                             [CI: 🧪-python.yml, husky pre-commit]
+#   hooks:staged                  → prek run --stage pre-commit                                      [husky pre-commit Phase 1]
+#   ci:hooks                      → hooks:validate + prek run --all-files                            [CI: 🧪-python.yml]
 #   ci:static                     → ruff check, ruff format check, markdownlint, turbo lint          [CI: 🧪-python.yml]
 #   ci:typecheck                  → pyright, ty, turbo check-types                                 [local-only; CI runs pyright/ty inline]
 #   ci:test                       → pytest --junitxml, docs test                                    [local-only; CI runs pytest inline]
@@ -106,9 +109,27 @@ tasks:
   ci:
     desc: Run the full local CI sequence
     cmds:
+      - task: ci:hooks
       - task: check
       - task: test
       - task: build
+
+  hooks:validate:
+    desc: Validate Prek hook configuration
+    cmds:
+      - uv run prek validate-config prek.toml
+
+  hooks:staged:
+    desc: Run staged-file Git hooks via Prek
+    cmds:
+      - task: hooks:validate
+      - uv run prek run --config prek.toml --stage pre-commit
+
+  ci:hooks:
+    desc: "[CI] Validate and run Git hooks on all tracked files"
+    cmds:
+      - task: hooks:validate
+      - uv run prek run --config prek.toml --all-files
 
   ci:static:
     desc: "[CI] Static analysis checks"

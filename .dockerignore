@@ -76,6 +76,7 @@ apps/docs/test-results/
 # ── Tests (keep smoke tests for CI smoke-test image) ──
 tests/*
 !tests/smoke/
+!tests/smoke/**
 test-results/
 playwright-report/
 
@@ -97,6 +98,9 @@ LICENSES/
 
 # ── Documentation (not needed in runtime image) ──
 *.md
+!README.md
+!CLA.md
+!Repository-Policy.md
 apps/
 packages/
 

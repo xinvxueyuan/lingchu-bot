@@ -55,10 +55,25 @@ echo "🚀 正在运行代码检查..."
 # husky 不再在后续 phase 重复运行 ruff/ty，避免双重执行。
 if [ -n "$UV_CMD" ]; then
     echo "🔧 正在运行 Prek 自动修复..."
-    "$UV_CMD" run prek run --config prek.toml --stage pre-commit
+    if command -v task >/dev/null 2>&1; then
+        task hooks:staged
+    else
+        "$UV_CMD" run prek validate-config prek.toml &&
+            "$UV_CMD" run prek run --config prek.toml --stage pre-commit
+    fi
     if [ $? -ne 0 ]; then
-        echo "ℹ️  Prek 自动修复了部分文件，正在重新暂存..."
+        echo "ℹ️  Prek 需要重新暂存自动修复或 hook 配置变更，正在暂存并重试..."
         "$GIT_CMD" add -u
+        if command -v task >/dev/null 2>&1; then
+            task hooks:staged
+        else
+            "$UV_CMD" run prek validate-config prek.toml &&
+                "$UV_CMD" run prek run --config prek.toml --stage pre-commit
+        fi
+        if [ $? -ne 0 ]; then
+            echo "❌ Prek 检查失败，请修复后重新提交。"
+            exit 1
+        fi
     fi
 else
     echo "⚠️  未找到 uv，跳过 Prek 检查。"

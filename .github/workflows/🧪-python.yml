@@ -12,6 +12,7 @@ on:
       - "prek.toml"
       - "Taskfile.yml"
       - ".markdownlint-cli2.jsonc"
+      - ".husky/**"
       - ".github/workflows/🧪-python.yml"
       - ".github/actions/detect-changes/**"
   push:
@@ -24,6 +25,7 @@ on:
       - "prek.toml"
       - "Taskfile.yml"
       - ".markdownlint-cli2.jsonc"
+      - ".husky/**"
       - ".github/workflows/🧪-python.yml"
       - ".github/actions/detect-changes/**"
 
@@ -99,6 +101,7 @@ jobs:
         run: |
           # Auto-fix before check to self-heal fixable issues
           task ci:fix
+          task ci:hooks
           task ci:static
 
   tests:
