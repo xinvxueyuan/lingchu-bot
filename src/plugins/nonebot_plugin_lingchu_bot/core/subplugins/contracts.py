@@ -114,14 +114,13 @@ def _field(value: object, name: str) -> object | None:
 
 
 def _is_public_source_host(host: str) -> bool:
-    normalized_host = host.casefold()
+    normalized_host = host.removesuffix(".").casefold()
     try:
         address = ipaddress.ip_address(normalized_host)
     except ValueError:
         return normalized_host not in {
             "localhost",
             "metadata.google.internal",
-            "metadata.google.internal.",
         } and not normalized_host.endswith(".localhost")
     return not (address.is_private or address.is_loopback or address.is_link_local)
 

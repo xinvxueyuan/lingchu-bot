@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import inspect
 from pathlib import Path
 from types import MappingProxyType
@@ -30,12 +29,13 @@ def test_json_extensions_reject_unicode_control_and_bidi(payload: str) -> None:
         module._json_value({"key": payload})
 
 
-def test_missing_file_creates_minimal_template(tmp_path: Path) -> None:
-    with patch.object(
-        module, "get_llm_config_file", return_value=tmp_path / "llm.toml"
-    ):
-        path = asyncio.run(ensure_llm_config_file_async())
-    assert path.read_text() == 'default_profile = "default"\n[profiles]\n'
+async def test_missing_file_is_not_created_during_startup(tmp_path: Path) -> None:
+    config_file = tmp_path / "llm.toml"
+    with patch.object(module, "get_llm_config_file", return_value=config_file):
+        path = await ensure_llm_config_file_async()
+
+    assert path == config_file
+    assert not config_file.exists()
 
 
 def test_empty_profiles_are_rejected(tmp_path: Path) -> None:
