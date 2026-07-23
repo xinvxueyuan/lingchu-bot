@@ -32,3 +32,68 @@ html > body[data-scroll-locked] {
   margin-right: 0px !important;
   --removed-body-scroll-bar-size: 0px !important;
 }
+
+/* View Transitions — page navigation & locale switch */
+:root {
+  --vt-duration-exit: 150ms;
+  --vt-duration-enter: 210ms;
+  --vt-duration-locale: 280ms;
+  --vt-slide-offset: 8px;
+}
+
+@keyframes vt-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vt-locale-scale-enter {
+  from {
+    transform: scale(0.98);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes vt-locale-scale-exit {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(0.98);
+  }
+}
+
+/* Default page navigation crossfade (root view transition) */
+::view-transition-old(root) {
+  animation: var(--vt-duration-exit) ease-in both vt-fade reverse;
+}
+
+::view-transition-new(root) {
+  animation: var(--vt-duration-enter) ease-out var(--vt-duration-exit) both vt-fade;
+}
+
+/* Locale switch transition type (View Transitions Level 2) */
+:active-view-transition-type(locale-switch)::view-transition-old(root) {
+  animation: var(--vt-duration-locale) ease-in both vt-fade reverse,
+    var(--vt-duration-locale) ease-in both vt-locale-scale-exit reverse;
+}
+
+:active-view-transition-type(locale-switch)::view-transition-new(root) {
+  animation: var(--vt-duration-locale) ease-out var(--vt-duration-exit) both vt-fade,
+    var(--vt-duration-locale) ease-out var(--vt-duration-exit) both vt-locale-scale-enter;
+}
+
+/* Reduced motion fallback */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { TransitionLink as Link } from "@/components/view-transition";
 import { HeroSketchLoader } from "@/components/p5/hero-sketch-loader";
 import { gitConfig } from "@/lib/shared";
 import { getHomeMetadata } from "@/lib/site-metadata";

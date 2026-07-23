@@ -1,0 +1,27 @@
+---
+icon: WandSparkles
+title: 页面过渡（View Transitions）
+description: 文档站点如何使用浏览器原生 View Transitions API 实现导航与语言切换的平滑过渡。
+---
+
+## 页面过渡（View Transitions）
+
+文档站点使用浏览器原生的 **View Transitions API**（`document.startViewTransition`），为页面导航添加平滑的交叉淡入淡出，并为语言切换提供独立的过渡动效，消除此前瞬时替换 DOM 带来的“瞬移”感。
+
+## 实现位置
+
+过渡机制分布在两处：
+
+- `src/components/view-transition.tsx` 提供 `TransitionLink` 组件、`useViewTransitionRouter` 钩子与 `detectLocaleSwitch` 工具函数。`useViewTransitionRouter` 将 `next/navigation` 的 `router.push` / `router.replace` 包裹在 `document.startViewTransition` 中，并在 update 回调内使用 `flushSync` 同步捕获新路由状态。
+- `src/app/global.css` 声明了 `::view-transition-old(root)` / `::view-transition-new(root)` 默认交叉淡入淡出、`:active-view-transition-type(locale-switch)` 作用域动效（交叉淡入淡出 + 轻微缩放）、`vt-fade` / `vt-locale-scale-enter` / `vt-locale-scale-exit` 关键帧，以及减少动效兜底规则。
+
+`TransitionLink` 通过 `src/components/provider.tsx` 中 Fumadocs 的 `RootProvider components={{ Link: TransitionLink }}` 扩展点注入，因此侧边栏、目录、导航栏与面包屑链接都经由它导航。首页（`src/app/(home)/page.tsx` 与 `src/app/zh/page.tsx`）以 `TransitionLink as Link` 导入，`onLocaleChange` 则通过 `useViewTransitionRouter().push(url, { types: ["locale-switch"] })` 跳转。
+
+## 为何手动 `startViewTransition` 而非 `experimental.viewTransition`
+
+最初评估了 Next.js 的 `experimental.viewTransition` flag 配合 React 的 `<ViewTransition>` 组件，但在 stable React 下不可用：在 `react@19.2.7` 中，`<ViewTransition>` 与 `addTransitionType` 均为 `canary` / `experimental` 通道专属导出，且 stable `react-dom@19.2.7` 没有 `document.startViewTransition` 集成。手动包裹导航在 stable React 下可用、生产安全、不引入新依赖，并在 API 不支持的浏览器中优雅降级。
+
+## 降级与无障碍
+
+- 不支持 `document.startViewTransition` 的浏览器回退为原有瞬时导航：`TransitionLink` 退化为 `next/link` 原生行为，`onLocaleChange` 直接调用 `router.push`，不产生控制台错误。
+- `@media (prefers-reduced-motion: reduce)` 将所有 `::view-transition-*` 动画的时长与延迟归零，对动效敏感的用户获得瞬时切换。
