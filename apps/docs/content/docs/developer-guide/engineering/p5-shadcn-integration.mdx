@@ -1,0 +1,52 @@
+---
+icon: Sparkles
+title: p5.js & shadcn Integration
+description: Embed creative p5.js sketches and shadcn/ui components directly in MDX content.
+---
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { RingSketchDemo } from "@/components/p5/demos/ring-sketch-demo";
+
+## p5.js & shadcn Integration
+
+The docs site ships with two complementary rendering layers on top of Fumadocs UI:
+
+- **p5.js** runs in instance mode, wrapped by the `P5Sketch` component. Sketches execute only on the client and are SSR-safe (no `window` / `document` access during server render). Each sketch releases resources via `p.remove()` on unmount.
+- **shadcn/ui** component sources live in `src/components/ui/` and share the same Tailwind v4 theme tokens as Fumadocs UI through the `@theme inline` bridge in `src/app/global.css`.
+
+Because MDX documents compile to React Server Components, you cannot pass a raw `function` directly to `<P5Sketch>` from MDX body. Instead, wrap each sketch in a small `"use client"` demo component (see `src/components/p5/demos/`) and import it here.
+
+## Inline Sketch Example
+
+The sketch below is implemented in `src/components/p5/demos/ring-sketch-demo.tsx` as a client component that internally calls `<P5Sketch sketch={ringSketch} />`. MDX imports the wrapper and renders `<RingSketchDemo />`.
+
+<RingSketchDemo />
+
+## Authoring Notes
+
+- The `sketch` prop accepts a p5 instance-mode callback `(p: p5) => void`. Do not call `new p5()` yourself — `P5Sketch` owns the lifecycle.
+- The p5 runtime is dynamically imported on the client via `import("p5")`, so it never enters the server bundle.
+- For full-bleed hero animations, wrap a dedicated component with `next/dynamic` + `ssr: false` (see the home page `HeroSketchLoader`); inline `<P5Sketch>` is intended for in-content demos wrapped in a client component.
+- shadcn components read `--color-*` tokens mirrored from Fumadocs `--fd-*` variables, so dark mode and theme switches apply uniformly.
+
+## shadcn/ui Dialog Demo
+
+<Dialog>
+  <DialogTrigger>Open Dialog</DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Theme Bridge Works</DialogTitle>
+      <DialogDescription>
+        This dialog uses shadcn tokens (--color-background, --color-foreground)
+        bridged from Fumadocs --color-fd-* via @theme inline.
+      </DialogDescription>
+    </DialogHeader>
+  </DialogContent>
+</Dialog>

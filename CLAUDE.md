@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (8499 symbols, 14953 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (8561 symbols, 15056 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -103,6 +103,8 @@ Python backend:
 Docs site:
 
 - Next.js 16, Fumadocs 16 static export, React 19, Tailwind CSS 4, TypeScript 6
+- `shadcn/ui` (component sources in `apps/docs/src/components/ui/`, sharing Tailwind v4 theme with Fumadocs UI via `@theme inline` bridge)
+- `p5.js` (instance mode, wrapped by `src/components/p5/`, supports MDX inline demos via client wrapper and home hero animation)
 - Vitest, Testing Library, ESLint, Playwright
 - i18n, RSS, Mermaid, Twoslash, EPUB export, `/llms.txt`, `/llms-full.txt`, document graph
 - All server components, route handlers, and lib functions are async
@@ -341,7 +343,7 @@ task ci
 | Changed | Minimum checks before commit |
 | --- | --- |
 | Python source only | Ruff check + Ruff format check + Pyright strict + ty strict (`uv run -m ty check --output-format github`) + relevant pytest |
-| Docs site only | `pnpm --filter docs lint` (covers `.ts/.tsx/.mdx` via ESLint flat config + eslint-plugin-mdx; type-aware rules via `projectService`) + docs tests + Playwright hook smoke + docs type check + link lint when content changes |
+| Docs site only | `pnpm --filter docs lint` (covers `.ts/.tsx/.mdx` via ESLint flat config + eslint-plugin-mdx; type-aware rules via `projectService`) + docs tests + Playwright hook smoke + docs type check + link lint when content changes + Vitest for `src/components/p5/` or `src/components/ui/` changes |
 | Markdown only | `pnpm exec markdownlint-cli2` |
 | i18n strings | `task i18n` + relevant pytest |
 | Infrastructure config | `docker compose config` + `prek run --all-files` + `task ci:typecheck` |

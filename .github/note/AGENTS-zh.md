@@ -56,6 +56,8 @@ Python 后端：
 文档站：
 
 - Next.js 16、Fumadocs 16 static export、React 19、Tailwind CSS 4、TypeScript 6
+- `shadcn/ui`（组件源码位于 `apps/docs/src/components/ui/`，通过 `@theme inline` 桥接与 Fumadocs UI 共享 Tailwind v4 主题）
+- `p5.js`（instance mode，封装于 `src/components/p5/`，通过客户端 demo 组件支持 MDX 内嵌与首页 hero 动效）
 - Vitest、Testing Library、ESLint、Playwright
 - i18n、RSS、Mermaid、Twoslash、EPUB 导出、`/llms.txt`、`/llms-full.txt`、文档关系图
 - 所有 server components、route handlers、lib functions 都是 async
@@ -293,7 +295,7 @@ task ci
 | 变更              | 提交前最低检查                                                                                                                                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 仅 Python source | Ruff check + Ruff format check + Pyright strict + ty strict（`uv run -m ty check --output-format github`）+ relevant pytest                                                                                |
-| 仅 docs site     | `pnpm --filter docs lint`（通过 ESLint flat config + eslint-plugin-mdx 覆盖 `.ts/.tsx/.mdx`；type-aware 规则经 `projectService` 启用）+ docs tests + Playwright hook smoke + docs type check + content 变更时 link lint |
+| 仅 docs site     | `pnpm --filter docs lint`（通过 ESLint flat config + eslint-plugin-mdx 覆盖 `.ts/.tsx/.mdx`；type-aware 规则经 `projectService` 启用）+ docs tests + Playwright hook smoke + docs type check + content 变更时 link lint + `src/components/p5/` 或 `src/components/ui/` 改动时运行 Vitest |
 | 仅 Markdown      | `pnpm exec markdownlint-cli2`                                                                                                                                                                            |
 | i18n strings    | `task i18n` + relevant pytest                                                                                                                                                                            |
 | 基础设施配置          | `docker compose config` + `prek run --all-files` + `task ci:typecheck`                                                                                                                                   |

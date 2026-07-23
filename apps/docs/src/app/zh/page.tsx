@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HeroSketchLoader } from "@/components/p5/hero-sketch-loader";
 import { gitConfig } from "@/lib/shared";
 import { getHomeMetadata } from "@/lib/site-metadata";
 
@@ -25,6 +26,12 @@ const docLinks = [
 export default function ChineseHomePage() {
   return (
     <main className="flex max-w-[100vw] flex-1 flex-col overflow-x-hidden bg-fd-background text-fd-foreground">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 overflow-hidden opacity-60"
+      >
+        <HeroSketchLoader className="h-full w-full" />
+      </div>
       <section className="mx-auto grid w-full max-w-72 gap-10 py-14 md:max-w-6xl md:grid-cols-[1fr_420px] md:px-8 md:py-20">
         <div className="min-w-0">
           <p className="mb-4 text-sm font-medium uppercase text-fd-muted-foreground">

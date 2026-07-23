@@ -1,0 +1,52 @@
+---
+icon: Sparkles
+title: p5.js 与 shadcn 集成
+description: 在 MDX 内容中直接嵌入 p5.js 创意草图与 shadcn/ui 组件。
+---
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { RingSketchDemo } from "@/components/p5/demos/ring-sketch-demo";
+
+## p5.js 与 shadcn 集成
+
+文档站点在 Fumadocs UI 之上挂载了两套互补的渲染层：
+
+- **p5.js** 采用 instance mode，由 `P5Sketch` 组件封装。草图仅在客户端运行，SSR 安全（服务端渲染阶段不访问 `window` / `document`），并在卸载时通过 `p.remove()` 释放资源。
+- **shadcn/ui** 组件源码本地化于 `src/components/ui/`，通过 `src/app/global.css` 中的 `@theme inline` 桥接块与 Fumadocs UI 共享同一套 Tailwind v4 主题 token。
+
+由于 MDX 文档会被编译为 React Server Component，不能在 MDX 主体中直接把 `function` 传给 `<P5Sketch>`。正确做法是把每个草图封装为一个 `"use client"` 的 demo 组件（参见 `src/components/p5/demos/`），再在 MDX 中 import 该组件。
+
+## 内联草图示例
+
+下方草图实现于 `src/components/p5/demos/ring-sketch-demo.tsx`，是一个客户端组件，内部调用 `<P5Sketch sketch={ringSketch} />`。MDX 导入该包装器并以 `<RingSketchDemo />` 渲染。
+
+<RingSketchDemo />
+
+## 编写注意事项
+
+- `sketch` prop 接收 p5 instance mode 回调 `(p: p5) => void`。不要自行调用 `new p5()`，`P5Sketch` 负责管理生命周期。
+- 草图通过 `import("p5")` 在客户端动态导入，p5 运行时不会进入服务端 bundle。
+- 若需全屏 hero 动效，请在独立封装组件上使用 `next/dynamic` + `ssr: false`（参见首页 `HeroSketchLoader`）；内容中的内联演示应封装在客户端 demo 组件中。
+- shadcn 组件读取的 `--color-*` token 镜像自 Fumadocs 的 `--fd-*` 变量，因此暗色模式与主题切换会统一生效。
+
+## shadcn/ui Dialog 演示
+
+<Dialog>
+  <DialogTrigger>打开对话框</DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>主题桥接生效</DialogTitle>
+      <DialogDescription>
+        本对话框使用 shadcn token（--color-background、--color-foreground），
+        通过 @theme inline 从 Fumadocs --color-fd-* 桥接而来。
+      </DialogDescription>
+    </DialogHeader>
+  </DialogContent>
+</Dialog>

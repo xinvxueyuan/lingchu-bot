@@ -12,6 +12,7 @@ import { File, Folder, Files } from "fumadocs-ui/components/files";
 import Link from "fumadocs-core/link";
 import * as Twoslash from "fumadocs-twoslash/ui";
 import { Mermaid } from "@/components/mdx/mermaid";
+import { P5Sketch } from "@/components/p5/p5-sketch";
 
 const generator = createGenerator({
   cache: createFileSystemGeneratorCache(".next/fumadocs-typescript"),
@@ -42,6 +43,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     Files,
     a: Link,
     Mermaid,
+    P5Sketch,
     ...components,
   } satisfies MDXComponents;
 }
