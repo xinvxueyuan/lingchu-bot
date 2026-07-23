@@ -1,0 +1,27 @@
+---
+icon: WandSparkles
+title: Page transitions (View Transitions)
+description: How the docs site uses the browser-native View Transitions API for smooth navigation and locale-switch crossfades.
+---
+
+## Page transitions (View Transitions)
+
+The docs site uses the browser-native **View Transitions API** (`document.startViewTransition`) to add a smooth crossfade on page navigation and a distinct locale-switch transition, eliminating the previous "instant teleport" feeling of instant DOM replacement.
+
+## Implementation
+
+The setup lives in two places:
+
+- `src/components/view-transition.tsx` ships the `TransitionLink` component, the `useViewTransitionRouter` hook, and the `detectLocaleSwitch` helper. `useViewTransitionRouter` wraps `next/navigation`'s `router.push` / `router.replace` in `document.startViewTransition`, using `flushSync` inside the update callback so the new route state is captured synchronously.
+- `src/app/global.css` declares the `::view-transition-old(root)` / `::view-transition-new(root)` default crossfade, the `:active-view-transition-type(locale-switch)` scoped effect (crossfade plus a slight scale), the `vt-fade` / `vt-locale-scale-enter` / `vt-locale-scale-exit` keyframes, and the reduced-motion fallback.
+
+`TransitionLink` is injected through Fumadocs' `RootProvider components={{ Link: TransitionLink }}` extension point in `src/components/provider.tsx`, so sidebar, TOC, navbar, and breadcrumb links all route through it. The home pages (`src/app/(home)/page.tsx` and `src/app/zh/page.tsx`) import `TransitionLink as Link`, and `onLocaleChange` navigates via `useViewTransitionRouter().push(url, { types: ["locale-switch"] })`.
+
+## Why manual `startViewTransition` instead of `experimental.viewTransition`
+
+Next.js' `experimental.viewTransition` flag plus React's `<ViewTransition>` component were evaluated first but do not work on stable React: with `react@19.2.7`, both `<ViewTransition>` and `addTransitionType` are `canary` / `experimental`-channel-only exports, and stable `react-dom@19.2.7` has no `document.startViewTransition` integration. Wrapping navigation manually works on stable React, is production-safe, adds no dependency, and degrades gracefully where the API is unsupported.
+
+## Graceful degradation and accessibility
+
+- Browsers without `document.startViewTransition` fall back to the original instant navigation: `TransitionLink` defers to `next/link` and `onLocaleChange` calls `router.push` directly, with no console errors.
+- `@media (prefers-reduced-motion: reduce)` zeroes every `::view-transition-*` animation duration and delay, so motion-sensitive users get instant swaps.
