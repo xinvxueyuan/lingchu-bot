@@ -303,8 +303,7 @@ task ci
 
 ### Git Hooks
 
-- Pre-commit 基于变更文件类型运行 Prek auto-fix、markdownlint、Ruff、Pyright、ty、pytest、docs lint/type/test/e2e smoke、`.tsx` 的 React Doctor。
-- Post-commit 运行非阻断 `gitnexus analyze --force`（全量重建，非增量 —— 增量模式存在 FTS 索引损坏 bug，详见 `.trae/specs/fix-gitnexus-post-commit-fts/`）。
+- Pre-commit 基于变更文件类型运行 Prek auto-fix、markdownlint、Ruff、Pyright、ty、pytest、docs lint/type/test/e2e smoke、`.tsx` 的 React Doctor，随后运行非阻断 `gitnexus analyze --force`（全量重建，非增量 —— 增量模式存在 FTS 索引损坏 bug，详见 `.trae/specs/fix-gitnexus-post-commit-fts/`），并自动将 AGENTS.md/CLAUDE.md 更新暂存进即将创建的提交。
 - Commit message 使用 gitmoji + Conventional Commits，并自动追加 Signed-off-by。
 - Hook CLI 解析顺序：local `node_modules/.bin`、global PATH、通过 `cmd.exe /c` 执行 global `.cmd` shim、`pnpm dlx`、最后 `npx -y`。
 - 仅在明确需要时设置 `$env:HUSKY='0'`，例如自动化提交。
