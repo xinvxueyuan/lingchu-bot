@@ -89,13 +89,10 @@ async def test_onebot11_send_group_announcement_calls_extension_api_with_image(
 
     fake_config = MagicMock()
     fake_config.cache_dir = tmp_path
-    # 模拟"未配置路径桥接"的默认场景：announcement_image_cache_dir 派生自
-    # cache_dir（与新类型 `Path` 下的 localstore 默认行为一致），protocol_dir 留空
-    fake_config.announcement_image_cache_dir = tmp_path / "announcement_images"
-    fake_config.announcement_image_protocol_dir = None
     monkeypatch.setattr(announcement, "plugin_config", fake_config)
 
-    image = create_mock_image(raw=b"fake-image-bytes")
+    raw_bytes = b"fake-image-bytes"
+    image = create_mock_image(raw=raw_bytes)
 
     with patch.object(send_group_announcement_cmd, "finish") as mock_finish:
         await onebot_v11_send_group_announcement(
@@ -106,14 +103,13 @@ async def test_onebot11_send_group_announcement_calls_extension_api_with_image(
             session=mock_session,
         )
 
-    call_kwargs = mock_onebot11_bot.call_api.call_args.kwargs
-    assert "image" in call_kwargs
-    assert isinstance(call_kwargs["image"], str)
+    expected_md5 = hashlib.md5(raw_bytes).hexdigest()
+    expected_image = str(tmp_path / "announcement_images" / f"{expected_md5}.png")
     mock_onebot11_bot.call_api.assert_called_once_with(
         "_send_group_notice",
         group_id=mock_onebot11_event.group_id,
         content="公告",
-        image=call_kwargs["image"],
+        image=expected_image,
     )
     assert finish_text(mock_finish) == "群公告已发送"
 
@@ -154,10 +150,6 @@ async def test_resolve_image_path_caches_raw_bytes(
     """_resolve_image_path 通过 aiofiles 异步写入缓存文件。"""
     fake_config = MagicMock()
     fake_config.cache_dir = tmp_path
-    # 模拟"未配置路径桥接"的默认场景：announcement_image_cache_dir 派生自
-    # cache_dir（与新类型 `Path` 下的 localstore 默认行为一致），protocol_dir 留空
-    fake_config.announcement_image_cache_dir = tmp_path / "announcement_images"
-    fake_config.announcement_image_protocol_dir = None
     monkeypatch.setattr(announcement, "plugin_config", fake_config)
 
     raw_bytes = b"fake-image-bytes"
@@ -169,32 +161,6 @@ async def test_resolve_image_path_caches_raw_bytes(
     expected_path = tmp_path / "announcement_images" / f"{expected_md5}.png"
     assert result is not None
     assert result.local_path == expected_path
-    assert result.protocol_path is None
-    async with aiofiles.open(result.local_path, "rb") as f:
-        assert await f.read() == raw_bytes
-
-
-@pytest.mark.asyncio
-async def test_resolve_image_path_uses_announcement_cache_bridge(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """配置路径桥接时，缓存写入宿主路径并返回协议端路径。"""
-    host_cache_dir = tmp_path / "napcat-announcement-images"
-    fake_config = MagicMock()
-    fake_config.cache_dir = tmp_path / "default-cache"
-    fake_config.announcement_image_cache_dir = host_cache_dir
-    fake_config.announcement_image_protocol_dir = "/lingchu/announcement-images"
-    monkeypatch.setattr(announcement, "plugin_config", fake_config)
-
-    raw_bytes = b"fake-image-bytes"
-    image = create_mock_image(raw=raw_bytes)
-
-    result = await announcement._resolve_image_path(image)
-
-    expected_md5 = hashlib.md5(raw_bytes).hexdigest()
-    assert result is not None
-    assert result.local_path == host_cache_dir / f"{expected_md5}.png"
-    assert result.protocol_path == f"/lingchu/announcement-images/{expected_md5}.png"
     async with aiofiles.open(result.local_path, "rb") as f:
         assert await f.read() == raw_bytes
 
@@ -206,10 +172,7 @@ async def test_resolve_image_path_returns_path_attribute(
 ) -> None:
     """Raw 为空但 path 存在时，直接返回该路径。"""
     fake_config = MagicMock()
-    # 模拟"未配置路径桥接"的默认场景：announcement_image_cache_dir 派生自
-    # cache_dir（与新类型 `Path` 下的 localstore 默认行为一致），protocol_dir 留空
-    fake_config.announcement_image_cache_dir = tmp_path / "announcement_images"
-    fake_config.announcement_image_protocol_dir = None
+    fake_config.cache_dir = tmp_path
     monkeypatch.setattr(announcement, "plugin_config", fake_config)
 
     image = MagicMock()
@@ -221,81 +184,6 @@ async def test_resolve_image_path_returns_path_attribute(
 
     assert result is not None
     assert result.local_path == Path("/tmp/existing.png")
-    assert result.protocol_path is None
-
-
-class TestDetectCachePathStyleMismatch:
-    def test_linux_windows_style_drive_letter_in_cache_dir(
-        self, tmp_path: Path
-    ) -> None:
-        cache = Path("C:/dev/lingchu-bot/.local/napcat-announcement-images")
-        result = announcement._detect_cache_path_style_mismatch(
-            cache_dir=cache,
-            protocol_dir="/lingchu-bot/.local/napcat-announcement-images",
-            system_type="Linux",
-        )
-        assert result is not None
-        assert result.detected_style == "Windows"
-        assert result.system_type == "Linux"
-        assert result.cache_dir == str(cache)
-
-    def test_linux_windows_style_drive_letter_in_protocol_dir(self) -> None:
-        cache = Path("/home/xinvdev/lingchu-bot/.local/napcat-announcement-images")
-        result = announcement._detect_cache_path_style_mismatch(
-            cache_dir=cache,
-            protocol_dir="C:/lingchu-bot/.local/napcat-announcement-images",
-            system_type="Linux",
-        )
-        assert result is not None
-        assert result.detected_style == "Windows"
-        assert result.protocol_dir.startswith("C:")
-
-    def test_linux_posix_paths_are_silent(self, tmp_path: Path) -> None:
-        cache = tmp_path / "napcat-announcement-images"
-        result = announcement._detect_cache_path_style_mismatch(
-            cache_dir=cache,
-            protocol_dir="/lingchu/announcement-images",
-            system_type="Linux",
-        )
-        assert result is None
-
-    def test_linux_unset_protocol_dir_is_silent(self, tmp_path: Path) -> None:
-        cache = Path("C:/dev/lingchu-bot/.local/napcat-announcement-images")
-        result = announcement._detect_cache_path_style_mismatch(
-            cache_dir=cache,
-            protocol_dir=None,
-            system_type="Linux",
-        )
-        assert result is None
-
-    def test_windows_posix_cache_dir_flags_mismatch(self) -> None:
-        cache = Path("/home/xinvdev/lingchu-bot/.local/napcat-announcement-images")
-        result = announcement._detect_cache_path_style_mismatch(
-            cache_dir=cache,
-            protocol_dir="C:/lingchu/announcement-images",
-            system_type="Windows",
-        )
-        assert result is not None
-        assert result.detected_style == "POSIX"
-
-    def test_windows_unc_protocol_dir_is_silent(self) -> None:
-        # UNC paths (`\\wsl$\...`) are intentionally not flagged on Windows
-        # hosts even though they start with backslashes.
-        cache = Path("C:/Users/xinvdev/lingchu-bot/.local/napcat-announcement-images")
-        result = announcement._detect_cache_path_style_mismatch(
-            cache_dir=cache,
-            protocol_dir="\\\\wsl$\\Debian\\home\\xinvdev\\lingchu-bot\\.local\\napcat-announcement-images",
-            system_type="Windows",
-        )
-        assert result is None
-
-    def test_other_system_type_is_silent(self, tmp_path: Path) -> None:
-        result = announcement._detect_cache_path_style_mismatch(
-            cache_dir=tmp_path / "announcement-images",
-            protocol_dir="/lingchu/announcement-images",
-            system_type="Other",
-        )
-        assert result is None
 
 
 class TestSendGroupNoticeNapcatImageError:
@@ -344,8 +232,6 @@ class TestSendGroupNoticeNapcatImageError:
                 "/home/xinvdev/lingchu-bot/.local/napcat-announcement-images/"
                 "54367a9439f567b9c8cdc04230ce3de8.png"
             ),
-            protocol_path="/lingchu-bot/.local/napcat-announcement-images/"
-            "54367a9439f567b9c8cdc04230ce3de8.png",
         )
 
         with (
@@ -360,13 +246,10 @@ class TestSendGroupNoticeNapcatImageError:
                 event=mock_onebot11_event,
             )
 
-        # The actionable warning must mention both paths and the env
-        # variable name so the user can fix the configuration quickly.
         mock_warning.assert_called_once()
         message = mock_warning.call_args.args[0]
-        assert "/lingchu-bot/.local/napcat-announcement-images/" in message
         assert "/home/xinvdev/lingchu-bot/.local/napcat-announcement-images/" in message
-        assert "LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR" in message
+        assert "LINGCHU_ANNOUNCEMENT_IMAGE" not in message
 
     @pytest.mark.asyncio
     async def test_non_image_error_does_not_emit_extra_warning(
@@ -396,7 +279,6 @@ class TestSendGroupNoticeNapcatImageError:
         )
         image_path = announcement.AnnouncementImagePath(
             local_path=Path("/home/xinvdev/lingchu-bot/.local/x.png"),
-            protocol_path="/lingchu/x.png",
         )
 
         with (

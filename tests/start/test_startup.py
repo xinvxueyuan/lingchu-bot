@@ -38,9 +38,6 @@ def _apply_default_startup_mocks(
     monkeypatch.setattr(startup_module, "ensure_llm_config_file_async", AsyncMock())
     monkeypatch.setattr(startup_module, "initialize_llm_runtime", AsyncMock())
     monkeypatch.setattr(startup_module, "initialize_mcp_agent_runtime", AsyncMock())
-    monkeypatch.setattr(
-        startup_module, "_check_announcement_image_path_bridge", AsyncMock()
-    )
     monkeypatch.setattr(startup_module, "ensure_menu_config_file_async", AsyncMock())
 
     handle_manager_mock = MagicMock()
@@ -362,82 +359,6 @@ async def test_lifecycle_on_shutdown_calls_scheduler_and_message_store_in_order(
     await lifecycle_module.on_shutdown()
 
     assert call_order == ["scheduler", "llm", "message_store"]
-
-
-@pytest.mark.asyncio
-async def test_check_announcement_image_path_bridge_emits_warning_on_mismatch(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Startup self-check warns on cache path style mismatch.
-
-    Verifies that ``LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR`` using a Windows-style
-    drive letter on a Linux / WSL2 host triggers the startup warning.
-    """
-    from unittest.mock import patch
-
-    fake_config = MagicMock()
-    fake_config.announcement_image_cache_dir = MagicMock()
-    fake_config.announcement_image_cache_dir.__str__ = MagicMock(
-        return_value="C:/dev/lingchu-bot/.local/napcat-announcement-images"
-    )
-    fake_config.announcement_image_protocol_dir = (
-        "/lingchu-bot/.local/napcat-announcement-images"
-    )
-    fake_config.system_type = "Linux"
-
-    monkeypatch.setattr(startup_module, "plugin_config", fake_config)
-
-    with patch.object(startup_module.logger, "warning") as mock_warning:
-        await startup_module._check_announcement_image_path_bridge()
-
-    mock_warning.assert_called_once()
-    message = mock_warning.call_args.args[0]
-    assert "C:/dev/lingchu-bot/.local/napcat-announcement-images" in message
-    assert "LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR" in message
-
-
-@pytest.mark.asyncio
-async def test_check_announcement_image_path_bridge_silent_when_consistent(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Startup self-check stays silent when paths match the host platform."""
-    from pathlib import Path
-    from unittest.mock import patch
-
-    fake_config = MagicMock()
-    fake_config.announcement_image_cache_dir = Path(
-        "/home/xinvdev/lingchu-bot/.local/napcat-announcement-images"
-    )
-    fake_config.announcement_image_protocol_dir = (
-        "/lingchu-bot/.local/napcat-announcement-images"
-    )
-    fake_config.system_type = "Linux"
-
-    monkeypatch.setattr(startup_module, "plugin_config", fake_config)
-
-    with patch.object(startup_module.logger, "warning") as mock_warning:
-        await startup_module._check_announcement_image_path_bridge()
-
-    mock_warning.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_startup_logs_when_announcement_path_bridge_fails(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    mocks = _apply_default_startup_mocks(monkeypatch)
-    monkeypatch.setattr(
-        startup_module,
-        "_check_announcement_image_path_bridge",
-        AsyncMock(side_effect=RuntimeError("bridge boom")),
-    )
-
-    await startup_module.startup()
-
-    mocks["log_exception"].assert_any_call(
-        "Failed to run announcement image path bridge self-check"
-    )
-    mocks["initialize_scheduler_service"].assert_awaited_once()
 
 
 @pytest.mark.asyncio

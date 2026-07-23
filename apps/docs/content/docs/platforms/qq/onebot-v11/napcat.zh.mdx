@@ -35,10 +35,6 @@ send-announcement <content> [image]
 
 图片参数接受 `nonebot-plugin-alconna` 的 `UniImage`。实现会把原始字节、本地路径或可下载 URL 解析到缓存文件，再向 API 传入文件系统路径。
 
-NapCat 当前要求公告 `image` 字段在 NapCat 侧可读取。如果 Lingchu Bot 与 NapCat 运行在不同文件系统中，请按用户配置指南配置群公告图片路径桥接。
-
-WSL2（Debian / Ubuntu）部署、迁移到 WSL2 时遇到 `retcode=1200, image 字段可能格式不正确` 等问题，请参考 [NapCat Docker WSL2 部署章节](../frameworks/napcat-docker#wsl2-部署)。**最常见的根因是 Docker Desktop Settings → Resources → File sharing 没把 `\\wsl.localhost\Debian\`（按你的 distro 名）加进白名单**，补上后 Apply & restart 并重建 NapCat 容器即可。
-
 ## 群头像
 
 NapCat 通过标准 `set_group_portrait` API 支持设置群头像：
@@ -61,7 +57,7 @@ remote-announcement <group_id|group_name> <content> [image]
 
 ## 配置
 
-纯文本公告除标准 OneBot V11 配置外，不需要额外的 Lingchu Bot 配置。跨 Docker 或跨主机发送图片公告时，需要配置群公告图片路径桥接。确保 NapCat 正在运行并通过 WebSocket 或 HTTP 反向代理连接到 NoneBot。
+纯文本公告除标准 OneBot V11 配置外，不需要额外的 Lingchu Bot 配置。确保 NapCat 正在运行并通过 WebSocket 或 HTTP 反向代理连接到 NoneBot。
 
 ```dotenv
 DRIVER=~fastapi+~httpx+~websockets

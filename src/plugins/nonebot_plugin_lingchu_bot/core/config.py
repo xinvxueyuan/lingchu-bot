@@ -16,7 +16,6 @@ from nonebot_plugin_localstore import (
     get_plugin_data_dir,
 )
 from pydantic import (
-    AliasChoices,
     ConfigDict,
     Field,
     field_validator,
@@ -32,8 +31,6 @@ _NON_TOML_FIELDS: Final = frozenset({
     "data_dir",
     "config_dir",
     "cache_dir",
-    "announcement_image_cache_dir",
-    "announcement_image_protocol_dir",
     "in_containers",
 })
 
@@ -131,17 +128,9 @@ class Config(DeploymentSettings):
     data_dir: Path = Field(default_factory=get_plugin_data_dir)
     config_dir: Path = Field(default_factory=get_plugin_config_dir)
     cache_dir: Path = Field(default_factory=get_plugin_cache_dir)
-    announcement_image_cache_dir: Path = Field(
-        default_factory=lambda: get_plugin_cache_dir() / "announcement_images",
-        validation_alias=AliasChoices("LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR"),
-    )
-    announcement_image_protocol_dir: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices("LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR"),
-    )
     in_containers: bool = Field(
         default=False,
-        validation_alias=AliasChoices("LINGCHU_IN_CONTAINERS"),
+        validation_alias="LINGCHU_IN_CONTAINERS",
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="ignore")
