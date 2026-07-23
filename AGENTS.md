@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (8557 symbols, 15026 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (8499 symbols, 14953 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -351,8 +351,7 @@ Prefer granular checks during development. Full `task check && task test` is for
 
 ### Git Hooks
 
-- Pre-commit runs Prek auto-fix, markdownlint, Ruff, Pyright, ty, pytest, docs lint/type/test/e2e smoke, React Doctor for `.tsx`.
-- Post-commit runs non-blocking `gitnexus analyze --force` (full rebuild, not incremental — see `.trae/specs/fix-gitnexus-post-commit-fts/` for why incremental was abandoned).
+- Pre-commit runs Prek auto-fix, markdownlint, Ruff, Pyright, ty, pytest, docs lint/type/test/e2e smoke, React Doctor for `.tsx`, then non-blocking `gitnexus analyze --force` (full rebuild, not incremental — see `.trae/specs/fix-gitnexus-post-commit-fts/` for why incremental was abandoned) and auto-stages AGENTS.md/CLAUDE.md updates into the upcoming commit.
 - Commit messages use gitmoji + Conventional Commits and auto-append Signed-off-by.
 - Hook CLI resolution order is local `node_modules/.bin`, global PATH, global `.cmd` shim through `cmd.exe /c`, `pnpm dlx`, then `npx -y`.
 - Set `$env:HUSKY='0'` only when explicitly needed, such as automated commits.
