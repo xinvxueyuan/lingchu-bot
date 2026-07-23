@@ -103,13 +103,6 @@ Deployment-level LLM variables are no longer a fallback source.
 |----------|---------|-------------|
 | `LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS` | (built-in set) | Feature keys that require elevated subject permission. Strict JSON string list. Defaults to a built-in set of 12 sensitive operations (`kick_member`, `block_member`, `global_block_member`, `member_mute`, `recall_message`, `set_member_card`, `set_member_title`, `set_member_admin`, `unset_member_admin`, `remote_kick`, `remote_block`, `remote_mute`) |
 
-## Announcement image paths
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` | `<localstore cache_dir>/announcement_images` | Host-side cache directory for group announcement images. Override only for cross-container file sharing (e.g. NapCat bind mount) |
-| `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` | (unset) | Protocol-side path: container-internal path seen by NapCat. Required when `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` is set and NapCat runs in Docker |
-
 <Callout type="warn" title="Boolean format">
 
 NoneBot configuration files only accept standard JSON lowercase `true` / `false`. Using `True` / `False` will raise a configuration error at startup.

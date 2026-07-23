@@ -725,7 +725,7 @@ class TestRemoteAnnouncement:
             mock_bot.call_api.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_remote_announcement_uses_protocol_image_path(
+    async def test_remote_announcement_sends_image(
         self,
         mock_bot: MagicMock,
         mock_event: MagicMock,
@@ -734,7 +734,7 @@ class TestRemoteAnnouncement:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """远程公告图片复用公告路径桥接，向 NapCat 传容器内路径。"""
+        """远程公告图片按当前配置正常发送。"""
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_version_info.return_value = {
             "data": {
@@ -745,11 +745,8 @@ class TestRemoteAnnouncement:
         }
         mock_bot.call_api.return_value = {}
 
-        host_cache_dir = tmp_path / "napcat-announcement-images"
         fake_config = MagicMock()
         fake_config.cache_dir = tmp_path / "default-cache"
-        fake_config.announcement_image_cache_dir = host_cache_dir
-        fake_config.announcement_image_protocol_dir = "/lingchu/announcement-images"
         monkeypatch.setattr(announcement_module, "plugin_config", fake_config)
 
         raw_bytes = b"remote-announcement-image"
@@ -773,7 +770,12 @@ class TestRemoteAnnouncement:
             "_send_group_notice",
             group_id=_GROUP_ID_1,
             content="测试公告内容",
-            image=f"/lingchu/announcement-images/{expected_md5}.png",
+            image=str(
+                tmp_path
+                / "default-cache"
+                / "announcement_images"
+                / f"{expected_md5}.png"
+            ),
         )
 
 
@@ -920,7 +922,7 @@ class TestMassAnnouncement:
         assert "群公告内容不能为空" in str(mock_finish.call_args.args[0])
 
     @pytest.mark.asyncio
-    async def test_mass_announcement_uses_one_cached_protocol_image_for_each_group(
+    async def test_mass_announcement_sends_image_for_each_group(
         self,
         mock_bot: MagicMock,
         mock_event: MagicMock,
@@ -929,7 +931,7 @@ class TestMassAnnouncement:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """群发公告图片复用公告路径桥接，向每个目标传协议端路径。"""
+        """群发公告图片按当前配置发送到每个目标。"""
         mock_bot.get_group_list.return_value = mock_group_list
         mock_bot.get_version_info.return_value = {
             "data": {
@@ -940,11 +942,8 @@ class TestMassAnnouncement:
         }
         mock_bot.call_api.return_value = {}
 
-        host_cache_dir = tmp_path / "napcat-announcement-images"
         fake_config = MagicMock()
         fake_config.cache_dir = tmp_path / "default-cache"
-        fake_config.announcement_image_cache_dir = host_cache_dir
-        fake_config.announcement_image_protocol_dir = "/lingchu/announcement-images"
         monkeypatch.setattr(announcement_module, "plugin_config", fake_config)
 
         raw_bytes = b"mass-announcement-image"
@@ -969,13 +968,23 @@ class TestMassAnnouncement:
                 "_send_group_notice",
                 group_id=_GROUP_ID_1,
                 content="测试公告内容",
-                image=f"/lingchu/announcement-images/{expected_md5}.png",
+                image=str(
+                    tmp_path
+                    / "default-cache"
+                    / "announcement_images"
+                    / f"{expected_md5}.png"
+                ),
             ),
             call(
                 "_send_group_notice",
                 group_id=_GROUP_ID_2,
                 content="测试公告内容",
-                image=f"/lingchu/announcement-images/{expected_md5}.png",
+                image=str(
+                    tmp_path
+                    / "default-cache"
+                    / "announcement_images"
+                    / f"{expected_md5}.png"
+                ),
             ),
         ]
 

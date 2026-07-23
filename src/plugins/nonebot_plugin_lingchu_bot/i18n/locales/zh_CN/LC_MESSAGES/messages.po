@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nonebot-plugin-lingchu-bot 0.0.0.dev8\n"
 "Report-Msgid-Bugs-To: xinvxueyuan@yeah.net\n"
-"POT-Creation-Date: 2026-07-19 20:31+0800\n"
+"POT-Creation-Date: 2026-07-23 12:18+0800\n"
 "PO-Revision-Date: 2026-05-20 00:00+0800\n"
 "Last-Translator: xinvxueyuan <xinvxueyuan@yeah.net>\n"
 "Language: zh_CN\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/core/config.py:58
+#: src/plugins/nonebot_plugin_lingchu_bot/core/config.py:67
 #, python-brace-format
 msgid ""
 "in_containers 配置错误：\n"
@@ -33,7 +33,7 @@ msgstr ""
 "请将配置改为: LINGCHU_IN_CONTAINERS=true 或 LINGCHU_IN_CONTAINERS=false\n"
 "不要使用大写的 True/False 或其他格式。"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/core/config.py:91
+#: src/plugins/nonebot_plugin_lingchu_bot/core/config.py:100
 #, python-brace-format
 msgid ""
 "in_containers 配置错误：\n"
@@ -68,87 +68,86 @@ msgstr "Lingchu 未为适配器 {adapter_id} 声明 group 处理器"
 msgid "Lingchu 为适配器 {adapter_id} 导入 group 处理器"
 msgstr "Lingchu 为适配器 {adapter_id} 导入 group 处理器"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:32
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:35
 msgid "不支持的 OneBot 协议版本"
 msgstr "不支持的 OneBot 协议版本"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:45
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:60
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:48
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:63
 msgid "不支持的 OneBot 版本"
 msgstr "不支持的 OneBot 版本"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:86
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:88
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/kick.py:114
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:117
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:254
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:319
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:408
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:444
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:472
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:524
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:551
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:37
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:76
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:131
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:160
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:241
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:267
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:264
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:481
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:612
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:791
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:958
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:90
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:92
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/kick.py:120
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:116
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:334
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:427
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:461
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:490
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:543
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:571
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:41
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:81
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:143
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:174
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:259
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:287
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:273
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:493
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:627
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:810
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:978
 msgid "该功能已禁用"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:94
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:804
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:962
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:98
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:823
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:982
 msgid "群公告内容不能为空"
 msgstr "群公告内容不能为空"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:117
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:121
 msgid "发送群公告失败，操作被拒绝"
 msgstr "发送群公告失败，操作被拒绝"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:121
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/announcement.py:125
 msgid "群公告已发送"
 msgstr "群公告已发送"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:56
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:46
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:59
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:49
 #, python-brace-format
 msgid "{operation}失败，数据库异常: {error!r}"
 msgstr "{operation}失败，数据库异常: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:122
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:124
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:127
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:129
 msgid "拉黑"
 msgstr "拉黑"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:138
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:240
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:326
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:101
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:209
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:143
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:251
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:343
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:112
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:226
 msgid "全局"
 msgstr "全局"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:138
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:240
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:326
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:101
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:209
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:143
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:251
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:343
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:112
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:226
 msgid "本群"
 msgstr "本群"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:140
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:676
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:145
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:692
 msgid "永久"
 msgstr "永久"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:145
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:150
 #, python-brace-format
 msgid ""
 "已拉黑并踢出: \n"
@@ -165,11 +164,11 @@ msgstr ""
 "原因: {reason}\n"
 "标识: {target_user_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:227
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:238
 msgid "删黑"
 msgstr "删黑"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:244
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:255
 #, python-brace-format
 msgid ""
 "已删黑: \n"
@@ -186,11 +185,11 @@ msgstr ""
 "标识: {target_user_id}\n"
 "删除记录: {deleted}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:319
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:336
 msgid "清空黑名单"
 msgstr "清空黑名单"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:328
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/block.py:345
 #, python-brace-format
 msgid ""
 "已清空黑名单: \n"
@@ -219,148 +218,142 @@ msgstr "已开机"
 msgid "已关机"
 msgstr "已关机"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:115
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:123
 #, python-brace-format
 msgid "{operation}失败，操作被拒绝: {error!r}"
 msgstr "{operation}失败，操作被拒绝: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:150
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:158
 msgid "违反群规「默认」"
 msgstr "违反群规「默认」"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:155
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:163
 msgid "管理员操作「默认」"
 msgstr "管理员操作「默认」"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:167
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:175
 #, python-brace-format
 msgid "不能{action}自己"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:173
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:181
 #, python-brace-format
 msgid "不能{action}机器人"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:219
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:224
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:230
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:232
 #, fuzzy
 msgid "目标用户受白名单保护，无法执行"
 msgstr "目标用户权限过高，无法执行"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:241
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:242
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:252
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:250
 msgid "无法验证操作权限"
 msgstr "无法验证操作权限"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:247
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:248
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:258
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:256
 msgid "目标用户权限过高，无法执行"
 msgstr "目标用户权限过高，无法执行"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:309
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:314
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:934
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:938
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:326
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/common.py:331
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:953
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:957
 msgid "机器人缺少管理员权限"
 msgstr "机器人缺少管理员权限"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/handle_defaults.py:37
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/handle_defaults.py:43
 #, python-brace-format
 msgid "可修改的功能默认值: {fields}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/handle_defaults.py:43
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/handle_defaults.py:47
 msgid "用法: 设置功能默认值 <功能> <字段> <值>"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/handle_defaults.py:48
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/handle_defaults.py:52
 msgid "功能默认值或值无效"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/handle_defaults.py:58
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/handle_defaults.py:62
 #, python-brace-format
 msgid "已更新功能默认值: {handle}.{field} = {value}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/kick.py:63
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:281
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:561
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/kick.py:68
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:575
 msgid "查询黑名单失败，数据库异常"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/kick.py:67
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:287
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:565
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/kick.py:72
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:579
 #, python-brace-format
 msgid "用户 {name} 不在黑名单中，无法执行踢出操作"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/kick.py:83
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/kick.py:88
 msgid "踢出群成员失败，操作被拒绝"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/kick.py:99
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/kick.py:104
 #, python-brace-format
 msgid "已踢出群成员 {name}{reason}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/kick.py:117
-msgid "踢出群成员时必须提供原因"
-msgstr ""
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:47
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:51
 msgid "退出群失败，操作被拒绝"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:50
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:54
 msgid "退出当前群"
 msgstr "退出当前群"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:63
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:68
 msgid "当前仅支持重启当前 QQ OneBot V11 协议端"
 msgstr "当前仅支持重启当前 QQ OneBot V11 协议端"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:68
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:73
 msgid "已请求重启协议端，重新连接后会发送反馈"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:85
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:90
 msgid "重启协议端失败，操作被拒绝"
 msgstr "重启协议端失败，操作被拒绝"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:58
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:56
 #, python-brace-format
 msgid "群名片长度不能超过 {max} 个字符"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:67
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:65
 msgid "不能修改机器人的群名片"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:85
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:83
 msgid "设置群名片"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:97
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:95
 #, python-brace-format
 msgid "已设置群名片: {name_display} -> {card}"
 msgstr "已设置群名片: {name_display} -> {card}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:125
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:124
 #, python-brace-format
 msgid "群头衔长度不能超过 {max} 个字符"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:135
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:134
 msgid "不能修改机器人的群头衔"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:159
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:158
 msgid "设置群头衔"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:171
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:170
 #, python-brace-format
 msgid "已设置群头衔: {name_display} -> {special_title}"
 msgstr "已设置群头衔: {name_display} -> {special_title}"
@@ -386,43 +379,26 @@ msgstr "取消"
 msgid "{action}群管理员: {name_display}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:261
-msgid "不能踢出自己"
-msgstr ""
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:265
-msgid "不能踢出机器人"
-msgstr ""
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:303
-msgid "踢出群成员"
-msgstr ""
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:315
-#, python-brace-format
-msgid "已踢出群成员: {name_display}"
-msgstr ""
-
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:331
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:412
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:279
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:346
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:430
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:288
 #, python-brace-format
 msgid "禁言时长不能小于 {min} 秒"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:335
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:416
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:283
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:350
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:434
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:292
 #, python-brace-format
 msgid "禁言时长不能超过 {max} 秒（30天）"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:363
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:380
 #, fuzzy
 msgid "禁言失败，操作被拒绝"
 msgstr "禁言失败，操作被拒绝: {error}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:381
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:398
 #, fuzzy, python-brace-format
 msgid ""
 "已禁言: \n"
@@ -437,34 +413,34 @@ msgstr ""
 "原因: {reason}\n"
 "标识: {target_user_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:432
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:448
 #, python-brace-format
 msgid "默认禁言时长已更新为 {duration} 秒"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:455
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:472
 #, fuzzy
 msgid "全体禁言失败，操作被拒绝"
 msgstr "全体禁言失败，操作被拒绝: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:460
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:477
 msgid "全体禁言成功"
 msgstr "全体禁言成功"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:483
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:501
 msgid "不能解禁自己"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:487
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:505
 msgid "不能解禁机器人"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:496
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:514
 #, fuzzy
 msgid "解禁失败，操作被拒绝"
 msgstr "解禁失败，操作被拒绝: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:507
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:525
 #, python-brace-format
 msgid ""
 "已解禁: \n"
@@ -475,78 +451,78 @@ msgstr ""
 "名称: {name_display}\n"
 "标识: {target_user_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:530
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:549
 #, fuzzy
 msgid "全体解禁失败，操作被拒绝"
 msgstr "全体解禁失败，操作被拒绝: {error!r}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:535
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:554
 msgid "全体解禁成功"
 msgstr "全体解禁成功"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:565
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:585
 msgid "撤回数量不能小于 1 条"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:568
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:588
 #, python-brace-format
 msgid "撤回数量不能超过 {max} 条"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:603
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:625
 #, python-brace-format
 msgid "目标: {target}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:607
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/mute.py:629
 #, python-brace-format
 msgid "已撤回 {recalled} 条消息，跳过 {skipped} 条，失败 {failed} 条{target_text}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:44
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:48
 msgid "群名称不能为空"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:48
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:52
 #, python-brace-format
 msgid "群名称长度不能超过 {max} 个字符"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:58
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:62
 msgid "设置群名称失败，操作被拒绝"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:61
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:65
 #, python-brace-format
 msgid "群名称已设置为: {new_group_name}"
 msgstr "群名称已设置为: {new_group_name}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:81
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:86
 msgid "请上传一张图片"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:107
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:112
 msgid "当前 OneBot 实现不支持设置群头像"
 msgstr "当前 OneBot 实现不支持设置群头像"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:114
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:119
 msgid "设置群头像失败，操作被拒绝"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:117
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/profile.py:122
 msgid "群头像已更新"
 msgstr "群头像已更新"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:56
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/common.py:71
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:63
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/common.py:67
 msgid "权限不足"
 msgstr "权限不足"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:89
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:100
 msgid "拉白"
 msgstr "拉白"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:105
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:116
 #, python-brace-format
 msgid ""
 "已拉白: \n"
@@ -561,11 +537,11 @@ msgstr ""
 "原因: {reason}\n"
 "标识: {target_user_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:197
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:214
 msgid "删白"
 msgstr "删白"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:213
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/protect.py:230
 #, python-brace-format
 msgid ""
 "已删白: \n"
@@ -582,37 +558,37 @@ msgstr ""
 "标识: {target_user_id}\n"
 "删除记录: {deleted}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:94
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:867
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:873
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:97
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:886
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:892
 msgid "获取群列表失败"
 msgstr "获取群列表失败"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:111
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:114
 #, python-brace-format
 msgid "匹配到多个群聊，请提供更精确的名称或群号: {names}"
 msgstr "匹配到多个群聊，请提供更精确的名称或群号: {names}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:118
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:121
 #, python-brace-format
 msgid "未找到名称包含「{name}」的群聊"
 msgstr "未找到名称包含「{name}」的群聊"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:164
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:716
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:925
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:167
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:733
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:944
 msgid "机器人不在目标群聊中"
 msgstr "机器人不在目标群聊中"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:188
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:191
 msgid "目标用户不在目标群聊中"
 msgstr "目标用户不在目标群聊中"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:314
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:323
 msgid "远程禁言失败，操作被拒绝"
 msgstr "远程禁言失败，操作被拒绝"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:333
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:342
 #, python-brace-format
 msgid ""
 "已远程禁言: \n"
@@ -629,11 +605,11 @@ msgstr ""
 "原因: {reason}\n"
 "标识: {target_user_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:391
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:401
 msgid "远程解禁失败，操作被拒绝"
 msgstr "远程解禁失败，操作被拒绝"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:409
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:419
 #, python-brace-format
 msgid ""
 "已远程解禁: \n"
@@ -648,42 +624,42 @@ msgstr ""
 "原因: {reason}\n"
 "标识: {target_user_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:452
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:463
 msgid "远程全体禁言失败，操作被拒绝"
 msgstr "远程全体禁言失败，操作被拒绝"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:463
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:474
 #, python-brace-format
 msgid "已远程开启全体禁言: 目标群 {group_id}"
 msgstr "已远程开启全体禁言: 目标群 {group_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:499
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:511
 msgid "远程全体解禁失败，操作被拒绝"
 msgstr "远程全体解禁失败，操作被拒绝"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:510
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:522
 #, python-brace-format
 msgid "已远程关闭全体禁言: 目标群 {group_id}"
 msgstr "已远程关闭全体禁言: 目标群 {group_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:577
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:591
 msgid "远程踢出群成员失败，操作被拒绝"
 msgstr "远程踢出群成员失败，操作被拒绝"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:594
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:608
 #, python-brace-format
 msgid "已远程踢出群成员 {name}{reason}，目标群: {group_id}"
 msgstr "已远程踢出群成员 {name}{reason}，目标群: {group_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:656
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:672
 msgid "远程拉黑失败，数据库异常"
 msgstr "远程拉黑失败，数据库异常"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:659
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:675
 msgid "远程拉黑失败，操作被拒绝"
 msgstr "远程拉黑失败，操作被拒绝"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:681
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:697
 #, python-brace-format
 msgid ""
 "已远程拉黑并踢出: \n"
@@ -700,11 +676,11 @@ msgstr ""
 "原因: {reason}\n"
 "标识: {target_user_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:739
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:757
 msgid "远程删黑失败，数据库异常"
 msgstr "远程删黑失败，数据库异常"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:757
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:775
 #, python-brace-format
 msgid ""
 "已远程删黑: \n"
@@ -721,16 +697,16 @@ msgstr ""
 "标识: {target_user_id}\n"
 "删除记录: {deleted}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:826
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:845
 msgid "远程公告失败，操作被拒绝"
 msgstr "远程公告失败，操作被拒绝"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:837
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:856
 #, python-brace-format
 msgid "远程公告已发送: 目标群 {group_id}"
 msgstr "远程公告已发送: 目标群 {group_id}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:909
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:928
 #, python-brace-format
 msgid ""
 "群发公告完成：成功 {success_count} 个，失败 {failure_count} "
@@ -739,183 +715,25 @@ msgstr ""
 "群发公告完成：成功 {success_count} 个，失败 {failure_count} "
 "个。成功群：{success_groups}；失败群：{failed_groups}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:1001
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/remote.py:1021
 msgid "操作被拒绝"
 msgstr "操作被拒绝"
 
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/napcat/announcement.py:60
 #, python-brace-format
-msgid ""
-"NapCat 拒绝公告图片：已发送的 image 字段为 {protocol_path}，本地缓存为 {local_path}。请检查 "
-"LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR 与 "
-"LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR 是否一致，并确认 NapCat 容器 bind mount "
-"已挂载到该路径（Windows / WSL2 部署请参考 NapCat Docker 文档）。"
+msgid "NapCat 拒绝公告图片：已发送的 image 字段为 {local_path}。"
 msgstr ""
-"NapCat 拒绝公告图片：已发送的 image 字段为 {protocol_path}，本地缓存为 {local_path}。请检查 "
-"LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR 与 "
-"LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR 是否一致，并确认 NapCat 容器 bind mount "
-"已挂载到该路径（Windows / WSL2 部署请参考 NapCat Docker 文档）。"
 
 #: src/plugins/nonebot_plugin_lingchu_bot/services/protocol_restart_feedback.py:85
 msgid "协议端已重启并重新连接"
 msgstr "协议端已重启并重新连接"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:63
-#, python-brace-format
-msgid ""
-"公告图片缓存目录 {cache_dir} 与当前系统 {system_type} 不兼容：\n"
-"当前进程在 {system_type} 上运行，但 LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR "
-"的值带有另一操作系统（{detected_style}）的路径风格，会被 pathlib 解析为相对路径。\n"
-"请按目标部署环境更新 .env 中的 LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR 与 "
-"LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR，并重建 NapCat 容器使 bind mount 生效。"
-msgstr ""
-"公告图片缓存目录 {cache_dir} 与当前系统 {system_type} 不兼容：\n"
-"当前进程在 {system_type} 上运行，但 LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR "
-"的值带有另一操作系统（{detected_style}）的路径风格，会被 pathlib 解析为相对路径。\n"
-"请按目标部署环境更新 .env 中的 LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR 与 "
-"LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR，并重建 NapCat 容器使 bind mount 生效。"
-
-#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:135
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:78
 #, python-brace-format
 msgid "Lingchu 启用适配器: {adapters}"
 msgstr "Lingchu 启用适配器: {adapters}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:141
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:84
 #, python-brace-format
 msgid "Lingchu 忽略未选中的已注册适配器: {adapters}"
 msgstr "Lingchu 忽略未选中的已注册适配器: {adapters}"
-
-#~ msgid "发送群公告"
-#~ msgstr "发送群公告"
-
-#~ msgid "设置群名片"
-#~ msgstr "设置群名片"
-
-#~ msgid "设置群成员专属头衔"
-#~ msgstr "设置群成员专属头衔"
-
-#~ msgid "设置群管理员"
-#~ msgstr "设置群管理员"
-
-#~ msgid "踢出群成员"
-#~ msgstr "踢出群成员"
-
-#~ msgid "设置群名称"
-#~ msgstr "设置群名称"
-
-#~ msgid "设置群头像"
-#~ msgstr "设置群头像"
-
-#~ msgid "禁言"
-#~ msgstr "禁言"
-
-#~ msgid "全体禁言"
-#~ msgstr "全体禁言"
-
-#~ msgid "解禁"
-#~ msgstr "解禁"
-
-#~ msgid "全体解禁"
-#~ msgstr "全体解禁"
-
-#~ msgid "导入mute处理器..."
-#~ msgstr "导入mute处理器..."
-
-#~ msgid "导入menu处理器..."
-#~ msgstr "导入menu处理器..."
-
-#~ msgid "导入group处理器..."
-#~ msgstr "导入group处理器..."
-
-#~ msgid "导入announcement处理器..."
-#~ msgstr "导入announcement处理器..."
-
-#~ msgid "导入block处理器..."
-#~ msgstr "导入block处理器..."
-
-#~ msgid "导入kick处理器..."
-#~ msgstr "导入group处理器..."
-
-#~ msgid "导入lifecycle处理器..."
-#~ msgstr "导入lifecycle处理器..."
-
-#~ msgid "导入member处理器..."
-#~ msgstr "导入member处理器..."
-
-#~ msgid "导入profile处理器..."
-#~ msgstr "导入profile处理器..."
-
-#~ msgid "导入remote处理器..."
-#~ msgstr "导入remote处理器..."
-
-#~ msgid "导入test处理器..."
-#~ msgstr "导入test处理器..."
-
-#~ msgid "消息内容为空，无法回显"
-#~ msgstr ""
-
-#~ msgid "获取实现信息失败"
-#~ msgstr "获取实现信息失败"
-
-#~ msgid "协议端功能异常，等待上游修复"
-#~ msgstr "协议端功能异常，等待上游修复"
-
-#~ msgid "不支持的 Milky 实现"
-#~ msgstr "不支持的 Milky 实现"
-
-#~ msgid "发送群公告失败，网络异常"
-#~ msgstr "发送群公告失败，网络异常"
-
-#~ msgid "{operation}失败，网络异常: {error!r}"
-#~ msgstr "{operation}失败，网络异常: {error!r}"
-
-#~ msgid "退出群失败，网络异常"
-#~ msgstr ""
-
-#~ msgid "设置群名片失败，网络异常"
-#~ msgstr ""
-
-#~ msgid "设置群头衔失败，网络异常"
-#~ msgstr ""
-
-#~ msgid "设置管理员失败，网络异常"
-#~ msgstr ""
-
-#~ msgid "踢出群成员失败，网络异常"
-#~ msgstr ""
-
-#~ msgid "不能禁言自己"
-#~ msgstr ""
-
-#~ msgid "不能禁言机器人"
-#~ msgstr ""
-
-#~ msgid "禁言失败，网络异常"
-#~ msgstr "禁言失败，网络异常: {error!r}"
-
-#~ msgid "全体禁言失败，网络异常"
-#~ msgstr "全体禁言失败，网络异常: {error!r}"
-
-#~ msgid "解禁失败，网络异常"
-#~ msgstr "解禁失败，网络异常: {error!r}"
-
-#~ msgid "全体解禁失败，网络异常"
-#~ msgstr "全体解禁失败，网络异常: {error!r}"
-
-#~ msgid "设置群名称失败，网络异常"
-#~ msgstr ""
-
-#~ msgid "设置群头像失败，网络异常"
-#~ msgstr ""
-
-#~ msgid "设置群名片失败，操作被拒绝"
-#~ msgstr ""
-
-#~ msgid "设置群头衔失败，操作被拒绝"
-#~ msgstr ""
-
-#~ msgid "设置管理员失败，操作被拒绝"
-#~ msgstr ""
-
-#~ msgid "LLM 服务暂时不可用，请稍后再试"
-#~ msgstr ""

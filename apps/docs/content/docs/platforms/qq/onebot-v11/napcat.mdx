@@ -35,10 +35,6 @@ send-announcement <content> [image]
 
 The image argument accepts `UniImage` from `nonebot-plugin-alconna`. The implementation resolves raw bytes, local paths, or downloadable URLs into cached files before passing a filesystem path to the API.
 
-NapCat currently requires the announcement `image` field to be readable from the NapCat side. If Lingchu Bot and NapCat run in different filesystems, configure the announcement image path bridge as described in the user configuration guide.
-
-For WSL2 (Debian / Ubuntu) deployments, or when migrating to WSL2 and seeing `retcode=1200, image field format may be incorrect`, see the [NapCat Docker WSL2 deployment section](../frameworks/napcat-docker#wsl2-deployment). **The most common root cause is that `\\wsl.localhost\Debian\` (use your distro name) is not in Docker Desktop Settings → Resources → File sharing**; adding it, clicking Apply & restart, and recreating the NapCat container fixes the issue.
-
 ## Group avatar
 
 NapCat supports setting group avatars via the standard `set_group_portrait` API:
@@ -61,7 +57,7 @@ See [Default Implementation](./default) for group ID resolution and context vali
 
 ## Configuration
 
-NapCat does not require additional Lingchu Bot configuration beyond the standard OneBot V11 setup for text-only announcements. Image announcements across Docker or separate hosts require the announcement image path bridge. Ensure NapCat is running and connected to NoneBot via WebSocket or HTTP reverse proxy.
+NapCat does not require additional Lingchu Bot configuration beyond the standard OneBot V11 setup for text-only announcements. Ensure NapCat is running and connected to NoneBot via WebSocket or HTTP reverse proxy.
 
 ```dotenv
 DRIVER=~fastapi+~httpx+~websockets

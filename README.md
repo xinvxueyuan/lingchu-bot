@@ -161,8 +161,6 @@ Online-editable command, menu-trigger, and platform-permission overrides are sto
 | Database | `SQLALCHEMY_DATABASE_URL` | SQLAlchemy database URL; supports SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server. Unset uses default SQLite. |
 | Database | `ALEMBIC_STARTUP_CHECK` | Set to `true` in production to enforce schema migration checks on startup. |
 | LLM Secrets | Provider-specific variables referenced by `llm.toml` profiles | Keep provider API keys in the deployment environment, for example `OPENAI_API_KEY`. |
-| Announcement Images | `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` | Host-side cache directory for announcement images (defaults to localstore cache). |
-| Announcement Images | `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` | Protocol-side directory NapCat sees inside the container. |
 
 Example `runtime-overrides.toml`:
 

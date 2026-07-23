@@ -95,7 +95,7 @@ OneBot V11 有两条协议实现，注册在 `_PROTOCOL_IMPLEMENTATIONS` 中。
    - `NapCat.Onebot` 且 `app_version >= 4.18.0` 时路由到 `handle/qq/adapters/onebot11/napcat/announcement.py` 中的 `send_group_notice_napcat`。
    - 其他 `app_name` 或更旧版本时返回本地化错误"不支持的 OneBot 版本"，命令直接结束，不调用 API。
 
-NapCat 实现通过 `bot.call_api()` 调用私有的 `_send_group_notice` API。当公告 `image` 字段不可读时，NapCat 报告 `retcode = 1200`；实现通过 `_is_napcat_image_format_error()` 检测该情况，并记录一条诊断日志，指向 `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` / `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` 以及 NapCat 容器 bind mount。
+NapCat 实现通过 `bot.call_api()` 调用私有的 `_send_group_notice` API。
 
 <Callout title="版本要求">
 

@@ -95,7 +95,7 @@ The announcement handler in `handle/qq/adapters/onebot11/default/announcement.py
    - `NapCat.Onebot` with `app_version >= 4.18.0` routes to `send_group_notice_napcat` in `handle/qq/adapters/onebot11/napcat/announcement.py`.
    - Any other `app_name` or an older version returns the localized error "不支持的 OneBot 版本" and the command finishes without calling the API.
 
-The NapCat implementation calls the private `_send_group_notice` API through `bot.call_api()`. When the announcement `image` field is unreadable, NapCat reports `retcode = 1200`; the implementation detects this via `_is_napcat_image_format_error()` and logs a diagnostic that points at `LINGCHU_ANNOUNCEMENT_IMAGE_CACHE_DIR` / `LINGCHU_ANNOUNCEMENT_IMAGE_PROTOCOL_DIR` and the NapCat container bind mount.
+The NapCat implementation calls the private `_send_group_notice` API through `bot.call_api()`.
 
 <Callout title="Version requirement">
 

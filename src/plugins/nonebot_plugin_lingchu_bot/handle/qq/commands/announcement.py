@@ -3,8 +3,7 @@ import hashlib
 from importlib import import_module
 from io import BytesIO
 from pathlib import Path
-import re
-from typing import Any, Final, NamedTuple
+from typing import Any, Final
 
 import aiofiles
 import aiofiles.os
@@ -23,103 +22,15 @@ _SEND_ANNOUNCEMENT = COMMAND_TRIGGERS["send_announcement"]
 _ANNOUNCEMENT_IMAGE_DOWNLOAD_MAX_BYTES: Final = 10 * 1024 * 1024
 
 
-# Matches Windows drive letter prefixes such as `C:` or `C:/`. On a POSIX
-# process `Path("C:/foo")` is a relative path; this regex lets us warn
-# before that silent reinterpretation corrupts the cache layout.
-_WINDOWS_DRIVE_PATTERN: Final = re.compile(r"^[A-Za-z]:[\\/]")
-
-
-class CachePathStyleMismatch(NamedTuple):
-    """Result of a path-style mismatch check."""
-
-    cache_dir: str
-    protocol_dir: str
-    system_type: str
-    detected_style: str
-
-
 @dataclass(frozen=True)
 class AnnouncementImagePath:
-    """Resolved announcement image path for both bot and protocol filesystems."""
+    """Resolved announcement image path."""
 
     local_path: Path
-    protocol_path: str | None = None
 
 
 def _announcement_image_cache_dir() -> Path:
-    return plugin_config.announcement_image_cache_dir or (
-        plugin_config.cache_dir / "announcement_images"
-    )
-
-
-def _join_protocol_path(base: str, relative_path: Path) -> str:
-    separator = "\\" if "\\" in base and "/" not in base else "/"
-    return base.rstrip("/\\") + separator + separator.join(relative_path.parts)
-
-
-def _to_protocol_path(local_path: Path) -> str | None:
-    cache_dir = plugin_config.announcement_image_cache_dir
-    protocol_dir = plugin_config.announcement_image_protocol_dir
-    if protocol_dir is None:
-        return None
-
-    try:
-        relative_path = local_path.resolve().relative_to(cache_dir.resolve())
-    except ValueError:
-        return None
-    return _join_protocol_path(protocol_dir, relative_path)
-
-
-def _detect_cache_path_style_mismatch(
-    cache_dir: Path,
-    protocol_dir: str | None,
-    system_type: str,
-) -> CachePathStyleMismatch | None:
-    """Detect announcement image cache path style mismatches.
-
-    ``pathlib.Path("C:/dev/lingchu-bot")`` is a relative path on POSIX and an
-    absolute path on Windows. When a user copy-pastes a Windows path into a
-    Linux ``.env`` (for example after migrating from Windows to WSL2) the
-    cache files silently land under the project working directory and the
-    NapCat container can no longer read them. This helper flags that
-    condition so startup can emit a clear warning.
-
-    Returns a :class:`CachePathStyleMismatch` describing the values that
-    triggered the check, or ``None`` when the configuration is consistent.
-    Never raises.
-    """
-    if protocol_dir is None:
-        return None
-
-    cache_text = str(cache_dir)
-    protocol_text = protocol_dir
-
-    if system_type == "Linux" and (
-        _WINDOWS_DRIVE_PATTERN.match(cache_text)
-        or _WINDOWS_DRIVE_PATTERN.match(protocol_text)
-    ):
-        return CachePathStyleMismatch(
-            cache_dir=cache_text,
-            protocol_dir=protocol_text,
-            system_type=system_type,
-            detected_style="Windows",
-        )
-    if system_type == "Windows" and (
-        (cache_text.startswith("/") and not cache_text.startswith("//"))
-        or (protocol_text.startswith("/") and not protocol_text.startswith("//"))
-    ):
-        # POSIX absolute path on Windows (e.g. `/home/<user>/...`).
-        # A single leading `/` is a strong signal because Windows absolute
-        # paths always start with a drive letter; `\\...` UNC paths are
-        # intentionally excluded so we do not flag WSL2 UNC mounts.
-        return CachePathStyleMismatch(
-            cache_dir=cache_text,
-            protocol_dir=protocol_text,
-            system_type=system_type,
-            detected_style="POSIX",
-        )
-
-    return None
+    return plugin_config.cache_dir / "announcement_images"
 
 
 async def _cache_image_bytes(raw_bytes: bytes) -> AnnouncementImagePath:
@@ -129,10 +40,7 @@ async def _cache_image_bytes(raw_bytes: bytes) -> AnnouncementImagePath:
     cache_path = cache_dir / f"{md5}.png"
     async with aiofiles.open(cache_path, "wb") as f:
         await f.write(raw_bytes)
-    return AnnouncementImagePath(
-        local_path=cache_path,
-        protocol_path=_to_protocol_path(cache_path),
-    )
+    return AnnouncementImagePath(local_path=cache_path)
 
 
 async def _resolve_image_path(image: UniImage) -> AnnouncementImagePath | None:
@@ -144,10 +52,7 @@ async def _resolve_image_path(image: UniImage) -> AnnouncementImagePath | None:
     path = getattr(image, "path", None)
     if path is not None:
         local_path = Path(path)
-        return AnnouncementImagePath(
-            local_path=local_path,
-            protocol_path=_to_protocol_path(local_path),
-        )
+        return AnnouncementImagePath(local_path=local_path)
 
     url = getattr(image, "url", None)
     if url is not None:
