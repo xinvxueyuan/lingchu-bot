@@ -4,47 +4,85 @@ title: Project Introduction
 ---
 
 import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
+import { HeroSketchLoader } from "@/components/p5/hero-sketch-loader";
 
-## Lingchu Bot
+<div class="hero-banner">
+  <HeroSketchLoader client:load className="hero-canvas" />
+  <div class="hero-content">
+    <span class="hero-eyebrow">灵枢 · Lingchu Bot</span>
+    <h1 class="hero-title">A NoneBot2 group-management bot, breathed into life.</h1>
+    <p class="hero-tagline">
+      An application-side management bot built on NoneBot2. Core capabilities are
+      organized as plugins — group management, command handling, configuration,
+      local storage, and asynchronous data access — flowing through a single,
+      typed runtime.
+    </p>
+    <div class="hero-actions">
+      <a class="primary" href="/user-guide/quick-start">Quick Start</a>
+      <a class="ghost" href="/developer-guide/architecture/introduction">Architecture</a>
+    </div>
+  </div>
+</div>
 
-![Lingchu Bot documentation overview](/images/docs/lingchu-bot-home.webp)
+## Quick navigation
 
-Lingchu Bot is an application-side management bot project based on NoneBot2. It organizes core capabilities as plugins and currently focuses on group management, command handling, configuration, local storage, and asynchronous data access.
+<CardGrid class="hero-cards" stagger>
+  <Card icon="open-book" href="/user-guide/overview" title="User Guide">
+    Understand project status, runtime setup, and command capabilities.
+  </Card>
+  <Card icon="rocket" href="/user-guide/quick-start" title="Quick Start">
+    Install dependencies and choose plugin loading or Docker runtime.
+  </Card>
+  <Card icon="puzzle" href="/developer-guide/architecture/introduction" title="Developer Guide">
+    Understand project structure, architecture, and development workflow.
+  </Card>
+  <Card icon="document" href="/developer-guide/engineering/project-policy" title="Project Policy">
+    Contribution, security, license, and media redaction requirements.
+  </Card>
+</CardGrid>
+
+## Current capabilities
+
+<ul class="hero-features">
+  <li>
+    <b>NoneBot2 core</b>
+    <span>Plugin entrypoint with declared local plugin directories and adapters.</span>
+  </li>
+  <li>
+    <b>QQ group management</b>
+    <span>Mute, member management, announcements, kicks, and group profile updates.</span>
+  </li>
+  <li>
+    <b>OneBot V11 default</b>
+    <span>Single active adapter; Milky, QQ, and OneBot V12 are deprecated and removed.</span>
+  </li>
+  <li>
+    <b>Message storage</b>
+    <span>Optional event, processing, lifecycle, and API call summary recording.</span>
+  </li>
+  <li>
+    <b>TOML + ORM</b>
+    <span>localstore path management and async CRUD helpers across six backends.</span>
+  </li>
+  <li>
+    <b>i18n runtime</b>
+    <span>gettext / Babel catalogs for `zh_CN` and `en_US`.</span>
+  </li>
+  <li>
+    <b>Developer tooling</b>
+    <span>prek hooks, tests, and CI checks for general commands.</span>
+  </li>
+  <li>
+    <b>Extension room</b>
+    <span>Cross-platform and non-group-management features for later iterations.</span>
+  </li>
+</ul>
 
 <Aside type="caution" title="Project status">
 
 This project is still in pre-alpha / development. Code, configuration, command behavior, and documentation may continue to change. Do not treat the current interfaces as stable production APIs.
 
 </Aside>
-
-## Quick navigation
-
-<CardGrid>
-  <Card href="/user-guide/overview" title="User Guide">
-    Understand project status, runtime setup, and command capabilities
-  </Card>
-  <Card href="/user-guide/quick-start" title="Quick Start">
-    Install dependencies and choose plugin loading or Docker runtime
-  </Card>
-  <Card href="/developer-guide/architecture/introduction" title="Developer Guide">
-    Understand project structure, architecture, and development workflow
-  </Card>
-  <Card href="/developer-guide/engineering/project-policy" title="Project Policy">
-    Contribution, security, license, and media redaction requirements
-  </Card>
-</CardGrid>
-
-## Current capabilities
-
-- A core plugin entrypoint based on NoneBot2.
-- `pyproject.toml` declarations for local plugin directories, available adapters, and NoneBot dependency plugins.
-- Only one adapter is enabled for the QQ platform at a time; the default is `~onebot.v11`. Milky, QQ, and OneBot V12 are deprecated and fully removed.
-- Currently implemented and tested QQ group management handlers: member mute/unmute, whole-group mute/unmute, group profile updates, member management, announcements, kicks, and leaving a group.
-- Optional message storage for received events, processing status, bot lifecycle events, and platform API call summaries, with unknown adapters grouped under the `unknown` platform.
-- TOML local storage, NoneBot localstore path management, and ORM CRUD helpers.
-- gettext / Babel internationalization helpers with `zh_CN` and `en_US` catalogs.
-- Developer tooling for general commands, prek hooks, tests, and CI checks.
-- Extension room for later cross-platform and non-group-management features.
 
 ## Repository links
 

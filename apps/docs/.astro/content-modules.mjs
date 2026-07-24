@@ -80,3 +80,4 @@ export default new Map([
 ["src/content/docs/zh/user-guide/overview.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fzh%2Fuser-guide%2Foverview.mdx&astroContentModuleFlag=true")],
 ["src/content/docs/zh/user-guide/quick-start.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fzh%2Fuser-guide%2Fquick-start.mdx&astroContentModuleFlag=true")],
 ["src/content/docs/zh/user-guide/troubleshooting.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fzh%2Fuser-guide%2Ftroubleshooting.mdx&astroContentModuleFlag=true")]]);
+		

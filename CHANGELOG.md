@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Added
 
+- Docs site home hero: full-bleed p5.js "Organic Turbulence" flow-field
+  sketch with layered Perlin noise, steered particles, accumulating trails,
+  velocity-mapped color, and `prefers-reduced-motion` support.
+- Dependency-free shadcn-style `Badge` and `Alert` components for the docs
+  site, reading Starlight theme tokens and adapting to light/dark mode.
+- Global style polish for the docs site: accent-tinted selection color,
+  refined theme-aware scrollbars, hero banner layout, card hover glow,
+  feature grid, and inline code/block refinement.
+
 ### Changed
 
 - **Breaking:** replaced all Lingchu-owned JSON5 configuration and state files
