@@ -59,7 +59,7 @@ function DialogContent(props: React.ComponentProps<typeof DialogPrimitive.Conten
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overscroll-contain rounded-lg border bg-background p-6 shadow-lg sm:max-w-lg",
+          "fixed top-[50%] left-[50%] z-50 grid max-h-[85vh] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto overscroll-contain rounded-lg border bg-background p-6 shadow-lg sm:max-w-lg",
           props.className,
         )}
         {...props}

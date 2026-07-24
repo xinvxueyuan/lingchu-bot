@@ -19,6 +19,15 @@ export default defineConfig({
           tag: "meta",
           attrs: {
             name: "theme-color",
+            media: "(prefers-color-scheme: light)",
+            content: "#ffffff",
+          },
+        },
+        {
+          tag: "meta",
+          attrs: {
+            name: "theme-color",
+            media: "(prefers-color-scheme: dark)",
             content: "#0b0e14",
           },
         },
@@ -35,6 +44,13 @@ export default defineConfig({
             rel: "preconnect",
             href: "https://fonts.gstatic.com",
             crossorigin: "",
+          },
+        },
+        {
+          tag: "link",
+          attrs: {
+            rel: "stylesheet",
+            href: "https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap",
           },
         },
       ],

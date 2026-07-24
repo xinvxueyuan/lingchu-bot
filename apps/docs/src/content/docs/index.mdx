@@ -24,18 +24,24 @@ import { HeroSketchLoader } from "@/components/p5/hero-sketch-loader";
 
 ## See it in action
 
-```text title="QQ group management — sample commands"
-菜单                  # list available submenus
-成员管理              # member management submenu
-禁言 @user 10m        # mute a member for 10 minutes
-群发公告 内容 全部群   # broadcast announcement to all groups
-重启协议端            # restart the OneBot V11 protocol endpoint
+```text title="QQ group management — sample commands (en_US locale)"
+menu                        # list available submenus
+member-management           # member management submenu
+mute @user 10m              # mute a member for 10 minutes
+mass-announcement <content> all  # broadcast announcement to all groups
+restart-protocol-endpoint   # restart the OneBot V11 protocol endpoint
 ```
 
 <figure class="hero-proof">
   <figcaption>Message storage pipeline</figcaption>
 
-![Event, processing, lifecycle, and API call summaries flowing through async storage|960x498|loading=lazy](/images/docs/message-store-pipeline.webp)
+  <img
+    src="/images/docs/message-store-pipeline.webp"
+    alt="Event, processing, lifecycle, and API call summaries flowing through async storage"
+    width="960"
+    height="498"
+    loading="lazy"
+  />
 
 </figure>
 
