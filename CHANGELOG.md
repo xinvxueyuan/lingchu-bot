@@ -42,6 +42,14 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Fixed
 
+- Corrected project brand name from "灵枢" to "灵初" across docs site
+  (hero eyebrow, sketch concept, integration guide).
+- Fixed hero p5.js animation layout: Astro `client:load` wraps the island
+  in `<astro-island>`, breaking the `>` child selector; the canvas now
+  correctly overlays behind the hero content instead of sitting side-by-side.
+- Fixed quick-navigation cards being non-clickable: Starlight `Card` component
+  does not support `href`; cards are now wrapped in `<a>` tags for navigation.
+
 ### Security
 
 ## [0.0.1] - 2026-07-06

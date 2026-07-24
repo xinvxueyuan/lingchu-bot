@@ -6,7 +6,7 @@ import { P5Sketch } from "@/components/p5/p5-sketch";
  * Organic Turbulence — hero flow field for the Lingchu Bot docs.
  *
  * Algorithmic philosophy: see ORGANIC_TURBULENCE.md in this folder.
- * Conceptual seed: 灵枢 (Lingchu — "the spiritual pivot"). A fraction of
+ * Conceptual seed: 灵初 (Lingchu — "the spiritual pivot"). A fraction of
  * particles spawn along a few invisible sinusoidal meridian curves, so density
  * accumulates along them like vital channels. Those who know the etymology
  * feel it; everyone else sees organic turbulence.
@@ -34,7 +34,7 @@ const STEER_FORCE = 0.16;
 const FRICTION = 0.93;
 const SPEED_MAX = 2.4;
 const OCTAVES = 3; // layered Perlin noise
-const MERIDIAN_COUNT = 4; // invisible 灵枢 channels
+const MERIDIAN_COUNT = 4; // invisible 灵初 channels
 const MERIDIAN_FRACTION = 0.34; // share of respawns born along meridians
 
 /** Parse a CSS color string into an [r, g, b] tuple. Falls back to a sane default. */
@@ -113,7 +113,7 @@ const heroSketch = (p: p5) => {
     return (sum / norm) * p.TWO_PI * 2;
   };
 
-  /** Invisible 灵枢 meridian: a sinusoidal vertical channel at column k. */
+  /** Invisible 灵初 meridian: a sinusoidal vertical channel at column k. */
   const meridianX = (k: number, y: number): number => {
     const col = (k + 1) / (MERIDIAN_COUNT + 1);
     const baseX = col * p.width;

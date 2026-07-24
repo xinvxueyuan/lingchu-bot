@@ -11,7 +11,7 @@ restless motion of a thousand invisible agents. It is the visual thesis that
 beauty is not a frame, but a process; not an arrangement, but a field.
 
 The philosophy is seeded with a quiet, deliberate reference. *Lingchu*
-(灵枢) — "the spiritual pivot" — names both this project and a classical
+(灵初) — "the spiritual pivot" — names both this project and a classical
 treatise on the invisible channels through which vital energy circulates. The
 algorithm does not illustrate this; it embodies it. Particles are the unseen
 currents. The flow field is the meridian network. Where they converge and
