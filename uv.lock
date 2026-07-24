@@ -1327,12 +1327,12 @@ requires-dist = [
     { name = "nonebot-plugin-localstore", specifier = ">=0.7.4" },
     { name = "nonebot-plugin-orm", extras = ["aiosqlite"], specifier = ">=0.8.3" },
     { name = "nonebot2", extras = ["fastapi"], specifier = ">=2.5.0" },
-    { name = "nonebot2", extras = ["httpx"], specifier = ">=2.4.4" },
-    { name = "nonebot2", extras = ["websockets"], specifier = ">=2.4.4" },
-    { name = "openai", marker = "extra == 'ai'", specifier = ">=2.46.0" },
+    { name = "nonebot2", extras = ["httpx"], specifier = ">=2.5.0" },
+    { name = "nonebot2", extras = ["websockets"], specifier = ">=2.5.0" },
+    { name = "openai", marker = "extra == 'ai'", specifier = ">=2.48.0" },
     { name = "packaging", specifier = ">=26.2" },
     { name = "rtoml", specifier = ">=0.13.0" },
-    { name = "typer", specifier = ">=0.26.0" },
+    { name = "typer", specifier = ">=0.27.0" },
 ]
 provides-extras = ["ai", "novelai", "webui", "docs"]
 
@@ -1366,14 +1366,14 @@ dev = [
     { name = "pytest-timeout", specifier = ">=2.4.0" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "respx", specifier = ">=0.23.1" },
-    { name = "ruff", specifier = ">=0.15.22" },
-    { name = "ty", specifier = ">=0.0.61" },
+    { name = "ruff", specifier = ">=0.16.0" },
+    { name = "ty", specifier = ">=0.0.63" },
 ]
 git = [{ name = "prek", specifier = ">=0.4.10" }]
 lint = [
     { name = "pyright", specifier = ">=1.1.411" },
-    { name = "ruff", specifier = ">=0.15.22" },
-    { name = "ty", specifier = ">=0.0.61" },
+    { name = "ruff", specifier = ">=0.16.0" },
+    { name = "ty", specifier = ">=0.0.63" },
 ]
 script = [{ name = "poethepoet", specifier = ">=0.48.0" }]
 test = [
