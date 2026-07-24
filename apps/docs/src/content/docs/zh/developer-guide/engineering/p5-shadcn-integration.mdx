@@ -6,6 +6,9 @@ description: 在 MDX 内容中直接嵌入 p5.js 创意草图与 shadcn/ui 组�
 
 import { RingSketchDemo } from "@/components/p5/demos/ring-sketch-demo";
 import { ShadcnDialogDemo } from "@/components/ui/dialog-demo";
+import { BadgeAlertDemo } from "@/components/ui/badge-alert-demo";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 ## p5.js 与 shadcn 集成
 
@@ -22,6 +25,12 @@ Astro MDX 会把交互式 React 组件作为 island 水合。不要在 MDX 主�
 
 <RingSketchDemo client:load />
 
+## 首页 hero —— Organic Turbulence
+
+站点首页由全屏流场 hero 驱动，实现位于 `src/components/p5/hero-sketch.tsx`。其算法哲学记录于 `src/components/p5/ORGANIC_TURBULENCE.md` —— 分层 Perlin 噪声、循场而行的粒子、累积的轨迹、速度映射的色彩与缓慢的时间漂移。下方静态参考图呈现了该美学，首页则将其以实时动画渲染。
+
+![Organic Turbulence 静态美学参考](/images/docs/organic-turbulence.jpg)
+
 ## 编写注意事项
 
 - `sketch` prop 接收 p5 instance mode 回调 `(p: p5) => void`。不要自行调用 `new p5()`，`P5Sketch` 负责管理生命周期。
@@ -37,3 +46,42 @@ Astro MDX 会把交互式 React 组件作为 island 水合。不要在 MDX 主�
   title="主题桥接生效"
   description="本对话框使用 shadcn token（--color-background、--color-foreground），通过 @theme inline 从 Starlight 主题变量桥接而来。"
 />
+
+## Badge 与 Alert
+
+`Badge` 和 `Alert` 是无依赖的 shadcn 风格展示型组件。它们渲染为静态 HTML（无需 client directive），并读取 Starlight 主题 token，自动适配明暗模式。
+
+用 `Badge` 在正文中标注状态、版本或生命周期标签：
+
+<Badge variant="accent">启用中</Badge> <Badge variant="outline">v0.1.0</Badge> <Badge variant="destructive">已弃用</Badge>
+
+用 `Alert` 表达需要与 Starlight `Aside` 区分权重的提示：
+
+<Alert variant="accent">
+  <AlertTitle>适配器已选定</AlertTitle>
+  <AlertDescription>
+    OneBot V11 是默认且唯一启用的适配器，需通过 `LINGCHUAdapter` 显式切换。
+  </AlertDescription>
+</Alert>
+
+### 组合展示
+
+<BadgeAlertDemo />
+
+### 在 MDX 中引入
+
+```mdx
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+
+<Badge variant="accent">启用中</Badge>
+
+<Alert variant="destructive">
+  <AlertTitle>已弃用的适配器</AlertTitle>
+  <AlertDescription>
+    Milky、QQ、OneBot V12 已弃用并被完全移除。
+  </AlertDescription>
+</Alert>
+```
+
+`Badge` 的 `variant` 可选 `default`、`accent`、`outline`、`destructive`。`Alert` 的 `variant` 可选 `default`、`accent`、`destructive`，并可通过 `icon` prop 覆盖默认的 lucide 图标。

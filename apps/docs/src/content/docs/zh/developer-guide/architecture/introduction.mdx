@@ -4,6 +4,7 @@ title: 架构概览
 ---
 
 import { Aside, FileTree } from "@astrojs/starlight/components";
+import { Badge } from "@/components/ui/badge";
 
 ## 架构概览
 
@@ -137,6 +138,8 @@ Lingchu Bot 是一个以 NoneBot2 为基础的应用侧机器人项目。当前�
 ## 适配器状态
 
 插件按平台能力声明适配器，而不是把所有导入的具体适配器都视为可用。当前已实现 QQ 平台 profile，启动流程中仅 `~onebot.v11` 可用。其他适配器 ID（如 `~milky`、`~qq`、`~onebot.v12`）未实现；配置其中任何一个会以清晰的 `PlatformAdapterUnknownError` 退出。未配置时默认启用 OneBot V11。
+
+<Badge variant="accent">~onebot.v11</Badge> 启用中 <Badge variant="destructive">~milky</Badge> <Badge variant="destructive">~qq</Badge> <Badge variant="destructive">~onebot.v12</Badge> 已移除
 
 同一平台显式配置多个已知适配器会抛出 `PlatformAdapterConflictError`。Lingchu Bot 不控制 NoneBot 实际导入或注册哪些适配器；它只校验被选中的适配器已经由 NoneBot 加载/注册。未配置时默认选择 `~onebot.v11`，如果 OneBot V11 未加载会抛出 `PlatformAdapterNotLoadedError`。其他同平台适配器即使被导入或注册，也会被视为未启用，不参与平台识别、消息存储或 API 调用记录。`LINGCHUAdapter` 中显式声明 Lingchu 未实现或无法识别的适配器会启动失败；运行时额外出现的未知适配器不会被 `is_adapter_enabled()` 判定为已启用，消息存储会把它们归入统一的 `unknown` 平台。其他平台 profile 和非群管理能力以后续实现和测试为准。
 
