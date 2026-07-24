@@ -206,7 +206,7 @@ class PublicHttpsImageFetcher:
             if not _addresses_are_public(addresses):
                 raise _DnsChangedError
             connect_url, host_header, sni_hostname = _pinned_request(
-                current, sorted(addresses)[0]
+                current, min(addresses)
             )
             try:
                 async with client.stream(

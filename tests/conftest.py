@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib
 import inspect
 import os
@@ -32,7 +33,7 @@ _WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "master")
 _LOCALSTORE_ROOT = Path(".pytest-localstore") / _WORKER_ID
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import AsyncIterator, Callable, Generator
 
     from _pytest.mark.structures import MarkDecorator
     from nonebot.drivers import Driver
@@ -188,6 +189,63 @@ def pytest_unconfigure(config: pytest.Config) -> None:
     except ValueError:
         return
     nonebot._driver = None
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """Dispose ORM async engines so sqlite3 pool connections close cleanly.
+
+    Prevents ``ResourceWarning: unclosed database in <sqlite3.Connection>``
+    emitted at interpreter shutdown when aiosqlite pool connections are left
+    open. Engine disposal closes the connection pool without resetting the
+    NoneBot driver or SQLAlchemy MetaData, so the table-redefinition
+    avoidance in ``pytest_unconfigure`` is preserved.
+
+    Args:
+        session: The pytest session object.
+        exitstatus: The exit status of the test run.
+
+    """
+    _ = session, exitstatus
+    try:
+        nonebot.get_driver()
+    except ValueError:
+        return
+    try:
+        import nonebot_plugin_orm as orm
+    except ImportError:
+        return
+    engines: dict[str, Any] | None = getattr(orm, "_engines", None)
+    if not engines:
+        return
+    import asyncio
+
+    async def _dispose_all() -> None:
+        for engine in list(engines.values()):
+            await engine.dispose()
+
+    # If disposal fails (e.g. event-loop binding issues with aiosqlite),
+    # fall through to pytest_unconfigure; the warning is non-fatal.
+    with contextlib.suppress(Exception):
+        asyncio.run(_dispose_all())
+
+
+@pytest.fixture(autouse=True)
+async def _cleanup_orm_scoped_session() -> AsyncIterator[None]:
+    """Remove scoped ORM sessions after each test to prevent connection leaks.
+
+    ``nonebot_plugin_orm`` registers ``run_postprocessor(_scoped_sessions.remove)``
+    which only fires for real NoneBot matcher invocations. Tests that call
+    handlers directly or use ``get_session()`` leave scoped sessions (and their
+    aiosqlite connections) open, which triggers ``ResourceWarning`` when the
+    garbage collector runs between tests.
+    """
+    yield
+    with contextlib.suppress(Exception):
+        import nonebot_plugin_orm as orm
+
+        scoped = getattr(orm, "_scoped_sessions", None)
+        if scoped is not None:
+            await scoped.remove()
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:

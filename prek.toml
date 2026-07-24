@@ -3,7 +3,8 @@ exclude = '''(?x)^(
   \.agents/skills/|
   \.claude/skills/|
   \.trae/skills/|
-  \.vscode/
+  \.vscode/|
+  apps/docs/\.astro/
 )'''
 
 [[repos]]

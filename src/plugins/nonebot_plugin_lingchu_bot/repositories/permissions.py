@@ -105,7 +105,7 @@ async def upsert_identity_group(
     platform_id: str,
     display_name: str,
     parent_group_id: str | None = None,
-    mcp_permission_level: MCPPermissionLevel | None | object = _MCP_PERMISSION_UNSET,
+    mcp_permission_level: MCPPermissionLevel | object | None = _MCP_PERMISSION_UNSET,
     builtin: bool = False,
     managed_by: str | None = None,
 ) -> PlatformIdentityGroup:
