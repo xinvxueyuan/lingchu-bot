@@ -29,10 +29,34 @@ test("p5 React island renders a canvas without console errors", async ({ page })
   expect(errors).toEqual([]);
 });
 
+test("home hero flow-field renders a canvas behind the hero content", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("/");
+
+  // The hero banner wraps the canvas and the hero content.
+  await expect(page.locator(".hero-banner")).toBeVisible();
+  await expect(page.locator(".hero-banner .hero-title")).toBeVisible();
+  await page.waitForSelector(".hero-banner canvas", { timeout: 10_000 });
+  await expect(page.locator(".hero-banner canvas")).toBeVisible();
+
+  expect(errors).toEqual([]);
+});
+
 test("shadcn dialog React island opens in MDX", async ({ page }) => {
   await page.goto("/developer-guide/engineering/p5-shadcn-integration/");
 
   await page.getByRole("button", { name: "Open Dialog" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await expect(page.getByText("Theme Bridge Works")).toBeVisible();
+});
+
+test("shadcn badge and alert render as static content in MDX", async ({ page }) => {
+  await page.goto("/developer-guide/engineering/p5-shadcn-integration/");
+
+  // Badge renders inline with a data-slot attribute.
+  await expect(page.locator('[data-slot="badge"]').first()).toBeVisible();
+  // Alert renders as a note region with a title. "Adapter selected" appears in
+  // both the inline example and the BadgeAlertDemo, so scope to the first alert.
+  await expect(page.locator('[data-slot="alert"]').first()).toBeVisible();
+  await expect(page.locator('[data-slot="alert"]').first().getByText("Adapter selected")).toBeVisible();
 });

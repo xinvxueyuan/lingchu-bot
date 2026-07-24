@@ -6,6 +6,9 @@ description: Embed creative p5.js sketches and shadcn/ui components directly in 
 
 import { RingSketchDemo } from "@/components/p5/demos/ring-sketch-demo";
 import { ShadcnDialogDemo } from "@/components/ui/dialog-demo";
+import { BadgeAlertDemo } from "@/components/ui/badge-alert-demo";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 ## p5.js & shadcn Integration
 
@@ -22,6 +25,12 @@ The sketch below is implemented in `src/components/p5/demos/ring-sketch-demo.tsx
 
 <RingSketchDemo client:load />
 
+## Home hero — Organic Turbulence
+
+The site home page is fronted by a full-bleed flow-field hero driven by `src/components/p5/hero-sketch.tsx`. Its algorithmic philosophy is documented in `src/components/p5/ORGANIC_TURBULENCE.md` — layered Perlin noise, steered particles, accumulating trails, velocity-mapped color, and a slow temporal drift. The static reference below captures the aesthetic; the home page renders it live.
+
+![Organic Turbulence — static aesthetic reference](/images/docs/organic-turbulence.jpg)
+
 ## Authoring Notes
 
 - The `sketch` prop accepts a p5 instance-mode callback `(p: p5) => void`. Do not call `new p5()` yourself — `P5Sketch` owns the lifecycle.
@@ -32,3 +41,42 @@ The sketch below is implemented in `src/components/p5/demos/ring-sketch-demo.tsx
 ## shadcn/ui Dialog Demo
 
 <ShadcnDialogDemo client:load />
+
+## Badge & Alert
+
+`Badge` and `Alert` are dependency-free, shadcn-style presentational components. They render to static HTML (no client directive needed) and read Starlight theme tokens, so they adapt to light/dark mode automatically.
+
+Use `Badge` for compact status, version, or lifecycle labels inline with prose:
+
+<Badge variant="accent">active</Badge> <Badge variant="outline">v0.1.0</Badge> <Badge variant="destructive">deprecated</Badge>
+
+Use `Alert` for callouts that need a different visual weight than Starlight's `Aside`:
+
+<Alert variant="accent">
+  <AlertTitle>Adapter selected</AlertTitle>
+  <AlertDescription>
+    OneBot V11 is the default and only active adapter. Switching is explicit through `LINGCHUAdapter`.
+  </AlertDescription>
+</Alert>
+
+### Combined showcase
+
+<BadgeAlertDemo />
+
+### Importing in MDX
+
+```mdx
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+
+<Badge variant="accent">active</Badge>
+
+<Alert variant="destructive">
+  <AlertTitle>Deprecated adapters</AlertTitle>
+  <AlertDescription>
+    Milky, QQ, and OneBot V12 are deprecated and fully removed.
+  </AlertDescription>
+</Alert>
+```
+
+`Badge` accepts `variant` of `default`, `accent`, `outline`, or `destructive`. `Alert` accepts `default`, `accent`, or `destructive`, plus an optional `icon` prop to override the default lucide icon.

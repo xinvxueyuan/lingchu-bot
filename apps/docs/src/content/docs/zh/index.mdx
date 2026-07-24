@@ -4,47 +4,84 @@ title: 项目介绍
 ---
 
 import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
+import { HeroSketchLoader } from "@/components/p5/hero-sketch-loader";
 
-## Lingchu Bot
+<div class="hero-banner">
+  <HeroSketchLoader client:load className="hero-canvas" />
+  <div class="hero-content">
+    <span class="hero-eyebrow">灵枢 · Lingchu Bot</span>
+    <h1 class="hero-title">基于 NoneBot2 的群管理机器人，呼吸而至。</h1>
+    <p class="hero-tagline">
+      一个基于 NoneBot2 的应用侧管理机器人项目。核心能力以插件形式组织——
+      群管理、命令处理、配置管理、本地存储与异步数据访问——
+      流经同一套带类型的运行时。
+    </p>
+    <div class="hero-actions">
+      <a class="primary" href="/zh/user-guide/quick-start">快速开始</a>
+      <a class="ghost" href="/zh/developer-guide/architecture/introduction">架构总览</a>
+    </div>
+  </div>
+</div>
 
-![Lingchu Bot 文档概览](/images/docs/lingchu-bot-home.webp)
+## 快速导航
 
-Lingchu Bot 是一个基于 NoneBot2 的应用侧管理机器人项目。它以插件形式组织核心能力，面向群管理、命令处理、配置管理、本地存储和异步数据访问等场景。
+<CardGrid class="hero-cards" stagger>
+  <Card icon="open-book" href="/zh/user-guide/overview" title="用户指南">
+    了解项目状态、运行方式和命令能力。
+  </Card>
+  <Card icon="rocket" href="/zh/user-guide/quick-start" title="快速开始">
+    安装依赖并选择插件加载或 Docker 运行方式。
+  </Card>
+  <Card icon="puzzle" href="/zh/developer-guide/architecture/introduction" title="开发指南">
+    理解项目结构、架构和开发流程。
+  </Card>
+  <Card icon="document" href="/zh/developer-guide/engineering/project-policy" title="项目政策">
+    查看贡献、安全、许可和媒体脱敏要求。
+  </Card>
+</CardGrid>
+
+## 当前能力
+
+<ul class="hero-features">
+  <li>
+    <b>NoneBot2 核心</b>
+    <span>插件入口，声明本地插件目录与适配器。</span>
+  </li>
+  <li>
+    <b>QQ 群管理</b>
+    <span>禁言、成员管理、群公告、踢人与群资料设置。</span>
+  </li>
+  <li>
+    <b>OneBot V11 默认</b>
+    <span>同一时间只启用一个适配器；Milky、QQ、OneBot V12 已弃用并移除。</span>
+  </li>
+  <li>
+    <b>消息存储</b>
+    <span>可选的事件、处理状态、生命周期与 API 调用摘要记录。</span>
+  </li>
+  <li>
+    <b>TOML + ORM</b>
+    <span>localstore 路径管理与跨六后端的异步 CRUD 辅助。</span>
+  </li>
+  <li>
+    <b>i18n 运行时</b>
+    <span>gettext / Babel 目录，覆盖 `zh_CN` 与 `en_US`。</span>
+  </li>
+  <li>
+    <b>开发者工具</b>
+    <span>prek 钩子、测试与 CI 检查流程。</span>
+  </li>
+  <li>
+    <b>扩展空间</b>
+    <span>为后续跨平台与非群管理功能预留。</span>
+  </li>
+</ul>
 
 <Aside type="caution" title="项目状态">
 
 本项目仍处于 pre-alpha / development 阶段。当前代码、配置、命令行为和文档都可能继续调整，请不要把现有接口视为稳定生产接口。
 
 </Aside>
-
-## 快速导航
-
-<CardGrid>
-  <Card href="/zh/user-guide/overview" title="用户指南">
-    了解项目状态、运行方式和命令能力
-  </Card>
-  <Card href="/zh/user-guide/quick-start" title="快速开始">
-    安装依赖并选择插件加载或 Docker 运行方式
-  </Card>
-  <Card href="/zh/developer-guide/architecture/introduction" title="开发指南">
-    理解项目结构、架构和开发流程
-  </Card>
-  <Card href="/zh/developer-guide/engineering/project-policy" title="项目政策">
-    查看贡献、安全、许可和媒体脱敏要求
-  </Card>
-</CardGrid>
-
-## 当前能力
-
-- 基于 NoneBot2 的核心插件入口。
-- 通过 `pyproject.toml` 声明本地插件目录、可用适配器和 NoneBot 依赖插件。
-- QQ 平台同一时间只启用一个适配器；默认选择 `~onebot.v11`。Milky、QQ 和 OneBot V12 已弃用并被完全移除。
-- 当前已实现并测试覆盖的 QQ 群管理处理器：成员禁言/解禁、全体禁言/解禁、群资料设置、成员管理、群公告、踢人和退群。
-- 可选消息存储：记录事件接收、处理状态、Bot 生命周期和平台 API 调用摘要，并把未知适配器归入 `unknown` 平台。
-- TOML 本地存储、NoneBot localstore 路径管理和 ORM CRUD 辅助能力。
-- gettext / Babel 国际化辅助，当前包含 `zh_CN` 与 `en_US` 目录。
-- 面向开发者的 prek 钩子、测试和 CI 检查流程。
-- 面向后续迭代的跨平台和非群管理功能扩展空间。
 
 ## 仓库链接
 
