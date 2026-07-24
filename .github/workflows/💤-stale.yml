@@ -1,0 +1,83 @@
+name: 💤 Stale
+
+on:
+  schedule:
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stale
+  cancel-in-progress: false
+
+jobs:
+  stale:
+    name: 💤 Mark and close stale issues
+    runs-on: ubuntu-latest
+    # 标记、评论并关闭陈旧 issue 需要 issues: write（亦用于幂等创建标签）。
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Ensure stale and pinned labels exist
+        # pinned from actions/github-script@v9.0.0
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const { data: labels } = await github.rest.issues.listLabelsForRepo({
+              owner,
+              repo,
+              per_page: 100,
+            });
+            const existing = new Set(labels.map((l) => l.name));
+            const desired = [
+              { name: 'stale', color: 'fbca04', description: 'Issue has had no activity for 14 days' },
+              { name: 'pinned', color: '5319e7', description: 'Pinned issue — exempt from stale automation' },
+            ];
+            for (const l of desired) {
+              if (existing.has(l.name)) {
+                core.info(`Label "${l.name}" already exists`);
+              } else {
+                await github.rest.issues.createLabel({ owner, repo, ...l });
+                core.info(`Created label "${l.name}"`);
+              }
+            }
+
+      - name: Mark and close stale issues
+        # pinned from actions/stale@v10.3.0
+        uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899
+        with:
+          operations-per-run: 100
+          # 仅处理 issues；PR 完全禁用。
+          days-before-issue-stale: 14
+          days-before-issue-close: 7
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+          stale-issue-label: stale
+          remove-stale-when-updated: true
+          # 豁免标签（命中其一即不标记 stale）：
+          #   pinned            手动保护（.github/labeler.yml 中的保留名）
+          #   needs-more-info   由 no-response app 拥有（14 天后关闭），避免双 bot 冲突
+          #   good first issue  新人友好
+          #   help wanted       维护者请求协助
+          #   top issues / top bugs / top features  热门高反应 issue（top-issues-action 生成）
+          exempt-issue-labels: "pinned,needs-more-info,good first issue,help wanted,top issues,top bugs,top features"
+          stale-issue-message: |-
+            💤 这个 issue 已经 14 天没有活动，已被标记为 **stale（陈旧）**。
+            如果 7 天内仍无活动，它将被自动关闭。
+
+            发布新评论会移除陈旧标签并重新计时，从而保持活跃。
+
+            This issue has been inactive for 14 days and is marked **stale**.
+            It will be automatically closed in 7 days if no further activity occurs.
+            Adding a new comment removes the stale label and keeps the issue active.
+          close-issue-message: |-
+            🔒 这个 issue 因持续无活动已被自动关闭。如果是误关或问题仍然存在，请重新打开或新建一个 issue。
+
+            This issue has been automatically closed due to prolonged inactivity.
+            If it was closed by mistake or the problem persists, please reopen it
+            or open a new issue.
