@@ -78,5 +78,10 @@ const heroSketch = (p: p5) => {
 };
 
 export function HeroSketch({ className }: { className?: string }) {
-  return <P5Sketch sketch={heroSketch} {...(className ? { className } : {})} />;
+  return (
+    <P5Sketch
+      sketch={heroSketch}
+      {...(className ? { className } : {})}
+    />
+  );
 }

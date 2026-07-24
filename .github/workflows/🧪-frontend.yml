@@ -87,14 +87,10 @@ jobs:
       - name: ESLint
         # 对齐 pre-commit v3 NEEDS_LINT：代码/样式/配置/MDX 内容变更触发（纯 .json 内容跳过）
         if: needs.changes.outputs.frontend-code == 'true' || needs.changes.outputs.frontend-style == 'true' || needs.changes.outputs.frontend-mdx == 'true'
-        run: pnpm turbo run lint
+        run: pnpm --filter docs lint
       - name: Type Check
-        # 对齐 pre-commit v3 NEEDS_TYPE_CHECK：任意前端变更触发（fumadocs-mdx 重新生成类型，CSS Modules 可能影响类型）
-        run: pnpm turbo run check-types
-      - name: Link Validation
-        # 内容变更（.mdx）可能引入新链接，需校验
-        if: needs.changes.outputs.frontend-content == 'true'
-        run: pnpm --filter docs lint:links
+        # 对齐 pre-commit v3 NEEDS_TYPE_CHECK：任意前端变更触发（Astro content collections 和 CSS 可能影响类型）
+        run: pnpm --filter docs check-types
       - name: Test
         # 对齐 pre-commit v3 NEEDS_DOCS_TEST：代码/内容/配置变更触发（纯 .css 样式跳过）
         if: needs.changes.outputs.frontend-code == 'true' || needs.changes.outputs.frontend-content == 'true'

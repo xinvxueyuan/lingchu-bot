@@ -1,7 +1,0 @@
-{
-  "title": "Configuration",
-  "description": "Runtime settings, environment variables, and adapter selection",
-  "icon": "Settings",
-  "root": true,
-  "pages": ["index", "environment-variables", "adapter-selection", "superuser", "inbound-mcp-server"]
-}

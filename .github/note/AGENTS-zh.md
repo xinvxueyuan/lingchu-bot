@@ -32,7 +32,7 @@
 Lingchu Bot 是基于 NoneBot2 的群管理机器人。Monorepo 包含：
 
 - Python 后端插件：`src/plugins/nonebot_plugin_lingchu_bot/`
-- Next.js 文档站：`apps/docs/`
+- Astro Starlight 文档站：`apps/docs/`
 - 项目本地 skills（单一来源）：`.agents/skills/`
   - `.claude/skills/` 和 `.trae/skills/` 是指向 `.agents/skills/` 的**整目录软链**，让 Codex、Trae、Claude Code 三家代理读同一套 skill；在 `.agents/skills/` 增删 skill 三个代理同时生效。
 - 中文 agent 指南镜像：`.github/note/AGENTS-zh.md`
@@ -40,7 +40,7 @@ Lingchu Bot 是基于 NoneBot2 的群管理机器人。Monorepo 包含：
 
 构建或包分发所需内容必须位于 `src/plugins/nonebot_plugin_lingchu_bot/` 下。仓库根目录的 `config/`、`data/` 等运行时/配置文件是本地开发产物，可丢弃。
 
-不要在本文件维护手写完整目录树。需要当前结构时使用 `rg --files`、GitNexus，或查看 `apps/docs/content/docs/developer-guide/`。
+不要在本文件维护手写完整目录树。需要当前结构时使用 `rg --files`、GitNexus，或查看 `apps/docs/src/content/docs/developer-guide/`。
 
 ## Tech Stack
 
@@ -55,12 +55,12 @@ Python 后端：
 
 文档站：
 
-- Next.js 16、Fumadocs 16 static export、React 19、Tailwind CSS 4、TypeScript 6
-- `shadcn/ui`（组件源码位于 `apps/docs/src/components/ui/`，通过 `@theme inline` 桥接与 Fumadocs UI 共享 Tailwind v4 主题）
+- Astro、Starlight static export、React 19、Tailwind CSS 4、TypeScript 6
+- `shadcn/ui`（组件源码位于 `apps/docs/src/components/ui/`，通过 `@theme inline` 桥接与 Starlight 共享 Tailwind v4 主题）
 - `p5.js`（instance mode，封装于 `src/components/p5/`，通过客户端 demo 组件支持 MDX 内嵌与首页 hero 动效）
 - Vitest、Testing Library、ESLint、Playwright
-- i18n、RSS、Mermaid、Twoslash、EPUB 导出、`/llms.txt`、`/llms-full.txt`、文档关系图
-- 所有 server components、route handlers、lib functions 都是 async
+- i18n、Starlight/Pagefind search、sitemap、Mermaid、Twoslash
+- Starlight content collections 负责 docs routing、sidebar 和本地化静态输出
 - Turborepo workspace，包管理器为 `pnpm`
 
 ## R — Role
@@ -118,7 +118,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 - **Python 静态检查**：Ruff 规则族包括 F, W, E, I, C90, N, PL, UP, YTT, ANN, ASYNC, BLE, FBT, B, A, COM, C4, D, DTZ, T10, ICN, PIE, T20, PYI, Q, RSE, RET, SIM, SLOT, TID, TC, ARG, PTH, FAST, PERF, PGH, FURB, TRY, RUF。
 - **Python 类型检查**：Pyright `standard` 模式 + ty（Astral，快速反馈）。两者均在 CI 中运行。
 - **前端格式化**：Prettier（`.prettierrc.json`）用于 JS/TS/TSX/CSS/JSON。Markdown 文件被排除 — `markdownlint-cli2` 负责 `.md`，`eslint-plugin-mdx` 负责 `.mdx`（双 linter 策略）。
-- **前端检查**：ESLint 10 flat config。`apps/docs` 使用 `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript` + `eslint-plugin-mdx`。`eslint-config-prettier` 作为最后一项追加，禁用与 Prettier 冲突的格式化规则。
+- **前端检查**：ESLint 10 flat config。`apps/docs` 使用 Astro/Starlight-aware TypeScript 和 MDX linting。`eslint-config-prettier` 作为最后一项追加，禁用与 Prettier 冲突的格式化规则。
 - **TypeScript**：TS 6，`strict: true`，`target: ES2025`，`module: ESNext`，`moduleResolution: Bundler`（在 `packages/typescript-config/base.json` 中）。
 - **工具版本**：ruff>=0.15.22, pyright>=1.1.411, ty>=0.0.61, prek>=0.4.10, ESLint 10.x, TypeScript 6.x。
 - **格式化工作流**：`task format` 运行 Ruff format → Prettier → markdownlint --fix。`task fix` 运行 Ruff check --fix → Ruff format → Prettier → ty check --fix → markdownlint --fix。
@@ -138,8 +138,8 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 
 ### Architecture Decisions
 
-- Docs route handlers、server components、`baseOptions()`、`buildGraph()`、`getRSS()` 返回 Promise。
-- Docs i18n 使用 `hideLocale: 'default-locale'`；默认英文 URL 不带 `/en/`。
+- Docs i18n 使用 Starlight root locale 作为英文；默认英文 URL 不带 `/en/`。
+- Docs build output 是 `apps/docs/dist`；CI、Pages upload 和 smoke tests 必须消费该目录。
 - Client components 使用 `useSyncExternalStore` 处理 mount detection，不使用 `useState` + `useEffect`。
 - GitNexus 是代码智能和影响分析层；其生成上下文块由 CLI 拥有。
 - 平台默认身份组位于 `platforms/qq/permissions.py` 等平台模块；core permissions 消费 seeds 和 runtime resolvers，但不硬编码平台角色树。
@@ -166,7 +166,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 | Source              | `src/plugins/nonebot_plugin_lingchu_bot/`                                |
 | Tests               | `tests/`                                                                 |
 | i18n                | `src/plugins/nonebot_plugin_lingchu_bot/i18n/`；用户可见字符串变化时运行 `task i18n`  |
-| Docs                | `apps/docs/content/docs/`                                                |
+| Docs                | `apps/docs/src/content/docs/`                                                |
 | Menu                | `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py`                  |
 | Runtime config      | NoneBot 部署环境、localstore `runtime-overrides.toml`、`bot_state.toml`、`menu.toml` 与 `_lingchu_bot_contracts/` |
 | Handle config files | `handle_config_defaults/<command>.py`（MUST 声明 `pydantic.BaseModel` 子类并通过 `register_handle_defaults()` 注册）、localstore config\_dir 中的 `<command_key>.toml` |
@@ -271,12 +271,8 @@ Docs:
 ```bash
 pnpm --filter docs lint
 pnpm --filter docs test
-pnpm --filter docs run test:e2e:hook
-pnpm --filter docs run test:e2e
-pnpm turbo run check-types
-pnpm --filter docs exec tsc --noEmit
-pnpm --filter docs dev
-pnpm turbo run build --filter=docs
+pnpm --filter docs check-types
+pnpm --filter docs build
 ```
 
 Project:
@@ -295,7 +291,7 @@ task ci
 | 变更              | 提交前最低检查                                                                                                                                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 仅 Python source | Ruff check + Ruff format check + Pyright strict + ty strict（`uv run -m ty check --output-format github`）+ relevant pytest                                                                                |
-| 仅 docs site     | `pnpm --filter docs lint`（通过 ESLint flat config + eslint-plugin-mdx 覆盖 `.ts/.tsx/.mdx`；type-aware 规则经 `projectService` 启用）+ docs tests + Playwright hook smoke + docs type check + content 变更时 link lint + `src/components/p5/` 或 `src/components/ui/` 改动时运行 Vitest |
+| 仅 docs site     | `pnpm --filter docs lint`（通过 ESLint/Astro/MDX config 覆盖 `.ts/.tsx/.astro/.mdx`）+ docs tests + docs type check + docs build + Playwright hook smoke + `src/components/p5/` 或 `src/components/ui/` 改动时运行 Vitest |
 | 仅 Markdown      | `pnpm exec markdownlint-cli2`                                                                                                                                                                            |
 | i18n strings    | `task i18n` + relevant pytest                                                                                                                                                                            |
 | 基础设施配置          | `docker compose config` + `prek run --all-files` + `task ci:typecheck`                                                                                                                                   |
@@ -394,15 +390,15 @@ task ci
 #### Docs Site And Frontend
 
 - `eslint-plugin-react@7.x` 与 ESLint 10 不兼容；pin ESLint 9 或迁移到 `@eslint-react/eslint-plugin`。
-- `eslint-plugin-mdx@3.8.1` 通过三层配置集成 MDX lint 到 `apps/docs/eslint.config.mjs`：`mdx.flat`（解析器 + `mdx/*` 规则）、`mdx.createRemarkProcessor({ lintCodeBlocks: true })`（代码块 lint）、`mdx.flatCodeBlocks`（代码块规则）。`peerDependencies: { eslint: ">=8.0.0" }` 与 ESLint 10 兼容。代码块规则 MUST 关闭所有 `react/*` 与 `@next/*` 规则（通过 `files: ['**/*.{md,mdx}/**']` 收窄范围），避免 `vercel/next.js#89764` 的 `TypeError: contextOrFilename.getFilename is not a function` 在虚拟文件上崩溃。`.remarkrc.json` MUST 将 `remark-frontmatter` 排在 lint 预设之前，否则 frontmatter 的 `---` 分隔符会被误判为 setext H2 下划线，产生 `remark-lint-heading-style` 假阳性（基线 306 条 warning，添加 `remark-frontmatter` 后全部消除）。双 markdown linter 政策：`markdownlint-cli2` 覆盖 `.md`；`eslint-plugin-mdx` 覆盖 `.mdx`（无重叠）。pre-commit hook 使用独立 `HAS_DOCS_MDX` flag（通过 `^apps/docs/.*\.mdx$` 匹配），CI 使用独立 `frontend-mdx` 输出 flag，均收窄范围以避免 `.json` 内容变更误触发 ESLint。
+- `apps/docs` 使用 Astro/Starlight-aware lint 和 type checks。MDX lint 保持收窄到 docs content，`.astro` 文件由 docs lint script 覆盖，并由 `astro check` 在 build 前验证 Starlight content collections。双 markdown linter 政策保持：`markdownlint-cli2` 覆盖 `.md`；docs ESLint/MDX tooling 覆盖 `.mdx`（无重叠）。
 - MDX 表格 cell 不能在 inline code 中包含裸 `|`，例如 `<群号|群名称>`；改用 `<群号或群名称>`。
-- Fumadocs link validation 中，root index pages 的相对链接需要改为 absolute URLs。
-- 导入 `src/lib/source.ts` 的 Vitest 测试需要 mock `collections/server`。
+- Starlight root-locale 页面发布时不带 `/en/`；内部链接使用与 Astro 生成路由匹配的 root-relative URLs。
+- 触碰 docs routing helper 的 Vitest 测试需要 mock Starlight/Astro content collection imports。
 - 测试需要导入的共享函数应从 component file 中抽到独立模块。
 - Component file 导出 utility 可能破坏 React Fast Refresh；移到非 component module。
-- `/llms.txt` 是 route handler；内部链接使用 Next.js `Link`。
+- Starlight/Pagefind search output 在 docs build 时生成；CI smoke tests 必须 serve `apps/docs/dist`。
 - Docker 服务不要占用 Playwright webServer 的 `3100` 端口；使用 `6100:3000` 等 CI 范围外端口。
-- `next typegen` 在首次 `fumadocs-mdx` 之后可能把 `apps/docs/.source/server.ts`（和 `browser.ts`）清空为 0 字节。`docs:check-types` 脚本 MUST 在 `next typegen` 之后再跑一次 `fumadocs-mdx` 以重新填充 collections 导出，否则 `tsc --noEmit` 会报 `TS2305: Module '"collections/server"' has no exported member 'docs'`。使用 `fumadocs-mdx && next typegen && fumadocs-mdx && tsc --noEmit`。
+- `docs:check-types` 应直接运行 Astro/Starlight 类型验证；不要重新引入旧文档生成或框架 typegen steps。
 
 #### Database And Runtime Files
 

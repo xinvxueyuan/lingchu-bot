@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (8566 symbols, 15076 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (8285 symbols, 14604 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -79,7 +79,7 @@ When editing this file, follow DRY and SMAR/TL:
 Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains:
 
 - Python backend plugin: `src/plugins/nonebot_plugin_lingchu_bot/`
-- Next.js documentation site: `apps/docs/`
+- Astro Starlight documentation site: `apps/docs/`
 - Project-local skills (single source of truth): `.agents/skills/`
   - `.claude/skills/` and `.trae/skills/` are **whole-directory symlinks** to `.agents/skills/`, so Codex, Trae, and Claude Code all read from the same set; add or update a skill in `.agents/skills/` and all three agents see it.
 - Chinese agent guide mirror: `.github/note/AGENTS-zh.md`
@@ -87,7 +87,7 @@ Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains:
 
 Anything required for build or package distribution must live under `src/plugins/nonebot_plugin_lingchu_bot/`. Repository-root runtime/config files such as `config/` and `data/` are local development artifacts and disposable.
 
-Do not maintain a hand-written full repository tree in this file. Use `rg --files`, GitNexus, or docs under `apps/docs/content/docs/developer-guide/` for current structure.
+Do not maintain a hand-written full repository tree in this file. Use `rg --files`, GitNexus, or docs under `apps/docs/src/content/docs/developer-guide/` for current structure.
 
 ## Tech Stack
 
@@ -102,12 +102,12 @@ Python backend:
 
 Docs site:
 
-- Next.js 16, Fumadocs 16 static export, React 19, Tailwind CSS 4, TypeScript 6
-- `shadcn/ui` (component sources in `apps/docs/src/components/ui/`, sharing Tailwind v4 theme with Fumadocs UI via `@theme inline` bridge)
+- Astro, Starlight static export, React 19, Tailwind CSS 4, TypeScript 6
+- `shadcn/ui` (component sources in `apps/docs/src/components/ui/`, sharing Tailwind v4 theme with Starlight via `@theme inline` bridge)
 - `p5.js` (instance mode, wrapped by `src/components/p5/`, supports MDX inline demos via client wrapper and home hero animation)
 - Vitest, Testing Library, ESLint, Playwright
-- i18n, RSS, Mermaid, Twoslash, EPUB export, `/llms.txt`, `/llms-full.txt`, document graph
-- All server components, route handlers, and lib functions are async
+- i18n, Starlight/Pagefind search, sitemap, Mermaid, Twoslash
+- Starlight content collections own docs routing, sidebar, and localized static output
 - Turborepo workspace using `pnpm`
 
 ## R — Role
@@ -166,7 +166,7 @@ The project enforces a unified code style across Python and frontend workspaces:
 - **Python linting**: Ruff with rule families F, W, E, I, C90, N, PL, UP, YTT, ANN, ASYNC, BLE, FBT, B, A, COM, C4, D, DTZ, T10, ICN, PIE, T20, PYI, Q, RSE, RET, SIM, SLOT, TID, TC, ARG, PTH, FAST, PERF, PGH, FURB, TRY, RUF.
 - **Python type checking**: Pyright `standard` mode + ty (Astral, fast feedback). Both run in CI.
 - **Frontend formatting**: Prettier (`.prettierrc.json`) for JS/TS/TSX/CSS/JSON. Markdown files are excluded — `markdownlint-cli2` owns `.md`, `eslint-plugin-mdx` owns `.mdx` (dual-linter policy).
-- **Frontend linting**: ESLint 10 flat config. `apps/docs` uses `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript` + `eslint-plugin-mdx`. `eslint-config-prettier` is appended last to disable formatting rules that conflict with Prettier.
+- **Frontend linting**: ESLint 10 flat config. `apps/docs` uses Astro/Starlight-aware TypeScript and MDX linting. `eslint-config-prettier` is appended last to disable formatting rules that conflict with Prettier.
 - **TypeScript**: TS 6 with `strict: true`, `target: ES2025`, `module: ESNext`, `moduleResolution: Bundler` (in `packages/typescript-config/base.json`).
 - **Tool versions**: ruff>=0.15.22, pyright>=1.1.411, ty>=0.0.61, prek>=0.4.10, ESLint 10.x, TypeScript 6.x.
 - **Format workflow**: `task format` runs Ruff format → Prettier → markdownlint --fix. `task fix` runs Ruff check --fix → Ruff format → Prettier → ty check --fix → markdownlint --fix.
@@ -186,8 +186,8 @@ The project enforces a unified code style across Python and frontend workspaces:
 
 ### Architecture Decisions
 
-- Docs route handlers, server components, `baseOptions()`, `buildGraph()`, and `getRSS()` return Promises.
-- Docs i18n uses `hideLocale: 'default-locale'`; default English URLs omit `/en/`.
+- Docs i18n uses Starlight root locale for English; default English URLs omit `/en/`.
+- Docs build output is `apps/docs/dist`; CI, Pages upload, and smoke tests must consume that directory.
 - Client components use `useSyncExternalStore` instead of `useState` + `useEffect` for mount detection.
 - GitNexus is the code-intelligence and impact-analysis layer; its generated context block is owned by the CLI.
 - Platform default identity groups live in platform modules such as `platforms/qq/permissions.py`; core permissions consume seeds and runtime resolvers but do not hard-code platform role trees.
@@ -214,7 +214,7 @@ When modifying business logic, especially adapter-layer code, check all relevant
 | Source | `src/plugins/nonebot_plugin_lingchu_bot/` |
 | Tests | `tests/` |
 | i18n | `src/plugins/nonebot_plugin_lingchu_bot/i18n/`; run `task i18n` when user-facing strings change |
-| Docs | `apps/docs/content/docs/` |
+| Docs | `apps/docs/src/content/docs/` |
 | Menu | `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py` |
 | Runtime config | NoneBot deployment environment, localstore `runtime-overrides.toml`, `bot_state.toml`, `menu.toml`, and `_lingchu_bot_contracts/` |
 | Handle config files | `handle_config_defaults/<command>.py` (MUST declare a `pydantic.BaseModel` subclass and register via `register_handle_defaults()`), `<command_key>.toml` in localstore config_dir |
@@ -319,12 +319,8 @@ Docs:
 ```bash
 pnpm --filter docs lint
 pnpm --filter docs test
-pnpm --filter docs run test:e2e:hook
-pnpm --filter docs run test:e2e
-pnpm turbo run check-types
-pnpm --filter docs exec tsc --noEmit
-pnpm --filter docs dev
-pnpm turbo run build --filter=docs
+pnpm --filter docs check-types
+pnpm --filter docs build
 ```
 
 Project:
@@ -343,7 +339,7 @@ task ci
 | Changed | Minimum checks before commit |
 | --- | --- |
 | Python source only | Ruff check + Ruff format check + Pyright strict + ty strict (`uv run -m ty check --output-format github`) + relevant pytest |
-| Docs site only | `pnpm --filter docs lint` (covers `.ts/.tsx/.mdx` via ESLint flat config + eslint-plugin-mdx; type-aware rules via `projectService`) + docs tests + Playwright hook smoke + docs type check + link lint when content changes + Vitest for `src/components/p5/` or `src/components/ui/` changes |
+| Docs site only | `pnpm --filter docs lint` (covers `.ts/.tsx/.astro/.mdx` via ESLint/Astro/MDX config) + docs tests + docs type check + docs build + Playwright hook smoke + Vitest for `src/components/p5/` or `src/components/ui/` changes |
 | Markdown only | `pnpm exec markdownlint-cli2` |
 | i18n strings | `task i18n` + relevant pytest |
 | Infrastructure config | `docker compose config` + `prek run --all-files` + `task ci:typecheck` |
@@ -442,15 +438,15 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 #### Docs Site And Frontend
 
 - `eslint-plugin-react@7.x` is incompatible with ESLint 10; pin ESLint 9 or migrate to `@eslint-react/eslint-plugin`.
-- `eslint-plugin-mdx@3.8.1` integrates MDX lint into `apps/docs/eslint.config.mjs` with three layers: `mdx.flat` (parser + `mdx/*` rules), `mdx.createRemarkProcessor({ lintCodeBlocks: true })` (code-block lint), and `mdx.flatCodeBlocks` (code-block rules). `peerDependencies: { eslint: ">=8.0.0" }` is compatible with ESLint 10. Code-block rules MUST turn off all `react/*` and `@next/*` rules (scoped via `files: ['**/*.{md,mdx}/**']`) to avoid `vercel/next.js#89764` `TypeError: contextOrFilename.getFilename is not a function` crashes on virtual files. `.remarkrc.json` MUST list `remark-frontmatter` BEFORE lint presets, otherwise frontmatter `---` delimiters are misparsed as setext H2 underlines, producing `remark-lint-heading-style` false positives (306 baseline warnings, all resolved by adding `remark-frontmatter`). Dual markdown linter policy: `markdownlint-cli2` covers `.md`; `eslint-plugin-mdx` covers `.mdx` (no overlap). Pre-commit hook uses a dedicated `HAS_DOCS_MDX` flag (matched via `^apps/docs/.*\.mdx$`) and CI uses a dedicated `frontend-mdx` output flag, both scoped to avoid spurious ESLint triggers on `.json` content changes.
+- `apps/docs` uses Astro/Starlight-aware lint and type checks. Keep MDX lint scoped to docs content, keep `.astro` files covered by the docs lint script, and let `astro check` validate Starlight content collections before build. Dual markdown linter policy remains: `markdownlint-cli2` covers `.md`; docs ESLint/MDX tooling covers `.mdx` (no overlap).
 - MDX table cells cannot contain raw `|` inside inline code like `<群号|群名称>`; use wording such as `<群号或群名称>`.
-- Fumadocs link validation needs absolute URLs from root index pages.
-- Mock `collections/server` in Vitest tests that import `src/lib/source.ts`.
+- Starlight root-locale pages publish without `/en/`; use root-relative internal links that match the generated Astro routes.
+- Mock Starlight/Astro content collection imports in Vitest tests that touch docs routing helpers.
 - Extract shared functions from component files when tests need to import them.
 - Utility exports from component files can break React Fast Refresh; move them to non-component modules.
-- `/llms.txt` is a route handler; link internally with Next.js `Link`.
+- Starlight/Pagefind search output is generated during the docs build; CI smoke tests must serve `apps/docs/dist`.
 - Docker services must not bind Playwright webServer port `3100`; use ports outside the CI range such as `6100:3000`.
-- `next typegen` may clear `apps/docs/.source/server.ts` (and `browser.ts`) to 0 bytes after the first `fumadocs-mdx` call. The `docs:check-types` script MUST run `fumadocs-mdx` a second time after `next typegen` to repopulate the collections exports, otherwise `tsc --noEmit` fails with `TS2305: Module '"collections/server"' has no exported member 'docs'`. Use `fumadocs-mdx && next typegen && fumadocs-mdx && tsc --noEmit`.
+- `docs:check-types` should run Astro/Starlight type validation directly; do not reintroduce legacy docs generation or framework typegen steps.
 - Pre-commit hook Phase 6d (Playwright Chromium smoke test) checks for browser binaries in `~/.cache/ms-playwright` before running. If Chromium is not installed, it skips with a warning instead of blocking the commit. Run `pnpm --filter docs exec playwright install` to install browsers.
 
 #### Database And Runtime Files

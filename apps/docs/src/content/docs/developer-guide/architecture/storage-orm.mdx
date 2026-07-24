@@ -1,0 +1,222 @@
+---
+icon: Database
+title: Storage and ORM
+description: nonebot_plugin_orm backend, cross-dialect types, six-backend upsert, and TOML store.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+# Storage and ORM
+
+Lingchu Bot stores runtime data through two cooperating layers: `nonebot_plugin_orm` for relational data and a TOML-backed file store for lightweight runtime configuration. This page covers the default backend, the six supported databases, the cross-dialect type compatibility layer, the dialect-specific upsert implementation, and the TOML store that works alongside `nonebot_plugin_localstore`.
+
+## Default backend
+
+The default database backend is SQLite via `aiosqlite`, provided by `nonebot_plugin_orm`. No explicit connection URL is required for local development — the ORM plugin creates a SQLite database file under the localstore data directory.
+
+All relational access goes through `nonebot_plugin_orm` sessions. The project does not introduce custom engine management; `database/orm_crud/` exposes typed async helpers that take an externally-owned `AsyncSession` as their first positional parameter (see [Session ownership](#session-ownership-and-handler-injection) below).
+
+## Six supported backends
+
+`SQLALCHEMY_DATABASE_URL` (consumed by `nonebot_plugin_orm`) selects the backend. Six engines are supported:
+
+| Backend | Driver (URL scheme) | Notes |
+| --- | --- | --- |
+| SQLite | `sqlite+aiosqlite://` | Default; no URL required |
+| PostgreSQL | `postgresql+psycopg://` or `postgresql+asyncpg://` | Uses `on_conflict_do_update` |
+| MySQL | `mysql+aiomysql://` | Uses `on_duplicate_key_update` |
+| MariaDB | `mariadb+aiomysql://` | Shares the MySQL path; `aiomysql` driver |
+| Oracle | `oracle+oracledb://` | Thin mode by default; `MERGE INTO` upsert |
+| SQL Server | `mssql+aioodbc://` | Requires `msodbcsql18`; `MERGE INTO` upsert |
+
+When `SQLALCHEMY_DATABASE_URL` is unset, `nonebot_plugin_orm` falls back to the default SQLite database. The CI matrix exercises all six engines plus version variants (PostgreSQL 16/18, MySQL 8.4/9.7, MariaDB 11.4/11.8, Oracle 23ai, SQL Server 2022/2025).
+
+## Cross-dialect types
+
+ORM models MUST use the compatibility types from `database/_dialect_compat.py` instead of raw `String` / `Text` / `Boolean` / `DateTime(timezone=True)`. The module exports four helpers:
+
+| Helper | Behavior |
+| --- | --- |
+| `CompatBoolean` | Native `BOOLEAN` on most backends; `NUMBER(1)` on Oracle pre-23c |
+| `CompatDateTimeTZ` | `DateTime(timezone=True)` on most backends; `DATETIME(fsp=6)` on MySQL / MariaDB |
+| `CompatText` | `TEXT` on most backends; `CLOB` on Oracle to avoid `VARCHAR2(4000)` truncation |
+| `compat_string(length)` | `VARCHAR(length)` by default; `NVARCHAR(MAX)` on SQL Server when `length > 4000`; `CLOB` on Oracle when `length > 4000` |
+
+`CompatDateTimeTZ` on MySQL / MariaDB emits a "timezone only supported in MySQL 5.6+" warning. Writes use `datetime.now(UTC)` (the `utc_now()` helper in `database/models/message.py`) so no drift occurs in practice.
+
+All current `String` columns in the repository are ≤ 128 characters, so `compat_string(length)` stays on `VARCHAR(N)` for every backend — the `NVARCHAR(MAX)` / `CLOB` branch is reserved for future long-string columns.
+
+## Six-backend upsert
+
+`database/orm_crud/_bulk.py::upsert()` is the single entry point for atomic upsert across all six backends. It dispatches by session dialect name:
+
+| Dialect(s) | Implementation | RETURNING support |
+| --- | --- | --- |
+| `sqlite` | `sqlite_insert(model).on_conflict_do_update(...)` | Yes — uses `RETURNING` |
+| `postgresql` | `postgresql_insert(model).on_conflict_do_update(...)` | Yes — uses `RETURNING` |
+| `mysql`, `mariadb` | `mysql_insert(model).on_duplicate_key_update(...)` | No — follow-up `SELECT` by `conflict_fields` |
+| `oracle` | Hand-written `MERGE INTO ... USING (SELECT ... FROM DUAL) s ...` via `text()` | No — follow-up `SELECT`; detects `ORA-00001` for conflict races |
+| `mssql` | Hand-written `MERGE INTO ... USING (SELECT ...) s ...` via `text()` with `WITH (HOLDLOCK)` and `SET LOCK_TIMEOUT 5000` | No — follow-up `SELECT` |
+
+The Oracle and SQL Server paths exist because SQLAlchemy 2.0.51 does not provide `sqlalchemy.dialects.{oracle,mssql}.insert`, and the generic `sqlalchemy.insert()` returns an `Insert` object without an `on_conflict_do_update` method. `_build_merge_sql()` constructs the parameterized `MERGE INTO` text with named bind parameters; `_prepare_merge_insert_values()` fills in Python-side column defaults that SQLAlchemy would normally apply when building an `INSERT` construct.
+
+All upsert calls require either `conflict_fields` or `constraint` (mutually exclusive). MySQL / MariaDB / Oracle / SQL Server require `conflict_fields` because they use it for the follow-up `SELECT` to fetch the row.
+
+## `ALEMBIC_STARTUP_CHECK`
+
+`ALEMBIC_STARTUP_CHECK` is a `nonebot_plugin_orm` configuration key, not a Lingchu-specific setting. When set to `true`, the ORM plugin enforces an Alembic schema migration check on startup. Production deployments should set it:
+
+```bash
+ALEMBIC_STARTUP_CHECK=true
+```
+
+The default is `false` to keep local development fast. The Docker Compose production template (`docker-compose.yml`) ships with `ALEMBIC_STARTUP_CHECK: "true"`.
+
+Lingchu Bot's model packages (under `database/models/`) import all models in their `__init__.py` so Alembic's autogenerate discovery works. Migrations must run before non-SQLite tests.
+
+## Migration authoring workflow
+
+`nonebot_plugin_orm` wraps Alembic and exposes three CLI commands through `nb orm`. The `revision` command runs autogenerate by default — there is no `--autogenerate` flag.
+
+| Command | Purpose |
+| --- | --- |
+| `nb orm revision -m "msg" --branch-label nonebot_plugin_lingchu_bot` | Generate a new migration script from model changes (autogenerate on by default). The `--branch-label` is required to place the file under `src/plugins/nonebot_plugin_lingchu_bot/migrations/`; without it the file lands in `./migrations/versions/` |
+| `nb orm check` | Detect drift between ORM models and the database schema; raises `AutogenerateDiffsDetected` on mismatch |
+| `nb orm sync` | Dev-only direct schema sync without writing a migration script (used when `ALEMBIC_STARTUP_CHECK=false`) |
+
+This project adds Taskfile aliases for convenience:
+
+| Task | Equivalent |
+| --- | --- |
+| `task db:revision -- MSG="..."` | `ENVIRONMENT=dev nb orm revision -m "..." --branch-label nonebot_plugin_lingchu_bot` |
+| `task db:check` | `ENVIRONMENT=dev nb orm check` |
+| `task db:upgrade` | `ENVIRONMENT=dev nb orm upgrade` |
+
+### Recommended flow
+
+1. Modify `database/models/*.py`.
+2. Run `task db:revision -- MSG="describe change"` to generate a migration scaffold.
+3. Manually post-process the generated migration for cross-dialect compatibility (see below).
+4. Run `task db:upgrade` to apply locally, then `task db:check` to confirm no drift.
+5. Commit the model and migration together.
+
+### Post-generation `Compat*` rewrite
+
+Autogenerate emits generic SQLAlchemy types. For six-backend compatibility, manually replace them with the helpers from `database/_dialect_compat.py`:
+
+| Autogenerated | Replace with |
+| --- | --- |
+| `sa.Boolean()` | `CompatBoolean` |
+| `sa.DateTime(timezone=True)` | `CompatDateTimeTZ` |
+| `sa.Text()` | `CompatText` |
+| `sa.String(length)` | `compat_string(length)` |
+
+For unique-constraint or index rebuilds, follow `migrations/cf2c06d51a17_blocklist_unique_constraint.py` and add `mysql` / `mariadb` dialect branches where the default `op.create_index(..., mysql_length=...)` shape differs.
+
+### Autogenerate limitations
+
+- Autogenerate cannot detect column or table renames — it emits `drop_column` + `add_column`, which loses data. For renames, author the migration manually using `op.alter_column(..., new_column_name=...)`.
+- Autogenerate does not emit `Compat*` types — the manual rewrite above is mandatory.
+- Autogenerate does not infer dialect-specific `MERGE INTO` upsert logic; upsert changes stay in `database/orm_crud/_bulk.py`, not in migrations.
+
+## TOML store and localstore
+
+`database/toml_store/` provides asynchronous TOML-backed helpers used for lightweight runtime configuration that does not justify a relational table. It cooperates with `nonebot_plugin_localstore`:
+
+- File paths are resolved through `get_plugin_config_file()`, `get_plugin_data_file()`, or `get_plugin_cache_file()` — never hard-coded `Path("...")`.
+- Three core async helpers cover all runtime needs:
+  - `load_toml_dict_async(path, default=..., merge_default=...)` — read a TOML table without blocking the event loop.
+  - `write_toml_dict_file_async(path, data, schema_basename=...)` — atomically overwrite a TOML file via `tempfile + os.replace`, optionally injecting a `#:schema` directive.
+  - `ensure_toml_dict_file_async(path, default, schema_basename=...)` — create the file with defaults only if it is missing; never overwrites an existing file.
+- Synchronous counterparts (`load_toml_dict_sync`, `ensure_toml_dict_file_sync`) are available for import-time setup.
+
+All writes use atomic replacement (`mkstemp` + `aiofiles.os.replace`) so a crash mid-write leaves the original file intact. `ensure_toml_dict_file_async()` only creates missing files; use `write_toml_dict_file_async()` to overwrite an existing file. Runtime config defaults must be JSON-serializable; dump Pydantic defaults with `mode="json"` when writing them to TOML.
+
+## ORM helpers
+
+`database/orm_crud/` is split into three modules:
+
+| Module | Exports |
+| --- | --- |
+| `_base.py` | Shared helpers: `_combined_conditions`, `_get_column_map`, `_is_fk_constraint_violation`, `_orders`, `_validate_column_values`, `DatabaseError`, `ROWCOUNT_UNKNOWN` |
+| `_single.py` | `create`, `get_one`, `get_or_create`, `update`, `update_or_create`, `delete`, `exists`, `count` |
+| `_bulk.py` | `bulk_create`, `upsert`, `list_items`, `async_iterate_safe` |
+
+`bulk_create(..., partial=True)` uses per-row savepoints so a failing row is skipped and reported instead of aborting the whole batch. `async_iterate_safe()` streams large result sets with `yield_per` and an async callback, optionally collecting items.
+
+## Session ownership and handler injection
+
+Every `database/orm_crud/*.py` and `repositories/*.py` function takes `session: AsyncSession | async_scoped_session` as its first positional parameter. The helpers do not call `get_session()` themselves, do not `commit`, and do not `rollback` — the caller owns the transaction boundary. This keeps test fixtures simple (pass a mock session) and avoids nested sessions inside NoneBot request handling.
+
+### Handler pattern with `async_scoped_session`
+
+NoneBot matcher handlers obtain a scoped session through the `async_scoped_session` type alias exported by `nonebot_plugin_orm`. `Depends` is already embedded in the `Annotated` metadata of this alias, so the correct handler signature is a plain type annotation — do **not** write `= Depends(async_scoped_session)`:
+
+```python
+from nonebot import require, on_command
+from nonebot.adapters import Bot, Event
+from nonebot_plugin_orm import async_scoped_session
+
+require("nonebot_plugin_orm")
+
+from ..repositories.blocklist import upsert_block  # noqa: E402 (post-require import)
+
+
+@on_command("block")
+async def handle_block(
+    bot: Bot,
+    event: Event,
+    session: async_scoped_session,
+) -> None:
+    await upsert_block(
+        session,
+        platform_id="qq",
+        adapter_id="~onebot.v11",
+        subject_id=str(event.get_user_id()),
+    )
+    await session.commit()
+```
+
+The scoped session is opened by `nonebot_plugin_orm` for the duration of the matcher run and is removed automatically when the handler returns. Always `await session.commit()` before returning if the handler wrote data — repository functions do not commit on their own.
+
+### Wrapper functions and `@wraps`
+
+Decorators that wrap handler functions (for example `_permission_wrapper` in `handle/qq/commands/common.py`) MUST apply `functools.wraps` so `inspect.signature(wrapper)` follows the wrapped function. NoneBot reads the wrapper signature to know which kwargs (`bot`, `event`, `session`) to inject. Inside the wrapper, extract the session via `session = kwargs.get("session")` rather than re-opening `get_session()`.
+
+### Background tasks and fire-and-forget helpers
+
+Background tasks own their session lifecycle because they are not NoneBot handler dependencies. `services/scheduler.py` and `services/message_store.py` retain the explicit pattern:
+
+```python
+async with get_session() as session:
+    await repository_function(session, ...)
+```
+
+Fire-and-forget helpers that wrap a session-first repository function while preserving a Protocol/Callable signature (for example `_default_permission_resolver` in `services/llm/agent.py`, `_default_audit_writer` in `services/llm/mcp_audit.py`) open their own scoped session internally. This keeps the seam local — callers keep calling `resolver(context)` while the helper satisfies the new repository API.
+
+### Test fixtures
+
+Handler tests use a `mock_session` fixture that combines `AsyncMock` (for async session methods) with `MagicMock` (for the synchronous `add` / `add_all` APIs):
+
+```python
+@pytest.fixture
+def mock_session() -> Mock:
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
+```
+
+When asserting on repository calls, remember that `args[0]` is now `session` (the first positional parameter). For example, `mock.call_args.args[1]` is the model instance, `args[2]` is the first user-supplied argument.
+
+<Aside title="Blocking paths">
+
+File storage, TOML parsing, deepcopy, command parsing, and translation catalog loading are moved to worker threads. Do not call synchronous storage methods directly from async handlers.
+
+</Aside>
+
+<Aside title="See also">
+
+For message-store-specific configuration and retention, see [Message Store](message-store). For runtime configuration files backed by the TOML store, see [Architecture](introduction).
+
+</Aside>

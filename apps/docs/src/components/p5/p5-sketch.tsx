@@ -17,10 +17,14 @@ function P5SketchImpl({ sketch, className }: P5SketchProps) {
     if (!container) return;
 
     let disposed = false;
-    void import("p5").then(({ default: P5 }) => {
-      if (disposed || !containerRef.current) return;
-      instanceRef.current = new P5(sketch, containerRef.current);
-    });
+    void import("p5")
+      .then(({ default: P5 }) => {
+        if (disposed || !containerRef.current) return;
+        instanceRef.current = new P5(sketch, containerRef.current);
+      })
+      .catch((error: unknown) => {
+        console.error("Failed to load p5 runtime.", error);
+      });
 
     return () => {
       disposed = true;
@@ -29,7 +33,12 @@ function P5SketchImpl({ sketch, className }: P5SketchProps) {
     };
   }, [sketch]);
 
-  return <div ref={containerRef} className={className} />;
+  return (
+    <div
+      ref={containerRef}
+      className={className}
+    />
+  );
 }
 
 export function P5Sketch(props: P5SketchProps) {

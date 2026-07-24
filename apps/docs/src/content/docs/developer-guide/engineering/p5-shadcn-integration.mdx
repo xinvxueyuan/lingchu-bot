@@ -1,0 +1,34 @@
+---
+icon: Sparkles
+title: p5.js & shadcn Integration
+description: Embed creative p5.js sketches and shadcn/ui components directly in MDX content.
+---
+
+import { RingSketchDemo } from "@/components/p5/demos/ring-sketch-demo";
+import { ShadcnDialogDemo } from "@/components/ui/dialog-demo";
+
+## p5.js & shadcn Integration
+
+The docs site ships with two complementary rendering layers on top of Starlight:
+
+- **p5.js** runs in instance mode, wrapped by the `P5Sketch` component. Sketches execute only on the client and are SSR-safe (no `window` / `document` access during server render). Each sketch releases resources via `p.remove()` on unmount.
+- **shadcn/ui** component sources live in `src/components/ui/` and share the same Tailwind v4 theme tokens as Starlight through the `@theme inline` bridge in `src/styles/global.css`.
+
+Astro MDX hydrates interactive React components as islands. Do not pass a raw `function` directly to `<P5Sketch>` from the MDX body; wrap each sketch in a demo component (see `src/components/p5/demos/`) and hydrate it with a client directive.
+
+## Inline Sketch Example
+
+The sketch below is implemented in `src/components/p5/demos/ring-sketch-demo.tsx` as a client component that internally calls `<P5Sketch sketch={ringSketch} />`. MDX imports the wrapper and renders `<RingSketchDemo client:load />`.
+
+<RingSketchDemo client:load />
+
+## Authoring Notes
+
+- The `sketch` prop accepts a p5 instance-mode callback `(p: p5) => void`. Do not call `new p5()` yourself — `P5Sketch` owns the lifecycle.
+- The p5 runtime is dynamically imported on the client via `import("p5")`, so it never enters the server bundle.
+- For full-bleed hero animations, hydrate a dedicated component with an Astro client directive; inline `<P5Sketch>` is intended for in-content demos wrapped in a client island.
+- shadcn components read `--color-*` tokens mirrored from Starlight theme variables, so dark mode and theme switches apply uniformly.
+
+## shadcn/ui Dialog Demo
+
+<ShadcnDialogDemo client:load />
