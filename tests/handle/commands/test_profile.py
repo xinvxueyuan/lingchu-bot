@@ -109,6 +109,7 @@ async def test_onebot11_set_group_avatar_rejects_unsupported_impl(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
     mock_session: Mock,
+    tmp_path: Path,
 ) -> None:
     mock_onebot11_bot.get_version_info = AsyncMock(
         return_value={
@@ -118,7 +119,7 @@ async def test_onebot11_set_group_avatar_rejects_unsupported_impl(
         }
     )
     mock_onebot11_bot.call_api = AsyncMock()
-    image_path = Path("/tmp/test.png")
+    image_path = tmp_path / "test.png"
     resolve_path = (
         "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11"
         ".default.profile._resolve_image_path"

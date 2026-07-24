@@ -317,7 +317,10 @@ async def test_image_fetcher_requires_https_and_revalidates_redirects(
     "url",
     [
         "http://images.example/a.png",
-        "file:///tmp/a.png",
+        # Use a non-platform-specific host in the ``file://`` scheme so the
+        # assertion does not depend on the OS temp directory layout. The path
+        # itself is irrelevant — only the scheme is checked.
+        "file://images.example/a.png",
         "https://user:pass@images.example/a.png",
     ],
 )
