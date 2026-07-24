@@ -3,7 +3,7 @@ import { Info, TriangleAlert, CircleCheck } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 // Re-export the icons for convenience in case consumers want to override.
-export { AlertCircle, Info, TriangleAlert, CircleCheck } from "lucide-react";
+export { Info, TriangleAlert, CircleCheck } from "lucide-react";
 
 /**
  * Dependency-free shadcn-style Alert.
@@ -71,7 +71,7 @@ export function AlertTitle({ className, ...props }: React.HTMLAttributes<HTMLHea
   );
 }
 
-export function AlertDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+export function AlertDescription({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       data-slot="alert-description"

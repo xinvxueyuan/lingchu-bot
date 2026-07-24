@@ -40,10 +40,28 @@ const MERIDIAN_FRACTION = 0.34; // share of respawns born along meridians
 /** Parse a CSS color string into an [r, g, b] tuple. Falls back to a sane default. */
 function parseColor(raw: string, fallback: [number, number, number]): [number, number, number] {
   const m = raw.match(/rgba?\(([^)]+)\)/);
-  if (!m) return fallback;
-  const parts = m[1].split(",").map((s) => Number(s.trim()));
-  if (parts.length < 3 || parts.some((n) => Number.isNaN(n))) return fallback;
-  return [parts[0], parts[1], parts[2]];
+  if (m) {
+    const parts = m[1].split(",").map((s) => Number(s.trim()));
+    if (parts.length < 3 || parts.some((n) => Number.isNaN(n))) return fallback;
+    return [parts[0], parts[1], parts[2]];
+  }
+  // Non-rgb() formats (hsl(), hex, named colors): let the browser normalize
+  // via a probe element's computed style, then read back as rgb().
+  if (typeof globalThis === "undefined" || !globalThis.document) return fallback;
+  const probe = globalThis.document.createElement("span");
+  probe.style.color = raw;
+  if (!probe.style.color) return fallback;
+  globalThis.document.documentElement.append(probe);
+  const computed = globalThis.getComputedStyle(probe).color;
+  probe.remove();
+  const cm = computed.match(/rgba?\(([^)]+)\)/);
+  if (cm) {
+    const parts = cm[1].split(",").map((s) => Number(s.trim()));
+    if (parts.length >= 3 && parts.slice(0, 3).every((n) => !Number.isNaN(n))) {
+      return [parts[0], parts[1], parts[2]];
+    }
+  }
+  return fallback;
 }
 
 /** Read a CSS variable from the document, resolved to its current computed value. */
@@ -204,7 +222,12 @@ const heroSketch = (p: p5) => {
     if (typeof globalThis !== "undefined") {
       themeObserver = new MutationObserver(() => {
         refreshThemeColors();
-        p.background(bgRgb[0], bgRgb[1], bgRgb[2]);
+        if (reducedMotion) {
+          // Preserve the calm static frame with refreshed colors.
+          step();
+        } else {
+          p.background(bgRgb[0], bgRgb[1], bgRgb[2]);
+        }
       });
       themeObserver.observe(document.documentElement, {
         attributes: true,
