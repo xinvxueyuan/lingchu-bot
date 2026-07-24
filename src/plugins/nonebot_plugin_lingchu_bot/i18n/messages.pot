@@ -645,11 +645,6 @@ msgstr ""
 msgid "操作被拒绝"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/napcat/announcement.py:60
-#, python-brace-format
-msgid "NapCat 拒绝公告图片：已发送的 image 字段为 {local_path}。"
-msgstr ""
-
 #: src/plugins/nonebot_plugin_lingchu_bot/services/protocol_restart_feedback.py:85
 msgid "协议端已重启并重新连接"
 msgstr ""

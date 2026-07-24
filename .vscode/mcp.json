@@ -1,4 +1,4 @@
-﻿{
+{
   "servers": {
     "gitnexus": {
       "type": "stdio",
@@ -27,17 +27,6 @@
         "apifox-mcp-server@latest",
         "--site-id=5348325"
       ]
-    },
-    "github": {
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-github"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:GITHUB_PERSONAL_ACCESS_TOKEN}"
-      }
     },
     "io.github.upstash/context7": {
       "version": "1.0.31",

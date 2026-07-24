@@ -10,12 +10,13 @@
 
 from __future__ import annotations
 
+import importlib
 import inspect
 import os
 from pathlib import Path
 import sys
 from types import MethodType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import nonebot
 from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
@@ -47,7 +48,17 @@ def _should_serialize_startup_for_shared_database(
 
 
 def _acquire_shared_startup_lock() -> Any:
-    import fcntl
+    try:
+        # ``importlib.import_module`` returns ``types.ModuleType``; cast to
+        # ``Any`` so type checkers do not try to resolve ``fcntl`` members
+        # on platforms where the module is unavailable.
+        fcntl = cast("Any", importlib.import_module("fcntl"))
+    except ImportError:
+        # ``fcntl`` is a Unix-only module. On Windows the xdist + shared-DB
+        # workflow is not exercised (CI runs it on Linux), so we degrade the
+        # file lock to a no-op while keeping the acquire/release protocol
+        # intact for the wrapped startup function.
+        return None
 
     lock_path = Path(".pytest-localstore") / "shared-db-startup.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -57,10 +68,14 @@ def _acquire_shared_startup_lock() -> Any:
 
 
 def _release_shared_startup_lock(lock_file: Any) -> None:
-    import fcntl
-
+    if lock_file is None:
+        return
     try:
+        fcntl = cast("Any", importlib.import_module("fcntl"))
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+    except ImportError:
+        # Already a no-op on Windows; close the file handle below.
+        pass
     finally:
         lock_file.close()
 

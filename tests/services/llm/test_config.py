@@ -251,7 +251,10 @@ def test_api_key_env_resolves_only_at_runtime(
 )
 def test_hostile_urls_rejected(tmp_path: Path, url: str) -> None:
     path = tmp_path / "llm.toml"
-    path.write_text(f'[profiles.main]\nmodel = "new"\nbase_url = "{url}"\n')
+    path.write_text(
+        f'[profiles.main]\nmodel = "new"\nbase_url = "{url}"\n',
+        encoding="utf-8",
+    )
     with (
         patch.object(module, "get_llm_config_file", return_value=path),
         pytest.raises(ValueError),
