@@ -88,6 +88,25 @@ html > body[data-scroll-locked] {
     var(--vt-duration-locale) ease-out var(--vt-duration-exit) both vt-locale-scale-enter;
 }
 
+/* Shared-element transitions — named view-transition-name elements that morph
+   across navigation instead of being swept into the root crossfade. */
+/* Announcement banner: present on every page (root layout), so a static name
+   keeps it stable across all navigations (no flicker); locale switches crossfade
+   the banner text inside the stable box. */
+.vt-banner {
+  view-transition-name: announcement-banner;
+}
+
+/* Home doc-link card → docs title morph. The source card gets
+   `view-transition-name: hero-doc-card` set imperatively on click (see
+   view-transition.tsx TransitionLink `sharedName`); the destination DocsTitle
+   carries the `vt-hero-target` class and only receives the name during a
+   `shared-transition` transition type, so non-shared navigations (doc→doc,
+   docs→home, locale switch) are unaffected and never produce a ghost title. */
+:active-view-transition-type(shared-transition) .vt-hero-target {
+  view-transition-name: hero-doc-card;
+}
+
 /* Reduced motion fallback */
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(*),

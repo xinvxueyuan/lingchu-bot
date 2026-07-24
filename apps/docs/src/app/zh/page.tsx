@@ -96,6 +96,7 @@ export default function ChineseHomePage() {
             <Link
               key={title}
               href={href}
+              sharedName="hero-doc-card"
               className="rounded-md border bg-fd-card p-5 hover:bg-fd-muted/40"
             >
               <h2 className="text-base font-semibold">{title}</h2>
