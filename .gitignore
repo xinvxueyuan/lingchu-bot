@@ -126,5 +126,7 @@ agent/
 
 # ===== pnpm =====
 node_modules/
+# pnpm store (local cache, not committed)
+.pnpm-store/
 
 # End of https://www.toptal.com/developers/gitignore/api/python

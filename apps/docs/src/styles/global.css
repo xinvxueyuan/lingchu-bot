@@ -272,6 +272,8 @@ html > body[data-scroll-locked] {
   font-size: 0.875rem;
   font-weight: 600;
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   transition:
     transform 0.15s ease,
     background-color 0.15s ease,
@@ -388,6 +390,7 @@ html > body[data-scroll-locked] {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  min-width: 0;
   padding: 0.875rem 1rem;
   border-radius: 0.625rem;
   border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 45%, transparent);
@@ -402,6 +405,7 @@ html > body[data-scroll-locked] {
 .hero-features li > span {
   font-size: 0.8125rem;
   line-height: 1.5;
+  overflow-wrap: break-word;
   color: color-mix(in srgb, var(--sl-color-gray-2) 75%, transparent);
 }
 

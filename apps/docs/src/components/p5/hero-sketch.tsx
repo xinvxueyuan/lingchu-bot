@@ -91,6 +91,16 @@ const heroSketch = (p: p5) => {
     return null;
   };
 
+  // Resolve the sketch container before createCanvas so the initial buffer
+  // matches the hero size and avoids a one-frame stretch. p5 stores the
+  // user-supplied node on the instance; fall back to a DOM query for safety.
+  const resolveContainer = (): HTMLElement | null => {
+    const node = (p as unknown as { _userNode?: unknown })._userNode;
+    if (node instanceof HTMLElement) return node;
+    if (typeof document === "undefined") return null;
+    return document.querySelector<HTMLElement>(".hero-canvas");
+  };
+
   const refreshThemeColors = () => {
     // --sl-color-accent is the Starlight accent; --sl-color-bg-nav is the
     // elevated surface used by .p5-sketch. Both adapt to light/dark mode.
@@ -201,7 +211,12 @@ const heroSketch = (p: p5) => {
   };
 
   p.setup = () => {
-    canvasRenderer = p.createCanvas(800, 360);
+    // Read the container size first so the canvas is born at the correct
+    // dimensions — no initial resize, no one-frame stretch flash.
+    const container = resolveContainer();
+    const initW = container?.clientWidth || 800;
+    const initH = container?.clientHeight || 360;
+    canvasRenderer = p.createCanvas(initW, initH);
     p.noiseSeed(SEED);
     p.randomSeed(SEED);
     refreshThemeColors();
@@ -209,10 +224,6 @@ const heroSketch = (p: p5) => {
       typeof globalThis !== "undefined" &&
       globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    const parent = getParentEl();
-    if (parent) {
-      p.resizeCanvas(parent.clientWidth, parent.clientHeight);
-    }
     rebuild();
 
     // Paint a single base frame so the canvas is never blank before first draw.
