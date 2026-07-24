@@ -1,0 +1,68 @@
+@layer base, starlight, theme, components, utilities;
+
+@import "@astrojs/starlight-tailwind";
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+  --font-sans:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  --color-accent-50: var(--color-sky-50);
+  --color-accent-100: var(--color-sky-100);
+  --color-accent-200: var(--color-sky-200);
+  --color-accent-300: var(--color-sky-300);
+  --color-accent-400: var(--color-sky-400);
+  --color-accent-500: var(--color-sky-500);
+  --color-accent-600: var(--color-sky-600);
+  --color-accent-700: var(--color-sky-700);
+  --color-accent-800: var(--color-sky-800);
+  --color-accent-900: var(--color-sky-900);
+  --color-accent-950: var(--color-sky-950);
+  --color-gray-50: var(--color-zinc-50);
+  --color-gray-100: var(--color-zinc-100);
+  --color-gray-200: var(--color-zinc-200);
+  --color-gray-300: var(--color-zinc-300);
+  --color-gray-400: var(--color-zinc-400);
+  --color-gray-500: var(--color-zinc-500);
+  --color-gray-600: var(--color-zinc-600);
+  --color-gray-700: var(--color-zinc-700);
+  --color-gray-800: var(--color-zinc-800);
+  --color-gray-900: var(--color-zinc-900);
+  --color-gray-950: var(--color-zinc-950);
+  --color-background: var(--sl-color-bg);
+  --color-foreground: var(--sl-color-white);
+  --color-card: var(--sl-color-bg-nav);
+  --color-card-foreground: var(--sl-color-white);
+  --color-popover: var(--sl-color-bg-nav);
+  --color-popover-foreground: var(--sl-color-white);
+  --color-primary: var(--sl-color-accent);
+  --color-primary-foreground: var(--sl-color-black);
+  --color-secondary: var(--sl-color-gray-6);
+  --color-secondary-foreground: var(--sl-color-white);
+  --color-muted: var(--sl-color-gray-6);
+  --color-muted-foreground: var(--sl-color-gray-3);
+  --color-accent: var(--sl-color-accent);
+  --color-accent-foreground: var(--sl-color-black);
+  --color-border: var(--sl-color-gray-5);
+  --color-input: var(--sl-color-gray-5);
+  --color-ring: var(--sl-color-accent-high);
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+html > body[data-scroll-locked] {
+  margin-right: 0 !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
+
+.p5-sketch {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.5rem;
+  background: var(--sl-color-bg-nav);
+}

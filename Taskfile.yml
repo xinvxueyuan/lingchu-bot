@@ -18,7 +18,7 @@
 #   ci:test                       → pytest --junitxml, docs test                                    [local-only; CI runs pytest inline]
 #   ci:fix                        → ruff check --fix, ruff format, prettier, ty --fix, markdownlint --fix     [CI: 🧪-python.yml]
 #   ci:build                      → uv build, turbo build                                          [CI: 👷-ci-builds.yml, 🚀-release.yml]
-#   ci:docs                       → turbo lint check-types, docs lint:links, docs test, turbo build [local-only; CI runs turbo inline]
+#   ci:docs                       → docs lint, docs test, docs check-types, docs build             [local-only; CI runs workflow inline]
 #   smoke                         → docker compose --profile smoke up                               [docs: CONTRIBUTING.md]
 #   ci:smoke                      → docker compose --profile smoke run (JUnit report)              [local-only; CI invokes docker compose inline]
 #
@@ -176,10 +176,10 @@ tasks:
   ci:docs:
     desc: "[CI] Docs-only check, test and build (no Python toolchain required)"
     cmds:
-      - pnpm turbo run lint check-types
-      - pnpm --filter docs lint:links
+      - pnpm --filter docs lint
       - pnpm --filter docs test
-      - pnpm turbo run build
+      - pnpm --filter docs check-types
+      - pnpm --filter docs build
 
   smoke:
     desc: Run the smoke test suite locally with Docker Compose

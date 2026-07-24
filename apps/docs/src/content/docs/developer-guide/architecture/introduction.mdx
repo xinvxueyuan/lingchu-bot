@@ -1,0 +1,178 @@
+---
+icon: Blocks
+title: Architecture
+---
+
+import { Aside, FileTree } from "@astrojs/starlight/components";
+
+## Architecture
+
+Lingchu Bot is an application-side bot project based on NoneBot2. Current code splits the core plugin, command handling, configuration, storage, and database helpers under `src/plugins/nonebot_plugin_lingchu_bot`.
+
+## Runtime entrypoints
+
+- `pyproject.toml`: declares plugin directories, dependencies, adapters, and NoneBot plugin configuration, and is the current source for local plugin loading configuration.
+- `Dockerfile` / `docker-compose.yml`: container runtime entrypoints; the build generates the runtime `/tmp/bot.py` with `nb-cli`.
+- `nonebot_plugin_lingchu_bot`: core plugin package. It declares plugin metadata and loads shared capabilities.
+
+## Project structure
+
+<FileTree>
+
+- src/plugins/nonebot_plugin_lingchu_bot/
+  - core/
+    - async_utils.py
+    - bot_state.py
+    - config.py
+    - handle_config_manager.py
+    - http_security.py
+    - menu_config.py
+    - mutable_settings.py
+    - schemas.py
+    - handle_config_defaults/
+    - subplugins/
+      - llm_chat/
+      - novelai_image/
+  - database/
+    - _dialect_compat.py
+    - models/
+    - orm_crud/
+    - toml_store/
+  - handle/
+    - menu.py
+    - qq/
+      - commands/
+        - triggers.py
+        - mute.py
+        - member.py
+        - block.py
+        - announcement.py
+        - remote.py
+      - adapters/
+        - onebot11/
+          - default/
+          - napcat/
+  - hooks/
+    - adapters.py
+    - interfaces.py
+    - handlers/
+  - i18n/
+    - __init__.py
+    - babel.cfg
+    - locales/
+      - en_US/
+      - zh_CN/
+  - migrations/
+    - 30f5a01259cd_initial_schema.py
+    - a1b2c3d4e5f6_permissions_schema.py
+    - b7c8d9e0f1a2_event_policy_partitions.py
+    - c3d4e5f6a7b8_scheduler_jobs.py
+    - cf2c06d51a17_blocklist_unique_constraint.py
+  - permissions/
+    - __init__.py
+    - admin.py
+    - bootstrap.py
+    - config.py
+    - platforms.py
+    - service.py
+    - subject_policy.py
+    - types.py
+  - platforms/
+    - registry.py
+    - qq/
+      - permissions.py
+  - repositories/
+    - __init__.py
+    - blocklist.py
+    - message_store.py
+    - permissions.py
+    - registry.py
+    - scheduler_jobs.py
+  - services/
+    - message_store.py
+    - protocol_restart_feedback.py
+    - scheduler.py
+    - llm/
+  - start/
+    - startup.py
+- apps/docs/
+  - content/
+  - src/
+- pyproject.toml
+- Taskfile.yml
+- Dockerfile
+
+</FileTree>
+
+## Core modules
+
+| Module | Responsibility |
+| --- | --- |
+| `core/config.py` | Deployment-only `Config` pydantic model, resolved by NoneBot `get_plugin_config()` |
+| `core/mutable_settings.py` | Typed localstore repository for online-editable `MutableRuntimeSettings` |
+| `core/handle_config_manager.py` | `HandleConfigManager` — pydantic-validated per-command TOML configs |
+| `core/handle_config_defaults/` | Per-command pydantic `BaseModel` defaults registered via `register_handle_defaults()` |
+| `core/schemas.py` | Schema definitions and explicit installation support for CLI tooling |
+| `core/bot_state.py` | `bot_state.toml` persistence backed by `BotStateFile(BaseModel)` |
+| `core/subplugins/` | Subplugin contracts, loader, and bundled subplugins (llm_chat, novelai_image) |
+| `database/toml_store/` | TOML file storage package |
+| `database/models/` | ORM models package (message, blocklist, registry, identity) |
+| `database/orm_crud/` | Async CRUD helpers (session-first signature; see [Storage and ORM](storage-orm)) |
+| `migrations/` | Alembic database migrations |
+| `handle/menu.py` | Menu system (pages, sections, features, availability) |
+| `handle/qq/commands/` | Shared QQ command definitions (Alconna matchers, triggers) |
+| `handle/qq/adapters/onebot11/` | OneBot V11 handlers (default, napcat) |
+| `hooks/` | NoneBot event lifecycle handlers (lifecycle, bot_connection, message_store, api_audit) |
+| `i18n/__init__.py` | gettext/Babel translation helpers, locale reading, and async catalog warmup |
+| `platforms/registry.py` | Platform capabilities, adapter mapping, priority selection, and conflict validation |
+| `platforms/qq/permissions.py` | QQ default identity groups and runtime platform identity resolution |
+| `permissions/` | UID identity, platform account, group membership, command grant, and SUPERUSERS APIs |
+| `repositories/blocklist.py` | Blocklist data access |
+| `repositories/message_store.py` | Message store repository |
+| `repositories/permissions.py` | Permission-system ORM repository |
+| `services/message_store.py` | Message event, processing result, bot lifecycle, and platform API call summary recording |
+| `services/llm/` | LLM service abstraction (backends, capabilities, runtime, security) |
+| `start/` | Startup hooks |
+
+## Adapter status
+
+The plugin declares adapters by platform capability instead of treating every imported concrete adapter as enabled. The currently implemented profile is QQ, with only `~onebot.v11` active in the startup flow. Other adapter IDs (such as `~milky`, `~qq`, or `~onebot.v12`) are not implemented; configuring any of them exits with a clear `PlatformAdapterUnknownError`. When unset, the default is OneBot V11.
+
+Explicitly configuring multiple known adapters for the same platform raises `PlatformAdapterConflictError`. Lingchu Bot does not control which adapters NoneBot actually imports or registers; it only checks that the selected adapter has been loaded and registered by NoneBot. When unset, Lingchu selects `~onebot.v11` by default and raises `PlatformAdapterNotLoadedError` if OneBot V11 is not loaded. Other same-platform adapters may still be imported or registered, but Lingchu treats them as disabled and excludes them from platform resolution, message storage, and API call recording. Explicitly declaring an adapter that Lingchu has not implemented or cannot recognize in `LINGCHUAdapter` fails startup. Extra unknown adapters seen at runtime are not considered enabled by `is_adapter_enabled()`; message storage groups them under the stable `unknown` platform. Other platform profiles and non-group-management capabilities depend on later implementation and tests.
+
+Platform permission modules are now discovered through the `PlatformProfile.permission_module` field in the adapter registry, eliminating hardcoded module paths. This unifies platform identifier management in a single location.
+
+<Aside title="Learn more">
+
+For detailed adapter configuration and API differences, see [Adapter Guide](adapter-guide). For platform-, protocol-, and implementation-specific command references, see [Platforms](../../platforms).
+
+</Aside>
+
+## Data and configuration boundaries
+
+The project prefers NoneBot plugin configuration, localstore, and ORM plugin capabilities instead of hard-coded paths or database connections in business code.
+
+Potentially blocking paths such as file storage, TOML parsing, deepcopy, command parsing, and translation catalog loading are moved to worker threads to avoid blocking the NoneBot event loop.
+
+Plugin startup does not create deployment configuration files or install JSON Schema files. Generate editor schemas explicitly with `lingchu schema install`.
+
+## Configuration model
+
+Lingchu Bot uses pydantic as the source of truth for deployment, mutable runtime, handle, and bot-state configuration. NoneBot resolves deployment fields through `get_plugin_config(Config)`; online-editable settings use a separate typed localstore repository.
+
+| Surface | Pydantic model | Notes |
+| --- | --- | --- |
+| Plugin env / `.env` | `core/config.py::Config` (extends `DeploymentSettings`) | NoneBot `get_plugin_config()` is the only deployment-field resolver. |
+| Online-editable settings | `_lingchu_bot_contracts::MutableRuntimeSettings` | Persisted by `core/mutable_settings.py` in localstore-owned `runtime-overrides.toml`. |
+| Per-command handle config | `core/handle_config_defaults/<command>.py::<Model>(BaseModel)` | Registered via `register_handle_defaults()`; `HANDLE_DEFAULTS_REGISTRY` is `dict[str, type[BaseModel]]`. `HandleConfigManager.get_config()` / `update_config()` use `type_validate_python(model_cls, toml_dict)`. `HandleConfig` dataclass still holds `dict[str, Any]` to preserve the frozen-dataclass interface; `_build_handle_config` bridges the pydantic ↔ dict boundary via `model_dump(mode="json")`. |
+| Bot state | `core/bot_state.py::BotStateFile(BaseModel)` | Uses `Field(alias="global")` + `populate_by_name=True` to bridge the `global` Python keyword; `_save_bot_state()` serializes with `model_dump(mode="json", by_alias=True)`. |
+| JSON Schema files | Generated explicitly with `lingchu schema install` | CLI tooling calls pydantic `model_json_schema()` on request; startup never installs them. |
+
+### Adding a new handle config
+
+1. Declare a `pydantic.BaseModel` subclass in `core/handle_config_defaults/<command>.py`.
+2. Register it via `register_handle_defaults("<command_key>", <Model>)`.
+3. Run `task db:check`, then run `lingchu schema install` when editor schemas are needed to regenerate `<basename>.schema.json`.
+4. The corresponding `<command_key>.toml` is created on first read; users can edit it and `HandleConfigManager.get_config(<command_key>)` will validate through pydantic.
+
+Do not return bare `dict` defaults — pydantic owns validation and JSON Schema emission. `HandleConfigManager.validate_config()` is removed; pydantic raises on invalid input.

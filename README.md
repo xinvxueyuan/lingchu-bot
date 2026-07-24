@@ -26,10 +26,10 @@ Lingchu Bot has published its first `0.0.1` formal release. The project is still
 Useful entry points:
 
 - [Online documentation](https://lingchu.zone.id/)
-- [User guide overview](apps/docs/content/docs/user-guide/overview.mdx)
-- [Quick start](apps/docs/content/docs/user-guide/quick-start.mdx)
-- [QQ command reference](apps/docs/content/docs/platforms/qq/command-reference.mdx)
-- [Architecture guide](apps/docs/content/docs/developer-guide/architecture/introduction.mdx)
+- [User guide overview](apps/docs/src/content/docs/user-guide/overview.mdx)
+- [Quick start](apps/docs/src/content/docs/user-guide/quick-start.mdx)
+- [QQ command reference](apps/docs/src/content/docs/platforms/qq/command-reference.mdx)
+- [Architecture guide](apps/docs/src/content/docs/developer-guide/architecture/introduction.mdx)
 - [Contributing guide](CONTRIBUTING.md)
 
 ## What is in this repository
@@ -37,7 +37,7 @@ Useful entry points:
 - `nonebot-plugin-lingchu-bot`: the Python package declared in `pyproject.toml`.
 - `src/plugins/nonebot_plugin_lingchu_bot`: the core NoneBot plugin, including metadata, startup hooks, platform registry, command handlers, permissions, i18n, repositories, and storage helpers.
 - `[tool.nonebot]` in `pyproject.toml`: local plugin loading configuration, installed adapter declarations, and dependency plugin declarations.
-- `apps/docs`: the Next.js / Fumadocs documentation site, with Chinese and English content.
+- `apps/docs`: the Astro / Starlight documentation site, with Chinese and English content.
 - `Dockerfile` / `docker-compose.yml`: container runtime flow. The image generates `/tmp/bot.py` during build through `nb-cli`; the repository root does not ship a committed local `bot.py`.
 - `scripts/setup.sh`: cross-platform initialization script for local development.
 
@@ -270,7 +270,7 @@ silence / speak
 boot / shutdown
 ```
 
-Command trigger language is locale-exclusive. Chinese locales enable Chinese triggers; English locales enable short hyphenated English triggers. They are not enabled at the same time. Full command behavior, permission pre-checks, implementation filters, and remote management details are documented in [QQ Commands](apps/docs/content/docs/platforms/qq/command-reference.mdx).
+Command trigger language is locale-exclusive. Chinese locales enable Chinese triggers; English locales enable short hyphenated English triggers. They are not enabled at the same time. Full command behavior, permission pre-checks, implementation filters, and remote management details are documented in [QQ Commands](apps/docs/src/content/docs/platforms/qq/command-reference.mdx).
 
 ## Development and verification
 
@@ -305,7 +305,8 @@ Documentation site:
 ```bash
 pnpm --filter docs lint
 pnpm --filter docs test
-pnpm turbo run build --filter=docs
+pnpm --filter docs check-types
+pnpm --filter docs build
 ```
 
 Runtime i18n catalogs:
@@ -360,7 +361,7 @@ Lingchu Bot stands on a lot of good open-source shoulders. Thanks especially to 
 
 - **Bot runtime and adapter ecosystem**: [NoneBot2](https://nonebot.dev/), [nonebot-adapter-onebot](https://github.com/nonebot/adapter-onebot), `nonebot-plugin-alconna`, `nonebot-plugin-localstore`, `nonebot-plugin-orm`, `nonebot-plugin-apscheduler`, `nonebot-plugin-htmlkit`, and `nonebot-plugin-docs`.
 - **Python configuration, storage, and service utilities**: `aiofiles`, `toml`, `rtoml`, `jsonschema`, [Babel](https://babel.pocoo.org/), [Jinja](https://jinja.palletsprojects.com/), [Typer](https://typer.tiangolo.com/), [Arrow](https://arrow.readthedocs.io/), `psutil`, [OpenAI Python SDK](https://github.com/openai/openai-python), and [LiteLLM](https://github.com/BerriAI/litellm).
-- **Documentation and frontend stack**: [Fumadocs](https://fumadocs.dev/), [Next.js](https://nextjs.org/), [React](https://react.dev/), [Mermaid](https://mermaid.js.org/), [Twoslash](https://twoslash.netlify.app/), `flexsearch`, `d3-force`, `dompurify`, `feed`, and [Tailwind CSS](https://tailwindcss.com/).
+- **Documentation and frontend stack**: [Astro](https://astro.build/), [Starlight](https://starlight.astro.build/), [React](https://react.dev/), [Mermaid](https://mermaid.js.org/), [Twoslash](https://twoslash.netlify.app/), and [Tailwind CSS](https://tailwindcss.com/).
 - **Engineering, testing, and repository workflow**: [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io/), [Turborepo](https://turbo.build/repo), [Ruff](https://docs.astral.sh/ruff/), [Pyright](https://microsoft.github.io/pyright/), [ty](https://docs.astral.sh/ty/), [pytest](https://docs.pytest.org/), [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/), [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2), [Prettier](https://prettier.io/), [ESLint](https://eslint.org/), [Husky](https://typicode.github.io/husky/), [Gitmoji](https://gitmoji.dev/), `gitnexus`, and [FOSSA](https://fossa.com/).
 
 For complete dependency lists, please refer to [pyproject.toml](pyproject.toml), [package.json](package.json), [apps/docs/package.json](apps/docs/package.json), and [uv.lock](uv.lock).

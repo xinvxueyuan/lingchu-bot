@@ -1,7 +1,0 @@
-{
-  "title": "Deployment",
-  "description": "Deployment guides for specific runtime scenarios",
-  "icon": "Rocket",
-  "root": true,
-  "pages": ["tipo-llama-cpp"]
-}

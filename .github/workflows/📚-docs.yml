@@ -50,24 +50,24 @@ jobs:
       - name: Markdown Lint
         run: pnpm exec markdownlint-cli2
 
-      - name: Lint & Type Check
-        run: pnpm turbo run lint check-types
-
-      - name: Link Validation
-        run: pnpm --filter docs lint:links
+      - name: Lint
+        run: pnpm --filter docs lint
 
       - name: Test
         run: pnpm --filter docs test
 
+      - name: Type Check
+        run: pnpm --filter docs check-types
+
       - name: Build
-        run: pnpm turbo run build --filter=docs
+        run: pnpm --filter docs build
 
       - name: 📦 Upload docs build artifacts
         # pinned from actions/upload-artifact@v7.0.1
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: docs-out-${{ github.sha }}
-          path: apps/docs/out
+          name: docs-dist-${{ github.sha }}
+          path: apps/docs/dist
           if-no-files-found: error
 
   # ── Docs Smoke Test ──
@@ -91,13 +91,13 @@ jobs:
         # pinned from actions/download-artifact@v7.0.0
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
-          name: docs-out-${{ github.sha }}
-          path: apps/docs/out
+          name: docs-dist-${{ github.sha }}
+          path: apps/docs/dist
 
       - name: 🚬 Serve and verify homepage
         shell: bash
         run: |
-          npx --yes serve -s apps/docs/out -l 3000 --no-clipboard &
+          npx --yes serve -s apps/docs/dist -l 3000 --no-clipboard &
           server_pid=$!
           for i in $(seq 1 60); do
             if curl -fsS http://localhost:3000/ >/dev/null 2>&1; then
@@ -132,14 +132,14 @@ jobs:
         # pinned from actions/download-artifact@v7.0.0
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
-          name: docs-out-${{ github.sha }}
-          path: apps/docs/out
+          name: docs-dist-${{ github.sha }}
+          path: apps/docs/dist
 
       - name: 上传 Pages 产物
         # pinned from actions/upload-pages-artifact@v5.0.0
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
         with:
-          path: apps/docs/out
+          path: apps/docs/dist
 
       - name: 部署到 Pages
         # pinned from actions/deploy-pages@v5.0.0

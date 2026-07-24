@@ -71,6 +71,7 @@ path = [
   # docs-site source & tooling (non-mdx; mdx is documentation -> GFDL above)
   "**/*.ts",
   "**/*.tsx",
+  "**/*.astro",
   "**/*.mjs",
   "**/*.mts",
   "**/*.js",

@@ -27,9 +27,7 @@ export default defineConfig({
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
   webServer: {
-    command: process.env["CI"]
-      ? `pnpm run build && pnpm exec serve out -l tcp://${host}:${port}`
-      : `pnpm exec next dev --hostname ${host} --port ${port}`,
+    command: `pnpm exec astro build && pnpm exec astro preview --host ${host} --port ${port}`,
     url: baseURL,
     reuseExistingServer: !process.env["CI"],
     timeout: 120_000,

@@ -1,0 +1,20 @@
+---
+icon: WandSparkles
+title: 页面过渡（View Transitions）
+description: 旧版自定义 View Transitions 实现的迁移说明。
+---
+
+## 页面过渡（View Transitions）
+
+旧版文档站曾维护一套自定义 View Transitions 层，用于页面导航和语言切换的交叉淡入淡出。迁移到 Astro Starlight 后，这套依赖旧框架路由的实现不再作为首版核心能力保留。
+
+## 当前状态
+
+Starlight 负责导航、侧边栏、面包屑与语言切换。首轮迁移优先保持这些行为稳定，不重新实现旧的自定义过渡系统。
+
+如果后续恢复动效，应以 Astro/Starlight 兼容的增强方式实现，并保持以下要求：
+
+- 无 JavaScript 或不支持 `document.startViewTransition` 时，导航仍必须可用。
+- 动效必须尊重 `@media (prefers-reduced-motion: reduce)`。
+- 共享元素名称必须限定作用域，避免普通文档跳转留下脱离布局的过渡快照。
+- 语言切换应保留 Starlight 生成的 locale URL 与搜索索引行为。

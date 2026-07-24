@@ -1,0 +1,39 @@
+---
+icon: Sparkles
+title: p5.js 与 shadcn 集成
+description: 在 MDX 内容中直接嵌入 p5.js 创意草图与 shadcn/ui 组件。
+---
+
+import { RingSketchDemo } from "@/components/p5/demos/ring-sketch-demo";
+import { ShadcnDialogDemo } from "@/components/ui/dialog-demo";
+
+## p5.js 与 shadcn 集成
+
+文档站点在 Starlight 之上挂载了两套互补的渲染层：
+
+- **p5.js** 采用 instance mode，由 `P5Sketch` 组件封装。草图仅在客户端运行，SSR 安全（服务端渲染阶段不访问 `window` / `document`），并在卸载时通过 `p.remove()` 释放资源。
+- **shadcn/ui** 组件源码本地化于 `src/components/ui/`，通过 `src/styles/global.css` 中的 `@theme inline` 桥接块与 Starlight 共享同一套 Tailwind v4 主题 token。
+
+Astro MDX 会把交互式 React 组件作为 island 水合。不要在 MDX 主体中直接把原始 `function` 传给 `<P5Sketch>`；请把每个草图封装为一个 demo 组件（参见 `src/components/p5/demos/`），再在 MDX 中用 client directive 水合。
+
+## 内联草图示例
+
+下方草图实现于 `src/components/p5/demos/ring-sketch-demo.tsx`，是一个客户端组件，内部调用 `<P5Sketch sketch={ringSketch} />`。MDX 导入该包装器并以 `<RingSketchDemo client:load />` 渲染。
+
+<RingSketchDemo client:load />
+
+## 编写注意事项
+
+- `sketch` prop 接收 p5 instance mode 回调 `(p: p5) => void`。不要自行调用 `new p5()`，`P5Sketch` 负责管理生命周期。
+- 草图通过 `import("p5")` 在客户端动态导入，p5 运行时不会进入服务端 bundle。
+- 若需全屏 hero 动效，请使用 Astro client directive 水合专用组件；内容中的内联演示应封装在 client island 中。
+- shadcn 组件读取的 `--color-*` token 镜像自 Starlight 主题变量，因此暗色模式与主题切换会统一生效。
+
+## shadcn/ui Dialog 演示
+
+<ShadcnDialogDemo
+  client:load
+  trigger="打开对话框"
+  title="主题桥接生效"
+  description="本对话框使用 shadcn token（--color-background、--color-foreground），通过 @theme inline 从 Starlight 主题变量桥接而来。"
+/>

@@ -1,0 +1,307 @@
+---
+icon: Terminal
+title: QQ 命令
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+## QQ 命令
+
+命令由 `nonebot-plugin-alconna` 注册，默认启用命令起始符和命令分隔符。命令触发词按 locale 互斥选择：中文 locale 启用中文触发词，英文 locale 启用短横线风格英文触发词。两种语言的触发词不会同时启用。
+
+包括 locale 在内的部署默认值来自 NoneBot 环境变量或其 `.env` 文件。通过在线管理命令修改的触发词覆盖是例外：它们存储在 localstore 管理的 `runtime-overrides.toml` 中。
+
+## 菜单
+
+主命令：
+
+```text
+菜单
+```
+
+当 `LINGCHU_LOCALE` 选择英文时的英文命令：
+
+```text
+menu
+```
+
+菜单命令是索引入口。它只列出可进入的子菜单命令，不再把所有功能堆在一条长消息里。子菜单完全由代码驱动，并按当前平台、协议和实现过滤。
+
+默认子菜单命令：
+
+- `成员管理` / `member-management`：踢出、拉黑/删黑、拉白/删白、设置群名片、设置群头衔、设置/取消管理员。
+- `发言管理` / `speech-management`：禁言/解禁群成员、开启/关闭全体禁言、撤回最近消息。
+- `群聊管理` / `group-chat-management`：设置群名称、设置群头像（实现支持时）、发送群公告（实现支持时）、退出当前群。
+- `远程管理` / `remote-management`：跨群禁言/解禁、全体禁言/解禁、踢出、拉黑/删黑、发送公告、群发公告。
+- `系统管理` / `system-management`：闭嘴/说话（静默模式）、开机/关机（处理器门禁）、重启协议端等应用运行命令。
+- `娱乐功能` / `entertainment`：与 AI 聊天。
+
+<Aside type="note" title="远程管理">
+
+`远程管理` / `remote-management` 是顶层菜单入口，列出所有远程（跨群）命令。远程命令接受群号（int）或群名称（str）。当传入非 int 字符串时，机器人会通过 OneBot V11 `get_group_list` API 模糊匹配群名称。
+
+</Aside>
+
+## 成员禁言
+
+```text
+禁言 @用户 [时长秒数] [原因]
+mute @user [duration seconds] [reason]
+```
+
+省略时长或原因时，灵初会使用 `member_mute.toml` 中对应的 handle 默认值。管理员可用
+`设置功能默认值 <功能> <字段> <值>` 在运行时更新所有受支持的功能默认值；成员禁言也保留
+`设置默认禁言 <秒数>` 快捷命令。
+
+- 时长默认：`60` 秒。
+- 原因默认：`违反群规「默认」`。
+
+## 成员解禁
+
+```text
+解禁 @用户
+unmute @user
+```
+
+<Aside type="note" title="权限预检与审计">
+
+解禁命令在执行前会进行权限预检：`check_target_privilege()` 校验目标用户不是管理员/群主（操作者为群主或超级用户时除外），`check_bot_privilege()` 校验机器人在群内具有管理员/群主角色。执行完成后，`record_command_audit()` 会写入命令级审计日志。
+
+</Aside>
+
+## 全体禁言
+
+```text
+全员禁言
+mute-all
+```
+
+## 全体解禁
+
+```text
+全体解禁
+unmute-all
+```
+
+## 消息撤回
+
+```text
+撤回 [@用户] [数量]
+recall [@user] [count]
+```
+
+- 数量默认读取 NoneBot 环境变量或 `.env` 中的 `LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT`（默认 `10`）。
+- 单个数字参数会被视为数量：`撤回 20`。
+- 定向撤回用户消息时先提供 @：`撤回 @用户 20`。
+- 命令从消息存储读取当前群最近消息，跳过触发命令本身，通过 OneBot V11 `get_msg` 校验候选消息，再调用 `delete_msg` 撤回。
+- 机器人会跳过操作者、机器人自己、群管理员/群主，以及通过 `protected_subject_feature_keys` 保护的用户消息。
+
+## OneBot V11 黑名单
+
+黑名单和白名单命令仅在 OneBot V11 可用。拉黑会把用户写入本群或全局黑名单，随后从当前群踢出该用户，并在黑名单生效期间拒绝该用户的后续加群请求。拉白会把用户写入受保护目标；只有仓库内 `SUPERUSERS` 组成员可以增删白名单。
+
+```text
+拉黑 @用户 [时长秒数] [原因]
+全局拉黑 @用户 [时长秒数] [原因]
+删黑 @用户 [原因]
+全局删黑 @用户 [原因]
+清空黑名单 [原因]
+全局清空黑名单 [原因]
+拉白 @用户 [原因]
+全局拉白 @用户 [原因]
+删白 @用户 [原因]
+全局删白 @用户 [原因]
+```
+
+英文：`block`、`global-block`、`unblock`、`global-unblock`、`clear-blocklist`、`global-clear-blocklist`、`protect`、`global-protect`、`unprotect`、`global-unprotect`。
+
+- 时长默认：永久。
+- 拉黑原因默认：`违反群规「默认」`。
+- 删黑/清空/白名单原因默认：`管理员操作「默认」`。
+
+`清空黑名单` 只清空当前群黑名单；如需清空全局黑名单，请使用 `全局清空黑名单`。
+`拉白` 和 `删白` 只影响当前群白名单；如需跨群保护，请使用全局变体。
+
+## 群设置与操作
+
+| 能力 | 中文命令 | 英文命令 |
+| --- | --- | --- |
+| 设置群名称 | `设置群名称 <新群名称>` | `set-group-name <new group name>` |
+| 设置群头像 | `设置群头像 <图片>` | `set-group-avatar <image>` |
+| 设置群名片 | `设置群名片 @用户 <名片>` | `set-member-card @user <card>` |
+| 设置群成员专属头衔 | `设置群头衔 @用户 <头衔>` | `set-member-title @user <title>` |
+| 设置群管理员 | `设置群管理员 @用户 [true/false]` | `set-member-admin @user [true/false]` |
+| 取消群管理员 | `取消群管理员 @用户` | `unset-member-admin @user` |
+| 踢出成员 | `踢出 <用户ID或@提及> [原因]` | `kick-member <user_id_or_mention> [reason]` |
+| 发送群公告 | `发送群公告 <内容> [图片]` | `send-announcement <content> [image]` |
+| 退出当前群 | `退出群` | `leave-group` |
+
+群公告和群头像命令接收 `nonebot-plugin-alconna` 的 `UniImage` 参数。包含空格的名称、公告内容、名片或头衔建议使用引号包裹，避免被命令分隔符拆分。
+
+## 远程管理（仅 OneBot V11）
+
+远程命令作用于**当前群之外的目标群**。`<群号或群名称>` 参数接受：
+
+- 整数群号（如 `123456789`）。
+- 可解析为整数的纯数字字符串。
+- 非数字字符串，触发通过 `get_group_list` 对机器人已加入群聊的模糊匹配。精确名称匹配优先；否则使用包含关系匹配。匹配到多个群时，机器人会要求提供更精确的名称或群号。
+
+| 能力 | 中文命令 | 英文命令 |
+| --- | --- | --- |
+| 远程禁言 | `远程禁言 <群号或群名称> @用户 [时长秒数] [原因]` | `remote-mute <group_id_or_group_name> @user [duration seconds] [reason]` |
+| 远程解禁 | `远程解禁 <群号或群名称> @用户 [原因]` | `remote-unmute <group_id_or_group_name> @user [reason]` |
+| 远程全体禁言 | `远程全体禁言 <群号或群名称>` | `remote-mute-all <group_id_or_group_name>` |
+| 远程全体解禁 | `远程全体解禁 <群号或群名称>` | `remote-unmute-all <group_id_or_group_name>` |
+| 远程踢出 | `远程踢出 <群号或群名称> @用户 [原因]` | `remote-kick <group_id_or_group_name> @user [reason]` |
+| 远程拉黑 | `远程拉黑 <群号或群名称> @用户 [时长秒数] [原因]` | `remote-block <group_id_or_group_name> @user [duration seconds] [reason]` |
+| 远程删黑 | `远程删黑 <群号或群名称> @用户 [原因]` | `remote-unblock <group_id_or_group_name> @user [reason]` |
+| 远程公告 | `远程公告 <群号或群名称> <内容> [图片]` | `remote-announcement <group_id_or_group_name> <content> [image]` |
+| 群发公告 | `群发公告 <内容> [群号或群名称列表或全部群] [图片]` | `mass-announcement <content> [group_ids_or_group_names_or_all] [image]` |
+
+群发公告使用命令键 / 功能名 `mass announcement` / `群发公告`。内容参数在前。省略目标列表时，机器人会发送到已加入的全部群。指定多个目标群时，用 `,`、`，`、`、`、`;` 或 `；` 分隔群号或群名称。也可以用 `全部群` 或 `all` 明确指定全部已加入群。
+
+<Aside type="caution" title="公告可用性">
+
+远程公告和群发公告要求 `NapCat.Onebot >= 4.18.0`。其他 OneBot V11 实现无法发送群公告。实现不支持时，公告菜单项会被隐藏。
+
+</Aside>
+
+<Aside type="note" title="远程踢出需要黑名单">
+
+`远程踢出` 只对已在目标群黑名单中的用户生效。如果用户尚未被拉黑，请先使用 `远程拉黑`。
+
+</Aside>
+
+## 错误反馈
+
+群管理命令会对已覆盖适配器的网络异常和操作拒绝返回可读错误消息。未知异常仍会向外抛出，方便开发者发现未覆盖的问题。
+
+反馈文本和命令触发词语言会使用当前 NoneBot 配置中的 `LINGCHU_LOCALE`。详见[国际化](../../developer-guide/engineering/i18n)。
+
+## 系统管理
+
+| 能力 | 中文命令 | 英文命令 |
+| --- | --- | --- |
+| 重启协议端 | `重启协议端 [平台]` | `restart-protocol-endpoint [platform]` |
+
+`重启协议端` 省略平台参数时重启当前 QQ OneBot V11 协议端。协议端重新连接后，Lingchu 会向发起命令的群发送确认反馈。
+
+```text
+闭嘴
+silence
+```
+
+进入静默模式：命令照常执行（禁言、踢出等操作仍生效），但不发送任何反馈消息。
+
+```text
+说话
+speak
+```
+
+退出静默模式：恢复命令反馈消息发送。
+
+```text
+开机
+boot
+```
+
+开机：启用所有命令处理器。开机状态下所有命令正常响应。
+
+```text
+关机
+shutdown
+```
+
+关机：停用所有命令处理器（除开机/关机本身），所有命令不再执行也不响应。仅开机/关机命令可在关机状态下使用。
+
+<Aside type="caution" title="关机影响范围">
+
+关机后所有群管理命令（禁言、踢出、拉黑等）均停止响应，仅开机命令可恢复。静默模式下命令仍会执行，仅反馈消息被抑制。
+
+</Aside>
+
+## 聊天
+
+```text
+聊天 <文本>
+chat <text>
+```
+
+与 AI 聊天。机器人调用 `llm.toml` 中配置的默认 profile 生成回复。
+
+- 系统提示词：默认 `"你是一个友好的群聊助手。"`，可通过 `chat.toml` 的 `defaults.system_prompt` 自定义。
+- 功能开关：`chat.toml` 的 `enabled` 字段控制启用/禁用。
+
+<Aside type="note" title="LLM 配置">
+
+聊天命令依赖显式 `llm.toml` profile。请在该 profile 中配置提供商、模型、端点、
+超时和 generation 选项。密钥保存在 `OPENAI_API_KEY` 这类环境变量中，并通过
+`api_key_env` 引用变量名。
+
+</Aside>
+
+## NovelAI 生图
+
+```text
+生图 <描述> [选项]
+```
+
+可移除的 `core/subplugins/novelai_image` 子插件使用托管默认 LLM profile
+理解并翻译请求，再选择性地通过联网搜索和 TIPO 丰富提示词，最后生成一张
+NovelAI Diffusion V4.5 图片。英文 locale 使用
+`novelai-image <description> [options]`。
+
+```text
+生图 两个女孩在雨夜车站等车 --width 1216 --height 832 --steps 32 --scale 5.5 --seed 1234
+生图 古老档案馆里的图书管理员 --sampler k_euler_ancestral --negative 文字
+```
+
+| 选项 | 值 | 用途 |
+| --- | --- | --- |
+| `--width` | 整数 | 输出宽度，范围为 64 到 2048 像素 |
+| `--height` | 整数 | 输出高度，范围为 64 到 2048 像素 |
+| `--steps` | 整数 | 扩散步数，范围为 1 到 50 |
+| `--scale` | 数值 | 提示词引导强度，大于 0 且不超过 20 |
+| `--sampler` | 字符串 | NovelAI 采样器标识 |
+| `--seed` | 整数 | 可复现的 32 位无符号种子，范围为 0 到 4294967295 |
+| `--negative` | 字符串 | 追加到配置与推断结果的负面提示词 |
+
+最终标量值严格遵循以下优先级：
+
+```text
+显式命令选项 > LLM 提取的提示 > novelai_image.toml 默认值
+```
+
+缺少对应命令选项时，LLM 可以从“横图”“竖图”“正方形”“固定种子”或“不要
+文字”等自然语言中提取提示。无效的显式值会中止命令并返回本地化校验消息；
+无效的推断值会回退到 TOML 默认值。
+
+同一个托管 LLM 会自动判断是否需要当前或权威的视觉事实，例如真实地点、产品、
+近期事件、具名角色或精确服装。生成的搜索查询会发送给已配置的 LLM 提供商，
+因此可能向该提供商披露生图主题；搜索来源和阶段诊断不会发送到群聊。只有所选
+LiteLLM 模型与提供商支持联网搜索时才会执行；不支持或搜索失败时会静默降级为
+不含搜索补充的生图流程。
+
+TIPO 失败时也会降级使用 LLM 生成的英文描述和标签。独立服务部署参见
+[使用 llama.cpp 部署 TIPO](/zh/user-guide/deployment/tipo-llama-cpp)。加入或
+删除子插件目录后重启即可生效，父插件不维护 NovelAI 专用注册表。
+
+同一命令还提供完整的 NovelAI 图片 API。图片参数必须以消息图片段传给对应选项：
+
+```text
+生图 img2img 幻想服装 --image <图片> --strength 0.6 --noise 0.1
+生图 inpaint 细致背景 --image <原图> --mask <蒙版>
+生图 vibe 日落群山 --reference <参考图> --reference-strength 0.7
+生图 tool lineart --image <图片>
+生图 tool colorize --image <线稿> --prompt 银发蓝眼 --defry 0
+生图 tool emotion --image <图片> --emotion happy --emotion-level 2
+生图 upscale --image <图片> --factor 4
+生图 annotate --image <图片> --model fake_scribble
+生图 tags "blue hai" --lang en
+生图 account subscription
+```
+
+支持的工具还包括 `sketch`、`bg-removal` 和 `declutter`。模型层覆盖 V3、Furry
+V3、V4、V4.5 及其 Curated/修补变体；Python 客户端另外公开批量生成、V4/V4.5
+实时 MessagePack 事件、vibe 编码缓存、订阅和用户数据查询。群聊只发送最终图像，
+不会公开 token、密码或原始 base64 数据。

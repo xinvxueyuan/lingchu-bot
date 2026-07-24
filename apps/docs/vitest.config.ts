@@ -1,8 +1,10 @@
 import path from "node:path";
-import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  root: import.meta.dirname,
+  oxc: false,
   plugins: [
     react(),
     {
@@ -16,7 +18,6 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
-    setupFiles: ["./src/__tests__/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     onConsoleLog(log) {
       return !log.includes("act(");
@@ -25,7 +26,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),
-      collections: path.resolve(import.meta.dirname, "./.source"),
     },
   },
 });
