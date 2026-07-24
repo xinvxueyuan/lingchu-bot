@@ -286,23 +286,26 @@ html > body[data-scroll-locked] {
   --sl-card-border: color-mix(in srgb, var(--sl-color-gray-4) 55%, transparent);
 }
 
-/* Wrap each Card in <a> for navigation (Starlight Card has no href prop). */
+/* Wrap each Card in <a> for navigation (Starlight Card has no href prop).
+   The stagger transform lives on <a> (Starlight sets translateY on even
+   children); apply the hover lift to the inner .card instead so we don't
+   clobber the stagger transform and trigger a hover-jitter infinite loop. */
 .card-grid > a {
   display: block;
   text-decoration: none;
   color: inherit;
   position: relative;
+}
+
+.card-grid > a > .card {
   transition:
     transform 0.18s ease,
     border-color 0.18s ease,
     box-shadow 0.18s ease;
 }
 
-.card-grid > a:hover {
-  transform: translateY(-2px);
-}
-
 .card-grid > a:hover > .card {
+  transform: translateY(-2px);
   border-color: color-mix(in srgb, var(--sl-color-accent) 55%, transparent);
   box-shadow:
     0 1px 2px rgb(0 0 0 / 8%),
