@@ -3,10 +3,11 @@
 @import "@astrojs/starlight-tailwind";
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap");
 
 @theme {
   --font-sans:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   --color-accent-50: var(--color-sky-50);
   --color-accent-100: var(--color-sky-100);
@@ -52,6 +53,7 @@
 html {
   scrollbar-gutter: stable;
   scroll-behavior: smooth;
+  color-scheme: dark light;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -114,13 +116,12 @@ html > body[data-scroll-locked] {
   background: var(--sl-color-bg-nav);
 }
 
-/* ---- Hero banner: full-bleed flow-field stage ---- */
+/* ---- Hero banner: true full-bleed flow-field stage ---- */
 .hero-banner {
   position: relative;
   margin-inline: -1rem;
   overflow: hidden;
-  border-radius: 1rem;
-  border: 1px solid color-mix(in srgb, var(--sl-color-gray-5) 70%, transparent);
+  border-radius: 0;
   background:
     radial-gradient(
       120% 140% at 15% 0%,
@@ -139,6 +140,49 @@ html > body[data-scroll-locked] {
 @media (min-width: 50rem) {
   .hero-banner {
     margin-inline: -2rem;
+  }
+}
+
+/* Staggered entrance reveal for hero content elements */
+@keyframes hero-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-banner .hero-eyebrow,
+.hero-banner .hero-title,
+.hero-banner .hero-tagline,
+.hero-banner .hero-actions {
+  opacity: 0;
+  animation: hero-reveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.hero-banner .hero-eyebrow {
+  animation-delay: 0.1s;
+}
+.hero-banner .hero-title {
+  animation-delay: 0.2s;
+}
+.hero-banner .hero-tagline {
+  animation-delay: 0.35s;
+}
+.hero-banner .hero-actions {
+  animation-delay: 0.5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-banner .hero-eyebrow,
+  .hero-banner .hero-title,
+  .hero-banner .hero-tagline,
+  .hero-banner .hero-actions {
+    opacity: 1;
+    animation: none;
   }
 }
 
@@ -371,6 +415,28 @@ html > body[data-scroll-locked] {
 }
 
 pre {
+  border-radius: 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 45%, transparent);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 6%),
+    inset 0 1px 0 rgb(255 255 255 / 3%);
+}
+
+/* ---- Product proof: captioned figure ---- */
+.hero-proof {
+  margin-top: 0.5rem;
+}
+
+.hero-proof figcaption {
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--sl-color-gray-2) 70%, transparent);
+}
+
+.hero-proof img {
   border-radius: 0.625rem;
   border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 45%, transparent);
   box-shadow:

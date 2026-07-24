@@ -46,7 +46,7 @@ function DialogOverlay(props: React.ComponentProps<typeof DialogPrimitive.Overla
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
-      className={cn("fixed inset-0 z-50 bg-black/80", props.className)}
+      className={cn("fixed inset-0 z-50 bg-black/80 overscroll-contain", props.className)}
       {...props}
     />
   );
@@ -59,13 +59,13 @@ function DialogContent(props: React.ComponentProps<typeof DialogPrimitive.Conten
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg sm:max-w-lg",
+          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overscroll-contain rounded-lg border bg-background p-6 shadow-lg sm:max-w-lg",
           props.className,
         )}
         {...props}
       >
         {props.children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:pointer-events-none [&_svg]:size-4.5 [&_svg]:shrink-0">
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0">
           <XIcon />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
