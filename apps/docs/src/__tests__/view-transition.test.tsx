@@ -247,6 +247,84 @@ describe("TransitionLink", () => {
   });
 });
 
+// --- TransitionLink sharedName (shared-element transitions) ---
+
+describe("TransitionLink sharedName", () => {
+  it("sets inline view-transition-name and uses shared-transition type when sharedName is provided", () => {
+    pathnameMock.mockReturnValue("/");
+    render(
+      <TransitionLink href="/docs/platforms/qq" sharedName="hero-doc-card">
+        Start
+      </TransitionLink>,
+    );
+    const anchor = screen.getByText("Start").closest<HTMLAnchorElement>("a");
+    expect(anchor).not.toBeNull();
+    // Spy on the clicked anchor's style.setProperty so the inline-name assertion
+    // is deterministic and unaffected by the queueMicrotask cleanup timing.
+    if (!anchor) throw new Error("anchor not found");
+    const setPropertySpy = vi.spyOn(anchor.style, "setProperty");
+
+    fireEvent.click(screen.getByText("Start"));
+
+    // Inline view-transition-name was set on e.currentTarget before the
+    // transition started.
+    expect(setPropertySpy).toHaveBeenCalledWith(
+      "view-transition-name",
+      "hero-doc-card",
+    );
+    // The shared-transition type was passed via the options object form,
+    // bypassing the locale-switch detection branch.
+    expect(startViewTransitionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ types: ["shared-transition"] }),
+    );
+    // Underlying next/navigation router.push received the resolved pathname.
+    expect(pushMock).toHaveBeenCalledWith("/docs/platforms/qq");
+    setPropertySpy.mockRestore();
+  });
+
+  it("does not set inline name or shared-transition type when sharedName is omitted", () => {
+    pathnameMock.mockReturnValue("/");
+    render(<TransitionLink href="/docs/platforms/qq">Start</TransitionLink>);
+    const anchor = screen.getByText("Start").closest<HTMLAnchorElement>("a");
+    expect(anchor).not.toBeNull();
+
+    fireEvent.click(screen.getByText("Start"));
+
+    // No inline view-transition-name was ever set.
+    expect(anchor?.style.getPropertyValue("view-transition-name")).toBe("");
+    // / → /docs/platforms/qq is NOT a locale switch, so push is called without
+    // types → callback form (function arg), not the options object form.
+    expect(startViewTransitionMock).toHaveBeenCalledWith(expect.any(Function));
+    expect(startViewTransitionMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ types: ["shared-transition"] }),
+    );
+    expect(pushMock).toHaveBeenCalledWith("/docs/platforms/qq");
+  });
+
+  it("degrades without setting inline name when startViewTransition is unavailable", () => {
+    removeStartViewTransition();
+    pathnameMock.mockReturnValue("/");
+    render(
+      <TransitionLink href="/docs/platforms/qq" sharedName="hero-doc-card">
+        Start
+      </TransitionLink>,
+    );
+    const anchor = screen.getByText("Start").closest<HTMLAnchorElement>("a");
+    expect(anchor).not.toBeNull();
+
+    fireEvent.click(screen.getByText("Start"));
+
+    // The sharedName branch is never reached because the unsupported-API early
+    // return in handleClick runs first, so no inline name is set.
+    expect(anchor?.style.getPropertyValue("view-transition-name")).toBe("");
+    // handleClick early-returns before push, so neither startViewTransition
+    // nor the underlying router.push is invoked — native navigation falls
+    // through (mirrors the existing unsupported-API degradation test).
+    expect(startViewTransitionMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+});
+
 // --- Provider onLocaleChange coverage (SubTask 5.4) ---
 //
 // `Provider`'s `onLocaleChange` (src/components/provider.tsx) is a thin wrapper:

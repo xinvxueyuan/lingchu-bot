@@ -93,7 +93,7 @@ export function useViewTransitionRouter(): ViewTransitionRouter {
   };
 }
 
-type TransitionLinkProps = ComponentProps<"a"> & { prefetch?: boolean };
+type TransitionLinkProps = ComponentProps<"a"> & { prefetch?: boolean; sharedName?: string };
 
 /**
  * Drop-in replacement for `next/link` that wraps same-origin left-click
@@ -102,7 +102,7 @@ type TransitionLinkProps = ComponentProps<"a"> & { prefetch?: boolean };
  * modified/new-tab/hash-only navigation. Satisfies Fumadocs' `Framework['Link']`
  * contract so it can be supplied via `RootProvider components={{ Link }}`.
  */
-export const TransitionLink: FC<TransitionLinkProps> = ({ onClick, href, ...rest }) => {
+export const TransitionLink: FC<TransitionLinkProps> = ({ onClick, href, sharedName, ...rest }) => {
   const pathname = usePathname();
   const { push } = useViewTransitionRouter();
 
@@ -132,6 +132,27 @@ export const TransitionLink: FC<TransitionLinkProps> = ({ onClick, href, ...rest
 
     e.preventDefault();
     const resolvedPathname = url.pathname + url.search;
+    // Shared-element morph: tag the clicked element with a view-transition-name
+    // before the old snapshot is captured, and scope the transition with a type
+    // so the destination can opt into the matching name via CSS
+    // (`:active-view-transition-type(shared-transition) .vt-hero-target`).
+    // `sharedName` is only used on cross-to-doc home cards (never a locale
+    // switch), so it intentionally bypasses the `locale-switch` detection.
+    if (sharedName) {
+      const target = e.currentTarget;
+      target.style.setProperty("view-transition-name", sharedName);
+      push(resolvedPathname, { types: ["shared-transition"] });
+      // The old snapshot is captured synchronously inside startViewTransition
+      // (called by `push`), so by the time this microtask runs it is safe to
+      // clear the inline name. This prevents the name from lingering and
+      // colliding with a later transition if the element survives (e.g. a
+      // skipped/duplicate-name transition).
+      queueMicrotask(() => {
+        target.style.removeProperty("view-transition-name");
+      });
+      return;
+    }
+
     const isLocaleSwitch = detectLocaleSwitch(pathname, resolvedPathname);
     push(resolvedPathname, isLocaleSwitch ? { types: ["locale-switch"] } : undefined);
   };

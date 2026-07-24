@@ -11,5 +11,12 @@ export function AnnouncementBanner() {
   const pathname = usePathname();
   const locale = pathname.startsWith("/zh") ? "zh" : "en";
 
-  return <Banner variant="rainbow">{messages[locale]}</Banner>;
+  return (
+    <Banner
+      variant="rainbow"
+      className="vt-banner"
+    >
+      {messages[locale]}
+    </Banner>
+  );
 }

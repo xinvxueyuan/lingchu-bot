@@ -17,6 +17,25 @@ The setup lives in two places:
 
 `TransitionLink` is injected through Fumadocs' `RootProvider components={{ Link: TransitionLink }}` extension point in `src/components/provider.tsx`, so sidebar, TOC, navbar, and breadcrumb links all route through it. The home pages (`src/app/(home)/page.tsx` and `src/app/zh/page.tsx`) import `TransitionLink as Link`, and `onLocaleChange` navigates via `useViewTransitionRouter().push(url, { types: ["locale-switch"] })`.
 
+## Shared-element transitions
+
+Beyond the root crossfade, the site marks a few elements with `view-transition-name` so they persist or morph across navigation instead of being swept into the root snapshot:
+
+- **Announcement banner (stable persistence).** `AnnouncementBanner` (rendered in the root layout, so present on every page) carries the `vt-banner` class, which sets a static `view-transition-name: announcement-banner` in `global.css`. On any navigation the banner is captured as its own `::view-transition-group(announcement-banner)` and stays put (same position → static morph), so it no longer flickers with the root crossfade. On a locale switch the banner text crossfades inside the stable banner box.
+- **Home doc-link card → docs title (position morph).** The three doc-link cards on the home pages pass `sharedName="hero-doc-card"` to `TransitionLink`. On click, `TransitionLink` imperatively sets `view-transition-name: hero-doc-card` on the clicked card (via `style.setProperty`) **before** starting the transition, and starts the transition with `types: ["shared-transition"]`. The destination `DocsTitle` carries the `vt-hero-target` class, and `global.css` scopes the matching name to that transition type:
+
+  ```css
+  :active-view-transition-type(shared-transition) .vt-hero-target {
+    view-transition-name: hero-doc-card;
+  }
+  ```
+
+  The browser then morphs the captured card (old position/size) into the doc title (new position/size), with the old card content crossfading into the new title. The inline name is cleared in a microtask after the old snapshot is captured, so it cannot linger and collide with a later transition.
+
+### No ghost elements on non-shared navigations
+
+Because the destination name is gated behind `:active-view-transition-type(shared-transition)`, the `DocsTitle` only receives a `view-transition-name` during a `shared-transition`. Doc→doc navigation, docs→home, locale switches, and the home "Open docs" button (which does not pass `sharedName`) never trigger that type, so `DocsTitle` stays part of the root crossfade and never floats as a detached "ghost" element. The `view-transition-name` uniqueness invariant holds because only the single clicked card is named on the source side and only one `DocsTitle` exists on the destination side.
+
 ## Why manual `startViewTransition` instead of `experimental.viewTransition`
 
 Next.js' `experimental.viewTransition` flag plus React's `<ViewTransition>` component were evaluated first but do not work on stable React: with `react@19.2.7`, both `<ViewTransition>` and `addTransitionType` are `canary` / `experimental`-channel-only exports, and stable `react-dom@19.2.7` has no `document.startViewTransition` integration. Wrapping navigation manually works on stable React, is production-safe, adds no dependency, and degrades gracefully where the API is unsupported.
