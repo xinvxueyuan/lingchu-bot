@@ -75,24 +75,41 @@ fi
 
 # gitmoji 官方 emoji 列表(来源: https://gitmoji.dev/)
 # 包含 variation selector(️)以与 gitmoji.dev 严格对齐
-# POSIX-safe emoji pattern: directly define the alternation string (no bash arrays)
-EMOJI_PATTERN="🎨|⚡️|🔥|🐛|🚑️|✨|📝|🚀|💄|🎉|\
-✅|🔒️|🔐|🔖|🚨|🚧|💚|⬇️|⬆️|📌|\
-👷|📈|♻️|➕|➖|🔧|🔨|🌐|✏️|💩|\
-⏪️|🔀|📦️|👽️|🚚|📄|💥|🍱|♿️|💡|\
-🍻|💬|🗃️|🔊|🔇|👥|🚸|🏗️|📱|🤡|\
-🥚|🙈|📸|⚗️|🔍️|🏷️|🌱|🚩|🥅|💫|\
-🗑️|🛂|🩹|🧐|⚰️|🧪|👔|🩺|🧱|🧑‍💻|\
-💸|🧵|🦺|✈️|🦖"
+#
+# ⚠️ 不能用 `grep -E` 匹配 emoji 前缀: GNU grep 3.0 (Git Bash 自带) 的 DFA 引擎
+# 在默认 UTF-8 locale 下无法匹配 4 字节 UTF-8 序列(≥ U+10000,如 🐛📝🎨🔥🚀💄🎉…),
+# 只有 BMP 符号(✨⚡️✅♻️✏️✈️… 等 3 字节序列)能命中,导致大多数 gitmoji 永远校验失败
+# (即使 `grep -F` 也命中失败)。BSD/macOS grep 行为同样不可预测。
+# 改用 POSIX `case` 做字节级精确匹配(与 locale、grep 版本无关),
+# 再用纯 ASCII 正则校验 type/scope/subject 后缀 —— ASCII 部分 grep -E 始终可靠。
+#
+# 拆分首字段(emoji 前缀)与剩余部分(以首个空格为界)
+EMOJI_FIELD="${CLEAN_MSG%% *}"
+REST="${CLEAN_MSG#* }"
 
-# Conventional Commits 允许的 type(Angular 规范)
-TYPES="feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert"
+# POSIX case 字节级匹配 gitmoji (75 个官方 emoji,含 variation selector)
+EMOJI_OK=false
+case "$EMOJI_FIELD" in
+    🎨|⚡️|🔥|🐛|🚑️|✨|📝|🚀|💄|🎉|\
+    ✅|🔒️|🔐|🔖|🚨|🚧|💚|⬇️|⬆️|📌|\
+    👷|📈|♻️|➕|➖|🔧|🔨|🌐|✏️|💩|\
+    ⏪️|🔀|📦️|👽️|🚚|📄|💥|🍱|♿️|💡|\
+    🍻|💬|🗃️|🔊|🔇|👥|🚸|🏗️|📱|🤡|\
+    🥚|🙈|📸|⚗️|🔍️|🏷️|🌱|🚩|🥅|💫|\
+    🗑️|🛂|🩹|🧐|⚰️|🧪|👔|🩺|🧱|🧑‍💻|\
+    💸|🧵|🦺|✈️|🦖)
+        EMOJI_OK=true
+        ;;
+esac
 
-# 完整正则: ^<gitmoji> <type>[!](<scope>)?[!]: <subject>
+# Conventional Commits 允许的 type(Angular 规范)——纯 ASCII,grep -E 可靠
+# 完整后缀正则: <type>[!](<scope>)?[!]: <subject>
 # ! = 破坏性变更标记,可出现在 type 后或 scope 后
-REG_EXP="^(${EMOJI_PATTERN}) (${TYPES})(!)?(\([^\)]+\))?(!)?: .+"
+SUFFIX_RE="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(!)?(\([^\)]+\))?(!)?: .+"
 
-if ! printf '%s\n' "$CLEAN_MSG" | grep -qE "$REG_EXP"; then
+# 三重校验: emoji 前缀合法 + 存在空格分隔 + 后缀结构合法
+# (REST = CLEAN_MSG 表示未找到空格,即 emoji 与 type 间缺空格)
+if [ "$EMOJI_OK" = false ] || [ "$REST" = "$CLEAN_MSG" ] || ! printf '%s\n' "$REST" | grep -qE "$SUFFIX_RE"; then
     echo "--------------------------------------------------------"
     echo "❌ 格式错误！不符合 gitmoji + Conventional Commits 规范。"
     echo ""

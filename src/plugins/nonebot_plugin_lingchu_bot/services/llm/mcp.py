@@ -368,7 +368,7 @@ async def _public_http_transport(url: str) -> PinnedAddressTransport:
         await validate_public_http_url(literal_url)
     if not addresses:
         raise MCPConnectionError
-    return PinnedAddressTransport(origin_url=url, address=sorted(addresses)[0])
+    return PinnedAddressTransport(origin_url=url, address=min(addresses))
 
 
 @asynccontextmanager

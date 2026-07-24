@@ -260,6 +260,7 @@ allowed-confusables = [
     "E501",    # line-too-long (test assertions can be verbose)
     "F841",    # unused-variable (fixtures may assign variables for clarity)
     "PLR0913", # too-many-arguments (handler migration adds session fixture to fixture-heavy tests)
+    "PLR0917", # too-many-positional-arguments (same fixture-heavy test signatures)
     "TC002",   # typing-only-third-party-import (e.g. pytest used as @pytest.mark decorator)
     "TC003",   # typing-only-standard-library-import (tests don't need TYPE_CHECKING optimization)
     "TC005",   # empty-type-checking-block (test files may have empty TYPE_CHECKING blocks)
@@ -286,6 +287,7 @@ allowed-confusables = [
     "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
     "PLR0911",  # too-many-return-statements (complex permission and privilege checks)
     "PLR0913",  # too-many-arguments (NoneBot handler + OneBot API signatures)
+    "PLR0917",  # too-many-positional-arguments (NoneBot DI injects bot/event/session/matcher positionally)
     "TC001",    # typing-only-first-party-import (NoneBot evaluates type hints at runtime)
     "TC002",    # typing-only-third-party-import (Bot/Event imports needed by get_type_hints())
 ]
@@ -323,6 +325,7 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/services/mcp_server/runtime.py" = [
     "C901",    # FastMCP composition root registers the complete static catalog
     "PLR0913", # MCP tools require the complete exact resource address in their schema
+    "PLR0917", # MCP tool signatures ARE the JSON schema; grouping params would break the API
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/services/mcp_server/send_orchestrator.py" = ["PLR0913"] # dependency-injected orchestration boundary
 "src/plugins/nonebot_plugin_lingchu_bot/services/mcp_server/persistence.py" = [
@@ -661,8 +664,16 @@ addopts = "--import-mode=importlib --strict-markers --strict-config --cov=src/pl
 timeout = 300
 timeout_method = "thread"
 filterwarnings = [
+    "error",
+    # alembic config deprecations (third-party, pending alembic update)
     "ignore:No path_separator found in configuration:DeprecationWarning:alembic.config",
     "ignore:The version_path_separator configuration parameter is deprecated:DeprecationWarning:alembic.config",
+    # NoneBot's ForwardRef._evaluate doesn't pass type_params (Python 3.15 deprecation, third-party)
+    "ignore:Failing to pass a value to the 'type_params' parameter:DeprecationWarning:nonebot.typing",
+    # pytest_json plugin uses old-style hookimpl (third-party, pending pytest 10 update)
+    "ignore:The hookimpl pytest_testnodedown uses old-style configuration options:pytest.PytestRemovedIn10Warning",
+    # nonebot_plugin_orm re-registers model tables when MetaData is shared across sessions (third-party)
+    "ignore:Table .* already exists within the given MetaData:sqlalchemy.exc.SAWarning:nonebot_plugin_orm",
 ]
 markers = [
     "llm_live: calls configured live LLM providers",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from nonebot import require
@@ -28,6 +29,25 @@ from ._base import (
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
     from sqlalchemy.sql.elements import ColumnElement
+
+
+@dataclass(frozen=True)
+class UpsertSpec[T: Model]:
+    """Frozen request object bundling the coupled fields of a cross-dialect upsert.
+
+    Per Repository API Style: write/audit APIs with coupled fields use frozen
+    dataclass request objects instead of long parameter lists, so the public
+    ``upsert`` caller assembles one spec and each dialect helper receives it
+    alongside the session (which stays first per the session-first convention).
+    """
+
+    model: type[T]
+    insert_values: dict[str, Any]
+    columns: dict[str, Any]
+    conflict_keys: list[str]
+    update_keys: list[str]
+    explicit_update_values: dict[str, Any] | None
+    constraint: str | None
 
 
 async def _finalize_bulk_create[T: Model](
@@ -271,8 +291,8 @@ def _build_merge_sql(
     insert_values: dict[str, Any],
     conflict_keys: list[str],
     update_keys: list[str],
-    explicit_update_values: dict[str, Any] | None,
     *,
+    explicit_update_values: dict[str, Any] | None,
     use_dual: bool,
 ) -> tuple[str, dict[str, Any]]:
     """构造 Oracle / SQL Server 的 ``MERGE INTO`` SQL 与绑定参数。
@@ -404,41 +424,24 @@ async def upsert[T: Model](
 
     dialect_name = _get_session_dialect_name(session)
 
+    spec = UpsertSpec(
+        model=model,
+        insert_values=insert_values,
+        columns=columns,
+        conflict_keys=conflict_keys,
+        update_keys=update_keys,
+        explicit_update_values=explicit_update_values,
+        constraint=constraint,
+    )
+
     if dialect_name in {"mysql", "mariadb"}:
-        return await _mysql_upsert(
-            session,
-            model,
-            insert_values,
-            columns,
-            conflict_keys,
-            update_keys,
-            explicit_update_values,
-            constraint,
-        )
+        return await _mysql_upsert(session, spec)
 
     if dialect_name == "oracle":
-        return await _oracle_upsert(
-            session,
-            model,
-            insert_values,
-            columns,
-            conflict_keys,
-            update_keys,
-            explicit_update_values,
-            constraint,
-        )
+        return await _oracle_upsert(session, spec)
 
     if dialect_name == "mssql":
-        return await _mssql_upsert(
-            session,
-            model,
-            insert_values,
-            columns,
-            conflict_keys,
-            update_keys,
-            explicit_update_values,
-            constraint,
-        )
+        return await _mssql_upsert(session, spec)
 
     insert_stmt = _dialect_insert_statement(model, dialect_name, constraint)
     stmt = insert_stmt.values(**insert_values)
@@ -459,13 +462,7 @@ async def upsert[T: Model](
 
 async def _mysql_upsert[T: Model](
     s: AsyncSession | async_scoped_session[AsyncSession],
-    model: type[T],
-    insert_values: dict[str, Any],
-    columns: dict[str, Any],
-    conflict_keys: list[str],
-    update_keys: list[str],
-    explicit_update_values: dict[str, Any] | None,
-    constraint: str | None,
+    spec: UpsertSpec[T],
 ) -> T:
     """MySQL / MariaDB 方言的 upsert 实现。
 
@@ -478,6 +475,13 @@ async def _mysql_upsert[T: Model](
     同时适用于两个方言）。``_get_session_dialect_name`` 返回 ``"mariadb"``
     时，本函数被复用。
     """
+    model = spec.model
+    insert_values = spec.insert_values
+    columns = spec.columns
+    conflict_keys = spec.conflict_keys
+    update_keys = spec.update_keys
+    explicit_update_values = spec.explicit_update_values
+    constraint = spec.constraint
     if constraint is not None:
         raise ValueError(
             "MySQL/MariaDB upsert does not support constraint; use conflict_fields"
@@ -537,13 +541,7 @@ def _is_oracle_unique_constraint_violation(error: SQLAlchemyError) -> bool:
 
 async def _oracle_upsert[T: Model](
     s: AsyncSession | async_scoped_session[AsyncSession],
-    model: type[T],
-    insert_values: dict[str, Any],
-    columns: dict[str, Any],
-    conflict_keys: list[str],
-    update_keys: list[str],
-    explicit_update_values: dict[str, Any] | None,
-    constraint: str | None,
+    spec: UpsertSpec[T],
 ) -> T:
     """Oracle upsert 实现（手写 ``MERGE INTO``）。
 
@@ -552,6 +550,13 @@ async def _oracle_upsert[T: Model](
     ... FROM DUAL) s ...`` 语句 + 命名参数绑定。Oracle 不支持 ``RETURNING``，
     执行后通过 ``conflict_fields`` 做一次 follow-up ``SELECT`` 取回最新行。
     """
+    model = spec.model
+    insert_values = spec.insert_values
+    columns = spec.columns
+    conflict_keys = spec.conflict_keys
+    update_keys = spec.update_keys
+    explicit_update_values = spec.explicit_update_values
+    constraint = spec.constraint
     if constraint is not None:
         raise ValueError(
             "Oracle upsert does not support constraint; use conflict_fields"
@@ -572,7 +577,7 @@ async def _oracle_upsert[T: Model](
         insert_values,
         conflict_keys,
         update_keys,
-        explicit_update_values,
+        explicit_update_values=explicit_update_values,
         use_dual=True,
     )
     stmt = text(merge_sql)
@@ -608,13 +613,7 @@ async def _oracle_upsert[T: Model](
 
 async def _mssql_upsert[T: Model](
     s: AsyncSession | async_scoped_session[AsyncSession],
-    model: type[T],
-    insert_values: dict[str, Any],
-    columns: dict[str, Any],
-    conflict_keys: list[str],
-    update_keys: list[str],
-    explicit_update_values: dict[str, Any] | None,
-    constraint: str | None,
+    spec: UpsertSpec[T],
 ) -> T:
     """SQL Server upsert 实现（手写 ``MERGE INTO``）。
 
@@ -623,6 +622,13 @@ async def _mssql_upsert[T: Model](
     ...) s ...`` 语句 + 命名参数绑定。SQL Server 不支持 ``RETURNING``，执行
     后通过 ``conflict_fields`` 做一次 follow-up ``SELECT`` 取回最新行。
     """
+    model = spec.model
+    insert_values = spec.insert_values
+    columns = spec.columns
+    conflict_keys = spec.conflict_keys
+    update_keys = spec.update_keys
+    explicit_update_values = spec.explicit_update_values
+    constraint = spec.constraint
     if constraint is not None:
         raise ValueError(
             "SQL Server upsert does not support constraint; use conflict_fields"
@@ -645,7 +651,7 @@ async def _mssql_upsert[T: Model](
         insert_values,
         conflict_keys,
         update_keys,
-        explicit_update_values,
+        explicit_update_values=explicit_update_values,
         use_dual=False,
     )
     stmt = text(merge_sql)
