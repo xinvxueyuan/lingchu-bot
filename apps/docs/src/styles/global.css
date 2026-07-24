@@ -142,8 +142,11 @@ html > body[data-scroll-locked] {
   }
 }
 
-/* The canvas sits behind the hero text; text remains interactive. */
-.hero-banner > .hero-canvas {
+/* The canvas sits behind the hero text; text remains interactive.
+   Astro wraps client:load islands in <astro-island> (display:contents),
+   so .hero-canvas is a grandchild, not a direct child. Target both. */
+.hero-banner > .hero-canvas,
+.hero-banner > astro-island {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -152,7 +155,12 @@ html > body[data-scroll-locked] {
   height: 100%;
 }
 
-.hero-banner > .hero-canvas > canvas {
+.hero-banner .hero-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.hero-banner .hero-canvas > canvas {
   width: 100% !important;
   height: 100% !important;
   display: block;
@@ -274,12 +282,15 @@ html > body[data-scroll-locked] {
 }
 
 /* ---- Card grid polish ---- */
-.hero-cards {
+.card-grid {
   --sl-card-border: color-mix(in srgb, var(--sl-color-gray-4) 55%, transparent);
 }
 
-.hero-cards a.sl-card,
-.hero-cards .sl-card-link {
+/* Wrap each Card in <a> for navigation (Starlight Card has no href prop). */
+.card-grid > a {
+  display: block;
+  text-decoration: none;
+  color: inherit;
   position: relative;
   transition:
     transform 0.18s ease,
@@ -287,9 +298,11 @@ html > body[data-scroll-locked] {
     box-shadow 0.18s ease;
 }
 
-.hero-cards a.sl-card:hover,
-.hero-cards .sl-card-link:hover {
+.card-grid > a:hover {
   transform: translateY(-2px);
+}
+
+.card-grid > a:hover > .card {
   border-color: color-mix(in srgb, var(--sl-color-accent) 55%, transparent);
   box-shadow:
     0 1px 2px rgb(0 0 0 / 8%),
@@ -297,8 +310,7 @@ html > body[data-scroll-locked] {
 }
 
 /* Accent corner glow on hover — subtle, never flashy. */
-.hero-cards a.sl-card::after,
-.hero-cards .sl-card-link::after {
+.card-grid > a::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -313,8 +325,7 @@ html > body[data-scroll-locked] {
   );
 }
 
-.hero-cards a.sl-card:hover::after,
-.hero-cards .sl-card-link:hover::after {
+.card-grid > a:hover::after {
   opacity: 1;
 }
 
