@@ -12,9 +12,7 @@ import { HeroSketchLoader } from "@/components/p5/hero-sketch-loader";
     <span class="hero-eyebrow">灵初 · Lingchu Bot</span>
     <h1 class="hero-title">基于 NoneBot2 的群管理机器人，呼吸而至。</h1>
     <p class="hero-tagline">
-      一个基于 NoneBot2 的应用侧管理机器人项目。核心能力以插件形式组织——
-      群管理、命令处理、配置管理、本地存储与异步数据访问——
-      流经同一套带类型的运行时。
+      一个基于 NoneBot2 的应用侧群管理机器人——插件、配置、存储与异步数据，流经同一套带类型的运行时。
     </p>
     <div class="hero-actions">
       <a class="primary" href="/zh/user-guide/quick-start">快速开始</a>
@@ -22,6 +20,23 @@ import { HeroSketchLoader } from "@/components/p5/hero-sketch-loader";
     </div>
   </div>
 </div>
+
+## 实战样例
+
+```text title="QQ 群管理 — 命令示例"
+菜单                  # 列出可用子菜单
+成员管理              # 成员管理子菜单
+禁言 @user 10m        # 禁言成员 10 分钟
+群发公告 内容 全部群   # 向全部群广播公告
+重启协议端            # 重启 OneBot V11 协议端
+```
+
+<figure class="hero-proof">
+  <figcaption>消息存储管线</figcaption>
+
+![事件、处理状态、生命周期与 API 调用摘要流经异步存储|960x498|loading=lazy](/images/docs/message-store-pipeline.webp)
+
+</figure>
 
 ## 快速导航
 

@@ -14,6 +14,30 @@ export default defineConfig({
       title: "Lingchu Bot",
       customCss: ["./src/styles/global.css"],
       defaultLocale: "root",
+      head: [
+        {
+          tag: "meta",
+          attrs: {
+            name: "theme-color",
+            content: "#0b0e14",
+          },
+        },
+        {
+          tag: "link",
+          attrs: {
+            rel: "preconnect",
+            href: "https://fonts.googleapis.com",
+          },
+        },
+        {
+          tag: "link",
+          attrs: {
+            rel: "preconnect",
+            href: "https://fonts.gstatic.com",
+            crossorigin: "",
+          },
+        },
+      ],
       editLink: {
         baseUrl: githubBaseUrl,
       },

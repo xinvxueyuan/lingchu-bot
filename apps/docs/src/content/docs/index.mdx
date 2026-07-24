@@ -12,10 +12,8 @@ import { HeroSketchLoader } from "@/components/p5/hero-sketch-loader";
     <span class="hero-eyebrow">灵初 · Lingchu Bot</span>
     <h1 class="hero-title">A NoneBot2 group-management bot, breathed into life.</h1>
     <p class="hero-tagline">
-      An application-side management bot built on NoneBot2. Core capabilities are
-      organized as plugins — group management, command handling, configuration,
-      local storage, and asynchronous data access — flowing through a single,
-      typed runtime.
+      An application-side group-management bot — plugins, config, storage, and
+      async data flowing through one typed NoneBot2 runtime.
     </p>
     <div class="hero-actions">
       <a class="primary" href="/user-guide/quick-start">Quick Start</a>
@@ -23,6 +21,23 @@ import { HeroSketchLoader } from "@/components/p5/hero-sketch-loader";
     </div>
   </div>
 </div>
+
+## See it in action
+
+```text title="QQ group management — sample commands"
+菜单                  # list available submenus
+成员管理              # member management submenu
+禁言 @user 10m        # mute a member for 10 minutes
+群发公告 内容 全部群   # broadcast announcement to all groups
+重启协议端            # restart the OneBot V11 protocol endpoint
+```
+
+<figure class="hero-proof">
+  <figcaption>Message storage pipeline</figcaption>
+
+![Event, processing, lifecycle, and API call summaries flowing through async storage|960x498|loading=lazy](/images/docs/message-store-pipeline.webp)
+
+</figure>
 
 ## Quick navigation
 
