@@ -4,16 +4,16 @@ packages:
 
 overrides:
   esbuild: ">=0.28.1"
-  # Security fix: postcss sourceMappingURL path traversal (GHSA-r28c-9q8g-f849).
-  # Vulnerable range is <= 8.5.17; track the latest 8.5.x patch.
-  postcss: 8.5.18
-  vite: "^8.0.16"
-  js-yaml: "^4.2.0"
-  markdown-it: "^14.2.0"
-  # Security fixes for Dependabot alerts
-  sharp: "^0.35.3"
-  adm-zip: "^0.6.0"
-  "@hono/node-server": "^2.0.11"
+  # Security fixes: caret ranges so pnpm picks up future patches within each
+  # major; the lower bound is the latest known-good version.
+  brace-expansion: "^5.0.8" # CVE-2026-14257 / GHSA-mh99-v99m-4gvg
+  postcss: "^8.5.23" # GHSA-r28c-9q8g-f849 (sourceMappingURL path traversal)
+  vite: "^8.1.5" # latest 8.x
+  js-yaml: "^4.3.0" # latest 4.x
+  markdown-it: "^14.3.0" # latest 14.x
+  sharp: "^0.35.3" # GHSA-f88m-g3jw-g9cj (libvips)
+  adm-zip: "^0.6.0" # CVE-2026-39244
+  "@hono/node-server": "^2.0.11" # GHSA-frvp-7c67-39w9
 
 allowBuilds:
   '@go-task/cli': true
@@ -38,3 +38,6 @@ allowBuilds:
   tree-sitter-rust: true
   tree-sitter-typescript: true
   unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - postcss@8.5.23
