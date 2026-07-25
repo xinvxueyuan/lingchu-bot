@@ -4,7 +4,9 @@ packages:
 
 overrides:
   esbuild: ">=0.28.1"
-  postcss: 8.5.15
+  # Security fix: postcss sourceMappingURL path traversal (GHSA-r28c-9q8g-f849).
+  # Vulnerable range is <= 8.5.17; track the latest 8.5.x patch.
+  postcss: 8.5.18
   vite: "^8.0.16"
   js-yaml: "^4.2.0"
   markdown-it: "^14.2.0"
