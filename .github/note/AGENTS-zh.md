@@ -377,7 +377,10 @@ task ci
 #### Testing And Typing
 
 - 修改函数签名时，grep 所有调用方，更新 fixtures，并运行 Ruff、Pyright、ty、pytest。
-- 修改钩子、适配器或启动流程后，用 `timeout 10s nb run -r` 做一次短时真实启动冒烟测试（根据启动输出调整等待时间，需观察到 `Application startup complete.` 并至少完成一个事件周期）。这能捕获静态分析无法发现的前向引用签名错误与导入顺序问题。
+- 修改钩子、适配器或启动流程后，运行三阶段真实启动冒烟测试（完整流程见 `apps/docs/src/content/docs/developer-guide/engineering/testing-ci.mdx` → "Runtime smoke test"）：
+  - **开发环境**：`uvx --from nb-cli nb.exe run` 通过 `ENVIRONMENT=dev` 载入 `.env` + `.env.dev`；需观察到 `Application startup complete.` 并至少完成一个事件周期。能捕获静态分析无法发现的前向引用签名错误与导入顺序问题。
+  - **生产环境**：删除 `config/nonebot_plugin_lingchu_bot/`、`data/nonebot_plugin_lingchu_bot/`、`data/nonebot_plugin_orm/`、`cache/nonebot_plugin_lingchu_bot/`（均为 localstore 管理），设置 `ENVIRONMENT=prod`，再 `uvx --from nb-cli nb.exe run` 载入 `.env` + `.env.prod`。验证启动过程不写 schema 且能在干净 localstore 下存活；LLM 配置告警可接受，硬错误不可接受。
+  - **CLI 工具**：开发环境通过 `uv run lingchu doctor`、`uv run lingchu --version`、`uv run lingchu config path` 检查；生产封包通过 `task ci:wheel-smoke`（在隔离环境中对构建出的 wheel 运行 `scripts/check-wheel-entrypoints.py`，校验 `lingchu` console entry、`nb lingchu` plugin entry、`doctor --json` 以及 `config init/validate/schema install`）。
 - gettext-heavy handler 中不要用 `_` 当临时变量覆盖 gettext helper。
 - 测试中的 side-effect exception 必须匹配生产代码 `except` 分支。
 - NoneBot event narrowing 使用 `isinstance(event, GroupMessageEvent)`。

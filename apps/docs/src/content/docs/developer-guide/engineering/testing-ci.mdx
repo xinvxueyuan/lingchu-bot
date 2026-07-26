@@ -32,13 +32,68 @@ If only one module changed, run the related test file first, then broaden the sc
 
 ## Runtime smoke test
 
-After hook, adapter, or startup-flow changes, static checks are not enough. Run a short live startup to catch forward-reference signature errors and import-order issues:
+After hook, adapter, or startup-flow changes, static checks are not enough. Run the three-stage live smoke test below to catch forward-reference signature errors, import-order issues, schema-write leaks, and CLI regressions that static analysis misses.
+
+### Stage 1 — Development environment
+
+Start the bot with the development environment selected by `ENVIRONMENT=dev` so NoneBot2 loads `.env` + `.env.dev`:
 
 ```bash
-timeout 10s nb run -r
+uvx --from nb-cli nb.exe run
 ```
 
-Adjust the timeout based on the output. Wait until you see `Application startup complete.` and at least one event cycle. If the process exits before startup finishes, increase the timeout. The command exits with code 124 when the timeout kills the process, which is expected for a smoke test.
+Wait until you see `Application startup complete.` and at least one event cycle. To bound the run, wrap the command with `timeout` (e.g. `timeout 10s`); exit code `124` is expected when the timeout kills the process. If the process exits before startup finishes, increase the timeout.
+
+### Stage 2 — Production environment (clean localstore)
+
+Verify the bot starts cleanly from a pristine localstore state, which proves startup is schema-write-free and survives a fresh deployment.
+
+1. Delete every localstore-owned directory under the project:
+
+   ```bash
+   rm -rf config/nonebot_plugin_lingchu_bot/ \
+          data/nonebot_plugin_lingchu_bot/ \
+          data/nonebot_plugin_orm/ \
+          cache/nonebot_plugin_lingchu_bot/
+   ```
+
+   These four paths are resolved by `nonebot_plugin_localstore` (set `LOCALSTORE_USE_CWD=true` in `.env`). Repository-root `config/`, `data/`, and `cache/` are local development artifacts and disposable.
+
+2. Set `ENVIRONMENT=prod` so NoneBot2 loads `.env` + `.env.prod` and start the bot:
+
+   ```bash
+   ENVIRONMENT=prod uvx --from nb-cli nb.exe run
+   ```
+
+3. Acceptance: the process reaches `Application startup complete.` without hard errors. A `LLM configuration missing or invalid; AI is unavailable` warning is acceptable (run `lingchu config init` afterwards to seed `llm.toml`); any traceback, schema-write, or migration side effect is a hard failure.
+
+### Stage 3 — CLI tool verification
+
+Verify the `lingchu` CLI works in both the development environment and as a packaged distribution.
+
+**Development environment** — exercise the in-tree CLI directly through `uv`:
+
+```bash
+uv run lingchu --version
+uv run lingchu doctor
+uv run lingchu config path
+```
+
+`lingchu doctor` reports `ok` for `nonebot2`, `nonebot-adapter-onebot`, `nonebot-plugin-localstore`, and `nonebot-plugin-lingchu-bot`. Any `missing` status is a hard failure.
+
+**Production packaging check** — verify the built wheel exposes the correct entry points and behaves in an isolated environment:
+
+```bash
+task ci:wheel-smoke
+```
+
+This runs `scripts/check-wheel-entrypoints.py`, which builds the wheel and then in a temporary project (with `LINGCHU_*`, `LOCALSTORE_*`, and `ENVIRONMENT` env vars stripped) asserts that:
+
+- the wheel declares `lingchu = "_lingchu_bot_cli.app:main"` and `nb lingchu = "_lingchu_bot_cli.nb_plugin:install"` entry points;
+- `Typer` is declared as a runtime dependency and `nb-cli` is not;
+- `lingchu --help`, `nb lingchu --help`, and `nb lingchu doctor --json` succeed;
+- `nb lingchu config validate --path missing.toml` preserves the Typer domain error (exit code 1 with `missing configuration file`);
+- `lingchu config init`, `lingchu config validate`, and `lingchu schema install` round-trip correctly without writing into the project cwd or leaving `.tmp` files behind.
 
 ## CI/CD smoke test
 
