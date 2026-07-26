@@ -425,7 +425,10 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 #### Testing And Typing
 
 - When changing function signatures, grep all callers, update fixtures, and run Ruff, Pyright, ty, and pytest.
-- After hook, adapter, or startup-flow changes, run a short live smoke test with `timeout 10s nb run -r` (adjust the timeout based on startup output; wait until `Application startup complete.` and at least one event cycle are observed). This catches forward-reference signature errors and import-order issues that static analysis misses.
+- After hook, adapter, or startup-flow changes, run the three-stage live smoke test (full procedure: `apps/docs/src/content/docs/developer-guide/engineering/testing-ci.mdx` → "Runtime smoke test"):
+  - **Dev env**: `uvx --from nb-cli nb.exe run` loads `.env` + `.env.dev` via `ENVIRONMENT=dev`; wait for `Application startup complete.` and at least one event cycle. Catches forward-reference signature errors and import-order issues that static analysis misses.
+  - **Prod env**: delete `config/nonebot_plugin_lingchu_bot/`, `data/nonebot_plugin_lingchu_bot/`, `data/nonebot_plugin_orm/`, `cache/nonebot_plugin_lingchu_bot/` (all localstore-owned), set `ENVIRONMENT=prod`, then `uvx --from nb-cli nb.exe run` loads `.env` + `.env.prod`. Verifies startup is schema-write-free and survives a clean localstore; an LLM-config warning is acceptable, hard errors are not.
+  - **CLI tool**: dev check via `uv run lingchu doctor`, `uv run lingchu --version`, `uv run lingchu config path`; production packaging check via `task ci:wheel-smoke` (runs `scripts/check-wheel-entrypoints.py` against the built wheel in an isolated env, verifying the `lingchu` console entry, the `nb lingchu` plugin entry, `doctor --json`, and `config init/validate/schema install`).
 - Do not shadow gettext helper `_` with throwaway locals in gettext-heavy handlers.
 - In tests, side-effect exceptions must match the production `except` clause.
 - Use `isinstance(event, GroupMessageEvent)` for NoneBot event narrowing.
