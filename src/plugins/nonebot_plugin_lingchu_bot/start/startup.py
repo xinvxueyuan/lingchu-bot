@@ -20,7 +20,7 @@ from ..platforms import (
     validate_enabled_adapters_loaded,
 )
 from ..repositories.registry import seed_registry_tables
-from ..services.llm.config import ensure_llm_config_file_async
+from ..services.llm.config import _LLMConfigError, ensure_llm_config_file_async
 from ..services.llm.mcp_lifecycle import initialize_mcp_agent_runtime
 from ..services.llm.runtime import initialize_llm_runtime
 from ..services.message_store import (
@@ -44,6 +44,16 @@ async def startup() -> None:
     """Initialize configuration, optional AI, handlers, stores, and scheduler."""
     try:
         await _initialize_ai()
+    except _LLMConfigError:
+        # AI is optional; an invalid or empty llm.toml must not prevent the
+        # bot's non-AI services from starting. Surface actionable guidance
+        # without a full traceback.
+        logger.warning(
+            "LLM configuration missing or invalid; AI is unavailable. "
+            "Run `lingchu config init` to create llm.toml "
+            "(set LINGCHU_AI_* env vars for auto-seeding), "
+            "then edit it to declare at least one profile."
+        )
     except Exception:
         # AI is optional; configuration or backend-local dependency failures
         # must not prevent the bot's non-AI services from starting.

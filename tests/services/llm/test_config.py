@@ -471,3 +471,17 @@ def test_ensure_llm_config_file_async_uses_direct_filesystem_io() -> None:
     source = inspect.getsource(ensure_llm_config_file_async)
     assert "aiofiles" not in source
     assert "asyncio.to_thread" not in source
+
+
+async def test_ensure_llm_config_file_async_creates_parent_directory(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "nested" / "deep" / "llm.toml"
+    assert not config_file.parent.exists()
+
+    with patch.object(module, "get_llm_config_file", return_value=config_file):
+        path = await ensure_llm_config_file_async()
+
+    assert path == config_file
+    assert config_file.parent.exists()
+    assert not config_file.exists()

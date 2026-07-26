@@ -306,7 +306,16 @@ def get_llm_config_file() -> Path:
 
 
 async def ensure_llm_config_file_async() -> Path:
-    return get_llm_config_file()
+    """Return the localstore-owned ``llm.toml`` path without creating the file.
+
+    Only the parent directory is ensured so callers can resolve the path
+    before the file exists; the configuration file itself is never written
+    at startup. When ``llm.toml`` is missing, ``load_llm_runtime_config()``
+    falls through to an empty mapping and raises ``INVALID_CONFIGURATION``.
+    """
+    path = get_llm_config_file()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def _check_url(url: str | None, *, allow_private: bool) -> None:
