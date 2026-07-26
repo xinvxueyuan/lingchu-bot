@@ -124,7 +124,7 @@ class Config(DeploymentSettings):
     """
 
     # --- 基础设施字段（来自原Config，不写入TOML） ---
-    core_version: str = "0.0.0.dev40"
+    core_version: str = "0.1.0"
     data_dir: Path = Field(default_factory=get_plugin_data_dir)
     config_dir: Path = Field(default_factory=get_plugin_config_dir)
     cache_dir: Path = Field(default_factory=get_plugin_cache_dir)
