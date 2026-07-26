@@ -10,6 +10,24 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.1.0] - 2026-07-27
+
+First minor release. The jump from `0.0.1` to `0.1.0` reflects significant
+accumulated changes: TOML configuration migration, multi-database support,
+LLM service integration, docs site, CLI tooling, and smoke test enhancement.
+
+### Added
+
 - Docs site home hero: full-bleed p5.js "Organic Turbulence" flow-field
   sketch with layered Perlin noise, steered particles, accumulating trails,
   velocity-mapped color, and `prefers-reduced-motion` support.
@@ -18,6 +36,15 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 - Global style polish for the docs site: accent-tinted selection color,
   refined theme-aware scrollbars, hero banner layout, card hover glow,
   feature grid, and inline code/block refinement.
+- Three-stage runtime smoke test flow (dev env / prod env clean-localstore /
+  CLI tool verification) documented across `AGENTS.md`, `CLAUDE.md`,
+  `.github/note/AGENTS-zh.md`, and both EN/zh `testing-ci.mdx` pages.
+- Non-Docker prod-env smoke test job (`smoke-test-prod-env`) in
+  `👷-ci-builds.yml`, validating schema-write-free startup on a pristine
+  runner without Docker-specific defaults.
+- `lingchu config init` now seeds `llm.toml` from `LINGCHU_AI_*` environment
+  variables, enabling zero-touch LLM profile bootstrap in containerized and
+  CI environments.
 
 ### Changed
 
@@ -40,6 +67,9 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Removed
 
+- Removed legacy `.serena/` tool configuration directory (cleanup of a
+  deprecated tool's残留).
+
 ### Fixed
 
 - Corrected project brand name from "灵枢" to "灵初" across docs site
@@ -49,8 +79,25 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
   correctly overlays behind the hero content instead of sitting side-by-side.
 - Fixed quick-navigation cards being non-clickable: Starlight `Card` component
   does not support `href`; cards are now wrapped in `<a>` tags for navigation.
+- Fixed `_LLMConfigError` on `nb run` startup when `llm.toml` is missing or
+  empty: `ensure_llm_config_file_async()` no longer creates the file at
+  startup; `load_llm_runtime_config()` falls through to an empty mapping and
+  emits an actionable warning instead of a traceback.
+- Fixed Windows ESLint failure caused by `brace-expansion@5.x` (ESM-only)
+  being forced onto `minimatch@9.0.9` (expects CJS default export); added a
+  targeted `minimatch@9.0.9>brace-expansion` override to `^2.1.2` (not
+  affected by CVE-2026-14257) while keeping the global `^5.0.8` security fix.
 
 ### Security
+
+- `brace-expansion` overridden to `^5.0.8` globally to mitigate
+  CVE-2026-14257 / GHSA-mh99-v99m-4gvg (DoS via memory exhaustion).
+
+### Release Notes
+
+- Software code remains under `LGPL-3.0-or-later`.
+- Documentation remains under `GFDL-1.3-or-later`.
+- Visual elements remain under `CC0-1.0`.
 
 ## [0.0.1] - 2026-07-06
 
@@ -69,5 +116,6 @@ Initial formal release for QQ group management through OneBot V11.
 - Documentation remains under `GFDL-1.3-or-later`.
 - Visual elements remain under `CC0-1.0`.
 
-[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.1.0
 [0.0.1]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.0.1
