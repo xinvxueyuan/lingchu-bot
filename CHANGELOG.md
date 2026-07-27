@@ -20,6 +20,136 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Security
 
+## [0.3.0] - 2026-07-28
+
+Adapter module registry consolidated into a single source of truth, plus a
+transitive dependency security fix.
+
+### Added
+
+- ADR-0002 (`docs/adr/0002-adapter-module-path-registry.md`) recording the
+  decision that `platforms/registry.py::_PROTOCOL_IMPLEMENTATIONS` is the
+  single source of truth for adapter→module-path mapping.
+- "Handler Kind" domain term in `CONTEXT.md` naming the `"command" | "menu"`
+  dispatch dimension of the handler loader.
+
+### Changed
+
+- Adapter module registry consolidated: the `_ADAPTER_MODULES` dicts in
+  `handle/qq/adapters/__init__.py` and `handle/menu.py` are removed. The
+  loader now resolves handler module paths exclusively from
+  `_PROTOCOL_IMPLEMENTATIONS` via `get_protocol_implementations`, so
+  database seeding and handler loading share one mapping by construction.
+- `load_adapter_handlers` interface deepened from
+  `(adapter_id, adapter_modules, package)` to `(adapter_id, kind)`; the two
+  `import_handle()` entry points (group + menu) collapsed into one
+  `import_handle(kind: HandlerKind)`.
+
+### Removed
+
+- Telegram adapter compatibility shim at
+  `handle/qq/adapters/telegram/default/__init__.py` — the loader now
+  imports `handle.telegram.adapters.default` directly from the registry's
+  absolute `module_path`.
+
+### Fixed
+
+- Resolved `brace-expansion@2.x` transitive dependency vulnerability
+  (CVE-2026-14257) by globally overriding `minimatch` to `^10.2.5`.
+
+### Security
+
+- No new security findings. The `minimatch` override (above) closes the
+  only Dependabot alert outstanding from 0.2.0.
+
+## [0.2.0] - 2026-07-28
+
+Telegram platform support added. This release introduces the Telegram Bot API
+as a second platform front-end alongside OneBot V11, plus a smoke-test
+startup fix, a full-project security audit, and a senior-architect
+architecture review with P0 remediation.
+
+### Added
+
+- Telegram platform support: five group-management command handlers
+  (`bot_state`, `menu`, `moderation`, `mute`, `recall`) under
+  `handle/telegram/adapters/default/`, mirroring the OneBot V11 handler
+  surface through the existing `selected_adapter_handle` decorator.
+- Telegram permission seeds in `platforms/telegram/permissions.py`,
+  registered via the platform registry and consumed by the permission
+  service for fail-closed authorization.
+- Telegram platform overview docs at
+  `apps/docs/src/content/docs/platforms/telegram/overview.mdx` (EN + ZH),
+  with a matching sidebar entry in `apps/docs/astro.config.mjs` and a
+  Telegram row in the "Available platforms" table in
+  `platforms/index.mdx` (EN + ZH).
+- "Adapter Handle Decorators" lesson documented in `AGENTS.md`,
+  `CLAUDE.md`, and `.github/note/AGENTS-zh.md`: handler modules decorated
+  by `selected_adapter_handle` MUST NOT use `from __future__ import
+  annotations`, because NoneBot resolves signature forward refs via
+  `wrapper.__globals__` (the `common.py` module globals), not
+  `func.__globals__`.
+- Threat model and full-project security audit report at
+  `.trae/specs/prepare-0.2.0-release/security-audit.md` covering all six
+  surfaces (trust boundaries, authn/authz, secret handling, persisted PII,
+  network egress, MCP server exposure). Result: 0 CRITICAL, 0 HIGH,
+  0 MEDIUM, 1 LOW (pre-existing, accepted), 1 INFO (accepted).
+- Senior-architect architecture review report at
+  `.trae/specs/prepare-0.2.0-release/architecture-review.md` with
+  prioritized findings (2 P0 fixed, 6 P1 + 5 P2 deferred to follow-up
+  specs) and four ADR candidates.
+
+### Changed
+
+- `hooks/adapters.py` event normalization extended for Telegram events
+  with type-safe `getattr` + `isinstance` checks and 128-char field
+  limits on `conversation_id`, `user_id`, and `message_id`.
+- `permissions/service.py` integrates Telegram permission resolution via
+  the platform registry; superuser bypass remains explicit and
+  fail-closed for anonymous principals.
+- `platforms/registry.py` registers the Telegram platform profile
+  (`PlatformProfile` + `ProtocolImplementationInfo`).
+- `handle/qq/adapters/__init__.py` and `handle/menu.py` adapter module
+  registry extended to load `~telegram` adapter handlers at startup.
+- `runtime_settings.py` extended for Telegram adapter selection.
+
+### Fixed
+
+- Fixed `NameError: name 'GroupMessageEvent' is not defined` on startup
+  when Telegram handlers used `from __future__ import annotations`.
+  NoneBot resolves signature forward refs via `wrapper.__globals__` (the
+  `common.py` module globals), not `func.__globals__`; `@wraps` copies
+  `__wrapped__`/`__name__`/`__annotations__` but NOT `__globals__`, so
+  adapter-specific event types became unresolvable. Removed
+  `from __future__ import annotations` from the five Telegram handler
+  files (`bot_state.py`, `menu.py`, `moderation.py`, `mute.py`,
+  `recall.py`) and added a root-cause comment at
+  `handle/qq/commands/common.py::_state_wrapper`.
+- Fixed `ModuleNotFoundError: No module named 'src'` in installed-package
+  environments: the `handle/qq/adapters/telegram/default/__init__.py`
+  compatibility shim used `from src.plugins...` absolute import;
+  switched to package-relative
+  `from nonebot_plugin_lingchu_bot.handle.telegram.adapters.default import import_handle`.
+
+### Security
+
+- Full-project security audit completed ahead of the 0.2.0 release. The
+  audit used the `TRAE-security-review` skill on both the worktree diff
+  and the `src/` baseline, plus parallel Sub-Agent deep sweeps over
+  `services/mcp_server/`, `services/llm/`, `permissions/`, `hooks/` +
+  `handle/`, and the `lingchu` CLI. No HIGH/CRITICAL findings were
+  identified. The 1 LOW finding (pre-existing
+  `ensure_mcp_server_config_file_async` creates config on startup — a
+  constraint violation rather than a security vulnerability) and the 1
+  INFO finding (post-send audit exception swallowed by design) are
+  accepted with documented rationale and tracked for follow-up.
+
+### Release Notes
+
+- Software code remains under `LGPL-3.0-or-later`.
+- Documentation remains under `GFDL-1.3-or-later`.
+- Visual elements remain under `CC0-1.0`.
+
 ## [0.1.0] - 2026-07-27
 
 First minor release. The jump from `0.0.1` to `0.1.0` reflects significant
@@ -116,6 +246,8 @@ Initial formal release for QQ group management through OneBot V11.
 - Documentation remains under `GFDL-1.3-or-later`.
 - Visual elements remain under `CC0-1.0`.
 
-[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.3.0
+[0.2.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.2.0
 [0.1.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.1.0
 [0.0.1]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.0.1
