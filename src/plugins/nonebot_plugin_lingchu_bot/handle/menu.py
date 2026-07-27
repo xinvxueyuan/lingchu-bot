@@ -11,14 +11,12 @@ from nonebot_plugin_alconna import AlconnaMatcher, on_alconna
 from packaging.version import InvalidVersion, Version, parse
 
 from ..core.mutable_settings import get_mutable_settings
-from ..i18n import _async as _, get_configured_locale, gettext, normalize_locale
+from ..i18n import get_configured_locale, gettext, normalize_locale
 from ..platforms import (
     QQ_CAPABILITIES,
     TELEGRAM_CAPABILITIES,
     PlatformCapability,
-    resolve_enabled_adapters,
 )
-from .qq.adapters import load_adapter_handlers
 from .qq.commands.triggers import COMMAND_TRIGGERS
 
 if TYPE_CHECKING:
@@ -39,11 +37,6 @@ menu_cmd: type[AlconnaMatcher] = on_alconna(
     use_cmd_sep=True,
     use_cmd_start=True,
 )
-
-_ADAPTER_MODULES: dict[str, tuple[str, ...]] = {
-    "~onebot.v11": (".qq.adapters.onebot11.default.menu",),
-    "~telegram": (".telegram.adapters.default.menu",),
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -916,22 +909,3 @@ def _version_gte(current: str, minimum: str) -> bool:
     except InvalidVersion:
         return False
     return current_version >= minimum_version
-
-
-async def import_handle() -> Any:
-    for adapter_id in sorted(resolve_enabled_adapters()):
-        handlers = load_adapter_handlers(adapter_id, _ADAPTER_MODULES, __package__)
-        if not handlers:
-            logger.debug(
-                (await _("Lingchu 未为适配器 {adapter_id} 声明 menu 处理器")).format(
-                    adapter_id=adapter_id
-                )
-            )
-            continue
-        logger.debug(
-            (await _("Lingchu 为适配器 {adapter_id} 导入 menu 处理器")).format(
-                adapter_id=adapter_id
-            )
-        )
-        for handler in handlers:
-            await handler()

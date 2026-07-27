@@ -10,8 +10,7 @@ from ..core.config import (
 )
 from ..core.menu_config import ensure_menu_config_file_async, load_menu_config
 from ..handle import menu as menu_module
-from ..handle.menu import import_handle as menu_import_handle
-from ..handle.qq.adapters import import_handle as group_import_handle
+from ..handle.qq.adapters import import_handle
 from ..i18n import _async as _, warm_translation_cache
 from ..permissions import validate_and_seed_permission_system
 from ..platforms import (
@@ -99,8 +98,8 @@ async def startup() -> None:
     async with get_session() as session, session.begin():
         await seed_registry_tables(session)
         await validate_and_seed_permission_system(session)
-    await group_import_handle()
-    await menu_import_handle()
+    await import_handle("command")
+    await import_handle("menu")
     await initialize_message_store()
     register_scheduler_handler(
         SCHEDULER_CLEANUP_HANDLER_KEY,

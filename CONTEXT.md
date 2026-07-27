@@ -48,3 +48,12 @@ _Avoid_: page number, database offset
 The complete platform, adapter, protocol, and bot identity used to select one
 connected bot deterministically.
 _Avoid_: first bot, current bot
+
+## Handler Loading
+
+**Handler Kind**:
+The dispatch dimension of the handler loader. A `HandlerKind` is either
+`"command"` (group command handlers) or `"menu"` (menu page handlers). The
+single `import_handle(kind)` entry point resolves module paths for each enabled
+adapter from `_PROTOCOL_IMPLEMENTATIONS` and initializes them by kind.
+_Avoid_: handler type, handler category, loader mode

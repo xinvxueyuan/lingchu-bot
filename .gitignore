@@ -71,7 +71,10 @@ test-results/
 
 # ===== Apps / docs (Next.js + Fumadocs) =====
 # Root /docs/ is intentionally ignored; canonical docs live in apps/docs/.
-/docs
+# Exception: docs/adr/ holds architecture decision records (ADRs) tracked by
+# the improve-codebase-architecture skill and referenced from AGENTS.md.
+/docs/*
+!/docs/adr/
 .source/
 apps/docs/.source/
 apps/docs/.next/

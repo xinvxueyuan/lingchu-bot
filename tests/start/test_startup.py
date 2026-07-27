@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -73,10 +73,8 @@ def _apply_default_startup_mocks(
     monkeypatch.setattr(
         startup_module, "validate_and_seed_permission_system", AsyncMock()
     )
-    group_import = AsyncMock()
-    menu_import = AsyncMock()
-    monkeypatch.setattr(startup_module, "group_import_handle", group_import)
-    monkeypatch.setattr(startup_module, "menu_import_handle", menu_import)
+    import_handle_mock = AsyncMock()
+    monkeypatch.setattr(startup_module, "import_handle", import_handle_mock)
     monkeypatch.setattr(startup_module, "initialize_message_store", AsyncMock())
     monkeypatch.setattr(startup_module, "cleanup_expired_messages", AsyncMock())
     register_scheduler_handler = MagicMock()
@@ -93,8 +91,7 @@ def _apply_default_startup_mocks(
     return {
         "log_exception": log_exception,
         "handle_manager_mock": handle_manager_mock,
-        "group_import": group_import,
-        "menu_import": menu_import,
+        "import_handle": import_handle_mock,
         "register_scheduler_handler": register_scheduler_handler,
         "initialize_scheduler_service": initialize_scheduler_service,
     }
@@ -107,8 +104,9 @@ async def test_startup_imports_group_and_menu_handlers(
     llm_error: ValueError | None,
 ) -> None:
     calls: list[str] = []
-    group_import = AsyncMock()
-    menu_import = AsyncMock(side_effect=lambda: calls.append("menu_import"))
+    import_handle_mock = AsyncMock(
+        side_effect=lambda kind: calls.append(f"import_handle:{kind}")
+    )
 
     log_exception = MagicMock()
     monkeypatch.setattr(startup_module.logger, "exception", log_exception)
@@ -178,8 +176,7 @@ async def test_startup_imports_group_and_menu_handlers(
         _empty_registered_adapters,
     )
     monkeypatch.setattr(startup_module, "warm_translation_cache", AsyncMock())
-    monkeypatch.setattr(startup_module, "group_import_handle", group_import)
-    monkeypatch.setattr(startup_module, "menu_import_handle", menu_import)
+    monkeypatch.setattr(startup_module, "import_handle", import_handle_mock)
     monkeypatch.setattr(
         startup_module,
         "validate_and_seed_permission_system",
@@ -203,8 +200,11 @@ async def test_startup_imports_group_and_menu_handlers(
 
     await startup_module.startup()
 
-    group_import.assert_awaited_once()
-    menu_import.assert_awaited_once()
+    assert import_handle_mock.await_count == 2
+    assert import_handle_mock.call_args_list == [
+        call("command"),
+        call("menu"),
+    ]
     register_scheduler_handler.assert_called_once_with(
         startup_module.SCHEDULER_CLEANUP_HANDLER_KEY,
         startup_module.cleanup_expired_messages,
@@ -212,9 +212,9 @@ async def test_startup_imports_group_and_menu_handlers(
     initialize_scheduler_service.assert_awaited_once()
     assert calls.index("ensure_llm_config") < calls.index("initialize_llm_runtime")
     assert calls.index("initialize_llm_runtime") < calls.index("ensure_menu_config")
-    assert calls.index("ensure_menu_config") < calls.index("menu_import")
-    assert calls.index("set_menu_pages") < calls.index("menu_import")
-    assert calls.index("set_menu_features") < calls.index("menu_import")
+    assert calls.index("ensure_menu_config") < calls.index("import_handle:menu")
+    assert calls.index("set_menu_pages") < calls.index("import_handle:menu")
+    assert calls.index("set_menu_features") < calls.index("import_handle:menu")
     if llm_error is not None:
         assert "initialize_mcp_agent_runtime" not in calls
         log_exception.assert_called_once_with(

@@ -1,5 +1,4 @@
 from types import SimpleNamespace
-from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -361,33 +360,6 @@ def test_remote_management_page_shows_announcement_for_napcat() -> None:
 
     assert "远程公告" in rendered
     assert "远程禁言" in rendered
-
-
-@pytest.mark.asyncio
-async def test_menu_loader_imports_only_onebot11_modules(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    called_handlers: list[str] = []
-    load_calls: list[str] = []
-
-    async def fake_handler() -> None:
-        called_handlers.append(".qq.adapters.onebot11.default.menu")
-
-    def fake_load_adapter_handlers(
-        adapter_id: str,
-        _adapter_modules: dict[str, tuple[str, ...]],
-        _package: str,
-    ) -> tuple[Any, ...]:
-        load_calls.append(adapter_id)
-        return (fake_handler,)
-
-    monkeypatch.setattr(menu, "resolve_enabled_adapters", lambda: {"~onebot.v11"})
-    monkeypatch.setattr(menu, "load_adapter_handlers", fake_load_adapter_handlers)
-
-    await menu.import_handle()
-
-    assert load_calls == ["~onebot.v11"]
-    assert called_handlers == [".qq.adapters.onebot11.default.menu"]
 
 
 @pytest.mark.asyncio
