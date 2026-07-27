@@ -1,0 +1,82 @@
+---
+icon: Box
+title: Connect QQ via SnowLuma
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Connect Lingchu Bot to QQ through [SnowLuma](https://snowluma.github.io/), a protocol-side OneBot runtime that bundles Linux QQ, VNC, noVNC, and OneBot endpoints in one container. The official image is `motricseven7/snowluma:latest`.
+
+## Prerequisites
+
+- Lingchu Bot installed and `.env` configured with `LINGCHU_SUPERUSERS` and the OneBot V11 driver.
+- Docker Desktop (or a Linux host with Docker) with enough shared memory for the embedded QQ client.
+
+## Run SnowLuma in Docker
+
+SnowLuma exposes VNC on `5900`, noVNC on `6081`, the WebUI on `5099`, OneBot HTTP on `3000`, and OneBot WebSocket on `3001`.
+
+<Aside type="caution" title="Port collision with Playwright and NapCat">
+
+When both NapCat (ports `3000`, `3001`) and SnowLuma run on the same host, and the docs Playwright webServer needs port `3100`, map SnowLuma's OneBot ports to `6100` and `6101` instead of clashing with the defaults:
+
+</Aside>
+
+```powershell
+docker run -d `
+  --name snowluma `
+  --restart unless-stopped `
+  --shm-size=1g `
+  --cap-add=SYS_PTRACE `
+  --security-opt seccomp=unconfined `
+  -e VNC_PASSWD=<change-me> `
+  -p 5900:5900 `
+  -p 6081:6081 `
+  -p 5099:5099 `
+  -p 6100:3000 `
+  -p 6101:3001 `
+  -v snowluma-data:/app/snowluma-data `
+  -v snowluma-qq-config:/app/.config `
+  -v snowluma-qq-data:/app/.local/share `
+  -v C:/dev/lingchu-bot:/lingchu-bot:ro `
+  motricseven7/snowluma:latest
+```
+
+The project mount makes files under `C:/dev/lingchu-bot` visible inside SnowLuma as `/lingchu-bot`, keeping the same host/container path bridge used by the NapCat setup.
+
+## Complete the QQ login
+
+1. Read the first WebUI admin password from `docker logs snowluma`.
+2. Open `http://127.0.0.1:5099` and log in.
+3. Change the admin password.
+4. Complete the QQ login through the WebUI or VNC (`http://127.0.0.1:6081`).
+
+## Point Lingchu Bot at SnowLuma
+
+Configure the OneBot V11 adapter to reach SnowLuma's exposed ports. From the Windows host:
+
+- OneBot HTTP: `http://127.0.0.1:6100`
+- OneBot WebSocket: `ws://127.0.0.1:6101`
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+LINGCHUAdapter=~onebot.v11
+```
+
+## Fix permission errors on fresh volumes
+
+If the SnowLuma process exits with `EACCES: permission denied, open 'config/runtime.json'` on a fresh named volume, fix ownership once and restart the process:
+
+```powershell
+docker exec snowluma sh -lc "chown -R snowluma:snowluma /app/snowluma-data /app/.config /app/.local/share && supervisorctl restart snowluma"
+```
+
+## What works with SnowLuma
+
+SnowLuma is a protocol-side OneBot runtime. Lingchu Bot's standard OneBot V11 commands connect through it, but NapCat-only extension commands (group announcements, group avatars) stay hidden unless the runtime reports the NapCat implementation identity and version.
+
+## Related pages
+
+- [Connect QQ via NapCat](./qq-napcat) — NapCat connection guide with extension commands
+- [Select and configure an adapter](../configure/adapter) — adapter selection
+- [QQ command reference](../../reference/commands) — full command list

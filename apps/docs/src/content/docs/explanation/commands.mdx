@@ -1,0 +1,53 @@
+---
+icon: Terminal
+title: Why commands are locale-exclusive
+---
+
+<img
+  src="/images/docs/commands-management.webp"
+  alt="Lingchu Bot commands and group management"
+  width="960"
+  height="528"
+  loading="lazy"
+/>
+
+Lingchu Bot's user-facing capabilities are concentrated in QQ group management commands. This page explains the design decisions behind the command system. For the full command list with syntax and options, see the [QQ command reference](../reference/commands).
+
+## Locale-exclusive triggers
+
+Command trigger words are locale-exclusive: Chinese locales enable Chinese triggers, English locales enable short hyphenated English triggers. The two trigger languages are never enabled at the same time.
+
+This avoids ambiguity in groups where both languages appear naturally. If both trigger sets were active, a phrase like `菜单` could collide with an English command alias or a user's ordinary message. Tying triggers to `LINGCHU_LOCALE` keeps each deployment predictable.
+
+Feedback text follows the same locale setting, so a Chinese-locale bot responds in Chinese and an English-locale bot responds in English.
+
+## Menu as an index
+
+The `菜单` / `menu` command is an index entry. It lists the available submenu commands instead of expanding every feature into one long message. Submenus are code-driven and filtered by the selected platform, protocol, and implementation.
+
+This design keeps the entry point short and lets the bot advertise only what the current deployment can actually execute.
+
+## Implementation filtering
+
+Commands unsupported by the selected platform, protocol, or implementation are hidden from the menu rather than reported as errors when invoked. Current implementation filters include:
+
+- OneBot V11 with an unknown implementation hides group announcement and group avatar.
+- `NapCat.Onebot >= 4.18.0` shows group announcement and group avatar.
+- Remote management commands are OneBot V11 only.
+- Remote announcement and mass announcement require `NapCat.Onebot >= 4.18.0`.
+
+Fail-closed filtering means the menu never advertises a command the bot cannot execute. This is a deliberate trade-off: the menu is less complete, but users never hit a "not supported" dead end after trying a command.
+
+## Platform divergence
+
+Telegram supports a subset of QQ commands because the Telegram Bot API exposes different capabilities. QQ-only cards, special titles, group avatars, announcements, remote management, and protocol restart commands are hidden on Telegram. This keeps each platform's menu honest about what it can do, rather than showing commands that would always fail.
+
+## Error feedback
+
+Group management commands return readable error messages for covered adapter network errors and rejected operations. Unknown exceptions are still raised outward so developers can find uncovered cases — the bot does not silently swallow failures it cannot classify.
+
+## Related pages
+
+- [QQ command reference](../reference/commands) — full command syntax and options
+- [Permissions architecture](../reference/architecture/permissions) — how command authorization is resolved
+- [Adapter system](../reference/architecture/adapter-system) — how platform capabilities are detected

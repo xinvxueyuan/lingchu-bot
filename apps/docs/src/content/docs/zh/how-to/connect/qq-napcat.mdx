@@ -1,0 +1,129 @@
+---
+icon: Cat
+title: 通过 NapCat 接入 QQ
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+通过 [NapCat](https://github.com/NapNeko/NapCatQQ) 将 Lingchu Bot 接入 QQ 群。NapCat 是基于 NTQQ 的 OneBot V11 实现，也是 QQ 的推荐协议端，因为它暴露了 Lingchu 群管理命令所依赖的 API。
+
+## 前置条件
+
+- 已安装 Lingchu Bot，且 `.env` 中配置了 `LINGCHU_SUPERUSERS`。
+- NapCat 已运行，并可通过 OneBot V11（HTTP 或 WebSocket）访问。
+- 机器人 QQ 账号已登录到 NapCat。
+
+## 配置 OneBot V11 驱动
+
+Lingchu Bot 通过 OneBot V11 适配器与 NapCat 通信。在 `.env` 中启用 FastAPI、HTTPX 和 WebSockets 驱动：
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+LINGCHUAdapter=~onebot.v11
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+将 `ONEBOT_ACCESS_TOKEN` 设置为 NapCat 期望的相同值，然后通过 NoneBot 标准 OneBot 配置将 OneBot V11 适配器指向 NapCat 的 HTTP 或 WebSocket 端点。
+
+## 在 Docker 中运行 NapCat
+
+[NapNeko/NapCat-Docker](https://github.com/NapNeko/NapCat-Docker) 将 NapCat 打包为容器。它将 OneBot HTTP 暴露在 `3000`，OneBot WebSocket 暴露在 `3001`，WebUI 暴露在 `6099`。首次 WebUI 令牌由 `docker logs napcat` 输出。
+
+```powershell
+docker run -d `
+  --name napcat `
+  --restart always `
+  -p 3000:3000 `
+  -p 3001:3001 `
+  -p 6099:6099 `
+  mlikiowa/napcat-docker:latest
+```
+
+要让 NapCat 的 QQ 登录和配置在重启后保留，请添加命名卷：
+
+```powershell
+docker run -d `
+  --name napcat `
+  --restart always `
+  -p 3000:3000 `
+  -p 3001:3001 `
+  -p 6099:6099 `
+  -v napcat-qq:/app/.config/QQ `
+  -v napcat-config:/app/napcat/config `
+  mlikiowa/napcat-docker:latest
+```
+
+同样的设置写成 Compose 服务：
+
+```yaml
+services:
+  napcat:
+    image: mlikiowa/napcat-docker:latest
+    container_name: napcat
+    restart: always
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+      - "6099:6099"
+    volumes:
+      - napcat-qq:/app/.config/QQ
+      - napcat-config:/app/napcat/config
+
+volumes:
+  napcat-qq:
+  napcat-config:
+```
+
+容器启动后，打开 `http://<host>:6099/webui`，使用 `docker logs napcat` 中的令牌登录，并配置 OneBot V11 连接（HTTP 和/或 WebSocket 反向）以匹配 Lingchu Bot 期望的值。
+
+<Aside type="caution" title="与 Playwright 端口冲突">
+
+当 NapCat 与文档站 Playwright webServer 同时运行时，请保留 `3100` 端口给 CI。将 NapCat 的 OneBot 端口映射到 `3000`/`3001`，其他 OneBot 运行时（如 SnowLuma）使用 `6100`/`6101`。
+
+</Aside>
+
+## 验证连接
+
+1. 启动 NapCat，并在 WebUI 中完成 QQ 登录。
+2. 启动 Lingchu Bot：`uvx --from nb-cli nb.exe run`。
+3. 在日志中等待 `Application startup complete.`。
+4. 在机器人所在的 QQ 群中发送 `菜单`（英文 locale 下为 `menu`）。
+
+若菜单出现，则连接已就绪。若未出现，参见[故障排查](../troubleshoot)。
+
+## NapCat 专属能力
+
+Lingchu Bot 通过 `get_version_info()` 中 `app_name == "NapCat.Onebot"` 识别 NapCat。低于最低版本的命令会从菜单中隐藏。
+
+| 能力 | 最低版本 |
+| --- | --- |
+| 群公告（`发送群公告`） | `NapCat.Onebot >= 4.18.0` |
+| 群头像（`设置群头像`） | `NapCat.Onebot >= 4.18.0` |
+| 远程公告（`远程公告`） | `NapCat.Onebot >= 4.18.0` |
+
+NapCat 在默认 OneBot V11 处理器之上扩展了两个模块：
+
+| 模块 | 新增能力 |
+| --- | --- |
+| `announcement.py` | 群公告处理器，使用 `_send_group_notice` API |
+| `profile.py` | 群头像处理器，使用 `set_group_portrait` API |
+
+群公告命令接受文本和可选图片，通过 `nonebot-plugin-alconna` 的 `UniImage` 传入：
+
+```text
+发送群公告 <内容> [图片]
+send-announcement <content> [image]
+```
+
+远程公告命令通过同一 API 指向其他群：
+
+```text
+远程公告 <群号或群名称> <内容> [图片]
+remote-announcement <group_id_or_group_name> <content> [image]
+```
+
+完整命令列表参见 [QQ 命令参考](../../reference/commands)；群号解析和上下文校验逻辑参见[默认 OneBot V11 实现](../../reference/architecture/onebot-v11-default)。
+
+## 源码参考
+
+参见仓库中的 [`handle/qq/adapters/onebot11/napcat/`](https://github.com/xinvxueyuan/lingchu-bot/tree/dev/src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/napcat)。

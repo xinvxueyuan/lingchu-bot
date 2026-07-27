@@ -1,0 +1,129 @@
+---
+icon: Cat
+title: Connect QQ via NapCat
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Connect Lingchu Bot to QQ groups through [NapCat](https://github.com/NapNeko/NapCatQQ), a OneBot V11 implementation based on NTQQ. NapCat is the recommended protocol endpoint for QQ because it exposes the APIs Lingchu's group-management commands depend on.
+
+## Prerequisites
+
+- Lingchu Bot installed and `.env` configured with `LINGCHU_SUPERUSERS`.
+- NapCat running and reachable over OneBot V11 (HTTP or WebSocket).
+- The bot QQ account logged in to NapCat.
+
+## Configure the OneBot V11 driver
+
+Lingchu Bot talks to NapCat through the OneBot V11 adapter. Enable the FastAPI, HTTPX, and WebSockets drivers in `.env`:
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+LINGCHUAdapter=~onebot.v11
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+Set `ONEBOT_ACCESS_TOKEN` to the same value NapCat expects, then point the OneBot V11 adapter at NapCat's HTTP or WebSocket endpoint through NoneBot's standard OneBot configuration.
+
+## Run NapCat in Docker
+
+[NapNeko/NapCat-Docker](https://github.com/NapNeko/NapCat-Docker) packages NapCat as a container. It exposes OneBot HTTP on `3000`, OneBot WebSocket on `3001`, and the WebUI on `6099`. The first-time WebUI token is printed by `docker logs napcat`.
+
+```powershell
+docker run -d `
+  --name napcat `
+  --restart always `
+  -p 3000:3000 `
+  -p 3001:3001 `
+  -p 6099:6099 `
+  mlikiowa/napcat-docker:latest
+```
+
+To persist NapCat QQ login and configuration across restarts, add named volumes:
+
+```powershell
+docker run -d `
+  --name napcat `
+  --restart always `
+  -p 3000:3000 `
+  -p 3001:3001 `
+  -p 6099:6099 `
+  -v napcat-qq:/app/.config/QQ `
+  -v napcat-config:/app/napcat/config `
+  mlikiowa/napcat-docker:latest
+```
+
+The same setup as a Compose service:
+
+```yaml
+services:
+  napcat:
+    image: mlikiowa/napcat-docker:latest
+    container_name: napcat
+    restart: always
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+      - "6099:6099"
+    volumes:
+      - napcat-qq:/app/.config/QQ
+      - napcat-config:/app/napcat/config
+
+volumes:
+  napcat-qq:
+  napcat-config:
+```
+
+After the container starts, open `http://<host>:6099/webui`, log in with the token from `docker logs napcat`, and configure the OneBot V11 connection (HTTP and/or WebSocket reverse) to match the values Lingchu Bot expects.
+
+<Aside type="caution" title="Port collision with Playwright">
+
+When running NapCat alongside the docs Playwright webServer, keep port `3100` free for CI. Map NapCat's OneBot ports to `3000`/`3001` and use `6100`/`6101` for other OneBot runtimes such as SnowLuma.
+
+</Aside>
+
+## Verify the connection
+
+1. Start NapCat and complete the QQ login in the WebUI.
+2. Start Lingchu Bot: `uvx --from nb-cli nb.exe run`.
+3. Wait for `Application startup complete.` in the logs.
+4. Send `菜单` (or `menu` in English locale) to the bot from a QQ group where it is a member.
+
+If the menu appears, the connection is live. If not, see [Troubleshooting](../troubleshoot).
+
+## NapCat-specific capabilities
+
+Lingchu Bot detects NapCat through `get_version_info()` where `app_name == "NapCat.Onebot"`. Commands below the minimum version are hidden from the menu.
+
+| Capability | Minimum version |
+| --- | --- |
+| Group announcement (`发送群公告`) | `NapCat.Onebot >= 4.18.0` |
+| Group avatar (`设置群头像`) | `NapCat.Onebot >= 4.18.0` |
+| Remote announcement (`远程公告`) | `NapCat.Onebot >= 4.18.0` |
+
+NapCat extends the default OneBot V11 handlers with two modules:
+
+| Module | Adds |
+| --- | --- |
+| `announcement.py` | Group announcement handler using the `_send_group_notice` API |
+| `profile.py` | Group avatar handler using the `set_group_portrait` API |
+
+The announcement command accepts text and an optional image through `UniImage` from `nonebot-plugin-alconna`:
+
+```text
+发送群公告 <内容> [图片]
+send-announcement <content> [image]
+```
+
+The remote announcement command targets a different group through the same API:
+
+```text
+远程公告 <群号或群名称> <内容> [图片]
+remote-announcement <group_id_or_group_name> <content> [image]
+```
+
+See the [QQ command reference](../../reference/commands) for the full command list and the [default OneBot V11 implementation](../../reference/architecture/onebot-v11-default) for group ID resolution and context validation logic.
+
+## Source reference
+
+See [`handle/qq/adapters/onebot11/napcat/`](https://github.com/xinvxueyuan/lingchu-bot/tree/dev/src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/napcat) in the repository.

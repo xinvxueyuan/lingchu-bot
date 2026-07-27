@@ -1,0 +1,130 @@
+---
+icon: Play
+title: Getting started with Lingchu Bot
+---
+
+import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
+
+<img
+  src="/images/docs/quick-start-runtime.webp"
+  alt="Lingchu Bot quick start runtime setup"
+  width="960"
+  height="493"
+  loading="lazy"
+/>
+
+In this tutorial you will install Lingchu Bot from scratch and verify the setup by running the bot locally. By the end, you will have a working development environment ready to connect a platform adapter.
+
+## What you will learn
+
+- How to clone and install Lingchu Bot with all dependencies.
+- How to prepare the `.env` configuration file.
+- How to start the bot and confirm it reaches `Application startup complete.`.
+
+This tutorial does not connect to a real QQ or Telegram account — that comes next in [Connect your first adapter](./first-adapter).
+
+## Prerequisites
+
+- Python 3.13
+- [uv](https://docs.astral.sh/uv/) — Python package and project manager
+- git
+- Node.js 22+ and pnpm (only if you also want to build the docs site)
+
+## Get the code
+
+Clone the repository and enter the project directory:
+
+```bash
+git clone https://github.com/xinvxueyuan/lingchu-bot.git
+cd lingchu-bot
+```
+
+## Install dependencies
+
+The project ships a cross-platform setup script that automates the entire initialization:
+
+```bash
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
+
+The script detects your operating system, verifies the required toolchain (Python 3.13+, Node.js 20+, pnpm 9+, Git, uv), installs all dependencies, generates environment configuration files (`.env`, `.env.development`, `.env.test`, `.env.production`), and configures Git hooks. See `./scripts/setup.sh --help` for all options.
+
+<Aside type="note" title="Manual alternative">
+
+If you prefer to install manually:
+
+```bash
+uv sync --frozen
+pnpm install
+pnpm exec husky
+cp .env.example .env
+```
+
+</Aside>
+
+## Configure the environment
+
+Open `.env` and set the required fields. At minimum, you need `LINGCHU_SUPERUSERS` (a JSON object mapping Lingchu UIDs to platform account IDs):
+
+```dotenv
+LINGCHU_SUPERUSERS='{"admin":{"qq":123456789}}'
+LINGCHU_LOCALE=zh_CN
+```
+
+See [Configure superuser identity](../how-to/configure/superuser) for the full mapping format. Leave the adapter connection fields unset for now — you will configure them in the next tutorial.
+
+## Start the bot
+
+Run the bot through the NoneBot CLI:
+
+```bash
+uvx --from nb-cli nb.exe run
+```
+
+Wait until the log shows:
+
+```text
+INFO 06:31:21 | Application startup complete.
+```
+
+If you see this line, the core runtime is healthy. You will also see a warning about LLM configuration missing or invalid — that is expected at this stage and does not block startup.
+
+<Aside type="caution" title="Boolean values">
+
+NoneBot configuration files only accept standard JSON lowercase `true` / `false`. Writing `True` / `False` raises a configuration error at startup.
+
+</Aside>
+
+## Verify with the CLI
+
+The `lingchu` CLI ships with the plugin. Confirm it works:
+
+```bash
+uv run lingchu --version
+uv run lingchu doctor
+uv run lingchu config path
+```
+
+`lingchu doctor` should report `ok` for `nonebot2`, `nonebot-adapter-onebot`, `nonebot-plugin-localstore`, and `nonebot-plugin-lingchu-bot`.
+
+## What you learned
+
+- Lingchu Bot installs through `uv` and `scripts/setup.sh`.
+- Configuration lives in `.env` under NoneBot's management.
+- Startup is confirmed by `Application startup complete.` in the logs.
+- The `lingchu` CLI verifies the installation.
+
+## Next steps
+
+<CardGrid>
+  <Card href="./first-adapter" title="Connect your first adapter">
+    Connect NapCat or Telegram and send your first group management command.
+  </Card>
+  <Card href="../reference/commands" title="Commands">
+    Browse the full command reference.
+  </Card>
+  <Card href="../how-to/troubleshoot" title="Troubleshooting">
+    Resolve common startup and connection issues.
+  </Card>
+</CardGrid>

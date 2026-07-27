@@ -1,0 +1,47 @@
+---
+icon: Layers
+title: Why three platform layers
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Lingchu Bot organizes platform support around three layers: **platform**, **protocol**, and **implementation**. This separation keeps each layer's behavior, capabilities, and configuration concerns isolated instead of mixing them into a single page.
+
+## Layer model
+
+| Layer | Purpose | Examples |
+| --- | --- | --- |
+| Platform | The chat network the bot connects to | QQ |
+| Protocol | The wire/API standard the adapter implements | OneBot V11 |
+| Implementation | A concrete server that speaks the protocol | NapCat, default |
+
+A platform profile (in `platforms/registry.py`) declares the known protocols and their priority. Each protocol maps to a NoneBot adapter package. Within a protocol, one or more implementations may extend the default handler set with implementation-specific APIs.
+
+## Why three layers
+
+Collapsing platform, protocol, and implementation into one concept loses information that matters at runtime. The same QQ platform can be reached through the OneBot V11 protocol, but the implementation running that protocol determines which APIs are available — NapCat exposes `_send_group_notice` for group announcements, while a generic OneBot V11 server does not. The three-layer model lets the menu filter commands by the exact implementation detected, rather than advertising commands that would fail.
+
+## Available platforms
+
+| Platform | Protocols | Status |
+| --- | --- | --- |
+| [QQ](../reference/qq-platform) | OneBot V11 | Implemented |
+| [Telegram](../how-to/connect/telegram) | Telegram Bot API | Implemented |
+
+For protocol-side runtime setup, see the connection guides under [How-to → Connect](../how-to/connect/qq-napcat).
+
+<Aside type="note" title="Adding new platforms">
+
+Telegram is available through `nonebot-adapter-telegram`; see the
+[Telegram connection guide](../how-to/connect/telegram). Discord and other
+platform profiles remain candidates for future work. See the
+[adapter system reference](../reference/architecture/adapter-system) for the
+contribution workflow.
+
+</Aside>
+
+## How commands are scoped
+
+Command handlers live under `handle/<platform>/adapters/<protocol>/<implementation>/`. The menu system filters visible commands by the active platform, protocol, and implementation at runtime, so implementation-specific extension APIs (for example, group announcements on NapCat) are hidden unless the current runtime is known to support them.
+
+See the [QQ platform reference](../reference/qq-platform) for protocol- and implementation-specific command references.

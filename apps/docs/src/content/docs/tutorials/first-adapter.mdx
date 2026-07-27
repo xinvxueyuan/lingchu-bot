@@ -1,0 +1,112 @@
+---
+icon: Plug
+title: Connect your first adapter
+---
+
+import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
+
+In this tutorial you will connect Lingchu Bot to a QQ group through NapCat (a OneBot V11 implementation) and send your first group management command. By the end, the bot will be live in a QQ group and respond to `菜单` / `menu`.
+
+## What you will learn
+
+- How NapCat exposes the OneBot V11 protocol to Lingchu Bot.
+- How to configure the OneBot V11 adapter in `.env`.
+- How to verify the connection by sending a command in a real QQ group.
+
+This tutorial assumes you completed [Getting started](./getting-started) and the bot reaches `Application startup complete.`
+
+## Prerequisites
+
+- A QQ account dedicated to testing.
+- [Docker](https://www.docker.com/) installed (NapCat runs in a container).
+- The bot account added to a test QQ group as a member, with administrator permission if you want to test moderation commands.
+
+## Start NapCat
+
+NapCat is the recommended OneBot V11 implementation for QQ. Run it in Docker with the OneBot ports exposed:
+
+```powershell
+docker run -d `
+  --name napcat `
+  --restart always `
+  -p 3000:3000 `
+  -p 3001:3001 `
+  -p 6099:6099 `
+  mlikiowa/napcat-docker:latest
+```
+
+Open `http://localhost:6099/webui` in a browser. Read the first-time token from `docker logs napcat`, log in, and complete the QQ login for the bot account.
+
+In the WebUI, configure a OneBot V11 connection:
+- Enable HTTP on port `3000` with an access token.
+- Enable WebSocket reverse on port `3001` with the same token.
+
+## Configure the OneBot V11 adapter
+
+Edit `.env` to enable the OneBot V11 driver and set the access token to match NapCat:
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+LINGCHUAdapter=~onebot.v11
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+These three lines tell NoneBot to load the FastPI/HTTPX/WebSockets drivers, tell Lingchu Bot to use the OneBot V11 adapter, and set the shared access token NapCat expects.
+
+## Start the bot and verify
+
+Start the bot:
+
+```bash
+uvx --from nb-cli nb.exe run
+```
+
+When the log shows `Application startup complete.`, NapCat should also report a connection. If you see `PlatformAdapterNotLoadedError`, the OneBot V11 adapter was not loaded by NoneBot — check that `nonebot-adapter-onebot` is installed and `DRIVER` includes `~websockets`.
+
+## Send your first command
+
+In the QQ group where the bot is a member, send:
+
+```text
+菜单
+```
+
+Or, if `LINGCHU_LOCALE=en_US`:
+
+```text
+menu
+```
+
+If the bot replies with a submenu list, the connection is live and the tutorial is complete.
+
+<Aside type="note" title="Try a moderation command">
+
+Add the bot as a group administrator, then try:
+
+```text
+禁言 @用户 60
+```
+
+This mutes the mentioned user for 60 seconds. See the [QQ command reference](../reference/commands) for the full list.
+
+</Aside>
+
+## What you learned
+
+- NapCat speaks the OneBot V11 protocol and exposes it over HTTP and WebSocket.
+- Lingchu Bot selects the adapter through `LINGCHUAdapter` and authenticates through `ONEBOT_ACCESS_TOKEN`.
+- The `菜单` / `menu` command is the entry point that confirms the bot is live.
+
+## Next steps
+
+<CardGrid>
+  <Card href="../how-to/connect/qq-napcat" title="NapCat deep dive">
+    NapCat-specific commands, Docker persistence, and version-gated features.
+  </Card>
+  <Card href="../how-to/connect/telegram" title="Connect Telegram">
+    Connect a Telegram bot as an alternative platform.
+  </Card>
+  <Card href="../reference/commands" title="Command reference">
+    Full QQ command syntax and options.
+  </Card>
+</CardGrid>

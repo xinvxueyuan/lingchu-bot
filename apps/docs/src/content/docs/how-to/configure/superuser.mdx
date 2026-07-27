@@ -1,0 +1,49 @@
+---
+icon: ShieldCheck
+title: Configure superuser identity
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Grant administrators Lingchu-level privileges that follow them across platforms by mapping stable Lingchu UIDs to platform account IDs in the `LINGCHU_SUPERUSERS` environment variable.
+
+## Why UID-based identity
+
+Lingchu permissions use stable UIDs and platform account bindings instead of treating a platform account ID as the only identity. A single UID can bind a QQ account, a Telegram account, and a Discord account, so one administrator is one identity regardless of which platform they connect from.
+
+## Set the environment variable
+
+Configure the superuser mapping as strict JSON inside `LINGCHU_SUPERUSERS`:
+
+```dotenv
+LINGCHU_SUPERUSERS='{"userA":{"qq":123,"telegram":"tg-id","discord":"discord-id"}}'
+```
+
+The object key is the Lingchu UID. Each value maps platform IDs — `qq`, `telegram`, or `discord` — to that user's account ID on the platform.
+
+<Aside type="caution" title="Required field">
+
+`LINGCHU_SUPERUSERS` is required. Startup fails when:
+
+- the value is missing or empty,
+- it is not a UID-to-platform mapping,
+- a platform account is bound to multiple UIDs, or
+- an unknown platform ID is used.
+
+</Aside>
+
+## Verify the configuration
+
+1. Start the bot: `uvx --from nb-cli nb.exe run`.
+2. If startup succeeds, the superuser mapping is valid.
+3. Send a privileged command (for example `菜单`) from one of the bound platform accounts to confirm the identity resolves.
+
+## What superusers bypass
+
+SUPERUSERS always pass Lingchu command permission checks. Platform API restrictions and command-level safety checks still apply — a superuser cannot mute someone in a group where the bot itself lacks admin permissions.
+
+## Related pages
+
+- [Environment variables](../../reference/environment-variables) — full env var reference
+- [Configuration](../../reference/configuration) — runtime settings overview
+- [Permissions architecture](../../reference/architecture/permissions) — how permission checks are resolved

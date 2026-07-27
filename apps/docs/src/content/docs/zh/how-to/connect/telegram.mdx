@@ -1,0 +1,64 @@
+---
+icon: Send
+title: 接入 Telegram
+---
+
+通过 `nonebot-adapter-telegram` 将 Lingchu Bot 接入 Telegram 群组和超级群组。
+
+## 前置条件
+
+- 来自 [@BotFather](https://t.me/BotFather) 的 Telegram bot token。
+- 已安装 Lingchu Bot，且 `.env` 中配置了 `LINGCHU_SUPERUSERS`。
+- 能访问 Telegram Bot API 的网络（直连或通过代理）。
+
+## 配置适配器
+
+在 `.env` 中设置驱动、选择 Telegram 适配器并注册 bot token：
+
+```dotenv
+DRIVER=~fastapi+~httpx
+LINGCHUAdapter=~telegram
+telegram_bots=[{"token":"1234567890:..."}]
+```
+
+默认使用长轮询。直连不可用时配置 `telegram_proxy`。Webhook 部署需要 HTTPS 和上游适配器 webhook 设置。
+
+## 在 BotFather 中准备机器人
+
+1. 通过 BotFather 创建机器人，并将 token 复制到 `telegram_bots`。
+2. 通过 BotFather 关闭隐私模式，让 Lingchu 能接收普通群消息。
+3. 将机器人加入每个需要运行的群。
+4. 将机器人提升为群管理员，赋予审核命令所需的权限（踢出、禁言、删除消息、管理管理员）。
+
+## 验证连接
+
+1. 启动 Bot：`uvx --from nb-cli nb.exe run`。
+2. 在日志中等待 `Application startup complete.`。
+3. 在机器人作为管理员的 Telegram 群中发送 `菜单`（英文 locale 下为 `menu`）。
+
+若菜单出现，则连接已就绪。若未出现，参见[故障排查](../troubleshoot)。
+
+## 可用命令
+
+Telegram 当前支持：
+
+- 踢出、拉黑和解黑成员。
+- 禁言和解禁成员。
+- 通过默认聊天权限禁言和解禁整个群。
+- 提升和降级管理员。
+- 重命名和退出群。
+- 通过回复消息使用撤回命令删除该消息。
+- Lingchu 静默、说话、开机和关机状态命令。
+- 按权限过滤的菜单。
+
+QQ 专属的卡片、专属头衔、群头像、群公告、远程管理和协议重启命令在 Telegram 上保持隐藏。
+
+## 群身份
+
+Telegram 群持久化使用 `chat.id`。论坛主题和发送者信息不会改变群的授权范围。
+
+## 相关页面
+
+- [选择并配置适配器](../configure/adapter) — 适配器选择细节
+- [QQ 命令参考](../../reference/commands) — 用于对比的完整 QQ 命令列表
+- [故障排查](../troubleshoot) — 常见连接问题

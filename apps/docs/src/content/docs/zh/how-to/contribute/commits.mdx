@@ -1,0 +1,78 @@
+---
+icon: SmilePlus
+title: 编写合规的提交信息
+---
+
+编写能一次性通过项目 gitmoji + Conventional Commits 钩子的提交信息。`.husky/commit-msg` 强制校验首行格式；完整规则位于 `.trae/rules/git-commit-message.md`。
+
+## 格式
+
+```text
+<gitmoji> <type>(<scope>): <summary>
+```
+
+scope 可选：
+
+```text
+<gitmoji> <type>: <summary>
+```
+
+破坏性变更在 type 或 scope 后紧跟 `!`：
+
+```text
+💥 feat!(api): remove the old endpoint
+💥 feat(api)!: remove the old endpoint
+```
+
+## Type 与 gitmoji 对应关系
+
+每个 type 必须使用 [gitmoji.dev](https://gitmoji.dev/) 上对应的 gitmoji：
+
+| Type | Gitmoji | Type | Gitmoji |
+| --- | --- | --- | --- |
+| `feat` | ✨ | `refactor` | ♻️ |
+| `fix` | 🐛 | `perf` | ⚡️ |
+| `docs` | 📝 | `test` | ✅ |
+| `style` | 🎨 | `build` | 👷 |
+| `ci` | 💚 | `chore` | 🔧 |
+| `revert` | ⏪️ | | |
+
+## 示例
+
+```text
+✨ feat(command): 增加新的群管理命令
+🐛 fix(mute): 修正禁言失败反馈
+📝 docs: 更新快速开始说明
+✅ test(database): 覆盖 TOML 存储异常分支
+♻️ refactor(config): 简化配置加载流程
+```
+
+## 编写信息
+
+1. 选择与变更主要目的匹配的 gitmoji 和 type。
+2. 编写简短的祈使语气或描述性摘要（50 字符以内；中文约 25 字）。首字母不要大写，末尾不要加句号。
+3. 每次提交聚焦一个主要目的。避免混合无关的代码和文档变更。
+4. 需要时在提交 body 中补充背景、风险或破坏性变更细节，与 subject 之间用空行分隔。
+
+不确定使用哪个 emoji 时，运行 `task gitmoji` 查看中文速查，或让 `prepare-commit-msg` 钩子启动 `node_modules/.bin/gitmoji --hook`（本地 devDep 缺失时回退到 `npx gitmoji` 或全局 `gitmoji` 安装）。
+
+## 自动 sign-off
+
+`commit-msg` 钩子会自动在提交信息末尾追加 `Signed-off-by` 行（等价于 `git commit -s`）。姓名和邮箱从 `git config user.name` 与 `git config user.email` 读取。若已存在相同的 sign-off 行，则不会重复追加。
+
+```text
+✨ feat: add group management
+
+Signed-off-by: Your Name <your@email.com>
+```
+
+手动使用 `git commit -s` 时，git 自身也会追加 sign-off；钩子会检测到这一点并跳过重复追加。
+
+## 非交互式环境
+
+`prepare-commit-msg` 钩子会尝试在交互式终端启动 Gitmoji。非交互式环境可能跳过该交互式钩子，但 `commit-msg` 仍会校验首行。自动化必须自行生成合规信息。
+
+## 相关页面
+
+- [开发工作流](./workflow) — 完整开发周期和分支约定
+- [测试与 CI](./testing) — 提交前应运行哪些检查

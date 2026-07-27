@@ -1,0 +1,46 @@
+---
+icon: Layers
+title: 为什么分三层平台
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Lingchu Bot 围绕三层组织平台支持：**平台**、**协议**和**实现**。这种分离让每一层的行为、能力和配置关注点彼此隔离，而不是混在同一页面里。
+
+## 层次模型
+
+| 层 | 用途 | 示例 |
+| --- | --- | --- |
+| 平台 | 机器人连接到的聊天网络 | QQ |
+| 协议 | 适配器实现的通信/API 标准 | OneBot V11 |
+| 实现 | 实际运行该协议的具体服务器 | NapCat、default |
+
+平台 profile（位于 `platforms/registry.py`）声明已知协议及其优先级。每个协议映射到一个 NoneBot 适配器包。一个协议下可以有一个或多个实现，在默认处理器集合之上扩展实现专属 API。
+
+## 为什么分三层
+
+将平台、协议和实现合并为一个概念会丢失运行时关键的信息。同一个 QQ 平台可以通过 OneBot V11 协议接入，但运行该协议的实现决定了哪些 API 可用——NapCat 暴露 `_send_group_notice` 用于群公告，而通用 OneBot V11 服务器不会。三层模型让菜单按检测到的确切实现过滤命令，而不是宣传会失败的命令。
+
+## 可用平台
+
+| 平台 | 协议 | 状态 |
+| --- | --- | --- |
+| [QQ](../reference/qq-platform) | OneBot V11 | 已实现 |
+| [Telegram](../how-to/connect/telegram) | Telegram Bot API | 已实现 |
+
+协议侧运行时设置参见 [How-to → Connect](../how-to/connect/qq-napcat) 下的连接指南。
+
+<Aside type="note" title="新增平台">
+
+Telegram 通过 `nonebot-adapter-telegram` 可用；参见
+[Telegram 连接指南](../how-to/connect/telegram)。Discord 和其他平台 profile
+仍是未来工作的候选。贡献工作流参见
+[适配器系统参考](../reference/architecture/adapter-system)。
+
+</Aside>
+
+## 命令如何被限定范围
+
+命令处理器位于 `handle/<platform>/adapters/<protocol>/<implementation>/` 下。菜单系统在运行时按当前平台、协议和实现过滤可见命令，因此实现专属的扩展 API（例如 NapCat 上的群公告）在当前运行时不支持时会被隐藏。
+
+协议和实现专属的命令参考参见 [QQ 平台参考](../reference/qq-platform)。

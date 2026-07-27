@@ -1,0 +1,66 @@
+---
+icon: MessageCircle
+title: QQ 平台概览
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+## QQ 平台概览
+
+QQ 是当前唯一实现的平台 profile。插件启动时通过 `LINGCHUAdapter` 选择一个 QQ 适配器（默认：`~onebot.v11`）。
+
+## 协议优先级
+
+| 优先级 | 协议 | 适配器 ID | NoneBot 包 | 状态 |
+| --- | --- | --- | --- | --- |
+| 1（默认） | OneBot V11 | `~onebot.v11` | `nonebot-adapter-onebot` | 启用 |
+
+同一时间只有一个 QQ 适配器被视为已启用。NoneBot 加载的其他适配器被视为未启用，不参与平台识别、消息存储或 API 调用记录。
+
+## 切换协议
+
+在 `.env` 中设置 `LINGCHUAdapter`。启动流程中仅 OneBot V11 可用：
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+<Aside type="caution" title="不支持的适配器">
+
+当前仅实现 OneBot V11。将 `LINGCHUAdapter` 设为任何其他适配器 ID（如 `~qq`、`~onebot.v12`、`~milky`）会在启动时抛出 `PlatformAdapterUnknownError`。
+
+</Aside>
+
+## 实现矩阵
+
+每个协议都有 `default` 处理器集合和可选的实现专属扩展：
+
+| 协议 | 实现 | 扩展亮点 |
+| --- | --- | --- |
+| OneBot V11 | `default` | 核心群管理命令 |
+| OneBot V11 | [NapCat](/zh/how-to/connect/qq-napcat) | 群公告 + 群头像 |
+
+## 源码布局
+
+```
+handle/qq/
+├── commands/              # 共享 QQ 命令定义（Alconna 匹配器）
+│   ├── triggers.py        # 命令触发词（中/英）
+│   ├── mute.py
+│   ├── member.py
+│   ├── block.py
+│   ├── announcement.py
+│   ├── remote.py          # 远程管理命令
+│   └── ...
+└── adapters/
+    └── onebot11/
+        ├── default/       # OneBot V11 默认处理器
+        └── napcat/        # NapCat 扩展
+```
+
+## 下一步
+
+- [通过 NapCat 接入 QQ](/zh/how-to/connect/qq-napcat) — 协议端运行框架部署（NapCat Docker、SnowLuma Docker）
+- [QQ 命令](./commands) — 完整命令参考（含远程管理）
+- [OneBot V11 协议](./architecture/onebot-v11-default) — 协议概览和实现专属文档

@@ -1,0 +1,78 @@
+---
+icon: SmilePlus
+title: Write a compliant commit
+---
+
+Write a commit message that passes the project's gitmoji + Conventional Commits hook on the first try. `.husky/commit-msg` enforces the first-line format; the full rule lives in `.trae/rules/git-commit-message.md`.
+
+## Format
+
+```text
+<gitmoji> <type>(<scope>): <summary>
+```
+
+The scope is optional:
+
+```text
+<gitmoji> <type>: <summary>
+```
+
+Breaking changes add `!` after the type or after the scope:
+
+```text
+💥 feat!(api): remove the old endpoint
+💥 feat(api)!: remove the old endpoint
+```
+
+## Type and gitmoji mapping
+
+Each type MUST use its corresponding gitmoji from [gitmoji.dev](https://gitmoji.dev/):
+
+| Type | Gitmoji | Type | Gitmoji |
+| --- | --- | --- | --- |
+| `feat` | ✨ | `refactor` | ♻️ |
+| `fix` | 🐛 | `perf` | ⚡️ |
+| `docs` | 📝 | `test` | ✅ |
+| `style` | 🎨 | `build` | 👷 |
+| `ci` | 💚 | `chore` | 🔧 |
+| `revert` | ⏪️ | | |
+
+## Examples
+
+```text
+✨ feat(command): 增加新的群管理命令
+🐛 fix(mute): 修正禁言失败反馈
+📝 docs: 更新快速开始说明
+✅ test(database): 覆盖 TOML 存储异常分支
+♻️ refactor(config): 简化配置加载流程
+```
+
+## Write the message
+
+1. Pick the gitmoji and type that match the primary purpose of the change.
+2. Write a short imperative or descriptive summary (under 50 characters; ~25 Chinese characters). Do not capitalize the first letter and do not end with a period.
+3. Keep each commit focused on one primary purpose. Avoid mixing unrelated code and documentation changes.
+4. Add background, risk, or breaking-change details in the commit body when needed, separated from the subject by a blank line.
+
+If unsure which emoji to use, run `task gitmoji` for the Chinese quick reference, or let the `prepare-commit-msg` hook start `node_modules/.bin/gitmoji --hook` (falls back to `npx gitmoji` or a global `gitmoji` install when the local devDep is missing).
+
+## Auto sign-off
+
+The `commit-msg` hook automatically appends a `Signed-off-by` line to the commit message (equivalent to `git commit -s`). The name and email are read from `git config user.name` and `git config user.email`. If an identical sign-off line already exists, it will not be duplicated.
+
+```text
+✨ feat: add group management
+
+Signed-off-by: Your Name <your@email.com>
+```
+
+When using `git commit -s` manually, git itself also appends the sign-off; the hook detects this and skips adding a duplicate.
+
+## Non-interactive environments
+
+The `prepare-commit-msg` hook tries to start Gitmoji in an interactive terminal. Non-interactive environments may skip the interactive hook, but `commit-msg` still validates the first line. Automation must generate a compliant message itself.
+
+## Related pages
+
+- [Development workflow](./workflow) — full development cycle and branch conventions
+- [Testing and CI](./testing) — what to run before committing

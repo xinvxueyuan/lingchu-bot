@@ -1,0 +1,64 @@
+---
+icon: Send
+title: Connect Telegram
+---
+
+Connect Lingchu Bot to Telegram groups and supergroups through `nonebot-adapter-telegram`.
+
+## Prerequisites
+
+- A Telegram bot token from [@BotFather](https://t.me/BotFather).
+- Lingchu Bot installed and `.env` configured with `LINGCHU_SUPERUSERS`.
+- Network access to the Telegram Bot API (directly or through a proxy).
+
+## Configure the adapter
+
+Set the driver, select the Telegram adapter, and register the bot token in `.env`:
+
+```dotenv
+DRIVER=~fastapi+~httpx
+LINGCHUAdapter=~telegram
+telegram_bots=[{"token":"1234567890:..."}]
+```
+
+Long polling is used by default. Configure `telegram_proxy` when direct access to Telegram is unavailable. Webhook deployments require HTTPS and the upstream adapter webhook settings.
+
+## Prepare the bot in BotFather
+
+1. Create the bot through BotFather and copy the token into `telegram_bots`.
+2. Disable privacy mode through BotFather so Lingchu receives ordinary group messages.
+3. Add the bot to each group where it should operate.
+4. Promote the bot to group administrator with the rights required for moderation commands (kick, mute, delete messages, manage admins).
+
+## Verify the connection
+
+1. Start the bot: `uvx --from nb-cli nb.exe run`.
+2. Wait for `Application startup complete.` in the logs.
+3. Send `菜单` (or `menu` in English locale) to the bot from a Telegram group where it is an administrator.
+
+If the menu appears, the connection is live. If not, see [Troubleshooting](../troubleshoot).
+
+## Available commands
+
+Telegram currently supports:
+
+- Kick, block, and unblock members.
+- Mute and unmute members.
+- Mute and unmute the whole group through default chat permissions.
+- Promote and demote administrators.
+- Rename and leave a group.
+- Delete a message by replying to it with the recall command.
+- Lingchu silence, speak, boot, and shutdown state commands.
+- Permission-filtered menus.
+
+QQ-only cards, special titles, group avatars, announcements, remote management, and protocol restart commands are hidden on Telegram.
+
+## Group identity
+
+Telegram group persistence uses `chat.id`. Forum topic and sender information does not change the group authorization scope.
+
+## Related pages
+
+- [Select and configure an adapter](../configure/adapter) — adapter selection details
+- [QQ command reference](../../reference/commands) — full QQ command list for comparison
+- [Troubleshooting](../troubleshoot) — common connection issues
