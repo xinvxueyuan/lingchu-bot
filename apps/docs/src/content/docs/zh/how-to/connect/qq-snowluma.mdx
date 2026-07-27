@@ -1,0 +1,82 @@
+---
+icon: Box
+title: 通过 SnowLuma 接入 QQ
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+通过 [SnowLuma](https://snowluma.github.io/) 将 Lingchu Bot 接入 QQ。SnowLuma 是一个协议侧 OneBot 运行时，将 Linux QQ、VNC、noVNC 和 OneBot 端点打包在同一个容器中。官方镜像为 `motricseven7/snowluma:latest`。
+
+## 前置条件
+
+- 已安装 Lingchu Bot，且 `.env` 中配置了 `LINGCHU_SUPERUSERS` 和 OneBot V11 驱动。
+- Docker Desktop（或安装了 Docker 的 Linux 主机），且共享内存足够运行内嵌 QQ 客户端。
+
+## 在 Docker 中运行 SnowLuma
+
+SnowLuma 将 VNC 暴露在 `5900`，noVNC 在 `6081`，WebUI 在 `5099`，OneBot HTTP 在 `3000`，OneBot WebSocket 在 `3001`。
+
+<Aside type="caution" title="与 Playwright 和 NapCat 端口冲突">
+
+当 NapCat（端口 `3000`、`3001`）和 SnowLuma 同时运行在同一主机，且文档站 Playwright webServer 需要 `3100` 端口时，请将 SnowLuma 的 OneBot 端口映射到 `6100` 和 `6101`，避免与默认值冲突：
+
+</Aside>
+
+```powershell
+docker run -d `
+  --name snowluma `
+  --restart unless-stopped `
+  --shm-size=1g `
+  --cap-add=SYS_PTRACE `
+  --security-opt seccomp=unconfined `
+  -e VNC_PASSWD=<change-me> `
+  -p 5900:5900 `
+  -p 6081:6081 `
+  -p 5099:5099 `
+  -p 6100:3000 `
+  -p 6101:3001 `
+  -v snowluma-data:/app/snowluma-data `
+  -v snowluma-qq-config:/app/.config `
+  -v snowluma-qq-data:/app/.local/share `
+  -v C:/dev/lingchu-bot:/lingchu-bot:ro `
+  motricseven7/snowluma:latest
+```
+
+项目挂载让 `C:/dev/lingchu-bot` 下的文件在 SnowLuma 内以 `/lingchu-bot` 可见，保持与 NapCat 设置相同的宿主/容器路径桥接。
+
+## 完成 QQ 登录
+
+1. 从 `docker logs snowluma` 读取首次 WebUI 管理员密码。
+2. 打开 `http://127.0.0.1:5099` 并登录。
+3. 修改管理员密码。
+4. 通过 WebUI 或 VNC（`http://127.0.0.1:6081`）完成 QQ 登录。
+
+## 将 Lingchu Bot 指向 SnowLuma
+
+配置 OneBot V11 适配器连接到 SnowLuma 暴露的端口。从 Windows 主机来看：
+
+- OneBot HTTP：`http://127.0.0.1:6100`
+- OneBot WebSocket：`ws://127.0.0.1:6101`
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+LINGCHUAdapter=~onebot.v11
+```
+
+## 修复全新卷的权限错误
+
+如果 SnowLuma 进程在全新命名卷上以 `EACCES: permission denied, open 'config/runtime.json'` 退出，请一次性修复属主并重启进程：
+
+```powershell
+docker exec snowluma sh -lc "chown -R snowluma:snowluma /app/snowluma-data /app/.config /app/.local/share && supervisorctl restart snowluma"
+```
+
+## SnowLuma 下可用的功能
+
+SnowLuma 是协议侧 OneBot 运行时。Lingchu Bot 的标准 OneBot V11 命令可通过其连接，但 NapCat 专属扩展命令（群公告、群头像）会保持隐藏，除非运行时报告 NapCat 实现身份和版本。
+
+## 相关页面
+
+- [通过 NapCat 接入 QQ](./qq-napcat) — 含扩展命令的 NapCat 连接指南
+- [选择并配置适配器](../configure/adapter) — 适配器选择
+- [QQ 命令参考](../../reference/commands) — 完整命令列表

@@ -1,0 +1,314 @@
+---
+icon: Terminal
+title: QQ Commands
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+## QQ Commands
+
+Commands are registered through `nonebot-plugin-alconna` with command start tokens and separators enabled by default. Command trigger words are locale-exclusive: Chinese locales enable Chinese triggers, English locales enable short hyphenated English triggers. The two trigger languages are not enabled at the same time.
+
+## Menu
+
+Primary command:
+
+```text
+菜单
+```
+
+English command when `LINGCHU_LOCALE` selects English:
+
+```text
+menu
+```
+
+The menu command is an index entry. It lists the available submenu commands instead of expanding every feature into one long message. Submenus are code-driven and filtered by the selected platform, protocol, and implementation.
+
+Default submenu commands:
+
+- `member-management` / `成员管理`: kick, block/unblock, set member card, set member title, set/unset admin.
+- `speech-management` / `发言管理`: mute/unmute member, enable/disable whole-group mute, recall recent messages.
+- `group-chat-management` / `群聊管理`: set group name, set group avatar (when supported), send group announcement (when supported), leave current group.
+- `remote-management` / `远程管理`: cross-group mute/unmute, whole-group mute/unmute, kick, block/unblock, send announcement, mass announcement.
+- `system-management` / `系统管理`: silence/speak (silent mode), boot/shutdown (handle gate), application operation commands such as protocol endpoint restart.
+- `entertainment` / `娱乐功能`: Chat with AI.
+
+<Aside type="note" title="Remote management">
+
+`远程管理` / `remote-management` is a top-level menu entry that lists all remote (cross-group) commands. Remote commands accept a group ID (int) or group name (str). When a non-int string is provided, the bot falls back to fuzzy matching group names via the OneBot V11 `get_group_list` API.
+
+</Aside>
+
+## Member mute
+
+```text
+禁言 @用户 [时长秒数] [原因]
+mute @user [duration seconds] [reason]
+```
+
+When the duration or reason is omitted, Lingchu uses the corresponding
+`member_mute.toml` handle default. Administrators can update all supported
+handle defaults at runtime with `set-handle-default <handle> <field> <value>`.
+Use `set-default-mute <seconds>` as the member-mute shortcut.
+
+- Duration default: `60` seconds.
+- Reason default: `违反群规「默认」`.
+
+## Member unmute
+
+```text
+解禁 @用户
+unmute @user
+```
+
+<Aside type="note" title="Permission pre-checks and audit">
+
+The unmute command runs permission pre-checks before executing: `check_target_privilege()` verifies the target user is not an admin/owner (unless the operator is the group owner or a superuser), and `check_bot_privilege()` verifies the bot has admin/owner role in the group. After execution, `record_command_audit()` writes a command-level audit log entry.
+
+</Aside>
+
+## Whole-group mute
+
+```text
+全员禁言
+mute-all
+```
+
+## Whole-group unmute
+
+```text
+全体解禁
+unmute-all
+```
+
+## Message recall
+
+```text
+撤回 [@用户] [数量]
+recall [@user] [count]
+```
+
+- Count default: `LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT` from the NoneBot environment or `.env` (default `10`).
+- A single numeric argument is treated as the count: `撤回 20`.
+- To target a user, mention them first: `撤回 @用户 20`.
+- The command reads recent current-group message records from the message store, skips the triggering command message, verifies each candidate through OneBot V11 `get_msg`, then recalls it through `delete_msg`.
+- The bot skips messages from the operator, itself, group admins/owner, and protected users configured through `protected_subject_feature_keys`.
+
+## OneBot V11 blocklist
+
+Blocklist and whitelist commands are available on OneBot V11 only. Blocking stores the user in the group or global blocklist, kicks the user from the current group, and rejects future group join requests while the block is active. Whitelisting stores the user as a protected subject; only repository-backed `SUPERUSERS` can add or remove whitelist entries.
+
+```text
+拉黑 @用户 [时长秒数] [原因]
+全局拉黑 @用户 [时长秒数] [原因]
+删黑 @用户 [原因]
+全局删黑 @用户 [原因]
+清空黑名单 [原因]
+全局清空黑名单 [reason]
+拉白 @用户 [原因]
+全局拉白 @用户 [原因]
+删白 @用户 [原因]
+全局删白 @用户 [原因]
+```
+
+English: `block`, `global-block`, `unblock`, `global-unblock`, `clear-blocklist`, `global-clear-blocklist`, `protect`, `global-protect`, `unprotect`, `global-unprotect`.
+
+- Duration default: permanent.
+- Block reason default: `违反群规「默认」`.
+- Unblock/clear/whitelist reason default: `管理员操作「默认」`.
+
+`清空黑名单` only clears the current group blocklist. Use `全局清空黑名单` to clear global entries.
+`拉白` and `删白` only affect the current group whitelist. Use the global variants for protected users across groups.
+
+## Group settings and operations
+
+| Capability | Chinese command | English command |
+| --- | --- | --- |
+| Set group name | `设置群名称 <新群名称>` | `set-group-name <new group name>` |
+| Set group avatar | `设置群头像 <图片>` | `set-group-avatar <image>` |
+| Set member card | `设置群名片 @用户 <名片>` | `set-member-card @user <card>` |
+| Set member special title | `设置群头衔 @用户 <头衔>` | `set-member-title @user <title>` |
+| Set member admin | `设置群管理员 @用户 [true/false]` | `set-member-admin @user [true/false]` |
+| Unset member admin | `取消群管理员 @用户` | `unset-member-admin @user` |
+| Kick member | `踢出 <用户ID或@提及> [原因]` | `kick-member <user_id_or_mention> [reason]` |
+| Send announcement | `发送群公告 <内容> [图片]` | `send-announcement <content> [image]` |
+| Leave current group | `退出群` | `leave-group` |
+
+The announcement and group avatar commands accept `UniImage` values from `nonebot-plugin-alconna`. Quote names, announcements, cards, or titles that contain spaces so command separators do not split them.
+
+## Remote management (OneBot V11 only)
+
+Remote commands operate on a **target group** other than the current one. The `<群号或群名称>` argument accepts:
+
+- An integer group ID (e.g., `123456789`).
+- A numeric string that can be parsed as an integer.
+- A non-numeric string that triggers fuzzy matching against the bot's joined groups via `get_group_list`. Exact name match takes priority; otherwise, substring containment is used. Multiple matches cause the bot to ask for a more precise name or group ID.
+
+| Capability | Chinese command | English command |
+| --- | --- | --- |
+| Remote mute | `远程禁言 <群号或群名称> @用户 [时长秒数] [原因]` | `remote-mute <group_id_or_group_name> @user [duration seconds] [reason]` |
+| Remote unmute | `远程解禁 <群号或群名称> @用户 [原因]` | `remote-unmute <group_id_or_group_name> @user [reason]` |
+| Remote whole mute | `远程全体禁言 <群号或群名称>` | `remote-mute-all <group_id_or_group_name>` |
+| Remote whole unmute | `远程全体解禁 <群号或群名称>` | `remote-unmute-all <group_id_or_group_name>` |
+| Remote kick | `远程踢出 <群号或群名称> @用户 [原因]` | `remote-kick <group_id_or_group_name> @user [reason]` |
+| Remote block | `远程拉黑 <群号或群名称> @用户 [时长秒数] [原因]` | `remote-block <group_id_or_group_name> @user [duration seconds] [reason]` |
+| Remote unblock | `远程删黑 <群号或群名称> @用户 [原因]` | `remote-unblock <group_id_or_group_name> @user [reason]` |
+| Remote announcement | `远程公告 <群号或群名称> <内容> [图片]` | `remote-announcement <group_id_or_group_name> <content> [image]` |
+| Mass announcement | `群发公告 <内容> [群号或群名称列表或全部群] [图片]` | `mass-announcement <content> [group_ids_or_group_names_or_all] [image]` |
+
+Mass announcement uses the command key / feature name `mass announcement` / `群发公告`. The content argument comes first. If the target list is omitted, the bot sends to all groups it has joined. To target multiple groups, separate group IDs or group names with `,`, `，`, `、`, `;`, or `；`. Use `全部群` or `all` to explicitly target all joined groups.
+
+<Aside type="caution" title="Announcement availability">
+
+Remote announcement and mass announcement require `NapCat.Onebot >= 4.18.0`. Other OneBot V11 implementations cannot send group notices. Announcement menu entries are hidden when the implementation is unsupported.
+
+</Aside>
+
+<Aside type="note" title="Remote kick requires blocklist">
+
+`远程踢出` only works on users already in the blocklist for the target group. Use `远程拉黑` first if the user is not yet blocked.
+
+</Aside>
+
+## Error feedback
+
+Group management commands return readable error messages for covered adapter network errors and rejected operations. Unknown exceptions are still raised outward so developers can find uncovered cases.
+
+Feedback text and command trigger language use `LINGCHU_LOCALE` from the current NoneBot configuration. See [Internationalization](../how-to/contribute/i18n).
+
+## System Management
+
+| Capability | Chinese command | English command |
+| --- | --- | --- |
+| Restart protocol endpoint | `重启协议端 [平台]` | `restart-protocol-endpoint [platform]` |
+
+`重启协议端` restarts the current QQ OneBot V11 protocol endpoint when the platform argument is omitted. After the protocol endpoint reconnects, Lingchu sends a confirmation message to the group where the command was issued.
+
+```text
+silence
+闭嘴
+```
+
+Enable silent mode: commands still execute (mute, kick, etc. take effect) but no response messages are sent.
+
+```text
+speak
+说话
+```
+
+Disable silent mode: resume sending command response messages.
+
+```text
+boot
+开机
+```
+
+Boot: enable all command handlers. All commands respond normally when booted.
+
+```text
+shutdown
+关机
+```
+
+Shutdown: disable all command handlers (except boot/shutdown themselves). No commands execute or respond. Only boot/shutdown commands work when shut down.
+
+<Aside type="caution" title="Shutdown Scope">
+
+After shutdown, all group management commands (mute, kick, block, etc.) stop responding. Only the boot command can restore operation. In silent mode, commands still execute — only feedback messages are suppressed.
+
+</Aside>
+
+## Chat
+
+```text
+chat <text>
+聊天 <文本>
+```
+
+Chat with AI. The bot calls the default profile configured in `llm.toml` to
+generate a response.
+
+- System prompt: defaults to `"你是一个友好的群聊助手。"`, customizable via `defaults.system_prompt` in `chat.toml`.
+- Feature toggle: the `enabled` field in `chat.toml` controls enable/disable.
+
+<Aside type="note" title="LLM Configuration">
+
+The chat command requires an explicit `llm.toml` profile. Set provider,
+model, endpoint, timeout, and generation options in that profile. Store secrets
+in environment variables such as `OPENAI_API_KEY`, then reference the variable
+name with `api_key_env`.
+
+</Aside>
+
+## NovelAI image generation
+
+```text
+novelai-image <description> [options]
+```
+
+The removable `core/subplugins/novelai_image` child plugin uses the managed
+default LLM profile to understand and translate the request. It can
+then enrich the prompt with optional web research and TIPO before generating one
+NovelAI Diffusion V4.5 image. Chinese locales use `生图 <描述> [选项]` instead.
+
+```text
+novelai-image two girls waiting at a rainy station --width 1216 --height 832 --steps 32 --scale 5.5 --seed 1234
+novelai-image a librarian in an old archive --sampler k_euler_ancestral --negative text
+```
+
+| Option | Value | Purpose |
+| --- | --- | --- |
+| `--width` | integer | Output width, from 64 to 2048 pixels |
+| `--height` | integer | Output height, from 64 to 2048 pixels |
+| `--steps` | integer | Diffusion steps, from 1 to 50 |
+| `--scale` | number | Prompt guidance scale, greater than 0 and at most 20 |
+| `--sampler` | string | NovelAI sampler identifier |
+| `--seed` | integer | Reproducible unsigned 32-bit seed, from 0 to 4294967295 |
+| `--negative` | string | Negative prompt text appended to the configured and inferred negatives |
+
+The final scalar value follows this exact precedence:
+
+```text
+explicit command option > LLM-extracted hint > novelai_image.toml default
+```
+
+The LLM can infer hints such as landscape, portrait, square, a fixed seed, or
+“no text” when the corresponding command option is absent. Invalid explicit
+values stop the command with a localized validation message; invalid inferred
+values fall back to the TOML default.
+
+The same managed LLM automatically decides whether current or canonical visual
+facts would help. For example, it may search for a real place, product, recent
+event, named character, or exact costume. A generated search query is sent to
+the configured LLM provider, so it can disclose the subject of the image
+request to that provider. Search sources and diagnostics are not posted in chat.
+Search is available only when the selected LiteLLM model/provider supports it;
+unsupported or failed search silently degrades to generation without research.
+
+TIPO failure also degrades to the LLM-produced English description and tags.
+See [Deploy TIPO with llama.cpp](/how-to/deploy/tipo-llama-cpp) for
+the standalone service. Installing or removing the child directory takes effect
+after restarting the bot; the parent plugin has no NovelAI-specific registry.
+
+The same command exposes the complete NovelAI image API. Image arguments must be
+message image segments supplied to the corresponding option:
+
+```text
+novelai-image img2img fantasy outfit --image <image> --strength 0.6 --noise 0.1
+novelai-image inpaint detailed background --image <source> --mask <mask>
+novelai-image vibe sunset mountains --reference <image> --reference-strength 0.7
+novelai-image tool lineart --image <image>
+novelai-image tool colorize --image <line-art> --prompt "silver hair" --defry 0
+novelai-image tool emotion --image <image> --emotion happy --emotion-level 2
+novelai-image upscale --image <image> --factor 4
+novelai-image annotate --image <image> --model fake_scribble
+novelai-image tags "blue hai" --lang en
+novelai-image account subscription
+```
+
+Other Director tools include `sketch`, `bg-removal`, and `declutter`. The domain
+layer supports V3, Furry V3, V4, V4.5, their Curated/inpainting variants, batch
+generation, real-time V4/V4.5 MessagePack events, vibe encoding with caching, and
+account queries. Chat sends final images only and never exposes credentials or raw
+base64 data.

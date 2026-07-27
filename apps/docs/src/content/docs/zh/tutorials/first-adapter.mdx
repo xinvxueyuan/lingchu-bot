@@ -1,0 +1,112 @@
+---
+icon: Plug
+title: 接入你的第一个适配器
+---
+
+import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
+
+在本教程中，你将通过 NapCat（一个 OneBot V11 实现）将 Lingchu Bot 接入 QQ 群，并发送你的第一条群管理命令。完成后，机器人将在 QQ 群中上线，并响应 `菜单` / `menu`。
+
+## 你将学到什么
+
+- NapCat 如何向 Lingchu Bot 暴露 OneBot V11 协议。
+- 如何在 `.env` 中配置 OneBot V11 适配器。
+- 如何通过在真实 QQ 群中发送命令来验证连接。
+
+本教程假设你已完成[入门](./getting-started)，且机器人能到达 `Application startup complete.`
+
+## 前置条件
+
+- 一个专用于测试的 QQ 账号。
+- 已安装 [Docker](https://www.docker.com/)（NapCat 在容器中运行）。
+- 机器人账号已加入测试 QQ 群为成员；如需测试审核命令，需设为管理员。
+
+## 启动 NapCat
+
+NapCat 是推荐的 QQ OneBot V11 实现。在 Docker 中运行，暴露 OneBot 端口：
+
+```powershell
+docker run -d `
+  --name napcat `
+  --restart always `
+  -p 3000:3000 `
+  -p 3001:3001 `
+  -p 6099:6099 `
+  mlikiowa/napcat-docker:latest
+```
+
+在浏览器中打开 `http://localhost:6099/webui`。从 `docker logs napcat` 读取首次令牌，登录，并完成机器人 QQ 账号登录。
+
+在 WebUI 中配置 OneBot V11 连接：
+- 在 `3000` 端口启用 HTTP，设置 access token。
+- 在 `3001` 端口启用 WebSocket 反向，使用相同 token。
+
+## 配置 OneBot V11 适配器
+
+编辑 `.env`，启用 OneBot V11 驱动并将 access token 设为与 NapCat 一致：
+
+```dotenv
+DRIVER=~fastapi+~httpx+~websockets
+LINGCHUAdapter=~onebot.v11
+ONEBOT_ACCESS_TOKEN=your-token
+```
+
+这三行告诉 NoneBot 加载 FastAPI/HTTPX/WebSockets 驱动，告诉 Lingchu Bot 使用 OneBot V11 适配器，并设置 NapCat 期望的共享 access token。
+
+## 启动机器人并验证
+
+启动机器人：
+
+```bash
+uvx --from nb-cli nb.exe run
+```
+
+当日志显示 `Application startup complete.` 时，NapCat 也应报告连接已建立。如果出现 `PlatformAdapterNotLoadedError`，说明 OneBot V11 适配器未被 NoneBot 加载——检查 `nonebot-adapter-onebot` 是否已安装，且 `DRIVER` 是否包含 `~websockets`。
+
+## 发送你的第一条命令
+
+在机器人所在的 QQ 群中发送：
+
+```text
+菜单
+```
+
+或，如果 `LINGCHU_LOCALE=en_US`：
+
+```text
+menu
+```
+
+如果机器人回复了子菜单列表，连接已就绪，教程完成。
+
+<Aside type="note" title="试一条审核命令">
+
+将机器人添加为群管理员，然后尝试：
+
+```text
+禁言 @用户 60
+```
+
+这会禁言被提及的用户 60 秒。完整命令列表参见 [QQ 命令参考](../reference/commands)。
+
+</Aside>
+
+## 你学到了什么
+
+- NapCat 说 OneBot V11 协议，通过 HTTP 和 WebSocket 暴露。
+- Lingchu Bot 通过 `LINGCHUAdapter` 选择适配器，通过 `ONEBOT_ACCESS_TOKEN` 认证。
+- `菜单` / `menu` 命令是确认机器人已上线的入口。
+
+## 下一步
+
+<CardGrid>
+  <Card href="../how-to/connect/qq-napcat" title="NapCat 深入指南">
+    NapCat 专属命令、Docker 持久化和版本门控功能。
+  </Card>
+  <Card href="../how-to/connect/telegram" title="接入 Telegram">
+    连接 Telegram 机器人作为替代平台。
+  </Card>
+  <Card href="../reference/commands" title="命令参考">
+    完整 QQ 命令语法和选项。
+  </Card>
+</CardGrid>

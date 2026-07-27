@@ -1,0 +1,130 @@
+---
+icon: Play
+title: Lingchu Bot 入门
+---
+
+import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
+
+<img
+  src="/images/docs/quick-start-runtime.webp"
+  alt="Lingchu Bot 快速开始运行时设置"
+  width="960"
+  height="493"
+  loading="lazy"
+/>
+
+在本教程中，你将从零开始安装 Lingchu Bot，并通过本地运行验证安装是否成功。完成后，你将拥有一个可用的开发环境，随时可以连接平台适配器。
+
+## 你将学到什么
+
+- 如何克隆并安装 Lingchu Bot 的全部依赖。
+- 如何准备 `.env` 配置文件。
+- 如何启动机器人并确认看到 `Application startup complete.`。
+
+本教程不会连接真实的 QQ 或 Telegram 账号——那是下一篇[接入你的第一个适配器](./first-adapter)的内容。
+
+## 前置条件
+
+- Python 3.13
+- [uv](https://docs.astral.sh/uv/) — Python 包和项目管理器
+- git
+- Node.js 22+ 和 pnpm（仅当你也想构建文档站时需要）
+
+## 获取代码
+
+克隆仓库并进入项目目录：
+
+```bash
+git clone https://github.com/xinvxueyuan/lingchu-bot.git
+cd lingchu-bot
+```
+
+## 安装依赖
+
+项目提供了跨平台安装脚本，自动完成整个初始化流程：
+
+```bash
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
+
+脚本会检测操作系统、校验所需工具链（Python 3.13+、Node.js 20+、pnpm 9+、Git、uv）、安装所有依赖、生成环境配置文件（`.env`、`.env.development`、`.env.test`、`.env.production`），并配置 Git 钩子。使用 `./scripts/setup.sh --help` 查看所有选项。
+
+<Aside type="note" title="手动安装替代方案">
+
+如果偏好手动安装：
+
+```bash
+uv sync --frozen
+pnpm install
+pnpm exec husky
+cp .env.example .env
+```
+
+</Aside>
+
+## 配置环境变量
+
+打开 `.env` 并设置必填字段。至少需要 `LINGCHU_SUPERUSERS`（一个将 Lingchu UID 映射到平台账号 ID 的 JSON 对象）：
+
+```dotenv
+LINGCHU_SUPERUSERS='{"admin":{"qq":123456789}}'
+LINGCHU_LOCALE=zh_CN
+```
+
+完整映射格式参见[配置超级用户身份](../how-to/configure/superuser)。适配器连接字段暂时留空——你将在下一个教程中配置它们。
+
+## 启动机器人
+
+通过 NoneBot CLI 运行：
+
+```bash
+uvx --from nb-cli nb.exe run
+```
+
+等待日志显示：
+
+```text
+INFO 06:31:21 | Application startup complete.
+```
+
+看到这一行，说明核心运行时已就绪。你还会看到 LLM 配置缺失或无效的警告——这在当前阶段是正常的，不会阻止启动。
+
+<Aside type="caution" title="布尔值">
+
+NoneBot 配置文件只接受标准 JSON 小写 `true` / `false`。写 `True` / `False` 会在启动时引发配置错误。
+
+</Aside>
+
+## 用 CLI 验证
+
+`lingchu` CLI 随插件提供。确认它工作正常：
+
+```bash
+uv run lingchu --version
+uv run lingchu doctor
+uv run lingchu config path
+```
+
+`lingchu doctor` 应为 `nonebot2`、`nonebot-adapter-onebot`、`nonebot-plugin-localstore` 和 `nonebot-plugin-lingchu-bot` 报告 `ok`。
+
+## 你学到了什么
+
+- Lingchu Bot 通过 `uv` 和 `scripts/setup.sh` 安装。
+- 配置存放在 `.env` 中，由 NoneBot 管理。
+- 启动成功的标志是日志中出现 `Application startup complete.`。
+- `lingchu` CLI 可验证安装。
+
+## 下一步
+
+<CardGrid>
+  <Card href="./first-adapter" title="接入你的第一个适配器">
+    连接 NapCat 或 Telegram，发送你的第一条群管理命令。
+  </Card>
+  <Card href="../reference/commands" title="命令">
+    浏览完整命令参考。
+  </Card>
+  <Card href="../how-to/troubleshoot" title="故障排查">
+    解决常见启动和连接问题。
+  </Card>
+</CardGrid>

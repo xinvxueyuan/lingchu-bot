@@ -1,0 +1,49 @@
+---
+icon: ShieldCheck
+title: 配置超级用户身份
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+通过 `LINGCHU_SUPERUSERS` 环境变量将稳定的 Lingchu UID 映射到平台账号 ID，让管理员获得跨平台通行的 Lingchu 级特权。
+
+## 为什么使用基于 UID 的身份
+
+Lingchu 权限系统使用稳定的 UID 和平台账号绑定，而不是把平台账号 ID 当作唯一身份。一个 UID 可以同时绑定 QQ 账号、Telegram 账号和 Discord 账号，因此无论管理员从哪个平台接入，都是同一个身份。
+
+## 设置环境变量
+
+在 `LINGCHU_SUPERUSERS` 中以严格 JSON 形式配置超级用户映射：
+
+```dotenv
+LINGCHU_SUPERUSERS='{"userA":{"qq":123,"telegram":"tg-id","discord":"discord-id"}}'
+```
+
+对象键是 Lingchu UID。每个值将平台 ID（`qq`、`telegram` 或 `discord`）映射到该用户在对应平台的账号 ID。
+
+<Aside type="caution" title="必填字段">
+
+`LINGCHU_SUPERUSERS` 为必填项。以下情况会导致启动失败：
+
+- 值缺失或为空；
+- 不是 UID 到平台账号的映射；
+- 同一平台账号绑定到多个 UID；
+- 使用了未知平台 ID。
+
+</Aside>
+
+## 验证配置
+
+1. 启动 Bot：`uvx --from nb-cli nb.exe run`。
+2. 若启动成功，则超级用户映射有效。
+3. 从已绑定的某个平台账号发送一条特权命令（例如 `菜单`），确认身份解析生效。
+
+## 超级用户可以绕过什么
+
+SUPERUSERS 始终通过 Lingchu 命令权限检查。但平台 API 限制和命令级安全检查仍然生效——若 Bot 自身缺乏群管理员权限，超级用户也无法在该群禁言他人。
+
+## 相关页面
+
+- [环境变量](../../reference/environment-variables) — 完整环境变量参考
+- [配置](../../reference/configuration) — 运行时设置概览
+- [权限架构](../../reference/architecture/permissions) — 权限检查如何被解析

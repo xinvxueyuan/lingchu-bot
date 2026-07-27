@@ -1,0 +1,89 @@
+---
+icon: Plug
+title: Select and configure an adapter
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Choose which platform adapter Lingchu Bot loads at startup by setting `LINGCHUAdapter` (or the `LINGCHU_ADAPTER` environment variable). Only one adapter is enabled per platform; the default is OneBot V11.
+
+## Supported adapter IDs
+
+| Adapter ID | Platform | Default? |
+| --- | --- | --- |
+| `~onebot.v11` | QQ via OneBot V11 | Yes (when unset) |
+| `~telegram` | Telegram | No |
+
+Other adapter IDs (such as Milky, QQ, or OneBot V12) are not implemented; configuring them raises `PlatformAdapterUnknownError`.
+
+## Set the adapter in NoneBot configuration
+
+Set a global NoneBot configuration value in your `.env` or TOML config:
+
+```toml
+LINGCHUAdapter = "~onebot.v11"
+```
+
+For a Telegram-only deployment, select `~telegram` explicitly:
+
+```toml
+LINGCHUAdapter = "~telegram"
+```
+
+To enable both adapters when both are loaded by NoneBot, join the IDs with `+`:
+
+```toml
+LINGCHUAdapter = "~onebot.v11+~telegram"
+```
+
+## Set the adapter via environment variable
+
+The `LINGCHU_ADAPTER` environment variable is convenient for containers and CI where editing `.env` or TOML is impractical. It accepts a single adapter string, a `+`-separated string, or (when set via dotenv/TOML) a JSON array:
+
+```bash
+# Single adapter
+LINGCHU_ADAPTER=~onebot.v11
+
+# Multiple adapters in string form
+LINGCHU_ADAPTER=~onebot.v11+~telegram
+```
+
+```toml
+LINGCHUAdapter = ["~onebot.v11", "~telegram"]
+```
+
+## Configuration priority
+
+Lingchu resolves the adapter in this order (highest first):
+
+1. OS environment variables (`LINGCHU_ADAPTER` in `os.environ`)
+2. NoneBot dotenv file (`.env`, where `LINGCHUAdapter` or `LINGCHU_ADAPTER` may appear)
+3. NoneBot `global_config` (resolved through the `lingchu_adapter` alias)
+
+<Aside type="caution" title="One adapter per platform">
+
+Explicitly configuring multiple known adapters for the same platform fails startup:
+
+```toml
+LINGCHUAdapter = "~onebot.v11+~another_adapter"
+```
+
+Lingchu Bot does not control which adapters NoneBot actually imports or registers; it only selects business code through `LINGCHUAdapter` and checks that the selected adapter has been loaded and registered by NoneBot.
+
+</Aside>
+
+## Unknown adapters at runtime
+
+An unknown adapter that does not belong to any platform profile is not considered enabled. Message storage still accepts its events, but writes the `platform` field as `unknown`, giving downstream displays a stable Unknown bucket instead of treating the raw adapter name as a platform ID.
+
+## Verify the selection
+
+1. Start the bot.
+2. If `LINGCHUAdapter` is unset, QQ defaults to `~onebot.v11` — ensure NoneBot has loaded OneBot V11.
+3. If startup fails with `PlatformAdapterNotLoadedError`, the selected adapter was not loaded by NoneBot. Load the matching adapter or change `LINGCHUAdapter` to one that is already loaded.
+
+## Related pages
+
+- [Connect QQ via NapCat](../connect/qq-napcat) — OneBot V11 connection guide
+- [Connect Telegram](../connect/telegram) — Telegram connection guide
+- [Adapter system architecture](../../reference/architecture/adapter-system) — adapter registry and platform profiles

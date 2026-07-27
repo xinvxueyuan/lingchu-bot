@@ -1,0 +1,330 @@
+---
+icon: Settings
+title: Configuration
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+## Configuration
+
+Lingchu Bot separates deployment configuration from online-editable settings. NoneBot resolves deployment fields from OS environment variables, its `.env` files or global configuration, then model defaults. Lingchu does not add a second dotenv or TOML precedence layer.
+
+Online-editable overrides live in localstore-owned `runtime-overrides.toml`. Startup neither creates deployment configuration nor installs JSON Schema files; use the CLI explicitly.
+
+<Aside title="Two configuration planes">
+
+Deployment fields belong to NoneBot configuration. Only `permission_platform_runtime_passthrough`, `command_trigger_overrides`, and `menu_page_trigger_overrides` belong to `runtime-overrides.toml`.
+
+</Aside>
+
+## Deployment and mutable settings
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `superuser_key` | string | `123456789abcdef` | Superuser authentication key |
+| `message_store_enabled` | boolean | `true` | Whether to enable message-store runtime hooks |
+| `message_store_retention_days` | number | `30` | Number of days to retain message records; 0 disables day-based expiry |
+| `message_store_summary_limit` | number | `500` | Maximum length for text, data, and result summaries |
+| `message_store_record_api_calls` | boolean | `true` | Whether to record platform API call summaries |
+| `message_store_cleanup_enabled` | boolean | `true` | Whether to clean expired message records during shutdown |
+| `recall_message_default_count` | number | `10` | Default count used by the group message recall command |
+| `permission_platform_runtime_passthrough` | boolean \| object | `true` | Whether platform runtime roles may satisfy command permission grants |
+| `command_trigger_overrides` | object | `{}` | Per-command primary trigger and alias overrides keyed by command_key |
+| `menu_page_trigger_overrides` | object | `{}` | Menu page command trigger overrides keyed by page id |
+| `protected_subject_feature_keys` | string[] | `moderation side-effect commands` | Command keys blocked when their target user is protected by whitelist policy |
+| `lingchu_adapter` | string | `unset` | Selects the enabled adapter for each platform (env: LINGCHUAdapter / LINGCHU_ADAPTER) |
+| `lingchu_superusers` | object (optional) | `omitted` | UID to platform account mapping for Lingchu SUPERUSERS |
+
+Example `runtime-overrides.toml`:
+
+```toml
+#:schema ./runtime-overrides.schema.json
+permission_platform_runtime_passthrough = true
+
+[command_trigger_overrides.member_mute]
+chinese = "禁言"
+english = "mute"
+
+[menu_page_trigger_overrides.member-management]
+chinese = "成员管理"
+english = "member-management"
+```
+
+Manage it explicitly with `lingchu config init`, `lingchu config validate`, and `lingchu schema install`. `config init` also creates a missing `llm.toml` starter template without overwriting an existing one. The old combined `config.toml` migration command has been removed; move deployment settings to NoneBot environment variables and mutable settings to `runtime-overrides.toml` manually. Programmatic updates rewrite TOML and do not preserve custom comments or formatting.
+
+Deployment values can be supplied through NoneBot global configuration:
+
+```toml
+LINGCHUAdapter = "~onebot.v11"
+```
+
+Or in a `.env` file:
+
+```dotenv
+LINGCHUAdapter=~onebot.v11
+```
+
+`runtime-overrides.toml` owns different fields, so it does not compete with deployment configuration.
+
+## llm.toml
+
+The managed LLM runtime owns a separate `llm.toml` and `llm.schema.json` in the
+same localstore configuration directory. Declare at least one explicit profile;
+deployment-level LLM fields are no longer a fallback source.
+
+<Aside title="Keep secrets in the environment">
+
+`api_key_env` contains an environment variable **name**, not a credential.
+Lingchu resolves it when that profile is first used. A named but missing or
+empty variable invalidates only that profile without printing the secret or raw
+validation input; unused optional profiles do not block initialization/reload.
+
+</Aside>
+
+```toml
+#:schema ./llm.schema.json
+default_profile = "primary"
+
+[profiles.primary]
+backend = "openai"
+model = "gpt-4o-mini"
+api_key_env = "OPENAI_API_KEY"
+litellm_generation = "responses"
+timeout = 60
+max_retries = 2
+
+[profiles.fallback]
+backend = "litellm"
+model = "openai/gpt-4o-mini"
+api_key_env = "OPENAI_API_KEY"
+litellm_generation = "chat"
+
+[profiles.fallback.provider_options]
+temperature = 0.2
+
+[router]
+enabled = false
+strategy = "simple-shuffle"
+num_retries = 2
+
+[observability]
+enabled = true
+```
+
+`litellm_generation = "responses"` selects LiteLLM `aresponses`; `"chat"`
+selects `acompletion`. OpenAI stable calls use the Responses API. Trusted
+internal callers can escape to the native `AsyncOpenAI` client, the native
+LiteLLM module, or an enabled in-process LiteLLM Router. Native objects and
+unknown provider fields are preserved, so new SDK operations do not require a
+project wrapper before use.
+
+Capability probes return `supported`, `unsupported`, or `unknown`. They improve
+UI and fallback decisions but never veto an explicitly requested native call.
+Configuration reload structurally validates and freezes every candidate profile
+before an atomic swap. Credentials remain lazy per profile. A failed reload
+leaves the active generation untouched; a successful reload closes retired
+clients and invalidates capability caches.
+
+### Network and tool security
+
+- Private, loopback, link-local, and metadata Base URLs are rejected unless the
+  profile explicitly sets `allow_private_network = true`.
+- A configured credential is not forwarded to a custom Base URL unless
+  `allow_credentials_to_custom_base_url = true`.
+- Credential-like default headers/query entries and control-plane keys inside
+  `provider_options` are rejected unless they use their dedicated trusted
+  configuration surface. Native handles remain available to trusted code.
+- These switches acknowledge an operator-controlled trust boundary. The HTTP
+  egress layer must still revalidate DNS results and redirects because static
+  configuration validation does not perform blocking DNS resolution.
+- Ordinary LLM calls return model tool calls as data and never execute them.
+  MCP execution exists only through the explicit reviewed Agent configured by
+  `[mcp]` in `llm.toml`; it requires identity-group preauthorization, a separate
+  tool-free review profile, durable audit for state changes, and same-session
+  one-time confirmation for `critical` calls. Set `enabled = false` to disable
+  all MCP discovery and execution.
+
+Both SDKs stay lazy: importing Lingchu or starting without a usable LLM profile
+does not import OpenAI or LiteLLM. Missing optional dependencies fail only when
+their backend is first requested and do not stop unrelated bot features.
+
+## menu.toml
+
+Lingchu Bot also creates `menu.toml` in the plugin configuration directory. This file controls menu presentation only.
+
+Editable fields:
+
+- Page `title`
+- Feature `summary` and `usage`
+- Page, child page, and item order
+
+Code-owned fields are not editable from TOML. The `command_key` set, menu page `command`, `platform_capability`, and implementation `availability` stay in code so the menu cannot claim a command or adapter capability that does not exist. Use `menu_page_trigger_overrides` in `config.toml` to change menu page triggers. If `menu.toml` references an unknown `command_key`, Lingchu rejects the file and keeps the code defaults. Unknown page ids are skipped with a warning.
+
+## novelai_image.toml
+
+The optional nested NovelAI subplugin owns this file and its sibling
+`novelai_image.schema.json`. Defaults are model `nai-diffusion-4-5-full`, size
+`832x1216`, 28 steps, scale 5, sampler `k_euler_ancestral`, and a 120-second
+timeout. Set `token` with `LINGCHU_NOVELAI_TOKEN` in preference to storing it in
+TOML.
+
+Token authentication is preferred. Username/password login is also supported:
+set `username` and provide `LINGCHU_NOVELAI_PASSWORD`; the subplugin exchanges it
+for an in-memory token through `account_base_url` (default
+`https://api.novelai.net`). Custom gateways can set `base_url` and
+`account_base_url` independently.
+
+Full image-API defaults also include `n_samples` (1-8), `quality`, `uc_preset`
+(0-3), `noise_schedule`, `cfg_rescale`, `dynamic_thresholding`, `auto_smea`,
+`prefer_brownian`, `vibe_cache_entries`, and `image_download_max_bytes`. The last
+two bound the in-memory vibe-token cache and chat image downloads.
+
+The prompt pipeline uses the managed default LLM profile for language
+understanding, translation, hint extraction, and optional provider-native web
+search. Configure it in `llm.toml`; all former global or child-specific LLM
+fallback keys have been removed and are ignored.
+
+TIPO prompt expansion is a separate, optional llama.cpp service:
+
+```toml
+tipo_enabled = true
+tipo_base_url = "http://127.0.0.1:8081/v1"
+tipo_model = "tipo-500m-ft"
+tipo_timeout = 30.0
+tipo_max_tokens = 512
+tipo_temperature = 0.5
+tipo_top_p = 0.95
+tipo_top_k = 40
+```
+
+`tipo_api_key` is optional and is omitted from the generated TOML when unset.
+Every field can also be supplied with the `LINGCHU_NOVELAI_` prefix, for example
+`LINGCHU_NOVELAI_TIPO_BASE_URL`. Set `tipo_enabled = false` to skip TIPO and use
+the LLM-produced English description and tags directly. A timeout, transport
+error, or unusable TIPO completion has the same fallback and does not stop image
+generation. See [Deploy TIPO with llama.cpp](/how-to/deploy/tipo-llama-cpp).
+
+## Permission and trigger customization
+
+`permission_platform_runtime_passthrough` controls whether platform-side roles such as QQ group owner/admin/member can satisfy Lingchu permission grants through runtime identity groups. Set it to `false` to require explicit Lingchu memberships, or use a TOML table such as `[permission_platform_runtime_passthrough]` with `qq = false` for platform-specific behavior.
+
+`command_trigger_overrides` and `menu_page_trigger_overrides` are loaded before matchers are registered. Primary trigger changes therefore take effect on restart. The override loader rejects duplicate triggers across commands.
+
+Whitelist protection is configured through subject policy APIs and `protected_subject_feature_keys`. When a protected user is the target of a listed side-effect command, Lingchu blocks that command; protected users may still operate commands they are otherwise allowed to use.
+
+## Core path settings
+
+`core_version`, `data_dir`, `config_dir`, `cache_dir`, and system platform helpers are still provided by the core `Config`. Paths come from `nonebot-plugin-localstore`:
+
+| Path | Purpose |
+| --- | --- |
+| `data_dir` | Data file directory |
+| `config_dir` | Configuration file directory |
+| `cache_dir` | Cache file directory |
+
+## Internationalization settings
+
+Runtime translation reads the `lingchu_locale` NoneBot configuration key. The recommended project-specific key in `.env` is:
+
+```dotenv
+LINGCHU_LOCALE=zh_CN
+```
+
+Available catalogs currently include `zh_CN` and `en_US`. Locale names are normalized before use, so `en-US` and `en_US.UTF-8` both become `en_US`. When the setting is missing, empty, or NoneBot has not been initialized, the default locale is `zh_CN`.
+
+## Container environment flag
+
+`in_containers` comes from global NoneBot configuration. It must be a Boolean value.
+
+```dotenv
+LINGCHU_IN_CONTAINERS=true
+```
+
+<Aside type="caution" title="Boolean format">
+
+Do not write `LINGCHU_IN_CONTAINERS=True`. NoneBot configuration files only accept standard JSON lowercase `true` / `false`. If a string-like Boolean is passed in, the project raises a clear configuration error.
+
+</Aside>
+
+## Local runtime paths
+
+The repository root currently does not ship a committed local `bot.py`. Project-level localstore paths are controlled by NoneBot configuration; see `.env.example`:
+
+```dotenv
+LOCALSTORE_USE_CWD=true
+```
+
+This means localstore-related directories prefer the current working directory, which is convenient for local development and debugging.
+
+## Handle-level configuration files
+
+Lingchu Bot supports per-handle configuration files for granular control of individual command behaviors. Each handle (command) can have its own TOML configuration file that overrides code defaults.
+
+### File naming and location
+
+Handle configuration files follow the naming convention `<command_key>.toml` and are stored in the plugin configuration directory managed by `nonebot-plugin-localstore`. For example:
+
+- `recall_message.toml` — Configuration for the message recall command
+- `member_mute.toml` — Configuration for the member mute command
+- `kick_member.toml` — Configuration for the kick member command
+
+### Standard fields
+
+All handle configuration files share a common structure validated by `handle_config.schema.json`:
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `true` | Whether this handle is enabled |
+| `defaults` | object | `{}` | Handle-specific default values (e.g., default_count for recall_message) |
+| `policies` | object | `{}` | Policy configuration for this handle |
+
+The `defaults` object can contain handle-specific fields. For example, `recall_message.toml` might define a `default_count` field that sets the default number of messages to recall when the user omits the count parameter.
+
+### Configuration manager
+
+The `HandleConfigManager` class provides centralized access to handle configurations:
+
+- `get_config(command_key)` — Read configuration for a specific handle
+- `update_config(command_key, updates)` — Update configuration with partial changes
+- `get_all_configs()` — Get configurations for all registered handles
+- `ensure_config_files()` — Create missing configuration files with defaults
+
+The manager automatically:
+
+- Caches loaded configurations for performance
+- Falls back to registered defaults when files are missing or invalid
+- Validates configurations against JSON Schema before persisting updates
+
+### Module independence principle
+
+Each handle module must register its default configuration in `handle_config_defaults/` using `register_handle_defaults()`. This ensures:
+
+1. The handle has a canonical default configuration
+2. `HandleConfigManager` can validate the `command_key`
+3. Missing configuration files fall back to known defaults
+
+<Aside type="caution" title="Default registration required">
+
+Attempting to read or update a handle configuration without registering defaults raises `ValueError: command_key not registered`. Always register defaults before using `HandleConfigManager` with a new handle.
+
+</Aside>
+
+### Example configuration file
+
+```toml
+#:schema ./handle_config.schema.json
+enabled = true
+
+[defaults]
+default_count = 10
+
+[policies]
+```
+
+This example shows a `recall_message.toml` file with the standard structure. The `defaults.default_count` field overrides the code-defined default for the recall command.
+
+## Related pages
+
+- [Environment Variables](./environment-variables) — .env variable reference
+- [Adapter Selection](/how-to/configure/adapter) — LINGCHUAdapter configuration
+- [Superuser Identity](/how-to/configure/superuser) — LINGCHU_SUPERUSERS settings

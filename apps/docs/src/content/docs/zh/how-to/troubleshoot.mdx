@@ -1,0 +1,102 @@
+---
+icon: Wrench
+title: 排查常见问题
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+解决最常见的本地启动、适配器和群管理问题。每条记录描述现象、原因和修复方法。
+
+## 安装与启动
+
+### 依赖安装失败
+
+确认 Python 和 uv 已安装并满足版本要求：
+
+```bash
+python --version   # 必须 3.13
+uv --version
+```
+
+使用以下命令安装依赖：
+
+```bash
+uv sync --frozen
+```
+
+### 布尔配置错误
+
+`in_containers 配置错误` 错误表示布尔值以非 JSON 形式写入。NoneBot 配置文件只接受标准 JSON 小写 `true` / `false`。
+
+正确：
+
+```dotenv
+LINGCHU_IN_CONTAINERS=true
+```
+
+错误：
+
+```dotenv
+LINGCHU_IN_CONTAINERS=True
+```
+
+### 机器人无法连接到平台
+
+按顺序检查：
+
+1. 已启用适配器对应的服务是否已启动（默认为 OneBot V11）。
+2. NoneBot 与已启用适配器的连接设置是否匹配。
+3. 账号、网络、防火墙和平台权限是否可用。
+
+## 适配器选择
+
+### `LINGCHUAdapter` 未设置
+
+`LINGCHUAdapter` 未设置时，Lingchu Bot 默认启用 `~onebot.v11`。请确保 NoneBot 已加载 OneBot V11 适配器。
+
+### `PlatformAdapterNotLoadedError`
+
+选中的适配器未被 NoneBot 加载或注册。请加载对应的适配器，或将 `LINGCHUAdapter` 改为已加载的适配器。
+
+### 同一平台配置多个适配器
+
+不要为同一平台显式配置多个适配器。例如 `LINGCHUAdapter = "~onebot.v11+~another_adapter"` 会立即失败。
+
+### 运行时注册了未知适配器
+
+额外注册的同平台适配器不会产生冲突。Lingchu Bot 将未选中的适配器视为已禁用。不属于任何平台 profile 的未知适配器不被视为已启用；消息存储会将 `platform` 字段写入 `unknown`。
+
+## 群管理
+
+### 禁言或解禁命令失败
+
+禁言、解禁和全体禁言依赖平台权限。失败时检查：
+
+1. 机器人是否在目标群中。
+2. 机器人是否具有所需管理权限（管理员或群主）。
+3. 目标用户是否可被机器人操作（例如不是更高层级的管理员）。
+4. 已启用适配器 API 是否报告网络错误或操作被拒绝。
+
+### 反馈出现在错误语言
+
+检查 `LINGCHU_LOCALE` 是否设置为受支持的目录，例如 `zh_CN` 或 `en_US`。未知文本会回退到原始消息。
+
+## CI 或本地检查
+
+### 检查命令失败
+
+阅读失败的命令和行号，仅修复相关范围。常见检查：
+
+```bash
+uv run -m ruff check . --output-format=github
+uv run -m ruff format --check .
+uv run -m pyright
+uv run -m ty check --output-format github
+uv run -m pytest
+```
+
+<Aside type="note" title="仍未解决？">
+
+如果你的问题未在此列出，查阅 [配置参考](../reference/configuration) 中的详细设置，或在 [GitHub](https://github.com/xinvxueyuan/lingchu-bot/issues) 上提 issue。
+
+</Aside>

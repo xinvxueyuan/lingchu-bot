@@ -1,0 +1,89 @@
+---
+icon: Plug
+title: 选择并配置适配器
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+通过设置 `LINGCHUAdapter`（或 `LINGCHU_ADAPTER` 环境变量）选择 Lingchu Bot 在启动时加载的平台适配器。每个平台只启用一个适配器；默认为 OneBot V11。
+
+## 受支持的适配器 ID
+
+| 适配器 ID | 平台 | 是否默认 |
+| --- | --- | --- |
+| `~onebot.v11` | 通过 OneBot V11 接入 QQ | 是（未设置时） |
+| `~telegram` | Telegram | 否 |
+
+其他适配器 ID（如 Milky、QQ 或 OneBot V12）未实现；配置它们会抛出 `PlatformAdapterUnknownError`。
+
+## 在 NoneBot 配置中设置适配器
+
+在 `.env` 或 TOML 配置中设置 NoneBot 全局配置值：
+
+```toml
+LINGCHUAdapter = "~onebot.v11"
+```
+
+仅部署 Telegram 时显式选择 `~telegram`：
+
+```toml
+LINGCHUAdapter = "~telegram"
+```
+
+当 NoneBot 同时加载了两个适配器时，可用 `+` 连接 ID 同时启用：
+
+```toml
+LINGCHUAdapter = "~onebot.v11+~telegram"
+```
+
+## 通过环境变量设置适配器
+
+`LINGCHU_ADAPTER` 环境变量适用于容器和 CI 等不便编辑 `.env` 或 TOML 的场景。它接受单个适配器字符串、`+` 分隔的字符串，或（通过 dotenv/TOML 设置时）JSON 数组：
+
+```bash
+# 单个适配器
+LINGCHU_ADAPTER=~onebot.v11
+
+# 多个适配器（字符串形式）
+LINGCHU_ADAPTER=~onebot.v11+~telegram
+```
+
+```toml
+LINGCHUAdapter = ["~onebot.v11", "~telegram"]
+```
+
+## 配置优先级
+
+Lingchu 按以下顺序解析适配器（从高到低）：
+
+1. 操作系统环境变量（`os.environ` 中的 `LINGCHU_ADAPTER`）
+2. NoneBot dotenv 文件（`.env`，可出现 `LINGCHUAdapter` 或 `LINGCHU_ADAPTER`）
+3. NoneBot `global_config`（通过 `lingchu_adapter` 别名解析）
+
+<Aside type="caution" title="每个平台只能一个适配器">
+
+为同一平台显式配置多个已知适配器会导致启动失败：
+
+```toml
+LINGCHUAdapter = "~onebot.v11+~another_adapter"
+```
+
+Lingchu Bot 不控制 NoneBot 实际导入或注册哪些适配器；它只通过 `LINGCHUAdapter` 选择业务代码，并校验选中的适配器已被 NoneBot 加载和注册。
+
+</Aside>
+
+## 运行时的未知适配器
+
+不属于任何平台 profile 的未知适配器不被视为已启用。消息存储仍会接受其事件，但会将 `platform` 字段写入 `unknown`，为下游展示提供稳定的 Unknown 分桶，而非将原始适配器名称视为平台 ID。
+
+## 验证选择
+
+1. 启动 Bot。
+2. 若 `LINGCHUAdapter` 未设置，QQ 默认使用 `~onebot.v11`——请确保 NoneBot 已加载 OneBot V11。
+3. 若启动时抛出 `PlatformAdapterNotLoadedError`，说明选中的适配器未被 NoneBot 加载。请加载对应的适配器，或将 `LINGCHUAdapter` 改为已加载的适配器。
+
+## 相关页面
+
+- [通过 NapCat 接入 QQ](../connect/qq-napcat) — OneBot V11 连接指南
+- [接入 Telegram](../connect/telegram) — Telegram 连接指南
+- [适配器系统架构](../../reference/architecture/adapter-system) — 适配器注册表和平台 profile
