@@ -45,6 +45,7 @@ dependencies = [
     "rtoml>=0.13.0",
     "packaging>=26.2",
     "typer>=0.27.0",
+    "nonebot-adapter-telegram>=0.1.0b20",
 ]
 
 [project.scripts]
@@ -137,6 +138,7 @@ nonebot-adapter-onebot = [
     { name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11" },
 ]
 "@local" = []
+nonebot-adapter-telegram = [{name = "Telegram", module_name = "nonebot.adapters.telegram"}]
 
 [tool.nonebot.plugins]
 nonebot-plugin-apscheduler = ["nonebot_plugin_apscheduler"]
@@ -290,6 +292,14 @@ allowed-confusables = [
     "PLR0917",  # too-many-positional-arguments (NoneBot DI injects bot/event/session/matcher positionally)
     "TC001",    # typing-only-first-party-import (NoneBot evaluates type hints at runtime)
     "TC002",    # typing-only-third-party-import (Bot/Event imports needed by get_type_hints())
+]
+# Telegram handlers use the same NoneBot runtime annotation and DI contract.
+"src/plugins/nonebot_plugin_lingchu_bot/handle/telegram/adapters/default/**.py" = [
+    "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
+    "PLR0913",  # too-many-arguments (NoneBot handler + Telegram API signatures)
+    "PLR0917",  # too-many-positional-arguments (NoneBot DI injection contract)
+    "TC001",    # typing-only-first-party-import (NoneBot evaluates annotations)
+    "TC002",    # typing-only-third-party-import (NoneBot evaluates annotations)
 ]
 # schemas.py embeds JSON Schema strings with intentionally long lines for editor readability
 # E402: nonebot2 require() must precede cross-plugin imports at module level

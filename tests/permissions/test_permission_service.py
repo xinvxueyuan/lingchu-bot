@@ -6,6 +6,8 @@ import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.permissions import service as service_module
 from src.plugins.nonebot_plugin_lingchu_bot.permissions.service import (
+    _account_id,
+    _scope,
     allowed_command_keys,
     bind_platform_account,
     check_permission,
@@ -39,6 +41,16 @@ def event(user_id: int = 42) -> SimpleNamespace:
         group_id=10001,
         sender=SimpleNamespace(role="member"),
     )
+
+
+def test_telegram_event_identity_uses_from_and_chat() -> None:
+    telegram_event = SimpleNamespace(
+        from_=SimpleNamespace(id=1234),
+        chat=SimpleNamespace(id=-1009876, type="supergroup"),
+    )
+
+    assert _account_id(telegram_event) == "1234"
+    assert _scope(telegram_event) == ("group", "-1009876")
 
 
 @pytest.mark.asyncio

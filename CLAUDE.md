@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (8363 symbols, 14724 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (8493 symbols, 15031 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -410,6 +410,11 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - Test fixtures for handlers use `mock_session = AsyncMock()` with `sess.add = MagicMock()` / `sess.add_all = MagicMock()` (sync mocks for sync API), then call the handler with `session=mock_session`. For `mock.call_args` assertions, remember that `args[0]` is now `session` (repository/permission functions take session as first positional arg).
 - Background tasks (`services/scheduler.py`, `services/message_store.py`) keep `async with get_session() as session:` because they own their lifecycle and are not NoneBot handler dependencies.
 - `services/llm/agent.py::_default_permission_resolver` and `services/llm/mcp_audit.py::_default_audit_writer` are local wrappers that open a scoped session before calling the underlying session-first function; this keeps the `PermissionResolver` / `AuditWriter` Protocol signatures unchanged while satisfying the new repository API.
+
+#### Adapter Handle Decorators
+
+- Handler modules wrapped by `selected_adapter_handle` MUST NOT use `from __future__ import annotations`. NoneBot's `get_typed_signature` resolves forward refs via `wrapper.__globals__` (the `handle/qq/commands/common.py` module namespace), not `func.__globals__`. `@wraps(func)` copies `__wrapped__` / `__name__` / `__annotations__` but NOT `__globals__`, so adapter-specific event types (e.g. `GroupMessageEvent`) become unresolvable `NameError` at startup. Keep annotations as real type objects; mirror the same-name OneBot V11 sibling file, which never uses `from __future__ import annotations`.
+- Failure surface: `handle/qq/commands/common.py::_state_wrapper` (the decorator); the 5 Telegram handlers under `handle/telegram/adapters/default/` (`bot_state.py`, `menu.py`, `moderation.py`, `mute.py`, `recall.py`) previously triggered `NameError: name 'GroupMessageEvent' is not defined` during the dev smoke test. The fix lives as a docstring at the top of each Telegram file and a NOTE block inside `_state_wrapper`.
 
 #### Supply Chain
 

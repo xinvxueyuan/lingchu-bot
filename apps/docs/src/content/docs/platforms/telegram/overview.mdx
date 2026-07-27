@@ -1,0 +1,41 @@
+---
+title: Telegram
+---
+
+Lingchu Bot supports Telegram groups and supergroups through
+`nonebot-adapter-telegram`.
+
+## Configuration
+
+```dotenv
+DRIVER=~fastapi+~httpx
+LINGCHUAdapter=~telegram
+telegram_bots=[{"token":"1234567890:..."}]
+```
+
+Long polling is used by default. Configure `telegram_proxy` when direct access
+to Telegram is unavailable. Webhook deployments require HTTPS and the upstream
+adapter webhook settings.
+
+Disable privacy mode through BotFather when Lingchu must receive ordinary group
+messages. The bot must be a group administrator with the corresponding rights
+for moderation commands.
+
+## Commands
+
+Telegram currently supports:
+
+- Kick, block, and unblock members.
+- Mute and unmute members.
+- Mute and unmute the whole group through default chat permissions.
+- Promote and demote administrators.
+- Rename and leave a group.
+- Delete a message by replying to it with the recall command.
+- Lingchu silence, speak, boot, and shutdown state commands.
+- Permission-filtered menus.
+
+QQ-only cards, special titles, group avatars, announcements, remote management,
+and protocol restart commands are hidden on Telegram.
+
+Telegram group persistence uses `chat.id`. Forum topic and sender information
+does not change the group authorization scope.

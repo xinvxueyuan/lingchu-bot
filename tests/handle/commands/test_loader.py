@@ -26,6 +26,7 @@ def test_group_loader_registry_uses_adapter_entry_modules() -> None:
             ".onebot11.default",
             ".onebot11.napcat",
         ),
+        "~telegram": (".telegram.default",),
     }
 
 

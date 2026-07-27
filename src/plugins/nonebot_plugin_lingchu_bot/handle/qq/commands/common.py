@@ -77,6 +77,13 @@ def _state_wrapper(
     check_gate: bool = True,
     check_silent: bool = True,
 ) -> GroupHandler:
+    # NOTE: NoneBot resolves handler signature forward refs via
+    # `wrapper.__globals__` (this module's globals), not `func.__globals__`.
+    # `@wraps` copies __wrapped__/__name__/__annotations__ but NOT __globals__.
+    # Therefore handler modules using `selected_adapter_handle` MUST NOT add
+    # `from __future__ import annotations`, or NoneBot fails to resolve
+    # adapter-specific event types (e.g. GroupMessageEvent) and raises
+    # NameError at startup. Keep annotations as real type objects.
     @wraps(func)
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
         if check_gate and not is_handle_active(platform_id):

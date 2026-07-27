@@ -86,7 +86,12 @@ class DeploymentSettings(BaseModel):
     )
     lingchu_adapter: str | list[str] | None = Field(
         default=None,
-        validation_alias=AliasChoices("lingchu_adapter"),
+        validation_alias=AliasChoices(
+            "lingchu_adapter",
+            "LINGCHU_ADAPTER",
+            "LINGCHUAdapter",
+            "lingchuadapter",
+        ),
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="ignore")

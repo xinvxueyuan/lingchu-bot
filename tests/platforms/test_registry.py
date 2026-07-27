@@ -30,6 +30,16 @@ def test_default_qq_profile_uses_onebot_v11() -> None:
     assert get_platform_profile("Milky") is None
 
 
+def test_telegram_profile_uses_telegram_adapter() -> None:
+    profile = get_platform_profile("Telegram", "~telegram")
+
+    assert profile is not None
+    assert profile.platform_id == "telegram"
+    assert PlatformCapability.MEMBER_MODERATION in profile.capabilities
+    assert profile.permission_module == "..platforms.telegram.permissions"
+    assert resolve_adapter_id("Telegram") == "~telegram"
+
+
 def test_qq_profile_supports_application_operation() -> None:
     profile = get_platform_profile("OneBot V11")
 
@@ -39,10 +49,15 @@ def test_qq_profile_supports_application_operation() -> None:
 
 def test_supported_adapters_are_declared_from_profiles() -> None:
     assert get_supported_adapters() == {"~onebot.v11"}
+    assert get_supported_adapters("~telegram") == {"~telegram"}
 
 
 def test_configured_adapter_selects_known_platform_adapter() -> None:
     assert get_supported_adapters("~onebot.v11") == {"~onebot.v11"}
+    assert get_supported_adapters("~onebot.v11+~telegram") == {
+        "~onebot.v11",
+        "~telegram",
+    }
 
 
 def test_resolve_adapter_id_normalizes_display_and_canonical_names() -> None:
@@ -54,7 +69,7 @@ def test_configured_unknown_adapter_raises() -> None:
     with pytest.raises(PlatformAdapterUnknownError) as exc_info:
         get_supported_adapters("~telegram+~onebot.v11+~discord")
 
-    assert exc_info.value.adapters == frozenset({"~telegram", "~discord"})
+    assert exc_info.value.adapters == frozenset({"~discord"})
 
 
 def test_deprecated_adapter_id_falls_through_to_unknown_error() -> None:
@@ -79,7 +94,7 @@ def test_configured_adapter_suppresses_runtime_conflict() -> None:
 
 def test_default_adapter_must_be_loaded() -> None:
     with pytest.raises(PlatformAdapterNotLoadedError) as exc_info:
-        validate_platform_adapter_selection(("Telegram",), configured=None)
+        validate_platform_adapter_selection((), configured=None)
 
     assert exc_info.value.adapter_id == "~onebot.v11"
     assert exc_info.value.registered_adapters == frozenset()
@@ -101,7 +116,10 @@ def test_configured_adapter_passes_when_loaded_with_extra_adapters() -> None:
 
 
 def test_iter_platform_profiles_defaults_to_implemented() -> None:
-    assert [profile.platform_id for profile in iter_platform_profiles()] == ["qq"]
+    assert [profile.platform_id for profile in iter_platform_profiles()] == [
+        "qq",
+        "telegram",
+    ]
 
 
 def test_is_adapter_enabled_returns_false_for_unknown_adapter() -> None:

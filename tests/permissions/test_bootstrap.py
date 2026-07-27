@@ -219,9 +219,9 @@ def test_validate_superusers_raises_when_platform_unknown() -> None:
     """未知 platform_id 抛出 PermissionConfigError。"""
     with pytest.raises(
         PermissionConfigError,
-        match=r"Unknown SUPERUSERS platform: telegram",
+        match=r"Unknown SUPERUSERS platform: discord",
     ):
-        bootstrap._validate_superusers({"user1": {"telegram": "42"}})
+        bootstrap._validate_superusers({"user1": {"discord": "42"}})
 
 
 def test_validate_superusers_raises_on_duplicate_account_binding() -> None:

@@ -14,6 +14,7 @@ _ADAPTER_MODULES: dict[str, tuple[str, ...]] = {
         ".onebot11.default",
         ".onebot11.napcat",
     ),
+    "~telegram": (".telegram.default",),
 }
 _loaded_handlers: dict[str, tuple[Callable[[], Any], ...]] = {}
 

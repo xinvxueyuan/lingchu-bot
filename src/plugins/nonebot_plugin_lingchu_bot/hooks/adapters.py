@@ -127,6 +127,9 @@ def _message_type(event: Event) -> str | None:
 
 
 def _conversation_id(event: Event) -> str | None:
+    chat_id = getattr(getattr(event, "chat", None), "id", None)
+    if isinstance(chat_id, (str, int)):
+        return _stringify(chat_id, limit=128)
     value = _first_attr(
         event,
         "group_id",
@@ -135,6 +138,8 @@ def _conversation_id(event: Event) -> str | None:
         "peer_id",
         "session_id",
     )
+    if not isinstance(value, (str, int)):
+        value = None
     if value is None:
         value = _first_attr(
             _event_data(event),
@@ -144,6 +149,8 @@ def _conversation_id(event: Event) -> str | None:
             "peer_id",
             "session_id",
         )
+        if not isinstance(value, (str, int)):
+            value = None
     if value is None:
         value = _safe_call(event, "get_session_id")
     return _stringify(value, limit=128)
@@ -155,6 +162,8 @@ def _user_id(event: Event) -> str | None:
         value = _first_attr(event, "user_id", "sender_id")
     if value is None:
         value = _first_attr(_event_data(event), "user_id", "sender_id")
+    if value is None:
+        value = getattr(getattr(event, "from_", None), "id", None)
     return _stringify(value, limit=128)
 
 

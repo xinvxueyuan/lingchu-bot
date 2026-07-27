@@ -5,9 +5,10 @@ title: 适配器选择
 
 import { Aside } from "@astrojs/starlight/components";
 
-Lingchu Bot 将具体适配器按平台能力分组。每个平台默认只启用一个适配器。当前 QQ 平台优先级为：
+Lingchu Bot 将具体适配器按平台能力分组，每个平台只启用一个适配器。当前支持：
 
 1. `~onebot.v11`
+2. `~telegram`
 
 未设置时，QQ 使用 `~onebot.v11`。要显式选择适配器，设置 NoneBot 全局配置值：
 
@@ -15,9 +16,12 @@ Lingchu Bot 将具体适配器按平台能力分组。每个平台默认只启�
 LINGCHUAdapter = "~onebot.v11"
 ```
 
-默认选择。请确保 NoneBot 已加载 OneBot V11 适配器。其他适配器 ID（如 Milky、QQ、OneBot V12）未实现；配置它们会抛出 `PlatformAdapterUnknownError`。
+为兼容现有部署，未设置时默认使用 OneBot V11。仅部署 Telegram 时显式选择
+`~telegram`；同时加载两个适配器时可用 `+` 同时选择。其他适配器 ID（如
+Milky、QQ、OneBot V12）未实现；配置它们会抛出
+`PlatformAdapterUnknownError`。
 
-### 环境变量形式
+## 环境变量形式
 
 Lingchu Bot 还会读取 `LINGCHU_ADAPTER` 环境变量，适用于容器化部署和 CI 等不便编辑 `.env` 或 TOML 的场景。底层 `lingchu_adapter` 字段可接受单个适配器字符串、`+` 分隔的多个 ID 字符串，或字符串列表：
 
@@ -26,13 +30,13 @@ Lingchu Bot 还会读取 `LINGCHU_ADAPTER` 环境变量，适用于容器化部�
 LINGCHU_ADAPTER=~onebot.v11
 
 # 多个适配器（字符串形式）
-LINGCHU_ADAPTER=~onebot.v11+~another_adapter
+LINGCHU_ADAPTER=~onebot.v11+~telegram
 ```
 
 通过 NoneBot 的 dotenv/TOML 配置设置时，也接受 JSON 数组字面量：
 
 ```toml
-LINGCHUAdapter = ["~onebot.v11", "~another_adapter"]
+LINGCHUAdapter = ["~onebot.v11", "~telegram"]
 ```
 
 配置优先级（从高到低）：
