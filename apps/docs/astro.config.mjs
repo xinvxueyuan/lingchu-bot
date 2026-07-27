@@ -132,6 +132,11 @@ export default defineConfig({
                 },
               ],
             },
+            {
+              label: "Telegram",
+              translations: { zh: "Telegram" },
+              items: [{ slug: "platforms/telegram/overview" }],
+            },
           ],
         },
         {

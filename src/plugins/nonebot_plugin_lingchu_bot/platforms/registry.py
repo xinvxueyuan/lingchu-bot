@@ -160,6 +160,14 @@ QQ_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset({
     PlatformCapability.LLM_CHAT,
 })
 
+TELEGRAM_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset({
+    PlatformCapability.GROUP_MANAGEMENT,
+    PlatformCapability.MEMBER_MODERATION,
+    PlatformCapability.MESSAGE_STORE,
+    PlatformCapability.API_AUDIT,
+    PlatformCapability.LLM_CHAT,
+})
+
 PLATFORM_PROFILES: Final[tuple[PlatformProfile, ...]] = (
     PlatformProfile(
         platform_id="qq",
@@ -175,6 +183,15 @@ PLATFORM_PROFILES: Final[tuple[PlatformProfile, ...]] = (
         ),
         capabilities=QQ_CAPABILITIES,
         permission_module="..platforms.qq.permissions",
+    ),
+    PlatformProfile(
+        platform_id="telegram",
+        display_name="Telegram",
+        adapter_names=frozenset({"telegram"}),
+        nonebot_adapters=("~telegram",),
+        adapter_name_map=(("telegram", "~telegram"),),
+        capabilities=TELEGRAM_CAPABILITIES,
+        permission_module="..platforms.telegram.permissions",
     ),
 )
 
@@ -195,6 +212,12 @@ _PROTOCOL_IMPLEMENTATIONS: Final[tuple[ProtocolImplementationInfo, ...]] = (
         adapter_id="~onebot.v11",
         display_name=_PROTOCOL_DISPLAY_NAMES["napcat"],
         module_path="handle.qq.adapters.onebot11.napcat",
+    ),
+    ProtocolImplementationInfo(
+        protocol_id="default",
+        adapter_id="~telegram",
+        display_name=_PROTOCOL_DISPLAY_NAMES["default"],
+        module_path="handle.telegram.adapters.default",
     ),
 )
 
@@ -323,9 +346,12 @@ def resolve_enabled_adapters(
     unknown_adapters = _unknown_configured_adapters(configured_adapters)
     if unknown_adapters:
         raise PlatformAdapterUnknownError(unknown_adapters)
+    if not configured_adapters:
+        return {PLATFORM_PROFILES[0].nonebot_adapters[0]}
     return {
         _profile_enabled_adapter(profile, configured_adapters, source="configuration")
         for profile in iter_platform_profiles()
+        if _configured_profile_adapters(profile, configured_adapters)
     }
 
 

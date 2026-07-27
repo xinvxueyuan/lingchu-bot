@@ -151,6 +151,16 @@ def test_menu_schema_text_is_valid_json() -> None:
     assert json.loads(MENU_SCHEMA_TEXT)["title"] == "Lingchu Bot Menu Config"
 
 
+@pytest.mark.parametrize(
+    "config_key",
+    ["lingchu_adapter", "LINGCHU_ADAPTER", "LINGCHUAdapter", "lingchuadapter"],
+)
+def test_deployment_settings_accepts_adapter_config_aliases(config_key: str) -> None:
+    settings = DeploymentSettings.model_validate({config_key: "~telegram"})
+
+    assert settings.lingchu_adapter == "~telegram"
+
+
 async def test_install_schemas_propagates_localstore_errors() -> None:
     """``install_schemas`` must not swallow localstore errors.
 

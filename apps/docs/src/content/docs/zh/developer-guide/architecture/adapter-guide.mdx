@@ -21,7 +21,7 @@ Lingchu Bot 使用平台 profile 系统将抽象的平台能力映射到具体�
 
 ## QQ 平台 profile
 
-QQ 平台是当前唯一实现的 profile。其已知适配器优先级为：
+QQ profile 使用以下适配器：
 
 | 优先级 | 适配器 | NoneBot 包 | 状态 |
 | --- | --- | --- | --- |
@@ -35,6 +35,26 @@ QQ 平台是当前唯一实现的 profile。其已知适配器优先级为：
 DRIVER=~fastapi+~httpx+~websockets
 ONEBOT_ACCESS_TOKEN=your-token
 ```
+
+## Telegram 平台 profile
+
+Telegram 使用 `nonebot-adapter-telegram`，通过
+`LINGCHUAdapter=~telegram` 显式选择。该适配器需要 ForwardDriver，推荐
+HTTPX：
+
+```dotenv
+DRIVER=~fastapi+~httpx
+LINGCHUAdapter=~telegram
+telegram_bots=[{"token":"1234567890:..."}]
+```
+
+默认使用 long polling；Webhook 需要 HTTPS 入口及适配器对应配置。受限网络
+请配置 `telegram_proxy`。如果需要接收群内普通非命令消息，必须在 BotFather
+中关闭 privacy mode；`chat_member` 更新通常还要求机器人是管理员并显式订阅。
+
+Telegram 群消息使用 Telegram 的 `chat.id` 作为持久化会话 ID，而不是适配器
+session ID，因为后者包含发送者及论坛主题信息。仅在选择 `~telegram` 时暴露
+Telegram 能力，不支持的 QQ 专属操作保持隐藏。
 
 ## 错误处理
 

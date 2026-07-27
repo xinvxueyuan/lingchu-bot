@@ -1,0 +1,37 @@
+---
+title: Telegram
+---
+
+Lingchu Bot 通过 `nonebot-adapter-telegram` 支持 Telegram 群组和超级群组。
+
+## 配置
+
+```dotenv
+DRIVER=~fastapi+~httpx
+LINGCHUAdapter=~telegram
+telegram_bots=[{"token":"1234567890:..."}]
+```
+
+默认使用 long polling。无法直连 Telegram 时请配置 `telegram_proxy`；Webhook
+部署需要 HTTPS 及上游适配器的 Webhook 配置。
+
+如果 Lingchu 需要接收普通群消息，请通过 BotFather 关闭 privacy mode。管理命令
+要求机器人是群管理员，并拥有相应 Telegram 管理权限。
+
+## 命令
+
+Telegram 当前支持：
+
+- 踢出、拉黑和解除拉黑成员。
+- 禁言和解除禁言成员。
+- 通过默认聊天权限开启和关闭全体禁言。
+- 设置和取消管理员。
+- 修改群名称和退出群组。
+- 回复目标消息后执行撤回命令。
+- Lingchu 静默、说话、开机和关机状态命令。
+- 按权限过滤的菜单。
+
+QQ 专属的群名片、专属头衔、群头像、群公告、远程管理和协议端重启命令不会在
+Telegram 菜单中显示。
+
+Telegram 群持久化统一使用 `chat.id`；论坛主题和发送者信息不会改变群权限范围。

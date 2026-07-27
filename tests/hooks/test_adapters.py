@@ -130,6 +130,50 @@ def test_normalize_message_event_prefers_group_id_over_session_id(
     assert normalized.identity.conversation_id == "868258211"
 
 
+def test_normalize_telegram_group_message_uses_chat_id(
+    monkeypatch: pytest.MonkeyPatch,
+    enabled_config: SimpleNamespace,
+) -> None:
+    monkeypatch.setattr(adapters, "plugin_config", enabled_config)
+    monkeypatch.setattr(
+        adapters,
+        "get_platform_profile",
+        lambda _adapter_id: SimpleNamespace(platform_id="telegram"),
+    )
+    event = make_event(group_id=None)
+    event.chat = SimpleNamespace(id=-1001234567890, type="supergroup")
+    event.get_session_id.return_value = "group_-1001234567890_3128682634"
+
+    normalized = normalize_message_event(make_bot("Telegram"), event)
+
+    assert isinstance(normalized, NormalizedMessageEvent)
+    assert normalized.identity.platform_id == "telegram"
+    assert normalized.identity.adapter_id == "~telegram"
+    assert normalized.identity.conversation_id == "-1001234567890"
+
+
+def test_normalize_telegram_message_uses_from_user_id(
+    monkeypatch: pytest.MonkeyPatch,
+    enabled_config: SimpleNamespace,
+) -> None:
+    monkeypatch.setattr(adapters, "plugin_config", enabled_config)
+    monkeypatch.setattr(
+        adapters,
+        "get_platform_profile",
+        lambda _adapter_id: SimpleNamespace(platform_id="telegram"),
+    )
+    event = make_event(group_id=None, user_id=None, sender_id=None)
+    event.get_user_id.return_value = None
+    event.data = SimpleNamespace()
+    event.chat = SimpleNamespace(id=-1001234567890, type="supergroup")
+    event.from_ = SimpleNamespace(id=1234)
+
+    normalized = normalize_message_event(make_bot("Telegram"), event)
+
+    assert normalized is not None
+    assert normalized.user_id == "1234"
+
+
 def test_normalize_message_event_unknown_adapter() -> None:
     assert normalize_message_event(make_bot("Custom"), make_event()) is None
 
@@ -223,6 +267,7 @@ def test_conversation_id_falls_back_to_session_id() -> None:
     event.peer_id = None
     event.session_id = None
     event.data = SimpleNamespace()
+    event.chat = None
     event.get_session_id.return_value = "session-1"
     assert _conversation_id(event) == "session-1"
 

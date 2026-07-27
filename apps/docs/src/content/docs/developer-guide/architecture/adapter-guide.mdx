@@ -21,7 +21,7 @@ When the plugin starts, it reads `LINGCHUAdapter` from NoneBot's global configur
 
 ## QQ platform profile
 
-The QQ platform is the only currently implemented profile. Its known adapter priority is:
+The QQ profile uses the following adapter:
 
 | Priority | Adapter | NoneBot package | Status |
 | --- | --- | --- | --- |
@@ -35,6 +35,29 @@ Configuration in `.env`:
 DRIVER=~fastapi+~httpx+~websockets
 ONEBOT_ACCESS_TOKEN=your-token
 ```
+
+## Telegram platform profile
+
+Telegram is selected explicitly with `LINGCHUAdapter=~telegram` and uses the
+`nonebot-adapter-telegram` adapter. The adapter requires a ForwardDriver;
+HTTPX is the recommended choice:
+
+```dotenv
+DRIVER=~fastapi+~httpx
+LINGCHUAdapter=~telegram
+telegram_bots=[{"token":"1234567890:..."}]
+```
+
+Long polling is the default. Webhook mode requires an HTTPS endpoint and the
+adapter's webhook configuration. Configure `telegram_proxy` when the host
+cannot reach Telegram directly. BotFather privacy mode must be disabled when
+the bot needs ordinary non-command group messages; `chat_member` updates also
+require administrator status and explicit update subscription.
+
+Lingchu stores Telegram group messages under the Telegram `chat.id`, not the
+adapter session ID, because Telegram session IDs include the sender and forum
+topic. Telegram capabilities are exposed only when the selected adapter is
+`~telegram`; unsupported QQ-only operations remain hidden.
 
 ## Error handling
 

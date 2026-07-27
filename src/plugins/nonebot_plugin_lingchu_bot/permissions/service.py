@@ -203,6 +203,10 @@ def _account_id(event: Any) -> str | None:
     data_user_id = getattr(sender, "user_id", None)
     if data_user_id is not None:
         return str(data_user_id)
+    sender = getattr(event, "from_", None)
+    telegram_user_id = getattr(sender, "id", None)
+    if telegram_user_id is not None:
+        return str(telegram_user_id)
     return None
 
 
@@ -214,6 +218,11 @@ def _scope(event: Any) -> tuple[str, str | None]:
     peer_id = getattr(data, "peer_id", None)
     if peer_id is not None:
         return ("group", str(peer_id))
+    chat = getattr(event, "chat", None)
+    chat_id = getattr(chat, "id", None)
+    chat_type = getattr(chat, "type", None)
+    if chat_id is not None and chat_type in {"group", "supergroup"}:
+        return ("group", str(chat_id))
     return ("global", None)
 
 
