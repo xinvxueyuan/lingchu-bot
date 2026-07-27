@@ -363,6 +363,11 @@ task ci
 - 后台任务（`services/scheduler.py`、`services/message_store.py`）保留 `async with get_session() as session:`，因为它们自管生命周期，不属于 NoneBot handler 依赖。
 - `services/llm/agent.py::_default_permission_resolver` 和 `services/llm/mcp_audit.py::_default_audit_writer` 是本地 wrapper，在调用底层 session-first 函数前自己开 scoped session；这样既满足新的 repository API，又保持 `PermissionResolver` / `AuditWriter` Protocol 签名不变。
 
+#### Adapter Handle Decorators
+
+- 被 `selected_adapter_handle` 装饰的 handler 模块 MUST NOT 使用 `from __future__ import annotations`。NoneBot 的 `get_typed_signature` 通过 `wrapper.__globals__`（即 `handle/qq/commands/common.py` 模块命名空间）解析 forward refs，而不是 `func.__globals__`。`@wraps(func)` 复制 `__wrapped__` / `__name__` / `__annotations__`，但 NOT `__globals__`，因此 adapter-specific 事件类型（如 `GroupMessageEvent`）在启动时变成无法解析的 `NameError`。保持注解为真实类型对象；参考同名的 OneBot V11 sibling 文件，它从不使用 `from __future__ import annotations`。
+- 失败面：`handle/qq/commands/common.py::_state_wrapper`（装饰器）；`handle/telegram/adapters/default/` 下的 5 个 Telegram handler（`bot_state.py`、`menu.py`、`moderation.py`、`mute.py`、`recall.py`）曾在 dev smoke test 中抛出 `NameError: name 'GroupMessageEvent' is not defined`。修复以每个 Telegram 文件顶部的 docstring 与 `_state_wrapper` 内的 NOTE 块形式保留。
+
 #### Supply Chain
 
 - `.github/workflows/*.yml` 中所有第三方 GitHub Actions 都按 40 字符 commit SHA 锁定并附 `# vX.Y.Z` 注释（非可变 tag）。`👷-ci-builds.yml` 与 `🚀-release.yml` 均使用 `actions/attest-build-provenance@v4.1.0`（SHA `a2bbfa2…`）生成 SLSA Build L3 provenance。用 `gh attestation verify <artifact> --repository xinvxueyuan/lingchu-bot` 验证。
