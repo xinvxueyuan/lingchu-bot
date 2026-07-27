@@ -412,6 +412,7 @@ task ci
 - `ensure_toml_dict_file_async()` 只创建缺失文件；覆盖写入用 `write_toml_dict_file_async()`。
 - Runtime config defaults 必须 JSON-serializable；需要时用 Pydantic `mode="json"` dump。
 - 迁移生成工作流：`nb orm revision -m "msg" --branch-label nonebot_plugin_lingchu_bot` 默认开启 autogenerate（无 `--autogenerate` 标志）。Taskfile 别名：`task db:revision -- MSG="..."`、`task db:check`、`task db:upgrade`。autogenerate 产出的是 `sa.Boolean` / `sa.DateTime(timezone=True)` / `sa.Text` / `sa.String`，必须手动改写为 `database/_dialect_compat.py` 中的 `CompatBoolean` / `CompatDateTimeTZ` / `CompatText` / `compat_string(length)` 以兼容六种数据库。autogenerate 无法识别列/表重命名（会生成 drop+add，丢数据），重命名需手动用 `op.alter_column` 编写迁移。CI 在 `nb orm upgrade` 后运行 `nb orm check` 强制模型与迁移同步。不带 --branch-label 时文件会落到 ./migrations/versions/ 而非插件迁移目录。
+- `nb orm upgrade` 在本地开发库上不可靠：当库由 `Base.metadata.create_all()` 或早期直接建表产生时，alembic 版本表无初始迁移记录，`nb orm upgrade` 会重跑 `initial schema` 导致 `sqlite3.OperationalError: table lingchu_message_records already exists`。每次更改模型定义时都应手写迁移脚本（autogenerate 仅作起点，不是终点）。本地开发库若已存在表但无迁移历史，用 `nb orm stamp head` 标记为最新而非重跑迁移；或删除 DB 文件后从头执行 `nb orm upgrade`。
 
 #### 跨数据库方言适配（随 MariaDB / Oracle / SQL Server 支持新增）
 
