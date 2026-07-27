@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib.metadata import version as pkg_version
 from pathlib import Path
 import platform
 from typing import Any
@@ -46,7 +47,8 @@ def _config_with(tmp_path: Path, **alias_kwargs: Any) -> Config:
 
 
 def test_config_has_core_version_default(config: Config) -> None:
-    assert config.core_version == "0.0.0.dev40"
+    """core_version default must match the installed package version."""
+    assert config.core_version == pkg_version("nonebot-plugin-lingchu-bot")
 
 
 def test_config_has_path_fields(config: Config) -> None:
