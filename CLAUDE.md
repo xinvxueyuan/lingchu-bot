@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (8350 symbols, 14702 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (8363 symbols, 14724 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -461,6 +461,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - `ensure_toml_dict_file_async()` only creates missing files; use `write_toml_dict_file_async()` to overwrite.
 - Runtime config defaults must be JSON-serializable; dump Pydantic defaults with `mode="json"` when needed.
 - Migration authoring: `nb orm revision -m "msg" --branch-label nonebot_plugin_lingchu_bot` autogenerates by default (no `--autogenerate` flag). Taskfile aliases: `task db:revision -- MSG="..."`, `task db:check`, `task db:upgrade`. Autogenerate emits `sa.Boolean` / `sa.DateTime(timezone=True)` / `sa.Text` / `sa.String` — manually rewrite to `CompatBoolean` / `CompatDateTimeTZ` / `CompatText` / `compat_string(length)` from `database/_dialect_compat.py` for six-backend compatibility. Autogenerate cannot detect column/table renames (emits drop+add, loses data) — author rename migrations manually with `op.alter_column`. CI runs `nb orm check` after `nb orm upgrade` to enforce model/migration sync. Without --branch-label the file lands in ./migrations/versions/ instead of the plugin migrations dir.
+- `nb orm upgrade` is unreliable on local dev DBs created outside the migration system (e.g., via `Base.metadata.create_all()` or earlier direct table creation). The alembic version table has no initial migration record, so `nb orm upgrade` re-runs the initial schema and fails with `sqlite3.OperationalError: table lingchu_message_records already exists`. Always hand-write migration scripts on model definition changes (autogenerate is a starting point only, not a finish line). If the local dev DB already has tables but no migration history, use `nb orm stamp head` to mark it as current instead of re-running migrations; or delete the DB file and run `nb orm upgrade` from scratch.
 
 #### Cross-Database Compatibility (added with MariaDB / Oracle / SQL Server support)
 
