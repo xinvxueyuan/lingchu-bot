@@ -79,7 +79,11 @@ jobs:
       - name: 🔨 Setup full toolchain
         # Composite action chains Node 24 + pnpm + uv 3.13 + Task.
         # Static Analysis skips the retry wrapper to keep the install fast.
+        # `enable-uv-cache: true` is required because the next step runs
+        # `uv sync` to populate the uv cache that setup-uv tries to save.
         uses: ./.github/actions/setup-toolchain
+        with:
+          enable-uv-cache: "true"
       - name: Install Python dependencies (lint + git only)
         # Install minimal dependencies for static analysis: project runtime
         # deps + lint group + git group. Skip test group to avoid building
@@ -244,7 +248,11 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
       - name: 🔨 Setup uv + Task
+        # Cache is enabled because the test matrix below runs
+        # `uv sync --frozen --all-extras`.
         uses: ./.github/actions/setup-uv-task
+        with:
+          enable-cache: "true"
 
       - name: Install Python dependencies
         # pinned from nick-fields/retry@v4.0.0
@@ -331,7 +339,11 @@ jobs:
       - name: 🔨 Setup full toolchain
         # Composite action chains Node 24 + pnpm + uv 3.13 + Task.
         # Auto-format skips the retry wrapper to keep the install fast.
+        # `enable-uv-cache: true` is required because the next step runs
+        # `uv sync` to populate the uv cache that setup-uv tries to save.
         uses: ./.github/actions/setup-toolchain
+        with:
+          enable-uv-cache: "true"
       - name: Install Python dependencies (lint + git only)
         # Install minimal dependencies for auto-format: project runtime
         # deps + lint group + git group. Skip test group to avoid building

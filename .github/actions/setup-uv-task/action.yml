@@ -10,6 +10,10 @@ inputs:
     description: "GitHub token for uv cache authentication"
     required: false
     default: ${{ github.token }}
+  enable-cache:
+    description: "Enable uv's GitHub Actions cache (set to 'true' only when the workflow runs `uv sync` — otherwise the cache post-step fails with 'no dependencies to cache'.)"
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -20,7 +24,7 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
         github-token: ${{ inputs.github-token }}
-        enable-cache: true
+        enable-cache: ${{ inputs.enable-cache == 'true' }}
         cache-dependency-glob: uv.lock
 
     - name: 🔨 Install Task

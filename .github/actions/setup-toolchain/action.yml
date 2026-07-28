@@ -1,5 +1,5 @@
 name: Setup full toolchain
-description: Checkout + Node 24 + pnpm + uv 3.13 + Task (the standard five-step CI bootstrap)
+description: Node 24 + pnpm + uv 3.13 + Task (the standard four-step CI bootstrap AFTER the job's own `actions/checkout`)
 
 inputs:
   node-version:
@@ -14,10 +14,10 @@ inputs:
     description: "Wrap pnpm install in nick-fields/retry (used by long-running build jobs)"
     required: false
     default: "false"
-  fetch-depth:
-    description: "Git fetch depth passed to the checkout step"
+  enable-uv-cache:
+    description: "Enable uv's GitHub Actions cache — MUST be 'true' only when the workflow actually runs `uv sync`. The cache post-step fails with 'no dependencies to cache' if uv never populates the cache directory."
     required: false
-    default: "0"
+    default: "false"
 
 runs:
   using: composite
@@ -40,3 +40,4 @@ runs:
       uses: ./.github/actions/setup-uv-task
       with:
         python-version: ${{ inputs.python-version }}
+        enable-cache: ${{ inputs.enable-uv-cache }}

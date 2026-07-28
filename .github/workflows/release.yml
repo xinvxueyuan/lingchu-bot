@@ -145,9 +145,13 @@ jobs:
         # Composite action chains Node 24 + pnpm + uv 3.13 + Task
         # in a single step. `with-retry: true` wraps `pnpm install` so transient
         # network errors don't fail long-running build jobs.
+        # `enable-uv-cache: true` is required because `task ci:build`
+        # runs `uv build`, which populates the uv cache that setup-uv
+        # tries to save.
         uses: ./.github/actions/setup-toolchain
         with:
           with-retry: "true"
+          enable-uv-cache: "true"
 
       - name: 🔄 Sync version files to release branch
         shell: bash
