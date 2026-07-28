@@ -20,6 +20,75 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Security
 
+## [0.4.0] - 2026-07-28
+
+LLM runtime migrated from OpenAI/LiteLLM backends to Pydantic AI, and NovelAI
+image subplugin migrated from hand-written HTTP client to MCP server subprocess.
+
+### Added
+
+- NovelAI MCP client service (`NovelAIMCPClient`) managing a
+  `fastmcp.client.Client` stdio connection to the `novelai-image-mcp` server
+  subprocess, with lazy initialization, env-var credential propagation, and
+  NoneBot shutdown hook registration.
+- `NovelAIConfig` MCP server management fields: `mcp_command` (default `"uvx"`),
+  `mcp_args` (default `("novelai-image-mcp", "serve")`), `output_dir`.
+- `handler.py::_plan_to_mcp_args()` converter mapping `NovelAIGenerationPlan`
+  fields to MCP `generate_image` tool arguments.
+- `NovelAIConfig.mcp_args` `@field_validator(mode="before")` to split
+  whitespace-separated env-var strings into `tuple[str, ...]`.
+- Pydantic AI-based LLM runtime using `pydantic_ai.Agent` with multi-provider
+  support, MCP toolset integration, and Pydantic Logfire observability.
+- LLM configuration schema using `[pydantic-ai]` and `[mcp]` sections in
+  `llm.toml`, replacing the deprecated `[profiles.*]`, `[router]`, and `[eve]`.
+- AGENTS lessons for Pydantic AI migration and NovelAI MCP migration.
+
+### Changed
+
+- **BREAKING** NovelAI image subplugin delegates all NovelAI HTTP interaction
+  to the `novelai-image-mcp` MCP server subprocess. The hand-written HTTP
+  client, authentication, MessagePack/ZIP parsing, and payload construction
+  are removed; the handler calls MCP tools via `fastmcp.client.Client`.
+- **BREAKING** LLM runtime migrated from OpenAI/LiteLLM backends to Pydantic AI.
+  `LLMRuntime.openai()` and `LLMRuntime.litellm()` are removed; use
+  `LLMRuntime.respond()` / `respond(stream=True)` for all LLM access.
+- `handler.py` maps each former `NovelAIClient` method to its equivalent MCP
+  tool: `generate_image`, `image_to_image`, `inpaint`, `director_tool`,
+  `upscale_image`, `annotate_image`, `suggest_tags`, `get_subscription`,
+  `get_user_data`, `encode_vibe`.
+- `constants.py` simplified to only input-validation enums (`DirectorTool`,
+  `Emotion`, `EmotionLevel`, `ControlNetModel`); API constants (`Endpoint`,
+  `Model`, `Action`, `Sampler`, `NoiseSchedule`, `QUALITY_TAGS`, `UC_PRESETS`)
+  are removed — the MCP server owns them.
+- `models.py` simplified: `GenerationRequest`, `CharacterPrompt`, and
+  `_merge_csv` removed; pipeline DTOs (`PromptIntent`, `NovelAIGenerationPlan`,
+  `GenerationOverrides`, etc.) retained.
+- Credentials (`token`/`username`/`password`) passed to MCP subprocess as
+  `NOVELAI_TOKEN`/`NOVELAI_USERNAME`/`NOVELAI_PASSWORD` env vars, not sent
+  over HTTP by the bot.
+
+### Removed
+
+- **BREAKING** Deleted NovelAI HTTP modules: `client.py`, `auth.py`,
+  `exceptions.py`, `imaging.py`, `payload.py`, `response.py`.
+- **BREAKING** Deleted `services/llm/backends.py` — `LLMRuntime` creates
+  `pydantic_ai.Agent` instances internally.
+- Deleted NovelAI test files: `test_client.py`, `test_full_client.py`,
+  `test_payload.py`, `test_protocol.py`.
+- Deleted LLM test files: `test_litellm_backend.py`, `test_openai_backend.py`,
+  `test_router.py`, `test_sdk_contract.py`, `test_live.py`.
+- `NovelAIConfig` HTTP fields removed: `base_url`, `account_base_url`,
+  `vibe_cache_entries`.
+- `[profiles.*]`, `[router]`, and `[eve]` sections in `llm.toml` emit
+  deprecation WARNINGs and are ignored.
+
+### Fixed
+
+### Security
+
+- NovelAI credential handling delegated to MCP server subprocess; the bot no
+  longer derives access keys or sends HTTP requests with embedded credentials.
+
 ## [0.3.0] - 2026-07-28
 
 Adapter module registry consolidated into a single source of truth, plus a
@@ -246,7 +315,8 @@ Initial formal release for QQ group management through OneBot V11.
 - Documentation remains under `GFDL-1.3-or-later`.
 - Visual elements remain under `CC0-1.0`.
 
-[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.4.0
 [0.3.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.3.0
 [0.2.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.2.0
 [0.1.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.1.0

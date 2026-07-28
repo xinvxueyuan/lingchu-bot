@@ -354,6 +354,14 @@ task ci
 - `core/runtime_config.py` 已合并入 `core/config.py`；不再保留兼容别名。所有 `runtime_config.xxx` 单例访问统一为 `plugin_config.xxx`。
 - `HandleConfig` dataclass 仍持 `dict[str, Any]`（frozen dataclass 接口保留）；`_build_handle_config` 通过 `model_dump(mode="json")` 桥接 pydantic ↔ dict 边界。将 `HandleConfig` 自身改为持 pydantic 实例的工作有意延后，以避免波及下游消费者。
 
+#### LLM Runtime And Pydantic AI
+
+- `services/llm/backends.py` 已删除；`LLMRuntime` 内部创建 `pydantic_ai.Agent` 实例。`LLMRuntime.openai()` 和 `LLMRuntime.litellm()` 是已废弃的 stub，始终抛出 `_WrongBackendError` —— 不要调用它们。所有 LLM 访问统一使用 `LLMRuntime.respond()` / `respond(stream=True)`。
+- Pydantic AI 异常类是 `pydantic_ai.exceptions.UserError`（不是 `UserCodeError` —— 该名称不存在）。`pydantic_ai.exceptions.HTTPException` 携带 `status_code` 用于错误映射（401-403 → `LLMAuthenticationError`，429 → `LLMRateLimitError`）。
+- 模型字符串使用 `provider:model` 格式（如 `openai:gpt-5.2`、`anthropic:claude-opus-4`）。`PydanticAIConfig.model` 字段 pattern 为 `^[\w.-]+:[\w./-]+$`（允许点、斜杠、连字符）。`probe_capability()` 从 provider 前缀推断能力，不调用 SDK。
+- `core/subplugins/contracts.py` 中的 `complete_subplugin_web_search()` 是 no-op，返回 `None` —— 原生 web search 是 LiteLLM 专属能力，Pydantic AI 迁移后不再支持。
+- `llm.toml` 中的 `[profiles.*]`、`[router]`、`[eve]` 段会触发 deprecation WARNING 并被忽略；`load_llm_runtime_config()` 仅读取 `[pydantic-ai]` 和 `[mcp]` / `[mcp.servers]`。
+
 #### Handler Session Injection
 
 - nonebot_plugin_orm 的 `async_scoped_session` 是 `Annotated[sa_async.async_scoped_session[sa_async.AsyncSession], Depends(coroutine(get_scoped_session))]` —— `Depends` 已嵌入 `Annotated` 元数据。正确签名是 `async def handler(session: async_scoped_session, ...)`（仅类型注解）；写 `session: async_scoped_session = Depends(async_scoped_session)` 会触发 pyright strict 错误，且是错误的。
