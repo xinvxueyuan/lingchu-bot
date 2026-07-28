@@ -66,10 +66,20 @@ jobs:
       contents: read
 
     steps:
+      - name: 📥 Checkout
+        # setup-toolchain is a local composite action and cannot be the
+        # first step in a job — the runner needs the repo on disk before
+        # it can resolve this composite's `action.yml`. This explicit
+        # checkout is the only direct `actions/checkout` call; the rest
+        # of the toolchain (Node + pnpm + uv + Task) is delegated to
+        # `setup-toolchain` on the next step.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
       - name: 🔨 Setup full toolchain
-        # Composite action chains checkout + Node 24 + pnpm + uv 3.13 + Task.
-        # `with-retry: true` wraps `pnpm install` so transient network errors
-        # don't fail long-running build jobs.
+        # Composite action chains Node 24 + pnpm + uv 3.13 + Task.
+        # `with-retry: true` wraps `pnpm install` so transient network
+        # errors don't fail long-running build jobs.
         uses: ./.github/actions/setup-toolchain
         with:
           with-retry: "true"
@@ -207,14 +217,22 @@ jobs:
       attestations: write
 
     steps:
+      - name: 📥 Checkout
+        # versioned-build needs full history (fetch-depth: 0) for
+        # `git fetch --tags` inside ci:version:bump, plus Node + pnpm
+        # + uv + Task for the actual `task ci:build` step. The composite
+        # setup-toolchain cannot be the first step, so we explicitly
+        # checkout first.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
       - name: 🔨 Setup full toolchain
-        # versioned-build needs full history (fetch-depth: 0) for `git fetch
-        # --tags` inside ci:version:bump, plus the same Node 24 + pnpm + uv +
-        # Task chain for the actual `task ci:build` step.
+        # Node 24 + pnpm + uv 3.13 + Task.
         uses: ./.github/actions/setup-toolchain
         with:
           with-retry: "true"
-          fetch-depth: "0"
 
       - name: 🔖 Derive bump from branch
         id: derive

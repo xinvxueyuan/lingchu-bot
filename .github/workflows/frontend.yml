@@ -73,10 +73,16 @@ jobs:
     if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: 📥 Checkout
+        # setup-toolchain is a local composite action and cannot be the
+        # first step in a job — the runner needs the repo on disk before
+        # it can resolve this composite's `action.yml`.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
       - name: 🔨 Setup full toolchain
         # Docs Check needs Node + pnpm + uv + Task to mirror the local dev
-        # loop (`pnpm --filter docs …`). The composite action is reused so
-        # we don't have to keep 4 separate setup steps in sync.
+        # loop (`pnpm --filter docs …`).
         uses: ./.github/actions/setup-toolchain
       - name: ESLint
         # 对齐 pre-commit v3 NEEDS_LINT：代码/样式/配置/MDX 内容变更触发（纯 .json 内容跳过）

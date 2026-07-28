@@ -24,10 +24,15 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: 📥 Checkout
+        # setup-toolchain is a local composite action and cannot be the
+        # first step in a job — the runner needs the repo on disk before
+        # it can resolve this composite's `action.yml`.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
       - name: 🔨 Setup full toolchain
-        # Docs build needs Node + pnpm + uv + Task. The composite action
-        # performs the initial `actions/checkout` for us, so no separate
-        # checkout step is needed.
+        # Docs build needs Node + pnpm + uv + Task.
         uses: ./.github/actions/setup-toolchain
         with:
           with-retry: "true"

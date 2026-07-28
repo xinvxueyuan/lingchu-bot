@@ -69,8 +69,15 @@ jobs:
       # CI environments. Static Analysis only needs lint + git groups.
       UV_NO_SYNC: "1"
     steps:
+      - name: 📥 Checkout
+        # setup-toolchain is a local composite action and cannot be the
+        # first step in a job — the runner needs the repo on disk before
+        # it can resolve this composite's `action.yml`.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
       - name: 🔨 Setup full toolchain
-        # Composite action chains checkout + Node 24 + pnpm + uv 3.13 + Task.
+        # Composite action chains Node 24 + pnpm + uv 3.13 + Task.
         # Static Analysis skips the retry wrapper to keep the install fast.
         uses: ./.github/actions/setup-toolchain
       - name: Install Python dependencies (lint + git only)
@@ -314,8 +321,15 @@ jobs:
       # CI environments. Auto-format only needs lint + git groups.
       UV_NO_SYNC: "1"
     steps:
+      - name: 📥 Checkout
+        # setup-toolchain is a local composite action and cannot be the
+        # first step in a job — the runner needs the repo on disk before
+        # it can resolve this composite's `action.yml`.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
       - name: 🔨 Setup full toolchain
-        # Composite action chains checkout + Node 24 + pnpm + uv 3.13 + Task.
+        # Composite action chains Node 24 + pnpm + uv 3.13 + Task.
         # Auto-format skips the retry wrapper to keep the install fast.
         uses: ./.github/actions/setup-toolchain
       - name: Install Python dependencies (lint + git only)
