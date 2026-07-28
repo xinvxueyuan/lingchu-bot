@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Final
 
 from nonebot import get_driver, require
 from nonebot.compat import type_validate_python
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
@@ -36,16 +36,17 @@ class NovelAIConfig(BaseModel):
         default=None,
         validation_alias=AliasChoices("LINGCHU_NOVELAI_PASSWORD", "password"),
     )
-    base_url: str = Field(
-        default="https://image.novelai.net",
-        validation_alias=AliasChoices("LINGCHU_NOVELAI_BASE_URL", "base_url"),
+    mcp_command: str = Field(
+        default="uvx",
+        validation_alias=AliasChoices("LINGCHU_NOVELAI_MCP_COMMAND", "mcp_command"),
     )
-    account_base_url: str = Field(
-        default="https://api.novelai.net",
-        validation_alias=AliasChoices(
-            "LINGCHU_NOVELAI_ACCOUNT_BASE_URL",
-            "account_base_url",
-        ),
+    mcp_args: tuple[str, ...] = Field(
+        default=("novelai-image-mcp", "serve"),
+        validation_alias=AliasChoices("LINGCHU_NOVELAI_MCP_ARGS", "mcp_args"),
+    )
+    output_dir: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("LINGCHU_NOVELAI_OUTPUT_DIR", "output_dir"),
     )
     model: str = Field(
         default="nai-diffusion-4-5-full",
@@ -73,7 +74,6 @@ class NovelAIConfig(BaseModel):
     dynamic_thresholding: bool = False
     auto_smea: bool = False
     prefer_brownian: bool = True
-    vibe_cache_entries: int = Field(default=64, ge=1, le=1024)
     image_download_max_bytes: int = Field(
         default=10 * 1024 * 1024,
         gt=0,
@@ -90,6 +90,14 @@ class NovelAIConfig(BaseModel):
     tipo_top_k: int = Field(default=40, gt=0)
 
     model_config = ConfigDict(extra="ignore")
+
+    @field_validator("mcp_args", mode="before")
+    @classmethod
+    def _parse_mcp_args(cls, value: Any) -> Any:
+        """Allow env-var string input for mcp_args by splitting on whitespace."""
+        if isinstance(value, str):
+            return tuple(value.split())
+        return value
 
 
 def novelai_config_defaults() -> dict[str, Any]:

@@ -48,10 +48,8 @@ async def startup() -> None:
         # bot's non-AI services from starting. Surface actionable guidance
         # without a full traceback.
         logger.warning(
-            "LLM configuration missing or invalid; AI is unavailable. "
-            "Run `lingchu config init` to create llm.toml "
-            "(set LINGCHU_AI_* env vars for auto-seeding), "
-            "then edit it to declare at least one profile."
+            "Pydantic AI not configured. "
+            "Run `lingchu config init` and edit llm.toml to set [pydantic-ai] model"
         )
     except Exception:
         # AI is optional; configuration or backend-local dependency failures

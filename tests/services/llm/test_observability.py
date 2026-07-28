@@ -17,7 +17,7 @@ def test_structured_observer_emits_only_allowlisted_metadata(
     record = LLMCallRecord(
         operation="respond",
         profile="default",
-        backend="openai",
+        backend="pydantic_ai",
         model="gpt",
         duration_ms=12.5,
         status="success",
@@ -34,7 +34,7 @@ def test_structured_observer_emits_only_allowlisted_metadata(
     assert emitted.llm_event == {
         "operation": "respond",
         "profile": "default",
-        "backend": "openai",
+        "backend": "pydantic_ai",
         "model": "gpt",
         "duration_ms": 12.5,
         "status": "success",
@@ -54,7 +54,7 @@ def test_observer_sanitizes_hostile_metadata_and_drops_invalid_numbers(
     record = LLMCallRecord(
         operation="respond\napi_key=operation-secret",
         profile="profile\nauthorization=Bearer profile-secret",
-        backend="openai",
+        backend="pydantic_ai",
         model="model\ntoken=model-secret" + "x" * 3000,
         duration_ms=float("nan"),
         status="provider_error\npassword=status-secret",
@@ -101,7 +101,7 @@ def test_disabled_observer_emits_no_record(caplog: object) -> None:
     record = LLMCallRecord(
         operation="respond",
         profile="default",
-        backend="openai",
+        backend="pydantic_ai",
         model="gpt",
         duration_ms=1.0,
         status="success",

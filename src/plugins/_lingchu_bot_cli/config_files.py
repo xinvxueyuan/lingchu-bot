@@ -20,15 +20,21 @@ CONFIG_SCHEMA_FILENAME = "runtime-overrides.schema.json"
 LLM_CONFIG_FILENAME = "llm.toml"
 _SCHEMA_DIRECTIVE = "#:schema ./runtime-overrides.schema.json\n"
 _LLM_TEMPLATE = (
-    'default_profile = "default"\n'
+    "# Lingchu Bot uses Pydantic AI as the in-process LLM agent.\n"
+    "# Edit [pydantic-ai] model to point to your provider/model.\n"
+    "[pydantic-ai]\n"
+    'model = "openai:gpt-5.2"\n'
+    "timeout = 60.0\n"
+    '# api_key_env = "LINGCHU_AI_API_KEY"\n'
+    '# base_url = "https://api.openai.com/v1"\n'
     "\n"
-    "# Uncomment and edit the profile below to enable AI features.\n"
-    "# See: lingchu config init (with LINGCHU_AI_* env vars for auto-seeding)\n"
-    "# [profiles.default]\n"
-    '# backend = "litellm"\n'
-    '# model = "gpt-4o"\n'
-    '# api_key_env = "OPENAI_API_KEY"\n'
-    "# timeout = 60.0\n"
+    "[mcp]\n"
+    "enabled = false\n"
+    'review_profile = "default"\n'
+    "max_tool_rounds = 5\n"
+    "\n"
+    "[observability]\n"
+    "enabled = true\n"
 )
 
 
@@ -56,73 +62,44 @@ def initialize_config(path: Path, *, force: bool = False) -> bool:
     return True
 
 
-def _seed_llm_profile_from_env() -> str | None:
-    """Build a loadable ``llm.toml`` from ``LINGCHU_AI_*`` environment variables.
+def _seed_llm_pydantic_ai_from_env() -> str | None:
+    """Build a loadable ``llm.toml`` from the ``LINGCHU_AI_MODEL`` env var.
 
-    Seeds a single ``[profiles.default]`` section when ``LINGCHU_AI_MODEL`` is
-    present and non-empty. Other ``LINGCHU_AI_*`` variables are optional and
-    mapped as follows:
-
-    - ``LINGCHU_AI_PROVIDER``: ``openai`` → ``backend = "openai"``; any other
-      value → ``backend = "litellm"``. Omitted when absent.
-    - ``LINGCHU_AI_MODEL``: written verbatim as ``model`` (required for seeding).
-    - ``LINGCHU_AI_BASE_URL``: written verbatim as ``base_url``.
-    - ``LINGCHU_AI_API_KEY``: writes the env var *name*
-      ``"LINGCHU_AI_API_KEY"`` to ``api_key_env`` (never the secret value).
-    - ``LINGCHU_AI_TIMEOUT``: parsed as float and written to ``timeout`` when
-      positive; ignored on parse failure.
+    Seeds the ``[pydantic-ai]`` section when ``LINGCHU_AI_MODEL`` is present
+    and non-empty. Other sections (``[mcp]``, ``[observability]``) use
+    defaults that match :data:`_LLM_TEMPLATE`.
 
     Returns:
-        The full TOML document text including the ``default_profile`` header
-        and ``[profiles.default]`` section, or ``None`` when seeding is not
-        possible (``LINGCHU_AI_MODEL`` missing or empty).
+        The full TOML document text with the ``[pydantic-ai]``,
+        ``[mcp]``, and ``[observability]`` sections, or ``None`` when
+        seeding is not possible (``LINGCHU_AI_MODEL`` missing or empty).
     """
     model = os.environ.get("LINGCHU_AI_MODEL", "").strip()
     if not model:
         return None
 
-    profile: dict[str, Any] = {}
-
-    provider = os.environ.get("LINGCHU_AI_PROVIDER", "").strip()
-    if provider:
-        profile["backend"] = "openai" if provider == "openai" else "litellm"
-
-    profile["model"] = model
-
-    base_url = os.environ.get("LINGCHU_AI_BASE_URL", "").strip()
-    if base_url:
-        profile["base_url"] = base_url
-
-    if os.environ.get("LINGCHU_AI_API_KEY", "").strip():
-        profile["api_key_env"] = "LINGCHU_AI_API_KEY"
-
-    timeout_raw = os.environ.get("LINGCHU_AI_TIMEOUT", "").strip()
-    if timeout_raw:
-        try:
-            timeout = float(timeout_raw)
-        except ValueError:
-            timeout = 0.0
-        if timeout > 0:
-            profile["timeout"] = timeout
-
     root: dict[str, Any] = {
-        "default_profile": "default",
-        "profiles": {"default": profile},
+        "pydantic-ai": {"model": model, "timeout": 60.0},
+        "mcp": {
+            "enabled": False,
+            "review_profile": "default",
+            "max_tool_rounds": 5,
+        },
+        "observability": {"enabled": True},
     }
     result = rtoml.dumps(root)
     return result if result.endswith("\n") else f"{result}\n"
 
 
 def initialize_llm_config(path: Path) -> bool:
-    """Create the default LLM profile template without overwriting any file.
+    """Create the default Pydantic AI LLM template without overwriting any file.
 
-    When ``LINGCHU_AI_*`` environment variables are present (and
-    ``LINGCHU_AI_MODEL`` is non-empty), the file is seeded with a loadable
-    ``[profiles.default]`` section derived from those variables. Otherwise a
-    commented example template is written so the user can edit it manually.
+    When ``LINGCHU_AI_MODEL`` is set, the file is seeded with a loadable
+    ``[pydantic-ai]`` section pointing to that model. Otherwise the commented
+    example template is written so the user can edit it manually.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    content = _seed_llm_profile_from_env() or _LLM_TEMPLATE
+    content = _seed_llm_pydantic_ai_from_env() or _LLM_TEMPLATE
     try:
         with path.open("x", encoding="utf-8") as file:
             file.write(content)

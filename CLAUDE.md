@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (8481 symbols, 15011 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (7898 symbols, 14112 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -401,6 +401,14 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - `core/bot_state.py` uses `BotStateFile(BaseModel)` with `Field(alias="global")` + `populate_by_name=True` to bridge the `global` Python keyword; `_save_bot_state()` serializes with `model_dump(mode="json", by_alias=True)`.
 - `core/runtime_config.py` is merged into `core/config.py`; no compatibility alias remains. All `runtime_config.xxx` singletons are now `plugin_config.xxx`.
 - `HandleConfig` dataclass still holds `dict[str, Any]` (frozen dataclass interface preserved); `_build_handle_config` bridges the pydantic ↔ dict boundary via `model_dump(mode="json")`. Migrating `HandleConfig` itself to hold pydantic instances is intentionally deferred to avoid churning downstream consumers.
+
+#### LLM Runtime And Pydantic AI
+
+- `services/llm/backends.py` is deleted; `LLMRuntime` creates `pydantic_ai.Agent` instances internally. `LLMRuntime.openai()` and `LLMRuntime.litellm()` are deprecated stubs that always raise `_WrongBackendError` — do not call them. Use `LLMRuntime.respond()` / `respond(stream=True)` for all LLM access.
+- Pydantic AI exception class is `pydantic_ai.exceptions.UserError` (NOT `UserCodeError` — that name does not exist). `pydantic_ai.exceptions.HTTPException` carries `status_code` for error mapping (401-403 → `LLMAuthenticationError`, 429 → `LLMRateLimitError`).
+- Model strings use `provider:model` format (e.g., `openai:gpt-5.2`, `anthropic:claude-opus-4`). The `PydanticAIConfig.model` field pattern is `^[\w.-]+:[\w./-]+$` (allows dots, slashes, hyphens). `probe_capability()` infers support from the provider prefix, not SDK calls.
+- `complete_subplugin_web_search()` in `core/subplugins/contracts.py` is a no-op returning `None` — native web search was LiteLLM-only and is no longer supported after the Pydantic AI migration.
+- `[profiles.*]`, `[router]`, and `[eve]` sections in `llm.toml` emit deprecation WARNINGs and are ignored; only `[pydantic-ai]` and `[mcp]` / `[mcp.servers]` are read by `load_llm_runtime_config()`.
 
 #### Handler Session Injection
 

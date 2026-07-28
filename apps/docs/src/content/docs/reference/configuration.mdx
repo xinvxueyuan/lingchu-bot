@@ -69,13 +69,15 @@ LINGCHUAdapter=~onebot.v11
 ## llm.toml
 
 The managed LLM runtime owns a separate `llm.toml` and `llm.schema.json` in the
-same localstore configuration directory. Declare at least one explicit profile;
-deployment-level LLM fields are no longer a fallback source.
+same localstore configuration directory. The `[pydantic-ai]` section is
+required for AI features; deployment-level LLM fields are no longer a fallback
+source. Legacy `[profiles]`, `[router]`, and `[eve]` sections are ignored
+with a deprecation warning.
 
 <Aside title="Keep secrets in the environment">
 
 `api_key_env` contains an environment variable **name**, not a credential.
-Lingchu resolves it when that profile is first used. A named but missing or
+Lingchu resolves it when the profile is first used. A named but missing or
 empty variable invalidates only that profile without printing the secret or raw
 validation input; unused optional profiles do not block initialization/reload.
 
@@ -83,70 +85,63 @@ validation input; unused optional profiles do not block initialization/reload.
 
 ```toml
 #:schema ./llm.schema.json
-default_profile = "primary"
+[pydantic-ai]
+model = "openai:gpt-5.2"
+api_key_env = "LINGCHU_AI_API_KEY"
+base_url = "https://api.openai.com/v1"
+timeout = 60.0
 
-[profiles.primary]
-backend = "openai"
-model = "gpt-4o-mini"
-api_key_env = "OPENAI_API_KEY"
-litellm_generation = "responses"
-timeout = 60
-max_retries = 2
-
-[profiles.fallback]
-backend = "litellm"
-model = "openai/gpt-4o-mini"
-api_key_env = "OPENAI_API_KEY"
-litellm_generation = "chat"
-
-[profiles.fallback.provider_options]
-temperature = 0.2
-
-[router]
+[mcp]
 enabled = false
-strategy = "simple-shuffle"
-num_retries = 2
+review_profile = "default"
+max_tool_rounds = 5
+
+[mcp.servers.local_docs]
+transport = "stdio"
+command = "uvx"
+args = ["example-mcp-server"]
 
 [observability]
 enabled = true
 ```
 
-`litellm_generation = "responses"` selects LiteLLM `aresponses`; `"chat"`
-selects `acompletion`. OpenAI stable calls use the Responses API. Trusted
-internal callers can escape to the native `AsyncOpenAI` client, the native
-LiteLLM module, or an enabled in-process LiteLLM Router. Native objects and
-unknown provider fields are preserved, so new SDK operations do not require a
-project wrapper before use.
+The `model` field must match `^[\w.-]+:[\w./-]+$`; the prefix selects the
+Pydantic AI provider (for example `openai:`, `anthropic:`, `google-gla:`,
+`google-vertex:`). Pydantic AI reads provider credentials from the env var
+declared by `api_key_env` at call time, and `defer_model_check=True` lets the
+runtime be constructed before that env var is provisioned. The stable
+`LLMRuntime.respond()` / `stream()` interface delegates to
+`pydantic_ai.Agent.run()` / `run_stream()` and never executes tool calls;
+tool execution is exclusive to the explicit reviewed MCP Agent configured by
+`[mcp]`.
 
-Capability probes return `supported`, `unsupported`, or `unknown`. They improve
-UI and fallback decisions but never veto an explicitly requested native call.
-Configuration reload structurally validates and freezes every candidate profile
-before an atomic swap. Credentials remain lazy per profile. A failed reload
-leaves the active generation untouched; a successful reload closes retired
-clients and invalidates capability caches.
+Capability probes return `supported` or `unknown` based on a pure
+model-string heuristic (`openai:`, `anthropic:`, `google-gla:`,
+`google-vertex:` prefixes are `supported` for `web_search`). They improve
+UI and fallback decisions but never veto an explicitly requested call.
+Configuration reload structurally validates the candidate `[pydantic-ai]`
+section before an atomic swap. Credentials remain lazy per profile. A failed
+reload leaves the active generation untouched; a successful reload closes
+retired agents and invalidates capability caches.
 
 ### Network and tool security
 
-- Private, loopback, link-local, and metadata Base URLs are rejected unless the
-  profile explicitly sets `allow_private_network = true`.
-- A configured credential is not forwarded to a custom Base URL unless
-  `allow_credentials_to_custom_base_url = true`.
-- Credential-like default headers/query entries and control-plane keys inside
-  `provider_options` are rejected unless they use their dedicated trusted
-  configuration surface. Native handles remain available to trusted code.
-- These switches acknowledge an operator-controlled trust boundary. The HTTP
-  egress layer must still revalidate DNS results and redirects because static
-  configuration validation does not perform blocking DNS resolution.
+- The HTTP egress layer must revalidate DNS results and redirects because
+  static configuration validation does not perform blocking DNS resolution.
+  The `[pydantic-ai]` section does not perform SSRF validation on `base_url`;
+  enforce network policy at the deployment egress boundary.
 - Ordinary LLM calls return model tool calls as data and never execute them.
   MCP execution exists only through the explicit reviewed Agent configured by
-  `[mcp]` in `llm.toml`; it requires identity-group preauthorization, a separate
-  tool-free review profile, durable audit for state changes, and same-session
-  one-time confirmation for `critical` calls. Set `enabled = false` to disable
-  all MCP discovery and execution.
+  `[mcp]` in `llm.toml`; it requires identity-group preauthorization and
+  delegates the multi-round tool loop to a `pydantic_ai.Agent` configured with
+  the authorized `MCPToolset`s. The legacy project-side review step and
+  confirmation flow have been removed. Set `enabled = false` to disable all
+  MCP discovery and execution.
 
-Both SDKs stay lazy: importing Lingchu or starting without a usable LLM profile
-does not import OpenAI or LiteLLM. Missing optional dependencies fail only when
-their backend is first requested and do not stop unrelated bot features.
+The Pydantic AI agent stays lazy: importing Lingchu or starting without a
+usable `[pydantic-ai]` section does not import provider SDKs. Missing
+optional dependencies fail only when their provider is first requested and do
+not stop unrelated bot features.
 
 ## menu.toml
 
@@ -180,9 +175,10 @@ Full image-API defaults also include `n_samples` (1-8), `quality`, `uc_preset`
 two bound the in-memory vibe-token cache and chat image downloads.
 
 The prompt pipeline uses the managed default LLM profile for language
-understanding, translation, hint extraction, and optional provider-native web
-search. Configure it in `llm.toml`; all former global or child-specific LLM
-fallback keys have been removed and are ignored.
+understanding, translation, and hint extraction. Configure it in `llm.toml`;
+all former global or child-specific LLM fallback keys have been removed and
+are ignored. Native provider web search is no longer available after the
+Pydantic AI migration.
 
 TIPO prompt expansion is a separate, optional llama.cpp service:
 

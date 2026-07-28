@@ -236,115 +236,36 @@ def test_get_subplugin_trigger_for_novelai_image() -> None:
     assert trigger.aliases
 
 
-async def test_subplugin_web_search_contract_uses_runtime_profile(
+async def test_subplugin_web_search_always_returns_none_without_runtime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    messages = [{"role": "user", "content": "visual facts"}]
-    profile = SimpleNamespace(
-        name="search",
-        backend="litellm",
-        model="search-model",
-        base_url="https://example.test/v1",
-    )
-    raw = SimpleNamespace(
-        choices=[
-            SimpleNamespace(
-                message=SimpleNamespace(
-                    annotations=[
-                        {
-                            "url_citation": {
-                                "url": "https://example.test/source",
-                            }
-                        }
-                    ]
-                )
-            )
-        ]
-    )
+    """Web search is a no-op after the Pydantic AI migration; verify no runtime call."""
     runtime = MagicMock(spec=contracts.LLMRuntime)
-    runtime.profile = MagicMock(return_value=profile)
-    runtime.litellm = MagicMock(return_value=object())
-    runtime.respond = AsyncMock(
-        return_value=SimpleNamespace(text='["blue coat"]', raw=raw)
-    )
-    monkeypatch.setattr(
-        contracts, "get_subplugin_llm_runtime", MagicMock(return_value=runtime)
-    )
-    monkeypatch.setattr(
-        contracts,
-        "probe_capability",
-        MagicMock(return_value=SimpleNamespace(support="supported")),
-    )
-
-    assert await contracts.complete_subplugin_web_search(
-        messages, profile="search"
-    ) == contracts.WebSearchResult(
-        text='["blue coat"]', sources=("https://example.test/source",)
-    )
-    runtime.profile.assert_called_once_with("search")
-    runtime.litellm.assert_called_once_with("search")
-    runtime.respond.assert_awaited_once_with(
-        messages, profile="search", tools=[{"type": "web_search"}]
-    )
-
-
-async def test_subplugin_web_search_contract_skips_unsupported_profile(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    runtime = MagicMock(spec=contracts.LLMRuntime)
-    runtime.profile = MagicMock(
-        return_value=SimpleNamespace(name="default", backend="openai")
-    )
     runtime.respond = AsyncMock()
     monkeypatch.setattr(
         contracts, "get_subplugin_llm_runtime", MagicMock(return_value=runtime)
     )
 
-    assert await contracts.complete_subplugin_web_search([]) is None
+    assert (
+        await contracts.complete_subplugin_web_search(
+            [{"role": "user", "content": "visual facts"}], profile="search"
+        )
+        is None
+    )
     runtime.respond.assert_not_awaited()
 
 
-async def test_subplugin_web_search_contract_skips_unsupported_capability(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    runtime = MagicMock(spec=contracts.LLMRuntime)
-    runtime.profile = MagicMock(
-        return_value=SimpleNamespace(name="search", backend="litellm")
-    )
-    runtime.litellm = MagicMock(return_value=object())
-    runtime.respond = AsyncMock()
-    monkeypatch.setattr(
-        contracts, "get_subplugin_llm_runtime", MagicMock(return_value=runtime)
-    )
-    monkeypatch.setattr(
-        contracts,
-        "probe_capability",
-        MagicMock(return_value=SimpleNamespace(support="unsupported")),
-    )
-
+async def test_subplugin_web_search_returns_none_for_empty_messages() -> None:
     assert await contracts.complete_subplugin_web_search([]) is None
-    runtime.respond.assert_not_awaited()
 
 
-async def test_subplugin_web_search_contract_soft_fails_provider_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    runtime = MagicMock(spec=contracts.LLMRuntime)
-    runtime.profile = MagicMock(
-        return_value=SimpleNamespace(name="search", backend="litellm")
+async def test_subplugin_web_search_returns_none_without_profile() -> None:
+    assert (
+        await contracts.complete_subplugin_web_search([
+            {"role": "user", "content": "query"}
+        ])
+        is None
     )
-    runtime.litellm = MagicMock(return_value=object())
-    runtime.respond = AsyncMock(side_effect=RuntimeError("provider down"))
-    monkeypatch.setattr(
-        contracts, "get_subplugin_llm_runtime", MagicMock(return_value=runtime)
-    )
-    monkeypatch.setattr(
-        contracts,
-        "probe_capability",
-        MagicMock(return_value=SimpleNamespace(support="supported")),
-    )
-
-    assert await contracts.complete_subplugin_web_search([]) is None
 
 
 def test_web_search_sources_filter_unsafe_and_deduplicate() -> None:
