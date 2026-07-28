@@ -75,7 +75,7 @@ jobs:
 
       - name: 📦 Download docs build artifacts
         # pinned from actions/download-artifact@v7.0.0
-        uses: actions/download-artifact@37930b1c2abaa49bbe656e7c1c64a875d1fc6a0a
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: docs-dist-${{ github.sha }}
           path: apps/docs/dist
@@ -116,7 +116,7 @@ jobs:
 
       - name: 📦 Download docs build artifacts
         # pinned from actions/download-artifact@v7.0.0
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: docs-dist-${{ github.sha }}
           path: apps/docs/dist

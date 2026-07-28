@@ -327,7 +327,7 @@ jobs:
 
       - name: Commit Changes
         # pinned from stefanzweifel/git-auto-commit-action@v7.1.0
-        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
+        uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d
         with:
           commit_message: "🎨 style: auto-format & ty fix [skip ci]"
           file_pattern: "*.py *.toml *.yaml *.yml *.md"
@@ -397,7 +397,7 @@ jobs:
       - name: Post PR comment
         if: steps.audit.outputs.new-ignores != ''
         # pinned from actions/github-script@v9.0.0
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
         env:
           NEW_IGNORES: ${{ steps.audit.outputs.new-ignores }}
         with:
