@@ -215,7 +215,8 @@ jobs:
       attestations: write
     steps:
       - name: 📥 Checkout
-        uses: ./.github/actions/checkout
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
       - name: 🧹 Remove non-distribution infrastructure
         run: bash scripts/clean-release-infra.sh
@@ -281,7 +282,8 @@ jobs:
       - name: 📥 Checkout
         # The tag-only task shells out to `git tag` / `git push`; full history
         # is needed so we can verify a tag doesn't already exist locally.
-        uses: ./.github/actions/checkout
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 0
 

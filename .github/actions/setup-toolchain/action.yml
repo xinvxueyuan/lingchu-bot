@@ -23,7 +23,13 @@ runs:
   using: composite
   steps:
     - name: 📥 Checkout
-      uses: ./.github/actions/checkout
+      # Direct `actions/checkout` (not the local composite) so the runner
+      # can resolve this step on a clean workspace. Wrapping checkout inside
+      # another composite action creates a self-reference: the runner needs
+      # the repository checked out before it can locate `.github/actions/...`,
+      # but `./.github/actions/checkout` itself lives in that very path.
+      # pinned from actions/checkout@v6.1.0
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       with:
         fetch-depth: ${{ inputs.fetch-depth }}
 
