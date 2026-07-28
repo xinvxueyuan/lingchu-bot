@@ -45,12 +45,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
-        uses: ./.github/actions/checkout
+        # setup-toolchain is a local composite action and cannot be the
+        # first step in a job — the runner needs the repo on disk before
+        # it can resolve this composite's `action.yml`.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: 🔨 Setup full toolchain
         # React Doctor scans React code; it needs Node + pnpm to run
-        # `npx react-doctor@latest` against `apps/docs/`. The composite action
-        # is reused so we don't have to keep 4 separate setup steps in sync.
+        # `npx react-doctor@latest` against `apps/docs/`.
         uses: ./.github/actions/setup-toolchain
 
       - name: Run React Doctor

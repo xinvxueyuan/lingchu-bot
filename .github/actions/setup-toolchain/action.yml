@@ -1,5 +1,5 @@
 name: Setup full toolchain
-description: Checkout + Node 24 + pnpm + uv 3.13 + Task (the standard five-step CI bootstrap)
+description: Node 24 + pnpm + uv 3.13 + Task (the standard four-step CI bootstrap AFTER the job's own `actions/checkout`)
 
 inputs:
   node-version:
@@ -14,19 +14,22 @@ inputs:
     description: "Wrap pnpm install in nick-fields/retry (used by long-running build jobs)"
     required: false
     default: "false"
-  fetch-depth:
-    description: "Git fetch depth passed to the checkout step"
+  enable-uv-cache:
+    description: "Enable uv's GitHub Actions cache — MUST be 'true' only when the workflow actually runs `uv sync`. The cache post-step fails with 'no dependencies to cache' if uv never populates the cache directory."
     required: false
-    default: "0"
+    default: "false"
 
 runs:
   using: composite
+  # Pre-requisite: the calling workflow MUST run a direct `actions/checkout`
+  # (with the desired `fetch-depth`) as the FIRST step of the job. Composite
+  # actions cannot be the first step in a job because the runner needs the
+  # repository checked out before it can resolve this `action.yml` — and
+  # this very file lives in that not-yet-checked-out path. Treat the first
+  # step of every job using this action as an explicit
+  # `actions/checkout@<sha>` call; this composite only owns the four steps
+  # after the checkout (Node + pnpm + uv + Task).
   steps:
-    - name: 📥 Checkout
-      uses: ./.github/actions/checkout
-      with:
-        fetch-depth: ${{ inputs.fetch-depth }}
-
     - name: ⚡📦 Setup Node + pnpm
       uses: ./.github/actions/setup-node-pnpm
       with:
@@ -37,3 +40,4 @@ runs:
       uses: ./.github/actions/setup-uv-task
       with:
         python-version: ${{ inputs.python-version }}
+        enable-cache: ${{ inputs.enable-uv-cache }}

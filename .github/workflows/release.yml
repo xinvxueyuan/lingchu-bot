@@ -44,6 +44,10 @@ jobs:
       bump_level: ${{ steps.derive.outputs.bump_level }}
       bump_prerelease: ${{ steps.derive.outputs.bump_prerelease }}
       version: ${{ steps.bump.outputs.new_version }}
+      # Strip the patch segment via bash parameter expansion so the docker
+      # metadata action can tag `0.4.0` images as `0.4` without leaning on
+      # GitHub Actions expression syntax (which does not support `%`).
+      minor_version: ${{ steps.tag.outputs.minor_version }}
       notes_body_path: ${{ steps.notes.outputs.body_path }}
     steps:
       - name: 🔨 Setup uv + Task
@@ -74,6 +78,20 @@ jobs:
           task ci:version:bump \
             BUMP_LEVEL="${{ steps.derive.outputs.bump_level }}" \
             BUMP_PRERELEASE="${{ steps.derive.outputs.bump_prerelease }}"
+
+      - name: 🏷️ Derive minor version tag
+        id: tag
+        shell: bash
+        # Bash parameter expansion drops the last `.X` segment, so
+        # `0.4.0` -> `0.4` and `0.4.0a1` -> `0.4` (the rightmost dot is
+        # between `4` and `0`, so the pre-release suffix is preserved
+        # only when the patch segment is missing).
+        run: |
+          set -euo pipefail
+          version="${{ steps.bump.outputs.new_version }}"
+          minor="${version%.*}"
+          echo "minor_version=${minor}" >> "$GITHUB_OUTPUT"
+          echo "Resolved minor_version=${minor} from ${version}"
 
       - name: ✅ Pre-check version
         shell: bash
@@ -116,13 +134,24 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: 📥 Checkout
+        # setup-toolchain is a local composite action and cannot be the
+        # first step in a job — the runner needs the repo on disk before
+        # it can resolve this composite's `action.yml`.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
       - name: 🔨 Setup full toolchain
-        # Composite action chains checkout + Node 24 + pnpm + uv 3.13 + Task
+        # Composite action chains Node 24 + pnpm + uv 3.13 + Task
         # in a single step. `with-retry: true` wraps `pnpm install` so transient
         # network errors don't fail long-running build jobs.
+        # `enable-uv-cache: true` is required because `task ci:build`
+        # runs `uv build`, which populates the uv cache that setup-uv
+        # tries to save.
         uses: ./.github/actions/setup-toolchain
         with:
           with-retry: "true"
+          enable-uv-cache: "true"
 
       - name: 🔄 Sync version files to release branch
         shell: bash
@@ -170,7 +199,7 @@ jobs:
     steps:
       - name: 📥 Download dist
         # pinned from actions/download-artifact@v7.0.0
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: release-dist-${{ needs.validate.outputs.version }}
           path: dist
@@ -197,18 +226,19 @@ jobs:
       attestations: write
     steps:
       - name: 📥 Checkout
-        uses: ./.github/actions/checkout
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: 🧹 Remove non-distribution infrastructure
         run: bash scripts/clean-release-infra.sh
 
       - name: 🔧 Setup Docker buildx
         # pinned from docker/setup-buildx-action@v3.12.0
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c
 
       - name: 🔐 Login to GHCR
         # pinned from docker/login-action@v3.7.0
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        uses: docker/login-action@371161bbe7024a29a25c5e19bfcbc0804fe9ad2c
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -218,29 +248,29 @@ jobs:
         id: meta-stable
         if: needs.validate.outputs.bump_prerelease == 'stable'
         # pinned from docker/metadata-action@v5.10.0
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ needs.validate.outputs.version }}
-            type=raw,value=${{ needs.validate.outputs.version }%.*}
+            type=raw,value=${{ needs.validate.outputs.minor_version }}
             type=raw,value=latest
 
       - name: 🏷️ Docker metadata (pre-release)
         id: meta-prerelease
         if: needs.validate.outputs.bump_prerelease != 'stable'
         # pinned from docker/metadata-action@v5.10.0
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ needs.validate.outputs.version }}
-            type=raw,value=${{ needs.validate.outputs.version }}%.*
+            type=raw,value=${{ needs.validate.outputs.minor_version }}
 
       - name: 🐳 Build and push
         id: build
         # pinned from docker/build-push-action@v6.19.2
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: .
           push: true
@@ -263,7 +293,8 @@ jobs:
       - name: 📥 Checkout
         # The tag-only task shells out to `git tag` / `git push`; full history
         # is needed so we can verify a tag doesn't already exist locally.
-        uses: ./.github/actions/checkout
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
 
@@ -276,14 +307,14 @@ jobs:
 
       - name: 📥 Download dist
         # pinned from actions/download-artifact@v7.0.0
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: release-dist-${{ needs.validate.outputs.version }}
           path: dist
 
       - name: 🚀 Create GitHub Release
         # pinned from softprops/action-gh-release@v2.6.2
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
         with:
           tag_name: v${{ needs.validate.outputs.version }}
           name: Lingchu Bot v${{ needs.validate.outputs.version }}
