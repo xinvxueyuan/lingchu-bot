@@ -24,12 +24,15 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: 检出代码
-        uses: ./.github/actions/checkout
+      - name: 📥 Checkout
+        # setup-toolchain is a local composite action and cannot be the
+        # first step in a job — the runner needs the repo on disk before
+        # it can resolve this composite's `action.yml`.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: 🔨 Setup full toolchain
-        # Docs build needs Node + pnpm + uv + Task. The composite action is
-        # reused so we don't have to keep 4 separate setup steps in sync.
+        # Docs build needs Node + pnpm + uv + Task.
         uses: ./.github/actions/setup-toolchain
         with:
           with-retry: "true"
@@ -75,7 +78,7 @@ jobs:
 
       - name: 📦 Download docs build artifacts
         # pinned from actions/download-artifact@v7.0.0
-        uses: actions/download-artifact@37930b1c2abaa49bbe656e7c1c64a875d1fc6a0a
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: docs-dist-${{ github.sha }}
           path: apps/docs/dist
@@ -116,7 +119,7 @@ jobs:
 
       - name: 📦 Download docs build artifacts
         # pinned from actions/download-artifact@v7.0.0
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: docs-dist-${{ github.sha }}
           path: apps/docs/dist

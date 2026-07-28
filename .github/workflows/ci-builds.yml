@@ -66,13 +66,26 @@ jobs:
       contents: read
 
     steps:
+      - name: 📥 Checkout
+        # setup-toolchain is a local composite action and cannot be the
+        # first step in a job — the runner needs the repo on disk before
+        # it can resolve this composite's `action.yml`. This explicit
+        # checkout is the only direct `actions/checkout` call; the rest
+        # of the toolchain (Node + pnpm + uv + Task) is delegated to
+        # `setup-toolchain` on the next step.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
       - name: 🔨 Setup full toolchain
-        # Composite action chains checkout + Node 24 + pnpm + uv 3.13 + Task.
-        # `with-retry: true` wraps `pnpm install` so transient network errors
-        # don't fail long-running build jobs.
+        # Composite action chains Node 24 + pnpm + uv 3.13 + Task.
+        # `with-retry: true` wraps `pnpm install` so transient network
+        # errors don't fail long-running build jobs. `enable-uv-cache:
+        # true` is required because `task ci:build` runs `uv build`,
+        # which populates the uv cache that setup-uv tries to save.
         uses: ./.github/actions/setup-toolchain
         with:
           with-retry: "true"
+          enable-uv-cache: "true"
 
       - name: 📦 Build
         run: task ci:build
@@ -102,11 +115,16 @@ jobs:
 
     steps:
       - name: 📥 Checkout
-        uses: ./.github/actions/checkout
+        # Direct `actions/checkout` (not the local composite) — the
+        # composite checkout action cannot be the first step in a job
+        # because the runner needs the repo checked out before it can
+        # resolve `./.github/actions/checkout`.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: 📦 Download build artifacts
         # pinned from actions/download-artifact@v7.0.0
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: assets-${{ github.sha }}
           path: dist
@@ -155,11 +173,19 @@ jobs:
 
     steps:
       - name: 📥 Checkout
-        uses: ./.github/actions/checkout
+        # setup-uv-task (used below) does NOT include checkout, so this
+        # first step must be a direct `actions/checkout` call. The
+        # removed composite `.github/actions/checkout` cannot be the
+        # first step in a job.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: 🔨 Setup uv + Task
-        # prod-env smoke only needs uv (no Node, no pnpm).
+        # prod-env smoke only needs uv (no Node, no pnpm). Cache is
+        # enabled because the next step runs `uv sync --frozen`.
         uses: ./.github/actions/setup-uv-task
+        with:
+          enable-cache: "true"
 
       - name: 📦 Install dependencies
         run: uv sync --frozen
@@ -197,14 +223,25 @@ jobs:
       attestations: write
 
     steps:
+      - name: 📥 Checkout
+        # versioned-build needs full history (fetch-depth: 0) for
+        # `git fetch --tags` inside ci:version:bump, plus Node + pnpm
+        # + uv + Task for the actual `task ci:build` step. The composite
+        # setup-toolchain cannot be the first step, so we explicitly
+        # checkout first.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+
       - name: 🔨 Setup full toolchain
-        # versioned-build needs full history (fetch-depth: 0) for `git fetch
-        # --tags` inside ci:version:bump, plus the same Node 24 + pnpm + uv +
-        # Task chain for the actual `task ci:build` step.
+        # Node 24 + pnpm + uv 3.13 + Task. `enable-uv-cache: true` is
+        # required because `task ci:build` runs `uv build`, which
+        # populates the uv cache that setup-uv tries to save.
         uses: ./.github/actions/setup-toolchain
         with:
           with-retry: "true"
-          fetch-depth: "0"
+          enable-uv-cache: "true"
 
       - name: 🔖 Derive bump from branch
         id: derive
@@ -274,11 +311,12 @@ jobs:
 
     steps:
       - name: 📥 Checkout
-        uses: ./.github/actions/checkout
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: 📦 Download versioned build artifacts
         # pinned from actions/download-artifact@v7.0.0
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: assets-${{ needs.versioned-build.outputs.new_version }}
           path: dist
