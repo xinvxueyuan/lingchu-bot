@@ -1,68 +1,101 @@
+# Dependabot — keeps GitHub Actions, Python deps, Node tooling, and Docker
+# base images current. Each updater runs weekly with a coordinated
+# open-PR-per-ecosystem policy.
 version: 2
+
 updates:
-  # Python (uv) — root pyproject.toml + uv.lock
-  - package-ecosystem: "pip"
-    target-branch: develop
-    directory: "/"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - dependencies
-      - area/deps
-
-  # pnpm monorepo — root + apps/* + packages/*
-  - package-ecosystem: "npm"
-    target-branch: develop
-    directories:
-      - "/"
-      - "/apps/*"
-      - "/packages/*"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 10
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - dependencies
-      - area/deps
-    groups:
-      # Merge the same dependency across multiple workspace directories into a
-      # single PR to reduce CI and review burden.
-      monorepo-deps:
-        group-by: dependency-name
-
-  # GitHub Actions — .github/workflows/*.yml
-  - package-ecosystem: "github-actions"
-    target-branch: develop
-    directory: "/"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - dependencies
-      - area/ci
-    groups:
-      # Group minor and patch updates into a single PR; major versions get
-      # separate PRs for easier review.
-      actions:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-
-  # Docker — Dockerfile + docker-compose.yml base images
-  - package-ecosystem: "docker"
-    target-branch: develop
-    directory: "/"
+  # ── GitHub Actions ────────────────────────────────────────────────
+  # Pin updates for workflow dependencies. Most actions are pinned by SHA
+  # in the workflows; Dependabot will open PRs to bump the SHAs (and the
+  # inline `# pinned from <repo>@<tag>` comments document the provenance).
+  - package-ecosystem: github-actions
+    directory: /
     schedule:
       interval: weekly
       day: monday
+      time: "06:00"
+      timezone: Asia/Shanghai
     open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore(deps)"
     labels:
-      - dependencies
-      - area/docker
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "⬆️ build(deps):"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # ── Python (uv) ───────────────────────────────────────────────────
+  # Tracks the NoneBot plugin's runtime + dev dependencies. The root
+  # pyproject.toml is the single source of truth; uv.lock is updated by
+  # the `uv lock` step in the post-update command so the lockfile and
+  # manifest stay in sync.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "⬆️ build(deps):"
+    groups:
+      # Patch + minor updates bundle together; major bumps open individually.
+      python-minor:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
+
+  # ── npm (pnpm) ───────────────────────────────────────────────────
+  # Two manifests exist in this workspace:
+  #   - /package.json — root dev tooling (turbo, husky, markdownlint-cli2, …)
+  #   - /apps/docs/package.json — Astro/Starlight docs site runtime + dev tools
+  # Both share the same pnpm-lock.yaml at the root, so updates that touch
+  # transitive deps are surfaced on the root manifest. packages/typescript-config
+  # is a config-only workspace package with no real npm deps and is excluded.
+  - package-ecosystem: npm
+    directories:
+      - "/"
+      - "/apps/*"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "⬆️ build(deps):"
+    groups:
+      npm-minor:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
+
+  # ── Docker base image ─────────────────────────────────────────────
+  # Bumps the `python:3.13-slim` base image digest in the root Dockerfile
+  # (consumed by both the `nonebot` service and the `smoke-test` profile).
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 1
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "⬆️ build(deps):"
