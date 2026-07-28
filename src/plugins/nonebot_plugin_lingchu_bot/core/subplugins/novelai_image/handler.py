@@ -1,5 +1,6 @@
 """Locale-aware OneBot V11 image command and generation pipeline."""
 
+import base64
 from pathlib import Path
 import secrets
 from typing import Any
@@ -20,16 +21,19 @@ from ..contracts import (
     image_message,
     register_subplugin_handler,
 )
-from .client import MissingNovelAITokenError, NovelAIError, generate_image
 from .config import NovelAIConfig, get_novelai_config
-from .constants import ControlNetModel, DirectorTool, Emotion, EmotionLevel, Model
+from .constants import ControlNetModel, DirectorTool, Emotion, EmotionLevel
 from .i18n import translate
-from .imaging import parse_image
 from .intent import IntentAnalysisError, analyze_prompt_intent
-from .models import GenerationOverrides, GenerationRequest, TipoRequest, VisualResearch
+from .models import (
+    GenerationOverrides,
+    NovelAIGenerationPlan,
+    TipoRequest,
+    VisualResearch,
+)
 from .planner import InvalidGenerationOverrideError, build_generation_plan
 from .search import research_visual_facts
-from .service import create_novelai_client
+from .service import get_novelai_mcp_client
 from .tipo import TipoError, expand_with_tipo
 
 _novelai_trigger = get_subplugin_trigger("novelai_image")
@@ -99,12 +103,16 @@ def build_novelai_image_command() -> Alconna:
     )
 
 
+def _b64(data: bytes) -> str:
+    """Encode bytes as base64 string for MCP tool arguments."""
+    return base64.b64encode(data).decode("ascii")
+
+
 async def _read_uniseg_image(image: UniImage, *, config: NovelAIConfig) -> bytes:
     raw = getattr(image, "raw", None)
     if raw is not None:
         data = raw.getvalue() if hasattr(raw, "getvalue") else raw
         if isinstance(data, bytes):
-            parse_image(data)
             return data
     path = getattr(image, "path", None)
     if path is not None:
@@ -112,7 +120,6 @@ async def _read_uniseg_image(image: UniImage, *, config: NovelAIConfig) -> bytes
             data = await stream.read(config.image_download_max_bytes + 1)
         if len(data) > config.image_download_max_bytes:
             raise ValueError("image is too large")
-        parse_image(data)
         return data
     url = getattr(image, "url", None)
     if not isinstance(url, str) or urlparse(url).scheme not in {"http", "https"}:
@@ -124,53 +131,40 @@ async def _read_uniseg_image(image: UniImage, *, config: NovelAIConfig) -> bytes
     )
     if data is None:
         raise ValueError("HTTP image download is unavailable")
-    parse_image(data)
     return data
 
 
-def _action_request(
-    prompt: str,
-    *,
-    config: NovelAIConfig,
-    image: str | None = None,
-    mask: str | None = None,
-    action: str = "generate",
-    references: tuple[str, ...] = (),
-    reference_strengths: tuple[float, ...] = (),
-    strength: float | None = None,
-    noise: float | None = None,
-) -> GenerationRequest:
-    from .constants import Action
-
-    model = Model(config.model)
-    if action == "infill" and "inpainting" not in model.value:
-        model = Model.V4_5_INPAINT
-    return GenerationRequest(
-        prompt=prompt,
-        model=model,
-        action=Action(action),
-        negative_prompt=config.negative_prompt,
-        width=config.width,
-        height=config.height,
-        n_samples=config.n_samples,
-        steps=config.steps,
-        scale=config.scale,
-        sampler=config.sampler,
-        seed=secrets.randbelow(2**32),
-        quality=config.quality,
-        uc_preset=config.uc_preset,
-        noise_schedule=config.noise_schedule,
-        cfg_rescale=config.cfg_rescale,
-        dynamic_thresholding=config.dynamic_thresholding,
-        auto_smea=config.auto_smea,
-        prefer_brownian=config.prefer_brownian,
-        image=image,
-        mask=mask,
-        strength=strength,
-        noise=noise,
-        references=references,
-        reference_strengths=reference_strengths,
-    )
+def _plan_to_mcp_args(
+    plan: NovelAIGenerationPlan, *, config: NovelAIConfig
+) -> dict[str, Any]:
+    """Convert a generation plan to MCP generate_image tool arguments."""
+    args: dict[str, Any] = {
+        "prompt": plan.prompt,
+        "negative_prompt": plan.negative_prompt,
+        "model": config.model,
+        "width": plan.width,
+        "height": plan.height,
+        "steps": plan.steps,
+        "scale": plan.scale,
+        "sampler": plan.sampler,
+        "seed": plan.seed,
+        "n_samples": config.n_samples,
+        "quality": config.quality,
+        "uc_preset": config.uc_preset,
+        "noise_schedule": config.noise_schedule,
+        "cfg_rescale": config.cfg_rescale,
+    }
+    if plan.character_prompts:
+        args["character_prompts"] = [
+            {
+                "prompt": cp["prompt"],
+                "uc": cp.get("uc", ""),
+                "center": cp["center"],
+                "enabled": cp.get("enabled", True),
+            }
+            for cp in plan.character_prompts
+        ]
+    return args
 
 
 async def run_novelai_api_action(result: Arparma) -> bool:
@@ -190,7 +184,7 @@ async def run_novelai_api_action(result: Arparma) -> bool:
         return False
     config = get_novelai_config()
     try:
-        client = create_novelai_client(config)
+        client = get_novelai_mcp_client(config)
         args = result.all_matched_args
         if selected_path in {"img2img", "inpaint", "vibe"}:
             prompt = " ".join(args.get("action_prompt", [])).strip()
@@ -200,62 +194,116 @@ async def run_novelai_api_action(result: Arparma) -> bool:
             segment = args.get(image_key)
             if not isinstance(segment, UniImage):
                 raise ValueError("image is required")
-            parsed = parse_image(await _read_uniseg_image(segment, config=config))
+            image_bytes = await _read_uniseg_image(segment, config=config)
             if selected_path == "vibe":
-                request = _action_request(
-                    prompt,
-                    config=config,
-                    references=(parsed.base64,),
-                    reference_strengths=(float(args.get("reference_strength", 0.6)),),
+                result_bytes = await client.call_tool(
+                    "generate_image",
+                    {
+                        "prompt": prompt,
+                        "negative_prompt": config.negative_prompt,
+                        "model": config.model,
+                        "width": config.width,
+                        "height": config.height,
+                        "steps": config.steps,
+                        "scale": config.scale,
+                        "sampler": config.sampler,
+                        "seed": secrets.randbelow(2**32),
+                        "n_samples": config.n_samples,
+                        "quality": config.quality,
+                        "uc_preset": config.uc_preset,
+                        "noise_schedule": config.noise_schedule,
+                        "cfg_rescale": config.cfg_rescale,
+                        "references": [_b64(image_bytes)],
+                    },
+                )
+            elif selected_path == "inpaint":
+                mask_segment = args.get("mask")
+                if not isinstance(mask_segment, UniImage):
+                    raise ValueError("mask is required")
+                mask_bytes = await _read_uniseg_image(mask_segment, config=config)
+                inpaint_model = (
+                    config.model
+                    if "inpaint" in config.model
+                    else "nai-diffusion-4-5-full-inpainting"
+                )
+                result_bytes = await client.call_tool(
+                    "inpaint",
+                    {
+                        "prompt": prompt,
+                        "image": _b64(image_bytes),
+                        "mask": _b64(mask_bytes),
+                        "negative_prompt": config.negative_prompt,
+                        "model": inpaint_model,
+                        "width": config.width,
+                        "height": config.height,
+                        "steps": config.steps,
+                        "scale": config.scale,
+                        "sampler": config.sampler,
+                        "seed": secrets.randbelow(2**32),
+                        "n_samples": config.n_samples,
+                        "quality": config.quality,
+                        "uc_preset": config.uc_preset,
+                        "noise_schedule": config.noise_schedule,
+                        "cfg_rescale": config.cfg_rescale,
+                        "strength": float(args.get("strength", 0.7)),
+                        "noise": float(args.get("noise", 0.0)),
+                    },
                 )
             else:
-                mask = None
-                if selected_path == "inpaint":
-                    mask_segment = args.get("mask")
-                    if not isinstance(mask_segment, UniImage):
-                        raise ValueError("mask is required")
-                    mask = parse_image(
-                        await _read_uniseg_image(mask_segment, config=config)
-                    ).base64
-                request = _action_request(
-                    prompt,
-                    config=config,
-                    image=parsed.base64,
-                    mask=mask,
-                    action="infill" if selected_path == "inpaint" else "img2img",
-                    strength=float(args.get("strength", 0.7)),
-                    noise=float(args.get("noise", 0.0)),
+                result_bytes = await client.call_tool(
+                    "image_to_image",
+                    {
+                        "prompt": prompt,
+                        "image": _b64(image_bytes),
+                        "negative_prompt": config.negative_prompt,
+                        "model": config.model,
+                        "width": config.width,
+                        "height": config.height,
+                        "steps": config.steps,
+                        "scale": config.scale,
+                        "sampler": config.sampler,
+                        "seed": secrets.randbelow(2**32),
+                        "n_samples": config.n_samples,
+                        "quality": config.quality,
+                        "uc_preset": config.uc_preset,
+                        "noise_schedule": config.noise_schedule,
+                        "cfg_rescale": config.cfg_rescale,
+                        "strength": float(args.get("strength", 0.7)),
+                        "noise": float(args.get("noise", 0.0)),
+                    },
                 )
-            images = await client.generate(request)
-            for image in images[:-1]:
-                await novelai_image_cmd.send(image_message(image.data))
-            await novelai_image_cmd.finish(image_message(images[-1].data))
+            if not result_bytes:
+                await novelai_image_cmd.finish(translate("action_failed"))
+                return True
+            await novelai_image_cmd.finish(image_message(result_bytes))
             return True
         if selected_path == "tags":
-            tags = await client.suggest_tags(
-                str(args["tag_prefix"]),
-                model=Model(str(args.get("tag_model", config.model))),
-                language=str(args.get("tag_language", "en")),
+            tag_prefix = str(args["tag_prefix"])
+            tag_model = str(args.get("tag_model", config.model))
+            tag_language = str(args.get("tag_language", "en"))
+            tags_text = await client.call_tool(
+                "suggest_tags",
+                {
+                    "prompt": tag_prefix,
+                    "model": tag_model,
+                    "language": tag_language,
+                },
             )
-            await novelai_image_cmd.finish(
-                "\n".join(str(item.get("tag", "")) for item in tags[:20])
-            )
+            if not isinstance(tags_text, str) or not tags_text:
+                await novelai_image_cmd.finish(translate("action_failed"))
+                return True
+            await novelai_image_cmd.finish(tags_text[:2_000])
             return True
         if selected_path == "account":
             kind = str(args["account_kind"])
-            data = (
-                await client.get_subscription()
-                if kind == "subscription"
-                else await client.get_user_data()
+            tool_name = (
+                "get_subscription" if kind == "subscription" else "get_user_data"
             )
-            safe = {
-                key: value
-                for key, value in data.items()
-                if not any(
-                    secret in key.casefold() for secret in ("token", "key", "email")
-                )
-            }
-            await novelai_image_cmd.finish(str(safe)[:2_000])
+            data_text = await client.call_tool(tool_name, {})
+            if not isinstance(data_text, str) or not data_text:
+                await novelai_image_cmd.finish(translate("action_failed"))
+                return True
+            await novelai_image_cmd.finish(data_text[:2_000])
             return True
         segment = args.get("image")
         if not isinstance(segment, UniImage):
@@ -263,25 +311,43 @@ async def run_novelai_api_action(result: Arparma) -> bool:
         image_bytes = await _read_uniseg_image(segment, config=config)
         if selected_path == "tool":
             tool = DirectorTool(str(args["tool_name"]))
-            output = await client.director(
-                tool,
-                image_bytes,
-                prompt=str(args.get("tool_prompt", "")),
-                defry=int(args.get("defry", 0)),
-                emotion=Emotion(str(args["emotion"])) if args.get("emotion") else None,
-                emotion_level=EmotionLevel(int(args.get("emotion_level", 0))),
+            emotion = Emotion(str(args["emotion"])) if args.get("emotion") else None
+            emotion_level = EmotionLevel(int(args.get("emotion_level", 0)))
+            result_bytes = await client.call_tool(
+                "director_tool",
+                {
+                    "tool": tool.value,
+                    "image": _b64(image_bytes),
+                    "prompt": str(args.get("tool_prompt", "")),
+                    "defry": int(args.get("defry", 0)),
+                    "emotion": emotion.value if emotion else None,
+                    "emotion_level": emotion_level.value,
+                },
             )
         elif selected_path == "upscale":
-            output = await client.upscale(
-                image_bytes, factor=int(args.get("factor", 4))
+            result_bytes = await client.call_tool(
+                "upscale_image",
+                {
+                    "image": _b64(image_bytes),
+                    "factor": int(args.get("factor", 4)),
+                },
             )
         else:
-            output = await client.annotate(
-                image_bytes,
-                ControlNetModel(str(args.get("controlnet_model", "fake_scribble"))),
+            controlnet_model = ControlNetModel(
+                str(args.get("controlnet_model", "fake_scribble"))
             )
-        await novelai_image_cmd.finish(image_message(output.data))
-    except (NovelAIError, ValueError, OSError) as exc:
+            result_bytes = await client.call_tool(
+                "annotate_image",
+                {
+                    "image": _b64(image_bytes),
+                    "model": controlnet_model.value,
+                },
+            )
+        if not result_bytes:
+            await novelai_image_cmd.finish(translate("action_failed"))
+            return True
+        await novelai_image_cmd.finish(image_message(result_bytes))
+    except (ValueError, OSError, RuntimeError) as exc:
         logger.warning(
             "NovelAI action failed: action={}, reason={}",
             selected_path,
@@ -390,12 +456,12 @@ async def run_novelai_image(
         config=selected,
         random_seed=random_seed,
     )
+    mcp_args = _plan_to_mcp_args(plan, config=selected)
     try:
-        image = await generate_image(plan, config=selected)
-    except MissingNovelAITokenError:
-        await novelai_image_cmd.finish(translate("token_missing"))
-        return
-    except NovelAIError as exc:
+        image_bytes = await get_novelai_mcp_client(selected).call_tool(
+            "generate_image", mcp_args
+        )
+    except Exception as exc:
         logger.warning(
             "NovelAI pipeline failed: correlation_id={}, stage=generation, reason={}",
             correlation_id,
@@ -403,7 +469,10 @@ async def run_novelai_image(
         )
         await novelai_image_cmd.finish(translate("generation_failed"))
         return
-    await novelai_image_cmd.finish(image_message(image))
+    if not image_bytes:
+        await novelai_image_cmd.finish(translate("generation_failed"))
+        return
+    await novelai_image_cmd.finish(image_message(image_bytes))
 
 
 @register_subplugin_handler(novelai_image_cmd, "novelai_image", "~onebot.v11")

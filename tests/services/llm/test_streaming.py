@@ -1,61 +1,94 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Iterator, Mapping
-from types import SimpleNamespace
-from typing import Any, cast, override
-from unittest.mock import AsyncMock
+from typing import Any, Self, cast, override
+from unittest.mock import MagicMock
 
+from pydantic_ai.exceptions import ModelHTTPError
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.services.llm.config import (
-    LiteLLMRouterConfig,
-    LLMObservabilityConfig,
-    LLMProfileConfig,
     LLMRuntimeConfig,
+    ObservabilityConfig,
+    PydanticAIConfig,
 )
-from src.plugins.nonebot_plugin_lingchu_bot.services.llm.errors import LLMProviderError
+from src.plugins.nonebot_plugin_lingchu_bot.services.llm.errors import (
+    LLMProviderError,
+    LLMRateLimitError,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.services.llm.runtime import LLMRuntime
 from src.plugins.nonebot_plugin_lingchu_bot.services.llm.types import (
     LLMEvent,
+    LLMProfile,
     LLMResponse,
     LLMUsage,
 )
 
 
-def make_runtime(
-    *, backend: str = "openai", generation: str = "responses"
-) -> LLMRuntime:
-    profile = LLMProfileConfig(
-        name="default",
-        backend=cast("Any", backend),
-        model="model-test",
-        litellm_generation=cast("Any", generation),
+def make_config() -> LLMRuntimeConfig:
+    return LLMRuntimeConfig(
+        pydantic_ai=PydanticAIConfig(
+            model="openai:gpt-5.2",
+            api_key_env="LLM_STREAMING_TEST_KEY",
+        ),
+        observability=ObservabilityConfig(enabled=False),
     )
-    config = LLMRuntimeConfig(
-        default_profile="default",
-        profiles={"default": profile},
-        router=LiteLLMRouterConfig(),
-        observability=LLMObservabilityConfig(),
-    )
-    return LLMRuntime(config)
 
 
-class FakeStream:
-    def __init__(self, events: list[object]) -> None:
-        self._events = iter(events)
+class RunUsageLike:
+    """Minimal attribute bag matching ``pydantic_ai.usage.RunUsage`` surface."""
+
+    def __init__(
+        self,
+        *,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        total_tokens: int | None = None,
+        cache_read_tokens: int | None = None,
+    ) -> None:
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.total_tokens = total_tokens
+        self.cache_read_tokens = cache_read_tokens
+
+
+class FakeStreamedRunResult:
+    """Fake ``pydantic_ai.result.StreamedRunResult`` for stream() tests."""
+
+    def __init__(
+        self,
+        *,
+        deltas: list[str] | None = None,
+        final_output: str = "hello",
+        run_id: str = "req-stream-1",
+        usage: Any | None = None,
+    ) -> None:
+        self._deltas = list(deltas) if deltas is not None else ["hel", "lo"]
+        self._final_output = final_output
+        self.run_id = run_id
+        self.usage = (
+            usage
+            if usage is not None
+            else RunUsageLike(input_tokens=2, output_tokens=3, total_tokens=5)
+        )
         self.closed = False
 
-    def __aiter__(self) -> FakeStream:
+    async def stream_text(self, *, delta: bool = False) -> Any:
+        for chunk in self._deltas:
+            yield chunk
+
+    async def get_output(self) -> str:
+        return self._final_output
+
+    async def __aenter__(self) -> Self:
         return self
 
-    async def __anext__(self) -> object:
-        try:
-            return next(self._events)
-        except StopIteration as exc:
-            raise StopAsyncIteration from exc
-
-    async def aclose(self) -> None:
+    async def __aexit__(
+        self,
+        _exc_type: type[BaseException] | None,
+        _exc: BaseException | None,
+        _traceback: object,
+    ) -> None:
         self.closed = True
 
 
@@ -67,501 +100,366 @@ class RecordingObserver:
         self.records.append(record)
 
 
-class DistinctIteratorLayer:
-    closed = False
-    yielded = False
-
-    def __aiter__(self) -> DistinctIteratorLayer:
-        return self
-
-    async def __anext__(self) -> object:
-        if self.yielded:
-            raise StopAsyncIteration
-        self.yielded = True
-        return SimpleNamespace(type="response.output_text.delta", delta="ok")
-
-    async def aclose(self) -> None:
-        self.closed = True
+def make_agent_with_stream(
+    stream: Any | None = None,
+    *,
+    run_stream_side_effect: object | None = None,
+) -> MagicMock:
+    agent = MagicMock()
+    if run_stream_side_effect is not None:
+        agent.run_stream = MagicMock(side_effect=run_stream_side_effect)
+    else:
+        agent.run_stream = MagicMock(return_value=stream)
+    return agent
 
 
-class DistinctEnteredStream:
-    closed = False
-
-    def __init__(self, iterator: DistinctIteratorLayer) -> None:
-        self.iterator = iterator
-
-    def __aiter__(self) -> DistinctIteratorLayer:
-        return self.iterator
-
-    async def aclose(self) -> None:
-        self.closed = True
-
-
-class DistinctStreamContext:
-    exited = False
-
-    def __init__(self, entered_stream: DistinctEnteredStream) -> None:
-        self.entered_stream = entered_stream
-
-    async def __aenter__(self) -> DistinctEnteredStream:
-        return self.entered_stream
-
-    async def __aexit__(
-        self,
-        _exc_type: type[BaseException] | None,
-        _exc: BaseException | None,
-        _traceback: object,
-    ) -> None:
-        self.exited = True
+# ---------------------------------------------------------------------------
+# stream() happy path
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_openai_stream_projects_every_stable_event_and_preserves_raw(
+async def test_stream_projects_started_deltas_and_completed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    created = SimpleNamespace(type="response.created", response=SimpleNamespace())
-    text = SimpleNamespace(type="response.output_text.delta", delta="hel")
-    tool = SimpleNamespace(
-        type="response.function_call_arguments.delta", delta='{"city":'
-    )
-    output_item = object()
-    output = SimpleNamespace(type="response.output_item.added", item=output_item)
-    unknown = SimpleNamespace(type="response.future.delta", value="native")
-    usage = SimpleNamespace(input_tokens=2, output_tokens=3, total_tokens=5)
-    native_response = SimpleNamespace(
-        output_text="hello",
-        output=[output_item],
-        usage=usage,
-        id="request-1",
-        model="model-native",
-    )
-    completed = SimpleNamespace(type="response.completed", response=native_response)
-    stream = FakeStream([created, text, tool, output, unknown, completed])
-    create = AsyncMock(return_value=stream)
-    runtime = make_runtime()
-    monkeypatch.setattr(
-        runtime,
-        "openai",
-        lambda _name=None: SimpleNamespace(
-            client=SimpleNamespace(responses=SimpleNamespace(create=create))
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    streamed = FakeStreamedRunResult(
+        deltas=["hel", "lo"],
+        final_output="hello",
+        run_id="req-stream-1",
+        usage=RunUsageLike(
+            input_tokens=2,
+            output_tokens=3,
+            total_tokens=5,
+            cache_read_tokens=1,
         ),
     )
+    agent = make_agent_with_stream(stream=streamed)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    events = [event async for event in runtime.stream("hello", temperature=0.2)]
+    events = [event async for event in runtime.stream("prompt")]
 
     assert [event.type for event in events] == [
         "started",
-        "native",
         "text_delta",
-        "tool_call_delta",
-        "output_item",
-        "native",
-        "usage",
+        "text_delta",
         "completed",
     ]
-    assert events[2] == LLMEvent(type="text_delta", data="hel", raw=text)
-    assert events[3].data == '{"city":'
-    assert events[4].data is output_item
-    assert events[5].raw is unknown
-    assert events[6].data == LLMUsage(2, 3, 5)
+    assert events[0].raw is None
+    assert events[1] == LLMEvent(type="text_delta", data="hel", raw=None)
+    assert events[2] == LLMEvent(type="text_delta", data="lo", raw=None)
     final = cast("LLMResponse", events[-1].data)
     assert final.text == "hello"
-    assert final.output == (output_item,)
-    assert final.raw is native_response
-    assert final.request_id == "request-1"
-    assert stream.closed is True
-    create.assert_awaited_once_with(
-        temperature=0.2,
-        model="model-test",
-        input="hello",
-        stream=True,
+    assert final.backend == "pydantic_ai"
+    assert final.model == "openai:gpt-5.2"
+    assert final.request_id == "req-stream-1"
+    assert final.usage == LLMUsage(
+        input_tokens=2,
+        output_tokens=3,
+        total_tokens=5,
+        cached_tokens=1,
+        reasoning_tokens=None,
     )
+    assert events[-1].raw is streamed
 
 
 @pytest.mark.asyncio
-async def test_terminal_response_merges_only_its_present_fields(
+async def test_stream_started_event_carries_resolved_profile(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    output_item = object()
-    prior_usage = SimpleNamespace(
-        type="response.usage",
-        input_tokens=4,
-        output_tokens=6,
-        total_tokens=10,
-    )
-    prior_metadata = SimpleNamespace(
-        type="response.future.metadata",
-        id="request-prior",
-        model="model-prior",
-    )
-    terminal_response = SimpleNamespace(output_text="terminal text")
-    completed = SimpleNamespace(
-        type="response.completed",
-        response=terminal_response,
-    )
-    stream = FakeStream([
-        SimpleNamespace(type="response.output_text.delta", delta="prior text"),
-        SimpleNamespace(type="response.output_item.added", item=output_item),
-        prior_usage,
-        prior_metadata,
-        completed,
-    ])
-    runtime = make_runtime()
-    monkeypatch.setattr(
-        runtime,
-        "openai",
-        lambda _name=None: SimpleNamespace(
-            client=SimpleNamespace(
-                responses=SimpleNamespace(create=AsyncMock(return_value=stream))
-            )
-        ),
-    )
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    streamed = FakeStreamedRunResult()
+    agent = make_agent_with_stream(stream=streamed)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    events = [event async for event in runtime.stream("hello")]
+    events = [event async for event in runtime.stream("prompt")]
 
-    final_event = events[-1]
-    final = cast("LLMResponse", final_event.data)
-    assert final.text == "terminal text"
-    assert final.output == (output_item,)
-    assert final.usage == LLMUsage(4, 6, 10)
-    assert final.request_id == "request-prior"
-    assert final.model == "model-prior"
-    assert final.raw is terminal_response
-    assert final_event.raw is completed
+    started = events[0]
+    assert started.type == "started"
+    profile = cast("LLMProfile", started.data)
+    assert profile.backend == "pydantic_ai"
+    assert profile.model == "openai:gpt-5.2"
 
 
 @pytest.mark.asyncio
-async def test_terminal_response_explicit_empty_fields_replace_assembled_values(
+async def test_stream_invokes_run_stream_with_user_prompt_and_history(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    output_item = object()
-    terminal_response = SimpleNamespace(output_text="", output=[], id="", model="")
-    stream = FakeStream([
-        SimpleNamespace(type="response.output_text.delta", delta="prior text"),
-        SimpleNamespace(type="response.output_item.added", item=output_item),
-        SimpleNamespace(
-            type="response.future.metadata", id="prior-id", model="prior-model"
-        ),
-        SimpleNamespace(type="response.completed", response=terminal_response),
-    ])
-    runtime = make_runtime()
-    monkeypatch.setattr(
-        runtime,
-        "openai",
-        lambda _name=None: SimpleNamespace(
-            client=SimpleNamespace(
-                responses=SimpleNamespace(create=AsyncMock(return_value=stream))
-            )
-        ),
-    )
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    streamed = FakeStreamedRunResult()
+    agent = make_agent_with_stream(stream=streamed)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    events = [event async for event in runtime.stream("secret prompt")]
+    _ = [event async for event in runtime.stream("hello")]
 
-    final = cast("LLMResponse", events[-1].data)
-    assert final.text == ""
-    assert final.output == ()
-    assert final.request_id == ""
-    assert final.model == ""
+    assert agent.run_stream.call_count == 1
+    call = agent.run_stream.call_args
+    assert call.args == ("hello",)
+    assert call.kwargs["message_history"] is None
 
 
 @pytest.mark.asyncio
-async def test_hostile_native_member_access_degrades_to_lossless_native_event(
+async def test_stream_with_dict_input_passes_message_history(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    class HostileMapping(Mapping[str, object]):
-        @override
-        def __getitem__(self, _key: str) -> object:
-            raise KeyboardInterrupt
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    streamed = FakeStreamedRunResult()
+    agent = make_agent_with_stream(stream=streamed)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-        @override
-        def __iter__(self) -> Iterator[str]:
-            raise KeyboardInterrupt
-
-        @override
-        def __len__(self) -> int:
-            raise KeyboardInterrupt
-
-    class HostileProperties:
-        @property
-        def type(self) -> str:
-            raise SystemExit
-
-        @property
-        def choices(self) -> object:
-            raise KeyboardInterrupt
-
-    hostile_mapping = HostileMapping()
-    hostile_properties = HostileProperties()
-    stream = FakeStream([hostile_mapping, hostile_properties])
-    runtime = make_runtime()
-    monkeypatch.setattr(
-        runtime,
-        "openai",
-        lambda _name=None: SimpleNamespace(
-            client=SimpleNamespace(
-                responses=SimpleNamespace(create=AsyncMock(return_value=stream))
-            )
-        ),
-    )
-
-    events = [event async for event in runtime.stream("secret prompt")]
-
-    assert [event.type for event in events] == [
-        "started",
-        "native",
-        "native",
-        "completed",
+    _ = [
+        event
+        async for event in runtime.stream([
+            {"role": "user", "content": "first"},
+            {"role": "assistant", "content": "ack"},
+            {"role": "user", "content": "second"},
+        ])
     ]
-    assert events[1].raw is hostile_mapping
-    assert events[2].raw is hostile_properties
+
+    call = agent.run_stream.call_args
+    assert call.args == ("second",)
+    assert call.kwargs["message_history"] is not None
+    assert len(call.kwargs["message_history"]) == 2
 
 
 @pytest.mark.asyncio
-async def test_litellm_chat_stream_projects_deltas_usage_and_completion(
+async def test_stream_forwards_non_control_plane_params_into_model_settings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    text = SimpleNamespace(
-        choices=[SimpleNamespace(delta=SimpleNamespace(content="hi", tool_calls=None))],
-        usage=None,
-        model="chat-model",
-    )
-    requested_tool = AsyncMock()
-    tool_call = {"function": requested_tool, "arguments": '{"x":1}'}
-    tool = SimpleNamespace(
-        choices=[
-            SimpleNamespace(
-                delta=SimpleNamespace(content=None, tool_calls=[tool_call]),
-                finish_reason=None,
-            )
-        ],
-        usage=None,
-    )
-    usage = SimpleNamespace(prompt_tokens=1, completion_tokens=2, total_tokens=3)
-    final_chunk = SimpleNamespace(choices=[], usage=usage, id="chat-request")
-    stream = FakeStream([text, tool, final_chunk])
-    call = AsyncMock(return_value=stream)
-    runtime = make_runtime(backend="litellm", generation="chat")
-    monkeypatch.setattr(
-        runtime, "litellm", lambda _name=None: SimpleNamespace(call=call)
-    )
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    streamed = FakeStreamedRunResult()
+    agent = make_agent_with_stream(stream=streamed)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    events = [event async for event in runtime.stream([{"role": "user"}])]
+    _ = [event async for event in runtime.stream("hello", temperature=0.3)]
 
-    assert [event.type for event in events] == [
-        "started",
-        "text_delta",
-        "tool_call_delta",
-        "usage",
-        "completed",
-    ]
-    assert events[1].data == "hi"
-    assert events[2].data == [tool_call]
-    requested_tool.assert_not_awaited()
-    assert cast("LLMResponse", events[-1].data).text == "hi"
-    assert cast("LLMResponse", events[-1].data).usage == LLMUsage(1, 2, 3)
-    assert stream.closed is True
-    call.assert_awaited_once_with(
-        "acompletion",
-        messages=[{"role": "user"}],
-        stream=True,
-    )
+    call = agent.run_stream.call_args
+    model_settings = call.kwargs["model_settings"]
+    assert model_settings == {"timeout": 60.0, "temperature": 0.3}
 
 
 @pytest.mark.asyncio
-async def test_provider_error_event_is_data_and_does_not_gain_completion(
+async def test_stream_rejects_control_plane_parameters_before_agent_access(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    native_error = SimpleNamespace(
-        type="response.failed", response=SimpleNamespace(error={"code": "bad"})
-    )
-    stream = FakeStream([native_error])
-    runtime = make_runtime()
-    monkeypatch.setattr(
-        runtime,
-        "openai",
-        lambda _name=None: SimpleNamespace(
-            client=SimpleNamespace(
-                responses=SimpleNamespace(create=AsyncMock(return_value=stream))
-            )
-        ),
-    )
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    agent = make_agent_with_stream(stream=FakeStreamedRunResult())
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    events = [event async for event in runtime.stream("hello")]
+    with pytest.raises(Exception, match="control-plane"):
+        async for _ in runtime.stream("hello", api_key="attacker-controlled"):
+            pass
 
-    assert [event.type for event in events] == ["started", "error"]
-    assert events[-1].raw is native_error
-    assert events[-1].data == {"code": "bad"}
-    assert stream.closed is True
+    agent.run_stream.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# stream() error mapping
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_stream_cancellation_propagates_and_closes_iterator(
+async def test_stream_maps_provider_error_to_llm_provider_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    started = asyncio.Event()
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    exc = ModelHTTPError(status_code=429, model_name="openai:gpt-5.2")
+    agent = make_agent_with_stream(run_stream_side_effect=exc)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    class BlockingStream:
-        closed = False
+    with pytest.raises(LLMRateLimitError) as captured:
+        _ = [event async for event in runtime.stream("secret prompt")]
 
-        def __aiter__(self) -> BlockingStream:
-            return self
+    assert captured.value.__cause__ is exc
+    assert captured.value.retryable is True
 
-        async def __anext__(self) -> object:
-            started.set()
-            await asyncio.Event().wait()
-            raise AssertionError("unreachable")
 
-        async def aclose(self) -> None:
-            self.closed = True
+@pytest.mark.asyncio
+async def test_stream_emits_started_then_raises_on_provider_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    exc = RuntimeError("provider boom")
+    agent = make_agent_with_stream(run_stream_side_effect=exc)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    stream = BlockingStream()
-    runtime = make_runtime()
+    started_seen = False
+    with pytest.raises(LLMProviderError):
+        async for event in runtime.stream("prompt"):
+            if event.type == "started":
+                started_seen = True
+
+    assert started_seen
+
+
+@pytest.mark.asyncio
+async def test_stream_provider_error_does_not_leak_prompt_in_record(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
     observer = RecordingObserver()
     runtime._observer = cast("Any", observer)
-    monkeypatch.setattr(
-        runtime,
-        "openai",
-        lambda _name=None: SimpleNamespace(
-            client=SimpleNamespace(
-                responses=SimpleNamespace(create=AsyncMock(return_value=stream))
-            )
-        ),
+    exc = RuntimeError("provider body secret")
+    agent = make_agent_with_stream(run_stream_side_effect=exc)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
+
+    with pytest.raises(LLMProviderError):
+        _ = [event async for event in runtime.stream("secret prompt body")]
+
+    assert len(observer.records) == 1
+    record = cast("Any", observer.records[0])
+    assert record.operation == "stream"
+    assert record.status == "provider_error"
+    assert "secret prompt body" not in repr(record)
+    assert "provider body secret" not in repr(record)
+
+
+# ---------------------------------------------------------------------------
+# stream() observability
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_stream_emits_success_observation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    observer = RecordingObserver()
+    runtime._observer = cast("Any", observer)
+    streamed = FakeStreamedRunResult(
+        deltas=["hi"],
+        final_output="hi",
+        run_id="req-stream-2",
+        usage=RunUsageLike(input_tokens=1, output_tokens=2, total_tokens=3),
     )
+    agent = make_agent_with_stream(stream=streamed)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
+
+    _ = [event async for event in runtime.stream("do-not-log-this-prompt")]
+
+    assert len(observer.records) == 1
+    record = cast("Any", observer.records[0])
+    assert record.operation == "stream"
+    assert record.status == "success"
+    assert record.backend == "pydantic_ai"
+    assert record.request_id == "req-stream-2"
+    assert record.usage is not None
+    assert "do-not-log-this-prompt" not in repr(record)
+
+
+# ---------------------------------------------------------------------------
+# stream() cancellation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_stream_cancellation_propagates_without_observation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    observer = RecordingObserver()
+    runtime._observer = cast("Any", observer)
+
+    started = asyncio.Event()
+
+    class BlockingStream(FakeStreamedRunResult):
+        @override
+        async def stream_text(self, *, delta: bool = False) -> Any:
+            started.set()
+            await asyncio.Event().wait()
+            yield "unreachable"
+
+    streamed = BlockingStream()
+    agent = make_agent_with_stream(stream=streamed)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
+
     projected = runtime.stream("hello")
-    assert (await anext(projected)).type == "started"
+    first = await anext(projected)
+    assert first.type == "started"
 
-    async def consume_next() -> LLMEvent:
-        return await anext(projected)
-
-    consumer = asyncio.create_task(consume_next())
+    consumer = asyncio.create_task(cast("Any", anext(projected)))
     await started.wait()
     consumer.cancel()
 
     with pytest.raises(asyncio.CancelledError):
         await consumer
 
-    assert stream.closed is True
     assert observer.records == []
 
 
 @pytest.mark.asyncio
-async def test_stream_context_is_exited_and_provider_exception_is_preserved(
+async def test_stream_observer_cancellation_propagates(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    provider_error = ValueError("provider boom")
-
-    class FailingContext:
-        exited = False
-        exit_type: type[BaseException] | None = None
-
-        async def __aenter__(self) -> AsyncIterator[object]:
-            async def failing() -> AsyncIterator[object]:
-                raise provider_error
-                yield
-
-            return failing()
-
-        async def __aexit__(
-            self,
-            exc_type: type[BaseException] | None,
-            _exc: BaseException | None,
-            _traceback: object,
-        ) -> None:
-            self.exited = True
-            self.exit_type = exc_type
-
-    context = FailingContext()
-    runtime = make_runtime()
-    monkeypatch.setattr(
-        runtime,
-        "openai",
-        lambda _name=None: SimpleNamespace(
-            client=SimpleNamespace(
-                responses=SimpleNamespace(create=AsyncMock(return_value=context))
-            )
-        ),
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    runtime._observer = cast(
+        "Any",
+        type(
+            "CancellingObserver",
+            (),
+            {"emit": MagicMock(side_effect=asyncio.CancelledError)},
+        )(),
     )
+    streamed = FakeStreamedRunResult()
+    agent = make_agent_with_stream(stream=streamed)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    with pytest.raises(LLMProviderError) as captured:
-        _ = [event async for event in runtime.stream("hello")]
+    with pytest.raises(asyncio.CancelledError):
+        _ = [event async for event in runtime.stream("prompt")]
 
-    assert captured.value.__cause__ is provider_error
-    assert context.exited is True
-    assert context.exit_type is ValueError
+
+# ---------------------------------------------------------------------------
+# stream() empty deltas
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_distinct_context_stream_and_iterator_are_all_released(
+async def test_stream_with_no_deltas_still_emits_started_and_completed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    iterator = DistinctIteratorLayer()
-    entered_stream = DistinctEnteredStream(iterator)
-    context = DistinctStreamContext(entered_stream)
-    runtime = make_runtime()
-    monkeypatch.setattr(
-        runtime,
-        "openai",
-        lambda _name=None: SimpleNamespace(
-            client=SimpleNamespace(
-                responses=SimpleNamespace(create=AsyncMock(return_value=context))
-            )
-        ),
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    streamed = FakeStreamedRunResult(
+        deltas=[],
+        final_output="empty",
+        run_id="req-stream-empty",
     )
+    agent = make_agent_with_stream(stream=streamed)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    events = [event async for event in runtime.stream("secret prompt")]
+    events = [event async for event in runtime.stream("prompt")]
 
-    assert [event.type for event in events] == ["started", "text_delta", "completed"]
-    assert iterator.closed is True
-    assert entered_stream.closed is True
-    assert context.exited is True
+    assert [event.type for event in events] == ["started", "completed"]
+    final = cast("LLMResponse", events[-1].data)
+    assert final.text == "empty"
 
 
 @pytest.mark.asyncio
-async def test_stream_observability_is_allowlisted_for_success_error_and_cancellation(
+async def test_stream_coerces_non_str_final_output_to_str(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    success_observer = RecordingObserver()
-    success_runtime = make_runtime()
-    success_runtime._observer = cast("Any", success_observer)
-    monkeypatch.setattr(
-        success_runtime,
-        "openai",
-        lambda _name=None: SimpleNamespace(
-            client=SimpleNamespace(
-                responses=SimpleNamespace(create=AsyncMock(return_value=FakeStream([])))
-            )
-        ),
+    monkeypatch.setenv("LLM_STREAMING_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    streamed = FakeStreamedRunResult(
+        deltas=["chunk"],
+        final_output=cast("Any", 42),
     )
+    agent = make_agent_with_stream(stream=streamed)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    _ = [event async for event in success_runtime.stream("do-not-log-this-prompt")]
+    events = [event async for event in runtime.stream("prompt")]
 
-    assert len(success_observer.records) == 1
-    success_record = cast("Any", success_observer.records[0])
-    assert success_record.operation == "stream"
-    assert success_record.status == "success"
-    assert "do-not-log-this-prompt" not in repr(success_record)
-
-    error_observer = RecordingObserver()
-    error_runtime = make_runtime()
-    error_runtime._observer = cast("Any", error_observer)
-    monkeypatch.setattr(
-        error_runtime,
-        "openai",
-        lambda _name=None: SimpleNamespace(
-            client=SimpleNamespace(
-                responses=SimpleNamespace(
-                    create=AsyncMock(side_effect=ValueError("provider body secret"))
-                )
-            )
-        ),
-    )
-
-    with pytest.raises(LLMProviderError):
-        _ = [event async for event in error_runtime.stream("another secret prompt")]
-
-    assert len(error_observer.records) == 1
-    error_record = cast("Any", error_observer.records[0])
-    assert error_record.operation == "stream"
-    assert error_record.status == "provider_error"
-    assert "provider body secret" not in repr(error_record)
-    assert "another secret prompt" not in repr(error_record)
+    final = cast("LLMResponse", events[-1].data)
+    assert final.text == "42"

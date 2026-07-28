@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-lingchu-bot"
-version = "0.3.0"
+version = "0.4.0"
 # dynamic = ["version"]
 description = "由NoneBot2驱动，面向多平台的管理机器人"
 keywords = ["nonebot2", "nonebot", "bot", "cross-platform", "group-management"]
@@ -56,8 +56,7 @@ lingchu = "_lingchu_bot_cli.nb_plugin:install"
 
 [project.optional-dependencies]
 ai = [
-    "openai>=2.48.0",
-    "litellm>=1.93.0",
+    "pydantic-ai>=1.0.0",
     "mcp>=1.28.1,<2.0.0",
 ]
 novelai = [
@@ -348,8 +347,8 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/__init__.py" = ["TC003"]
 # TC002: third-party imports (Plugin, Matcher) needed at runtime for NoneBot registration.
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/loader.py" = ["TC002"]
-# TC001: first-party imports (NovelAIGenerationPlan) used at runtime in payload construction.
-"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/payload.py" = ["TC001"]
+# NovelAI HTTP modules (payload/client/auth/imaging/response) removed in MCP migration;
+# their per-file-ignores entries were deleted alongside the files.
 
 # ARG001: NoneBot handler signatures require bot/event params even when unused
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/napcat/announcement.py" = ["ARG001"]
@@ -386,44 +385,26 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_manager.py" = ["TRY003", "BLE001", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_defaults/__init__.py" = ["TRY003", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/models.py" = [
-    "TRY003",  # request value objects report field-specific validation messages
-    "PLR2004", # NovelAI protocol limits are clearest beside their validation
-    "C901",    # complete generation validation intentionally stays centralized
-    "PLR0912", # complete generation validation covers independent feature families
-    "PLR0915", # complete generation validation keeps coupled protocol invariants together
+    "TRY003",  # pipeline value objects report field-specific validation messages
+    "PLR2004", # coordinate and seed limits are clearest beside their validation
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/tipo.py" = ["TRY003"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/intent.py" = ["TRY003"]
-"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/client.py" = [
-    "TRY003",  # domain failures carry endpoint-specific diagnostics
-    "PLR0911", # compatibility event classification has explicit terminal shapes
-    "PLR0913", # Director tools have a fixed public protocol parameter surface
-    "TC003",   # AsyncIterator/Mapping annotations document the public client API
-]
-"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/auth.py" = [
-    "TRY003", # credential validation needs actionable operator diagnostics
-]
-"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/imaging.py" = [
-    "TRY003",  # malformed image diagnostics identify the rejected format
-    "PLR2004", # PNG/JPEG marker sizes are wire-format constants
-]
-"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/response.py" = [
-    "TRY003",  # response exceptions preserve bounded provider diagnostics
-    "PLR2004", # HTTP statuses and frame prefix sizes are protocol constants
-]
-"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/service.py" = [
-    "TRY003", # missing credentials need an actionable configuration diagnostic
-]
+
 "src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/handler.py" = [
     "E402",    # nonebot require() must run before optional plugin imports
     "TRY003",  # command validation errors are mapped to localized user output
     "TRY004",  # external segment objects with invalid payloads are value errors
     "TRY301",  # one action boundary maps all domain validation failures uniformly
-    "PLR2004", # HTTP status boundary is kept next to image download handling
-    "PLR0913", # generation action request mirrors the protocol's coupled settings
+    "BLE001",  # MCP tool failures are caught broadly and mapped to localized output
+    "PLR0911", # action dispatcher has one return per command branch
     "C901",    # action dispatcher keeps one permission-gated matcher entry point
     "PLR0912", # each explicit NovelAI action is one command branch
     "PLR0915", # action dispatcher performs validation, invocation, and localized output
+]
+"src/plugins/nonebot_plugin_lingchu_bot/core/subplugins/novelai_image/service.py" = [
+    "BLE001",  # startup/shutdown hooks use intentional fail-soft exception handling
+    "PLW0603", # module-level singleton requires global statement for lazy init
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_base.py" = ["TRY003", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/database/toml_store/_helpers.py" = ["TRY003"]
@@ -455,6 +436,9 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/services/llm/runtime.py" = [
     "A002",   # `input` is the public facade parameter named by the runtime specification
     "BLE001", # provider normalization and resource cleanup contain untrusted SDK objects
+    # C901/PLR0911: error mapping and legacy input coercion are inherently branched
+    "C901",
+    "PLR0911",
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/services/llm/security.py" = [
     "BLE001", # redaction must remain total for hostile objects and broken repr implementations

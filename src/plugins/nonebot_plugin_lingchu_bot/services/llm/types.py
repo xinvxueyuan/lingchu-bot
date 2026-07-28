@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal, cast, override
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Literal, cast, override
 
-from .security import freeze_value, safe_repr, safe_type_name, sanitize_message
+from .security import safe_repr, safe_type_name, sanitize_message
+
+if TYPE_CHECKING:
+    from collections.abc import Sized
 
 
 def _safe_length(value: object) -> int | None:
@@ -15,10 +18,7 @@ def _safe_length(value: object) -> int | None:
         return None
 
 
-if TYPE_CHECKING:
-    from collections.abc import Mapping, Sized
-
-type LLMBackendName = Literal["litellm", "openai"]
+type LLMBackendName = Literal["pydantic_ai"]
 type CapabilitySupport = Literal["supported", "unsupported", "unknown"]
 type LLMEventType = Literal[
     "started",
@@ -32,46 +32,17 @@ type LLMEventType = Literal[
 ]
 
 
-def _empty_str_mapping() -> dict[str, str]:
-    return {}
-
-
-def _empty_object_mapping() -> dict[str, object]:
-    return {}
-
-
-def _empty_any_mapping() -> dict[str, Any]:
-    return {}
-
-
 @dataclass(frozen=True, slots=True, repr=False)
 class LLMProfile:
-    """Resolved administrator-controlled configuration for one backend."""
+    """Resolved administrator-controlled configuration for the Pydantic AI agent."""
 
     name: str
     backend: LLMBackendName
     model: str
     base_url: str | None = None
     api_key: str | None = None
-    organization: str | None = None
-    project: str | None = None
     timeout: float = 60.0
     max_retries: int = 2
-    default_headers: Mapping[str, str] = field(default_factory=_empty_str_mapping)
-    default_query: Mapping[str, object] = field(default_factory=_empty_object_mapping)
-    provider_options: Mapping[str, Any] = field(default_factory=_empty_any_mapping)
-    litellm_generation: Literal["responses", "chat"] = "responses"
-    allow_private_network: bool = False
-    allow_credentials_to_custom_base_url: bool = False
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "default_headers", freeze_value(self.default_headers))
-        object.__setattr__(self, "default_query", freeze_value(self.default_query))
-        object.__setattr__(
-            self,
-            "provider_options",
-            freeze_value(self.provider_options),
-        )
 
     @override
     def __repr__(self) -> str:
@@ -81,14 +52,6 @@ class LLMProfile:
             "model": sanitize_message(self.model),
             "timeout": self.timeout,
             "max_retries": self.max_retries,
-            "default_headers": f"<redacted:{len(self.default_headers)}>",
-            "default_query": f"<redacted:{len(self.default_query)}>",
-            "provider_options": f"<redacted:{len(self.provider_options)}>",
-            "litellm_generation": self.litellm_generation,
-            "allow_private_network": self.allow_private_network,
-            "allow_credentials_to_custom_base_url": (
-                self.allow_credentials_to_custom_base_url
-            ),
         }
         return f"LLMProfile({safe_repr(public)})"
 

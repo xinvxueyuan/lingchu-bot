@@ -1,20 +1,28 @@
-"""Managed lifecycle and stable response facade for LLM providers."""
+"""Managed lifecycle and stable response facade for the Pydantic AI agent."""
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass
 import hashlib
-import inspect
-import sys
+import os
 import threading
 import time
 from typing import TYPE_CHECKING, Any, Literal, cast
 
-from .backends import LiteLLMBackend, OpenAIBackend
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import AgentRunError, ModelAPIError, ModelHTTPError
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    UserPromptPart,
+)
+
 from .capabilities import invalidate_capability_cache
-from .config import LLMRuntimeConfig, load_llm_runtime_config, resolve_profile
+from .config import LLMRuntimeConfig, load_llm_runtime_config
 from .errors import (
     LLMAuthenticationError,
     LLMConfigurationError,
@@ -25,23 +33,18 @@ from .errors import (
     LLMRateLimitError,
     LLMTimeoutError,
 )
-from .events import project_stream_event
 from .observability import LLMCallRecord, StructuredLLMObserver
-from .security import (
-    CONTROL_PLANE_KEYS,
-    contains_control_plane_key,
-    sanitize_message,
-    thaw_value,
-)
+from .security import CONTROL_PLANE_KEYS, sanitize_message
 from .types import LLMEvent, LLMProfile, LLMResponse, LLMUsage
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Awaitable
+    from pydantic_ai.agent import AgentRunResult
+    from pydantic_ai.settings import ModelSettings
+    from pydantic_ai.usage import RunUsage
 
 type RuntimeState = Literal["NEW", "RUNNING", "CLOSING", "CLOSED"]
 
 HTTP_RATE_LIMITED = 429
-MAX_OBSERVABILITY_COUNT = 2**31 - 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,86 +52,6 @@ class _Observation:
     request_id: str | None = None
     usage: LLMUsage | None = None
     sdk_metadata: object | None = None
-
-
-@dataclass(slots=True)
-class _StreamAssembly:
-    profile: LLMProfile
-    text_parts: list[str]
-    output_items: list[object]
-    usage: LLMUsage | None = None
-    last_raw: object | None = None
-    request_id: str | None = None
-    model: str | None = None
-    terminal: bool = False
-    failed: bool = False
-
-    def accept(self, projected: LLMEvent) -> LLMEvent:
-        """Update assembled state and finalize provider completion events."""
-        request_id = _stream_string(projected.raw, "_request_id", "request_id", "id")
-        model = _stream_string(projected.raw, "model")
-        if request_id:
-            self.request_id = request_id
-        if model:
-            self.model = model
-        if projected.type == "text_delta" and type(projected.data) is str:
-            self.text_parts.append(projected.data)
-        elif projected.type == "output_item":
-            self.output_items.append(projected.data)
-        elif projected.type == "usage" and isinstance(projected.data, LLMUsage):
-            self.usage = projected.data
-        elif projected.type == "completed":
-            self.terminal = True
-            return LLMEvent(
-                type="completed",
-                data=self._provider_response(projected.data),
-                raw=projected.raw,
-            )
-        elif projected.type == "error":
-            self.terminal = True
-            self.failed = True
-        return projected
-
-    def _provider_response(self, raw_response: object) -> LLMResponse:
-        chat = self.profile.litellm_generation == "chat"
-        response = _normalize_response(
-            raw_response,
-            profile=self.profile,
-            chat=chat,
-        )
-        assembled_text = "".join(self.text_parts) if self.text_parts else None
-        text_present, terminal_text = _terminal_text(raw_response, chat=chat)
-        output_present, terminal_output = _terminal_output(raw_response)
-        request_present, terminal_request_id = _terminal_string(
-            raw_response, "_request_id", "request_id", "id"
-        )
-        model_present, terminal_model = _terminal_string(raw_response, "model")
-        return LLMResponse(
-            text=terminal_text if text_present else assembled_text,
-            output=terminal_output if output_present else tuple(self.output_items),
-            usage=response.usage if response.usage is not None else self.usage,
-            request_id=(terminal_request_id if request_present else self.request_id),
-            model=(
-                terminal_model if model_present else self.model or self.profile.model
-            ),
-            backend=response.backend,
-            raw=response.raw,
-        )
-
-    def completion(self) -> LLMEvent:
-        return LLMEvent(
-            type="completed",
-            data=LLMResponse(
-                text="".join(self.text_parts) if self.text_parts else None,
-                output=tuple(self.output_items),
-                usage=self.usage,
-                request_id=self.request_id,
-                model=self.model or self.profile.model,
-                backend=self.profile.backend,
-                raw=self.last_raw,
-            ),
-            raw=self.last_raw,
-        )
 
 
 class _RuntimeClosingError(RuntimeError):
@@ -139,11 +62,6 @@ class _RuntimeClosingError(RuntimeError):
 class _ForeignLoopError(RuntimeError):
     def __init__(self) -> None:
         super().__init__("LLM runtime is bound to another active event loop")
-
-
-class _InvalidProfileError(LLMConfigurationError):
-    def __init__(self) -> None:
-        super().__init__("invalid LLM profile")
 
 
 class _WrongBackendError(LLMConfigurationError):
@@ -158,11 +76,6 @@ class _ControlPlaneParameterError(LLMConfigurationError):
         )
 
 
-class _InvalidStreamContextError(TypeError):
-    def __init__(self) -> None:
-        super().__init__("stream context entry must be awaitable")
-
-
 def _fingerprint(secret: str | None) -> str:
     # SHA-256 produces a stable cache key for LLM profile lookup by API key;
     # this is NOT password storage. argon2/bcrypt are unsuitable because their
@@ -171,278 +84,6 @@ def _fingerprint(secret: str | None) -> str:
     # (dismissed: alert #2).
     value = secret.encode("utf-8", errors="replace") if secret else b""
     return hashlib.sha256(value).hexdigest()
-
-
-def _stream_string(source: object | None, *names: str) -> str | None:
-    if source is None:
-        return None
-    value = _value(source, *names)
-    return sanitize_message(value) if type(value) is str else None
-
-
-_MISSING = object()
-
-
-def _member(source: object, name: str) -> tuple[bool, object | None]:
-    """Read one provider member while containing hostile SDK objects."""
-    try:
-        if isinstance(source, Mapping):
-            mapping = cast("Mapping[object, object]", source)
-            if name in mapping:
-                return True, mapping[name]
-            return False, None
-    except asyncio.CancelledError:
-        raise
-    except BaseException:
-        return False, None
-    try:
-        value = getattr(source, name, _MISSING)
-    except asyncio.CancelledError:
-        raise
-    except BaseException:
-        return False, None
-    return (False, None) if value is _MISSING else (True, value)
-
-
-def _value(source: object, *names: str) -> object | None:
-    for name in names:
-        present, value = _member(source, name)
-        if present and value is not None:
-            return value
-    return None
-
-
-def _safe_int(value: object | None) -> int | None:
-    return value if type(value) is int and value >= 0 else None
-
-
-def _safe_float(value: object | None) -> float | None:
-    if type(value) is int:
-        return float(value) if value >= 0 else None
-    if type(value) is float:
-        return value if value >= 0 else None
-    return None
-
-
-def _metadata_member(source: object, name: str) -> object | None:
-    """Read one SDK metadata member without trusting provider-owned objects."""
-    try:
-        if isinstance(source, Mapping):
-            mapping = cast("Mapping[object, object]", source)
-            return mapping.get(name)
-    except asyncio.CancelledError:
-        raise
-    except BaseException:
-        return None
-    try:
-        return getattr(source, name)
-    except asyncio.CancelledError:
-        raise
-    except BaseException:
-        return None
-
-
-def _bounded_metadata_count(
-    source: object,
-    paths: tuple[tuple[str, ...], ...],
-) -> int | None:
-    for path in paths:
-        value: object | None = source
-        for name in path:
-            if value is None:
-                break
-            value = _metadata_member(value, name)
-        if type(value) is int and 0 <= value <= MAX_OBSERVABILITY_COUNT:
-            return value
-    return None
-
-
-def _attempt_counts(source: object) -> tuple[int | None, int | None]:
-    retry_count = _bounded_metadata_count(
-        source,
-        (
-            (
-                "_hidden_params",
-                "additional_headers",
-                "x-litellm-attempted-retries",
-            ),
-            ("metadata", "attempted_retries"),
-            ("_metadata", "attempted_retries"),
-            ("litellm_params", "metadata", "attempted_retries"),
-            ("attempted_retries",),
-            ("retry_count",),
-        ),
-    )
-    fallback_count = _bounded_metadata_count(
-        source,
-        (
-            (
-                "_hidden_params",
-                "additional_headers",
-                "x-litellm-attempted-fallbacks",
-            ),
-            ("metadata", "attempted_fallbacks"),
-            ("metadata", "fallback_depth"),
-            ("_metadata", "attempted_fallbacks"),
-            ("_metadata", "fallback_depth"),
-            ("litellm_params", "metadata", "attempted_fallbacks"),
-            ("litellm_params", "metadata", "fallback_depth"),
-            ("attempted_fallbacks",),
-            ("fallback_count",),
-            ("fallback_depth",),
-        ),
-    )
-    return retry_count, fallback_count
-
-
-def _usage(raw: object) -> LLMUsage | None:
-    source = _value(raw, "usage")
-    if source is None:
-        return None
-    input_tokens = _safe_int(_value(source, "input_tokens", "prompt_tokens"))
-    output_tokens = _safe_int(_value(source, "output_tokens", "completion_tokens"))
-    total_tokens = _safe_int(_value(source, "total_tokens"))
-    cost = _safe_float(_value(source, "cost", "response_cost"))
-    input_details = _value(source, "input_tokens_details", "prompt_tokens_details")
-    output_details = _value(
-        source, "output_tokens_details", "completion_tokens_details"
-    )
-    cached_tokens = _safe_int(_value(input_details, "cached_tokens"))
-    reasoning_tokens = _safe_int(_value(output_details, "reasoning_tokens"))
-    if all(
-        value is None
-        for value in (
-            input_tokens,
-            output_tokens,
-            total_tokens,
-            cost,
-            cached_tokens,
-            reasoning_tokens,
-        )
-    ):
-        return None
-    return LLMUsage(
-        input_tokens,
-        output_tokens,
-        total_tokens,
-        cost,
-        cached_tokens,
-        reasoning_tokens,
-    )
-
-
-def _response_text(raw: object, *, chat: bool) -> str | None:
-    if not chat:
-        value = _value(raw, "output_text")
-        return value if type(value) is str else None
-    choices = _value(raw, "choices")
-    if not isinstance(choices, (list, tuple)) or not choices:
-        return None
-    try:
-        first_choice = choices[0]
-    except asyncio.CancelledError:
-        raise
-    except BaseException:
-        return None
-    message = _value(first_choice, "message")
-    content = _value(message, "content") if message is not None else None
-    return content if type(content) is str else None
-
-
-def _normalize_response(raw: object, *, profile: LLMProfile, chat: bool) -> LLMResponse:
-    output_value = _value(raw, "output")
-    try:
-        output = tuple(output_value) if isinstance(output_value, (list, tuple)) else ()
-    except asyncio.CancelledError:
-        raise
-    except BaseException:
-        output = ()
-    request_id_value = _value(raw, "_request_id", "request_id", "id")
-    request_id = (
-        sanitize_message(request_id_value) if type(request_id_value) is str else None
-    )
-    model = _value(raw, "model")
-    return LLMResponse(
-        text=_response_text(raw, chat=chat),
-        output=output,
-        usage=_usage(raw),
-        request_id=request_id,
-        model=model if type(model) is str else profile.model,
-        backend=profile.backend,
-        raw=raw,
-    )
-
-
-def _terminal_text(raw: object, *, chat: bool) -> tuple[bool, str | None]:
-    if not chat:
-        present, value = _member(raw, "output_text")
-        return present, value if type(value) is str else None
-    choices_present, choices = _member(raw, "choices")
-    if not choices_present:
-        return False, None
-    if not isinstance(choices, (list, tuple)) or not choices:
-        return True, None
-    try:
-        first_choice = choices[0]
-    except asyncio.CancelledError:
-        raise
-    except BaseException:
-        return True, None
-    message_present, message = _member(first_choice, "message")
-    if not message_present or message is None:
-        return message_present, None
-    content_present, content = _member(message, "content")
-    return content_present, content if type(content) is str else None
-
-
-def _terminal_output(raw: object) -> tuple[bool, tuple[object, ...]]:
-    present, value = _member(raw, "output")
-    if not present:
-        return False, ()
-    if not isinstance(value, (list, tuple)):
-        return True, ()
-    try:
-        return True, tuple(value)
-    except asyncio.CancelledError:
-        raise
-    except BaseException:
-        return True, ()
-
-
-def _terminal_string(raw: object, *names: str) -> tuple[bool, str | None]:
-    for name in names:
-        present, value = _member(raw, name)
-        if present:
-            return True, sanitize_message(value) if type(value) is str else None
-    return False, None
-
-
-def _normalized_error(exc: Exception, profile: LLMProfile) -> LLMError:
-    status = _safe_int(_value(exc, "status_code"))
-    request_id = _value(exc, "request_id", "_request_id")
-    metadata: dict[str, object] = {
-        "backend": profile.backend,
-        "model": profile.model,
-        "request_id": request_id if type(request_id) is str else None,
-        "status_code": status,
-    }
-    name = type(exc).__name__.casefold()
-    if isinstance(exc, ModuleNotFoundError):
-        error_type = LLMDependencyError
-    elif status in {401, 403} or "authentication" in name:
-        error_type = LLMAuthenticationError
-    elif status == HTTP_RATE_LIMITED or "ratelimit" in name or "rate_limit" in name:
-        error_type = LLMRateLimitError
-        metadata["retryable"] = True
-    elif status in {408, 504} or "timeout" in name:
-        error_type = LLMTimeoutError
-        metadata["retryable"] = True
-    elif "connection" in name:
-        error_type = LLMConnectionError
-        metadata["retryable"] = True
-    else:
-        error_type = LLMProviderError
-    return error_type("LLM provider call failed", **cast("Any", metadata))
 
 
 def _error_status(error: LLMError) -> str:
@@ -460,8 +101,149 @@ def _error_status(error: LLMError) -> str:
     return "provider_error"
 
 
+def _normalized_error(exc: Exception, profile: LLMProfile) -> LLMError:
+    metadata: dict[str, object] = {
+        "backend": "pydantic_ai",
+        "model": profile.model,
+    }
+    if isinstance(exc, ModelHTTPError):
+        status = exc.status_code
+        metadata["status_code"] = status
+        metadata["request_id"] = None
+        if status in {401, 403}:
+            return LLMAuthenticationError(
+                "LLM provider call failed", **cast("Any", metadata)
+            )
+        if status == HTTP_RATE_LIMITED:
+            metadata["retryable"] = True
+            return LLMRateLimitError(
+                "LLM provider call failed", **cast("Any", metadata)
+            )
+        if status in {408, 504}:
+            metadata["retryable"] = True
+            return LLMTimeoutError("LLM provider call failed", **cast("Any", metadata))
+        return LLMProviderError("LLM provider call failed", **cast("Any", metadata))
+    if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
+        metadata["retryable"] = True
+        return LLMTimeoutError("LLM provider call failed", **cast("Any", metadata))
+    if isinstance(exc, (ImportError, ModuleNotFoundError)):
+        return LLMDependencyError(
+            "Pydantic AI agent unavailable; install 'pydantic-ai' and configure "
+            "[pydantic-ai] in llm.toml",
+            **cast("Any", metadata),
+        )
+    if isinstance(exc, (ModelAPIError, AgentRunError)):
+        return LLMProviderError("LLM provider call failed", **cast("Any", metadata))
+    exc_type_name = type(exc).__name__.casefold()
+    if "connect" in exc_type_name or "connection" in exc_type_name:
+        metadata["retryable"] = True
+        return LLMConnectionError("LLM provider call failed", **cast("Any", metadata))
+    return LLMProviderError("LLM provider call failed", **cast("Any", metadata))
+
+
+def _coerce_input(
+    input: object,
+) -> tuple[str, list[ModelMessage] | None]:
+    """Convert the legacy input format to a Pydantic AI user prompt and history.
+
+    Pydantic AI's ``Agent.run`` accepts a plain string prompt (or a sequence
+    of ``UserContent`` parts, which we do not produce here). Legacy callers
+    (notably ``contracts.py``) historically passed a list of
+    ``{"role", "content"}`` dicts. The last user message becomes
+    ``user_prompt`` and prior messages become ``message_history`` using
+    Pydantic AI message objects. System messages are prepended to the
+    resolved user prompt to preserve instructions without exercising the
+    Agent's ``system_prompt`` parameter.
+    """
+    if type(input) is str:
+        return input, None
+    if not isinstance(input, (list, tuple)):
+        return "", None
+    history: list[ModelMessage] = []
+    pending_system: list[str] = []
+    last_user_prompt: str | None = None
+    for raw in input:
+        if not isinstance(raw, Mapping):
+            continue
+        role = raw.get("role")
+        content = raw.get("content")
+        if not isinstance(role, str) or not isinstance(content, str):
+            continue
+        if role == "system":
+            pending_system.append(content)
+            continue
+        if role == "user":
+            if last_user_prompt is not None:
+                history.append(
+                    ModelRequest(parts=[UserPromptPart(content=last_user_prompt)])
+                )
+            last_user_prompt = content
+            continue
+        if role == "assistant":
+            history.append(ModelResponse(parts=[TextPart(content=content)]))
+    if last_user_prompt is None:
+        return "", None
+    prompt = (
+        "\n\n".join([*pending_system, last_user_prompt])
+        if pending_system
+        else last_user_prompt
+    )
+    return prompt, history or None
+
+
+def _from_usage(usage: RunUsage) -> LLMUsage | None:
+    """Map a Pydantic AI ``RunUsage`` to the stable ``LLMUsage`` projection."""
+    input_tokens = usage.input_tokens or None
+    output_tokens = usage.output_tokens or None
+    total_tokens = usage.total_tokens or None
+    cached_tokens = usage.cache_read_tokens or None
+    if not any((input_tokens, output_tokens, total_tokens, cached_tokens)):
+        return None
+    return LLMUsage(
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        total_tokens=total_tokens,
+        cached_tokens=cached_tokens,
+        reasoning_tokens=None,
+    )
+
+
+def _from_agent_result(result: AgentRunResult[Any], profile: LLMProfile) -> LLMResponse:
+    """Map a Pydantic AI ``AgentRunResult`` to the stable ``LLMResponse``."""
+    output = result.output
+    text = output if isinstance(output, str) else str(output)
+    request_id = getattr(result, "run_id", None)
+    request_id_text = (
+        sanitize_message(request_id) if isinstance(request_id, str) else None
+    )
+    return LLMResponse(
+        text=text,
+        output=(),
+        usage=_from_usage(result.usage),
+        request_id=request_id_text,
+        model=profile.model,
+        backend="pydantic_ai",
+        raw=result,
+    )
+
+
+def _build_model_settings(
+    profile: LLMProfile, params: Mapping[str, object]
+) -> dict[str, Any]:
+    """Build Pydantic AI ``model_settings`` from profile and caller params."""
+    settings: dict[str, Any] = {}
+    if profile.base_url:
+        settings["base_url"] = profile.base_url
+    if profile.timeout:
+        settings["timeout"] = profile.timeout
+    settings.update({
+        key: value for key, value in params.items() if key not in CONTROL_PLANE_KEYS
+    })
+    return settings
+
+
 class LLMRuntime:
-    """Own resolved profiles, provider backends, and their shutdown lifecycle."""
+    """Own resolved profiles, Pydantic AI agents, and their shutdown lifecycle."""
 
     def __init__(
         self,
@@ -473,15 +255,10 @@ class LLMRuntime:
         self.config = config
         self.generation = generation
         self._observer = observer or StructuredLLMObserver(
-            enabled=bool(config.observability.values.get("enabled", True))
+            enabled=bool(config.observability.enabled)
         )
         self._profiles: dict[tuple[str, int, str], LLMProfile] = {}
-        self._backends: dict[
-            tuple[str, int, str, str], OpenAIBackend | LiteLLMBackend
-        ] = {}
-        self._owned_backends: list[Any] = []
-        self._pending_retirements: list[Any] = []
-        self._retired_backends: list[Any] = []
+        self._agents: dict[tuple[str, int, str], Agent[Any, Any]] = {}
         self._lock = threading.RLock()
         self._async_loop: asyncio.AbstractEventLoop | None = None
         self._close_task: asyncio.Task[None] | None = None
@@ -505,21 +282,31 @@ class LLMRuntime:
             self.state = "RUNNING"
 
     def profile(self, name: str | None = None) -> LLMProfile:
-        """Resolve and cache one named administrator-controlled profile."""
+        """Resolve and cache one named profile from ``PydanticAIConfig``."""
         with self._lock:
             self._ensure_running()
-            selected = name or self.config.default_profile
-            try:
-                resolved = resolve_profile(self.config, name=selected)
-            except (KeyError, ValueError) as exc:
-                raise _InvalidProfileError from exc
-            key = (selected, self.generation, _fingerprint(resolved.api_key))
+            pydantic_ai_cfg = self.config.pydantic_ai
+            api_key = (
+                os.environ.get(pydantic_ai_cfg.api_key_env)
+                if pydantic_ai_cfg.api_key_env
+                else None
+            )
+            resolved = LLMProfile(
+                name=name or "default",
+                backend="pydantic_ai",
+                model=pydantic_ai_cfg.model,
+                base_url=pydantic_ai_cfg.base_url,
+                api_key=api_key,
+                timeout=pydantic_ai_cfg.timeout,
+                max_retries=2,
+            )
+            key = (resolved.name, self.generation, _fingerprint(resolved.api_key))
             cached = self._profiles.get(key)
             if cached is None:
                 stale = [
                     existing
                     for existing in self._profiles
-                    if existing[:2] == (selected, self.generation)
+                    if existing[:2] == (resolved.name, self.generation)
                 ]
                 for existing in stale:
                     self._profiles.pop(existing, None)
@@ -527,53 +314,53 @@ class LLMRuntime:
                 cached = resolved
             return cached
 
-    def _backend(
-        self, backend: Literal["litellm", "openai"], name: str | None
-    ) -> OpenAIBackend | LiteLLMBackend:
+    def _agent(self, name: str | None = None) -> Agent[Any, Any]:
+        """Return a cached Pydantic AI ``Agent`` for the resolved profile."""
         with self._lock:
             profile = self.profile(name)
-            if profile.backend != backend:
-                raise _WrongBackendError(profile.backend, backend)
-            key = (
-                profile.name,
-                self.generation,
-                _fingerprint(profile.api_key),
-                backend,
-            )
-            cached = self._backends.get(key)
+            key = (profile.name, self.generation, _fingerprint(profile.api_key))
+            cached = self._agents.get(key)
             if cached is None:
-                stale_keys = [
+                stale = [
                     existing
-                    for existing in self._backends
-                    if existing[0] == profile.name
-                    and existing[1] == self.generation
-                    and existing[3] == backend
+                    for existing in self._agents
+                    if existing[:2] == (profile.name, self.generation)
                 ]
-                for stale_key in stale_keys:
-                    stale_backend = self._backends.pop(stale_key)
-                    self._owned_backends = [
-                        owned
-                        for owned in self._owned_backends
-                        if owned is not stale_backend
-                    ]
-                    self._retired_backends.append(stale_backend)
-                    self._pending_retirements.append(stale_backend)
-                cached = (
-                    OpenAIBackend(profile)
-                    if backend == "openai"
-                    else LiteLLMBackend(profile, self.config.router)
-                )
-                self._backends[key] = cached
-                self._owned_backends.append(cached)
+                for existing in stale:
+                    self._agents.pop(existing, None)
+                cached = self._build_agent(profile)
+                self._agents[key] = cached
             return cached
 
-    def openai(self, name: str | None = None) -> OpenAIBackend:
-        """Return the runtime-owned native OpenAI backend."""
-        return cast("OpenAIBackend", self._backend("openai", name))
+    @staticmethod
+    def _build_agent(profile: LLMProfile) -> Agent[Any, Any]:
+        """Construct a Pydantic AI ``Agent`` from a resolved profile.
 
-    def litellm(self, name: str | None = None) -> LiteLLMBackend:
-        """Return the runtime-owned native LiteLLM backend."""
-        return cast("LiteLLMBackend", self._backend("litellm", name))
+        ``defer_model_check=True`` defers provider/api-key validation until the
+        first ``run``/``run_stream`` call so that runtime construction does not
+        crash when an env var (e.g. ``OPENAI_API_KEY``) is provisioned later in
+        deployment. Pydantic AI reads provider credentials from the env vars
+        declared by ``PydanticAIConfig.api_key_env`` at call time.
+        """
+        model_settings: dict[str, Any] = {}
+        if profile.base_url:
+            model_settings["base_url"] = profile.base_url
+        return Agent(
+            model=profile.model,
+            retries=profile.max_retries,
+            model_settings=cast("ModelSettings | None", model_settings or None),
+            defer_model_check=True,
+        )
+
+    def openai(self, name: str | None = None) -> object:
+        """Deprecated: OpenAI backend removed. Always raises."""
+        _ = name
+        raise _WrongBackendError("pydantic_ai", "openai")
+
+    def litellm(self, name: str | None = None) -> object:
+        """Deprecated: LiteLLM backend removed. Always raises."""
+        _ = name
+        raise _WrongBackendError("pydantic_ai", "litellm")
 
     async def respond(
         self,
@@ -582,41 +369,23 @@ class LLMRuntime:
         profile: str | None = None,
         **params: object,
     ) -> LLMResponse:
-        """Generate one normalized response through the configured operation."""
+        """Generate one normalized response through Pydantic AI."""
         self._bind_async_loop()
         rejected = CONTROL_PLANE_KEYS.intersection(params)
         if rejected:
             raise _ControlPlaneParameterError
         selected = self.profile(profile)
-        if contains_control_plane_key(selected.provider_options):
-            raise _ControlPlaneParameterError
         started = time.perf_counter()
         try:
-            defaults = thaw_value(selected.provider_options)
-            merged = cast("dict[str, Any]", defaults)
-            merged.update(params)
-            if selected.backend == "openai":
-                merged["model"] = selected.model
-                merged["input"] = input
-                backend = self.openai(selected.name)
-                await self._drain_retirements()
-                raw = await backend.client.responses.create(**merged)
-                response = _normalize_response(raw, profile=selected, chat=False)
-            else:
-                operation = (
-                    "aresponses"
-                    if selected.litellm_generation == "responses"
-                    else "acompletion"
-                )
-                input_key = "input" if operation == "aresponses" else "messages"
-                merged["model"] = selected.model
-                merged[input_key] = input
-                backend = self.litellm(selected.name)
-                await self._drain_retirements()
-                raw = await backend.call(operation, **merged)
-                response = _normalize_response(
-                    raw, profile=selected, chat=operation == "acompletion"
-                )
+            agent = self._agent(selected.name)
+            user_prompt, message_history = _coerce_input(input)
+            model_settings = _build_model_settings(selected, params)
+            result = await agent.run(
+                user_prompt,
+                message_history=message_history,
+                model_settings=cast("ModelSettings | None", model_settings or None),
+            )
+            response = _from_agent_result(result, selected)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -625,10 +394,7 @@ class LLMRuntime:
                 selected,
                 started,
                 _error_status(error),
-                observation=_Observation(
-                    request_id=error.request_id,
-                    sdk_metadata=exc,
-                ),
+                observation=_Observation(sdk_metadata=exc),
             )
             raise error from exc
         self._emit(
@@ -638,7 +404,7 @@ class LLMRuntime:
             observation=_Observation(
                 request_id=response.request_id,
                 usage=response.usage,
-                sdk_metadata=response.raw,
+                sdk_metadata=result,
             ),
         )
         return response
@@ -650,46 +416,54 @@ class LLMRuntime:
         profile: str | None = None,
         **params: object,
     ) -> AsyncIterator[LLMEvent]:
-        """Yield a stable, lossless projection of one provider-native stream."""
+        """Yield a stable projection of one Pydantic AI stream."""
         self._bind_async_loop()
         rejected = CONTROL_PLANE_KEYS.intersection(params)
         if rejected:
             raise _ControlPlaneParameterError
         selected = self.profile(profile)
-        if contains_control_plane_key(selected.provider_options):
-            raise _ControlPlaneParameterError
         started = time.perf_counter()
-        native_stream: object | None = None
-        entered_stream: object | None = None
-        iterator: object | None = None
-        entered = False
-        assembly = _StreamAssembly(selected, [], [])
         try:
-            native_stream = await self._create_native_stream(selected, input, params)
-            entered_stream, entered = await self._enter_stream(native_stream)
-            iterator = self._stream_iterator(entered_stream)
+            agent = self._agent(selected.name)
+            user_prompt, message_history = _coerce_input(input)
+            model_settings = _build_model_settings(selected, params)
             yield LLMEvent(type="started", data=selected, raw=None)
-            while True:
-                try:
-                    raw = await anext(cast("AsyncIterator[object]", iterator))
-                except StopAsyncIteration:
-                    break
-                assembly.last_raw = raw
-                for projected in project_stream_event(raw):
-                    yield assembly.accept(projected)
-            if not assembly.terminal:
-                yield assembly.completion()
-            self._emit(
-                selected,
-                started,
-                "provider_error" if assembly.failed else "success",
-                operation="stream",
-                observation=_Observation(
-                    request_id=assembly.request_id,
-                    usage=assembly.usage,
-                    sdk_metadata=assembly.last_raw,
-                ),
-            )
+            async with agent.run_stream(
+                user_prompt,
+                message_history=message_history,
+                model_settings=cast("ModelSettings | None", model_settings or None),
+            ) as result:
+                async for text_delta in result.stream_text(delta=True):
+                    yield LLMEvent(type="text_delta", data=text_delta, raw=None)
+                final_text = await result.get_output()
+                final_usage = result.usage
+                final_response = LLMResponse(
+                    text=(
+                        final_text if isinstance(final_text, str) else str(final_text)
+                    ),
+                    output=(),
+                    usage=_from_usage(final_usage),
+                    request_id=(
+                        sanitize_message(result.run_id)
+                        if isinstance(result.run_id, str)
+                        else None
+                    ),
+                    model=selected.model,
+                    backend="pydantic_ai",
+                    raw=result,
+                )
+                yield LLMEvent(type="completed", data=final_response, raw=result)
+                self._emit(
+                    selected,
+                    started,
+                    "success",
+                    operation="stream",
+                    observation=_Observation(
+                        request_id=final_response.request_id,
+                        usage=final_response.usage,
+                        sdk_metadata=result,
+                    ),
+                )
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -699,147 +473,9 @@ class LLMRuntime:
                 started,
                 _error_status(error),
                 operation="stream",
-                observation=_Observation(
-                    request_id=error.request_id,
-                    sdk_metadata=exc,
-                ),
+                observation=_Observation(sdk_metadata=exc),
             )
             raise error from exc
-        finally:
-            if native_stream is not None:
-                await self._close_stream_resources(
-                    native_stream,
-                    entered_stream=entered_stream,
-                    iterator=iterator,
-                    entered=entered,
-                )
-
-    async def _create_native_stream(
-        self,
-        profile: LLMProfile,
-        input: object,
-        params: Mapping[str, object],
-    ) -> object:
-        merged = cast("dict[str, Any]", thaw_value(profile.provider_options))
-        merged.update(params)
-        merged["stream"] = True
-        if profile.backend == "openai":
-            merged["model"] = profile.model
-            merged["input"] = input
-            backend = self.openai(profile.name)
-            await self._drain_retirements()
-            return await backend.client.responses.create(**merged)
-        operation = (
-            "aresponses" if profile.litellm_generation == "responses" else "acompletion"
-        )
-        merged["input" if operation == "aresponses" else "messages"] = input
-        backend = self.litellm(profile.name)
-        await self._drain_retirements()
-        return await backend.call(operation, **merged)
-
-    @staticmethod
-    async def _enter_stream(stream: object) -> tuple[object, bool]:
-        enter = getattr(stream, "__aenter__", None)
-        if not callable(enter):
-            return stream, False
-        result = enter()
-        if not inspect.isawaitable(result):
-            raise _InvalidStreamContextError
-        return await cast("Awaitable[object]", result), True
-
-    @staticmethod
-    def _stream_iterator(stream: object) -> object:
-        return cast("Any", stream).__aiter__()
-
-    @classmethod
-    async def _close_stream_resources(
-        cls,
-        native_stream: object,
-        *,
-        entered_stream: object | None,
-        iterator: object | None,
-        entered: bool,
-    ) -> None:
-        """Close each distinct stream layer, including a context manager."""
-        active_exception = sys.exc_info()[0] is not None
-        first_error: BaseException | None = None
-        resources: list[tuple[object, bool]] = []
-        if iterator is not None:
-            resources.append((iterator, False))
-        if entered_stream is not None and all(
-            entered_stream is not resource for resource, _ in resources
-        ):
-            resources.append((entered_stream, False))
-        if all(native_stream is not resource for resource, _ in resources):
-            resources.append((native_stream, entered))
-        elif entered:
-            resources = [
-                (resource, True if resource is native_stream else as_context)
-                for resource, as_context in resources
-            ]
-        for resource, as_context in resources:
-            try:
-                await cls._close_stream(resource, entered=as_context)
-            except BaseException as exc:
-                if first_error is None:
-                    first_error = exc
-        if first_error is not None and not active_exception:
-            raise first_error
-
-    @staticmethod
-    async def _close_stream(stream: object, *, entered: bool) -> None:
-        """Close one stream without replacing an active provider/cancellation error."""
-        exception_info = sys.exc_info()
-        active_exception = exception_info[0] is not None
-        current = exception_info[1]
-        if isinstance(current, LLMError) and isinstance(current.__cause__, Exception):
-            cause = current.__cause__
-            exception_info = (type(cause), cause, cause.__traceback__)
-        try:
-            if entered:
-                exit_context = getattr(stream, "__aexit__", None)
-                if callable(exit_context):
-                    result = exit_context(*exception_info)
-                    if inspect.isawaitable(result):
-                        await cast("Awaitable[object]", result)
-                    return
-            close = getattr(stream, "aclose", None)
-            if not callable(close):
-                close = getattr(stream, "close", None)
-            if callable(close):
-                result = close()
-                if inspect.isawaitable(result):
-                    await cast("Awaitable[object]", result)
-        except BaseException:
-            if not active_exception:
-                raise
-
-    async def _drain_retirements(self) -> None:
-        self._bind_async_loop()
-        with self._lock:
-            pending = tuple(self._pending_retirements)
-            self._pending_retirements.clear()
-        for index, backend in enumerate(pending):
-            try:
-                await self._close_backend(backend)
-            except asyncio.CancelledError:
-                with self._lock:
-                    self._pending_retirements[:0] = pending[index:]
-                raise
-
-    async def _close_backend(self, backend: object) -> None:
-        try:
-            result = cast("Any", backend).close()
-            if inspect.isawaitable(result):
-                await cast("Awaitable[object]", result)
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            return
-        with self._lock:
-            self._retired_backends = [
-                retired for retired in self._retired_backends if retired is not backend
-            ]
 
     def _emit(
         self,
@@ -851,24 +487,19 @@ class LLMRuntime:
         observation: _Observation | None = None,
     ) -> None:
         details = observation or _Observation()
-        retry_count, fallback_count = (
-            _attempt_counts(details.sdk_metadata)
-            if details.sdk_metadata is not None
-            else (None, None)
-        )
         try:
             self._observer.emit(
                 LLMCallRecord(
                     operation=operation,
                     profile=profile.name,
-                    backend=profile.backend,
+                    backend="pydantic_ai",
                     model=profile.model,
                     duration_ms=(time.perf_counter() - started) * 1000,
                     status=status,
                     request_id=details.request_id,
                     usage=details.usage,
-                    retry_count=retry_count,
-                    fallback_count=fallback_count,
+                    retry_count=None,
+                    fallback_count=None,
                 )
             )
         except asyncio.CancelledError:
@@ -876,39 +507,11 @@ class LLMRuntime:
         except Exception:
             return
 
-    def _release_backend(self, backend: object) -> None:
-        with self._lock:
-            self._owned_backends = [
-                owned for owned in self._owned_backends if owned is not backend
-            ]
-            self._retired_backends = [
-                retired for retired in self._retired_backends if retired is not backend
-            ]
-            self._pending_retirements = [
-                pending
-                for pending in self._pending_retirements
-                if pending is not backend
-            ]
-
     async def _close_owned(self) -> None:
+        """Release cached agents and profiles; agents own no explicit close."""
         with self._lock:
-            candidates = (*self._retired_backends, *self._owned_backends)
-            self._backends.clear()
+            self._agents.clear()
             self._profiles.clear()
-        unique = tuple(dict.fromkeys(map(id, candidates)))
-        by_id = {id(backend): backend for backend in candidates}
-        for backend_id in unique:
-            backend = by_id[backend_id]
-            try:
-                result = backend.close()
-                if inspect.isawaitable(result):
-                    await cast("Awaitable[object]", result)
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                pass
-            self._release_backend(backend)
-        with self._lock:
             self.state = "CLOSED"
 
     async def close(self) -> None:
@@ -991,7 +594,7 @@ _managed_runtime_lock = threading.RLock()
 _lifecycle_coordinator = _LifecycleCoordinator()
 
 
-async def _finish_cleanup_before_cancellation(cleanup: Awaitable[None]) -> None:
+async def _finish_cleanup_before_cancellation(cleanup: Any) -> None:
     """Keep lifecycle serialization until owned cleanup finishes."""
     task = asyncio.ensure_future(cleanup)
     cancelled = False

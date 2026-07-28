@@ -75,9 +75,11 @@ Lingchu Bot 使用 NoneBot2 的环境变量系统。将 `.env.example` 复制为
 
 ## LLM 服务
 
-LLM 后端在 localstore 管理的 `llm.toml` profile 中配置。请把提供商凭据放在
-`OPENAI_API_KEY` 这类部署环境变量中，再通过 profile 的 `api_key_env` 引用变量名。
-部署级 LLM 变量不再作为兜底来源。
+Pydantic AI Agent 通过 localstore 管理的 `llm.toml` 中的 `[pydantic-ai]` 段配置。
+请把提供商凭据放在 `LINGCHU_AI_API_KEY` 这类部署环境变量中，再通过 `api_key_env`
+引用变量名。`LINGCHU_AI_MODEL`（Pydantic AI 模型字符串，如 `openai:gpt-5.2` 或
+`anthropic:claude-sonnet-4-5`）在 `lingchu config init` 写入新的 `llm.toml` 时用于
+填充 `[pydantic-ai] model` 字段；部署级 LLM 变量不再作为兜底来源。
 
 ## 撤回设置
 

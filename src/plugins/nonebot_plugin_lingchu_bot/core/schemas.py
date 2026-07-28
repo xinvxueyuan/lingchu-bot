@@ -103,41 +103,31 @@ MENU_SCHEMA_TEXT: Final = """{
 LLM_SCHEMA_TEXT: Final = """{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Lingchu Bot LLM Configuration",
+  "description": "Configures the in-process Pydantic AI agent. Legacy eve/profiles/router sections are ignored.",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "properties": {
-    "default_profile": {"type": "string"},
-    "profiles": {"type": "object", "propertyNames": {"type": "string", "minLength": 1}, "additionalProperties": {"type": "object", "additionalProperties": false, "required": ["model"], "properties": {
-      "backend": {"type": "string", "enum": ["litellm", "openai"]}, "model": {"type": "string", "minLength": 1},
-      "base_url": {"type": "string", "format": "uri"}, "api_key_env": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
-      "organization": {"type": "string"}, "project": {"type": "string"}, "timeout": {"type": "number", "exclusiveMinimum": 0},
-      "max_retries": {"type": "integer", "minimum": 0, "maximum": 20}, "default_headers": {"type": "object", "additionalProperties": {"type": "string"}},
-      "default_query": {"type": "object", "maxProperties": 100, "description": "Query parameters passed to the provider."}, "provider_options": {"type": "object", "maxProperties": 100, "description": "Provider-specific options; unknown keys are forwarded."}, "litellm_generation": {"type": "string", "enum": ["responses", "chat"]},
-      "allow_private_network": {"type": "boolean"}, "allow_credentials_to_custom_base_url": {"type": "boolean"}
-    }}},
-    "router": {"type": "object", "additionalProperties": false, "description": "LiteLLM router settings. Provider-specific extensions belong in extensions.", "properties": {
-      "enabled": {"type": "boolean"}, "strategy": {"type": "string"}, "num_retries": {"type": "integer", "minimum": 0}, "timeout": {"type": "number", "exclusiveMinimum": 0}, "extensions": {"type": "object", "additionalProperties": true}
+    "pydantic-ai": {"type": "object", "additionalProperties": false, "description": "In-process Pydantic AI agent configuration.", "required": ["model"], "properties": {
+      "model": {"type": "string", "pattern": "^[\\\\w.-]+:[\\\\w./-]+$", "minLength": 1, "description": "Pydantic AI model string, e.g. \\"openai:gpt-5.2\\"."},
+      "api_key_env": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "Optional environment variable name holding the provider API key."},
+      "base_url": {"type": "string", "description": "Optional custom provider base URL."},
+      "timeout": {"type": "number", "exclusiveMinimum": 0, "default": 60}
+    }},
+    "mcp": {"type": "object", "additionalProperties": false, "description": "MCP Agent runtime toggles consumed by the Pydantic AI MCP capability.", "properties": {
+      "enabled": {"type": "boolean", "default": false},
+      "review_profile": {"type": "string", "default": "default"},
+      "max_tool_rounds": {"type": "integer", "minimum": 1, "maximum": 5, "default": 5},
+      "servers": {"type": "object", "description": "MCP server definitions keyed by stable name; each entry is handed to a Pydantic AI MCPToolset.", "additionalProperties": {"type": "object", "additionalProperties": false, "required": ["transport"], "properties": {
+        "transport": {"type": "string", "enum": ["stdio", "streamable_http"]},
+        "command": {"type": "string", "description": "Required when transport == \\"stdio\\"."},
+        "args": {"type": "array", "items": {"type": "string"}},
+        "url": {"type": "string", "description": "Required when transport == \\"streamable_http\\"."},
+        "headers_env": {"type": "string", "description": "Optional env var name holding a JSON headers dict."},
+        "allow_private_network": {"type": "boolean", "default": false}
+      }}}
     }},
     "observability": {"type": "object", "additionalProperties": false, "description": "Safe allowlisted stable-call logging.", "properties": {
       "enabled": {"type": "boolean", "default": true}
-    }},
-    "mcp": {"type": "object", "additionalProperties": false, "description": "Explicit reviewed MCP Agent runtime. Ordinary LLM calls remain tool-free.", "properties": {
-      "enabled": {"type": "boolean", "default": false},
-      "review_profile": {"type": "string", "minLength": 1},
-      "max_tool_rounds": {"type": "integer", "minimum": 1, "maximum": 5, "default": 5},
-      "max_parallel_tools": {"type": "integer", "minimum": 1, "maximum": 4, "default": 4},
-      "tool_timeout": {"type": "number", "exclusiveMinimum": 0, "maximum": 300, "default": 15},
-      "result_limit_bytes": {"type": "integer", "minimum": 1024, "maximum": 1048576, "default": 65536},
-      "request_timeout": {"type": "number", "exclusiveMinimum": 0, "maximum": 900, "default": 90},
-      "servers": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["name", "transport"], "properties": {
-        "name": {"type": "string", "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9_-]*$"},
-        "transport": {"type": "string", "enum": ["stdio", "streamable_http"]},
-        "command": {"type": "string", "minLength": 1},
-        "args": {"type": "array", "items": {"type": "string"}},
-        "url": {"type": "string", "format": "uri"},
-        "headers_env": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
-        "allow_private_network": {"type": "boolean", "default": false}
-      }} }
     }}
   }
 }

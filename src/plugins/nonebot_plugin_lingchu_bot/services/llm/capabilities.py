@@ -1,25 +1,27 @@
-"""Advisory, model-aware capability probes for configured LLM backends."""
+"""Advisory, model-aware capability probes for the Pydantic AI agent."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-import hashlib
-from importlib.metadata import PackageNotFoundError, version
 import threading
 from typing import TYPE_CHECKING, Literal
-
-from .security import sanitize_message
 
 if TYPE_CHECKING:
     from .types import CapabilitySupport, LLMProfile
 
-type _CapabilityCacheKey = tuple[str, str, str, str, str]
-_SDK_ATTRIBUTE = "sdk"
+type _CapabilityCacheKey = tuple[str, str]
+
+_WEB_SEARCH_PREFIXES: tuple[str, ...] = (
+    "openai:",
+    "anthropic:",
+    "google-gla:",
+    "google-vertex:",
+)
 
 
 @dataclass(frozen=True, slots=True)
 class CapabilityResult:
-    """One advisory capability result from an authoritative SDK probe."""
+    """One advisory capability result from a model-string heuristic."""
 
     capability: str
     support: CapabilitySupport
@@ -27,27 +29,13 @@ class CapabilityResult:
     reason: str | None = None
 
 
-def _base_url_fingerprint(value: str | None) -> str:
-    encoded = value.encode("utf-8", errors="replace") if value else b""
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def _sdk_version(sdk: object) -> str:
-    try:
-        value = getattr(sdk, "__version__", None)
-    except Exception:
-        return "unknown"
-    if type(value) is str:
-        return sanitize_message(value)
-    try:
-        installed = version("litellm")
-    except PackageNotFoundError:
-        return "unknown"
-    return sanitize_message(installed)
-
-
 class CapabilityRegistry:
-    """Cache advisory probes without retaining credentials or provider bodies."""
+    """Cache advisory probes by ``(profile.model, capability)`` pair.
+
+    The Pydantic AI integration no longer probes an SDK object directly; the
+    probe is a pure heuristic over the configured model string. The cache
+    survives until ``invalidate()`` is called after a runtime reload.
+    """
 
     def __init__(self) -> None:
         self._cache: dict[_CapabilityCacheKey, CapabilityResult] = {}
@@ -61,75 +49,60 @@ class CapabilityRegistry:
         *,
         backend: object,
     ) -> CapabilityResult:
-        """Probe a model capability; unknown never prevents a native call."""
-        if profile.backend != "litellm":
-            return CapabilityResult(
-                capability,
-                "unknown",
-                "openai.model_metadata",
-                "model_support_not_authoritative",
-            )
-        source = f"litellm.supports_{capability}"
-        try:
-            sdk = getattr(backend, _SDK_ATTRIBUTE)
-        except Exception:
-            return CapabilityResult(
-                capability,
-                "unknown",
-                source,
-                "probe_error",
-            )
-        key = (
-            profile.backend,
-            profile.model,
-            _base_url_fingerprint(profile.base_url),
-            _sdk_version(sdk),
-            capability,
-        )
+        """Probe a model capability by inspecting the model string.
+
+        The ``backend`` parameter is retained for signature compatibility with
+        legacy callers (notably ``contracts.py``) but is intentionally ignored;
+        Pydantic AI agents do not expose a uniform SDK probe surface.
+
+        Args:
+            profile: Resolved LLM profile (only ``model`` is consulted).
+            capability: Advisory capability name; only ``"web_search"`` is
+                supported.
+            backend: Unused; kept for signature compatibility.
+
+        Returns:
+            A ``CapabilityResult`` whose ``support`` is ``"supported"`` when the
+            model string prefix is known to support the capability via Pydantic
+            AI's provider integration, ``"unknown"`` otherwise.
+        """
+        _ = backend
+        key: _CapabilityCacheKey = (profile.model, capability)
         with self._lock:
             cached = self._cache.get(key)
             generation = self._generation
         if cached is not None:
             return cached
-        try:
-            probe = getattr(sdk, f"supports_{capability}", None)
-        except Exception:
-            probe = None
-        if not callable(probe):
-            result = CapabilityResult(
-                capability,
-                "unknown",
-                source,
-                "probe_unavailable",
-            )
-        else:
-            try:
-                value = probe(model=profile.model)
-            except Exception:
-                result = CapabilityResult(
-                    capability,
-                    "unknown",
-                    source,
-                    "probe_error",
-                )
-            else:
-                support: CapabilitySupport = (
-                    "supported"
-                    if value is True
-                    else "unsupported"
-                    if value is False
-                    else "unknown"
-                )
-                result = CapabilityResult(
-                    capability,
-                    support,
-                    source,
-                    None if support != "unknown" else "invalid_probe_result",
-                )
+        result = self._probe_uncached(profile, capability)
         with self._lock:
             if generation != self._generation:
                 return result
             return self._cache.setdefault(key, result)
+
+    @staticmethod
+    def _probe_uncached(
+        profile: LLMProfile, capability: Literal["web_search"]
+    ) -> CapabilityResult:
+        if capability != "web_search":
+            return CapabilityResult(
+                capability,
+                "unknown",
+                "pydantic_ai.model_string",
+                "capability_not_authoritative",
+            )
+        if profile.model.startswith(_WEB_SEARCH_PREFIXES):
+            return CapabilityResult(
+                capability,
+                "supported",
+                "pydantic_ai.model_string",
+                None,
+            )
+        return CapabilityResult(
+            capability,
+            "unknown",
+            "pydantic_ai.model_string",
+            "model_capability_not_authoritative",
+        )
 
     def invalidate(self) -> None:
         """Drop all cached probe results after configuration reload."""

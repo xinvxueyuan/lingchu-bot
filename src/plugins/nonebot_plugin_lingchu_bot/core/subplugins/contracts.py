@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 import ipaddress
 import re
-from time import monotonic
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import parse_qsl, unquote, urlsplit
 
@@ -25,7 +24,6 @@ from ...services.llm import (
     LLMError,
     MissingLLMContentError,
 )
-from ...services.llm.capabilities import probe_capability
 from ...services.llm.runtime import LLMRuntime, get_llm_runtime
 from ..http_security import download_public_http_bytes
 
@@ -209,46 +207,21 @@ async def complete_subplugin_web_search(
     *,
     profile: str | None = None,
 ) -> WebSearchResult | None:
-    """Complete a child-owned native web-search prompt through the parent service."""
-    started = monotonic()
-    runtime = get_subplugin_llm_runtime()
-    try:
-        selected = runtime.profile(profile)
-        if selected.backend != "litellm":
-            logger.info(
-                "Subplugin LLM web search skipped: reason=unsupported, "
-                "duration={:.3f}s, sources=0",
-                monotonic() - started,
-            )
-            return None
-        backend = runtime.litellm(selected.name)
-        result = probe_capability(selected, "web_search", backend=backend)
-        if result.support != "supported":
-            logger.info(
-                "Subplugin LLM web search skipped: reason=unsupported, "
-                "duration={:.3f}s, sources=0",
-                monotonic() - started,
-            )
-            return None
-        response = await runtime.respond(
-            list(messages), profile=selected.name, tools=[{"type": "web_search"}]
-        )
-        text = _response_text(response.text)
-    except Exception:  # provider failures are soft failures for visual research
-        logger.warning(
-            "Subplugin LLM web search failed: reason=provider_error, "
-            "duration={:.3f}s, sources=0",
-            monotonic() - started,
-        )
-        return None
-    sources = _extract_source_urls(response.raw)
+    """Complete a child-owned native web-search prompt through the parent service.
+
+    Native web search was a LiteLLM-only capability; with the migration to
+    Pydantic AI the backend is always ``pydantic_ai`` and this entry point
+    is no longer supported. The function preserves the legacy log shape so
+    operators can correlate historical log lines, but always returns
+    ``None`` without invoking the LLM runtime.
+    """
+    _ = (messages, profile)
     logger.info(
-        "Subplugin LLM web search completed: reason=success, duration={:.3f}s, "
-        "sources={}",
-        monotonic() - started,
-        len(sources),
+        "Subplugin LLM web search skipped: reason=unsupported, "
+        "duration={:.3f}s, sources=0",
+        0.0,
     )
-    return WebSearchResult(text=text, sources=sources)
+    return None
 
 
 @dataclass(frozen=True, slots=True)

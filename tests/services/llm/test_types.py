@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
-from types import MappingProxyType
 from typing import Any, cast, override
 
 import pytest
@@ -36,28 +35,14 @@ HostileNameMeta = cast(
 HostileType = HostileNameMeta("HostileType", (), {})
 
 
-def test_profile_is_frozen_slotted_and_deeply_freezes_mappings() -> None:
-    headers = {"X-Trace": "enabled"}
-    query = {"filters": [{"kind": "safe"}]}
-    options = {"nested": {"items": [1, 2]}}
-
+def test_profile_is_frozen_slotted() -> None:
     profile = LLMProfile(
         name="primary",
-        backend="litellm",
+        backend="pydantic_ai",
         model="provider/model",
-        default_headers=headers,
-        default_query=query,
-        provider_options=options,
     )
-    headers["X-Trace"] = "changed"
-    query["filters"][0]["kind"] = "changed"
-    options["nested"]["items"].append(3)
 
     assert not hasattr(profile, "__dict__")
-    assert isinstance(profile.default_headers, MappingProxyType)
-    assert profile.default_headers["X-Trace"] == "enabled"
-    assert profile.default_query["filters"] == (MappingProxyType({"kind": "safe"}),)
-    assert profile.provider_options["nested"]["items"] == (1, 2)
     attribute = "model"
     with pytest.raises(FrozenInstanceError):
         setattr(profile, attribute, "other")
@@ -66,44 +51,17 @@ def test_profile_is_frozen_slotted_and_deeply_freezes_mappings() -> None:
 def test_profile_repr_does_not_expose_api_keys_or_nested_secrets() -> None:
     profile = LLMProfile(
         name="primary",
-        backend="openai",
+        backend="pydantic_ai",
         model="gpt-test",
         base_url="https://synthetic-host.invalid/path",
         api_key="sk-profile-secret",
-        organization="synthetic-organization",
-        project="synthetic-project",
-        default_headers={"Authorization": "Bearer header-secret"},
-        default_query={"safe": "synthetic-query-value"},
-        provider_options={"nested": {"password": "provider-secret"}},
     )
 
     rendered = repr(profile)
 
     assert "api_key" not in rendered
     assert "sk-profile-secret" not in rendered
-    assert "header-secret" not in rendered
-    assert "provider-secret" not in rendered
     assert "synthetic-host" not in rendered
-    assert "synthetic-organization" not in rendered
-    assert "synthetic-project" not in rendered
-    assert "synthetic-query-value" not in rendered
-
-
-def test_profile_rejects_values_that_cannot_be_deeply_frozen() -> None:
-    unsupported_values: tuple[object, ...] = (
-        bytearray(b"synthetic"),
-        {"unsupported"},
-        type("MutableListSubclass", (list,), {})(["synthetic"]),
-    )
-
-    for value in unsupported_values:
-        with pytest.raises(TypeError, match=r"^unsupported LLM configuration value$"):
-            LLMProfile(
-                name="invalid",
-                backend="openai",
-                model="gpt-test",
-                provider_options=cast("Any", {"value": value}),
-            )
 
 
 def test_usage_response_and_event_are_frozen_slotted_value_objects() -> None:
@@ -114,7 +72,7 @@ def test_usage_response_and_event_are_frozen_slotted_value_objects() -> None:
         usage=usage,
         request_id="req-1",
         model="gpt-test",
-        backend="openai",
+        backend="pydantic_ai",
         raw={"native": True},
     )
     event = LLMEvent(type="completed", data=response, raw={"event": "done"})
@@ -136,7 +94,7 @@ def test_response_and_event_repr_do_not_call_provider_repr() -> None:
         usage=None,
         request_id="req-1",
         model="gpt-test",
-        backend="openai",
+        backend="pydantic_ai",
         raw=HostileRepr(),
     )
     event = LLMEvent(type="native", data=HostileRepr(), raw=HostileRepr())
@@ -153,7 +111,7 @@ def test_response_repr_handles_hostile_output_length() -> None:
         usage=None,
         request_id="req-1",
         model="gpt-test",
-        backend="openai",
+        backend="pydantic_ai",
         raw=None,
     )
 
@@ -172,15 +130,13 @@ def test_event_repr_handles_hostile_metaclass_names() -> None:
     assert rendered.count("<object>") == 2
 
 
-def test_profile_default_factories_produce_empty_frozen_mappings() -> None:
-    profile = LLMProfile(name="minimal", backend="openai", model="gpt-test")
+def test_profile_defaults_use_documented_optional_values() -> None:
+    profile = LLMProfile(name="minimal", backend="pydantic_ai", model="gpt-test")
 
-    assert dict(profile.default_headers) == {}
-    assert dict(profile.default_query) == {}
-    assert dict(profile.provider_options) == {}
-    assert isinstance(profile.default_headers, MappingProxyType)
-    assert isinstance(profile.default_query, MappingProxyType)
-    assert isinstance(profile.provider_options, MappingProxyType)
+    assert profile.base_url is None
+    assert profile.api_key is None
+    assert profile.timeout == 60.0
+    assert profile.max_retries == 2
 
 
 def test_response_repr_reports_usage_present_and_tuple_length() -> None:
@@ -191,7 +147,7 @@ def test_response_repr_reports_usage_present_and_tuple_length() -> None:
         usage=usage,
         request_id="req-1",
         model="gpt-test",
-        backend="litellm",
+        backend="pydantic_ai",
         raw={"native": True},
     )
 
@@ -199,7 +155,7 @@ def test_response_repr_reports_usage_present_and_tuple_length() -> None:
 
     assert "usage=present" in rendered
     assert "output=<tuple:3>" in rendered
-    assert 'backend="litellm"' in rendered
+    assert 'backend="pydantic_ai"' in rendered
 
 
 def test_response_repr_reports_none_usage_and_request_id() -> None:
@@ -209,7 +165,7 @@ def test_response_repr_reports_none_usage_and_request_id() -> None:
         usage=None,
         request_id=None,
         model=None,
-        backend="openai",
+        backend="pydantic_ai",
         raw=None,
     )
 
@@ -234,20 +190,12 @@ def test_event_repr_reports_native_data_and_raw_type_names() -> None:
 def test_profile_repr_redacts_all_sensitive_configured_fields() -> None:
     profile = LLMProfile(
         name="primary",
-        backend="litellm",
+        backend="pydantic_ai",
         model="provider/model",
         base_url="https://synthetic-host.invalid/path",
         api_key="sk-profile-secret",
-        organization="synthetic-organization",
-        project="synthetic-project",
         timeout=120.0,
         max_retries=5,
-        default_headers={"X-Trace": "enabled", "Authorization": "Bearer secret"},
-        default_query={"safe": "value"},
-        provider_options={"nested": {"password": "provider-secret"}},
-        litellm_generation="chat",
-        allow_private_network=True,
-        allow_credentials_to_custom_base_url=True,
     )
 
     rendered = repr(profile)
@@ -255,16 +203,9 @@ def test_profile_repr_redacts_all_sensitive_configured_fields() -> None:
     assert "LLMProfile(" in rendered
     assert '"timeout":120.0' in rendered
     assert '"max_retries":5' in rendered
-    assert '"litellm_generation":"chat"' in rendered
-    assert '"allow_private_network":true' in rendered
-    assert '"allow_credentials_to_custom_base_url":"<redacted>"' in rendered
-    assert '"default_headers":"<redacted>"' in rendered
-    assert '"default_query":"<redacted>"' in rendered
-    assert '"provider_options":"<redacted:1>"' in rendered
+    assert '"backend":"pydantic_ai"' in rendered
     assert "sk-profile-secret" not in rendered
     assert "synthetic-host" not in rendered
-    assert "synthetic-organization" not in rendered
-    assert "synthetic-project" not in rendered
 
 
 def test_safe_length_returns_none_for_non_sized_object() -> None:

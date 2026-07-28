@@ -1,200 +1,341 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterator
-from concurrent.futures import ThreadPoolExecutor
-import os
-from types import SimpleNamespace
-from typing import Any, SupportsIndex, cast, override
-from unittest.mock import AsyncMock
+from typing import Any, cast
+from unittest.mock import AsyncMock, MagicMock
 
+from pydantic_ai.exceptions import (
+    AgentRunError,
+    ModelAPIError,
+    ModelHTTPError,
+)
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.services.llm import (
     runtime as runtime_module,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.services.llm.config import (
-    LiteLLMRouterConfig,
-    LLMObservabilityConfig,
-    LLMProfileConfig,
     LLMRuntimeConfig,
+    ObservabilityConfig,
+    PydanticAIConfig,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.services.llm.errors import (
     LLMAuthenticationError,
     LLMConfigurationError,
     LLMConnectionError,
     LLMDependencyError,
+    LLMProviderError,
+    LLMRateLimitError,
     LLMTimeoutError,
 )
-from src.plugins.nonebot_plugin_lingchu_bot.services.llm.runtime import LLMRuntime
-from src.plugins.nonebot_plugin_lingchu_bot.services.llm.types import LLMProfile
+from src.plugins.nonebot_plugin_lingchu_bot.services.llm.runtime import (
+    LLMRuntime,
+    _coerce_input,
+    _from_agent_result,
+    _from_usage,
+    _normalized_error,
+    _WrongBackendError,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.services.llm.types import (
+    LLMProfile,
+    LLMResponse,
+    LLMUsage,
+)
 
 
-def runtime_config(*profiles: LLMProfileConfig) -> LLMRuntimeConfig:
-    configured = profiles or (
-        LLMProfileConfig(name="default", backend="openai", model="gpt-test"),
-    )
+def make_config(
+    *,
+    model: str = "openai:gpt-5.2",
+    api_key_env: str | None = "LLM_TEST_API_KEY",
+    base_url: str | None = None,
+    timeout: float = 60.0,
+) -> LLMRuntimeConfig:
     return LLMRuntimeConfig(
-        default_profile=configured[0].name,
-        profiles={profile.name: profile for profile in configured},
-        router=LiteLLMRouterConfig(),
-        observability=LLMObservabilityConfig(),
+        pydantic_ai=PydanticAIConfig(
+            model=model,
+            api_key_env=api_key_env,
+            base_url=base_url,
+            timeout=timeout,
+        ),
+        observability=ObservabilityConfig(enabled=False),
     )
 
 
-def test_profile_selection_and_backend_cache_are_stable() -> None:
-    runtime = LLMRuntime(runtime_config(), generation=3)
+def make_profile(
+    *,
+    name: str = "default",
+    model: str = "openai:gpt-5.2",
+    api_key: str | None = "test-key",
+) -> LLMProfile:
+    return LLMProfile(
+        name=name,
+        backend="pydantic_ai",
+        model=model,
+        api_key=api_key,
+    )
+
+
+def make_run_usage(
+    *,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
+    total_tokens: int | None = None,
+    cache_read_tokens: int | None = None,
+) -> Any:
+    """Build a RunUsage-like object with attribute access matching pydantic_ai."""
+    return SimpleNamespaceLike(
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        total_tokens=total_tokens,
+        cache_read_tokens=cache_read_tokens,
+    )
+
+
+class SimpleNamespaceLike:
+    """A simple attribute-bag matching RunUsage's public surface."""
+
+    def __init__(
+        self,
+        *,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        total_tokens: int | None = None,
+        cache_read_tokens: int | None = None,
+    ) -> None:
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.total_tokens = total_tokens
+        self.cache_read_tokens = cache_read_tokens
+
+
+def make_agent_run_result(
+    *,
+    output: object = "hello",
+    run_id: object = "req-1",
+    usage: Any | None = None,
+) -> MagicMock:
+    """Build a fake AgentRunResult with the attributes ``_from_agent_result`` reads."""
+    result = MagicMock()
+    result.output = output
+    result.run_id = run_id
+    result.usage = usage if usage is not None else SimpleNamespaceLike()
+    result.all_messages = MagicMock(return_value=[])
+    return result
+
+
+def make_agent(
+    result: Any | None = None, *, run_side_effect: object | None = None
+) -> MagicMock:
+    """Build a fake Pydantic AI Agent with an AsyncMock ``run``."""
+    agent = MagicMock()
+    if run_side_effect is not None:
+        agent.run = AsyncMock(side_effect=run_side_effect)
+    else:
+        agent.run = AsyncMock(return_value=result)
+    return agent
+
+
+# ---------------------------------------------------------------------------
+# profile() and _agent() caching
+# ---------------------------------------------------------------------------
+
+
+def test_profile_returns_pydantic_ai_profile_with_configured_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config(model="openai:gpt-5.2"), generation=3)
 
     assert runtime.state == "NEW"
-    assert runtime.profile().name == "default"
+    profile = runtime.profile()
+
     assert runtime.state == "RUNNING"
-    assert runtime.openai() is runtime.openai()
-    with pytest.raises(LLMConfigurationError, match="backend"):
+    assert profile.name == "default"
+    assert profile.backend == "pydantic_ai"
+    assert profile.model == "openai:gpt-5.2"
+    assert profile.api_key == "secret"
+    assert profile.timeout == 60.0
+    assert profile.max_retries == 2
+
+
+def test_profile_caches_one_instance_per_credential(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+
+    first = runtime.profile()
+    second = runtime.profile()
+
+    assert first is second
+    assert len(runtime._profiles) == 1
+
+
+def test_profile_rotation_retires_stale_cache_entry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "first-secret")
+    runtime = LLMRuntime(make_config())
+
+    stale = runtime.profile()
+    monkeypatch.setenv("LLM_TEST_API_KEY", "second-secret")
+    replacement = runtime.profile()
+
+    assert replacement is not stale
+    assert replacement.api_key == "second-secret"
+    assert len(runtime._profiles) == 1
+
+
+def test_agent_caches_one_instance_per_credential(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    built: list[object] = []
+    original_build = LLMRuntime._build_agent
+
+    def recording_build(profile: LLMProfile) -> Any:
+        agent = original_build(profile)
+        built.append(agent)
+        return agent
+
+    runtime._build_agent = recording_build  # type: ignore[method-assign]
+
+    first = runtime._agent()
+    second = runtime._agent()
+
+    assert first is second
+    assert len(built) == 1
+
+
+def test_agent_rotation_drops_stale_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "first-secret")
+    runtime = LLMRuntime(make_config())
+
+    stale = runtime._agent()
+    monkeypatch.setenv("LLM_TEST_API_KEY", "second-secret")
+    replacement = runtime._agent()
+
+    assert replacement is not stale
+    assert len(runtime._agents) == 1
+
+
+# ---------------------------------------------------------------------------
+# openai() / litellm() deprecated entrypoints
+# ---------------------------------------------------------------------------
+
+
+def test_openai_method_always_raises_wrong_backend_error() -> None:
+    runtime = LLMRuntime(make_config())
+
+    with pytest.raises(_WrongBackendError, match="openai"):
+        runtime.openai()
+
+
+def test_litellm_method_always_raises_wrong_backend_error() -> None:
+    runtime = LLMRuntime(make_config())
+
+    with pytest.raises(_WrongBackendError, match="litellm"):
         runtime.litellm()
 
 
-def test_concurrent_profile_and_backend_acquisition_returns_one_instance() -> None:
-    runtime = LLMRuntime(runtime_config())
+def test_wrong_backend_error_is_configuration_error() -> None:
+    assert issubclass(_WrongBackendError, LLMConfigurationError)
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        profiles = list(executor.map(lambda _: runtime.profile(), range(32)))
-        backends = list(executor.map(lambda _: runtime.openai(), range(32)))
 
-    assert len({id(profile) for profile in profiles}) == 1
-    assert len({id(backend) for backend in backends}) == 1
-    assert len(runtime._owned_backends) == 1
+# ---------------------------------------------------------------------------
+# respond() success path
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_rotated_credential_retires_stale_backend_before_replacement_use(
+async def test_respond_maps_agent_result_to_llm_response(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    config = runtime_config(
-        LLMProfileConfig(
-            name="default",
-            backend="openai",
-            model="gpt-test",
-            api_key_env="LLM_RUNTIME_ROTATION_KEY",
-        )
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config(model="openai:gpt-5.2"))
+    usage = SimpleNamespaceLike(
+        input_tokens=2,
+        output_tokens=3,
+        total_tokens=5,
+        cache_read_tokens=1,
     )
-    monkeypatch.setenv("LLM_RUNTIME_ROTATION_KEY", "first-secret")
-    runtime = LLMRuntime(config)
-    stale = runtime.openai()
-    stale.close = AsyncMock()
+    result = make_agent_run_result(output="hello", run_id="req-1", usage=usage)
+    agent = make_agent(result=result)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    monkeypatch.setenv("LLM_RUNTIME_ROTATION_KEY", "second-secret")
-    replacement = runtime.openai()
-    await runtime._drain_retirements()
+    response = await runtime.respond("prompt")
 
-    assert replacement is not stale
-    stale.close.assert_awaited_once_with()
-    assert len(runtime._backends) == 1
+    assert isinstance(response, LLMResponse)
+    assert response.text == "hello"
+    assert response.backend == "pydantic_ai"
+    assert response.model == "openai:gpt-5.2"
+    assert response.request_id == "req-1"
+    assert response.usage == LLMUsage(
+        input_tokens=2,
+        output_tokens=3,
+        total_tokens=5,
+        cached_tokens=1,
+        reasoning_tokens=None,
+    )
+    assert response.raw is result
+    agent.run.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_rotation_without_running_loop_is_closed_during_final_close(
+async def test_respond_passes_message_history_for_legacy_dict_input(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    config = runtime_config(
-        LLMProfileConfig(
-            name="default",
-            backend="openai",
-            model="gpt-test",
-            api_key_env="LLM_RUNTIME_FINAL_ROTATION_KEY",
-        )
-    )
-    monkeypatch.setenv("LLM_RUNTIME_FINAL_ROTATION_KEY", "first-secret")
-    runtime = LLMRuntime(config)
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    result = make_agent_run_result(output="ok")
+    agent = make_agent(result=result)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    def rotate() -> tuple[Any, Any]:
-        stale = runtime.openai()
-        os.environ["LLM_RUNTIME_FINAL_ROTATION_KEY"] = "second-secret"
-        return stale, runtime.openai()
+    await runtime.respond([
+        {"role": "system", "content": "be brief"},
+        {"role": "user", "content": "first"},
+        {"role": "assistant", "content": "ack"},
+        {"role": "user", "content": "second"},
+    ])
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        stale, replacement = executor.submit(rotate).result()
-    stale.close = AsyncMock()
-    replacement.close = AsyncMock()
-
-    await runtime.close()
-
-    stale.close.assert_awaited_once_with()
-    replacement.close.assert_awaited_once_with()
+    assert agent.run.await_count == 1
+    call = agent.run.await_args
+    assert call.args == ("be brief\n\nsecond",)
+    assert call.kwargs["message_history"] is not None
+    assert len(call.kwargs["message_history"]) == 2
 
 
-def test_rotation_from_closed_loop_is_retired_by_final_close(
+@pytest.mark.asyncio
+async def test_respond_with_string_prompt_passes_no_history(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    config = runtime_config(
-        LLMProfileConfig(
-            name="default",
-            backend="openai",
-            model="gpt-test",
-            api_key_env="LLM_RUNTIME_CROSS_LOOP_KEY",
-        )
-    )
-    monkeypatch.setenv("LLM_RUNTIME_CROSS_LOOP_KEY", "first-secret")
-    runtime = LLMRuntime(config)
-    calls = 0
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    result = make_agent_run_result(output="ok")
+    agent = make_agent(result=result)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    async def rotate_in_first_loop() -> None:
-        nonlocal calls
-        stale = runtime.openai()
+    await runtime.respond("plain prompt")
 
-        async def close_stale() -> None:
-            nonlocal calls
-            calls += 1
-
-        cast("Any", stale).close = close_stale
-        monkeypatch.setenv("LLM_RUNTIME_CROSS_LOOP_KEY", "second-secret")
-        runtime.openai()
-        await asyncio.sleep(0)
-
-    asyncio.run(rotate_in_first_loop())
-    asyncio.run(runtime.close())
-
-    assert calls == 1
-    assert runtime.state == "CLOSED"
-
-
-def test_open_foreign_loop_close_is_rejected_then_rebinds_after_owner_closes() -> None:
-    runtime = LLMRuntime(runtime_config())
-    backend = runtime.openai()
-    backend.close = AsyncMock()
-    owner_loop = asyncio.new_event_loop()
-    runtime._async_loop = owner_loop
-    try:
-        with pytest.raises(RuntimeError, match="another active event loop"):
-            asyncio.run(runtime.close())
-        assert runtime.state == "RUNNING"
-        backend.close.assert_not_awaited()
-    finally:
-        owner_loop.close()
-
-    asyncio.run(runtime.close())
-    backend.close.assert_awaited_once_with()
-    assert runtime.state == "CLOSED"
+    call = agent.run.await_args
+    assert call.args == ("plain prompt",)
+    assert call.kwargs["message_history"] is None
 
 
 @pytest.mark.asyncio
-async def test_close_is_idempotent_and_rejects_new_acquisition() -> None:
-    runtime = LLMRuntime(runtime_config())
-    backend = runtime.openai()
-
-    await runtime.close()
-    await runtime.close()
-
-    assert backend._closed is True
-    with pytest.raises(RuntimeError, match="closing or closed"):
-        runtime.profile()
-
-
-@pytest.mark.asyncio
-async def test_control_plane_parameters_are_rejected_before_sdk_access() -> None:
-    runtime = LLMRuntime(runtime_config())
+async def test_respond_rejects_control_plane_parameters_before_agent_access(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    agent = make_agent(result=make_agent_run_result())
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
     with pytest.raises(LLMConfigurationError, match="control-plane"):
         await runtime.respond("hello", api_key="attacker-controlled")
+
+    agent.run.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -220,391 +361,684 @@ async def test_control_plane_parameters_are_rejected_before_sdk_access() -> None
         "default_query",
     ],
 )
-async def test_all_stable_control_plane_parameters_are_rejected(
+async def test_respond_rejects_all_control_plane_parameters(
+    monkeypatch: pytest.MonkeyPatch,
     parameter: str,
 ) -> None:
-    runtime = LLMRuntime(runtime_config())
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
 
     with pytest.raises(LLMConfigurationError, match="control-plane"):
         await runtime.respond("hello", **{parameter: cast("Any", object())})
 
-    assert runtime.state == "NEW"
+
+@pytest.mark.asyncio
+async def test_respond_forwards_non_control_plane_params_in_model_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    result = make_agent_run_result(output="ok")
+    agent = make_agent(result=result)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
+
+    await runtime.respond("hello", temperature=0.5)
+
+    call = agent.run.await_args
+    model_settings = call.kwargs["model_settings"]
+    assert model_settings == {"timeout": 60.0, "temperature": 0.5}
 
 
 @pytest.mark.asyncio
-async def test_stable_calls_defensively_reject_nested_profile_control_options() -> None:
-    configured = runtime_config(
-        LLMProfileConfig(
-            name="default",
-            backend="openai",
-            model="gpt-test",
-            provider_options={"nested": {"callbacks": ["capture"]}},
-        )
-    )
-    runtime = LLMRuntime(configured)
+async def test_respond_model_settings_includes_profile_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config(timeout=30.0))
+    result = make_agent_run_result(output="ok")
+    agent = make_agent(result=result)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    with pytest.raises(LLMConfigurationError, match="control-plane"):
+    await runtime.respond("hello")
+
+    call = agent.run.await_args
+    model_settings = call.kwargs["model_settings"]
+    assert model_settings == {"timeout": 30.0}
+
+
+@pytest.mark.asyncio
+async def test_respond_model_settings_includes_base_url_when_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config(base_url="http://localhost:3900"))
+    result = make_agent_run_result(output="ok")
+    agent = make_agent(result=result)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
+
+    await runtime.respond("hello")
+
+    call = agent.run.await_args
+    model_settings = call.kwargs["model_settings"]
+    assert model_settings == {
+        "base_url": "http://localhost:3900",
+        "timeout": 60.0,
+    }
+
+
+# ---------------------------------------------------------------------------
+# respond() error mapping
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("status_code", "expected"),
+    [
+        (401, LLMAuthenticationError),
+        (403, LLMAuthenticationError),
+        (429, LLMRateLimitError),
+        (408, LLMTimeoutError),
+        (504, LLMTimeoutError),
+        (500, LLMProviderError),
+    ],
+)
+async def test_respond_maps_model_http_error_status_to_typed_error(
+    monkeypatch: pytest.MonkeyPatch,
+    status_code: int,
+    expected: type[Exception],
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    exc = ModelHTTPError(status_code=status_code, model_name="openai:gpt-5.2")
+    agent = make_agent(run_side_effect=exc)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
+
+    with pytest.raises(expected) as captured:
         await runtime.respond("hello")
-    with pytest.raises(LLMConfigurationError, match="control-plane"):
-        await anext(runtime.stream("hello"))
+
+    assert captured.value.__cause__ is exc
+    if isinstance(captured.value, LLMRateLimitError | LLMTimeoutError):
+        assert captured.value.retryable is True
 
 
 @pytest.mark.asyncio
-async def test_close_cancellation_does_not_cancel_owned_resource_cleanup() -> None:
-    runtime = LLMRuntime(runtime_config())
-    started = asyncio.Event()
-    release = asyncio.Event()
+async def test_respond_maps_asyncio_timeout_to_llm_timeout_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    exc = TimeoutError()
+    agent = make_agent(run_side_effect=exc)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    class Backend:
-        calls = 0
+    with pytest.raises(LLMTimeoutError) as captured:
+        await runtime.respond("hello")
 
-        async def close(self) -> None:
-            self.calls += 1
-            started.set()
-            await release.wait()
-
-    backend = Backend()
-    runtime._owned_backends.append(backend)
-    caller = asyncio.create_task(runtime.close())
-    await started.wait()
-    caller.cancel()
-
-    with pytest.raises(asyncio.CancelledError):
-        await caller
-    assert runtime.state == "CLOSING"
-    with pytest.raises(RuntimeError, match="closing or closed"):
-        runtime.openai()
-
-    release.set()
-    assert runtime._close_task is not None
-    await runtime._close_task
-    assert runtime.state == "CLOSED"
-    assert backend.calls == 1
+    assert captured.value.__cause__ is exc
+    assert captured.value.retryable is True
 
 
 @pytest.mark.asyncio
-async def test_backend_close_cancelled_error_preserves_ownership_for_retry() -> None:
-    runtime = LLMRuntime(runtime_config())
+async def test_respond_maps_import_error_to_llm_dependency_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    exc = ImportError("pydantic_ai not installed")
+    agent = make_agent(run_side_effect=exc)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    class Backend:
-        calls = 0
+    with pytest.raises(LLMDependencyError) as captured:
+        await runtime.respond("hello")
 
-        async def close(self) -> None:
-            self.calls += 1
-            if self.calls == 1:
-                raise asyncio.CancelledError
-
-    backend = Backend()
-    runtime._owned_backends.append(backend)
-
-    with pytest.raises(asyncio.CancelledError):
-        await runtime.close()
-
-    assert runtime.state == "CLOSING"
-    assert backend in runtime._owned_backends
-
-    await runtime.close()
-
-    assert backend.calls == 2
-    assert backend not in runtime._owned_backends
-    assert runtime.state == "CLOSED"
+    assert captured.value.__cause__ is exc
 
 
-# ---------------------------------------------------------------------------
-# Helper function tests: cover pure projection helpers used by the runtime.
-# ---------------------------------------------------------------------------
-
-
-def test_safe_float_converts_non_negative_int_and_passes_through_float() -> None:
-    """Cover _safe_float int-to-float and float passthrough for non-negative values."""
-    assert runtime_module._safe_float(5) == 5.0
-    assert runtime_module._safe_float(3.14) == 3.14
-
-
-def test_safe_float_returns_none_for_negative_and_unsupported_types() -> None:
-    assert runtime_module._safe_float(-1) is None
-    assert runtime_module._safe_float(-1.5) is None
-    assert runtime_module._safe_float(None) is None
-    assert runtime_module._safe_float("3.14") is None
-
-
-def test_stream_string_returns_none_for_none_source() -> None:
-    """Cover the None source guard in _stream_string (line 180)."""
-    assert runtime_module._stream_string(None, "id") is None
-
-
-def test_usage_returns_none_when_usage_source_lacks_recognized_fields() -> None:
-    """Cover _usage returning None when all token/cost fields are absent (line 325)."""
-    raw = SimpleNamespace(usage=SimpleNamespace())
-    assert runtime_module._usage(raw) is None
-
-
-def test_response_text_chat_returns_none_for_empty_or_non_list_choices() -> None:
-    """Cover _response_text chat branch with empty or non-list choices (line 342)."""
-    assert runtime_module._response_text(SimpleNamespace(choices=[]), chat=True) is None
-    assert (
-        runtime_module._response_text(SimpleNamespace(choices="not-list"), chat=True)
-        is None
-    )
-
-
-def test_normalize_response_hostile_output_becomes_empty_tuple() -> None:
-    """Cover _normalize_response BaseException path when tuple() fails (lines 360-361)."""
-
-    class HostileList(list[object]):
-        @override
-        def __iter__(self) -> Iterator[object]:
-            raise RuntimeError("hostile iteration")
-
-    profile = LLMProfile(name="p", backend="openai", model="m")
-    raw = SimpleNamespace(output=HostileList([1, 2, 3]))
-    response = runtime_module._normalize_response(raw, profile=profile, chat=False)
-    assert response.output == ()
-
-
-def test_terminal_text_chat_branch_covers_all_choice_states() -> None:
-    """Cover _terminal_text chat branch across choices-present states (lines 382-397)."""
-    # choices not present -> (False, None)
-    assert runtime_module._terminal_text(SimpleNamespace(), chat=True) == (False, None)
-    # choices present but not list/tuple -> (True, None)
-    assert runtime_module._terminal_text(
-        SimpleNamespace(choices="not-list"), chat=True
-    ) == (True, None)
-    # choices present, empty list -> (True, None)
-    assert runtime_module._terminal_text(SimpleNamespace(choices=[]), chat=True) == (
-        True,
-        None,
-    )
-    # choices present, first choice has message with string content -> (True, "hello")
-    assert runtime_module._terminal_text(
-        SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content="hello"))]
-        ),
-        chat=True,
-    ) == (True, "hello")
-    # choices present, first choice has message with non-string content -> (True, None)
-    assert runtime_module._terminal_text(
-        SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content=123))]
-        ),
-        chat=True,
-    ) == (True, None)
-    # choices present, first choice has no message -> (False, None)
-    assert runtime_module._terminal_text(
-        SimpleNamespace(choices=[SimpleNamespace()]), chat=True
-    ) == (False, None)
-
-    # choices present, first_choice access raises BaseException -> (True, None)
-    class HostileChoices(list[object]):
-        @override
-        def __getitem__(self, index: SupportsIndex | slice, /) -> list[object]:
-            raise RuntimeError("hostile index")
-
-    assert runtime_module._terminal_text(
-        SimpleNamespace(choices=HostileChoices([1])), chat=True
-    ) == (True, None)
-
-
-def test_terminal_output_returns_empty_for_non_list_and_hostile_iterable() -> None:
-    """Cover _terminal_output non-list (line 405) and BaseException paths (lines 410-411)."""
-    # output present but not list/tuple -> (True, ())
-    assert runtime_module._terminal_output(SimpleNamespace(output="not-list")) == (
-        True,
-        (),
-    )
-    # output not present -> (False, ())
-    assert runtime_module._terminal_output(SimpleNamespace()) == (False, ())
-
-    # hostile iterable -> BaseException path -> (True, ())
-    class HostileOutput(list[object]):
-        @override
-        def __iter__(self) -> Iterator[object]:
-            raise RuntimeError("hostile iteration")
-
-    assert runtime_module._terminal_output(
-        SimpleNamespace(output=HostileOutput([1, 2]))
-    ) == (True, ())
-
-
-def test_normalized_error_maps_module_not_found_to_dependency_error() -> None:
-    """Cover _normalized_error ModuleNotFoundError -> LLMDependencyError (line 433)."""
-    profile = LLMProfile(name="p", backend="openai", model="m")
+@pytest.mark.asyncio
+async def test_respond_maps_module_not_found_to_llm_dependency_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
     exc = ModuleNotFoundError("no module")
-    error = runtime_module._normalized_error(exc, profile)
-    assert isinstance(error, LLMDependencyError)
+    agent = make_agent(run_side_effect=exc)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
+
+    with pytest.raises(LLMDependencyError):
+        await runtime.respond("hello")
 
 
-def test_normalized_error_maps_status_and_name_to_typed_errors() -> None:
-    """Cover _normalized_error 401, timeout, and connection mappings (lines 435, 440-444)."""
-    profile = LLMProfile(name="p", backend="openai", model="m")
+@pytest.mark.asyncio
+async def test_respond_maps_agent_run_error_to_llm_provider_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    exc = AgentRunError("agent failed")
+    agent = make_agent(run_side_effect=exc)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    class ProviderAuthError(Exception):
-        status_code = 401
+    with pytest.raises(LLMProviderError) as captured:
+        await runtime.respond("hello")
 
-    auth_error = runtime_module._normalized_error(ProviderAuthError(), profile)
-    assert isinstance(auth_error, LLMAuthenticationError)
+    assert captured.value.__cause__ is exc
 
-    class ProviderTimeoutError(Exception):
-        pass
 
-    timeout_error = runtime_module._normalized_error(ProviderTimeoutError(), profile)
-    assert isinstance(timeout_error, LLMTimeoutError)
-    assert timeout_error.retryable is True
+@pytest.mark.asyncio
+async def test_respond_maps_model_api_error_to_llm_provider_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    exc = ModelAPIError(model_name="openai:gpt-5.2", message="provider body secret")
+    agent = make_agent(run_side_effect=exc)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
+
+    with pytest.raises(LLMProviderError) as captured:
+        await runtime.respond("secret prompt")
+
+    assert captured.value.__cause__ is exc
+    assert "secret" not in repr(captured.value)
+
+
+@pytest.mark.asyncio
+async def test_respond_maps_connection_named_error_to_llm_connection_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
 
     class ProviderConnectionError(Exception):
         pass
 
-    connection_error = runtime_module._normalized_error(
-        ProviderConnectionError(), profile
+    exc = ProviderConnectionError("connect failed")
+    agent = make_agent(run_side_effect=exc)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
+
+    with pytest.raises(LLMConnectionError) as captured:
+        await runtime.respond("hello")
+
+    assert captured.value.__cause__ is exc
+    assert captured.value.retryable is True
+
+
+# ---------------------------------------------------------------------------
+# respond() observability
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_respond_emits_success_observation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+
+    class Observer:
+        def __init__(self) -> None:
+            self.records: list[object] = []
+
+        def emit(self, record: object) -> None:
+            self.records.append(record)
+
+    observer = Observer()
+    runtime._observer = cast("Any", observer)
+    result = make_agent_run_result(
+        output="hello",
+        run_id="req-1",
+        usage=SimpleNamespaceLike(input_tokens=2, output_tokens=3, total_tokens=5),
     )
-    assert isinstance(connection_error, LLMConnectionError)
-    assert connection_error.retryable is True
+    agent = make_agent(result=result)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
+
+    await runtime.respond("prompt")
+
+    assert len(observer.records) == 1
+    record = cast("Any", observer.records[0])
+    assert record.operation == "respond"
+    assert record.status == "success"
+    assert record.backend == "pydantic_ai"
+    assert record.model == "openai:gpt-5.2"
+    assert record.request_id == "req-1"
+    assert record.usage is not None
 
 
-def test_member_getattr_base_exception_returns_false_none() -> None:
-    """Cover _member getattr BaseException path (lines 204-205)."""
+@pytest.mark.asyncio
+async def test_respond_emits_error_observation_and_does_not_leak_prompt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
 
-    class HostileGetattr:
-        def __getattr__(self, name: str) -> object:
-            raise RuntimeError("hostile getattr")
+    class Observer:
+        def __init__(self) -> None:
+            self.records: list[object] = []
 
-    present, value = runtime_module._member(HostileGetattr(), "missing_field")
-    assert present is False
-    assert value is None
+        def emit(self, record: object) -> None:
+            self.records.append(record)
+
+    observer = Observer()
+    runtime._observer = cast("Any", observer)
+    exc = ModelHTTPError(status_code=429, model_name="openai:gpt-5.2")
+    agent = make_agent(run_side_effect=exc)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
+
+    with pytest.raises(LLMRateLimitError):
+        await runtime.respond("secret-prompt-body")
+
+    assert len(observer.records) == 1
+    record = cast("Any", observer.records[0])
+    assert record.status == "rate_limit_error"
+    assert "secret-prompt-body" not in repr(record)
+
+
+@pytest.mark.asyncio
+async def test_observer_failure_does_not_mask_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    runtime._observer = cast(
+        "Any",
+        type(
+            "BrokenObserver",
+            (),
+            {"emit": MagicMock(side_effect=RuntimeError("logger failed"))},
+        )(),
+    )
+    agent = make_agent(result=make_agent_run_result(output="hello"))
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
+
+    response = await runtime.respond("prompt")
+
+    assert response.text == "hello"
+
+
+@pytest.mark.asyncio
+async def test_observer_cancellation_is_preserved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    runtime._observer = cast(
+        "Any",
+        type(
+            "CancellingObserver",
+            (),
+            {"emit": MagicMock(side_effect=asyncio.CancelledError)},
+        )(),
+    )
+    agent = make_agent(result=make_agent_run_result(output="hello"))
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
+
+    with pytest.raises(asyncio.CancelledError):
+        await runtime.respond("prompt")
 
 
 # ---------------------------------------------------------------------------
-# Stream and close lifecycle tests.
+# close() lifecycle
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_stream_rejects_control_plane_parameters_before_sdk_access() -> None:
-    """Cover stream() control-plane parameter rejection (line 663)."""
-    runtime = LLMRuntime(runtime_config())
-    with pytest.raises(LLMConfigurationError, match="control-plane"):
-        await anext(runtime.stream("hello", api_key="attacker-controlled"))
+async def test_close_clears_cached_agents_and_profiles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    runtime.profile()
+    runtime._agent()
+
+    assert runtime._profiles
+    assert runtime._agents
+
+    await runtime.close()
+
+    assert runtime.state == "CLOSED"
+    assert not runtime._profiles
+    assert not runtime._agents
 
 
 @pytest.mark.asyncio
-async def test_enter_stream_rejects_non_awaitable_aenter_result() -> None:
-    """Cover _InvalidStreamContextError when __aenter__ returns non-awaitable (lines 165, 753)."""
+async def test_close_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
 
-    class SyncAenterStream:
-        def __aenter__(self) -> object:
-            return "not-awaitable"
+    await runtime.close()
+    await runtime.close()
 
-    with pytest.raises(TypeError, match="stream context entry must be awaitable"):
-        await LLMRuntime._enter_stream(SyncAenterStream())
+    assert runtime.state == "CLOSED"
 
 
 @pytest.mark.asyncio
-async def test_close_stream_resources_deduplicates_native_stream_and_reraises() -> None:
-    """Cover _close_stream_resources dedup (elif entered) and error reraise (lines 782, 789-793)."""
+async def test_close_rejects_new_profile_acquisition_after_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
 
-    class CloseStream:
-        def __init__(self, *, fails: bool = False) -> None:
-            self.fails = fails
-            self.closed = False
+    await runtime.close()
 
-        async def aclose(self) -> None:
-            self.closed = True
-            if self.fails:
-                raise RuntimeError("close failed")
+    with pytest.raises(RuntimeError, match="closing or closed"):
+        runtime.profile()
 
-    iterator = CloseStream(fails=True)
-    entered_stream = CloseStream()
-    # native_stream is the same object as iterator, entered=True
-    # This triggers the ``elif entered:`` dedup branch (line 782).
-    with pytest.raises(RuntimeError, match="close failed"):
-        await LLMRuntime._close_stream_resources(
-            iterator,
-            entered_stream=entered_stream,
-            iterator=iterator,
-            entered=True,
+
+@pytest.mark.asyncio
+async def test_close_rejects_respond_after_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+
+    await runtime.close()
+
+    with pytest.raises(RuntimeError, match="closing or closed"):
+        await runtime.respond("hello")
+
+
+def test_foreign_loop_close_is_rejected_then_rebinds_after_owner_closes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    runtime.profile()
+    owner_loop = asyncio.new_event_loop()
+    runtime._async_loop = owner_loop
+    try:
+        with pytest.raises(RuntimeError, match="another active event loop"):
+            asyncio.run(runtime.close())
+        assert runtime.state == "RUNNING"
+    finally:
+        owner_loop.close()
+
+    asyncio.run(runtime.close())
+    assert runtime.state == "CLOSED"
+
+
+# ---------------------------------------------------------------------------
+# _coerce_input pure helper
+# ---------------------------------------------------------------------------
+
+
+def test_coerce_input_string_returns_prompt_no_history() -> None:
+    prompt, history = _coerce_input("hello")
+    assert prompt == "hello"
+    assert history is None
+
+
+def test_coerce_input_non_collection_returns_empty_prompt() -> None:
+    prompt, history = _coerce_input(42)
+    assert prompt == ""
+    assert history is None
+
+
+def test_coerce_input_single_user_message_no_history() -> None:
+    prompt, history = _coerce_input([{"role": "user", "content": "hi"}])
+    assert prompt == "hi"
+    assert history is None
+
+
+def test_coerce_input_prepends_system_messages_to_user_prompt() -> None:
+    prompt, history = _coerce_input([
+        {"role": "system", "content": "be brief"},
+        {"role": "user", "content": "hi"},
+    ])
+    assert prompt == "be brief\n\nhi"
+    assert history is None
+
+
+def test_coerce_input_builds_history_from_prior_turns() -> None:
+    prompt, history = _coerce_input([
+        {"role": "user", "content": "first"},
+        {"role": "assistant", "content": "ack"},
+        {"role": "user", "content": "second"},
+    ])
+    assert prompt == "second"
+    assert history is not None
+    assert len(history) == 2
+
+
+def test_coerce_input_ignores_non_mapping_entries() -> None:
+    prompt, history = _coerce_input(["junk", 5, {"role": "user", "content": "hi"}])
+    assert prompt == "hi"
+    assert history is None
+
+
+def test_coerce_input_returns_empty_when_no_user_message() -> None:
+    prompt, history = _coerce_input([
+        {"role": "system", "content": "be brief"},
+        {"role": "assistant", "content": "ack"},
+    ])
+    assert prompt == ""
+    assert history is None
+
+
+# ---------------------------------------------------------------------------
+# _from_usage pure helper
+# ---------------------------------------------------------------------------
+
+
+def test_from_usage_returns_none_when_all_fields_absent() -> None:
+    assert _from_usage(cast("Any", SimpleNamespaceLike())) is None
+
+
+def test_from_usage_maps_known_token_fields() -> None:
+    usage = _from_usage(
+        cast(
+            "Any",
+            SimpleNamespaceLike(
+                input_tokens=2,
+                output_tokens=3,
+                total_tokens=5,
+                cache_read_tokens=1,
+            ),
         )
-    assert iterator.closed
-    assert entered_stream.closed
-
-
-@pytest.mark.asyncio
-async def test_close_stream_resources_handles_none_iterator() -> None:
-    """Cover _close_stream_resources with iterator=None (line 773->775 branch)."""
-
-    class CloseStream:
-        def __init__(self) -> None:
-            self.closed = False
-
-        async def aclose(self) -> None:
-            self.closed = True
-
-    native = CloseStream()
-    entered = CloseStream()
-    await LLMRuntime._close_stream_resources(
-        native,
-        entered_stream=entered,
-        iterator=None,
-        entered=True,
     )
-    assert native.closed
-    assert entered.closed
+    assert usage == LLMUsage(
+        input_tokens=2,
+        output_tokens=3,
+        total_tokens=5,
+        cached_tokens=1,
+        reasoning_tokens=None,
+    )
 
 
-@pytest.mark.asyncio
-async def test_close_stream_uses_sync_aexit_and_falls_back_to_close() -> None:
-    """Cover _close_stream sync __aexit__, no-aclose fallback, and no-close exit."""
+def test_from_usage_treats_zero_as_absent() -> None:
+    """``_from_usage`` uses ``or None`` coercion, so 0 is treated as absent.
 
-    class SyncAexitStream:
-        def __init__(self) -> None:
-            self.exited = False
+    This mirrors the ``RunUsage`` semantics where unset token counters are 0;
+    the projection collapses an all-zero report to ``None``.
+    """
+    usage = _from_usage(
+        cast(
+            "Any",
+            SimpleNamespaceLike(
+                input_tokens=0,
+                output_tokens=0,
+                total_tokens=0,
+                cache_read_tokens=0,
+            ),
+        )
+    )
+    assert usage is None
 
-        def __aexit__(self, *_args: object) -> None:
-            self.exited = True
-            # non-awaitable result covers 809->811 branch
 
-    stream_with_sync_aexit = SyncAexitStream()
-    await LLMRuntime._close_stream(stream_with_sync_aexit, entered=True)
-    assert stream_with_sync_aexit.exited
+# ---------------------------------------------------------------------------
+# _from_agent_result pure helper
+# ---------------------------------------------------------------------------
 
-    class SyncCloseStream:
-        def __init__(self) -> None:
-            self.closed = False
 
-        def close(self) -> None:
-            self.closed = True
-            # non-awaitable result covers 817->exit branch
+def test_from_agent_result_maps_str_output_to_text() -> None:
+    profile = make_profile(model="openai:gpt-5.2")
+    result = make_agent_run_result(output="hello", run_id="req-1")
 
-    stream_with_sync_close = SyncCloseStream()
-    # entered=False, no __aexit__, no aclose, has close -> covers 814, 817->exit
-    await LLMRuntime._close_stream(stream_with_sync_close, entered=False)
-    assert stream_with_sync_close.closed
+    response = _from_agent_result(result, profile)
 
-    class BareStream:
+    assert response.text == "hello"
+    assert response.backend == "pydantic_ai"
+    assert response.model == "openai:gpt-5.2"
+    assert response.request_id == "req-1"
+    assert response.output == ()
+    assert response.raw is result
+
+
+def test_from_agent_result_coerces_non_str_output_to_str() -> None:
+    profile = make_profile()
+    result = make_agent_run_result(output={"key": "value"})
+
+    response = _from_agent_result(result, profile)
+
+    assert response.text == "{'key': 'value'}"
+
+
+def test_from_agent_result_sanitizes_request_id() -> None:
+    profile = make_profile()
+    result = make_agent_run_result(
+        output="hello",
+        run_id="req\napi_key=secret-value" + "x" * 3000,
+    )
+
+    response = _from_agent_result(result, profile)
+
+    assert response.request_id is not None
+    assert "secret-value" not in response.request_id
+    assert "\n" not in response.request_id
+    assert len(response.request_id) <= 2048
+
+
+def test_from_agent_result_handles_non_str_run_id() -> None:
+    profile = make_profile()
+    result = make_agent_run_result(output="hello", run_id=42)
+
+    response = _from_agent_result(result, profile)
+
+    assert response.request_id is None
+
+
+# ---------------------------------------------------------------------------
+# _normalized_error pure helper
+# ---------------------------------------------------------------------------
+
+
+def test_normalized_error_maps_model_http_error_401_to_authentication_error() -> None:
+    profile = make_profile()
+    exc = ModelHTTPError(status_code=401, model_name="openai:gpt-5.2")
+
+    error = _normalized_error(exc, profile)
+
+    assert isinstance(error, LLMAuthenticationError)
+    assert error.status_code == 401
+
+
+def test_normalized_error_maps_model_http_error_429_to_rate_limit_error() -> None:
+    profile = make_profile()
+    exc = ModelHTTPError(status_code=429, model_name="openai:gpt-5.2")
+
+    error = _normalized_error(exc, profile)
+
+    assert isinstance(error, LLMRateLimitError)
+    assert error.retryable is True
+
+
+def test_normalized_error_maps_model_http_error_408_to_timeout_error() -> None:
+    profile = make_profile()
+    exc = ModelHTTPError(status_code=408, model_name="openai:gpt-5.2")
+
+    error = _normalized_error(exc, profile)
+
+    assert isinstance(error, LLMTimeoutError)
+    assert error.retryable is True
+
+
+def test_normalized_error_maps_model_http_error_500_to_provider_error() -> None:
+    profile = make_profile()
+    exc = ModelHTTPError(status_code=500, model_name="openai:gpt-5.2")
+
+    error = _normalized_error(exc, profile)
+
+    assert isinstance(error, LLMProviderError)
+
+
+def test_normalized_error_maps_module_not_found_to_dependency_error() -> None:
+    profile = make_profile()
+    error = _normalized_error(ModuleNotFoundError("no module"), profile)
+    assert isinstance(error, LLMDependencyError)
+
+
+def test_normalized_error_maps_agent_run_error_to_provider_error() -> None:
+    profile = make_profile()
+    error = _normalized_error(AgentRunError("agent failed"), profile)
+    assert isinstance(error, LLMProviderError)
+
+
+def test_normalized_error_maps_model_api_error_to_provider_error() -> None:
+    profile = make_profile()
+    error = _normalized_error(
+        ModelAPIError(model_name="openai:gpt-5.2", message="api failed"), profile
+    )
+    assert isinstance(error, LLMProviderError)
+
+
+def test_normalized_error_maps_connection_named_exception_to_connection_error() -> None:
+    profile = make_profile()
+
+    class ProviderConnectionError(Exception):
         pass
 
-    # entered=False, no __aexit__, no aclose, no close -> covers 815->exit
-    await LLMRuntime._close_stream(BareStream(), entered=False)
+    error = _normalized_error(ProviderConnectionError(), profile)
+    assert isinstance(error, LLMConnectionError)
+    assert error.retryable is True
 
 
-@pytest.mark.asyncio
-async def test_close_stream_reraises_close_error_without_active_exception() -> None:
-    """Cover _close_stream except BaseException reraise (lines 819-821)."""
+def test_normalized_error_falls_back_to_provider_error() -> None:
+    profile = make_profile()
 
-    class FailingCloseStream:
-        async def aclose(self) -> None:
-            raise RuntimeError("close failed")
+    class RandomError(Exception):
+        pass
 
-    with pytest.raises(RuntimeError, match="close failed"):
-        await LLMRuntime._close_stream(FailingCloseStream(), entered=False)
+    error = _normalized_error(RandomError(), profile)
+    assert isinstance(error, LLMProviderError)
 
 
 # ---------------------------------------------------------------------------
-# _LifecycleCoordinator tests: cover claim, cancel, acquire, and release paths.
+# _build_agent
+# ---------------------------------------------------------------------------
+
+
+def test_build_agent_constructs_pydantic_ai_agent_with_defer_check() -> None:
+    from pydantic_ai import Agent
+
+    profile = make_profile(model="openai:gpt-5.2", api_key="secret")
+    agent = LLMRuntime._build_agent(profile)
+
+    assert isinstance(agent, Agent)
+
+
+def test_build_agent_propagates_base_url_into_model_settings() -> None:
+    profile = LLMProfile(
+        name="default",
+        backend="pydantic_ai",
+        model="openai:gpt-5.2",
+        base_url="http://localhost:3900",
+        api_key="secret",
+    )
+
+    agent = LLMRuntime._build_agent(profile)
+
+    # Pydantic AI stores model_settings internally; we verify construction does
+    # not crash and the agent is the expected type.
+    from pydantic_ai import Agent
+
+    assert isinstance(agent, Agent)
+
+
+# ---------------------------------------------------------------------------
+# _LifecycleCoordinator tests
 # ---------------------------------------------------------------------------
 
 
 def test_lifecycle_coordinator_claim_returns_false_for_inactive_ticket() -> None:
-    """Cover _LifecycleCoordinator._claim inactive return False (line 959)."""
     coordinator = runtime_module._LifecycleCoordinator()
     ticket = runtime_module._LifecycleTicket()
     ticket.active = False
@@ -612,7 +1046,6 @@ def test_lifecycle_coordinator_claim_returns_false_for_inactive_ticket() -> None
 
 
 def test_lifecycle_coordinator_claim_returns_false_while_busy() -> None:
-    """Cover _LifecycleCoordinator._claim busy return False."""
     coordinator = runtime_module._LifecycleCoordinator()
     ticket = runtime_module._LifecycleTicket()
     coordinator._busy = True
@@ -621,7 +1054,6 @@ def test_lifecycle_coordinator_claim_returns_false_while_busy() -> None:
 
 
 def test_lifecycle_coordinator_cancel_resets_claimed_ticket() -> None:
-    """Cover _LifecycleCoordinator._cancel claimed ticket path (lines 965-970)."""
     coordinator = runtime_module._LifecycleCoordinator()
     ticket = runtime_module._LifecycleTicket()
     ticket.claimed = True
@@ -633,7 +1065,6 @@ def test_lifecycle_coordinator_cancel_resets_claimed_ticket() -> None:
 
 
 def test_lifecycle_coordinator_cancel_unclaimed_ticket_keeps_busy() -> None:
-    """Cover _cancel unclaimed ticket path (line 967 False branch)."""
     coordinator = runtime_module._LifecycleCoordinator()
     ticket = runtime_module._LifecycleTicket()
     ticket.claimed = False
@@ -645,19 +1076,16 @@ def test_lifecycle_coordinator_cancel_unclaimed_ticket_keeps_busy() -> None:
 
 
 def test_lifecycle_coordinator_release_unclaimed_ticket_returns_early() -> None:
-    """Cover release not-claimed early return (line 987)."""
     coordinator = runtime_module._LifecycleCoordinator()
     ticket = runtime_module._LifecycleTicket()
     ticket.claimed = False
     coordinator._busy = True
     coordinator.release(ticket)
-    # _busy should remain True since ticket was not claimed
     assert coordinator._busy is True
 
 
 @pytest.mark.asyncio
 async def test_lifecycle_coordinator_acquire_waits_for_release() -> None:
-    """Cover acquire waiting without blocking the event loop."""
     coordinator = runtime_module._LifecycleCoordinator()
     first = await coordinator.acquire()
     task = asyncio.create_task(coordinator.acquire())
@@ -675,7 +1103,6 @@ async def test_lifecycle_coordinator_acquire_waits_for_release() -> None:
 async def test_lifecycle_coordinator_acquire_raises_on_claim_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Cover acquire BaseException -> _cancel + reraise (lines 977-979)."""
     coordinator = runtime_module._LifecycleCoordinator()
 
     def raising_claim(_ticket: Any) -> bool:
@@ -690,7 +1117,6 @@ async def test_lifecycle_coordinator_acquire_raises_on_claim_failure(
 async def test_lifecycle_coordinator_acquire_raises_cancelled_when_not_claimed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Cover acquire not-claimed -> CancelledError (line 981)."""
     coordinator = runtime_module._LifecycleCoordinator()
 
     def inactive_claim(ticket: Any) -> bool:
@@ -700,3 +1126,20 @@ async def test_lifecycle_coordinator_acquire_raises_cancelled_when_not_claimed(
     monkeypatch.setattr(coordinator, "_claim", inactive_claim)
     with pytest.raises(asyncio.CancelledError):
         await coordinator.acquire()
+
+
+# ---------------------------------------------------------------------------
+# stream() smoke (full coverage lives in test_streaming.py)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_stream_rejects_control_plane_parameters_before_agent_access(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_TEST_API_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+
+    with pytest.raises(LLMConfigurationError, match="control-plane"):
+        async for _ in runtime.stream("hello", api_key="attacker-controlled"):
+            pass

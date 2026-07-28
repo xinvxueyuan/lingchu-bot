@@ -69,7 +69,9 @@ LINGCHUAdapter=~onebot.v11
 ## llm.toml
 
 托管 LLM 运行时在同一个 localstore 配置目录中独立管理 `llm.toml` 和
-`llm.schema.json`。请至少声明一个显式 profile；部署级 LLM 字段不再作为兜底来源。
+`llm.schema.json`。AI 功能必须配置 `[pydantic-ai]` 段；部署级 LLM 字段不再
+作为兜底来源。旧的 `[profiles]`、`[router]`、`[eve]` 段会被忽略并以弃用
+警告提示。
 
 <Aside title="把密钥保存在环境变量中">
 
@@ -81,63 +83,52 @@ profile 的初始化或重载；错误信息不会打印密钥或原始校验输
 
 ```toml
 #:schema ./llm.schema.json
-default_profile = "primary"
+[pydantic-ai]
+model = "openai:gpt-5.2"
+api_key_env = "LINGCHU_AI_API_KEY"
+base_url = "https://api.openai.com/v1"
+timeout = 60.0
 
-[profiles.primary]
-backend = "openai"
-model = "gpt-4o-mini"
-api_key_env = "OPENAI_API_KEY"
-litellm_generation = "responses"
-timeout = 60
-max_retries = 2
-
-[profiles.fallback]
-backend = "litellm"
-model = "openai/gpt-4o-mini"
-api_key_env = "OPENAI_API_KEY"
-litellm_generation = "chat"
-
-[profiles.fallback.provider_options]
-temperature = 0.2
-
-[router]
+[mcp]
 enabled = false
-strategy = "simple-shuffle"
-num_retries = 2
+review_profile = "default"
+max_tool_rounds = 5
+
+[mcp.servers.local_docs]
+transport = "stdio"
+command = "uvx"
+args = ["example-mcp-server"]
 
 [observability]
 enabled = true
 ```
 
-`litellm_generation = "responses"` 选择 LiteLLM `aresponses`，`"chat"` 选择
-`acompletion`。OpenAI 的稳定调用使用 Responses API。受信任的内部调用方可以
-直接使用原生 `AsyncOpenAI` 客户端、LiteLLM 模块或已启用的进程内 LiteLLM
-Router。原生对象和未知提供商字段会被保留，因此 SDK 新增操作无需先等待项目增加
-包装层。
+`model` 字段必须匹配 `^[\w.-]+:[\w./-]+$`；前缀选择 Pydantic AI 提供商（如
+`openai:`、`anthropic:`、`google-gla:`、`google-vertex:`）。Pydantic AI 在
+调用时从 `api_key_env` 声明的环境变量读取凭据，`defer_model_check=True` 使
+运行时可在该环境变量尚未就位前先完成构造。稳定的 `LLMRuntime.respond()` /
+`stream()` 接口委托给 `pydantic_ai.Agent.run()` / `run_stream()`，且绝不执行
+工具调用；工具执行仅由 `[mcp]` 配置的显式审查 MCP Agent 承担。
 
-能力探测返回 `supported`、`unsupported` 或 `unknown`，可辅助界面和降级决策，
-但不会拦截显式原生调用。配置重载会先对全部候选 profile 做结构校验并冻结，再原子
-切换；凭据仍按 profile 延迟解析。失败时当前版本不受影响；成功后关闭退役客户端并
-清空能力缓存。
+能力探测基于纯模型字符串启发式返回 `supported` 或 `unknown`（`openai:`、
+`anthropic:`、`google-gla:`、`google-vertex:` 前缀对 `web_search` 返回
+`supported`）。可辅助界面和降级决策，但不会拦截显式调用。配置重载会先对候选的
+`[pydantic-ai]` 段做结构校验，再原子切换；凭据仍按 profile 延迟解析。失败时
+当前版本不受影响；成功后关闭退役 Agent 并清空能力缓存。
 
 ### 网络与工具安全
 
-- 私有、回环、链路本地和云元数据 Base URL 默认被拒绝；只有 profile 显式设置
-  `allow_private_network = true` 才会放行。
-- 配置的凭据默认不会发送到自定义 Base URL；只有设置
-  `allow_credentials_to_custom_base_url = true` 才会放行。
-- 自定义端点未授权时会拒绝凭据型默认 header/query；`provider_options` 不能嵌套
-  端点、凭据、回调、日志器、重试或 Router 控制键。受信任代码可改用原生句柄。
-- 这些开关表示管理员明确接受对应信任边界。HTTP 出站层仍须重新校验 DNS 结果
-  与重定向，因为静态配置校验不会执行阻塞式 DNS 解析。
+- HTTP 出站层仍须重新校验 DNS 结果与重定向，因为静态配置校验不会执行阻塞式 DNS
+  解析。`[pydantic-ai]` 段不会对 `base_url` 做 SSRF 校验；请在部署出站边界
+  强制网络策略。
 - 普通 LLM 调用只把模型工具调用作为数据返回，绝不执行。只有 `llm.toml` 中
-  `[mcp]` 配置的显式审查 Agent 可以执行 MCP；它要求身份组预授权、独立且不带
-  工具的审查 profile、变更操作持久化审计，以及 `critical` 调用的同会话一次性
-  确认。设置 `enabled = false` 会禁用全部 MCP 发现与执行。
+  `[mcp]` 配置的显式审查 Agent 可以执行 MCP；它要求身份组预授权，并将多轮工具
+  循环委托给一个配置了已授权 `MCPToolset` 的 `pydantic_ai.Agent`。旧版项目侧
+  审查步骤与确认流程已移除。设置 `enabled = false` 会禁用全部 MCP 发现与执行。
 
-两个 SDK 都保持惰性加载：导入 Lingchu 或在没有可用 LLM profile 时启动，不会
-导入 OpenAI 或 LiteLLM。可选依赖缺失只会在首次请求对应后端时失败，不影响其他
-机器人功能。
+Pydantic AI Agent 保持惰性加载：导入 Lingchu 或在没有可用 `[pydantic-ai]` 段时
+启动，不会导入提供商 SDK。可选依赖缺失只会在首次请求对应提供商时失败，不影响
+其他机器人功能。
 
 ## menu.toml
 
@@ -167,9 +158,9 @@ Lingchu Bot 也会在插件配置目录创建 `menu.toml`。这个文件只控�
 `prefer_brownian`、`vibe_cache_entries` 和 `image_download_max_bytes`。最后两项
 分别限制内存 vibe token 缓存和群聊图片下载大小。
 
-提示词管线使用托管 LLM 的默认 profile 完成语言理解、翻译、参数提示提取和可选
-的提供商原生联网搜索。请在 `llm.toml` 中配置；旧版全局或子插件专用 LLM 兜底键
-均已删除并会被忽略。
+提示词管线使用托管 LLM 的默认 profile 完成语言理解、翻译和参数提示提取。请在
+`llm.toml` 中配置；旧版全局或子插件专用 LLM 兜底键均已删除并会被忽略。Pydantic AI
+迁移后不再支持提供商原生联网搜索。
 
 TIPO 提示词扩写由独立、可选的 llama.cpp 服务提供：
 

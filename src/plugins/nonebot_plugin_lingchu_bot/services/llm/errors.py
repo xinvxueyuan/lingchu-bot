@@ -44,9 +44,7 @@ class LLMError(RuntimeError):
         super().__init__(*safe_args)
         backend = metadata.get("backend")
         self.backend = (
-            backend
-            if type(backend) is str and backend in {"litellm", "openai"}
-            else None
+            backend if type(backend) is str and backend == "pydantic_ai" else None
         )
         model = metadata.get("model")
         self.model = sanitize_message(model) if type(model) is str else None

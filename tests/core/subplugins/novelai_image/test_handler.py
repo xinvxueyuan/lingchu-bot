@@ -15,10 +15,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image import
     i18n,
     intent as intent_boundary,
 )
-from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.client import (
-    MissingNovelAITokenError,
-    NovelAIProviderError,
-)
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.config import (
     NovelAIConfig,
 )
@@ -33,9 +29,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.models
     TipoPrompt,
     VisualResearch,
 )
-from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.response import (
-    NovelAIImage,
-)
 from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins.novelai_image.tipo import (
     TipoProviderError,
 )
@@ -46,6 +39,14 @@ def mock_finish(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     finish = AsyncMock(side_effect=FinishedException)
     monkeypatch.setattr(handler.novelai_image_cmd, "finish", finish)
     return finish
+
+
+@pytest.fixture
+def mock_mcp_client(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    """Mock the NovelAI MCP client singleton."""
+    client = AsyncMock()
+    monkeypatch.setattr(handler, "get_novelai_mcp_client", lambda _: client)
+    return client
 
 
 @pytest.fixture
@@ -151,13 +152,24 @@ def test_command_parser_recognizes_full_api_subcommands(
 
 
 @pytest.mark.parametrize(
-    "action",
-    ["img2img", "inpaint", "vibe", "tool", "upscale", "annotate", "tags", "account"],
+    ("action", "tool_name"),
+    [
+        ("img2img", "image_to_image"),
+        ("inpaint", "inpaint"),
+        ("vibe", "generate_image"),
+        ("tool", "director_tool"),
+        ("upscale", "upscale_image"),
+        ("annotate", "annotate_image"),
+        ("tags", "suggest_tags"),
+        ("account", "get_subscription"),
+    ],
 )
-async def test_full_api_action_dispatches_to_domain_client(
+async def test_full_api_action_dispatches_to_mcp_tool(
     monkeypatch: pytest.MonkeyPatch,
     mock_finish: AsyncMock,
+    mock_mcp_client: AsyncMock,
     action: str,
+    tool_name: str,
 ) -> None:
     png = b"\x89PNG\r\n\x1a\n" + b"\0" * 8 + (3).to_bytes(4) + (5).to_bytes(4)
     segment = UniImage(raw=png)
@@ -177,20 +189,10 @@ async def test_full_api_action_dispatches_to_domain_client(
         def find(self, path: str) -> bool:
             return path == action
 
-    image = NovelAIImage("image.png", png)
-    generated = (image, image) if action == "img2img" else (image,)
-    client = SimpleNamespace(
-        generate=AsyncMock(return_value=generated),
-        director=AsyncMock(return_value=image),
-        upscale=AsyncMock(return_value=image),
-        annotate=AsyncMock(return_value=image),
-        suggest_tags=AsyncMock(return_value=({"tag": "cat"},)),
-        get_subscription=AsyncMock(return_value={"tier": "opus"}),
-        get_user_data=AsyncMock(return_value={"user": "ok"}),
-    )
-    monkeypatch.setattr(handler, "create_novelai_client", lambda _: client)
-    send = AsyncMock()
-    monkeypatch.setattr(handler.novelai_image_cmd, "send", send)
+    if action in {"tags", "account"}:
+        mock_mcp_client.call_tool = AsyncMock(return_value="text result")
+    else:
+        mock_mcp_client.call_tool = AsyncMock(return_value=png)
     monkeypatch.setattr(
         handler,
         "get_novelai_config",
@@ -200,19 +202,9 @@ async def test_full_api_action_dispatches_to_domain_client(
     with pytest.raises(FinishedException):
         await handler.run_novelai_api_action(cast("Any", Result()))
 
-    method = {
-        "img2img": "generate",
-        "inpaint": "generate",
-        "vibe": "generate",
-        "tool": "director",
-        "upscale": "upscale",
-        "annotate": "annotate",
-        "tags": "suggest_tags",
-        "account": "get_subscription",
-    }[action]
-    getattr(client, method).assert_awaited_once()
+    mock_mcp_client.call_tool.assert_awaited_once()
+    assert mock_mcp_client.call_tool.await_args.args[0] == tool_name
     mock_finish.assert_awaited_once()
-    assert send.await_count == (1 if action == "img2img" else 0)
 
 
 async def test_uniseg_image_reader_supports_path_and_url(
@@ -260,6 +252,7 @@ async def test_uniseg_image_reader_supports_path_and_url(
 async def test_full_api_action_maps_validation_failure_to_localized_error(
     monkeypatch: pytest.MonkeyPatch,
     mock_finish: AsyncMock,
+    mock_mcp_client: AsyncMock,
 ) -> None:
     class Result:
         def __init__(self) -> None:
@@ -278,6 +271,7 @@ async def test_full_api_action_maps_validation_failure_to_localized_error(
     with pytest.raises(FinishedException):
         await handler.run_novelai_api_action(cast("Any", Result()))
 
+    mock_mcp_client.call_tool.assert_not_awaited()
     mock_finish.assert_awaited_once_with(handler.translate("action_failed"))
 
 
@@ -295,12 +289,11 @@ async def test_full_api_action_maps_validation_failure_to_localized_error(
 async def test_invalid_override_stops_before_intent(
     monkeypatch: pytest.MonkeyPatch,
     mock_finish: AsyncMock,
+    mock_mcp_client: AsyncMock,
     overrides: GenerationOverrides,
 ) -> None:
     analyze = AsyncMock()
-    generate = AsyncMock()
     monkeypatch.setattr(handler, "analyze_prompt_intent", analyze)
-    monkeypatch.setattr(handler, "generate_image", generate)
 
     with pytest.raises(FinishedException):
         await handler.run_novelai_image(
@@ -310,7 +303,7 @@ async def test_invalid_override_stops_before_intent(
         )
 
     analyze.assert_not_awaited()
-    generate.assert_not_awaited()
+    mock_mcp_client.call_tool.assert_not_awaited()
     mock_finish.assert_awaited_once_with(handler.translate("parameter_invalid"))
 
 
@@ -319,18 +312,18 @@ async def test_pipeline_without_search_passes_each_stage_once(
     intent: PromptIntent,
     plan: NovelAIGenerationPlan,
     mock_finish: AsyncMock,
+    mock_mcp_client: AsyncMock,
 ) -> None:
     analyze = AsyncMock(return_value=intent)
     research = AsyncMock(return_value=VisualResearch((), ()))
     tipo = TipoPrompt("A detailed cat", ("cat", "detailed"))
     expand = AsyncMock(return_value=tipo)
     build = Mock(return_value=plan)
-    generate = AsyncMock(return_value=b"image")
     monkeypatch.setattr(handler, "analyze_prompt_intent", analyze)
     monkeypatch.setattr(handler, "research_visual_facts", research)
     monkeypatch.setattr(handler, "expand_with_tipo", expand)
     monkeypatch.setattr(handler, "build_generation_plan", build)
-    monkeypatch.setattr(handler, "generate_image", generate)
+    mock_mcp_client.call_tool = AsyncMock(return_value=b"image")
     monkeypatch.setattr(handler.secrets, "randbelow", lambda _: 7)
 
     config = NovelAIConfig(token="token")
@@ -355,13 +348,26 @@ async def test_pipeline_without_search_passes_each_stage_once(
         config=config,
         random_seed=7,
     )
-    generate.assert_awaited_once_with(plan, config=config)
+    mock_mcp_client.call_tool.assert_awaited_once()
+    assert mock_mcp_client.call_tool.await_args.args[0] == "generate_image"
+    mcp_args = mock_mcp_client.call_tool.await_args.args[1]
+    assert mcp_args["prompt"] == plan.prompt
+    assert mcp_args["negative_prompt"] == plan.negative_prompt
+    assert mcp_args["model"] == config.model
+    assert mcp_args["width"] == plan.width
+    assert mcp_args["height"] == plan.height
+    assert mcp_args["steps"] == plan.steps
+    assert mcp_args["scale"] == plan.scale
+    assert mcp_args["sampler"] == plan.sampler
+    assert mcp_args["seed"] == plan.seed
+    assert mcp_args["n_samples"] == config.n_samples
     assert mock_finish.await_args is not None
     assert mock_finish.await_args.args[0].type == "image"
 
 
 async def test_requested_search_facts_are_passed_to_tipo(
     monkeypatch: pytest.MonkeyPatch,
+    mock_mcp_client: AsyncMock,
     intent: PromptIntent,
     plan: NovelAIGenerationPlan,
 ) -> None:
@@ -384,7 +390,7 @@ async def test_requested_search_facts_are_passed_to_tipo(
     expand = AsyncMock(return_value=TipoPrompt("cat", ("cat",)))
     monkeypatch.setattr(handler, "expand_with_tipo", expand)
     monkeypatch.setattr(handler, "build_generation_plan", Mock(return_value=plan))
-    monkeypatch.setattr(handler, "generate_image", AsyncMock(return_value=b"image"))
+    mock_mcp_client.call_tool = AsyncMock(return_value=b"image")
 
     with pytest.raises(FinishedException):
         await handler.run_novelai_image(["cat"], config=NovelAIConfig(token="token"))
@@ -396,6 +402,7 @@ async def test_requested_search_facts_are_passed_to_tipo(
 
 async def test_empty_research_still_reaches_tipo(
     monkeypatch: pytest.MonkeyPatch,
+    mock_mcp_client: AsyncMock,
     intent: PromptIntent,
     plan: NovelAIGenerationPlan,
 ) -> None:
@@ -420,7 +427,7 @@ async def test_empty_research_still_reaches_tipo(
     expand = AsyncMock(return_value=TipoPrompt("cat", ("cat",)))
     monkeypatch.setattr(handler, "expand_with_tipo", expand)
     monkeypatch.setattr(handler, "build_generation_plan", Mock(return_value=plan))
-    monkeypatch.setattr(handler, "generate_image", AsyncMock(return_value=b"image"))
+    mock_mcp_client.call_tool = AsyncMock(return_value=b"image")
 
     with pytest.raises(FinishedException):
         await handler.run_novelai_image(["cat"], config=NovelAIConfig(token="token"))
@@ -430,6 +437,7 @@ async def test_empty_research_still_reaches_tipo(
 
 async def test_tipo_failure_uses_intent_fallback(
     monkeypatch: pytest.MonkeyPatch,
+    mock_mcp_client: AsyncMock,
     intent: PromptIntent,
     plan: NovelAIGenerationPlan,
 ) -> None:
@@ -441,19 +449,20 @@ async def test_tipo_failure_uses_intent_fallback(
     )
     build = Mock(return_value=plan)
     monkeypatch.setattr(handler, "build_generation_plan", build)
-    generate = AsyncMock(return_value=b"image")
-    monkeypatch.setattr(handler, "generate_image", generate)
+    mock_mcp_client.call_tool = AsyncMock(return_value=b"image")
 
     config = NovelAIConfig(token="token")
     with pytest.raises(FinishedException):
         await handler.run_novelai_image(["cat"], config=config)
 
     assert build.call_args.kwargs["tipo_prompt"] is None
-    generate.assert_awaited_once_with(plan, config=config)
+    mock_mcp_client.call_tool.assert_awaited_once()
+    assert mock_mcp_client.call_tool.await_args.args[0] == "generate_image"
 
 
 async def test_disabled_tipo_skips_tipo_call(
     monkeypatch: pytest.MonkeyPatch,
+    mock_mcp_client: AsyncMock,
     intent: PromptIntent,
     plan: NovelAIGenerationPlan,
 ) -> None:
@@ -462,20 +471,20 @@ async def test_disabled_tipo_skips_tipo_call(
     )
     expand = AsyncMock()
     monkeypatch.setattr(handler, "expand_with_tipo", expand)
-    build = Mock(return_value=plan)
-    monkeypatch.setattr(handler, "build_generation_plan", build)
-    monkeypatch.setattr(handler, "generate_image", AsyncMock(return_value=b"image"))
+    monkeypatch.setattr(handler, "build_generation_plan", Mock(return_value=plan))
+    mock_mcp_client.call_tool = AsyncMock(return_value=b"image")
 
     with pytest.raises(FinishedException):
         await handler.run_novelai_image(
             ["cat"], config=NovelAIConfig(token="token", tipo_enabled=False)
         )
     expand.assert_not_awaited()
-    assert build.call_args.kwargs["tipo_prompt"] is None
+    assert mock_mcp_client.call_tool.await_args.args[0] == "generate_image"
 
 
 async def test_intent_failure_stops_pipeline(
     monkeypatch: pytest.MonkeyPatch,
+    mock_mcp_client: AsyncMock,
 ) -> None:
     monkeypatch.setattr(
         handler,
@@ -483,19 +492,18 @@ async def test_intent_failure_stops_pipeline(
         AsyncMock(side_effect=IntentAnalysisError("bad")),
     )
     expand = AsyncMock()
-    generate = AsyncMock()
     monkeypatch.setattr(handler, "expand_with_tipo", expand)
-    monkeypatch.setattr(handler, "generate_image", generate)
 
     with pytest.raises(FinishedException):
         await handler.run_novelai_image(["cat"], config=NovelAIConfig(token="token"))
     expand.assert_not_awaited()
-    generate.assert_not_awaited()
+    mock_mcp_client.call_tool.assert_not_awaited()
 
 
 async def test_parent_llm_failure_returns_localized_prompt_error(
     monkeypatch: pytest.MonkeyPatch,
     mock_finish: AsyncMock,
+    mock_mcp_client: AsyncMock,
 ) -> None:
     monkeypatch.setattr(
         intent_boundary,
@@ -505,38 +513,101 @@ async def test_parent_llm_failure_returns_localized_prompt_error(
     monkeypatch.setattr(
         handler, "analyze_prompt_intent", intent_boundary.analyze_prompt_intent
     )
-    generate = AsyncMock()
-    monkeypatch.setattr(handler, "generate_image", generate)
 
     with pytest.raises(FinishedException):
         await handler.run_novelai_image(["cat"], config=NovelAIConfig(token="token"))
 
     mock_finish.assert_awaited_once_with(handler.translate("prompt_failed"))
-    generate.assert_not_awaited()
+    mock_mcp_client.call_tool.assert_not_awaited()
 
 
 @pytest.mark.parametrize(
-    ("error", "message_key"),
-    [
-        (MissingNovelAITokenError(), "token_missing"),
-        (NovelAIProviderError(), "generation_failed"),
-    ],
+    "error",
+    [ValueError("bad"), OSError("io"), RuntimeError("runtime"), Exception("generic")],
 )
 async def test_generation_errors_are_localized(
     monkeypatch: pytest.MonkeyPatch,
     mock_finish: AsyncMock,
+    mock_mcp_client: AsyncMock,
     intent: PromptIntent,
     plan: NovelAIGenerationPlan,
     error: Exception,
-    message_key: str,
 ) -> None:
     monkeypatch.setattr(
         handler, "analyze_prompt_intent", AsyncMock(return_value=intent)
     )
     monkeypatch.setattr(handler, "expand_with_tipo", AsyncMock(return_value=None))
     monkeypatch.setattr(handler, "build_generation_plan", Mock(return_value=plan))
-    monkeypatch.setattr(handler, "generate_image", AsyncMock(side_effect=error))
+    mock_mcp_client.call_tool = AsyncMock(side_effect=error)
 
     with pytest.raises(FinishedException):
         await handler.run_novelai_image(["cat"], config=NovelAIConfig(token="token"))
-    mock_finish.assert_awaited_once_with(handler.translate(message_key))
+    mock_finish.assert_awaited_once_with(handler.translate("generation_failed"))
+
+
+def test_b64_encodes_bytes_as_ascii_base64() -> None:
+    assert handler._b64(b"test") == "dGVzdA=="
+    assert handler._b64(b"") == ""
+
+
+def test_plan_to_mcp_args_maps_plan_fields() -> None:
+    plan = NovelAIGenerationPlan(
+        prompt="portrait",
+        negative_prompt="text",
+        width=832,
+        height=1216,
+        steps=28,
+        scale=5.0,
+        sampler="k_euler_ancestral",
+        seed=7,
+        base_caption="portrait",
+        char_captions=(),
+        character_prompts=(),
+        use_coords=False,
+    )
+    config = NovelAIConfig()
+
+    args = handler._plan_to_mcp_args(plan, config=config)
+
+    assert args["prompt"] == "portrait"
+    assert args["negative_prompt"] == "text"
+    assert args["model"] == config.model
+    assert args["width"] == 832
+    assert args["height"] == 1216
+    assert args["steps"] == 28
+    assert args["scale"] == 5.0
+    assert args["sampler"] == "k_euler_ancestral"
+    assert args["seed"] == 7
+    assert args["n_samples"] == config.n_samples
+    assert args["quality"] == config.quality
+    assert args["uc_preset"] == config.uc_preset
+    assert args["noise_schedule"] == config.noise_schedule
+    assert args["cfg_rescale"] == config.cfg_rescale
+    assert "character_prompts" not in args
+
+
+def test_plan_to_mcp_args_includes_character_prompts() -> None:
+    character_prompt: dict[str, object] = {
+        "prompt": "blue hair",
+        "uc": "bad hands",
+        "center": {"x": 0.5, "y": 0.5},
+        "enabled": True,
+    }
+    plan = NovelAIGenerationPlan(
+        prompt="portrait",
+        negative_prompt="text",
+        width=832,
+        height=1216,
+        steps=28,
+        scale=5.0,
+        sampler="k_euler_ancestral",
+        seed=7,
+        base_caption="portrait",
+        char_captions=(),
+        character_prompts=(character_prompt,),
+        use_coords=True,
+    )
+
+    args = handler._plan_to_mcp_args(plan, config=NovelAIConfig())
+
+    assert args["character_prompts"] == [character_prompt]

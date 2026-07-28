@@ -41,7 +41,7 @@ class HostileRepr:
 def test_error_metadata_is_available_without_entering_public_message() -> None:
     error = LLMRateLimitError(
         "Provider rate limit exceeded",
-        backend="openai",
+        backend="pydantic_ai",
         model="gpt-test",
         request_id="req-123",
         status_code=429,
@@ -49,7 +49,7 @@ def test_error_metadata_is_available_without_entering_public_message() -> None:
     )
 
     assert str(error) == "Provider rate limit exceeded"
-    assert error.backend == "openai"
+    assert error.backend == "pydantic_ai"
     assert error.model == "gpt-test"
     assert error.request_id == "req-123"
     assert error.status_code == 429

@@ -1,327 +1,297 @@
 from __future__ import annotations
 
-import asyncio
-import sys
-from types import ModuleType, SimpleNamespace
-from typing import Any, Literal, cast, override
-from unittest.mock import AsyncMock, Mock
+from typing import Any, cast
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.plugins.nonebot_plugin_lingchu_bot.services.llm.backends import (
-    _NO_CREDENTIAL_API_KEY,
-)
 from src.plugins.nonebot_plugin_lingchu_bot.services.llm.config import (
-    LiteLLMRouterConfig,
-    LLMObservabilityConfig,
-    LLMProfileConfig,
     LLMRuntimeConfig,
+    ObservabilityConfig,
+    PydanticAIConfig,
 )
-from src.plugins.nonebot_plugin_lingchu_bot.services.llm.errors import (
-    LLMProviderError,
-    LLMRateLimitError,
+from src.plugins.nonebot_plugin_lingchu_bot.services.llm.runtime import (
+    LLMRuntime,
+    _from_agent_result,
+    _from_usage,
 )
-from src.plugins.nonebot_plugin_lingchu_bot.services.llm.runtime import LLMRuntime
+from src.plugins.nonebot_plugin_lingchu_bot.services.llm.types import (
+    LLMProfile,
+    LLMResponse,
+    LLMUsage,
+)
 
 
-def make_runtime(profile: LLMProfileConfig) -> LLMRuntime:
-    config = LLMRuntimeConfig(
-        default_profile=profile.name,
-        profiles={profile.name: profile},
-        router=LiteLLMRouterConfig(),
-        observability=LLMObservabilityConfig(),
+def make_config() -> LLMRuntimeConfig:
+    return LLMRuntimeConfig(
+        pydantic_ai=PydanticAIConfig(
+            model="openai:gpt-5.2",
+            api_key_env="LLM_RESPONSES_TEST_KEY",
+        ),
+        observability=ObservabilityConfig(enabled=False),
     )
-    return LLMRuntime(config)
 
 
-@pytest.mark.asyncio
-async def test_openai_respond_uses_responses_and_normalizes_native_result(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    raw = SimpleNamespace(
-        output_text="hello",
-        output=[{"type": "message"}],
-        usage=SimpleNamespace(input_tokens=2, output_tokens=3, total_tokens=5),
-        _request_id="req-1",
-        model="gpt-result",
+class RunUsageLike:
+    """Minimal attribute bag matching ``pydantic_ai.usage.RunUsage`` surface."""
+
+    def __init__(
+        self,
+        *,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        total_tokens: int | None = None,
+        cache_read_tokens: int | None = None,
+    ) -> None:
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.total_tokens = total_tokens
+        self.cache_read_tokens = cache_read_tokens
+
+
+def make_agent_run_result(
+    *,
+    output: object = "hello",
+    run_id: object = "req-1",
+    usage: Any | None = None,
+) -> MagicMock:
+    result = MagicMock()
+    result.output = output
+    result.run_id = run_id
+    result.usage = usage if usage is not None else RunUsageLike()
+    result.all_messages = MagicMock(return_value=[])
+    return result
+
+
+def make_agent(result: Any | None = None) -> MagicMock:
+    agent = MagicMock()
+    agent.run = AsyncMock(return_value=result)
+    return agent
+
+
+# ---------------------------------------------------------------------------
+# LLMResponse dataclass construction
+# ---------------------------------------------------------------------------
+
+
+def test_llm_response_carries_text_and_backend_pydantic_ai() -> None:
+    response = LLMResponse(
+        text="hello",
+        output=(),
+        usage=None,
+        request_id="req-1",
+        model="openai:gpt-5.2",
+        backend="pydantic_ai",
+        raw=object(),
     )
-    create = AsyncMock(return_value=raw)
-    client = SimpleNamespace(
-        responses=SimpleNamespace(create=create), close=AsyncMock()
+
+    assert response.text == "hello"
+    assert response.backend == "pydantic_ai"
+    assert response.output == ()
+    assert response.request_id == "req-1"
+
+
+def test_llm_response_is_frozen() -> None:
+    from dataclasses import FrozenInstanceError
+
+    response = LLMResponse(
+        text="hello",
+        output=(),
+        usage=None,
+        request_id=None,
+        model=None,
+        backend="pydantic_ai",
+        raw=None,
     )
-    module = ModuleType("openai")
-    module.__dict__["AsyncOpenAI"] = Mock(return_value=client)
-    monkeypatch.setitem(sys.modules, "openai", module)
-    runtime = make_runtime(
-        LLMProfileConfig(
-            name="default",
-            backend="openai",
-            model="gpt-configured",
-            provider_options={"temperature": 0.2},
+
+    with pytest.raises(FrozenInstanceError):
+        cast("Any", response).text = "mutated"
+
+
+def test_llm_usage_defaults_to_none_fields() -> None:
+    usage = LLMUsage()
+
+    assert usage.input_tokens is None
+    assert usage.output_tokens is None
+    assert usage.total_tokens is None
+    assert usage.cached_tokens is None
+    assert usage.reasoning_tokens is None
+
+
+# ---------------------------------------------------------------------------
+# _from_usage mapping
+# ---------------------------------------------------------------------------
+
+
+def test_from_usage_returns_none_when_no_tokens_recorded() -> None:
+    assert _from_usage(cast("Any", RunUsageLike())) is None
+
+
+def test_from_usage_maps_all_known_token_fields() -> None:
+    usage = _from_usage(
+        cast(
+            "Any",
+            RunUsageLike(
+                input_tokens=7,
+                output_tokens=5,
+                total_tokens=12,
+                cache_read_tokens=3,
+            ),
         )
     )
 
-    response = await runtime.respond(input="prompt", temperature=0.8)
-
-    create.assert_awaited_once_with(
-        model="gpt-configured", input="prompt", temperature=0.8
+    assert usage == LLMUsage(
+        input_tokens=7,
+        output_tokens=5,
+        total_tokens=12,
+        cached_tokens=3,
+        reasoning_tokens=None,
     )
+
+
+def test_from_usage_treats_zero_as_absent() -> None:
+    """``_from_usage`` uses ``or None`` coercion, so all-zero collapses to None."""
+    usage = _from_usage(
+        cast(
+            "Any",
+            RunUsageLike(
+                input_tokens=0,
+                output_tokens=0,
+                total_tokens=0,
+                cache_read_tokens=0,
+            ),
+        )
+    )
+
+    assert usage is None
+
+
+def test_from_usage_propagates_cache_read_tokens_into_cached_tokens() -> None:
+    usage = _from_usage(cast("Any", RunUsageLike(cache_read_tokens=42)))
+
+    assert usage is not None
+    assert usage.cached_tokens == 42
+
+
+# ---------------------------------------------------------------------------
+# _from_agent_result mapping
+# ---------------------------------------------------------------------------
+
+
+def test_from_agent_result_returns_pydantic_ai_backend_response() -> None:
+    profile = LLMProfile(name="default", backend="pydantic_ai", model="openai:gpt-5.2")
+    result = make_agent_run_result(
+        output="hello",
+        run_id="req-1",
+        usage=RunUsageLike(input_tokens=2, output_tokens=3, total_tokens=5),
+    )
+
+    response = _from_agent_result(result, profile)
+
+    assert response.backend == "pydantic_ai"
     assert response.text == "hello"
-    assert response.output == ({"type": "message"},)
-    assert response.usage is not None
-    assert response.usage.total_tokens == 5
+    assert response.output == ()
+    assert response.model == "openai:gpt-5.2"
     assert response.request_id == "req-1"
-    assert response.model == "gpt-result"
-    assert response.raw is raw
+    assert response.usage == LLMUsage(
+        input_tokens=2,
+        output_tokens=3,
+        total_tokens=5,
+        cached_tokens=None,
+        reasoning_tokens=None,
+    )
+    assert response.raw is result
+
+
+def test_from_agent_result_coerces_non_str_output_to_str() -> None:
+    profile = LLMProfile(name="default", backend="pydantic_ai", model="openai:gpt-5.2")
+    result = make_agent_run_result(output=42)
+
+    response = _from_agent_result(result, profile)
+
+    assert response.text == "42"
+
+
+def test_from_agent_result_sanitizes_request_id() -> None:
+    profile = LLMProfile(name="default", backend="pydantic_ai", model="openai:gpt-5.2")
+    malicious_id = "req\napi_key=super-secret" + "x" * 3000
+    result = make_agent_run_result(output="hello", run_id=malicious_id)
+
+    response = _from_agent_result(result, profile)
+
+    assert response.request_id is not None
+    assert "super-secret" not in response.request_id
+    assert "\n" not in response.request_id
+    assert len(response.request_id) <= 2048
+
+
+def test_from_agent_result_returns_none_request_id_for_non_str_run_id() -> None:
+    profile = LLMProfile(name="default", backend="pydantic_ai", model="openai:gpt-5.2")
+    result = make_agent_run_result(output="hello", run_id=12345)
+
+    response = _from_agent_result(result, profile)
+
+    assert response.request_id is None
+
+
+def test_from_agent_result_returns_none_usage_when_agent_reports_no_tokens() -> None:
+    profile = LLMProfile(name="default", backend="pydantic_ai", model="openai:gpt-5.2")
+    result = make_agent_run_result(output="hello", usage=RunUsageLike())
+
+    response = _from_agent_result(result, profile)
+
+    assert response.usage is None
+
+
+# ---------------------------------------------------------------------------
+# respond() integration: end-to-end _from_agent_result invocation
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_usage_includes_cached_and_reasoning_token_details(
+async def test_respond_returns_response_with_pydantic_ai_backend(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    raw = SimpleNamespace(
-        output_text="hello",
-        output=[],
-        usage=SimpleNamespace(
-            input_tokens=7,
-            output_tokens=5,
-            total_tokens=12,
-            input_tokens_details=SimpleNamespace(cached_tokens=3),
-            output_tokens_details=SimpleNamespace(reasoning_tokens=2),
+    monkeypatch.setenv("LLM_RESPONSES_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    result = make_agent_run_result(
+        output="hello",
+        run_id="req-1",
+        usage=RunUsageLike(
+            input_tokens=2,
+            output_tokens=3,
+            total_tokens=5,
+            cache_read_tokens=1,
         ),
     )
-    create = AsyncMock(return_value=raw)
-    module = ModuleType("openai")
-    module.__dict__["AsyncOpenAI"] = Mock(
-        return_value=SimpleNamespace(
-            responses=SimpleNamespace(create=create), close=AsyncMock()
-        )
-    )
-    monkeypatch.setitem(sys.modules, "openai", module)
-    runtime = make_runtime(
-        LLMProfileConfig(name="default", backend="openai", model="gpt")
-    )
-
-    response = await runtime.respond(input="prompt")
-
-    assert response.usage is not None
-    assert response.usage.cached_tokens == 3
-    assert response.usage.reasoning_tokens == 2
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("mode", "operation", "input_key"),
-    [("responses", "aresponses", "input"), ("chat", "acompletion", "messages")],
-)
-async def test_litellm_respond_selects_configured_generation_only(
-    monkeypatch: pytest.MonkeyPatch,
-    mode: str,
-    operation: str,
-    input_key: str,
-) -> None:
-    raw = SimpleNamespace(
-        output_text="hello" if mode == "responses" else None,
-        output=[],
-        choices=[SimpleNamespace(message=SimpleNamespace(content="hello"))],
-        usage={"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
-        model="provider-model",
-        id="req-lite",
-    )
-    selected = AsyncMock(return_value=raw)
-    unselected = AsyncMock(side_effect=AssertionError("fallback attempted"))
-    module = ModuleType("litellm")
-    module.__dict__[operation] = selected
-    module.__dict__["acompletion" if operation == "aresponses" else "aresponses"] = (
-        unselected
-    )
-    monkeypatch.setitem(sys.modules, "litellm", module)
-    runtime = make_runtime(
-        LLMProfileConfig(
-            name="default",
-            backend="litellm",
-            model="openai/gpt",
-            litellm_generation=cast("Literal['responses', 'chat']", mode),
-        )
-    )
-
-    response = await runtime.respond([{"role": "user", "content": "prompt"}])
-
-    selected.assert_awaited_once_with(
-        model="openai/gpt",
-        timeout=60.0,
-        api_key=_NO_CREDENTIAL_API_KEY,
-        max_retries=2,
-        **{input_key: [{"role": "user", "content": "prompt"}]},
-    )
-    assert selected.await_args is not None
-    unselected.assert_not_awaited()
-    assert response.text == "hello"
-    assert response.usage is not None
-    assert response.usage.total_tokens == 3
-
-
-@pytest.mark.asyncio
-async def test_provider_errors_are_mapped_without_leaking_body(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    class ProviderRateLimitError(Exception):
-        status_code = 429
-        request_id = "req-rate"
-
-    create = AsyncMock(
-        side_effect=ProviderRateLimitError("authorization=Bearer super-secret")
-    )
-    client = SimpleNamespace(
-        responses=SimpleNamespace(create=create), close=AsyncMock()
-    )
-    module = ModuleType("openai")
-    module.__dict__["AsyncOpenAI"] = Mock(return_value=client)
-    monkeypatch.setitem(sys.modules, "openai", module)
-    runtime = make_runtime(
-        LLMProfileConfig(name="default", backend="openai", model="gpt")
-    )
-
-    class Observer:
-        def __init__(self) -> None:
-            self.records: list[object] = []
-
-        def emit(self, record: object) -> None:
-            self.records.append(record)
-
-    observer = Observer()
-    runtime._observer = cast("Any", observer)
-
-    with pytest.raises(LLMRateLimitError) as exc_info:
-        await runtime.respond("secret prompt")
-
-    assert exc_info.value.__cause__ is create.side_effect
-    assert exc_info.value.status_code == 429
-    assert exc_info.value.request_id == "req-rate"
-    assert "super-secret" not in str(exc_info.value)
-    assert cast("Any", observer.records[-1]).status == "rate_limit_error"
-
-
-@pytest.mark.asyncio
-async def test_observer_failure_does_not_mask_success(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    raw = SimpleNamespace(output_text="hello", output=[])
-    create = AsyncMock(return_value=raw)
-    module = ModuleType("openai")
-    module.__dict__["AsyncOpenAI"] = Mock(
-        return_value=SimpleNamespace(
-            responses=SimpleNamespace(create=create), close=AsyncMock()
-        )
-    )
-    monkeypatch.setitem(sys.modules, "openai", module)
-    runtime = make_runtime(
-        LLMProfileConfig(name="default", backend="openai", model="gpt")
-    )
-    runtime._observer = cast(
-        "Any", SimpleNamespace(emit=Mock(side_effect=RuntimeError("logger failed")))
-    )
+    agent = make_agent(result=result)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
     response = await runtime.respond("prompt")
 
+    assert response.backend == "pydantic_ai"
     assert response.text == "hello"
+    assert response.model == "openai:gpt-5.2"
+    assert response.request_id == "req-1"
+    assert response.usage is not None
+    assert response.usage.input_tokens == 2
+    assert response.usage.output_tokens == 3
+    assert response.usage.total_tokens == 5
+    assert response.usage.cached_tokens == 1
 
 
 @pytest.mark.asyncio
-async def test_observer_failure_does_not_mask_provider_error(
+async def test_respond_request_id_is_bounded_and_sanitized(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    provider_error = RuntimeError("provider failed")
-    create = AsyncMock(side_effect=provider_error)
-    module = ModuleType("openai")
-    module.__dict__["AsyncOpenAI"] = Mock(
-        return_value=SimpleNamespace(
-            responses=SimpleNamespace(create=create), close=AsyncMock()
-        )
-    )
-    monkeypatch.setitem(sys.modules, "openai", module)
-    runtime = make_runtime(
-        LLMProfileConfig(name="default", backend="openai", model="gpt")
-    )
-    runtime._observer = cast(
-        "Any", SimpleNamespace(emit=Mock(side_effect=RuntimeError("logger failed")))
-    )
+    monkeypatch.setenv("LLM_RESPONSES_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    malicious_id = "req\napi_key=secret-value" + "x" * 3000
+    result = make_agent_run_result(output="hello", run_id=malicious_id)
+    agent = make_agent(result=result)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    with pytest.raises(LLMProviderError) as exc_info:
-        await runtime.respond("prompt")
-
-    assert exc_info.value.__cause__ is provider_error
-
-
-@pytest.mark.asyncio
-async def test_observer_cancellation_is_preserved(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    raw = SimpleNamespace(output_text="hello", output=[])
-    create = AsyncMock(return_value=raw)
-    module = ModuleType("openai")
-    module.__dict__["AsyncOpenAI"] = Mock(
-        return_value=SimpleNamespace(
-            responses=SimpleNamespace(create=create), close=AsyncMock()
-        )
-    )
-    monkeypatch.setitem(sys.modules, "openai", module)
-    runtime = make_runtime(
-        LLMProfileConfig(name="default", backend="openai", model="gpt")
-    )
-    runtime._observer = cast(
-        "Any", SimpleNamespace(emit=Mock(side_effect=asyncio.CancelledError))
-    )
-
-    with pytest.raises(asyncio.CancelledError):
-        await runtime.respond("prompt")
-
-
-@pytest.mark.asyncio
-async def test_litellm_provider_error_does_not_fallback_to_other_operation(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    selected = AsyncMock(side_effect=RuntimeError("provider failed"))
-    fallback = AsyncMock(side_effect=AssertionError("fallback attempted"))
-    module = ModuleType("litellm")
-    module.__dict__["aresponses"] = selected
-    module.__dict__["acompletion"] = fallback
-    monkeypatch.setitem(sys.modules, "litellm", module)
-    runtime = make_runtime(
-        LLMProfileConfig(
-            name="default",
-            backend="litellm",
-            model="provider/model",
-            litellm_generation="responses",
-        )
-    )
-
-    with pytest.raises(LLMProviderError):
-        await runtime.respond(input="prompt")
-
-    selected.assert_awaited_once()
-    fallback.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_request_id_is_bounded_and_sanitized_before_observation(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    request_id = "req\napi_key=secret-value" + "x" * 3000
-    raw = SimpleNamespace(output_text="hello", output=[], _request_id=request_id)
-    create = AsyncMock(return_value=raw)
-    module = ModuleType("openai")
-    module.__dict__["AsyncOpenAI"] = Mock(
-        return_value=SimpleNamespace(
-            responses=SimpleNamespace(create=create), close=AsyncMock()
-        )
-    )
-    monkeypatch.setitem(sys.modules, "openai", module)
-    runtime = make_runtime(
-        LLMProfileConfig(name="default", backend="openai", model="gpt")
-    )
-
-    response = await runtime.respond(input="prompt")
+    response = await runtime.respond("prompt")
 
     assert response.request_id is not None
     assert "secret-value" not in response.request_id
@@ -330,190 +300,33 @@ async def test_request_id_is_bounded_and_sanitized_before_observation(
 
 
 @pytest.mark.asyncio
-async def test_litellm_success_observes_sdk_retry_and_fallback_counts(
+async def test_respond_preserves_raw_agent_result_reference(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    raw = SimpleNamespace(
-        output_text="hello",
-        output=[],
-        _hidden_params={
-            "additional_headers": {
-                "x-litellm-attempted-retries": 2,
-                "x-litellm-attempted-fallbacks": 1,
-                "authorization": "Bearer must-not-be-observed",
-            }
-        },
-    )
-    selected = AsyncMock(return_value=raw)
-    module = ModuleType("litellm")
-    module.__dict__["aresponses"] = selected
-    monkeypatch.setitem(sys.modules, "litellm", module)
-    runtime = make_runtime(
-        LLMProfileConfig(
-            name="default",
-            backend="litellm",
-            model="provider/model",
-            litellm_generation="responses",
-        )
-    )
+    monkeypatch.setenv("LLM_RESPONSES_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    result = make_agent_run_result(output="hello")
+    agent = make_agent(result=result)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    class Observer:
-        def __init__(self) -> None:
-            self.records: list[object] = []
+    response = await runtime.respond("prompt")
 
-        def emit(self, record: object) -> None:
-            self.records.append(record)
-
-    observer = Observer()
-    runtime._observer = cast("Any", observer)
-
-    await runtime.respond("prompt")
-
-    record = cast("Any", observer.records[-1])
-    assert record.retry_count == 2
-    assert record.fallback_count == 1
-    assert "must-not-be-observed" not in repr(record)
+    assert response.raw is result
 
 
 @pytest.mark.asyncio
-async def test_litellm_error_observes_sdk_retry_and_fallback_counts(
+async def test_respond_returns_none_usage_when_agent_reports_zero_tokens(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    class ProviderError(Exception):
-        def __init__(self, message: str) -> None:
-            super().__init__(message)
-            self.metadata = {
-                "attempted_retries": 3,
-                "fallback_depth": 2,
-                "api_key": "must-not-be-observed",
-            }
-
-    selected = AsyncMock(side_effect=ProviderError("provider failed"))
-    module = ModuleType("litellm")
-    module.__dict__["aresponses"] = selected
-    monkeypatch.setitem(sys.modules, "litellm", module)
-    runtime = make_runtime(
-        LLMProfileConfig(
-            name="default",
-            backend="litellm",
-            model="provider/model",
-            litellm_generation="responses",
-        )
+    monkeypatch.setenv("LLM_RESPONSES_TEST_KEY", "secret")
+    runtime = LLMRuntime(make_config())
+    result = make_agent_run_result(
+        output="hello",
+        usage=RunUsageLike(),
     )
+    agent = make_agent(result=result)
+    monkeypatch.setattr(runtime, "_agent", lambda _name=None: agent)
 
-    class Observer:
-        def __init__(self) -> None:
-            self.records: list[object] = []
+    response = await runtime.respond("prompt")
 
-        def emit(self, record: object) -> None:
-            self.records.append(record)
-
-    observer = Observer()
-    runtime._observer = cast("Any", observer)
-
-    with pytest.raises(LLMProviderError):
-        await runtime.respond("prompt")
-
-    record = cast("Any", observer.records[-1])
-    assert record.retry_count == 3
-    assert record.fallback_count == 2
-    assert "must-not-be-observed" not in repr(record)
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("retry_count", "fallback_count"),
-    [
-        (-1, -1),
-        (True, False),
-        (2**31, 2**31),
-        ("2", "1"),
-    ],
-)
-async def test_invalid_sdk_attempt_counts_are_not_observed(
-    monkeypatch: pytest.MonkeyPatch,
-    retry_count: object,
-    fallback_count: object,
-) -> None:
-    raw = SimpleNamespace(
-        output_text="hello",
-        output=[],
-        _hidden_params={
-            "additional_headers": {
-                "x-litellm-attempted-retries": retry_count,
-                "x-litellm-attempted-fallbacks": fallback_count,
-            }
-        },
-    )
-    selected = AsyncMock(return_value=raw)
-    module = ModuleType("litellm")
-    module.__dict__["aresponses"] = selected
-    monkeypatch.setitem(sys.modules, "litellm", module)
-    runtime = make_runtime(
-        LLMProfileConfig(
-            name="default",
-            backend="litellm",
-            model="provider/model",
-            litellm_generation="responses",
-        )
-    )
-
-    class Observer:
-        def __init__(self) -> None:
-            self.records: list[object] = []
-
-        def emit(self, record: object) -> None:
-            self.records.append(record)
-
-    observer = Observer()
-    runtime._observer = cast("Any", observer)
-
-    await runtime.respond("prompt")
-
-    record = cast("Any", observer.records[-1])
-    assert record.retry_count is None
-    assert record.fallback_count is None
-
-
-@pytest.mark.asyncio
-async def test_hostile_sdk_attempt_metadata_is_ignored(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    class HostileMetadata:
-        @override
-        def __getattribute__(self, name: str) -> object:
-            raise RuntimeError(name)
-
-    raw = SimpleNamespace(
-        output_text="hello",
-        output=[],
-        _hidden_params=HostileMetadata(),
-    )
-    selected = AsyncMock(return_value=raw)
-    module = ModuleType("litellm")
-    module.__dict__["aresponses"] = selected
-    monkeypatch.setitem(sys.modules, "litellm", module)
-    runtime = make_runtime(
-        LLMProfileConfig(
-            name="default",
-            backend="litellm",
-            model="provider/model",
-            litellm_generation="responses",
-        )
-    )
-
-    class Observer:
-        def __init__(self) -> None:
-            self.records: list[object] = []
-
-        def emit(self, record: object) -> None:
-            self.records.append(record)
-
-    observer = Observer()
-    runtime._observer = cast("Any", observer)
-
-    await runtime.respond("prompt")
-
-    record = cast("Any", observer.records[-1])
-    assert record.retry_count is None
-    assert record.fallback_count is None
+    assert response.usage is None

@@ -9,10 +9,9 @@ from src.plugins.nonebot_plugin_lingchu_bot.services.llm import (
     runtime as runtime_module,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.services.llm.config import (
-    LiteLLMRouterConfig,
-    LLMObservabilityConfig,
-    LLMProfileConfig,
     LLMRuntimeConfig,
+    ObservabilityConfig,
+    PydanticAIConfig,
 )
 
 
@@ -21,6 +20,21 @@ def _reset_managed_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(runtime_module._managed_state, "runtime", None)
     monkeypatch.setattr(runtime_module._managed_state, "generation", 0)
     monkeypatch.setattr(runtime_module._managed_state, "shutting_down", False)
+
+
+def make_config() -> LLMRuntimeConfig:
+    return LLMRuntimeConfig(
+        pydantic_ai=PydanticAIConfig(
+            model="openai:gpt-5.2",
+            api_key_env="LLM_RELOAD_TEST_KEY",
+        ),
+        observability=ObservabilityConfig(enabled=False),
+    )
+
+
+# ---------------------------------------------------------------------------
+# get_llm_runtime / initialize_llm_runtime
+# ---------------------------------------------------------------------------
 
 
 def test_get_llm_runtime_lazily_builds_one_process_singleton(
@@ -55,6 +69,55 @@ async def test_concurrent_initialize_publishes_one_runtime(
 
 
 @pytest.mark.asyncio
+async def test_invalid_first_initialize_publishes_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        runtime_module,
+        "_build_managed_runtime",
+        MagicMock(side_effect=ValueError("invalid initial config")),
+    )
+
+    with pytest.raises(ValueError, match="invalid initial config"):
+        await runtime_module.initialize_llm_runtime()
+
+    assert runtime_module._managed_state.runtime is None
+
+
+@pytest.mark.asyncio
+async def test_initialize_defers_agent_construction_until_use(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """First initialize builds an LLMRuntime but no Pydantic AI Agent yet.
+
+    The new runtime resolves a profile lazily on first ``profile()``/``_agent()``
+    call rather than at construction time. Agents are only built when ``respond``
+    or ``stream`` actually needs them.
+    """
+    config = make_config()
+    load_config = MagicMock(return_value=config)
+    monkeypatch.setattr(runtime_module, "load_llm_runtime_config", load_config)
+    monkeypatch.setenv("LLM_RELOAD_TEST_KEY", "secret")
+
+    managed = await runtime_module.initialize_llm_runtime()
+
+    assert isinstance(managed, runtime_module.LLMRuntime)
+    assert managed.state == "NEW"
+    assert managed._agents == {}
+    assert managed._profiles == {}
+
+    profile = managed.profile()
+    assert profile.model == "openai:gpt-5.2"
+    assert profile.backend == "pydantic_ai"
+    assert managed.state == "RUNNING"
+
+
+# ---------------------------------------------------------------------------
+# reload_llm_runtime
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
 async def test_valid_reload_swaps_then_invalidates_cache_and_closes_old(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -80,6 +143,37 @@ async def test_valid_reload_swaps_then_invalidates_cache_and_closes_old(
     assert runtime_module.get_llm_runtime() is new
     assert runtime_module._managed_state.generation == 5
     assert events == ["invalidate", "close"]
+
+
+@pytest.mark.asyncio
+async def test_reload_increments_generation_and_drops_old_agents(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reload publishes a new runtime with a higher generation.
+
+    The new runtime starts with empty ``_agents``/``_profiles`` caches; old
+    cached agents are dropped together with the old runtime instance.
+    """
+    config = make_config()
+    monkeypatch.setattr(runtime_module, "load_llm_runtime_config", lambda: config)
+    monkeypatch.setenv("LLM_RELOAD_TEST_KEY", "secret")
+
+    first = await runtime_module.initialize_llm_runtime()
+    first_gen = first.generation
+    first.profile()
+    first._agent()
+    assert first._agents
+    assert first._profiles
+
+    second = await runtime_module.reload_llm_runtime()
+
+    assert second is not first
+    assert second.generation == first_gen + 1
+    assert second._agents == {}
+    assert second._profiles == {}
+    assert first.state == "CLOSED"
+    assert first._agents == {}
+    assert first._profiles == {}
 
 
 @pytest.mark.asyncio
@@ -133,6 +227,92 @@ async def test_invalid_reload_preserves_old_runtime_and_capability_cache(
     assert runtime_module._managed_state.generation == 2
     invalidate.assert_not_called()
     old.close.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_two_reloads_are_serialized_through_prior_runtime_retirement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    old_close_started = asyncio.Event()
+    release_old_close = asyncio.Event()
+    first_close_started = asyncio.Event()
+    release_first_close = asyncio.Event()
+
+    async def close_old() -> None:
+        old_close_started.set()
+        await release_old_close.wait()
+
+    async def close_first() -> None:
+        first_close_started.set()
+        await release_first_close.wait()
+
+    old = MagicMock(spec=runtime_module.LLMRuntime)
+    old.close = AsyncMock(side_effect=close_old)
+    first = MagicMock(spec=runtime_module.LLMRuntime)
+    first.close = AsyncMock(side_effect=close_first)
+    second = MagicMock(spec=runtime_module.LLMRuntime)
+    build = MagicMock(side_effect=[first, second])
+    monkeypatch.setattr(runtime_module._managed_state, "runtime", old)
+    monkeypatch.setattr(runtime_module, "_build_managed_runtime", build)
+
+    first_reload = asyncio.create_task(runtime_module.reload_llm_runtime())
+    await old_close_started.wait()
+    second_reload = asyncio.create_task(runtime_module.reload_llm_runtime())
+    await asyncio.sleep(0)
+
+    build.assert_called_once_with(generation=1)
+    assert runtime_module._managed_state.runtime is first
+
+    release_old_close.set()
+    assert await first_reload is first
+    await first_close_started.wait()
+    assert runtime_module._managed_state.runtime is second
+
+    release_first_close.set()
+    assert await second_reload is second
+    assert runtime_module._managed_state.generation == 2
+    old.close.assert_awaited_once_with()
+    first.close.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_reload_waiting_for_shutdown_publishes_a_usable_new_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    close_started = asyncio.Event()
+    release_close = asyncio.Event()
+
+    async def close_old() -> None:
+        close_started.set()
+        await release_close.wait()
+
+    old = MagicMock(spec=runtime_module.LLMRuntime)
+    old.close = AsyncMock(side_effect=close_old)
+    new = MagicMock(spec=runtime_module.LLMRuntime)
+    new.state = "NEW"
+    build = MagicMock(return_value=new)
+    monkeypatch.setattr(runtime_module._managed_state, "runtime", old)
+    monkeypatch.setattr(runtime_module, "_build_managed_runtime", build)
+
+    shutdown = asyncio.create_task(runtime_module.shutdown_llm_runtime())
+    await close_started.wait()
+    reload_task = asyncio.create_task(runtime_module.reload_llm_runtime())
+    await asyncio.sleep(0)
+
+    build.assert_not_called()
+    release_close.set()
+    await shutdown
+    result = await reload_task
+
+    assert result is new
+    assert result.state != "CLOSED"
+    assert runtime_module.get_llm_runtime() is new
+    build.assert_called_once_with(generation=1)
+
+
+# ---------------------------------------------------------------------------
+# shutdown_llm_runtime
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -224,139 +404,6 @@ async def test_cancelled_reload_holds_coordinator_until_retirement_finishes(
 
 
 @pytest.mark.asyncio
-async def test_invalid_first_initialize_publishes_nothing(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        runtime_module,
-        "_build_managed_runtime",
-        MagicMock(side_effect=ValueError("invalid initial config")),
-    )
-
-    with pytest.raises(ValueError, match="invalid initial config"):
-        await runtime_module.initialize_llm_runtime()
-
-    assert runtime_module._managed_state.runtime is None
-
-
-@pytest.mark.asyncio
-async def test_initialize_defers_missing_optional_profile_credential_until_use(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    config = LLMRuntimeConfig(
-        default_profile="default",
-        profiles={
-            "default": LLMProfileConfig(name="default", backend="openai", model="gpt"),
-            "optional": LLMProfileConfig(
-                name="optional",
-                backend="openai",
-                model="gpt",
-                api_key_env="MISSING_OPTIONAL_LLM_KEY",
-            ),
-        },
-        router=LiteLLMRouterConfig(),
-        observability=LLMObservabilityConfig(),
-    )
-    load_config = MagicMock(return_value=config)
-    openai_backend = MagicMock(side_effect=AssertionError("OpenAI loaded at startup"))
-    litellm_backend = MagicMock(side_effect=AssertionError("LiteLLM loaded at startup"))
-    monkeypatch.setattr(runtime_module, "load_llm_runtime_config", load_config)
-    monkeypatch.setattr(runtime_module, "OpenAIBackend", openai_backend)
-    monkeypatch.setattr(runtime_module, "LiteLLMBackend", litellm_backend)
-    monkeypatch.delenv("MISSING_OPTIONAL_LLM_KEY", raising=False)
-
-    managed = await runtime_module.initialize_llm_runtime()
-
-    assert isinstance(managed, runtime_module.LLMRuntime)
-    assert managed.profile().model == "gpt"
-    with pytest.raises(RuntimeError, match="invalid LLM profile"):
-        managed.profile("optional")
-    openai_backend.assert_not_called()
-    litellm_backend.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_two_reloads_are_serialized_through_prior_runtime_retirement(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    old_close_started = asyncio.Event()
-    release_old_close = asyncio.Event()
-    first_close_started = asyncio.Event()
-    release_first_close = asyncio.Event()
-
-    async def close_old() -> None:
-        old_close_started.set()
-        await release_old_close.wait()
-
-    async def close_first() -> None:
-        first_close_started.set()
-        await release_first_close.wait()
-
-    old = MagicMock(spec=runtime_module.LLMRuntime)
-    old.close = AsyncMock(side_effect=close_old)
-    first = MagicMock(spec=runtime_module.LLMRuntime)
-    first.close = AsyncMock(side_effect=close_first)
-    second = MagicMock(spec=runtime_module.LLMRuntime)
-    build = MagicMock(side_effect=[first, second])
-    monkeypatch.setattr(runtime_module._managed_state, "runtime", old)
-    monkeypatch.setattr(runtime_module, "_build_managed_runtime", build)
-
-    first_reload = asyncio.create_task(runtime_module.reload_llm_runtime())
-    await old_close_started.wait()
-    second_reload = asyncio.create_task(runtime_module.reload_llm_runtime())
-    await asyncio.sleep(0)
-
-    build.assert_called_once_with(generation=1)
-    assert runtime_module._managed_state.runtime is first
-
-    release_old_close.set()
-    assert await first_reload is first
-    await first_close_started.wait()
-    assert runtime_module._managed_state.runtime is second
-
-    release_first_close.set()
-    assert await second_reload is second
-    assert runtime_module._managed_state.generation == 2
-    old.close.assert_awaited_once_with()
-    first.close.assert_awaited_once_with()
-
-
-@pytest.mark.asyncio
-async def test_reload_waiting_for_shutdown_publishes_a_usable_new_runtime(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    close_started = asyncio.Event()
-    release_close = asyncio.Event()
-
-    async def close_old() -> None:
-        close_started.set()
-        await release_close.wait()
-
-    old = MagicMock(spec=runtime_module.LLMRuntime)
-    old.close = AsyncMock(side_effect=close_old)
-    new = MagicMock(spec=runtime_module.LLMRuntime)
-    new.state = "NEW"
-    build = MagicMock(return_value=new)
-    monkeypatch.setattr(runtime_module._managed_state, "runtime", old)
-    monkeypatch.setattr(runtime_module, "_build_managed_runtime", build)
-
-    shutdown = asyncio.create_task(runtime_module.shutdown_llm_runtime())
-    await close_started.wait()
-    reload_task = asyncio.create_task(runtime_module.reload_llm_runtime())
-    await asyncio.sleep(0)
-
-    build.assert_not_called()
-    release_close.set()
-    await shutdown
-    result = await reload_task
-
-    assert result is new
-    assert result.state != "CLOSED"
-    assert runtime_module.get_llm_runtime() is new
-    build.assert_called_once_with(generation=1)
-
-
-@pytest.mark.asyncio
 async def test_get_during_shutdown_cannot_construct_an_unowned_runtime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -388,6 +435,11 @@ async def test_get_during_shutdown_cannot_construct_an_unowned_runtime(
     build.assert_called_once_with(generation=0)
 
 
+# ---------------------------------------------------------------------------
+# Cross-loop lifecycle
+# ---------------------------------------------------------------------------
+
+
 def test_lifecycle_coordinator_is_not_bound_to_one_event_loop(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -404,3 +456,91 @@ def test_lifecycle_coordinator_is_not_bound_to_one_event_loop(
 
     first.close.assert_awaited_once_with()
     second.close.assert_awaited_once_with()
+
+
+# ---------------------------------------------------------------------------
+# Capability cache invalidation on reload
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_reload_invalidates_capability_cache_once_before_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Invalidate capability cache once before closing the old runtime.
+
+    ``reload_llm_runtime`` calls ``invalidate_capability_cache`` exactly once,
+    before closing the old runtime, so capability probes re-resolve against the
+    new generation.
+    """
+    call_order: list[str] = []
+    old = MagicMock(spec=runtime_module.LLMRuntime)
+    old.close = AsyncMock(side_effect=lambda: call_order.append("close"))
+    new = MagicMock(spec=runtime_module.LLMRuntime)
+
+    def invalidate() -> None:
+        call_order.append("invalidate")
+
+    monkeypatch.setattr(runtime_module._managed_state, "runtime", old)
+    monkeypatch.setattr(
+        runtime_module,
+        "_build_managed_runtime",
+        MagicMock(return_value=new),
+    )
+    monkeypatch.setattr(
+        runtime_module, "invalidate_capability_cache", invalidate, raising=False
+    )
+
+    await runtime_module.reload_llm_runtime()
+
+    assert call_order == ["invalidate", "close"]
+
+
+@pytest.mark.asyncio
+async def test_reload_publishes_new_runtime_with_incremented_generation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = make_config()
+    monkeypatch.setattr(runtime_module, "load_llm_runtime_config", lambda: config)
+    monkeypatch.setenv("LLM_RELOAD_TEST_KEY", "secret")
+
+    first = await runtime_module.initialize_llm_runtime()
+    assert first.generation == 0
+
+    second = await runtime_module.reload_llm_runtime()
+    third = await runtime_module.reload_llm_runtime()
+
+    assert second.generation == 1
+    assert third.generation == 2
+    assert runtime_module._managed_state.generation == 2
+    assert runtime_module.get_llm_runtime() is third
+
+
+# ---------------------------------------------------------------------------
+# Real-runtime integration: close() is idempotent and clears caches
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_real_runtime_close_clears_caches_after_reload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A real LLMRuntime (not a MagicMock) close() clears cached agents/profiles."""
+    config = make_config()
+    monkeypatch.setattr(runtime_module, "load_llm_runtime_config", lambda: config)
+    monkeypatch.setenv("LLM_RELOAD_TEST_KEY", "secret")
+
+    first = await runtime_module.initialize_llm_runtime()
+    first.profile()
+    first._agent()
+    assert first._agents
+    assert first._profiles
+
+    second = await runtime_module.reload_llm_runtime()
+
+    assert first.state == "CLOSED"
+    assert first._agents == {}
+    assert first._profiles == {}
+    assert second.state in {"NEW", "RUNNING"}
+    assert second._agents == {}
+    assert second._profiles == {}

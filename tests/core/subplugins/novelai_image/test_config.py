@@ -11,9 +11,10 @@ def test_novelai_config_defaults() -> None:
 
     assert value.model == "nai-diffusion-4-5-full"
     assert (value.width, value.height, value.steps, value.scale) == (832, 1216, 28, 5)
-    assert value.account_base_url == "https://api.novelai.net"
+    assert value.mcp_command == "uvx"
+    assert value.mcp_args == ("novelai-image-mcp", "serve")
+    assert value.output_dir is None
     assert value.n_samples == 1
-    assert value.vibe_cache_entries == 64
     assert value.image_download_max_bytes == 10 * 1024 * 1024
     assert {
         key: getattr(value, key)
@@ -44,7 +45,6 @@ def test_novelai_config_defaults() -> None:
         {"tipo_top_p": -0.1},
         {"tipo_top_k": 0},
         {"n_samples": 9},
-        {"vibe_cache_entries": 0},
         {"image_download_max_bytes": 0},
     ],
 )
@@ -59,7 +59,8 @@ def test_novelai_environment_overrides_json_defaults(
     monkeypatch.setenv("LINGCHU_NOVELAI_WIDTH", "1024")
     monkeypatch.setenv("LINGCHU_NOVELAI_TOKEN", "env-token")
     monkeypatch.setenv("LINGCHU_NOVELAI_TIPO_BASE_URL", "https://tipo.test/v1")
-    monkeypatch.setenv("LINGCHU_NOVELAI_ACCOUNT_BASE_URL", "https://account.test")
+    monkeypatch.setenv("LINGCHU_NOVELAI_MCP_COMMAND", "python")
+    monkeypatch.setenv("LINGCHU_NOVELAI_OUTPUT_DIR", "/tmp/novelai")
     monkeypatch.setattr(config, "load_subplugin_config", lambda _: {})
 
     value = config.get_novelai_config()
@@ -67,7 +68,8 @@ def test_novelai_environment_overrides_json_defaults(
     assert value.width == 1024
     assert value.token == "env-token"
     assert value.tipo_base_url == "https://tipo.test/v1"
-    assert value.account_base_url == "https://account.test"
+    assert value.mcp_command == "python"
+    assert value.output_dir == "/tmp/novelai"
 
 
 def test_novelai_config_reads_nonebot_dotenv_values(
@@ -105,6 +107,12 @@ def test_schema_contains_child_fields_only() -> None:
     assert "token" in properties
     assert "password" not in properties
     assert "ai_model" not in properties
+    assert "mcp_command" in properties
+    assert "mcp_args" in properties
+    assert "output_dir" in properties
+    assert "base_url" not in properties
+    assert "account_base_url" not in properties
+    assert "vibe_cache_entries" not in properties
 
     def contains_null_type(value: object) -> bool:
         if isinstance(value, dict):
@@ -125,6 +133,20 @@ def test_old_prompt_llm_keys_are_ignored() -> None:
     })
 
     assert not any(key.startswith("prompt_llm_") for key in value.model_fields_set)
+
+
+@pytest.mark.parametrize(
+    ("alias", "value", "attr"),
+    [
+        ("LINGCHU_NOVELAI_MCP_COMMAND", "python", "mcp_command"),
+        ("LINGCHU_NOVELAI_MCP_ARGS", ("custom-mcp", "run"), "mcp_args"),
+        ("LINGCHU_NOVELAI_OUTPUT_DIR", "/tmp/out", "output_dir"),
+    ],
+)
+def test_mcp_validation_aliases(alias: str, value: object, attr: str) -> None:
+    config_value = config.NovelAIConfig.model_validate({alias: value})
+
+    assert getattr(config_value, attr) == value
 
 
 def test_password_is_environment_only(monkeypatch: pytest.MonkeyPatch) -> None:
