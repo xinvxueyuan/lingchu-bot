@@ -44,6 +44,10 @@ jobs:
       bump_level: ${{ steps.derive.outputs.bump_level }}
       bump_prerelease: ${{ steps.derive.outputs.bump_prerelease }}
       version: ${{ steps.bump.outputs.new_version }}
+      # Strip the patch segment via bash parameter expansion so the docker
+      # metadata action can tag `0.4.0` images as `0.4` without leaning on
+      # GitHub Actions expression syntax (which does not support `%`).
+      minor_version: ${{ steps.tag.outputs.minor_version }}
       notes_body_path: ${{ steps.notes.outputs.body_path }}
     steps:
       - name: 🔨 Setup uv + Task
@@ -74,6 +78,20 @@ jobs:
           task ci:version:bump \
             BUMP_LEVEL="${{ steps.derive.outputs.bump_level }}" \
             BUMP_PRERELEASE="${{ steps.derive.outputs.bump_prerelease }}"
+
+      - name: 🏷️ Derive minor version tag
+        id: tag
+        shell: bash
+        # Bash parameter expansion drops the last `.X` segment, so
+        # `0.4.0` -> `0.4` and `0.4.0a1` -> `0.4` (the rightmost dot is
+        # between `4` and `0`, so the pre-release suffix is preserved
+        # only when the patch segment is missing).
+        run: |
+          set -euo pipefail
+          version="${{ steps.bump.outputs.new_version }}"
+          minor="${version%.*}"
+          echo "minor_version=${minor}" >> "$GITHUB_OUTPUT"
+          echo "Resolved minor_version=${minor} from ${version}"
 
       - name: ✅ Pre-check version
         shell: bash
@@ -223,7 +241,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ needs.validate.outputs.version }}
-            type=raw,value=${{ needs.validate.outputs.version }%.*}
+            type=raw,value=${{ needs.validate.outputs.minor_version }}
             type=raw,value=latest
 
       - name: 🏷️ Docker metadata (pre-release)
@@ -235,7 +253,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ needs.validate.outputs.version }}
-            type=raw,value=${{ needs.validate.outputs.version }}%.*
+            type=raw,value=${{ needs.validate.outputs.minor_version }}
 
       - name: 🐳 Build and push
         id: build
