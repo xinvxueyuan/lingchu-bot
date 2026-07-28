@@ -74,7 +74,7 @@ jobs:
         # of the toolchain (Node + pnpm + uv + Task) is delegated to
         # `setup-toolchain` on the next step.
         # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: 🔨 Setup full toolchain
         # Composite action chains Node 24 + pnpm + uv 3.13 + Task.
@@ -120,11 +120,11 @@ jobs:
         # because the runner needs the repo checked out before it can
         # resolve `./.github/actions/checkout`.
         # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: 📦 Download build artifacts
         # pinned from actions/download-artifact@v7.0.0
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: assets-${{ github.sha }}
           path: dist
@@ -178,7 +178,7 @@ jobs:
         # removed composite `.github/actions/checkout` cannot be the
         # first step in a job.
         # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: 🔨 Setup uv + Task
         # prod-env smoke only needs uv (no Node, no pnpm). Cache is
@@ -230,7 +230,7 @@ jobs:
         # setup-toolchain cannot be the first step, so we explicitly
         # checkout first.
         # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
 
@@ -312,11 +312,11 @@ jobs:
     steps:
       - name: 📥 Checkout
         # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: 📦 Download versioned build artifacts
         # pinned from actions/download-artifact@v7.0.0
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: assets-${{ needs.versioned-build.outputs.new_version }}
           path: dist
