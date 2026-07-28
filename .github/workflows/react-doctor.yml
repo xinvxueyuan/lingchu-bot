@@ -44,13 +44,10 @@ jobs:
     name: 🩺 React Doctor Scan
     runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout
-        uses: ./.github/actions/checkout
-
       - name: 🔨 Setup full toolchain
         # React Doctor scans React code; it needs Node + pnpm to run
-        # `npx react-doctor@latest` against `apps/docs/`. The composite action
-        # is reused so we don't have to keep 4 separate setup steps in sync.
+        # `npx react-doctor@latest` against `apps/docs/`. The composite
+        # action also performs the initial `actions/checkout` for us.
         uses: ./.github/actions/setup-toolchain
 
       - name: Run React Doctor

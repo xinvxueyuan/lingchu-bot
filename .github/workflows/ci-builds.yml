@@ -102,7 +102,12 @@ jobs:
 
     steps:
       - name: 📥 Checkout
-        uses: ./.github/actions/checkout
+        # Direct `actions/checkout` (not the local composite) — the
+        # composite checkout action cannot be the first step in a job
+        # because the runner needs the repo checked out before it can
+        # resolve `./.github/actions/checkout`.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
       - name: 📦 Download build artifacts
         # pinned from actions/download-artifact@v7.0.0
@@ -155,7 +160,12 @@ jobs:
 
     steps:
       - name: 📥 Checkout
-        uses: ./.github/actions/checkout
+        # setup-uv-task (used below) does NOT include checkout, so this
+        # first step must be a direct `actions/checkout` call. The
+        # removed composite `.github/actions/checkout` cannot be the
+        # first step in a job.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
       - name: 🔨 Setup uv + Task
         # prod-env smoke only needs uv (no Node, no pnpm).
@@ -274,7 +284,8 @@ jobs:
 
     steps:
       - name: 📥 Checkout
-        uses: ./.github/actions/checkout
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
       - name: 📦 Download versioned build artifacts
         # pinned from actions/download-artifact@v7.0.0

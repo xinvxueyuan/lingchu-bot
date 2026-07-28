@@ -24,12 +24,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: 检出代码
-        uses: ./.github/actions/checkout
-
       - name: 🔨 Setup full toolchain
-        # Docs build needs Node + pnpm + uv + Task. The composite action is
-        # reused so we don't have to keep 4 separate setup steps in sync.
+        # Docs build needs Node + pnpm + uv + Task. The composite action
+        # performs the initial `actions/checkout` for us, so no separate
+        # checkout step is needed.
         uses: ./.github/actions/setup-toolchain
         with:
           with-retry: "true"
