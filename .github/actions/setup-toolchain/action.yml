@@ -1,0 +1,39 @@
+name: Setup full toolchain
+description: Checkout + Node 24 + pnpm + uv 3.13 + Task (the standard five-step CI bootstrap)
+
+inputs:
+  node-version:
+    description: "Node.js version (defaults to 24)"
+    required: false
+    default: "24"
+  python-version:
+    description: "Python version pin (defaults to 3.13)"
+    required: false
+    default: "3.13"
+  with-retry:
+    description: "Wrap pnpm install in nick-fields/retry (used by long-running build jobs)"
+    required: false
+    default: "false"
+  fetch-depth:
+    description: "Git fetch depth passed to the checkout step"
+    required: false
+    default: "0"
+
+runs:
+  using: composite
+  steps:
+    - name: 📥 Checkout
+      uses: ./.github/actions/checkout
+      with:
+        fetch-depth: ${{ inputs.fetch-depth }}
+
+    - name: ⚡📦 Setup Node + pnpm
+      uses: ./.github/actions/setup-node-pnpm
+      with:
+        node-version: ${{ inputs.node-version }}
+        with-retry: ${{ inputs.with-retry }}
+
+    - name: ⚡🔨 Setup uv + Task
+      uses: ./.github/actions/setup-uv-task
+      with:
+        python-version: ${{ inputs.python-version }}

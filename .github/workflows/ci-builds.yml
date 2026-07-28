@@ -22,7 +22,7 @@ on:
       - "turbo.json"
       - "apps/docs/**"
       - "packages/**"
-      - ".github/workflows/👷-ci-builds.yml"
+      - ".github/workflows/ci-builds.yml"
   push:
     branches:
       - main
@@ -43,7 +43,7 @@ on:
       - "turbo.json"
       - "apps/docs/**"
       - "packages/**"
-      - ".github/workflows/👷-ci-builds.yml"
+      - ".github/workflows/ci-builds.yml"
 
 permissions:
   contents: read
@@ -66,57 +66,19 @@ jobs:
       contents: read
 
     steps:
-      - name: 📥 Checkout
-        # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-
-      - name: ⚡ Setup Node
-        # pinned from actions/setup-node@v6.5.0
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+      - name: 🔨 Setup full toolchain
+        # Composite action chains checkout + Node 24 + pnpm + uv 3.13 + Task.
+        # `with-retry: true` wraps `pnpm install` so transient network errors
+        # don't fail long-running build jobs.
+        uses: ./.github/actions/setup-toolchain
         with:
-          node-version: 24
-
-      - name: 📦 Setup pnpm
-        # pinned from pnpm/action-setup@v6.0.9
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
-
-      - name: 📦 Install Node dependencies
-        # pinned from nick-fields/retry@v4.0.0
-        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
-        with:
-          timeout_minutes: 5
-          max_attempts: 4
-          retry_wait_seconds: 30
-          command: pnpm install --frozen-lockfile
-
-      - name: ⚡ Install uv
-        # pinned from astral-sh/setup-uv@v8.3.2
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
-        with:
-          github-token: ${{ github.token }}
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-
-      - name: 🔨 Install Task
-        # pinned from go-task/setup-task@v2.1.0
-        uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa
+          with-retry: "true"
 
       - name: 📦 Build
         run: task ci:build
 
       - name: 🔍 Verify wheel contents
-        run: |
-          python -c "
-          from zipfile import ZipFile
-          from pathlib import Path
-          wheel = next(Path('dist').glob('*.whl'))
-          with ZipFile(wheel) as z:
-              modules = ['_lingchu_bot_contracts', '_lingchu_bot_cli', 'nonebot_plugin_lingchu_bot']
-              for mod in modules:
-                  if not any(f.startswith(mod) for f in z.namelist()):
-                      raise RuntimeError(f'Module {mod} not found in wheel')
-          print('✓ All modules present in wheel:', ', '.join(modules))
-          "
+        uses: ./.github/actions/verify-wheel
 
       - name: 📦 Archive build artifacts
         # pinned from actions/upload-artifact@v7.0.1
@@ -140,8 +102,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout
-        # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: ./.github/actions/checkout
 
       - name: 📦 Download build artifacts
         # pinned from actions/download-artifact@v7.0.0
@@ -194,16 +155,11 @@ jobs:
 
     steps:
       - name: 📥 Checkout
-        # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: ./.github/actions/checkout
 
-      - name: ⚡ Install uv
-        # pinned from astral-sh/setup-uv@v8.3.2
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
-        with:
-          github-token: ${{ github.token }}
-          enable-cache: true
-          cache-dependency-glob: uv.lock
+      - name: 🔨 Setup uv + Task
+        # prod-env smoke only needs uv (no Node, no pnpm).
+        uses: ./.github/actions/setup-uv-task
 
       - name: 📦 Install dependencies
         run: uv sync --frozen
@@ -241,76 +197,33 @@ jobs:
       attestations: write
 
     steps:
-      - name: 📥 Checkout
-        # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: 🔨 Setup full toolchain
+        # versioned-build needs full history (fetch-depth: 0) for `git fetch
+        # --tags` inside ci:version:bump, plus the same Node 24 + pnpm + uv +
+        # Task chain for the actual `task ci:build` step.
+        uses: ./.github/actions/setup-toolchain
         with:
-          fetch-depth: 0
+          with-retry: "true"
+          fetch-depth: "0"
 
-      - name: ⚡ Setup Node
-        # pinned from actions/setup-node@v6.5.0
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with:
-          node-version: 24
-
-      - name: 📦 Setup pnpm
-        # pinned from pnpm/action-setup@v6.0.9
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
-
-      - name: 📦 Install Node dependencies
-        # pinned from nick-fields/retry@v4.0.0
-        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
-        with:
-          timeout_minutes: 5
-          max_attempts: 4
-          retry_wait_seconds: 30
-          command: pnpm install --frozen-lockfile
-
-      - name: ⚡ Install uv
-        # pinned from astral-sh/setup-uv@v8.3.2
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
-        with:
-          github-token: ${{ github.token }}
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-
-      - name: 🔨 Install Task
-        # pinned from go-task/setup-task@v2.1.0
-        uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa
+      - name: 🔖 Derive bump from branch
+        id: derive
+        # ci:version:derive-bump is the single source of truth for the seven
+        # release bumps; the same task is called by release.yml, release:prepare,
+        # and release:notes. Push events always run on main / dev* branches.
+        shell: bash
+        run: |
+          set -euo pipefail
+          task -s ci:version:derive-bump SOURCE="${GITHUB_REF_NAME}"
 
       - name: 🔖 Bump development version
         id: bump
         shell: bash
         run: |
-          # Derive bump level and prerelease type from branch name:
-          #
-          #   Level (BUMP_LEVEL):
-          #     main / dev* (no suffix) → patch
-          #     dev-minor*              → minor
-          #     dev-major*              → major
-          #
-          #   Prerelease (BUMP_PRERELEASE):
-          #     dev-alpha*   → alpha   (0.0.1 → 0.0.2a1)
-          #     dev-beta*    → beta    (0.0.1 → 0.0.2b1)
-          #     dev-rc*      → rc      (0.0.1 → 0.0.2rc1)
-          #     dev-stable*  → stable  (0.0.1.dev1 → 0.0.1)
-          #     dev* / main  → dev     (0.0.1 → 0.0.2.dev1, default)
-          branch="${GITHUB_REF_NAME}"
-          case "$branch" in
-            dev-major*)   bump_level=major ;;
-            dev-minor*)   bump_level=minor ;;
-            *)            bump_level=patch ;;
-          esac
-          case "$branch" in
-            dev-alpha* | dev-minor-alpha* | dev-major-alpha*)  bump_prerelease=alpha ;;
-            dev-beta*  | dev-minor-beta*  | dev-major-beta*)   bump_prerelease=beta ;;
-            dev-rc*    | dev-minor-rc*    | dev-major-rc*)     bump_prerelease=rc ;;
-            dev-stable*| dev-minor-stable*| dev-major-stable*) bump_prerelease=stable ;;
-            *)                                                 bump_prerelease=dev ;;
-          esac
-          echo "bump_level=$bump_level" >> "$GITHUB_OUTPUT"
-          echo "bump_prerelease=$bump_prerelease" >> "$GITHUB_OUTPUT"
-          task ci:version:bump BUMP_LEVEL="$bump_level" BUMP_PRERELEASE="$bump_prerelease"
+          set -euo pipefail
+          task ci:version:bump \
+            BUMP_LEVEL="${{ steps.derive.outputs.bump_level }}" \
+            BUMP_PRERELEASE="${{ steps.derive.outputs.bump_prerelease }}"
 
       - name: ✅ Pre-check version
         shell: bash
@@ -331,24 +244,12 @@ jobs:
         run: task ci:build
 
       - name: 🔍 Verify wheel contents
-        run: |
-          python -c "
-          from zipfile import ZipFile
-          from pathlib import Path
-          wheel = next(Path('dist').glob('*.whl'))
-          with ZipFile(wheel) as z:
-              modules = ['_lingchu_bot_contracts', '_lingchu_bot_cli', 'nonebot_plugin_lingchu_bot']
-              for mod in modules:
-                  if not any(f.startswith(mod) for f in z.namelist()):
-                      raise RuntimeError(f'Module {mod} not found in wheel')
-          print('✓ All modules present in wheel:', ', '.join(modules))
-          "
+        uses: ./.github/actions/verify-wheel
 
       - name: 🛡️ Attest build provenance
-        # pinned from actions/attest-build-provenance@v4.1.0
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32
+        uses: ./.github/actions/attest-slsa
         with:
-          subject-path: "dist/*"
+          subject-path: dist/*
 
       - name: 📦 Archive production artifacts
         # pinned from actions/upload-artifact@v7.0.1
@@ -373,8 +274,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout
-        # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: ./.github/actions/checkout
 
       - name: 📦 Download versioned build artifacts
         # pinned from actions/download-artifact@v7.0.0

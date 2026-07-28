@@ -13,7 +13,7 @@ on:
       - "Taskfile.yml"
       - ".markdownlint-cli2.jsonc"
       - ".husky/**"
-      - ".github/workflows/🧪-python.yml"
+      - ".github/workflows/python.yml"
       - ".github/actions/detect-changes/**"
   push:
     branches: [main, dev]
@@ -26,7 +26,7 @@ on:
       - "Taskfile.yml"
       - ".markdownlint-cli2.jsonc"
       - ".husky/**"
-      - ".github/workflows/🧪-python.yml"
+      - ".github/workflows/python.yml"
       - ".github/actions/detect-changes/**"
 
 permissions:
@@ -47,11 +47,10 @@ jobs:
       python: ${{ steps.detect.outputs.python }}
       markdown: ${{ steps.detect.outputs.markdown }}
     steps:
-      - name: Checkout
+      - name: 📥 Checkout
         # 本地 composite action (`./.github/actions/detect-changes`) 在
         # `uses:` 解析时就需要 action.yml，必须先 checkout。
-        # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: ./.github/actions/checkout
         with:
           fetch-depth: 0
       - id: detect
@@ -69,34 +68,15 @@ jobs:
       # CI environments. Static Analysis only needs lint + git groups.
       UV_NO_SYNC: "1"
     steps:
-      - name: Checkout
-        # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-      - name: Setup Node
-        # pinned from actions/setup-node@v6.5.0
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with:
-          node-version: 24
-      - name: Setup pnpm
-        # pinned from pnpm/action-setup@v6.0.9
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Setup uv
-        # pinned from astral-sh/setup-uv@v8.3.2
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
-        with:
-          python-version: "3.13"
-          enable-cache: true
-          cache-dependency-glob: uv.lock
+      - name: 🔨 Setup full toolchain
+        # Composite action chains checkout + Node 24 + pnpm + uv 3.13 + Task.
+        # Static Analysis skips the retry wrapper to keep the install fast.
+        uses: ./.github/actions/setup-toolchain
       - name: Install Python dependencies (lint + git only)
         # Install minimal dependencies for static analysis: project runtime
         # deps + lint group + git group. Skip test group to avoid building
         # database drivers (mariadb, aioodbc) that need system libraries.
         run: uv sync --no-dev --all-extras --group lint --group git --frozen
-      - name: Install Task
-        # pinned from go-task/setup-task@v2.1.0
-        uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa
       - name: Static Analysis
         run: |
           # Auto-fix before check to self-heal fixable issues
@@ -249,17 +229,11 @@ jobs:
           --health-retries 30
           --health-start-period 90s
     steps:
-      - name: Checkout
-        # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: 📥 Checkout
+        uses: ./.github/actions/checkout
 
-      - name: Setup uv
-        # pinned from astral-sh/setup-uv@v8.3.2
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
-        with:
-          python-version: "3.13"
-          enable-cache: true
-          cache-dependency-glob: uv.lock
+      - name: 🔨 Setup uv + Task
+        uses: ./.github/actions/setup-uv-task
 
       - name: Install Python dependencies
         # pinned from nick-fields/retry@v4.0.0
@@ -336,32 +310,14 @@ jobs:
       # CI environments. Auto-format only needs lint + git groups.
       UV_NO_SYNC: "1"
     steps:
-      # pinned from actions/checkout@v6.1.0
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-      - name: Setup Node
-        # pinned from actions/setup-node@v6.5.0
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with:
-          node-version: 24
-      - name: Setup pnpm
-        # pinned from pnpm/action-setup@v6.0.9
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Setup uv
-        # pinned from astral-sh/setup-uv@v8.3.2
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
-        with:
-          python-version: "3.13"
-          cache-dependency-glob: uv.lock
+      - uses: ./.github/actions/checkout
+      - name: 🔨 Setup full toolchain
+        uses: ./.github/actions/setup-toolchain
       - name: Install Python dependencies (lint + git only)
         # Install minimal dependencies for auto-format: project runtime
         # deps + lint group + git group. Skip test group to avoid building
         # database drivers (mariadb, aioodbc) that need system libraries.
         run: uv sync --no-dev --all-extras --group lint --group git --frozen
-      - name: Install Task
-        # pinned from go-task/setup-task@v2.1.0
-        uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa
       - name: Auto Fix & Format
         run: task ci:fix
 
@@ -391,9 +347,9 @@ jobs:
       pull-requests: write
     continue-on-error: true
     steps:
-      - name: Checkout
-        # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: 📥 Checkout
+        # Full history is required for `git diff origin/<base>...HEAD` below.
+        uses: ./.github/actions/checkout
         with:
           fetch-depth: 0
       - name: Audit new inline ignore comments

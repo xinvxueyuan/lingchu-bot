@@ -46,7 +46,7 @@ FROM python:3.13-slim@sha256:7ba5f5888fbe0014ab9edb2278922995c2201fc3752c46b0be2
 WORKDIR /app
 
 # ── OCI labels ──
-# Build args are passed by CI (👷-ci-builds.yml, 🚀-release.yml).
+# Build args are passed by CI (ci-builds.yml, release.yml).
 # VCS_REF is mapped to org.opencontainers.image.revision because release.yml
 # passes VCS_REF=${{ github.sha }} as a build-arg.
 ARG VERSION=unknown
@@ -106,7 +106,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD python -c "import socket, os; p=int(os.getenv('PORT','8080')); s=socket.socket(); s.connect(('localhost', p)); s.close()"
 
 # ── Entrypoint ──
-# A conditional CMD is required because the CI smoke-test job (👷-ci-builds.yml)
+# A conditional CMD is required because the CI smoke-test job (ci-builds.yml)
 # invokes the image without a command override and selects the branch via
 # SMOKE_TEST=true. The production branch uses ``exec`` so NoneBot receives
 # process signals directly (equivalent to exec-form ENTRYPOINT).

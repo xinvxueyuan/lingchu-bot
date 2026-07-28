@@ -1,0 +1,108 @@
+---
+icon: PackageOpen
+title: 发布版本
+description: Bump-style 发布分支、release:prepare / release:publish / release:notes 辅助任务，以及 release.yml 流水线。
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+通过打开一个 bump-style 分支并推送，即可完成 Lingchu Bot 版本发布。`release.yml` 复用 `ci-builds.yml::versioned-build` 在开发分支上使用的同一条 `ci:version:bump` → `ci:version:precheck` → `ci:version:write-config` → `ci:version:postcheck` 流水线，因此 PEP 440 版本推导只此一份。
+
+## 分支命名
+
+发布分支编码 **bump 意图**而非字面量版本号。工作流通过 `uv version --bump` 从最新 git tag 推导版本号：
+
+| 分支 | `BUMP_LEVEL` | `BUMP_PRERELEASE` | 推得的版本 |
+| --- | --- | --- | --- |
+| `releases/major` | `major` | `dev` | `下一个 major + .dev1` |
+| `releases/minor` | `minor` | `dev` | `下一个 minor + .dev1` |
+| `releases/patch` | `patch` | `dev` | `下一个 patch + .dev1` |
+| `releases/stable` | `patch` | `stable` | `下一个 patch`（无 pre-release 段） |
+| `releases/alpha` | `patch` | `alpha` | `下一个 patch + a1` |
+| `releases/beta` | `patch` | `beta` | `下一个 patch + b1` |
+| `releases/rc` | `patch` | `rc` | `下一个 patch + rc1` |
+
+类似 `releases/0.5.0` 的字面量分支不再被接受。工作流的 `case` 语句会用清晰报错拒绝它们。
+
+## 本地发布流程
+
+<Steps>
+
+1. ### 切回最新的 main
+
+   ```bash
+   git switch main
+   git pull --ff-only
+   ```
+
+2. ### 运行 `task release:prepare`
+
+   ```bash
+   task release:prepare BUMP=stable
+   ```
+
+   任务会：
+
+   - 校验 `BUMP` 必须是七个允许值之一。
+   - 调用 `task ci:version:bump BUMP_LEVEL=patch BUMP_PRERELEASE=stable DRY_RUN=true` 计算下一个版本，不修改 `pyproject.toml`。
+   - 切换到（或创建）`releases/stable` 分支。
+   - 调用 `task ci:version:write-config` 把版本写入 `core/config.py` 与 `package.json`。
+   - 调用 `task release:verify-version` 校验 `pyproject.toml` / `package.json` / `core/config.py` 三者一致。
+   - 若 `.github/releases/<computed_version>.md` 不存在则脚手架出该文件。
+
+3. ### 编辑发布说明
+
+   打开 `release:prepare` 输出的 `.github/releases/<version>.md`，添加 Highlights、破坏性变更与迁移说明。
+
+4. ### 提交并推送
+
+   ```bash
+   git add .github/releases/<version>.md pyproject.toml package.json core/config.py
+   git commit -m "🔧 chore(release): release <version>"
+   task release:publish BUMP=stable
+   ```
+
+</Steps>
+
+<Aside type="tip" title="在分支上单独重新脚手架发布说明">
+
+如果仅需要重新生成发布说明文件（例如已在 `releases/<bump>` 分支上、想再次拿一次版本号），在该分支上运行 `task release:notes`。它调用 `ci:version:bump DRY_RUN=true` 推导版本，并在文件缺失时创建。
+
+</Aside>
+
+## 发布工作流做了什么
+
+`release.yml` 顺序执行四个 job：
+
+| Job | 职责 |
+| --- | --- |
+| `validate` | 从分支名推导 `BUMP_LEVEL` / `BUMP_PRERELEASE`；依次执行 `ci:version:bump` → `precheck` → `write-config` → `postcheck`；定位 `.github/releases/<version>.md`；把计算出的版本号透出给下游 job。 |
+| `build` | 若版本出现漂移则重新写回源文件（amend 发布分支）；执行 `task ci:build`；上传 wheel + sdist。 |
+| `publish-pypi` | 签发 SLSA Build L3 provenance；通过 Trusted Publishing / OIDC 发布到 PyPI。 |
+| `publish-image` | 构建并推送 Docker 镜像到 GHCR；stable bump 同时打 `latest` 标签（其它仅打 `${version}` + `${version%.*}`）。 |
+| `github-release` | 创建 `v<version>` git tag；用 `.github/releases/<version>.md` 内容作为正文创建 GitHub Release。 |
+
+`validate` 与 `build` 调用的是与 `versioned-build` 在 `dev-*` 分支上相同的 `ci:version:bump` 任务，版本号事实来源只有一份。
+
+## 紧急手动发布
+
+`release.yml` 的 `workflow_dispatch` 接收与分支同构的七个 bump 值：
+
+```yaml
+inputs:
+  bump:
+    description: "发布 bump（major / minor / patch / stable / alpha / beta / rc）"
+    type: choice
+    options: [major, minor, patch, stable, alpha, beta, rc]
+```
+
+适用于在不重新推送分支的情况下重跑发布工作流。`Derive bump from branch or dispatch input` 步骤在 `GITHUB_REF_NAME` 为空时回退到 `bump` 输入。
+
+## 故障排查
+
+| 现象 | 原因 | 修复 |
+| --- | --- | --- |
+| `Invalid release branch / input: <name>` | 分支不是七个 bump 名称之一。 | 改用 `releases/major` / `releases/minor` / `releases/patch` / `releases/stable` / `releases/alpha` / `releases/beta` / `releases/rc`。 |
+| `Missing release notes: .github/releases/<version>.md` | 推送前未创建说明文件。 | 在发布分支上运行 `task release:notes` 脚手架，提交后再推送。 |
+| `Tag v<version> already exists on origin` | Tag 已被发布；`ci:version:tag-only` 跳过创建。 | 确认 tag 与 commit SHA 一致；如需重发，先在 origin 删除 tag 再重推分支。 |
+| CI 与本地出现版本漂移 | 开发者的本地 bump 与 CI 计算结果不一致。 | `build` job 的 `Sync version files to release branch` 步骤会用 CI 计算的版本 amend 发布分支。检查最终 commit 与 tag。 |

@@ -1,0 +1,28 @@
+name: Setup uv + Task
+description: Install uv (with cache) and the go-task runner
+
+inputs:
+  python-version:
+    description: "Python version pin (set to empty string to skip pinning)"
+    required: false
+    default: "3.13"
+  github-token:
+    description: "GitHub token for uv cache authentication"
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: ⚡ Setup uv
+      # pinned from astral-sh/setup-uv@v8.3.2
+      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
+      with:
+        python-version: ${{ inputs.python-version }}
+        github-token: ${{ inputs.github-token }}
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+
+    - name: 🔨 Install Task
+      # pinned from go-task/setup-task@v2.1.0
+      uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa

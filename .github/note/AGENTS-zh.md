@@ -107,6 +107,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 - **REUSE compliance**：所有文件 MUST 通过 `REUSE.toml` 声明 SPDX 许可；提交前 `reuse lint` MUST 通过。新文件 MUST 被 `REUSE.toml` glob 覆盖，或带有内联 `SPDX-License-Identifier` 头。
 - **Docker build context**：`docker build` 前，`.dockerignore` MUST 排除 `.git`、`.venv`、`node_modules`、`.env*`（保留 `.env.example`/`.env.prod.example`）、`tests/`、`.github/`、`.trae/`、`.gitnexus/`、`.turbo/` 及缓存目录。
 - **CODEOWNERS**：`.github/CODEOWNERS` 将 `src/`、`apps/docs/`、`.github/`、`Dockerfile`、`docker-compose.yml`、`Taskfile.yml`、`pyproject.toml`、`package.json`、`REUSE.toml`、`LICENSE-*` 路由给 `@xinvxueyuan` 用于 auto-review。
+- **Workflow 文件名规范**：`.github/workflows/*.yml` 文件名使用纯 kebab-case，不带前导 emoji。emoji 仅保留在 `name:` 字段中，使 Actions UI 仍可按视觉分类。CI 不会因 emoji 失败，但 Cygwin 路径、zip 归档、Windows shell 自动补全对 emoji 处理脆弱，因此新工作流 MUST 遵循纯名约定，已有文件被触及 MUST 通过 `git mv` 重命名。
 
 ### 代码风格
 
@@ -378,8 +379,11 @@ task ci
 
 #### Supply Chain
 
-- `.github/workflows/*.yml` 中所有第三方 GitHub Actions 都按 40 字符 commit SHA 锁定并附 `# vX.Y.Z` 注释（非可变 tag）。`👷-ci-builds.yml` 与 `🚀-release.yml` 均使用 `actions/attest-build-provenance@v4.1.0`（SHA `a2bbfa2…`）生成 SLSA Build L3 provenance。用 `gh attestation verify <artifact> --repository xinvxueyuan/lingchu-bot` 验证。
+- `.github/workflows/*.yml` 中所有第三方 GitHub Actions 都按 40 字符 commit SHA 锁定并附 `# vX.Y.Z` 注释（非可变 tag）。`ci-builds.yml` 与 `release.yml` 均使用 `actions/attest-build-provenance@v4.1.0`（SHA `a2bbfa2…`）生成 SLSA Build L3 provenance。用 `gh attestation verify <artifact> --repository xinvxueyuan/lingchu-bot` 验证。
 - 版本验证系统：分支名约定（`dev-minor-*`/`dev-major-*`/`dev-alpha-*`/`dev-beta-*`/`dev-rc-*`/`dev-stable-*`）驱动 `ci:version:bump` 中的 `BUMP_LEVEL`/`BUMP_PRERELEASE`。`ci:version:precheck` 校验 PEP 440 + 大于所有 tag + 源一致性 + 无重复 tag。`ci:version:postcheck` 调用 `release:verify-version` + dev release 语义。智能 bump 策略处理 stable vs pre-release tag：stable tag 需要 level+prerelease，同类 pre-release tag 仅 bump prerelease，`stable` 清除 prerelease。
+- 发布分支从字面量 `releases/X.Y.Z` 改为 bump-style `releases/<bump-name>`（`major`/`minor`/`patch`/`stable`/`alpha`/`beta`/`rc`），从而发布工作流可以直接复用 `versioned-build` 的 `task ci:version:bump`。实际版本由最新 tag + `uv version --bump` 推导，再由 `ci:version:write-config` 把 `core/config.py` + `package.json` 同步后打 tag。
+- `release.yml::validate` 通过共享的 `task ci:version:derive-bump` 任务（委托给 `scripts/ci_derive_bump.py`）从分支名推导 `BUMP_LEVEL` / `BUMP_PRERELEASE`，与 `ci-builds.yml::versioned-build`、`release:prepare`、`release:notes` 共享同一份单一来源。`task ci:version:bump` 在 `release:prepare` / `release:notes` 中以 `DRY_RUN=true` 调用，因此本地脚手架不会污染 `pyproject.toml`（任务在 bump 后执行 `git checkout -- pyproject.toml`）；`build` job 在 CI 计算的版本与本地写入版本出现漂移时会 amend 发布分支，使 tag 与源码保持一致。`workflow_dispatch` 现在接收 `bump` 选项输入而非字面量版本号。
+- 发布说明仍按计算出的版本号命名（`.github/releases/<version>.md`）；发布工作流在 `ci:version:bump` 产出版本后读取该文件，开发者通过 `task release:notes`（或 `release:prepare` 钩子）在推送前脚手架该文件。
 - `.github/ISSUE_TEMPLATE/` 使用 YAML 表单模板（`bug.yml`、`feature.yml`、`docs.yml`、`config.yml`）；`blank_issues_enabled: false` 带 contact\_links 指向 docs 站和安全策略。不要重新引入 Markdown issue 模板。
 - `CHANGELOG.md` 遵循 Keep a Changelog 1.1.0 格式，包含 `## [Unreleased]` 节和底部 compare 链接。
 
@@ -443,6 +447,14 @@ task ci
 - `aioodbc`（含传递依赖 `pyodbc`）在 Linux CI 需要系统 ODBC Driver 18 包（`ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev`）；macOS 用同名 brew 包；Windows 自带。
 - CI 矩阵跨 6 个引擎跑 10 个任务，均启用 `fail-fast: false`（SQLite + PostgreSQL 16/18 + MySQL 8.4/9.7 LTS + MariaDB 11.4/11.8 LTS + Oracle 23ai + SQL Server 2022/2025）；Oracle / SQL Server 启动慢（health-start-period 90-180s），单次全跑约 8-15 分钟，预算 CI 时间时需要考虑。SQL Server 已从废弃的 `azure-sql-edge` 镜像迁移到 `mcr.microsoft.com/mssql/server:{2022,2025}-latest`（两者均自带 `mssql-tools18` 用于健康检查）。矩阵条目携带 `engine` + `image` 字段；服务容器通过 `${{ matrix.db.engine == '<engine>' && matrix.db.image || '' }}` 选择镜像，使同一引擎的多个版本可在一个矩阵中共存。
 
+#### Actions DRY 重构
+
+- **复合 action 目录**：5 个可复用 composite action 位于 `.github/actions/<name>/action.yml` —— `checkout`、`setup-node-pnpm`、`setup-uv-task`、`setup-toolchain`（组合前三者）、`verify-wheel`、`attest-slsa`。新工作流 MUST 通过 `uses: ./.github/actions/<name>` 消费它们，而不是重新声明 `actions/checkout`、`actions/setup-node`、`pnpm/action-setup`、`astral-sh/setup-uv`、`go-task/setup-task` 或内联 `actions/attest-build-provenance` 步骤。Inputs（`fetch-depth`、`node-version`、`python-version`、`with-retry`、`subject-path`）覆盖了所有旧调用点；只有需要原本不可能的参数时才新增 input。
+- **集中化 bump 推导**：`task ci:version:derive-bump`（委托给 `scripts/ci_derive_bump.py`）是 `BUMP_LEVEL` + `BUMP_PRERELEASE` 的唯一来源。`ci-builds.yml::versioned-build`、`release.yml::validate`、`task release:prepare`、`task release:notes` 全部调用它，不再各自维护 `case` 映射。分支名约定集中在一组正则中，新增 dev- 或 release-bump 类型只需一行修改。
+- **SHA 升级成本下降**：重构前升级 `actions/checkout` SHA 需要编辑 37 个工作流文件；重构后只需在 `.github/actions/checkout/action.yml` 改一处，下游工作流自动继承。composite action 边界是新的“pin surface”——40 字符 SHA + `# vX.Y.Z` 注释约定只出现在 composite action 内部的 `uses:` 行，绝不出现在调用方。
+- **YAML 之外的 inline 代码**：wheel 验证、SLSA attestation 设置、bump 推导原本是嵌在 3 个工作流中的 12 行 `run:` 块，现在分别是 `scripts/ci_verify_wheel.py`、`.github/actions/attest-slsa`、`scripts/ci_derive_bump.py`。超过 5 行逻辑的 workflow 步骤 SHOULD 抽取到 `scripts/`，再通过精简的 composite action 或 `run:` 步骤调用。
+- **文件名去 emoji**：通过 `git mv` 重命名 10 个工作流（如 `🚀-release.yml` → `release.yml`），`git log --follow <new-name>` 保留 rename 前的历史。新增 workflow 时文件名 MUST NOT 带前导 emoji；emoji 只允许出现在 `name:` 字段中。
+
 #### Hooks, CI, And GitHub
 
 - Windows 下 Bash hooks 可能找到不可直接运行的 `.cmd` shim。Windows Node shim 通过 `cmd.exe /c` 执行。
@@ -451,10 +463,10 @@ task ci
 - Markdownlint 配置集中在 `.markdownlint-cli2.jsonc`；调用点应依赖该配置。
 - PowerShell markdownlint 优先 `pwsh.exe -NoProfile`，避免临时手写 quoted globs。
 - GitHub Actions pin 到 commit SHA，不 pin annotated tag object SHA。
-- Workflow 文件名使用 emoji-prefix + kebab-case，workflow `name:` 使用英文并匹配 emoji。
+- Workflow 文件名使用纯 kebab-case（不带前导 emoji）；`name:` 字段仍使用英文并匹配 emoji，使 Actions UI 能视觉分组。修改 `name:` 中的 emoji 不需要重命名文件。
 - `.github` YAML 注释使用英文；移除空的/损坏的 schema comment。
 - `git push origin --delete` 前用 `git ls-remote` 检查远端分支是否存在。
-- CI 工作流按领域拆分：`🧪-python.yml`（Python 静态分析 + 多数据库测试矩阵 + auto-format）、`🧪-frontend.yml`（docs lint/type/test/links）、`📚-docs.yml`（docs 部署）、`👷-ci-builds.yml`（版本 bump + build artifacts + SLSA provenance）、`🚀-release.yml`（PyPI/GHCR 发布）、`🧹-clear-workflow.yml`（手动 dispatch；通过 `actions: write` 删除非运行中的 workflow run）、`🏷️-issues-top.yml`（每日定时；label 并展示 top issues）、`💤-stale.yml`（每日定时；14+7 天无活动后标记并关闭陈旧 issue）、`🩺-react-doctor.yml`（`.tsx` 变更时 PR/push；直接运行 React Doctor CLI — 见 Pending Rollbacks）、`🎭-playwright.yml`（`apps/docs` 变更时 PR/push；带 browser cache 的 Playwright E2E）。共享的变更检测位于 `.github/actions/detect-changes` 复合 action（输出 python/markdown/frontend-\* 标志）。标准触发约定：PR 仅跑检查（不提交/部署）；push 到 `main`/`dev` 跑检查 + auto-format + 部署。每个工作流有独立的 concurrency group 以避免互相取消。
+- CI 工作流按领域拆分：`python.yml`（Python 静态分析 + 多数据库测试矩阵 + auto-format）、`frontend.yml`（docs lint/type/test/links）、`docs.yml`（docs 部署）、`ci-builds.yml`（版本 bump + build artifacts + SLSA provenance）、`release.yml`（PyPI/GHCR 发布）、`clear-workflow.yml`（手动 dispatch；通过 `actions: write` 删除非运行中的 workflow run）、`issues-top.yml`（每日定时；label 并展示 top issues）、`stale.yml`（每日定时；14+7 天无活动后标记并关闭陈旧 issue）、`react-doctor.yml`（`.tsx` 变更时 PR/push；直接运行 React Doctor CLI — 见 Pending Rollbacks）、`playwright.yml`（`apps/docs` 变更时 PR/push；带 browser cache 的 Playwright E2E）。共享的变更检测位于 `.github/actions/detect-changes` 复合 action（输出 python/markdown/frontend-\* 标志）。共享的 setup 逻辑位于 `.github/actions/{checkout,setup-node-pnpm,setup-uv-task,setup-toolchain,verify-wheel,attest-slsa}` 复合 actions 中，每个工作流只需声明 `uses:` 引用即可。标准触发约定：PR 仅跑检查（不提交/部署）；push 到 `main`/`dev` 跑检查 + auto-format + 部署。每个工作流有独立的 concurrency group 以避免互相取消。Workflow 文件名不再带前导 emoji（`name:` 字段仍保留），以便跨平台文件系统与 CLI tab-completion 保持稳定。
 - Python CI 的 Static Analysis job 使用 `uv sync --no-dev --group lint --group git --frozen` + `UV_NO_SYNC=1` 来只安装 lint/format 所需的最小依赖集（ruff、pyright、ty、prek），避免安装 test 组中包含的数据库驱动（mariadb、aioodbc）——这些驱动需要系统级库，在极简 CI 环境中可能构建失败。任何不需要运行测试的 CI job 都可使用此模式。
 
 #### Pending Rollbacks
@@ -462,4 +474,4 @@ task ci
 | What                               | Where                                   | Why                                       | Rollback condition          |
 | ---------------------------------- | --------------------------------------- | ----------------------------------------- | --------------------------- |
 | `deslop/unused-export: "off"`      | `doctor.config.ts`                      | `useMDXComponents` 是框架要求 re-export，但当前未消费 | `useMDXComponents` 被实际消费后移除 |
-| React Doctor CLI instead of action | `.github/workflows/🩺-react-doctor.yml` | 上游 action 有 detached HEAD 和 ANSI 泄漏问题     | 上游发布修复后切回 action            |
+| React Doctor CLI instead of action | `.github/workflows/react-doctor.yml` | 上游 action 有 detached HEAD 和 ANSI 泄漏问题     | 上游发布修复后切回 action            |
