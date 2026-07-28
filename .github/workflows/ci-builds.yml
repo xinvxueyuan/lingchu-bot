@@ -79,10 +79,13 @@ jobs:
       - name: 🔨 Setup full toolchain
         # Composite action chains Node 24 + pnpm + uv 3.13 + Task.
         # `with-retry: true` wraps `pnpm install` so transient network
-        # errors don't fail long-running build jobs.
+        # errors don't fail long-running build jobs. `enable-uv-cache:
+        # true` is required because `task ci:build` runs `uv build`,
+        # which populates the uv cache that setup-uv tries to save.
         uses: ./.github/actions/setup-toolchain
         with:
           with-retry: "true"
+          enable-uv-cache: "true"
 
       - name: 📦 Build
         run: task ci:build
@@ -178,8 +181,11 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
       - name: 🔨 Setup uv + Task
-        # prod-env smoke only needs uv (no Node, no pnpm).
+        # prod-env smoke only needs uv (no Node, no pnpm). Cache is
+        # enabled because the next step runs `uv sync --frozen`.
         uses: ./.github/actions/setup-uv-task
+        with:
+          enable-cache: "true"
 
       - name: 📦 Install dependencies
         run: uv sync --frozen
@@ -229,10 +235,13 @@ jobs:
           fetch-depth: 0
 
       - name: 🔨 Setup full toolchain
-        # Node 24 + pnpm + uv 3.13 + Task.
+        # Node 24 + pnpm + uv 3.13 + Task. `enable-uv-cache: true` is
+        # required because `task ci:build` runs `uv build`, which
+        # populates the uv cache that setup-uv tries to save.
         uses: ./.github/actions/setup-toolchain
         with:
           with-retry: "true"
+          enable-uv-cache: "true"
 
       - name: 🔖 Derive bump from branch
         id: derive
