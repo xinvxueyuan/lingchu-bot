@@ -36,10 +36,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: 📥 Checkout
+        # setup-toolchain is a local composite action and cannot be the
+        # first step in a job — the runner needs the repo on disk before
+        # it can resolve this composite's `action.yml`.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
       - name: 🔨 Setup full toolchain
         # Playwright needs Node + pnpm + uv + Task to mirror the local
-        # `pnpm --filter docs test:e2e` flow. The composite action also
-        # performs the initial `actions/checkout` for us.
+        # `pnpm --filter docs test:e2e` flow.
         uses: ./.github/actions/setup-toolchain
 
       - name: Cache Playwright browsers
