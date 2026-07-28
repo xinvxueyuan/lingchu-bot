@@ -1,0 +1,17 @@
+name: Attest SLSA Build L3 provenance
+description: Attest dist artifacts with SLSA Build L3 provenance
+
+inputs:
+  subject-path:
+    description: "Glob subject path to attest (defaults to dist/*)"
+    required: false
+    default: "dist/*"
+
+runs:
+  using: composite
+  steps:
+    - name: 🛡️ Attest build provenance
+      # pinned from actions/attest-build-provenance@v4.1.0
+      uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32
+      with:
+        subject-path: ${{ inputs.subject-path }}

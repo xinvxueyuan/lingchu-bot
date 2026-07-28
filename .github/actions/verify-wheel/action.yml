@@ -1,0 +1,15 @@
+name: Verify wheel contents
+description: Confirm the built wheel exposes the three Lingchu Bot top-level packages
+
+inputs:
+  dist-dir:
+    description: "Directory containing the built wheel"
+    required: false
+    default: "dist"
+
+runs:
+  using: composite
+  steps:
+    - name: 🔍 Verify wheel contents
+      shell: bash
+      run: python scripts/ci_verify_wheel.py "${{ inputs.dist-dir }}"

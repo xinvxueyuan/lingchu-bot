@@ -111,7 +111,7 @@ When deploying Lingchu Bot in production:
 
 ## Supply Chain Attestation
 
-Build artifacts published from this repository carry **SLSA Build L3** provenance. The `versioned-build` job in `👷-ci-builds.yml` generates build provenance for `dist/*` artifacts using [`actions/attest-build-provenance@v4.1.0`](https://github.com/actions/attest-build-provenance) (SHA-pinned). Provenance binds each artifact to the exact workflow run, source commit, and build environment that produced it.
+Build artifacts published from this repository carry **SLSA Build L3** provenance. The `versioned-build` job in `ci-builds.yml` generates build provenance for `dist/*` artifacts using [`actions/attest-build-provenance@v4.1.0`](https://github.com/actions/attest-build-provenance) (SHA-pinned). Provenance binds each artifact to the exact workflow run, source commit, and build environment that produced it.
 
 Consumers and operators can verify the attestation before trusting a downloaded artifact (wheel, sdist, or container image) with the GitHub CLI:
 
@@ -125,7 +125,7 @@ gh attestation verify oci://ghcr.io/xinvxueyuan/lingchu-bot:0.0.1 \
   --repository xinvxueyuan/lingchu-bot
 ```
 
-A successful verification prints the attestation source (the `👷-ci-builds.yml` workflow run on the `releases/**` ref) and confirms the artifact was built from the claimed commit. If verification fails, do not install or run the artifact — report it through the private vulnerability reporting channel above.
+A successful verification prints the attestation source (the `ci-builds.yml` workflow run on the `releases/**` ref) and confirms the artifact was built from the claimed commit. If verification fails, do not install or run the artifact — report it through the private vulnerability reporting channel above.
 
 Additional supply chain notes:
 

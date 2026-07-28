@@ -188,6 +188,7 @@ export default defineConfig({
                 { slug: "how-to/contribute/i18n" },
                 { slug: "how-to/contribute/testing" },
                 { slug: "how-to/contribute/gitnexus" },
+                { slug: "how-to/contribute/release" },
               ],
             },
             {

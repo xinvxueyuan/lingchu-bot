@@ -10,19 +10,20 @@
 #   fix                           → ruff check --fix, ruff format, prettier, ty --fix, markdownlint --fix
 #   build                         → turbo build
 #   ci                            → ci:hooks → check → test → build
-#   hooks:validate                → prek validate-config                                             [CI: 🧪-python.yml, husky pre-commit]
+#   hooks:validate                → prek validate-config                                             [CI: python.yml, husky pre-commit]
 #   hooks:staged                  → prek run --stage pre-commit                                      [husky pre-commit Phase 1]
-#   ci:hooks                      → hooks:validate + prek run --all-files                            [CI: 🧪-python.yml]
-#   ci:static                     → ruff check, ruff format check, markdownlint, turbo lint          [CI: 🧪-python.yml]
+#   ci:hooks                      → hooks:validate + prek run --all-files                            [CI: python.yml]
+#   ci:static                     → ruff check, ruff format check, markdownlint, turbo lint          [CI: python.yml]
 #   ci:typecheck                  → pyright, ty, turbo check-types                                 [local-only; CI runs pyright/ty inline]
 #   ci:test                       → pytest --junitxml, docs test                                    [local-only; CI runs pytest inline]
-#   ci:fix                        → ruff check --fix, ruff format, prettier, ty --fix, markdownlint --fix     [CI: 🧪-python.yml]
-#   ci:build                      → uv build, turbo build                                          [CI: 👷-ci-builds.yml, 🚀-release.yml]
+#   ci:fix                        → ruff check --fix, ruff format, prettier, ty --fix, markdownlint --fix     [CI: python.yml]
+#   ci:build                      → uv build, turbo build                                          [CI: ci-builds.yml, release.yml]
 #   ci:docs                       → docs lint, docs test, docs check-types, docs build             [local-only; CI runs workflow inline]
 #   smoke                         → docker compose --profile smoke up                               [docs: CONTRIBUTING.md]
 #   ci:smoke                      → docker compose --profile smoke run (JUnit report)              [local-only; CI invokes docker compose inline]
 #
-#   Version pipeline (push to main/dev* via 👷-ci-builds.yml versioned-build job):
+#   Version pipeline (push to main/dev* via ci-builds.yml versioned-build job):
+#     ci:version:derive-bump  (BUMP_LEVEL / BUMP_PRERELEASE from branch / dispatch input — single source of truth)
 #     ci:version:bump
 #       → ci:version:precheck   (PEP 440, > all tags, source consistency, no duplicate tag)
 #       → ci:version:write-config  (writes VERSION into core/config.py + package.json)
@@ -31,11 +32,20 @@
 #       → actions/attest-build-provenance (SLSA, in workflow — not a task)
 #       → ci:version:tag-only    (creates + pushes git tag)
 #
-#   Release pipeline (🚀-release.yml):
-#     release:verify-version    (pyproject.toml / package.json / core/config.py consistency)  [CI: 🚀-release.yml, called by ci:version:postcheck]
-#     ci:version:tag-only       (tag only)                                                     [CI: 🚀-release.yml]
-#     release:prepare           (local: branch + ci:version:write-config + release:verify-version)  [docs: CONTRIBUTING.md]
-#     release:publish           (local: push releases/<version> branch)                          [docs: CONTRIBUTING.md]
+#   Release pipeline (release.yml):
+#     ci:version:derive-bump  (BUMP_LEVEL / BUMP_PRERELEASE derived from releases/<bump> branch or workflow_dispatch)
+#     ci:version:bump
+#       → ci:version:precheck   (PEP 440, > all tags, source consistency, no duplicate tag)
+#       → ci:version:write-config  (writes VERSION into core/config.py + package.json)
+#       → ci:version:postcheck  (calls release:verify-version + dev release semantics)
+#       → ci:build              (uv build + turbo build)
+#       → actions/attest-build-provenance (SLSA, in workflow — not a task)
+#       → ci:version:tag-only    (creates + pushes git tag)
+#     release:verify-version    (pyproject.toml / package.json / core/config.py consistency)  [CI: release.yml, called by ci:version:postcheck]
+#     ci:version:tag-only       (tag only)                                                     [CI: release.yml]
+#     release:prepare           (local: branch + ci:version:bump + ci:version:write-config + release:verify-version + scaffold release notes)
+#     release:publish           (local: push releases/<bump-name> branch)                      [docs: CONTRIBUTING.md]
+#     release:notes             (local: scaffold .github/releases/<computed_version>.md)        [docs: CONTRIBUTING.md]
 #     ci:version:from-tag       (restore version from git tag into core/config.py)              [local-only; not invoked by current CI]
 #
 #   i18n                          → pybabel extract / update / compile                            [docs: AGENTS.md, CONTRIBUTING.md, README]
@@ -192,14 +202,50 @@ tasks:
       - mkdir -p test-results/smoke
       - docker compose --profile smoke run --rm --build --user root -v ./test-results/smoke:/reports -e SMOKE_TEST_RESULTS_XML=/reports/smoke-test-results.xml smoke-test
 
+  ci:version:derive-bump:
+    desc: "[CI] Derive BUMP_LEVEL + BUMP_PRERELEASE from a branch name or dispatch input (single source of truth)"
+    requires:
+      vars: [SOURCE]
+    cmds:
+      - |
+        set -euo pipefail
+        # Delegate the actual mapping to scripts/ci_derive_bump.py so the
+        # release.yml, ci-builds.yml, release:prepare, and release:notes all
+        # agree on the same seven bumps. This task is the only wrapper that
+        # knows whether to emit GitHub Actions outputs (CI) or stdout (local).
+        output="$(uv run --no-sync python scripts/ci_derive_bump.py "{{.SOURCE}}")"
+        # Re-parse via Python to keep the wrapper portable (no `sed` / `awk`
+        # assumption on Windows / minimal CI images). Output format is
+        # `<level>|<prerelease>` so consumers can split on a single delimiter.
+        parsed="$(uv run --no-sync python -c "import sys; lines=[l.strip() for l in sys.stdin if l.strip()]; kv=dict(line.split('=',1) for line in lines); print(f\"{kv.get('bump_level','')}|{kv.get('bump_prerelease','')}\")" <<< "$output")"
+        bump_level="${parsed%%|*}"
+        bump_prerelease="${parsed##*|}"
+        if [ -z "$bump_level" ] || [ -z "$bump_prerelease" ] || [[ "$parsed" != *"|"* ]]; then
+          echo "ci_derive_bump.py returned no level/prerelease for {{.SOURCE}}" >&2
+          echo "$output" >&2
+          exit 1
+        fi
+        if [ -n "${GITHUB_OUTPUT:-}" ]; then
+          {
+            echo "bump_level=$bump_level"
+            echo "bump_prerelease=$bump_prerelease"
+          } >> "$GITHUB_OUTPUT"
+        else
+          # Local callers (release:prepare, release:notes) split on `|`.
+          echo "${bump_level}|${bump_prerelease}"
+        fi
+
   ci:version:bump:
     desc: "[CI] Bump development version and emit GitHub Actions outputs"
     vars:
       BUMP_LEVEL: patch
       BUMP_PRERELEASE: dev
+      DRY_RUN: "false"
     cmds:
       - |
         set -euo pipefail
+        bump_level="{{.BUMP_LEVEL}}"
+        bump_prerelease="{{.BUMP_PRERELEASE}}"
 
         # Sync version from latest remote tag so the version advances across runs
         git fetch --tags --quiet
@@ -214,8 +260,6 @@ tasks:
         # - pre-release tags of the same type just bump the pre-release (e.g. --bump beta)
         # - pre-release tags of a different type need <level>+<prerelease>
         # - stable clears the pre-release component
-        bump_level="{{.BUMP_LEVEL}}"
-        bump_prerelease="{{.BUMP_PRERELEASE}}"
         if [ "$bump_prerelease" = "stable" ]; then
           set -- --bump stable
         elif [ -n "$latest_tag" ] && [[ "$tag_version" != *dev* ]] && [[ "$tag_version" != *a* ]] && [[ "$tag_version" != *b* ]] && [[ "$tag_version" != *rc* ]]; then
@@ -228,6 +272,15 @@ tasks:
 
         version_json="$(uv version "$@" --output-format json --frozen)"
         new_version="$(python -c 'import json, sys; print(json.load(sys.stdin)["version"])' <<< "$version_json")"
+
+        if [ "{{.DRY_RUN}}" = "true" ]; then
+          # Revert any pyproject.toml mutation performed by `uv version` so
+          # the working tree stays clean for callers that only need the
+          # version string (release:prepare / release:notes).
+          git checkout -- pyproject.toml
+          echo "$new_version"
+          exit 0
+        fi
 
         echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
         echo "$version_json"
@@ -304,6 +357,13 @@ tasks:
         export VERSION="$version" CONFIG_PATH="{{.CONFIG_PATH}}"
         python scripts/ci_version_from_tag.py
 
+  _ci:version:read:
+    desc: Read the current pyproject version (no mutation); used by release:prepare / release:notes
+    cmds:
+      - |
+        set -euo pipefail
+        uv version --short --frozen
+
   release:verify-version:
     desc: Verify release version is synchronized across package files
     requires:
@@ -316,26 +376,96 @@ tasks:
         python scripts/release_verify_version.py
 
   release:prepare:
-    desc: Prepare a release branch and synchronize version files
+    desc: Prepare a release branch and synchronize version files (bump-style branch required)
     requires:
-      vars: [VERSION]
+      vars: [BUMP]
     cmds:
       - |
         set -euo pipefail
-        version="{{.VERSION}}"
-        branch="releases/${version}"
-        git switch -c "$branch"
-        uv version "$version" --frozen
-        VERSION="$version" CONFIG_PATH="src/plugins/nonebot_plugin_lingchu_bot/core/config.py" task ci:version:write-config
-        task release:verify-version VERSION="$version"
-        echo "Prepared ${branch}. Review docs/changelog, then push to publish."
+        bump="{{.BUMP}}"
+
+        # Delegate bump -> level/prerelease mapping to ci:version:derive-bump,
+        # which is the single source of truth (also called by release.yml and
+        # ci-builds.yml). Local invocation just prints the two values.
+        derived="$(task -s ci:version:derive-bump SOURCE="releases/${bump}")"
+        bump_level="${derived%%|*}"
+        bump_prerelease="${derived##*|}"
+        if [ -z "$bump_level" ] || [ -z "$bump_prerelease" ] || [[ "$derived" != *"|"* ]]; then
+          echo "Invalid bump: $bump (expected major|minor|patch|stable|alpha|beta|rc)" >&2
+          exit 1
+        fi
+
+        branch="releases/${bump}"
+
+        # Compute the version locally so the developer knows it BEFORE
+        # scaffolding the release notes file. The DRY_RUN flag reverts
+        # the pyproject.toml mutation afterwards.
+        new_version="$(task ci:version:bump BUMP_LEVEL="$bump_level" BUMP_PRERELEASE="$bump_prerelease" DRY_RUN=true | tail -n1)"
+
+        # Switch / create branch
+        if git show-ref --verify --quiet "refs/heads/${branch}"; then
+          git switch "$branch"
+        else
+          git switch -c "$branch"
+        fi
+
+        # Persist the version into core/config.py and package.json
+        VERSION="$new_version" \
+          CONFIG_PATH="src/plugins/nonebot_plugin_lingchu_bot/core/config.py" \
+          task ci:version:write-config
+
+        # Verify the three files agree
+        task release:verify-version VERSION="$new_version"
+
+        # Scaffold the release notes file (only if missing) so the
+        # developer can edit it before pushing.
+        notes_path=".github/releases/${new_version}.md"
+        if [ ! -f "$notes_path" ]; then
+          printf '# Lingchu Bot %s\n\nRelease notes for %s.\n' "$new_version" "$new_version" > "$notes_path"
+          echo "Scaffolded ${notes_path}; edit and commit before pushing."
+        else
+          echo "Reusing existing ${notes_path}."
+        fi
+
+        echo "Prepared ${branch} at version ${new_version}."
+        echo "Next: edit ${notes_path}, git add + commit, then run task release:publish BUMP=${bump}."
 
   release:publish:
-    desc: Push a prepared releases/<version> branch to trigger release workflow
+    desc: Push a prepared releases/<bump> branch to trigger the release workflow
     requires:
-      vars: [VERSION]
+      vars: [BUMP]
     cmds:
-      - git push origin "releases/{{.VERSION}}"
+      - git push origin "releases/{{.BUMP}}"
+
+  release:notes:
+    desc: Scaffold the release notes file for the current releases/<bump> branch
+    cmds:
+      - |
+        set -euo pipefail
+        current_branch="${GITHUB_REF_NAME:-$(git branch --show-current)}"
+        case "$current_branch" in
+          releases/major|releases/minor|releases/patch|releases/stable|releases/alpha|releases/beta|releases/rc) ;;
+          *) echo "Not on a releases/<bump> branch (current: ${current_branch}); refusing to scaffold." >&2; exit 1 ;;
+        esac
+
+        # Delegate bump -> level/prerelease mapping to ci:version:derive-bump
+        # (single source of truth, shared with release.yml / ci-builds.yml).
+        derived="$(task -s ci:version:derive-bump SOURCE="${current_branch}")"
+        bump_level="${derived%%|*}"
+        bump_prerelease="${derived##*|}"
+        if [ -z "$bump_level" ] || [ -z "$bump_prerelease" ] || [[ "$derived" != *"|"* ]]; then
+          echo "ci:version:derive-bump returned no level/prerelease for ${current_branch}" >&2
+          exit 1
+        fi
+
+        new_version="$(task ci:version:bump BUMP_LEVEL="$bump_level" BUMP_PRERELEASE="$bump_prerelease" DRY_RUN=true | tail -n1)"
+        notes_path=".github/releases/${new_version}.md"
+        if [ -f "$notes_path" ]; then
+          echo "Notes file already exists: ${notes_path}"
+        else
+          printf '# Lingchu Bot %s\n\nRelease notes for %s.\n' "$new_version" "$new_version" > "$notes_path"
+          echo "Created ${notes_path}; edit and commit."
+        fi
 
   i18n:
     desc: Extract, update and compile i18n messages

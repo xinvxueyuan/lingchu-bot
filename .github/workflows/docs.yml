@@ -11,7 +11,7 @@ on:
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - turbo.json
-      - .github/workflows/📚-docs.yml
+      - .github/workflows/docs.yml
 permissions:
   contents: read
 concurrency:
@@ -25,27 +25,14 @@ jobs:
       contents: read
     steps:
       - name: 检出代码
-        # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: ./.github/actions/checkout
 
-      - name: 配置 Node
-        # pinned from actions/setup-node@v6.5.0
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+      - name: 🔨 Setup full toolchain
+        # Docs build needs Node + pnpm + uv + Task. The composite action is
+        # reused so we don't have to keep 4 separate setup steps in sync.
+        uses: ./.github/actions/setup-toolchain
         with:
-          node-version: 24
-
-      - name: 配置 pnpm
-        # pinned from pnpm/action-setup@v6.0.9
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
-
-      - name: 安装 Node 依赖
-        # pinned from nick-fields/retry@v4.0.0
-        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
-        with:
-          timeout_minutes: 5
-          max_attempts: 4
-          retry_wait_seconds: 30
-          command: pnpm install --frozen-lockfile
+          with-retry: "true"
 
       - name: Markdown Lint
         run: pnpm exec markdownlint-cli2
@@ -81,15 +68,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: 配置 Node
-        # pinned from actions/setup-node@v6.5.0
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with:
-          node-version: 24
+      - name: ⚡📦 Setup Node + pnpm
+        # docs-smoke only needs Node 24 + pnpm to run `npx serve`; no uv / Task
+        # required for the smoke test itself.
+        uses: ./.github/actions/setup-node-pnpm
 
       - name: 📦 Download docs build artifacts
         # pinned from actions/download-artifact@v7.0.0
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        uses: actions/download-artifact@37930b1c2abaa49bbe656e7c1c64a875d1fc6a0a
         with:
           name: docs-dist-${{ github.sha }}
           path: apps/docs/dist

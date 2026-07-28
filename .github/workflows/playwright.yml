@@ -11,7 +11,7 @@ on:
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "turbo.json"
-      - ".github/workflows/🎭-playwright.yml"
+      - ".github/workflows/playwright.yml"
   push:
     branches: [main, dev]
     paths:
@@ -21,7 +21,7 @@ on:
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "turbo.json"
-      - ".github/workflows/🎭-playwright.yml"
+      - ".github/workflows/playwright.yml"
 
 permissions:
   contents: read
@@ -36,22 +36,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout
-        # pinned from actions/checkout@v6.1.0
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: 📥 Checkout
+        uses: ./.github/actions/checkout
 
-      - name: Setup Node
-        # pinned from actions/setup-node@v6.5.0
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with:
-          node-version: 24
-
-      - name: Setup pnpm
-        # pinned from pnpm/action-setup@v6.0.9
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
-
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
+      - name: 🔨 Setup full toolchain
+        # Playwright needs Node + pnpm + uv + Task to mirror the local
+        # `pnpm --filter docs test:e2e` flow.
+        uses: ./.github/actions/setup-toolchain
 
       - name: Cache Playwright browsers
         # pinned from actions/cache@v6.0.0

@@ -1,0 +1,108 @@
+---
+icon: PackageOpen
+title: Cut a release
+description: Bump-style release branches, release:prepare / release:publish / release:notes helpers, and the release.yml chain.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Cut a Lingchu Bot release by opening a bump-style branch and pushing it. `release.yml` runs the same `ci:version:bump` → `ci:version:precheck` → `ci:version:write-config` → `ci:version:postcheck` chain that `ci-builds.yml::versioned-build` uses for development branches, so a single piece of PEP 440 logic governs every version transition.
+
+## Branch naming
+
+The release branch encodes the **bump intent**, not the literal version. The workflow derives the version from the latest git tag via `uv version --bump`:
+
+| Branch | `BUMP_LEVEL` | `BUMP_PRERELEASE` | Resulting version |
+| --- | --- | --- | --- |
+| `releases/major` | `major` | `dev` | `next major + .dev1` |
+| `releases/minor` | `minor` | `dev` | `next minor + .dev1` |
+| `releases/patch` | `patch` | `dev` | `next patch + .dev1` |
+| `releases/stable` | `patch` | `stable` | `next patch` (no pre-release) |
+| `releases/alpha` | `patch` | `alpha` | `next patch + a1` |
+| `releases/beta` | `patch` | `beta` | `next patch + b1` |
+| `releases/rc` | `patch` | `rc` | `next patch + rc1` |
+
+Literal branches like `releases/0.5.0` are no longer accepted. The workflow `case` statement rejects them with a clear error.
+
+## Local release flow
+
+<Steps>
+
+1. ### Switch to a fresh main
+
+   ```bash
+   git switch main
+   git pull --ff-only
+   ```
+
+2. ### Run `task release:prepare`
+
+   ```bash
+   task release:prepare BUMP=stable
+   ```
+
+   The task:
+
+   - Validates `BUMP` against the seven allowed values.
+   - Calls `task ci:version:bump BUMP_LEVEL=patch BUMP_PRERELEASE=stable DRY_RUN=true` to compute the next version without mutating `pyproject.toml`.
+   - Switches to (or creates) the `releases/stable` branch.
+   - Runs `task ci:version:write-config` to write the version into `core/config.py` and `package.json`.
+   - Runs `task release:verify-version` to confirm `pyproject.toml` / `package.json` / `core/config.py` agree.
+   - Scaffolds `.github/releases/<computed_version>.md` if it does not exist.
+
+3. ### Edit the release notes
+
+   Open `.github/releases/<version>.md` (the path was printed by `release:prepare`). Add Highlights, breaking changes, and migration notes.
+
+4. ### Commit and push
+
+   ```bash
+   git add .github/releases/<version>.md pyproject.toml package.json core/config.py
+   git commit -m "🔧 chore(release): release <version>"
+   task release:publish BUMP=stable
+   ```
+
+</Steps>
+
+<Aside type="tip" title="Editing the notes after prepare">
+
+If you only need to re-scaffold the notes file (e.g., after computing the version on an existing branch), run `task release:notes` from the `releases/<bump>` branch. It calls `ci:version:bump DRY_RUN=true` and creates the file if it is missing.
+
+</Aside>
+
+## What the release workflow does
+
+`release.yml` runs four jobs in sequence:
+
+| Job | Responsibility |
+| --- | --- |
+| `validate` | Derive `BUMP_LEVEL` / `BUMP_PRERELEASE` from the branch name; run `ci:version:bump` → `precheck` → `write-config` → `postcheck`; locate `.github/releases/<version>.md`; expose the computed version to downstream jobs. |
+| `build` | Re-apply the version to source files if drift is detected (amends the release branch); run `task ci:build`; upload the wheel + sdist. |
+| `publish-pypi` | Attest SLSA Build L3 provenance; publish to PyPI via Trusted Publishing / OIDC. |
+| `publish-image` | Build and push the Docker image to GHCR with the `latest` tag (stable only) plus `${version}` and `${version%.*}`. |
+| `github-release` | Create the `v<version>` git tag; create the GitHub Release with the dist artifacts and the body from `.github/releases/<version>.md`. |
+
+The `validate` and `build` jobs both invoke the same `ci:version:bump` task that `versioned-build` runs on `dev-*` branches, so the source-of-truth for the version lives in one place.
+
+## Emergency manual release
+
+`release.yml` accepts a `workflow_dispatch` input with the same seven bump values as the branch names:
+
+```yaml
+inputs:
+  bump:
+    description: "Release bump (major / minor / patch / stable / alpha / beta / rc)"
+    type: choice
+    options: [major, minor, patch, stable, alpha, beta, rc]
+```
+
+Use this when you need to re-run a release without re-pushing the branch. The workflow reuses the same branch name resolution: `GITHUB_REF_NAME` is empty for `workflow_dispatch`, so the step `Derive bump from branch or dispatch input` falls back to the `bump` input.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `Invalid release branch / input: <name>` | The branch is not one of the seven bump names. | Use `releases/major`, `releases/minor`, `releases/patch`, `releases/stable`, `releases/alpha`, `releases/beta`, or `releases/rc`. |
+| `Missing release notes: .github/releases/<version>.md` | The notes file was not created before pushing. | Run `task release:notes` on the release branch to scaffold it, then commit and push. |
+| `Tag v<version> already exists on origin` | The tag is already published; `ci:version:tag-only` skips recreation. | Verify the tag matches the commit SHA; if a re-publish is needed, delete the tag on origin and re-push the branch. |
+| CI version drift after `release:prepare` | The developer's local bump produced a different version than CI. | The `build` job's `Sync version files to release branch` step amends the release branch with the CI-computed version. Verify the resulting commit and tag. |
