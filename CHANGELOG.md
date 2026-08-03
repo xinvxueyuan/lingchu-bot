@@ -20,6 +20,27 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Security
 
+## [0.4.1] - 2026-08-03
+
+Release and CI infrastructure hardening, plus a Docker runtime stability fix.
+
+### Changed
+
+- Docker runtime stage reverted from `python:3.14-slim` to pinned
+  `python:3.13-slim` so the image matches `requires-python = ">=3.13, <3.14"`.
+- GitHub Actions steps consolidated into reusable composite actions
+  (`.github/actions/{checkout,setup-node-pnpm,setup-uv-task,setup-toolchain,verify-wheel,attest-slsa}`).
+
+### Fixed
+
+- `ci:version:tag-only` failed to push release tags after workflow merges:
+  `GITHUB_TOKEN` cannot create tags whose tree differs in
+  `.github/workflows/**` from branch tips. The `versioned-build` and
+  `github-release` jobs now checkout with a fine-grained PAT
+  (`secrets.WORKFLOW_TOKEN`, `Contents` + `Workflows: read and write`).
+- Release tag syntax error in the versioning workflow.
+- Missing explicit checkout before `setup-toolchain` in `ci-builds.yml`.
+
 ## [0.4.0] - 2026-07-28
 
 LLM runtime migrated from OpenAI/LiteLLM backends to Pydantic AI, and NovelAI
@@ -315,7 +336,8 @@ Initial formal release for QQ group management through OneBot V11.
 - Documentation remains under `GFDL-1.3-or-later`.
 - Visual elements remain under `CC0-1.0`.
 
-[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.4.1
 [0.4.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.4.0
 [0.3.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.3.0
 [0.2.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.2.0
