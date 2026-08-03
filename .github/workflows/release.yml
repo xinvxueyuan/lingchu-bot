@@ -50,6 +50,13 @@ jobs:
       minor_version: ${{ steps.tag.outputs.minor_version }}
       notes_body_path: ${{ steps.notes.outputs.body_path }}
     steps:
+      - name: 📥 Checkout
+        # setup-uv-task is a local composite action and cannot be the first
+        # step in a job — the runner needs the repo on disk before it can
+        # resolve this composite's `action.yml`. Explicit checkout first.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
       - name: 🔨 Setup uv + Task
         # Derive needs uv + Task to call ci:version:derive-bump + ci:version:bump.
         uses: ./.github/actions/setup-uv-task
@@ -197,6 +204,13 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      - name: 📥 Checkout
+        # attest-slsa is a local composite action and cannot run without the
+        # repo on disk — the runner needs the tree before it can resolve
+        # this composite's `action.yml`. Explicit checkout first.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
       - name: 📥 Download dist
         # pinned from actions/download-artifact@v7.0.0
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
