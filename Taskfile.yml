@@ -238,9 +238,12 @@ tasks:
   ci:version:bump:
     desc: "[CI] Bump development version and emit GitHub Actions outputs"
     vars:
-      BUMP_LEVEL: patch
-      BUMP_PRERELEASE: dev
-      DRY_RUN: "false"
+      # `default` filters (not static values) so CLI `VAR=value` overrides
+      # win; a static default like `BUMP_LEVEL: patch` shadows the CLI input
+      # in Task >= 3.52 and broke stable/alpha/beta/rc bumps (always dev).
+      BUMP_LEVEL: '{{.BUMP_LEVEL | default "patch"}}'
+      BUMP_PRERELEASE: '{{.BUMP_PRERELEASE | default "dev"}}'
+      DRY_RUN: '{{.DRY_RUN | default "false"}}'
     cmds:
       - |
         set -euo pipefail
