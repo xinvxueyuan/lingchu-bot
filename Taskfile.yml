@@ -250,9 +250,11 @@ tasks:
         bump_level="{{.BUMP_LEVEL}}"
         bump_prerelease="{{.BUMP_PRERELEASE}}"
 
-        # Sync version from latest remote tag so the version advances across runs
+        # Sync version from latest remote tag so the version advances across runs.
+        # PEP 440 ordering (not `git tag --sort=-v:refname`, which ranks
+        # v0.4.1.dev7 above v0.4.1) so the bump bases off the true latest tag.
         git fetch --tags --quiet
-        latest_tag="$(git tag --sort=-v:refname --list 'v[0-9]*' | head -1)"
+        latest_tag="$(uv run python scripts/ci_latest_tag.py)"
         if [ -n "$latest_tag" ]; then
           tag_version="${latest_tag#v}"
           uv version "$tag_version" --frozen
