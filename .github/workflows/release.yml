@@ -176,9 +176,6 @@ jobs:
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
 
-      - name: 🧹 Remove non-distribution infrastructure
-        run: bash scripts/clean-release-infra.sh
-
       - name: 📦 Build
         run: task ci:build
 
