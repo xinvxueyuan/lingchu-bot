@@ -194,6 +194,12 @@ jobs:
     name: 🐍 Publish PyPI
     runs-on: ubuntu-latest
     needs: [validate, build]
+    # Must match the PyPI Trusted Publisher "Environment name" (pypi): the
+    # OIDC token only carries the `environment` claim when the job declares
+    # an environment, and PyPI rejects the exchange if it expects one the
+    # token does not have (`invalid-publisher`). GitHub auto-creates the
+    # `pypi` environment on first reference.
+    environment: pypi
     # PyPI Trusted Publishing (OIDC) requires id-token: write;
     # attestations: write for SLSA Build L3 provenance.
     permissions:
