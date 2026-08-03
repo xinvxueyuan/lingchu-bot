@@ -218,14 +218,7 @@ jobs:
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
     permissions:
-      # contents: write is required to push the computed dev/release tag.
-      # workflows: write is required because the tag points at a main HEAD
-      # that contains .github/workflows/** changes (e.g. release.yml from
-      # dependabot github-actions bumps); without it GitHub rejects the tag
-      # push with "refusing to allow a GitHub App to create or update
-      # workflow ... without workflows permission".
       contents: write
-      workflows: write
       id-token: write
       attestations: write
 
