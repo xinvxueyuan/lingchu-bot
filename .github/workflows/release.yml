@@ -297,6 +297,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          # GITHUB_TOKEN cannot push tags whose tree differs in
+          # .github/workflows/** from branch tips (workflows permission is
+          # reserved for PATs). Use a fine-grained PAT so the tag push in
+          # ci:version:tag-only succeeds even after workflow merges.
+          token: ${{ secrets.WORKFLOW_TOKEN }}
 
       - name: 🔨 Setup uv + Task
         # github-release only needs uv + Task (no Node, no pnpm).
