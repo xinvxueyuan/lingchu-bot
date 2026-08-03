@@ -287,8 +287,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: [validate, publish-pypi, publish-image]
     # Creating GitHub release tags requires contents: write.
+    # workflows: write is additionally required because the tag points at a
+    # commit that contains .github/workflows/** changes (e.g. dependabot
+    # github-actions bumps); without it GitHub rejects the tag push with
+    # "refusing to allow a GitHub App to create or update workflow ... without
+    # workflows permission".
     permissions:
       contents: write
+      workflows: write
     steps:
       - name: 📥 Checkout
         # The tag-only task shells out to `git tag` / `git push`; full history
