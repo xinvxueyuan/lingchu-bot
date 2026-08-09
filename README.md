@@ -2,7 +2,7 @@
 
 > English | [中文](README-zh.md)
 
-[![CI](https://github.com/xinvxueyuan/lingchu-bot/actions/workflows/%F0%9F%A7%AA-python.yml/badge.svg)](https://github.com/xinvxueyuan/lingchu-bot/actions/workflows/%F0%9F%A7%AA-python.yml)
+[![CI](https://github.com/xinvxueyuan/lingchu-bot/actions/workflows/python.yml/badge.svg?branch=main)](https://github.com/xinvxueyuan/lingchu-bot/actions/workflows/python.yml)
 [![PyPI](https://img.shields.io/pypi/v/nonebot-plugin-lingchu-bot)](https://pypi.org/project/nonebot-plugin-lingchu-bot/)
 [![Downloads](https://img.shields.io/pypi/dm/nonebot-plugin-lingchu-bot)](https://pypi.org/project/nonebot-plugin-lingchu-bot/)
 [![Image size](https://ghcr-badge.egpl.dev/xinvxueyuan/lingchu-bot/size)](https://github.com/xinvxueyuan/lingchu-bot/pkgs/container/lingchu-bot)
