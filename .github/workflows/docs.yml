@@ -71,6 +71,11 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: 📥 Checkout
+        # Local composite actions must be present before they can be resolved.
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
       - name: ⚡📦 Setup Node + pnpm
         # docs-smoke only needs Node 24 + pnpm to run `npx serve`; no uv / Task
         # required for the smoke test itself.
