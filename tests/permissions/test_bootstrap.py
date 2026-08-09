@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.schema import CreateTable
 
+from src.plugins.nonebot_plugin_lingchu_bot.database.models import (
+    IdentityMembership,
+    IdentityUser,
+    PermissionGrant,
+    PlatformAccount,
+)
 from src.plugins.nonebot_plugin_lingchu_bot.handle.menu import MENU_FEATURES
 from src.plugins.nonebot_plugin_lingchu_bot.permissions import bootstrap
 from src.plugins.nonebot_plugin_lingchu_bot.permissions.bootstrap import (
@@ -19,6 +29,35 @@ def _superusers() -> dict[str, dict[str, str]]:
     return {"user1": {"qq": "42"}}
 
 
+@pytest.fixture
+async def permission_session_factory(
+    tmp_path: Path,
+) -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'permissions.db'}")
+    tables = (
+        IdentityUser.__table__,
+        PlatformAccount.__table__,
+        IdentityMembership.__table__,
+        PermissionGrant.__table__,
+    )
+    async with engine.begin() as connection:
+        for table in tables:
+            await connection.execute(CreateTable(table))
+
+    try:
+        yield async_sessionmaker(engine, expire_on_commit=False)
+    finally:
+        await engine.dispose()
+
+
+async def _sync_in_transaction(
+    session_factory: async_sessionmaker[AsyncSession],
+    superusers: dict[str, dict[str, str]],
+) -> None:
+    async with session_factory() as session, session.begin():
+        await bootstrap._sync_superusers(session, superusers)
+
+
 @pytest.mark.asyncio
 async def test_sync_superusers_grants_all_menu_features() -> None:
     grant_mock = AsyncMock()
@@ -27,6 +66,8 @@ async def test_sync_superusers_grants_all_menu_features() -> None:
         patch.object(repo, "upsert_identity_user", AsyncMock()),
         patch.object(repo, "upsert_membership", AsyncMock()),
         patch.object(repo, "bind_platform_account", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_accounts", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_memberships", AsyncMock()),
         patch.object(repo, "grant_command", grant_mock),
     ):
         await bootstrap._sync_superusers(Mock(), _superusers())
@@ -45,6 +86,8 @@ async def test_sync_superusers_grants_with_superuser_group_id() -> None:
         patch.object(repo, "upsert_identity_user", AsyncMock()),
         patch.object(repo, "upsert_membership", AsyncMock()),
         patch.object(repo, "bind_platform_account", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_accounts", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_memberships", AsyncMock()),
         patch.object(repo, "grant_command", grant_mock),
     ):
         await bootstrap._sync_superusers(Mock(), _superusers())
@@ -54,22 +97,25 @@ async def test_sync_superusers_grants_with_superuser_group_id() -> None:
 
 
 @pytest.mark.asyncio
-async def test_sync_superusers_continues_after_grant_failure() -> None:
+async def test_sync_superusers_propagates_grant_failure() -> None:
     grant_mock = AsyncMock(side_effect=RuntimeError("boom"))
 
     with (
         patch.object(repo, "upsert_identity_user", AsyncMock()),
         patch.object(repo, "upsert_membership", AsyncMock()),
         patch.object(repo, "bind_platform_account", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_accounts", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_memberships", AsyncMock()),
         patch.object(repo, "grant_command", grant_mock),
+        pytest.raises(RuntimeError, match="boom"),
     ):
         await bootstrap._sync_superusers(Mock(), _superusers())
 
-    assert grant_mock.call_count == len(MENU_FEATURES)
+    assert grant_mock.call_count == 1
 
 
 @pytest.mark.asyncio
-async def test_sync_superusers_continues_when_one_feature_fails() -> None:
+async def test_sync_superusers_stops_after_first_grant_failure() -> None:
     failing_key = MENU_FEATURES[0].command_key
     side_effects: list[Exception | None] = [
         RuntimeError("boom") if feature.command_key == failing_key else None
@@ -81,11 +127,14 @@ async def test_sync_superusers_continues_when_one_feature_fails() -> None:
         patch.object(repo, "upsert_identity_user", AsyncMock()),
         patch.object(repo, "upsert_membership", AsyncMock()),
         patch.object(repo, "bind_platform_account", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_accounts", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_memberships", AsyncMock()),
         patch.object(repo, "grant_command", grant_mock),
+        pytest.raises(RuntimeError, match="boom"),
     ):
         await bootstrap._sync_superusers(Mock(), _superusers())
 
-    assert grant_mock.call_count == len(MENU_FEATURES)
+    assert grant_mock.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -111,6 +160,8 @@ async def test_sync_superusers_preserves_dependency_chain_order() -> None:
         patch.object(repo, "upsert_identity_user", record_upsert_identity_user),
         patch.object(repo, "upsert_membership", record_upsert_membership),
         patch.object(repo, "bind_platform_account", record_bind_platform_account),
+        patch.object(repo, "delete_stale_superuser_accounts", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_memberships", AsyncMock()),
         patch.object(repo, "grant_command", AsyncMock()),
     ):
         await bootstrap._sync_superusers(Mock(), _superusers())
@@ -119,6 +170,129 @@ async def test_sync_superusers_preserves_dependency_chain_order() -> None:
     membership_idx = calls.index("upsert_membership:user1")
     bind_idx = calls.index("bind_platform_account:user1")
     assert upsert_user_idx < membership_idx < bind_idx
+
+
+@pytest.mark.asyncio
+async def test_sync_superusers_first_sync_binds_multiple_platform_accounts(
+    permission_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    superusers = {
+        "user1": {"qq": "42", "telegram": "tg-1"},
+        "user2": {"qq": "43"},
+    }
+
+    await _sync_in_transaction(permission_session_factory, superusers)
+
+    async with permission_session_factory() as session:
+        memberships = await repo.list_memberships(
+            session,
+            group_id=repo.SUPERUSERS_GROUP_ID,
+        )
+        assert {membership.uid for membership in memberships} == {
+            "user1",
+            "user2",
+        }
+        for platform_id, account_id in (
+            ("qq", "42"),
+            ("telegram", "tg-1"),
+            ("qq", "43"),
+        ):
+            account = await repo.get_platform_account(session, platform_id, account_id)
+            assert account is not None
+            assert account.source == repo.SUPERUSER_SOURCE
+
+
+@pytest.mark.asyncio
+async def test_sync_superusers_repeat_sync_is_idempotent(
+    permission_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    superusers = {"user1": {"qq": "42"}}
+
+    await _sync_in_transaction(permission_session_factory, superusers)
+    await _sync_in_transaction(permission_session_factory, superusers)
+
+    async with permission_session_factory() as session:
+        memberships = await repo.list_memberships(
+            session,
+            group_id=repo.SUPERUSERS_GROUP_ID,
+        )
+        grants = await repo.list_grants(
+            session,
+            group_ids=(repo.SUPERUSERS_GROUP_ID,),
+        )
+        assert len(memberships) == 1
+        assert len(grants) == len(MENU_FEATURES)
+
+
+@pytest.mark.asyncio
+async def test_sync_superusers_removes_uid_deleted_from_config(
+    permission_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    await _sync_in_transaction(
+        permission_session_factory,
+        {"user1": {"qq": "42"}, "user2": {"qq": "43"}},
+    )
+    await _sync_in_transaction(
+        permission_session_factory,
+        {"user1": {"qq": "42"}},
+    )
+
+    async with permission_session_factory() as session:
+        memberships = await repo.list_memberships(
+            session,
+            group_id=repo.SUPERUSERS_GROUP_ID,
+        )
+        assert {membership.uid for membership in memberships} == {"user1"}
+        assert await repo.is_superuser(session, "user2") is False
+
+
+@pytest.mark.asyncio
+async def test_sync_superusers_removes_replaced_platform_account_binding(
+    permission_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    await _sync_in_transaction(
+        permission_session_factory,
+        {"user1": {"qq": "42"}},
+    )
+    await _sync_in_transaction(
+        permission_session_factory,
+        {"user1": {"telegram": "tg-1"}},
+    )
+
+    async with permission_session_factory() as session:
+        assert await repo.get_platform_account(session, "qq", "42") is None
+        account = await repo.get_platform_account(session, "telegram", "tg-1")
+        assert account is not None
+        assert account.source == repo.SUPERUSER_SOURCE
+        assert await repo.get_user_by_platform_account(session, "qq", "42") is None
+
+
+@pytest.mark.asyncio
+async def test_sync_superusers_failure_rolls_back_outer_transaction(
+    permission_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    grant_mock = AsyncMock(side_effect=RuntimeError("grant failed"))
+
+    with (
+        patch.object(repo, "grant_command", grant_mock),
+        pytest.raises(RuntimeError, match="grant failed"),
+    ):
+        await _sync_in_transaction(
+            permission_session_factory,
+            {"user1": {"qq": "42"}},
+        )
+
+    assert grant_mock.await_count == 1
+    async with permission_session_factory() as session:
+        assert await repo.get_platform_account(session, "qq", "42") is None
+        assert (
+            await repo.list_memberships(
+                session,
+                group_id=repo.SUPERUSERS_GROUP_ID,
+            )
+            == []
+        )
+        assert await repo.get_user_by_platform_account(session, "qq", "42") is None
 
 
 # --- _resolve_superusers_config ---

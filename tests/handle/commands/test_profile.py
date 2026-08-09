@@ -301,3 +301,26 @@ async def test_resolve_image_path_returns_none_when_no_resolvable_attribute(
     result = await profile._resolve_image_path(image)
 
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_uses_bounded_public_download_for_avatar(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(profile, "plugin_config", fake_config)
+    download = AsyncMock(return_value=b"safe-avatar")
+    monkeypatch.setattr(profile, "download_public_http_bytes", download)
+
+    image = create_mock_image()
+    image.url = "https://example.com/avatar.png"
+
+    result = await profile._resolve_image_path(image)
+
+    assert result is not None
+    download.assert_awaited_once_with(
+        "https://example.com/avatar.png",
+        max_bytes=10 * 1024 * 1024,
+    )

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 import inspect
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from apscheduler.jobstores.base import JobLookupError
 from nonebot import require
@@ -17,11 +17,21 @@ require("nonebot_plugin_orm")
 from nonebot_plugin_orm import get_session
 
 from ..database.orm_crud import DatabaseError
-from ..repositories import scheduler_jobs as repository
+from ..repositories import (
+    blocklist as blocklist_repository,
+    scheduler_jobs as repository,
+)
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 
 logger = logging.getLogger(__name__)
 SchedulerHandler = Callable[..., Awaitable[Any] | Any]
 _handlers: dict[str, SchedulerHandler] = {}
+_runtime_job_ids: set[str] = set()
+
+BLOCKLIST_CLEANUP_HANDLER_KEY = "blocklist.cleanup_expired_blocks"
+BLOCKLIST_CLEANUP_INTERVAL_MINUTES = 5
 
 
 def register_scheduler_handler(key: str, handler: SchedulerHandler) -> None:
@@ -38,6 +48,38 @@ async def _maybe_await(value: Awaitable[Any] | Any) -> Any:
     if inspect.isawaitable(value):
         return await value
     return value
+
+
+async def _cleanup_expired_blocks_job() -> tuple[int, bool]:
+    """Run blocklist and subject-policy expiration cleanup for APScheduler."""
+    try:
+        async with get_session() as session, session.begin():
+            return await blocklist_repository.cleanup_expired_blocks(session)
+    except DatabaseError:
+        logger.exception("Failed to cleanup expired blocklist and subject policies")
+        return (0, False)
+
+
+def _register_builtin_handlers() -> None:
+    register_scheduler_handler(
+        BLOCKLIST_CLEANUP_HANDLER_KEY,
+        _cleanup_expired_blocks_job,
+    )
+
+
+async def _ensure_builtin_jobs(
+    session: AsyncSession | async_scoped_session[AsyncSession],
+) -> None:
+    existing_job = await repository.get_job_spec(session, BLOCKLIST_CLEANUP_HANDLER_KEY)
+    if existing_job is not None:
+        return
+    await repository.save_job_spec(
+        session,
+        job_id=BLOCKLIST_CLEANUP_HANDLER_KEY,
+        handler_key=BLOCKLIST_CLEANUP_HANDLER_KEY,
+        trigger_type="interval",
+        trigger_kwargs={"minutes": BLOCKLIST_CLEANUP_INTERVAL_MINUTES},
+    )
 
 
 def _schedule_runtime_job(
@@ -60,6 +102,7 @@ def _schedule_runtime_job(
         misfire_grace_time=misfire_grace_time,
         **trigger_kwargs,
     )
+    _runtime_job_ids.add(job_id)
 
 
 async def execute_persistent_job(job_id: str) -> None:
@@ -100,7 +143,7 @@ async def register_persistent_job(
     if handler_key not in _handlers:
         raise ValueError(f"unknown scheduler handler: {handler_key}")
 
-    async with get_session() as session:
+    async with get_session() as session, session.begin():
         await repository.save_job_spec(
             session,
             job_id=job_id,
@@ -129,8 +172,10 @@ async def register_persistent_job(
 
 async def initialize_scheduler_service() -> None:
     """Rehydrate enabled persisted jobs into the runtime scheduler."""
+    _register_builtin_handlers()
     try:
-        async with get_session() as session:
+        async with get_session() as session, session.begin():
+            await _ensure_builtin_jobs(session)
             jobs = await repository.list_enabled_job_specs(session)
     except DatabaseError:
         logger.exception("Failed to load persisted scheduler jobs")
@@ -164,9 +209,27 @@ async def remove_persistent_job(job_id: str) -> tuple[int, bool]:
         scheduler.remove_job(job_id)
     except JobLookupError:
         logger.debug("Runtime scheduler job %s was not present", job_id)
-    async with get_session() as session:
+        _runtime_job_ids.discard(job_id)
+    else:
+        _runtime_job_ids.discard(job_id)
+    async with get_session() as session, session.begin():
         return await repository.delete_job_spec(session, job_id)
 
 
 async def shutdown_scheduler_service() -> None:
-    """Reserved shutdown hook for future scheduler service cleanup."""
+    """Remove Lingchu-owned runtime jobs before the scheduler shuts down."""
+    first_error: Exception | None = None
+    for job_id in tuple(_runtime_job_ids):
+        try:
+            scheduler.remove_job(job_id)
+        except JobLookupError:
+            logger.debug("Runtime scheduler job %s was not present at shutdown", job_id)
+        except Exception as exc:
+            logger.exception("Failed to remove runtime scheduler job %s", job_id)
+            if first_error is None:
+                first_error = exc
+        finally:
+            _runtime_job_ids.discard(job_id)
+    _handlers.clear()
+    if first_error is not None:
+        raise first_error

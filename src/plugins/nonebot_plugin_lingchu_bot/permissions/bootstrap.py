@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Mapping
-import logging
 from typing import TYPE_CHECKING, Any
 
 from ..core.config import get_runtime_config
@@ -15,8 +13,6 @@ from .platforms import iter_default_identity_groups
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
-
-logger = logging.getLogger(__name__)
 
 
 class PermissionConfigError(RuntimeError):
@@ -103,6 +99,7 @@ async def _sync_superusers(
     session: AsyncSession | async_scoped_session[AsyncSession],
     superusers: Mapping[str, Mapping[str, str]],
 ) -> None:
+    configured_accounts: set[tuple[str, str]] = set()
     for uid, accounts in superusers.items():
         await repo.upsert_identity_user(session, uid, uid)
         await repo.upsert_membership(
@@ -116,29 +113,27 @@ async def _sync_superusers(
                 platform_id,
                 account_id,
             )
+            configured_accounts.add((platform_id, normalized_account_id))
             await repo.bind_platform_account(
                 session,
                 uid=uid,
                 platform_id=platform_id,
                 account_id=normalized_account_id,
                 display_name=uid,
+                source=repo.SUPERUSER_SOURCE,
             )
 
-    grant_results = await asyncio.gather(
-        *(
-            repo.grant_command(
-                session,
-                group_id=repo.SUPERUSERS_GROUP_ID,
-                command_key=feature.command_key,
-            )
-            for feature in MENU_FEATURES
-        ),
-        return_exceptions=True,
+    await repo.delete_stale_superuser_accounts(
+        session,
+        configured_accounts=configured_accounts,
     )
-    for feature, result in zip(MENU_FEATURES, grant_results, strict=True):
-        if isinstance(result, Exception):
-            logger.warning(
-                "Failed to grant command during superuser sync: %s",
-                feature.command_key,
-                exc_info=result,
-            )
+    await repo.delete_stale_superuser_memberships(
+        session,
+        configured_uids=superusers.keys(),
+    )
+    for feature in MENU_FEATURES:
+        await repo.grant_command(
+            session,
+            group_id=repo.SUPERUSERS_GROUP_ID,
+            command_key=feature.command_key,
+        )

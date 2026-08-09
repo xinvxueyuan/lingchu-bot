@@ -64,6 +64,11 @@ def clear_registry() -> None:
 
 
 @pytest.fixture(autouse=True)
+def clear_runtime_jobs() -> None:
+    scheduler_service._runtime_job_ids.clear()
+
+
+@pytest.fixture(autouse=True)
 def patched_session(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     """Patch ``get_session`` in ``scheduler_service`` to yield a mock session."""
     session = MagicMock(name="async_session")
@@ -71,6 +76,16 @@ def patched_session(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
         scheduler_service,
         "get_session",
         lambda: _FakeSessionContext(session),
+    )
+    monkeypatch.setattr(
+        scheduler_service.repository,
+        "get_job_spec",
+        AsyncMock(
+            return_value=make_job(
+                job_id=scheduler_service.BLOCKLIST_CLEANUP_HANDLER_KEY,
+                handler_key=scheduler_service.BLOCKLIST_CLEANUP_HANDLER_KEY,
+            ),
+        ),
     )
     return session
 
@@ -193,6 +208,69 @@ async def test_initialize_scheduler_service_rehydrates_enabled_jobs(
     assert fake_scheduler.added[0]["id"] == "cleanup"
     assert fake_scheduler.added[0]["trigger"] == "interval"
     assert fake_scheduler.added[0]["minutes"] == 5
+
+
+async def test_initialize_scheduler_service_persists_builtin_blocklist_cleanup_job(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_session: MagicMock,
+) -> None:
+    fake_scheduler = FakeScheduler()
+    get_job_spec = AsyncMock(return_value=None)
+    save_job_spec = AsyncMock()
+    monkeypatch.setattr(scheduler_service, "scheduler", fake_scheduler)
+    monkeypatch.setattr(scheduler_service.repository, "get_job_spec", get_job_spec)
+    monkeypatch.setattr(scheduler_service.repository, "save_job_spec", save_job_spec)
+    monkeypatch.setattr(
+        scheduler_service.repository,
+        "list_enabled_job_specs",
+        AsyncMock(
+            return_value=[
+                make_job(
+                    job_id=scheduler_service.BLOCKLIST_CLEANUP_HANDLER_KEY,
+                    handler_key=scheduler_service.BLOCKLIST_CLEANUP_HANDLER_KEY,
+                ),
+            ],
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler_service.repository,
+        "decode_job_payload",
+        MagicMock(return_value=({"minutes": 5}, [], {})),
+    )
+
+    await scheduler_service.initialize_scheduler_service()
+
+    get_job_spec.assert_awaited_once_with(
+        patched_session,
+        scheduler_service.BLOCKLIST_CLEANUP_HANDLER_KEY,
+    )
+    save_job_spec.assert_awaited_once_with(
+        patched_session,
+        job_id=scheduler_service.BLOCKLIST_CLEANUP_HANDLER_KEY,
+        handler_key=scheduler_service.BLOCKLIST_CLEANUP_HANDLER_KEY,
+        trigger_type="interval",
+        trigger_kwargs={"minutes": 5},
+    )
+    assert fake_scheduler.added[0]["id"] == (
+        scheduler_service.BLOCKLIST_CLEANUP_HANDLER_KEY
+    )
+
+
+async def test_builtin_blocklist_cleanup_handler_uses_session_first_repository(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_session: MagicMock,
+) -> None:
+    cleanup = AsyncMock(return_value=(4, True))
+    monkeypatch.setattr(
+        scheduler_service.blocklist_repository,
+        "cleanup_expired_blocks",
+        cleanup,
+    )
+
+    result = await scheduler_service._cleanup_expired_blocks_job()
+
+    assert result == (4, True)
+    cleanup.assert_awaited_once_with(patched_session)
 
 
 async def test_initialize_scheduler_service_logs_and_returns_on_database_error(
@@ -401,3 +479,21 @@ async def test_remove_persistent_job_propagates_scheduler_failures(
         await scheduler_service.remove_persistent_job("cleanup")
 
     delete_job_spec.assert_not_awaited()
+
+
+async def test_shutdown_scheduler_service_removes_runtime_jobs_without_deleting_specs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_scheduler = MagicMock()
+    monkeypatch.setattr(scheduler_service, "scheduler", fake_scheduler)
+    scheduler_service.register_scheduler_handler("cleanup", lambda: None)
+    scheduler_service._runtime_job_ids.update({"cleanup-a", "cleanup-b"})
+
+    await scheduler_service.shutdown_scheduler_service()
+
+    assert {call.args[0] for call in fake_scheduler.remove_job.call_args_list} == {
+        "cleanup-a",
+        "cleanup-b",
+    }
+    assert scheduler_service._runtime_job_ids == set()
+    assert scheduler_service._handlers == {}
