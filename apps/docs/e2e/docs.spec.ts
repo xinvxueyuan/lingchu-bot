@@ -12,7 +12,7 @@ test("English docs root renders", async ({ page }) => {
   // "Quick Start" appears in both the hero actions and the card grid.
   await expect(page.getByRole("link", { name: "Quick Start" }).first()).toHaveAttribute(
     "href",
-    "/user-guide/quick-start/",
+    "/tutorials/getting-started",
   );
 });
 
@@ -26,12 +26,14 @@ test("Chinese docs root renders", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "快速导航" })).toBeVisible();
   await expect(page.getByRole("link", { name: "快速开始" }).first()).toHaveAttribute(
     "href",
-    "/zh/user-guide/quick-start/",
+    "/zh/tutorials/getting-started",
   );
 });
 
-test("quick start page renders at the redesigned URL", async ({ page }) => {
-  await page.goto("/user-guide/quick-start/");
+test("getting started page renders at the canonical URL", async ({ page }) => {
+  await page.goto("/tutorials/getting-started");
 
-  await expect(page.getByRole("heading", { level: 1, name: "Quick Start" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Getting started with Lingchu Bot" }),
+  ).toBeVisible();
 });
