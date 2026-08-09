@@ -19,9 +19,6 @@ from ..platforms import (
     validate_enabled_adapters_loaded,
 )
 from ..repositories.registry import seed_registry_tables
-from ..services.llm.config import _LLMConfigError, ensure_llm_config_file_async
-from ..services.llm.mcp_lifecycle import initialize_mcp_agent_runtime
-from ..services.llm.runtime import initialize_llm_runtime
 from ..services.message_store import (
     SCHEDULER_CLEANUP_HANDLER_KEY,
     cleanup_expired_messages,
@@ -33,28 +30,8 @@ from ..services.scheduler import (
 )
 
 
-async def _initialize_ai() -> None:
-    await ensure_llm_config_file_async()
-    await initialize_llm_runtime()
-    await initialize_mcp_agent_runtime()
-
-
 async def startup() -> None:
-    """Initialize configuration, optional AI, handlers, stores, and scheduler."""
-    try:
-        await _initialize_ai()
-    except _LLMConfigError:
-        # AI is optional; an invalid or empty llm.toml must not prevent the
-        # bot's non-AI services from starting. Surface actionable guidance
-        # without a full traceback.
-        logger.warning(
-            "Pydantic AI not configured. "
-            "Run `lingchu config init` and edit llm.toml to set [pydantic-ai] model"
-        )
-    except Exception:
-        # AI is optional; configuration or backend-local dependency failures
-        # must not prevent the bot's non-AI services from starting.
-        logger.exception("Failed to initialize LLM runtime; AI is unavailable")
+    """Initialize configuration, handlers, stores, and scheduler."""
     try:
         await ensure_menu_config_file_async()
     except Exception:

@@ -1,5 +1,5 @@
 import contextlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from _lingchu_bot_contracts import MutableRuntimeSettings
@@ -178,9 +178,7 @@ async def upsert_command_trigger_override(
     raw = dict(settings.command_trigger_overrides)
     raw[command_key] = _override_to_json(override)
     with contextlib.suppress(MutableSettingsError):
-        await save_mutable_settings(
-            settings.model_copy(update={"command_trigger_overrides": raw})
-        )
+        await save_mutable_settings(replace(settings, command_trigger_overrides=raw))
     return merged
 
 
@@ -194,9 +192,7 @@ async def delete_command_trigger_override(command_key: str) -> bool:
         return False
     del raw[command_key]
     try:
-        await save_mutable_settings(
-            settings.model_copy(update={"command_trigger_overrides": raw})
-        )
+        await save_mutable_settings(replace(settings, command_trigger_overrides=raw))
     except MutableSettingsError:
         return False
     return True
@@ -480,18 +476,6 @@ _DEFAULT_COMMAND_TRIGGERS = {
         english="shutdown",
         chinese_aliases=frozenset(),
         english_aliases=frozenset(),
-    ),
-    "chat": CommandTrigger(
-        chinese="聊天",
-        english="chat",
-        chinese_aliases=frozenset(),
-        english_aliases=frozenset(),
-    ),
-    "novelai_image": CommandTrigger(
-        chinese="生图",
-        english="novelai-image",
-        chinese_aliases=frozenset({"生成图片", "画图"}),
-        english_aliases=frozenset({"novelai", "generate-image"}),
     ),
 }
 

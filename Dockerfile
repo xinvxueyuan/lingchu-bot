@@ -32,8 +32,8 @@ RUN python -m uv tool run --no-cache --from nb-cli nb generate -f /tmp/bot.py
 
 
 # ── Project build stage ─────────────────────────────────────────────────────
-# Build the project wheel with all modules (nonebot_plugin_lingchu_bot,
-# _lingchu_bot_cli, _lingchu_bot_contracts) for installation in the runtime image.
+# Build the project wheel with the plugin and import-safe contracts for installation
+# in the runtime image.
 FROM requirements_stage AS project_build
 WORKDIR /build
 COPY . /build/
@@ -78,8 +78,7 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r /tmp/requireme
   && rm -rf /wheels /tmp/requirements.txt
 
 # ── Install project wheel ──
-# Install the wheel containing all three modules (nonebot_plugin_lingchu_bot,
-# _lingchu_bot_cli, _lingchu_bot_contracts) built in the project_build stage.
+# Install the wheel built in the project_build stage.
 COPY --from=project_build /dist/*.whl /tmp/
 RUN pip install --no-cache-dir /tmp/*.whl && rm /tmp/*.whl
 

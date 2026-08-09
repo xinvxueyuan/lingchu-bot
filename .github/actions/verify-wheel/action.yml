@@ -1,5 +1,5 @@
 name: Verify wheel contents
-description: Confirm the built wheel exposes the three Lingchu Bot top-level packages
+description: Confirm the built wheel exposes the Lingchu Bot top-level packages
 
 inputs:
   dist-dir:

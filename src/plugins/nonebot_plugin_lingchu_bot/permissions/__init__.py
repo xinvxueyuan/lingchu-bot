@@ -22,13 +22,11 @@ from .service import (
     bind_platform_account,
     check_permission,
     platform_runtime_passthrough_enabled,
-    resolve_mcp_permission,
     resolve_permission_context,
     resolve_user_identity,
 )
 from .types import (
     IdentityGroupCreate,
-    MCPPermissionLevel,
     PermissionContext,
     PermissionDecision,
     PlatformIdentityGroupSeed,
@@ -36,7 +34,6 @@ from .types import (
 
 __all__ = [
     "IdentityGroupCreate",
-    "MCPPermissionLevel",
     "PermissionConfigError",
     "PermissionContext",
     "PermissionDecision",
@@ -54,7 +51,6 @@ __all__ = [
     "list_identity_group_members",
     "platform_runtime_passthrough_enabled",
     "remove_identity_group_member",
-    "resolve_mcp_permission",
     "resolve_permission_context",
     "resolve_user_identity",
     "subject_policy",

@@ -1,80 +1,67 @@
-"""Handle configuration defaults registry.
-
-This module provides a centralized registry for default configurations
-of different handle commands. Each handle registers its pydantic model
-class using the `register_handle_defaults` function. The model class
-serves as both the default-value source (via `model_cls().model_dump()`)
-and the validation schema (via `type_validate_python(model_cls, data)`).
-"""
+"""Standard-library defaults for handle-level configuration."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from copy import deepcopy
+from typing import Any
 
-if TYPE_CHECKING:
-    from pydantic import BaseModel
-
-HANDLE_DEFAULTS_REGISTRY: dict[str, type[BaseModel]] = {}
+HandleDefaultsFactory = Callable[[], dict[str, Any]]
 
 
-def register_handle_defaults(command_key: str, model_cls: type[BaseModel]) -> None:
-    """Register a pydantic model class as the default handle configuration.
+def _config(defaults: dict[str, Any] | None = None) -> dict[str, Any]:
+    return {
+        "enabled": True,
+        "defaults": deepcopy(defaults or {}),
+        "policies": {},
+    }
 
-    Args:
-        command_key: The unique identifier for the handle command.
-        model_cls: A pydantic ``BaseModel`` subclass declaring the handle's
-            ``enabled``, ``defaults``, and ``policies`` fields. The model's
-            field defaults are used as the configuration fallback values,
-            and the model itself is used to validate TOML content via
-            ``type_validate_python``.
 
-    Raises:
-        ValueError: If command_key is already registered.
-    """
+HANDLE_DEFAULTS_REGISTRY: dict[str, HandleDefaultsFactory] = {
+    "kick_member": lambda: _config({
+        "require_reason": False,
+        "default_reason": "管理员操作",
+        "audit_level": "low",
+    }),
+    "protect_member": lambda: _config({
+        "whitelist_scope": "group",
+        "default_reason": "管理员操作",
+    }),
+    "block_member": lambda: _config({
+        "block_duration": None,
+        "default_reason": "违反群规",
+    }),
+    "member_mute": lambda: _config({
+        "mute_duration": 300,
+        "default_reason": "管理员操作",
+    }),
+    "recall_message": lambda: _config({"default_count": 10}),
+    "remote_mute": lambda: _config({
+        "mute_duration": 60,
+        "default_reason": "管理员操作",
+    }),
+    "remote_kick": _config,
+    "remote_block": lambda: _config({
+        "block_duration": None,
+        "default_reason": "违反群规",
+    }),
+    "remote_announcement": _config,
+    "mass_announcement": _config,
+    "restart_protocol_endpoint": lambda: _config({"default_platform": "当前平台"}),
+    "send_announcement": _config,
+    "set_member_card": _config,
+    "set_member_title": _config,
+    "set_member_admin": _config,
+    "set_group_name": _config,
+    "set_group_avatar": _config,
+}
+
+
+def register_handle_defaults(command_key: str, factory: HandleDefaultsFactory) -> None:
+    """Register a standard-library default factory."""
     if command_key in HANDLE_DEFAULTS_REGISTRY:
         raise ValueError(f"duplicate key: {command_key}")
-    HANDLE_DEFAULTS_REGISTRY[command_key] = model_cls
+    HANDLE_DEFAULTS_REGISTRY[command_key] = factory
 
 
-# Import and register default configurations
-from .block_member import BlockMemberConfig
-from .kick_member import KickMemberConfig
-from .mass_announcement import MassAnnouncementConfig
-from .member_mute import MemberMuteConfig
-from .protect_member import ProtectMemberConfig
-from .recall_message import RecallMessageConfig
-from .remote_announcement import RemoteAnnouncementConfig
-from .remote_block import RemoteBlockConfig
-from .remote_kick import RemoteKickConfig
-from .remote_mute import RemoteMuteConfig
-from .restart_protocol_endpoint import RestartProtocolEndpointConfig
-from .send_announcement import SendAnnouncementConfig
-from .set_group_avatar import SetGroupAvatarConfig
-from .set_group_name import SetGroupNameConfig
-from .set_member_admin import SetMemberAdminConfig
-from .set_member_card import SetMemberCardConfig
-from .set_member_title import SetMemberTitleConfig
-
-# Register all default configurations
-register_handle_defaults("kick_member", KickMemberConfig)
-register_handle_defaults("protect_member", ProtectMemberConfig)
-register_handle_defaults("block_member", BlockMemberConfig)
-register_handle_defaults("member_mute", MemberMuteConfig)
-register_handle_defaults("recall_message", RecallMessageConfig)
-register_handle_defaults("remote_mute", RemoteMuteConfig)
-register_handle_defaults("remote_kick", RemoteKickConfig)
-register_handle_defaults("remote_block", RemoteBlockConfig)
-register_handle_defaults("remote_announcement", RemoteAnnouncementConfig)
-register_handle_defaults("mass_announcement", MassAnnouncementConfig)
-register_handle_defaults("restart_protocol_endpoint", RestartProtocolEndpointConfig)
-register_handle_defaults("send_announcement", SendAnnouncementConfig)
-register_handle_defaults("set_member_card", SetMemberCardConfig)
-register_handle_defaults("set_member_title", SetMemberTitleConfig)
-register_handle_defaults("set_member_admin", SetMemberAdminConfig)
-register_handle_defaults("set_group_name", SetGroupNameConfig)
-register_handle_defaults("set_group_avatar", SetGroupAvatarConfig)
-
-__all__ = [
-    "HANDLE_DEFAULTS_REGISTRY",
-    "register_handle_defaults",
-]
+__all__ = ["HANDLE_DEFAULTS_REGISTRY", "register_handle_defaults"]

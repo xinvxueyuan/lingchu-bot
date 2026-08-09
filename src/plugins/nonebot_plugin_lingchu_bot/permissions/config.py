@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import contextlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from _lingchu_bot_contracts import MutableRuntimeSettings
 
@@ -43,8 +43,6 @@ async def update_platform_runtime_passthrough_config(
         updated = values
     with contextlib.suppress(MutableSettingsError):
         await save_mutable_settings(
-            settings.model_copy(
-                update={"permission_platform_runtime_passthrough": updated}
-            )
+            replace(settings, permission_platform_runtime_passthrough=updated)
         )
     return updated

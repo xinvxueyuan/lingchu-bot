@@ -1,66 +1,46 @@
-"""Import-safe Pydantic contracts for Lingchu deployment and mutable settings."""
+"""Import-safe standard-library contracts for runtime settings."""
 
 from __future__ import annotations
 
+from dataclasses import asdict, dataclass, field
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+MAX_RECALL_MESSAGE_DEFAULT_COUNT = 100
 
 
-class DeploymentSettings(BaseModel):
+class SettingsValidationError(ValueError):
+    """Raised when a runtime setting has an invalid value."""
+
+
+def _value(mapping: Mapping[str, Any], *names: str, default: Any) -> Any:
+    for name in names:
+        if name in mapping:
+            return mapping[name]
+    return default
+
+
+def _non_negative_int(name: str, value: Any) -> int:
+    if type(value) is not int or value < 0:
+        raise SettingsValidationError(f"{name} must be a non-negative integer")
+    return value
+
+
+@dataclass(frozen=True, slots=True)
+class DeploymentSettings:
     """Immutable-at-runtime settings owned by NoneBot configuration."""
 
-    superuser_key: str = Field(
-        default="123456789abcdef",
-        validation_alias=AliasChoices("LINGCHU_SUPERUSER_KEY", "superuser_key"),
-    )
-    message_store_enabled: bool = Field(
-        default=True,
-        validation_alias=AliasChoices(
-            "LINGCHU_MESSAGE_STORE_ENABLED", "message_store_enabled"
-        ),
-    )
-    message_store_retention_days: int = Field(
-        default=30,
-        ge=0,
-        validation_alias=AliasChoices(
-            "LINGCHU_MESSAGE_STORE_RETENTION_DAYS",
-            "message_store_retention_days",
-        ),
-    )
-    message_store_summary_limit: int = Field(
-        default=500,
-        ge=0,
-        validation_alias=AliasChoices(
-            "LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT",
-            "message_store_summary_limit",
-        ),
-    )
-    message_store_record_api_calls: bool = Field(
-        default=True,
-        validation_alias=AliasChoices(
-            "LINGCHU_MESSAGE_STORE_RECORD_API_CALLS",
-            "message_store_record_api_calls",
-        ),
-    )
-    message_store_cleanup_enabled: bool = Field(
-        default=True,
-        validation_alias=AliasChoices(
-            "LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED",
-            "message_store_cleanup_enabled",
-        ),
-    )
-    recall_message_default_count: int = Field(
-        default=10,
-        ge=1,
-        le=100,
-        validation_alias=AliasChoices(
-            "LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT",
-            "recall_message_default_count",
-        ),
-    )
-    protected_subject_feature_keys: frozenset[str] = Field(
+    superuser_key: str = "123456789abcdef"
+    message_store_enabled: bool = True
+    message_store_retention_days: int = 30
+    message_store_summary_limit: int = 500
+    message_store_record_api_calls: bool = True
+    message_store_cleanup_enabled: bool = True
+    recall_message_default_count: int = 10
+    protected_subject_feature_keys: frozenset[str] = field(
         default_factory=lambda: frozenset({
             "kick_member",
             "block_member",
@@ -74,83 +54,169 @@ class DeploymentSettings(BaseModel):
             "remote_kick",
             "remote_block",
             "remote_mute",
-        }),
-        validation_alias=AliasChoices(
+        })
+    )
+    lingchu_superusers: dict[str, dict[str, str | int]] | None = None
+    lingchu_adapter: str | list[str] | None = None
+
+    @classmethod
+    def from_mapping(cls, source: Mapping[str, Any]) -> DeploymentSettings:
+        superusers = _value(
+            source, "LINGCHU_SUPERUSERS", "lingchu_superusers", default=None
+        )
+        if isinstance(superusers, str):
+            try:
+                superusers = json.loads(superusers)
+            except ValueError as exc:
+                raise SettingsValidationError(
+                    "LINGCHU_SUPERUSERS must be valid JSON"
+                ) from exc
+        if superusers is not None:
+            if not isinstance(superusers, dict):
+                raise SettingsValidationError("LINGCHU_SUPERUSERS must be a mapping")
+            normalized: dict[str, dict[str, str | int]] = {}
+            for uid, accounts in superusers.items():
+                uid_text = str(uid).strip()
+                if not uid_text or not isinstance(accounts, dict):
+                    raise SettingsValidationError("invalid LINGCHU_SUPERUSERS mapping")
+                normalized[uid_text] = {}
+                for platform, account in accounts.items():
+                    platform_text = str(platform).strip()
+                    if not platform_text or not isinstance(account, (str, int)):
+                        raise SettingsValidationError(
+                            "invalid LINGCHU_SUPERUSERS account"
+                        )
+                    normalized[uid_text][platform_text] = account
+            superusers = normalized
+        protected = _value(
+            source,
             "LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS",
             "protected_subject_feature_keys",
-        ),
-    )
-    lingchu_superusers: dict[str, dict[str, str | int]] | None = Field(
-        default=None,
-        validation_alias=AliasChoices("lingchu_superusers", "LINGCHU_SUPERUSERS"),
-    )
-    lingchu_adapter: str | list[str] | None = Field(
-        default=None,
-        validation_alias=AliasChoices(
-            "lingchu_adapter",
-            "LINGCHU_ADAPTER",
-            "LINGCHUAdapter",
-            "lingchuadapter",
-        ),
-    )
-
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="ignore")
-
-    @field_validator("lingchu_superusers", mode="before")
-    @classmethod
-    def _validate_lingchu_superusers(
-        cls,
-        value: Any,
-    ) -> dict[str, dict[str, str | int]] | None:
-        if value is None:
-            return None
-        if isinstance(value, str):
+            default=cls().protected_subject_feature_keys,
+        )
+        if isinstance(protected, str):
             try:
-                value = json.loads(value)
-            except ValueError as exc:
-                raise ValueError("LINGCHU_SUPERUSERS must be valid JSON") from exc
-        if not isinstance(value, dict):
-            raise ValueError("LINGCHU_SUPERUSERS must be a mapping")
-        result: dict[str, dict[str, str | int]] = {}
-        for uid, accounts in value.items():
-            uid_text = str(uid).strip()
-            if not uid_text:
-                raise ValueError("LINGCHU_SUPERUSERS UID cannot be empty")
-            if not isinstance(accounts, dict):
-                raise ValueError("LINGCHU_SUPERUSERS account value must be a mapping")
-            result[uid_text] = {}
-            for platform_id, account_id in accounts.items():
-                platform_text = str(platform_id).strip()
-                if not platform_text:
-                    raise ValueError("LINGCHU_SUPERUSERS platform cannot be empty")
-                if not isinstance(account_id, (str, int)):
-                    raise ValueError("LINGCHU_SUPERUSERS account id must be str or int")
-                result[uid_text][platform_text] = account_id
-        return result
-
-    @field_validator("protected_subject_feature_keys", mode="before")
-    @classmethod
-    def _validate_protected_subject_feature_keys(cls, value: Any) -> frozenset[str]:
-        if value is None:
-            return frozenset()
-        if isinstance(value, str):
-            try:
-                value = json.loads(value)
+                protected = json.loads(protected)
             except ValueError:
-                value = [value]
-        if not isinstance(value, (list, tuple, set, frozenset)):
-            raise TypeError("protected_subject_feature_keys must be a list")
-        return frozenset(str(item).strip() for item in value if str(item).strip())
+                protected = [protected]
+        if not isinstance(protected, (list, tuple, set, frozenset)):
+            raise SettingsValidationError(
+                "protected_subject_feature_keys must be a list"
+            )
+        retention = _non_negative_int(
+            "message_store_retention_days",
+            _value(
+                source,
+                "LINGCHU_MESSAGE_STORE_RETENTION_DAYS",
+                "message_store_retention_days",
+                default=30,
+            ),
+        )
+        summary = _non_negative_int(
+            "message_store_summary_limit",
+            _value(
+                source,
+                "LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT",
+                "message_store_summary_limit",
+                default=500,
+            ),
+        )
+        count = _value(
+            source,
+            "LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT",
+            "recall_message_default_count",
+            default=10,
+        )
+        if type(count) is not int or not 1 <= count <= MAX_RECALL_MESSAGE_DEFAULT_COUNT:
+            raise SettingsValidationError(
+                "recall_message_default_count must be between 1 and 100"
+            )
+        return cls(
+            superuser_key=str(
+                _value(
+                    source,
+                    "LINGCHU_SUPERUSER_KEY",
+                    "superuser_key",
+                    default=cls().superuser_key,
+                )
+            ),
+            message_store_enabled=bool(
+                _value(
+                    source,
+                    "LINGCHU_MESSAGE_STORE_ENABLED",
+                    "message_store_enabled",
+                    default=True,
+                )
+            ),
+            message_store_retention_days=retention,
+            message_store_summary_limit=summary,
+            message_store_record_api_calls=bool(
+                _value(
+                    source,
+                    "LINGCHU_MESSAGE_STORE_RECORD_API_CALLS",
+                    "message_store_record_api_calls",
+                    default=True,
+                )
+            ),
+            message_store_cleanup_enabled=bool(
+                _value(
+                    source,
+                    "LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED",
+                    "message_store_cleanup_enabled",
+                    default=True,
+                )
+            ),
+            recall_message_default_count=count,
+            protected_subject_feature_keys=frozenset(
+                str(item).strip() for item in protected if str(item).strip()
+            ),
+            lingchu_superusers=superusers,
+            lingchu_adapter=_value(
+                source,
+                "LINGCHU_ADAPTER",
+                "LINGCHUAdapter",
+                "lingchu_adapter",
+                "lingchuadapter",
+                default=None,
+            ),
+        )
 
 
-class MutableRuntimeSettings(BaseModel):
+@dataclass(frozen=True, slots=True)
+class MutableRuntimeSettings:
     """Online-editable settings stored in one typed localstore file."""
 
     permission_platform_runtime_passthrough: bool | dict[str, bool] = True
-    command_trigger_overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
-    menu_page_trigger_overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    command_trigger_overrides: dict[str, dict[str, Any]] = field(default_factory=dict)
+    menu_page_trigger_overrides: dict[str, dict[str, Any]] = field(default_factory=dict)
 
-    model_config = ConfigDict(extra="forbid")
+    @classmethod
+    def from_mapping(cls, raw: Mapping[str, Any]) -> MutableRuntimeSettings:
+        unknown = set(raw) - MUTABLE_RUNTIME_FIELDS
+        if unknown:
+            raise SettingsValidationError(
+                f"unknown configuration fields: {', '.join(sorted(unknown))}"
+            )
+        value = raw.get("permission_platform_runtime_passthrough", True)
+        if not isinstance(value, (bool, dict)):
+            raise SettingsValidationError(
+                "permission_platform_runtime_passthrough must be bool or mapping"
+            )
+        for name in ("command_trigger_overrides", "menu_page_trigger_overrides"):
+            if not isinstance(raw.get(name, {}), dict):
+                raise SettingsValidationError(f"{name} must be a mapping")
+        return cls(
+            value,
+            dict(raw.get("command_trigger_overrides", {})),
+            dict(raw.get("menu_page_trigger_overrides", {})),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
 
-MUTABLE_RUNTIME_FIELDS = frozenset(MutableRuntimeSettings.model_fields)
+MUTABLE_RUNTIME_FIELDS = frozenset({
+    "permission_platform_runtime_passthrough",
+    "command_trigger_overrides",
+    "menu_page_trigger_overrides",
+})

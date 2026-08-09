@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import fields
 from importlib.metadata import version as pkg_version
 from pathlib import Path
 import platform
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -35,13 +37,13 @@ def config(tmp_path: Path) -> Config:
     )
 
 
-def _config_with(tmp_path: Path, **alias_kwargs: Any) -> Config:
-    """Build a Config using validation-alias kwargs that pyright cannot resolve."""
+def _config_with(tmp_path: Path, **overrides: Any) -> Config:
+    """Build a Config with explicit dataclass fields."""
     kwargs: dict[str, Any] = {
         "data_dir": tmp_path / "data",
         "config_dir": tmp_path / "config",
         "cache_dir": tmp_path / "cache",
-        **alias_kwargs,
+        **overrides,
     }
     return Config(**kwargs)
 
@@ -127,42 +129,76 @@ def test_in_containers_defaults_to_false_when_not_configured(config: Config) -> 
 
 
 def test_in_containers_returns_true_when_configured(tmp_path: Path) -> None:
-    config = _config_with(tmp_path, LINGCHU_IN_CONTAINERS=True)
+    config = _config_with(tmp_path, in_containers=True)
     assert config.in_containers is True
 
 
 def test_in_containers_returns_false_when_explicitly_false(tmp_path: Path) -> None:
-    config = _config_with(tmp_path, LINGCHU_IN_CONTAINERS=False)
+    config = _config_with(tmp_path, in_containers=False)
     assert config.in_containers is False
 
 
-def test_in_containers_raises_for_string_value(tmp_path: Path) -> None:
-    with pytest.raises(InvalidInContainersError):
-        _config_with(tmp_path, LINGCHU_IN_CONTAINERS="true")
-
-
-def test_in_containers_raises_for_unexpected_type(tmp_path: Path) -> None:
-    with pytest.raises(UnexpectedInContainersTypeError):
-        _config_with(tmp_path, LINGCHU_IN_CONTAINERS=123)
-
-
-def test_get_runtime_config_delegates_to_nonebot_plugin_config(
+def test_in_containers_raises_for_string_value(
     monkeypatch: pytest.MonkeyPatch,
-    config: Config,
+    tmp_path: Path,
 ) -> None:
-    requested: list[type[Config]] = []
+    driver = SimpleNamespace(config={"LINGCHU_IN_CONTAINERS": "true"})
+    monkeypatch.setattr(config_module, "get_driver", lambda: driver)
+    monkeypatch.setattr(config_module, "get_plugin_data_dir", lambda: tmp_path / "data")
+    monkeypatch.setattr(
+        config_module, "get_plugin_config_dir", lambda: tmp_path / "config"
+    )
+    monkeypatch.setattr(
+        config_module, "get_plugin_cache_dir", lambda: tmp_path / "cache"
+    )
+    with pytest.raises(InvalidInContainersError):
+        get_runtime_config()
 
-    def resolve(model: type[Config]) -> Config:
-        requested.append(model)
-        return config
 
-    monkeypatch.setattr(config_module, "get_plugin_config", resolve)
+def test_in_containers_raises_for_unexpected_type(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    driver = SimpleNamespace(config={"LINGCHU_IN_CONTAINERS": 123})
+    monkeypatch.setattr(config_module, "get_driver", lambda: driver)
+    monkeypatch.setattr(config_module, "get_plugin_data_dir", lambda: tmp_path / "data")
+    monkeypatch.setattr(
+        config_module, "get_plugin_config_dir", lambda: tmp_path / "config"
+    )
+    monkeypatch.setattr(
+        config_module, "get_plugin_cache_dir", lambda: tmp_path / "cache"
+    )
+    with pytest.raises(UnexpectedInContainersTypeError):
+        get_runtime_config()
 
-    assert get_runtime_config() is config
-    assert requested == [Config]
+
+def test_get_runtime_config_resolves_from_nonebot(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        config_module,
+        "get_plugin_data_dir",
+        lambda: tmp_path / "data",
+    )
+    monkeypatch.setattr(
+        config_module,
+        "get_plugin_config_dir",
+        lambda: tmp_path / "config",
+    )
+    monkeypatch.setattr(
+        config_module,
+        "get_plugin_cache_dir",
+        lambda: tmp_path / "cache",
+    )
+    driver = SimpleNamespace(config={"LINGCHU_IN_CONTAINERS": True})
+    monkeypatch.setattr(config_module, "get_driver", lambda: driver)
+
+    assert get_runtime_config().in_containers is True
 
 
 def test_config_contains_only_deployment_settings(config: Config) -> None:
-    assert "permission_platform_runtime_passthrough" not in type(config).model_fields
-    assert "command_trigger_overrides" not in type(config).model_fields
-    assert "menu_page_trigger_overrides" not in type(config).model_fields
+    field_names = {field.name for field in fields(config)}
+    assert "permission_platform_runtime_passthrough" not in field_names
+    assert "command_trigger_overrides" not in field_names
+    assert "menu_page_trigger_overrides" not in field_names

@@ -2,23 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 import platform
-from typing import Any, Final, Literal
+from typing import Any, Final, Literal, cast
 
-from _lingchu_bot_contracts import DeploymentSettings
-from nonebot import get_driver, get_plugin_config, require
+from _lingchu_bot_contracts import DeploymentSettings, SettingsValidationError
+from nonebot import get_driver, require
 
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import (
     get_plugin_cache_dir,
     get_plugin_config_dir,
     get_plugin_data_dir,
-)
-from pydantic import (
-    ConfigDict,
-    Field,
-    field_validator,
 )
 
 from ..i18n import _
@@ -104,6 +101,7 @@ class UnexpectedInContainersTypeError(ConfigError):
         )
 
 
+@dataclass(frozen=True, slots=True)
 class Config(DeploymentSettings):
     """lingchu-bot核心配置类。
 
@@ -123,30 +121,49 @@ class Config(DeploymentSettings):
 
     """
 
-    # --- 基础设施字段（来自原Config，不写入TOML） ---
     core_version: str = "0.4.1"
-    data_dir: Path = Field(default_factory=get_plugin_data_dir)
-    config_dir: Path = Field(default_factory=get_plugin_config_dir)
-    cache_dir: Path = Field(default_factory=get_plugin_cache_dir)
-    in_containers: bool = Field(
-        default=False,
-        validation_alias="LINGCHU_IN_CONTAINERS",
-    )
+    data_dir: Path = field(default_factory=get_plugin_data_dir)
+    config_dir: Path = field(default_factory=get_plugin_config_dir)
+    cache_dir: Path = field(default_factory=get_plugin_cache_dir)
+    in_containers: bool = False
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="ignore")
-
-    # --- Validators ---
-
-    @field_validator("in_containers", mode="before")
     @classmethod
-    def _validate_in_containers(cls, value: Any) -> bool:
+    def from_nonebot(cls) -> Config:
+        """Build plugin settings from the active NoneBot driver config."""
+        source = get_driver().config
+        model_dump = getattr(source, "model_dump", None)
+        if callable(model_dump):
+            raw_values = model_dump()
+        elif isinstance(source, Mapping):
+            raw_values = source
+        else:
+            raw_values = vars(source)
+        values = dict(cast("Mapping[str, Any]", raw_values))
+        value = values.get("LINGCHU_IN_CONTAINERS", values.get("in_containers"))
+        in_containers = False
         if value is None:
-            return False
+            pass
         if isinstance(value, bool):
-            return value
-        if isinstance(value, str):
+            in_containers = value
+        elif isinstance(value, str):
             raise InvalidInContainersError(value)
-        raise UnexpectedInContainersTypeError(value, type(value))
+        elif value is not None:
+            raise UnexpectedInContainersTypeError(value, type(value))
+        try:
+            deployment = DeploymentSettings.from_mapping(values)
+        except SettingsValidationError as exc:
+            raise ConfigError(str(exc)) from exc
+        deployment_values = {
+            item.name: getattr(deployment, item.name)
+            for item in fields(DeploymentSettings)
+        }
+        return cls(
+            **deployment_values,
+            data_dir=get_plugin_data_dir(),
+            config_dir=get_plugin_config_dir(),
+            cache_dir=get_plugin_cache_dir(),
+            in_containers=in_containers,
+        )
 
     # --- 平台检测 Properties ---
 
@@ -223,12 +240,12 @@ class Config(DeploymentSettings):
 
 def get_runtime_config() -> Config:
     """Return deployment settings resolved by NoneBot configuration."""
-    return get_plugin_config(Config)
+    return Config.from_nonebot()
 
 
 # 配置加载（合并后的singleton，使用TOML-aware加载器）
-plugin_config: Config = get_runtime_config()
 global_config = get_driver().config
+plugin_config: Config = get_runtime_config()
 
 # 全局名称
 NICKNAME: str = next(iter(global_config.nickname), "")

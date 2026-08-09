@@ -13,7 +13,7 @@ from ..database.models import (
     PlatformIdentityGroup,
 )
 from ..database.orm_crud import create, delete, get_one, list_items, update, upsert
-from ..permissions.types import MCPPermissionLevel, PlatformIdentityGroupSeed
+from ..permissions.types import PlatformIdentityGroupSeed
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
@@ -23,7 +23,6 @@ SUPERUSERS_PLATFORM_ID = "system"
 SUPERUSER_SOURCE = "superusers_config"
 MANUAL_SOURCE = "manual"
 ALLOW_EFFECT = "allow"
-_MCP_PERMISSION_UNSET = object()
 
 
 async def upsert_identity_user(
@@ -105,13 +104,9 @@ async def upsert_identity_group(
     platform_id: str,
     display_name: str,
     parent_group_id: str | None = None,
-    mcp_permission_level: MCPPermissionLevel | object | None = _MCP_PERMISSION_UNSET,
     builtin: bool = False,
     managed_by: str | None = None,
 ) -> PlatformIdentityGroup:
-    insert_level = (
-        None if mcp_permission_level is _MCP_PERMISSION_UNSET else mcp_permission_level
-    )
     update_values: dict[str, object] = {
         "platform_id": platform_id,
         "parent_group_id": parent_group_id,
@@ -119,8 +114,6 @@ async def upsert_identity_group(
         "builtin": builtin,
         "managed_by": managed_by,
     }
-    if mcp_permission_level is not _MCP_PERMISSION_UNSET:
-        update_values["mcp_permission_level"] = mcp_permission_level
     return await upsert(
         session,
         PlatformIdentityGroup,
@@ -129,7 +122,6 @@ async def upsert_identity_group(
             "platform_id": platform_id,
             "parent_group_id": parent_group_id,
             "display_name": display_name,
-            "mcp_permission_level": insert_level,
             "builtin": builtin,
             "managed_by": managed_by,
         },

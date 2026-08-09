@@ -172,9 +172,9 @@ tasks:
       - pnpm exec markdownlint-cli2 --fix
 
   ci:wheel-smoke:
-    desc: "[CI] Verify installed CLI entry points from the wheel"
+    desc: "[CI] Verify wheel contents"
     cmds:
-      - uv run --locked python scripts/check-wheel-entrypoints.py
+      - uv run --locked python scripts/ci_verify_wheel.py
 
   ci:build:
     desc: "[CI] Build distribution artifacts"

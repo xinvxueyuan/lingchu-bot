@@ -55,7 +55,6 @@ Lingchu Bot 已发布首个 `0.0.1` 正式版本。项目在 `1.0.0` 前仍可�
 | 权限与保护 | UID 超级用户、平台账号映射、命令授权、平台运行时角色透传、黑名单和受保护目标拦截。 |
 | 消息存储与 API 审计 | 可选记录事件、处理状态、Bot 生命周期和平台 API 调用摘要。 |
 | 运行时 i18n | 基于 gettext / Babel 的简体中文与英文反馈文本目录。 |
-| LLM 服务 | 托管 OpenAI / LiteLLM profile，并提供稳定接口和提供商原生接口。 |
 | 调度器 | 通过 `nonebot-plugin-apscheduler` 的周期任务与清理。 |
 
 其他平台和非群管理能力以后续实现和测试为准。
@@ -168,12 +167,10 @@ Lingchu 首次启动时会在 `nonebot-plugin-localstore` 提供的插件配置�
 | 受保护目标 | `LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS` | 目标用户受保护时会被拦截的副作用命令键。 |
 | 数据库 | `SQLALCHEMY_DATABASE_URL` | SQLAlchemy 数据库 URL；支持 SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server。未设置时使用默认 SQLite。 |
 | 数据库 | `ALEMBIC_STARTUP_CHECK` | 生产环境设为 `true` 以在启动时强制 schema 迁移检查。 |
-| LLM 密钥 | `llm.toml` profile 引用的提供商环境变量 | 将提供商 API Key 保存在部署环境中，例如 `OPENAI_API_KEY`。 |
 
 `runtime-overrides.toml` 示例：
 
 ```toml
-#:schema ./runtime-overrides.schema.json
 permission_platform_runtime_passthrough = true
 
 [command_trigger_overrides.member_mute]
@@ -185,58 +182,8 @@ chinese = "成员管理"
 english = "member-management"
 ```
 
-使用 `lingchu config init`、`lingchu config validate` 与 `lingchu schema install`
-显式管理该文件。`config init` 也会在缺失时创建 `llm.toml` 起始模板，且不会覆盖已有
-`llm.toml`。旧合并 `config.toml` 的迁移命令已删除；请手动将部署设置迁移到
-NoneBot 环境变量，将可变设置迁移到 `runtime-overrides.toml`。旧 `.json5` 文件不会被读取或迁移。
-
-### 托管 LLM profile
-
-Lingchu 会从插件配置目录读取 `llm.toml`。请至少声明一个显式 profile；部署级 LLM
-字段不再作为兜底来源。使用 `api_key_env` 指定环境变量名，避免把凭据写入 TOML：
-
-```toml
-#:schema ./llm.schema.json
-default_profile = "primary"
-
-[profiles.primary]
-backend = "openai"
-model = "gpt-4o-mini"
-api_key_env = "OPENAI_API_KEY"
-litellm_generation = "responses"
-timeout = 60
-max_retries = 2
-
-[profiles.litellm_chat]
-backend = "litellm"
-model = "openai/gpt-4o-mini"
-api_key_env = "OPENAI_API_KEY"
-litellm_generation = "chat"
-
-[router]
-enabled = false
-strategy = "simple-shuffle"
-num_retries = 2
-```
-
-OpenAI profile 的稳定生成接口使用 Responses。LiteLLM profile 通过
-`litellm_generation` 选择 `responses` 或 `chat`；启用 `[router]` 后，受信任的
-内部调用方可以使用 LiteLLM 进程内 Router。托管运行时也直接暴露原生
-`AsyncOpenAI` 客户端、LiteLLM 模块和原生 Router，因此提供商专属资源或 SDK
-新接口不必等待 Lingchu 增加包装层。
-
-能力探测有 `supported`、`unsupported`、`unknown` 三种结果，仅作为提示；
-`unknown` 不会阻止显式原生调用。重新加载时会先对候选 profile 做结构校验并冻结，
-再原子替换旧运行时；凭据按 profile 延迟解析。失败时旧版本继续工作，成功后关闭
-退役客户端并清空能力缓存。
-
-自定义 `base_url` 默认拒绝回环、链路本地、云元数据地址及其他私有 IP 字面量，
-只有设置 `allow_private_network = true` 才会放行。凭据默认不会发往自定义 Base
-URL，只有设置 `allow_credentials_to_custom_base_url = true` 才会放行。这两个
-选项表示明确接受信任边界，并非推荐配置；部署侧仍须在网络层校验 DNS 解析和
-重定向。稳定接口的 `provider_options` 会拒绝凭据、端点、回调、日志器、重试和
-Router 控制键。Lingchu 可以透传工具定义和原生结果，但绝不会自动执行模型请求的
-工具。
+运行时设置从 localstore 管理的 `runtime-overrides.toml` 读取；部署设置继续由
+NoneBot 环境配置提供。项目不再提供自定义配置 CLI，也不再生成 schema 文件。
 
 ## 命令速览
 
@@ -358,7 +305,7 @@ pnpm exec markdownlint-cli2 README.md README-zh.md
 Lingchu Bot 建立在许多优秀开源项目之上。特别感谢这些上游项目与社区：
 
 - **机器人运行时与适配器生态**：[NoneBot2](https://nonebot.dev/)、[nonebot-adapter-onebot](https://github.com/nonebot/adapter-onebot)、`nonebot-plugin-alconna`、`nonebot-plugin-localstore`、`nonebot-plugin-orm`、`nonebot-plugin-apscheduler`、`nonebot-plugin-htmlkit` 和 `nonebot-plugin-docs`。
-- **Python 配置、存储与服务工具**：`aiofiles`、`toml`、`rtoml`、`jsonschema`、[Babel](https://babel.pocoo.org/)、[Jinja](https://jinja.palletsprojects.com/)、[Typer](https://typer.tiangolo.com/)、[Arrow](https://arrow.readthedocs.io/)、`psutil`、[OpenAI Python SDK](https://github.com/openai/openai-python) 和 [LiteLLM](https://github.com/BerriAI/litellm)。
+- **Python 配置、存储与服务工具**：`aiofiles`、`rtoml`、[Babel](https://babel.pocoo.org/)、[Jinja](https://jinja.palletsprojects.com/)、`packaging`。
 - **文档站与前端栈**：[Fumadocs](https://fumadocs.dev/)、[Next.js](https://nextjs.org/)、[React](https://react.dev/)、[Mermaid](https://mermaid.js.org/)、[Twoslash](https://twoslash.netlify.app/)、`flexsearch`、`d3-force`、`dompurify`、`feed` 和 [Tailwind CSS](https://tailwindcss.com/)。
 - **工程质量、测试与仓库工作流**：[uv](https://docs.astral.sh/uv/)、[pnpm](https://pnpm.io/)、[Turborepo](https://turbo.build/repo)、[Ruff](https://docs.astral.sh/ruff/)、[Pyright](https://microsoft.github.io/pyright/)、[ty](https://docs.astral.sh/ty/)、[pytest](https://docs.pytest.org/)、[Vitest](https://vitest.dev/)、[Playwright](https://playwright.dev/)、[markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2)、[Prettier](https://prettier.io/)、[ESLint](https://eslint.org/)、[Husky](https://typicode.github.io/husky/)、[Gitmoji](https://gitmoji.dev/)、`gitnexus` 和 [FOSSA](https://fossa.com/)。
 

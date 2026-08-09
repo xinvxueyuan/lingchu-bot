@@ -18,7 +18,6 @@ from ..database.toml_store import (
 )
 from ..handle import menu as menu_module
 from ..handle.menu import LocalizedText, MenuFeature, MenuPage
-from .schemas import MENU_SCHEMA_BASENAME
 
 MENU_FILENAME: Final = "menu.toml"
 MENU_CONFIG_VERSION: Final = 2
@@ -89,7 +88,6 @@ async def ensure_menu_config_file_async(
         return await ensure_toml_dict_file_async(
             path,
             menu_config_defaults(),
-            schema_basename=MENU_SCHEMA_BASENAME,
         )
     except DatabaseError as exc:
         raise MenuConfigError(path, exc) from exc

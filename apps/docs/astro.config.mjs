@@ -14,13 +14,9 @@ const docRedirectMap = {
   // Tutorials
   "/user-guide/quick-start": "/tutorials/getting-started",
   "/platforms/qq/onebot-v11/overview": "/tutorials/first-adapter",
-  // How-to — Deployment
-  "/user-guide/deployment/tipo-llama-cpp": "/how-to/deploy/tipo-llama-cpp",
   // How-to — Configuration
   "/user-guide/configuration/superuser": "/how-to/configure/superuser",
   "/user-guide/configuration/adapter-selection": "/how-to/configure/adapter",
-  "/user-guide/configuration/inbound-mcp-server":
-    "/how-to/configure/mcp-server",
   // How-to — Connect a Platform
   "/platforms/qq/onebot-v11/napcat": "/how-to/connect/qq-napcat",
   "/platforms/qq/frameworks/snowluma-docker": "/how-to/connect/qq-snowluma",
@@ -50,8 +46,6 @@ const docRedirectMap = {
     "/reference/architecture/storage-orm",
   "/developer-guide/architecture/message-store":
     "/reference/architecture/message-store",
-  "/developer-guide/architecture/llm-service":
-    "/reference/architecture/llm-service",
   "/developer-guide/architecture/scheduler": "/reference/architecture/scheduler",
   "/developer-guide/architecture/i18n-runtime":
     "/reference/architecture/i18n-runtime",
@@ -158,7 +152,7 @@ export default defineConfig({
             {
               label: "Deployment",
               translations: { zh: "部署" },
-              items: [{ slug: "how-to/deploy/tipo-llama-cpp" }],
+              items: [],
             },
             {
               label: "Configuration",
@@ -166,7 +160,6 @@ export default defineConfig({
               items: [
                 { slug: "how-to/configure/superuser" },
                 { slug: "how-to/configure/adapter" },
-                { slug: "how-to/configure/mcp-server" },
               ],
             },
             {
@@ -214,7 +207,6 @@ export default defineConfig({
                 { slug: "reference/architecture/permissions" },
                 { slug: "reference/architecture/storage-orm" },
                 { slug: "reference/architecture/message-store" },
-                { slug: "reference/architecture/llm-service" },
                 { slug: "reference/architecture/scheduler" },
                 { slug: "reference/architecture/i18n-runtime" },
                 { slug: "reference/architecture/runtime-hooks" },

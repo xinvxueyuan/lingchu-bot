@@ -3,15 +3,13 @@
 此模块是lingchu-bot的入口点，负责：
 - 定义和导出NoneBot插件元数据
 - 加载配置
-- 发现并加载plugins目录下的所有子插件
+- 注册核心运行时和管理命令
 
 """
 
-from nonebot import get_plugin_config
 from nonebot.plugin import PluginMetadata
 
 from .core.config import Config
-from .core.subplugins import load_subplugins
 from .platforms import get_supported_adapters, iter_platform_profiles
 
 __plugin_meta__ = PluginMetadata(
@@ -30,7 +28,7 @@ __plugin_meta__ = PluginMetadata(
     ),
     type="application",
     homepage="https://github.com/xinvxueyuan/lingchu-bot",
-    config=Config,
+    config=None,
     supported_adapters=get_supported_adapters(),
     extra={
         "author": [
@@ -65,5 +63,4 @@ from .start.startup import startup as startup
 from . import hooks as hooks
 # isort: on
 
-config: Config = get_plugin_config(config=Config)
-sub_plugins = load_subplugins()
+config = Config.from_nonebot()

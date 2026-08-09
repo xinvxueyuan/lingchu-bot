@@ -292,18 +292,6 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         "chinese_aliases": set(),
         "english_aliases": set(),
     },
-    "chat": {
-        "primary": "聊天",
-        "english": "chat",
-        "chinese_aliases": set(),
-        "english_aliases": set(),
-    },
-    "novelai_image": {
-        "primary": "生图",
-        "english": "novelai-image",
-        "chinese_aliases": {"生成图片", "画图"},
-        "english_aliases": {"novelai", "generate-image"},
-    },
 }
 
 

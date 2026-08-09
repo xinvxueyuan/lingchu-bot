@@ -14,7 +14,7 @@
 | R  | Role         | agent 在本仓库中的工作方式         |
 | E  | Expectations | 不可违反的约束和质量门禁             |
 | A  | Actions      | 标准开发流程和联动面               |
-| T  | Tools        | 命令、skills、MCP、hooks、验证路径 |
+| T  | Tools        | 命令、skills、hooks、验证路径 |
 | E  | Evidence     | 经验教训、清单和收尾证据             |
 
 编辑本文件时遵循 DRY 和 SMAR/TL：
@@ -97,7 +97,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 
 - **Localstore 路径所有权**：所有 mutable data、config、cache、resource、schema 文件必须通过 `nonebot_plugin_localstore` helper 解析，例如 `get_plugin_data_dir()`、`get_plugin_config_dir()`、`get_plugin_cache_dir()`、`get_plugin_data_file()`、`get_plugin_config_file()`、`get_plugin_cache_file()`。
 - **禁止硬编码 mutable 路径**：禁止对 mutable runtime 文件使用 `Path("...")`。
-- **配置与 schema 仅允许显式写入**：禁止打包生成的 JSON schema。启动过程不得创建、迁移或重新生成配置与 schema；只有显式 `lingchu config init`、`lingchu schema install` 或 bot 管理操作可以写入，并使用 localstore 管理或 CLI 明确指定的路径。
+- **配置仅允许显式写入**：启动过程不得创建、迁移或重新生成配置文件。配置写入必须使用 localstore 管理的路径或明确指定的部署路径。
 - **Prek 是 hook 唯一来源**：`prek.toml` 是唯一 pre-commit hook 配置（显式声明 ruff/ty 钩子，与 husky 解耦，无重复执行）。不要重新引入 `.pre-commit-config.yaml`。
 - **版本同步**：使用 `Taskfile.yml` 的 `ci:version:write-config` 同步写入 `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` 和根 `package.json`。
 - **发布分支**：正式版本使用 `releases/<version>` 分支，发布前必须保持 `pyproject.toml`、`package.json` 和 `core/config.py` 中的版本一致。
@@ -170,8 +170,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 | Docs                | `apps/docs/src/content/docs/`                                                |
 | Menu                | `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py`                  |
 | Runtime config      | NoneBot 部署环境、localstore `runtime-overrides.toml`、`bot_state.toml`、`menu.toml` 与 `_lingchu_bot_contracts/` |
-| Handle config files | `handle_config_defaults/<command>.py`（MUST 声明 `pydantic.BaseModel` 子类并通过 `register_handle_defaults()` 注册）、localstore config\_dir 中的 `<command_key>.toml` |
-| Schema files        | 通过 `lingchu schema install` 从所属 Pydantic 模型显式生成；用 CLI 测试与 wheel smoke 验证；启动过程不得写 schema |
+| Handle config files | `handle_config_defaults/<command>.py`、localstore config\_dir 中的 `<command_key>.toml` |
 | Triggers            | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py`  |
 | Handler session injection | 新 matcher handler 添加 `session: async_scoped_session`（仅类型注解，不要写 `= Depends(...)`）；调用 repository/permission 时把 `session` 作为首参 |
 | Agent context       | `AGENTS.md`、`CLAUDE.md`、`.github/note/AGENTS-zh.md`                      |
@@ -224,7 +223,7 @@ Agent 是早期项目的实现伙伴。严重 breaking change 在能简化架构
 | Hooks、Prek、Husky                          | `prek` skill                                                           |
 | React 代码 triage / cleanup                | `react-doctor` skill                                                   |
 | Web 抓取、爬取、搜索                              | `firecrawl-*` skills                                                   |
-| OneBot V11 / NapCat API 签名                | 写 adapter 调用前查 NapCat API MCP                                          |
+| OneBot V11 / NapCat API 签名                | 写 adapter 调用前检查当前 adapter 与 NapCat 文档                            |
 | GitHub PR、issue、CI、发布                     | GitHub skills                                                          |
 
 ### Development Workflow Chain（开发调度链）
@@ -336,7 +335,6 @@ task ci
 - `src/` 中的内联 `# noqa` / `# type: ignore` 已全部集中到 `pyproject.toml` `[tool.ruff.lint.per-file-ignores]`；禁止与执行（Phase 2.5 告警 + CI `ignore-comment-audit` PR 评论）见 "Code Style → 忽略注释治理"。以下各条记录 `per-file-ignores` 中保留的合法例外。
 - NoneBot matcher handler 和 ORM upsert 函数的 `PLR0913`（参数过多）通过 `per-file-ignores` 抑制，因为参数列表受框架约束。未来向 frozen dataclass 请求对象重构（见 "Repository API Style"）应逐步削减这些抑制。
 - `BLE001`（blind-except）在启动/探测代码中允许使用（fail-closed/fail-soft 设计）。理由注释以普通 `# <reason>` 形式保留在行内，不使用 `# noqa` 指令。
-- `services/llm.py` 中的模块级 `# pyright: reportMissingImports=false` 是唯一合法的内联类型忽略指令，用于可选 `openai`/`litellm` 依赖导入。
 
 #### Adapter And API Boundaries
 
@@ -346,23 +344,6 @@ task ci
 - OneBot V11 图片 API 变更前，先用当前 adapter 和 NapCat 文档确认 file field 格式。
 - WSL2 + Docker Desktop bind mount 要求 WSL 发行版根目录必须加入 Docker Desktop File Sharing 白名单。漏配时容器内 bind 目标是空目录，但 `docker inspect` 仍报源路径正确。判断方法：`docker exec <ctr> mount | grep <src>`，出现 `fuse.bind` 或纯 `bind` 是正常；`overlay`（lower=`/tmp/docker-desktop-root-ro`）说明桥接层返回了空视图。修法：在 Docker Desktop → Settings → Resources → File sharing 加 `\\wsl.localhost\<distro>\`（旧版 WSL 写 `\\wsl$\<distro>\`），点 **Apply & restart** 后重建容器。Windows 侧 docker daemon 不会通过普通 bind 看到 WSL 路径；WSL Integration 与 File Sharing 是两个独立开关，不能假设"已经开了"。
 
-#### Pydantic Config And Schema Generation
-
-- 每个 `core/handle_config_defaults/<command>.py` MUST 声明一个 `pydantic.BaseModel` 子类并通过 `register_handle_defaults()` 注册；`HANDLE_DEFAULTS_REGISTRY` 类型为 `dict[str, type[BaseModel]]`。不要返回裸 `dict` 默认值 —— 校验和 JSON Schema 生成由 pydantic 承担。
-- `HandleConfigManager.get_config()` / `update_config()` 用 `type_validate_python(model_cls, toml_dict)` 做往返校验；`validate_config()` 已删除（pydantic 在非法输入时直接抛异常）。
-- `_lingchu_bot_contracts` 分离 `DeploymentSettings` 与 `MutableRuntimeSettings`；旧合并迁移模型已删除。CLI init/validate/schema 使用 import-safe mutable model 及其 serialization schema；启动过程对配置与 schema 保持只读。
-- `core/bot_state.py` 使用 `BotStateFile(BaseModel)`，通过 `Field(alias="global")` + `populate_by_name=True` 桥接 `global` Python 关键字；`_save_bot_state()` 用 `model_dump(mode="json", by_alias=True)` 序列化。
-- `core/runtime_config.py` 已合并入 `core/config.py`；不再保留兼容别名。所有 `runtime_config.xxx` 单例访问统一为 `plugin_config.xxx`。
-- `HandleConfig` dataclass 仍持 `dict[str, Any]`（frozen dataclass 接口保留）；`_build_handle_config` 通过 `model_dump(mode="json")` 桥接 pydantic ↔ dict 边界。将 `HandleConfig` 自身改为持 pydantic 实例的工作有意延后，以避免波及下游消费者。
-
-#### LLM Runtime And Pydantic AI
-
-- `services/llm/backends.py` 已删除；`LLMRuntime` 内部创建 `pydantic_ai.Agent` 实例。`LLMRuntime.openai()` 和 `LLMRuntime.litellm()` 是已废弃的 stub，始终抛出 `_WrongBackendError` —— 不要调用它们。所有 LLM 访问统一使用 `LLMRuntime.respond()` / `respond(stream=True)`。
-- Pydantic AI 异常类是 `pydantic_ai.exceptions.UserError`（不是 `UserCodeError` —— 该名称不存在）。`pydantic_ai.exceptions.HTTPException` 携带 `status_code` 用于错误映射（401-403 → `LLMAuthenticationError`，429 → `LLMRateLimitError`）。
-- 模型字符串使用 `provider:model` 格式（如 `openai:gpt-5.2`、`anthropic:claude-opus-4`）。`PydanticAIConfig.model` 字段 pattern 为 `^[\w.-]+:[\w./-]+$`（允许点、斜杠、连字符）。`probe_capability()` 从 provider 前缀推断能力，不调用 SDK。
-- `core/subplugins/contracts.py` 中的 `complete_subplugin_web_search()` 是 no-op，返回 `None` —— 原生 web search 是 LiteLLM 专属能力，Pydantic AI 迁移后不再支持。
-- `llm.toml` 中的 `[profiles.*]`、`[router]`、`[eve]` 段会触发 deprecation WARNING 并被忽略；`load_llm_runtime_config()` 仅读取 `[pydantic-ai]` 和 `[mcp]` / `[mcp.servers]`。
-
 #### Handler Session Injection
 
 - nonebot_plugin_orm 的 `async_scoped_session` 是 `Annotated[sa_async.async_scoped_session[sa_async.AsyncSession], Depends(coroutine(get_scoped_session))]` —— `Depends` 已嵌入 `Annotated` 元数据。正确签名是 `async def handler(session: async_scoped_session, ...)`（仅类型注解）；写 `session: async_scoped_session = Depends(async_scoped_session)` 会触发 pyright strict 错误，且是错误的。
@@ -370,7 +351,6 @@ task ci
 - 在 wrapper 内部（如 `_permission_wrapper`），通过 `session = kwargs.get("session")` 提取已注入的 session；不要重新 `get_session()`。
 - handler 测试 fixture 使用 `mock_session = AsyncMock()`，并把 `sess.add = MagicMock()` / `sess.add_all = MagicMock()`（同步 API 用同步 mock）；调用 handler 时传 `session=mock_session`。断言 `mock.call_args` 时注意 `args[0]` 现在是 `session`（repository/permission 函数首参为 session）。
 - 后台任务（`services/scheduler.py`、`services/message_store.py`）保留 `async with get_session() as session:`，因为它们自管生命周期，不属于 NoneBot handler 依赖。
-- `services/llm/agent.py::_default_permission_resolver` 和 `services/llm/mcp_audit.py::_default_audit_writer` 是本地 wrapper，在调用底层 session-first 函数前自己开 scoped session；这样既满足新的 repository API，又保持 `PermissionResolver` / `AuditWriter` Protocol 签名不变。
 
 #### Adapter Handle Decorators
 
@@ -396,8 +376,7 @@ task ci
 - 修改函数签名时，grep 所有调用方，更新 fixtures，并运行 Ruff、Pyright、ty、pytest。
 - 修改钩子、适配器或启动流程后，运行三阶段真实启动冒烟测试（完整流程见 `apps/docs/src/content/docs/developer-guide/engineering/testing-ci.mdx` → "Runtime smoke test"）：
   - **开发环境**：`uvx --from nb-cli nb.exe run` 通过 `ENVIRONMENT=dev` 载入 `.env` + `.env.dev`；需观察到 `Application startup complete.` 并至少完成一个事件周期。能捕获静态分析无法发现的前向引用签名错误与导入顺序问题。
-  - **生产环境**：删除 `config/nonebot_plugin_lingchu_bot/`、`data/nonebot_plugin_lingchu_bot/`、`data/nonebot_plugin_orm/`、`cache/nonebot_plugin_lingchu_bot/`（均为 localstore 管理），设置 `ENVIRONMENT=prod`，再 `uvx --from nb-cli nb.exe run` 载入 `.env` + `.env.prod`。验证启动过程不写 schema 且能在干净 localstore 下存活；LLM 配置告警可接受，硬错误不可接受。
-  - **CLI 工具**：开发环境通过 `uv run lingchu doctor`、`uv run lingchu --version`、`uv run lingchu config path` 检查；生产封包通过 `task ci:wheel-smoke`（在隔离环境中对构建出的 wheel 运行 `scripts/check-wheel-entrypoints.py`，校验 `lingchu` console entry、`nb lingchu` plugin entry、`doctor --json` 以及 `config init/validate/schema install`）。
+  - **生产环境**：删除 `config/nonebot_plugin_lingchu_bot/`、`data/nonebot_plugin_lingchu_bot/`、`data/nonebot_plugin_orm/`、`cache/nonebot_plugin_lingchu_bot/`（均为 localstore 管理），设置 `ENVIRONMENT=prod`，再 `uvx --from nb-cli nb.exe run` 载入 `.env` + `.env.prod`。验证启动能在干净 localstore 下存活。
 - gettext-heavy handler 中不要用 `_` 当临时变量覆盖 gettext helper。
 - 测试中的 side-effect exception 必须匹配生产代码 `except` 分支。
 - NoneBot event narrowing 使用 `isinstance(event, GroupMessageEvent)`。
@@ -427,7 +406,6 @@ task ci
 - Alembic model package 必须 import 所有 models，保证 discovery 生效。
 - 非 SQLite 测试前先运行 migrations。
 - `ensure_toml_dict_file_async()` 只创建缺失文件；覆盖写入用 `write_toml_dict_file_async()`。
-- Runtime config defaults 必须 JSON-serializable；需要时用 Pydantic `mode="json"` dump。
 - 迁移生成工作流：`nb orm revision -m "msg" --branch-label nonebot_plugin_lingchu_bot` 默认开启 autogenerate（无 `--autogenerate` 标志）。Taskfile 别名：`task db:revision -- MSG="..."`、`task db:check`、`task db:upgrade`。autogenerate 产出的是 `sa.Boolean` / `sa.DateTime(timezone=True)` / `sa.Text` / `sa.String`，必须手动改写为 `database/_dialect_compat.py` 中的 `CompatBoolean` / `CompatDateTimeTZ` / `CompatText` / `compat_string(length)` 以兼容六种数据库。autogenerate 无法识别列/表重命名（会生成 drop+add，丢数据），重命名需手动用 `op.alter_column` 编写迁移。CI 在 `nb orm upgrade` 后运行 `nb orm check` 强制模型与迁移同步。不带 --branch-label 时文件会落到 ./migrations/versions/ 而非插件迁移目录。
 - `nb orm upgrade` 在本地开发库上不可靠：当库由 `Base.metadata.create_all()` 或早期直接建表产生时，alembic 版本表无初始迁移记录，`nb orm upgrade` 会重跑 `initial schema` 导致 `sqlite3.OperationalError: table lingchu_message_records already exists`。每次更改模型定义时都应手写迁移脚本（autogenerate 仅作起点，不是终点）。本地开发库若已存在表但无迁移历史，用 `nb orm stamp head` 标记为最新而非重跑迁移；或删除 DB 文件后从头执行 `nb orm upgrade`。
 
