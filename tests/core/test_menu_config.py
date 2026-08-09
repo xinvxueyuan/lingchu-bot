@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
@@ -18,10 +17,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.menu_config import (
     get_menu_config_file,
     load_menu_config,
     menu_config_defaults,
-)
-from src.plugins.nonebot_plugin_lingchu_bot.core.schemas import (
-    MENU_SCHEMA_BASENAME,
-    MENU_SCHEMA_TEXT,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle import menu as menu_module
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.triggers import (
@@ -93,10 +88,8 @@ def test_restart_protocol_endpoint_menu_feature_is_application_operation() -> No
 
 
 def test_menu_config_defaults_have_schema_compatible_shape() -> None:
-    schema = json.loads(MENU_SCHEMA_TEXT)
     defaults = menu_config_defaults()
 
-    assert schema["properties"]["pages"]["type"] == "array"
     assert isinstance(defaults["pages"], list)
     assert all({"id", "title"} <= set(page) for page in defaults["pages"])
 
@@ -239,7 +232,7 @@ async def test_ensure_menu_config_file_async_creates_then_idempotent(
 
     assert created == config_file
     assert second == config_file
-    assert MENU_SCHEMA_BASENAME in first_content
+    assert "#:schema" not in first_content
     async with aiofiles.open(config_file, encoding="utf-8") as f:
         assert await f.read() == "version = 2\npages = []\n"
 

@@ -4,10 +4,12 @@ from .runtime_settings import (
     MUTABLE_RUNTIME_FIELDS,
     DeploymentSettings,
     MutableRuntimeSettings,
+    SettingsValidationError,
 )
 
 __all__ = [
     "MUTABLE_RUNTIME_FIELDS",
     "DeploymentSettings",
     "MutableRuntimeSettings",
+    "SettingsValidationError",
 ]

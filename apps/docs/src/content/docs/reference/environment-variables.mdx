@@ -73,16 +73,6 @@ See [Superuser Identity](./superuser) for detailed configuration.
 | `LINGCHU_MESSAGE_STORE_RECORD_API_CALLS` | `true` | Whether platform API call summaries are recorded |
 | `LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED` | `true` | Enable automatic cleanup of expired message records |
 
-## LLM service
-
-The Pydantic AI agent is configured in localstore-backed `llm.toml` through
-the `[pydantic-ai]` section. Put provider credentials in deployment
-environment variables such as `LINGCHU_AI_API_KEY`, then reference the
-variable name from `api_key_env`. `LINGCHU_AI_MODEL` (a Pydantic AI model
-string such as `openai:gpt-5.2` or `anthropic:claude-sonnet-4-5`) seeds the
-`[pydantic-ai] model` field when `lingchu config init` writes a fresh
-`llm.toml`; deployment-level LLM variables are no longer a fallback source.
-
 ## Recall settings
 
 | Variable | Default | Description |

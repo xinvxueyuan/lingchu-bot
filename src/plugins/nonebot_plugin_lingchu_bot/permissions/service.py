@@ -2,26 +2,16 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeIs
+from typing import TYPE_CHECKING, Any
 
 from ..core.mutable_settings import get_mutable_settings
 from ..platforms import get_platform_profile, resolve_adapter_id
 from ..repositories import permissions as repo
 from .platforms import resolve_runtime_identity_groups
-from .types import MCPPermissionLevel, PermissionContext, PermissionDecision
+from .types import PermissionContext, PermissionDecision
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
-
-_MCP_PERMISSION_RANK: dict[MCPPermissionLevel, int] = {
-    "read": 0,
-    "write_err": 1,
-    "critical": 2,
-}
-
-
-def _is_mcp_permission_level(value: str | None) -> TypeIs[MCPPermissionLevel]:
-    return value in _MCP_PERMISSION_RANK
 
 
 async def resolve_user_identity(
@@ -135,25 +125,6 @@ async def check_permission_for_context(
             matched_groups=allowed_groups,
         )
     return PermissionDecision(allowed=False, reason="missing_grant", uid=context.uid)
-
-
-async def resolve_mcp_permission(
-    session: AsyncSession | async_scoped_session[AsyncSession],
-    context: PermissionContext,
-) -> MCPPermissionLevel | None:
-    if context.uid is None:
-        return None
-    if await repo.is_superuser(session, context.uid):
-        return "critical"
-
-    effective_groups = await _effective_group_ids(session, context)
-    groups = await repo.list_identity_groups(session)
-    levels: list[MCPPermissionLevel] = []
-    for group in groups:
-        level = group.mcp_permission_level
-        if group.group_id in effective_groups and _is_mcp_permission_level(level):
-            levels.append(level)
-    return max(levels, key=_MCP_PERMISSION_RANK.__getitem__, default=None)
 
 
 def platform_runtime_passthrough_enabled(context: PermissionContext) -> bool:

@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-MCPPermissionLevel = Literal["read", "write_err", "critical"]
-
 PermissionReason = Literal[
     "superuser",
     "granted",
@@ -22,7 +20,6 @@ class IdentityGroupCreate:
     group_id: str
     display_name: str
     parent_group_id: str | None = None
-    mcp_permission_level: MCPPermissionLevel | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -620,10 +620,8 @@ MENU_FEATURES: tuple[MenuFeature, ...] = _DEFAULT_MENU_FEATURES
 
 
 def default_menu_features() -> tuple[MenuFeature, ...]:
-    """Return static default features merged with subplugin-registered features."""
-    from ..core.subplugins import collect_subplugin_menu_features
-
-    return (*_DEFAULT_MENU_FEATURES, *collect_subplugin_menu_features())
+    """Return the static menu feature catalog."""
+    return _DEFAULT_MENU_FEATURES
 
 
 def set_menu_pages(pages: tuple[MenuPage, ...]) -> None:

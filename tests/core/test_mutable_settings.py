@@ -89,7 +89,7 @@ async def test_save_mutable_settings_serializes_and_refreshes_cache(
 
     await save_mutable_settings(settings)
 
-    write.assert_awaited_once_with(target, settings.model_dump(mode="json"))
+    write.assert_awaited_once_with(target, settings.to_dict())
     assert get_mutable_settings() is settings
 
 
@@ -102,7 +102,7 @@ def test_invalid_mutable_settings_are_domain_error(
         MagicMock(return_value={"unknown": True}),
     )
 
-    with pytest.raises(MutableSettingsError, match="Extra inputs are not permitted"):
+    with pytest.raises(MutableSettingsError, match="unknown configuration fields"):
         load_mutable_settings_sync()
 
 

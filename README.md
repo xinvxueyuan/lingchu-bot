@@ -55,7 +55,6 @@ Useful entry points:
 | Permissions and protection | UID-based superusers, platform account mapping, command grants, platform runtime role passthrough, blocklist, and protected-subject safeguards. |
 | Message store and API audit | Optional recording of events, processing status, bot lifecycle events, and platform API call summaries. |
 | Runtime i18n | gettext / Babel catalogs for Simplified Chinese and English feedback text. |
-| LLM service | Managed OpenAI / LiteLLM profiles with stable and provider-native APIs. |
 | Scheduler | Periodic tasks and cleanup through `nonebot-plugin-apscheduler`. |
 
 Future cross-platform and non-group-management features depend on later implementation and tests.
@@ -160,12 +159,10 @@ Online-editable command, menu-trigger, and platform-permission overrides are sto
 | Protected Subjects | `LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS` | Side-effect command keys blocked when their target user is protected. |
 | Database | `SQLALCHEMY_DATABASE_URL` | SQLAlchemy database URL; supports SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server. Unset uses default SQLite. |
 | Database | `ALEMBIC_STARTUP_CHECK` | Set to `true` in production to enforce schema migration checks on startup. |
-| LLM Secrets | Provider-specific variables referenced by `llm.toml` profiles | Keep provider API keys in the deployment environment, for example `OPENAI_API_KEY`. |
 
 Example `runtime-overrides.toml`:
 
 ```toml
-#:schema ./runtime-overrides.schema.json
 permission_platform_runtime_passthrough = true
 
 [command_trigger_overrides.member_mute]
@@ -177,62 +174,9 @@ chinese = "成员管理"
 english = "member-management"
 ```
 
-Use `lingchu config init`, `lingchu config validate`, and `lingchu schema install` to manage this file explicitly. `config init` also creates a missing `llm.toml` starter template without overwriting an existing one. The old combined `config.toml` migration command has been removed; move deployment settings to NoneBot environment variables and mutable settings to `runtime-overrides.toml` manually. Legacy `.json5` files are not read or migrated.
-
-### Managed LLM profiles
-
-Lingchu also reads `llm.toml` from the plugin configuration directory. Declare
-at least one explicit profile; deployment-level LLM fields are no longer a
-fallback source. Keep credentials out of TOML by naming an
-environment variable with `api_key_env`:
-
-```toml
-#:schema ./llm.schema.json
-default_profile = "primary"
-
-[profiles.primary]
-backend = "openai"
-model = "gpt-4o-mini"
-api_key_env = "OPENAI_API_KEY"
-litellm_generation = "responses"
-timeout = 60
-max_retries = 2
-
-[profiles.litellm_chat]
-backend = "litellm"
-model = "openai/gpt-4o-mini"
-api_key_env = "OPENAI_API_KEY"
-litellm_generation = "chat"
-
-[router]
-enabled = false
-strategy = "simple-shuffle"
-num_retries = 2
-```
-
-OpenAI profiles use Responses for the stable generation API. LiteLLM profiles
-select `responses` or `chat` with `litellm_generation`; enabling `[router]`
-exposes LiteLLM's in-process Router to trusted internal callers. The managed
-runtime also exposes the native `AsyncOpenAI` client, LiteLLM module, and native
-Router, so provider-specific resources and future SDK operations do not need a
-Lingchu wrapper first.
-
-Capability probes return `supported`, `unsupported`, or `unknown` and are
-advisory: `unknown` never blocks an explicitly requested native call. A reload
-structurally validates and freezes candidate profiles before atomically replacing
-the old runtime; credentials remain lazy per profile. Failed reloads leave the
-current generation running, and successful reloads close retired clients and
-invalidate capability caches.
-
-Custom `base_url` values reject loopback, link-local, metadata, and other
-private IP literals unless `allow_private_network = true`. Credentials are not
-sent to a custom base URL unless
-`allow_credentials_to_custom_base_url = true`. These are explicit trust
-switches, not recommendations; deployments must also enforce DNS and redirect
-policy at the network layer. Stable `provider_options` reject credential,
-endpoint, callback, logger, retry, and Router control keys. Lingchu passes tool
-definitions and native results through but never executes model-requested tools
-automatically.
+Runtime settings are read from the localstore-owned `runtime-overrides.toml` file.
+Deployment settings remain in NoneBot environment configuration; there is no
+project-specific configuration CLI or generated schema step.
 
 ## Commands at a glance
 
@@ -360,7 +304,7 @@ and the [`LICENSE-*`](LICENSE-code) files in the repository root.
 Lingchu Bot stands on a lot of good open-source shoulders. Thanks especially to these upstream projects and communities:
 
 - **Bot runtime and adapter ecosystem**: [NoneBot2](https://nonebot.dev/), [nonebot-adapter-onebot](https://github.com/nonebot/adapter-onebot), `nonebot-plugin-alconna`, `nonebot-plugin-localstore`, `nonebot-plugin-orm`, `nonebot-plugin-apscheduler`, `nonebot-plugin-htmlkit`, and `nonebot-plugin-docs`.
-- **Python configuration, storage, and service utilities**: `aiofiles`, `toml`, `rtoml`, `jsonschema`, [Babel](https://babel.pocoo.org/), [Jinja](https://jinja.palletsprojects.com/), [Typer](https://typer.tiangolo.com/), [Arrow](https://arrow.readthedocs.io/), `psutil`, [OpenAI Python SDK](https://github.com/openai/openai-python), and [LiteLLM](https://github.com/BerriAI/litellm).
+- **Python configuration, storage, and service utilities**: `aiofiles`, `rtoml`, [Babel](https://babel.pocoo.org/), [Jinja](https://jinja.palletsprojects.com/), and `packaging`.
 - **Documentation and frontend stack**: [Astro](https://astro.build/), [Starlight](https://starlight.astro.build/), [React](https://react.dev/), [Mermaid](https://mermaid.js.org/), [Twoslash](https://twoslash.netlify.app/), and [Tailwind CSS](https://tailwindcss.com/).
 - **Engineering, testing, and repository workflow**: [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io/), [Turborepo](https://turbo.build/repo), [Ruff](https://docs.astral.sh/ruff/), [Pyright](https://microsoft.github.io/pyright/), [ty](https://docs.astral.sh/ty/), [pytest](https://docs.pytest.org/), [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/), [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2), [Prettier](https://prettier.io/), [ESLint](https://eslint.org/), [Husky](https://typicode.github.io/husky/), [Gitmoji](https://gitmoji.dev/), `gitnexus`, and [FOSSA](https://fossa.com/).
 

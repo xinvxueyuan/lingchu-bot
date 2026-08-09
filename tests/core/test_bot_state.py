@@ -37,7 +37,7 @@ def patched_state_dir(tmp_path: Path) -> Iterator[Path]:
         yield target
 
 
-async def test_bot_state_default_contains_schema_directive(
+async def test_bot_state_default_contains_expected_payload(
     patched_state_dir: Path,
 ) -> None:
     """First-time load writes a schema directive outside the data table."""
@@ -48,9 +48,7 @@ async def test_bot_state_default_contains_schema_directive(
     assert state_file.exists()
     content = state_file.read_text(encoding="utf-8")
     payload = rtoml.loads(content)
-    assert content.startswith(
-        f"#:schema ./{bot_state_module.BOT_STATE_SCHEMA_BASENAME}\n"
-    )
+    assert "#:schema" not in content
     assert "$schema" not in payload
     assert payload["global"]["handle_active"] is True
     assert payload["global"]["silent_mode"] is False
@@ -83,7 +81,7 @@ async def test_bot_state_existing_file_preserves_user_state(
 
 
 @pytest.mark.asyncio
-async def test_bot_state_save_writes_default_schema_directive(
+async def test_bot_state_save_writes_expected_payload(
     patched_state_dir: Path,
 ) -> None:
     """Saving always regenerates the code-owned schema directive."""
@@ -93,6 +91,4 @@ async def test_bot_state_save_writes_default_schema_directive(
 
     state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
     content = state_file.read_text(encoding="utf-8")
-    assert content.startswith(
-        f"#:schema ./{bot_state_module.BOT_STATE_SCHEMA_BASENAME}\n"
-    )
+    assert "#:schema" not in content

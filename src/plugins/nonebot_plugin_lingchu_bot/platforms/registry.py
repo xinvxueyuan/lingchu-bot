@@ -28,7 +28,6 @@ class PlatformCapability(StrEnum):
     APPLICATION_OPERATION = "application_operation"
     MESSAGE_STORE = "message_store"
     API_AUDIT = "api_audit"
-    LLM_CHAT = "llm_chat"
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,7 +156,6 @@ QQ_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset({
     PlatformCapability.APPLICATION_OPERATION,
     PlatformCapability.MESSAGE_STORE,
     PlatformCapability.API_AUDIT,
-    PlatformCapability.LLM_CHAT,
 })
 
 TELEGRAM_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset({
@@ -165,7 +163,6 @@ TELEGRAM_CAPABILITIES: Final[frozenset[PlatformCapability]] = frozenset({
     PlatformCapability.MEMBER_MODERATION,
     PlatformCapability.MESSAGE_STORE,
     PlatformCapability.API_AUDIT,
-    PlatformCapability.LLM_CHAT,
 })
 
 PLATFORM_PROFILES: Final[tuple[PlatformProfile, ...]] = (

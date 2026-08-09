@@ -1,5 +1,4 @@
 from types import SimpleNamespace
-from typing import cast
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
@@ -16,7 +15,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.permissions.admin import (
 )
 from src.plugins.nonebot_plugin_lingchu_bot.permissions.types import (
     IdentityGroupCreate,
-    MCPPermissionLevel,
     PermissionContext,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.repositories import permissions as repo
@@ -41,48 +39,6 @@ async def test_non_superuser_cannot_create_group(
         await create_platform_identity_group(
             mock_session, "userA", IdentityGroupCreate("qq", "qq.custom", "自定义")
         )
-
-
-@pytest.mark.asyncio
-async def test_superuser_can_create_group(
-    monkeypatch: pytest.MonkeyPatch,
-    mock_session: Mock,
-) -> None:
-    created = SimpleNamespace(group_id="qq.custom")
-    upsert = AsyncMock(return_value=created)
-    monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
-    monkeypatch.setattr(repo, "upsert_identity_group", upsert)
-
-    result = await create_platform_identity_group(
-        mock_session,
-        "userA",
-        IdentityGroupCreate(
-            "qq", "qq.custom", "自定义", mcp_permission_level="critical"
-        ),
-    )
-
-    assert result is created
-    assert upsert.await_args is not None
-    assert upsert.await_args.kwargs["builtin"] is False
-    assert upsert.await_args.kwargs["managed_by"] == "userA"
-    assert upsert.await_args.kwargs["mcp_permission_level"] == "critical"
-
-
-@pytest.mark.asyncio
-async def test_create_group_rejects_invalid_mcp_permission(
-    monkeypatch: pytest.MonkeyPatch,
-    mock_session: Mock,
-) -> None:
-    monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=True))
-    request = IdentityGroupCreate(
-        "qq",
-        "qq.custom",
-        "自定义",
-        mcp_permission_level=cast("MCPPermissionLevel", "root"),
-    )
-
-    with pytest.raises(ValueError, match="Invalid MCP permission level"):
-        await create_platform_identity_group(mock_session, "userA", request)
 
 
 @pytest.mark.asyncio

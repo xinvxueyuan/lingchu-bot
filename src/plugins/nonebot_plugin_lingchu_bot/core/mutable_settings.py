@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Final
 
 from _lingchu_bot_contracts import MutableRuntimeSettings
 from nonebot import require
-from pydantic import ValidationError
 
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
@@ -42,8 +41,8 @@ def get_mutable_settings_file() -> Path:
 
 def _validate(raw: dict[str, object]) -> MutableRuntimeSettings:
     try:
-        return MutableRuntimeSettings.model_validate(raw)
-    except ValidationError as exc:
+        return MutableRuntimeSettings.from_mapping(raw)
+    except ValueError as exc:
         raise MutableSettingsError(str(exc)) from exc
 
 
@@ -87,7 +86,7 @@ async def save_mutable_settings(settings: MutableRuntimeSettings) -> None:
     try:
         await write_toml_dict_file_async(
             get_mutable_settings_file(),
-            settings.model_dump(mode="json"),
+            settings.to_dict(),
         )
     except DatabaseError as exc:
         raise MutableSettingsError(str(exc)) from exc

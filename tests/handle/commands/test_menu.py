@@ -56,18 +56,10 @@ def test_telegram_menu_shows_only_implemented_member_commands() -> None:
     assert "Set a member card" not in rendered
 
 
-def test_default_menu_features_includes_subplugin_features() -> None:
-    """default_menu_features() must include subplugin-registered features (chat, novelai_image)."""
-    from src.plugins.nonebot_plugin_lingchu_bot.core.subplugins import (
-        collect_subplugin_menu_features,
-    )
-
-    all_features = default_menu_features()
-    subplugin_keys = {f.command_key for f in collect_subplugin_menu_features()}
-    assert subplugin_keys <= {f.command_key for f in all_features}
-    # chat and novelai_image should be registered by subplugins
-    assert "chat" in subplugin_keys
-    assert "novelai_image" in subplugin_keys
+def test_default_menu_features_contains_only_core_commands() -> None:
+    """The menu catalog contains only commands implemented by the core bot."""
+    keys = {feature.command_key for feature in default_menu_features()}
+    assert "chat" not in keys
 
 
 def test_set_menu_pages_replaces_runtime_lookup() -> None:

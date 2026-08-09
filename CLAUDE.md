@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (7929 symbols, 14156 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (4801 symbols, 8611 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -61,7 +61,7 @@ This guide is organized by CREATE so agents can extract the right constraint qui
 | R | Role | How agents are expected to operate in this repo |
 | E | Expectations | Non-negotiable constraints and quality gates |
 | A | Actions | Standard development workflow and propagation surfaces |
-| T | Tools | Commands, skills, MCPs, hooks, and validation routes |
+| T | Tools | Commands, skills, hooks, and validation routes |
 | E | Evidence | Lessons learned, checklists, and final proof expectations |
 
 When editing this file, follow DRY and SMAR/TL:
@@ -144,7 +144,7 @@ This sync rule starts after `<!-- gitnexus:end -->`. GitNexus marker blocks are 
 
 - **Localstore path ownership**: All mutable data, config, cache, resource, and schema files MUST be resolved through `nonebot_plugin_localstore` helpers such as `get_plugin_data_dir()`, `get_plugin_config_dir()`, `get_plugin_cache_dir()`, `get_plugin_data_file()`, `get_plugin_config_file()`, or `get_plugin_cache_file()`.
 - **No hard-coded mutable paths**: `Path("...")` for mutable runtime files is forbidden.
-- **Explicit configuration and schema writes only**: Do not package generated JSON schemas. Startup MUST NOT create, migrate, or regenerate configuration or schema files. Only explicit `lingchu config init`, `lingchu schema install`, or bot management operations may write them, using localstore-owned or explicitly supplied CLI paths.
+- **Explicit configuration writes only**: Startup MUST NOT create, migrate, or regenerate configuration files. Configuration writes belong to localstore-owned paths or explicitly supplied deployment paths.
 - **Handle default registration**: Handle-level defaults MUST be registered in `handle_config_defaults/` using `register_handle_defaults()` before `HandleConfigManager` can read or update `<command_key>.toml` files.
 - **Prek is hook source of truth**: `prek.toml` is the only pre-commit hook configuration (explicitly declares ruff/ty hooks, decoupled from husky, no duplicate execution). Do not reintroduce `.pre-commit-config.yaml`.
 - **Version sync**: Use `Taskfile.yml` task `ci:version:write-config` to write both `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` and root `package.json`.
@@ -218,8 +218,7 @@ When modifying business logic, especially adapter-layer code, check all relevant
 | Docs | `apps/docs/src/content/docs/` |
 | Menu | `src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py` |
 | Runtime config | NoneBot deployment environment, localstore `runtime-overrides.toml`, `bot_state.toml`, `menu.toml`, and `_lingchu_bot_contracts/` |
-| Handle config files | `handle_config_defaults/<command>.py` (MUST declare a `pydantic.BaseModel` subclass and register via `register_handle_defaults()`), `<command_key>.toml` in localstore config_dir |
-| Schema files | Explicit `lingchu schema install` output from the owning Pydantic model; verify with CLI tests and wheel smoke; startup is schema-write-free |
+| Handle config files | `handle_config_defaults/<command>.py`, `<command_key>.toml` in localstore config_dir |
 | Triggers | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` |
 | Handler session injection | New matcher handlers add `session: async_scoped_session` (type only, no `= Depends(...)`); pass `session` as first arg to repository/permission calls |
 | Agent context | `AGENTS.md`, `CLAUDE.md`, `.github/note/AGENTS-zh.md` |
@@ -272,7 +271,7 @@ For handle, QQ command, adapter handler, matcher, `command_key`, menu, trigger, 
 | Hooks, Prek, Husky | `prek` skill |
 | React code triage / cleanup | `react-doctor` skill |
 | Web scraping, crawling, search | `firecrawl-*` skills |
-| OneBot V11 / NapCat API signatures | NapCat API MCP before writing adapter calls |
+| OneBot V11 / NapCat API signatures | Inspect current adapter and NapCat documentation before writing adapter calls |
 | GitHub PRs, issues, CI, publishing | GitHub skills |
 
 ### Development Workflow Chain
@@ -384,7 +383,6 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - Inline `# noqa` / `# type: ignore` in `src/` are fully consolidated into `pyproject.toml` `[tool.ruff.lint.per-file-ignores]`; the prohibition and enforcement (Phase 2.5 warning + CI `ignore-comment-audit` PR comment) are documented under "Code Style → Ignore comment governance". The bullets below capture the legitimate exceptions retained in `per-file-ignores`.
 - `PLR0913` (too-many-arguments) for NoneBot matcher handlers and ORM upsert functions is suppressed via `per-file-ignores` because the parameter lists are framework-constrained. Future refactoring to frozen dataclass request objects (per "Repository API Style") should reduce these suppressions.
 - `BLE001` (blind-except) is intentionally allowed in startup/probe code (fail-closed/fail-soft design). Justification comments are preserved inline as plain `# <reason>` comments, not as `# noqa` directives.
-- Module-level `# pyright: reportMissingImports=false` in `services/llm.py` is the only legitimate inline type-ignore directive, used for optional `openai`/`litellm` dependency imports.
 
 #### Adapter And API Boundaries
 
@@ -394,23 +392,6 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - For OneBot V11 image APIs, verify file field format against current adapter and NapCat docs before changing calls.
 - WSL2 + Docker Desktop bind mount requires the WSL distro root to be in Docker Desktop's File Sharing allow-list. When it is missing, the container sees an empty directory at the bind target while `docker inspect` still reports the source path. Detect with `docker exec <ctr> mount | grep <src>`: a `fuse.bind` or plain `bind` line is correct; `overlay` (lower=`/tmp/docker-desktop-root-ro`) means the bridge returned an empty view. Fix by adding `\\wsl.localhost\<distro>\` (or `\\wsl$\<distro>\` on older WSL) under Docker Desktop → Settings → Resources → File sharing, then **Apply & restart** and recreate the container. The Windows-side `docker` daemon does not see WSL paths through plain bind; do not assume the integration is "already on" — WSL Integration and File Sharing are two distinct settings.
 
-#### Pydantic Config And Schema Generation
-
-- Each `core/handle_config_defaults/<command>.py` MUST declare a `pydantic.BaseModel` subclass and register via `register_handle_defaults()`; the `HANDLE_DEFAULTS_REGISTRY` type is `dict[str, type[BaseModel]]`. Do not return bare `dict` defaults — pydantic owns validation and JSON Schema emission.
-- `HandleConfigManager.get_config()` / `update_config()` use `type_validate_python(model_cls, toml_dict)` for round-trip validation; `validate_config()` is removed (pydantic raises on invalid input).
-- `_lingchu_bot_contracts` separates `DeploymentSettings` from `MutableRuntimeSettings`; the old combined migration model is removed. CLI init/validate/schema use the import-safe mutable model and its serialization schema; startup remains read-only for configuration and schema files.
-- `core/bot_state.py` uses `BotStateFile(BaseModel)` with `Field(alias="global")` + `populate_by_name=True` to bridge the `global` Python keyword; `_save_bot_state()` serializes with `model_dump(mode="json", by_alias=True)`.
-- `core/runtime_config.py` is merged into `core/config.py`; no compatibility alias remains. All `runtime_config.xxx` singletons are now `plugin_config.xxx`.
-- `HandleConfig` dataclass still holds `dict[str, Any]` (frozen dataclass interface preserved); `_build_handle_config` bridges the pydantic ↔ dict boundary via `model_dump(mode="json")`. Migrating `HandleConfig` itself to hold pydantic instances is intentionally deferred to avoid churning downstream consumers.
-
-#### LLM Runtime And Pydantic AI
-
-- `services/llm/backends.py` is deleted; `LLMRuntime` creates `pydantic_ai.Agent` instances internally. `LLMRuntime.openai()` and `LLMRuntime.litellm()` are deprecated stubs that always raise `_WrongBackendError` — do not call them. Use `LLMRuntime.respond()` / `respond(stream=True)` for all LLM access.
-- Pydantic AI exception class is `pydantic_ai.exceptions.UserError` (NOT `UserCodeError` — that name does not exist). `pydantic_ai.exceptions.HTTPException` carries `status_code` for error mapping (401-403 → `LLMAuthenticationError`, 429 → `LLMRateLimitError`).
-- Model strings use `provider:model` format (e.g., `openai:gpt-5.2`, `anthropic:claude-opus-4`). The `PydanticAIConfig.model` field pattern is `^[\w.-]+:[\w./-]+$` (allows dots, slashes, hyphens). `probe_capability()` infers support from the provider prefix, not SDK calls.
-- `complete_subplugin_web_search()` in `core/subplugins/contracts.py` is a no-op returning `None` — native web search was LiteLLM-only and is no longer supported after the Pydantic AI migration.
-- `[profiles.*]`, `[router]`, and `[eve]` sections in `llm.toml` emit deprecation WARNINGs and are ignored; only `[pydantic-ai]` and `[mcp]` / `[mcp.servers]` are read by `load_llm_runtime_config()`.
-
 #### Handler Session Injection
 
 - nonebot_plugin_orm's `async_scoped_session` is `Annotated[sa_async.async_scoped_session[sa_async.AsyncSession], Depends(coroutine(get_scoped_session))]` — `Depends` is already embedded in the `Annotated` metadata. The correct handler signature is `async def handler(session: async_scoped_session, ...)` (type annotation only); writing `session: async_scoped_session = Depends(async_scoped_session)` triggers pyright strict errors and is wrong.
@@ -418,7 +399,6 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - Inside wrappers (e.g. `_permission_wrapper`), extract the injected session via `session = kwargs.get("session")`; do not re-open `get_session()`.
 - Test fixtures for handlers use `mock_session = AsyncMock()` with `sess.add = MagicMock()` / `sess.add_all = MagicMock()` (sync mocks for sync API), then call the handler with `session=mock_session`. For `mock.call_args` assertions, remember that `args[0]` is now `session` (repository/permission functions take session as first positional arg).
 - Background tasks (`services/scheduler.py`, `services/message_store.py`) keep `async with get_session() as session:` because they own their lifecycle and are not NoneBot handler dependencies.
-- `services/llm/agent.py::_default_permission_resolver` and `services/llm/mcp_audit.py::_default_audit_writer` are local wrappers that open a scoped session before calling the underlying session-first function; this keeps the `PermissionResolver` / `AuditWriter` Protocol signatures unchanged while satisfying the new repository API.
 
 #### Adapter Handle Decorators
 
@@ -444,8 +424,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - When changing function signatures, grep all callers, update fixtures, and run Ruff, Pyright, ty, and pytest.
 - After hook, adapter, or startup-flow changes, run the three-stage live smoke test (full procedure: `apps/docs/src/content/docs/developer-guide/engineering/testing-ci.mdx` → "Runtime smoke test"):
   - **Dev env**: `uvx --from nb-cli nb.exe run` loads `.env` + `.env.dev` via `ENVIRONMENT=dev`; wait for `Application startup complete.` and at least one event cycle. Catches forward-reference signature errors and import-order issues that static analysis misses.
-  - **Prod env**: delete `config/nonebot_plugin_lingchu_bot/`, `data/nonebot_plugin_lingchu_bot/`, `data/nonebot_plugin_orm/`, `cache/nonebot_plugin_lingchu_bot/` (all localstore-owned), set `ENVIRONMENT=prod`, then `uvx --from nb-cli nb.exe run` loads `.env` + `.env.prod`. Verifies startup is schema-write-free and survives a clean localstore; an LLM-config warning is acceptable, hard errors are not.
-  - **CLI tool**: dev check via `uv run lingchu doctor`, `uv run lingchu --version`, `uv run lingchu config path`; production packaging check via `task ci:wheel-smoke` (runs `scripts/check-wheel-entrypoints.py` against the built wheel in an isolated env, verifying the `lingchu` console entry, the `nb lingchu` plugin entry, `doctor --json`, and `config init/validate/schema install`).
+  - **Prod env**: delete `config/nonebot_plugin_lingchu_bot/`, `data/nonebot_plugin_lingchu_bot/`, `data/nonebot_plugin_orm/`, `cache/nonebot_plugin_lingchu_bot/` (all localstore-owned), set `ENVIRONMENT=prod`, then `uvx --from nb-cli nb.exe run` loads `.env` + `.env.prod`. Verifies startup survives a clean localstore.
 - Do not shadow gettext helper `_` with throwaway locals in gettext-heavy handlers.
 - In tests, side-effect exceptions must match the production `except` clause.
 - Use `isinstance(event, GroupMessageEvent)` for NoneBot event narrowing.
@@ -476,7 +455,6 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - Alembic model packages must import all models so discovery works.
 - Run migrations before non-SQLite tests.
 - `ensure_toml_dict_file_async()` only creates missing files; use `write_toml_dict_file_async()` to overwrite.
-- Runtime config defaults must be JSON-serializable; dump Pydantic defaults with `mode="json"` when needed.
 - Migration authoring: `nb orm revision -m "msg" --branch-label nonebot_plugin_lingchu_bot` autogenerates by default (no `--autogenerate` flag). Taskfile aliases: `task db:revision -- MSG="..."`, `task db:check`, `task db:upgrade`. Autogenerate emits `sa.Boolean` / `sa.DateTime(timezone=True)` / `sa.Text` / `sa.String` — manually rewrite to `CompatBoolean` / `CompatDateTimeTZ` / `CompatText` / `compat_string(length)` from `database/_dialect_compat.py` for six-backend compatibility. Autogenerate cannot detect column/table renames (emits drop+add, loses data) — author rename migrations manually with `op.alter_column`. CI runs `nb orm check` after `nb orm upgrade` to enforce model/migration sync. Without --branch-label the file lands in ./migrations/versions/ instead of the plugin migrations dir.
 - `nb orm upgrade` is unreliable on local dev DBs created outside the migration system (e.g., via `Base.metadata.create_all()` or earlier direct table creation). The alembic version table has no initial migration record, so `nb orm upgrade` re-runs the initial schema and fails with `sqlite3.OperationalError: table lingchu_message_records already exists`. Always hand-write migration scripts on model definition changes (autogenerate is a starting point only, not a finish line). If the local dev DB already has tables but no migration history, use `nb orm stamp head` to mark it as current instead of re-running migrations; or delete the DB file and run `nb orm upgrade` from scratch.
 

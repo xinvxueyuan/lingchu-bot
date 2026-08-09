@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 """CI wheel contents verification.
 
-Asserts the built wheel exposes the three Lingchu Bot top-level packages
-(contracts, CLI, nonebot plugin). Exits non-zero if any module is missing.
+Asserts the built wheel exposes the Lingchu Bot top-level packages. Exits
+non-zero if any module is missing.
 
 Usage:
     python scripts/ci_verify_wheel.py [dist_dir]
@@ -21,10 +21,9 @@ from zipfile import ZipFile
 
 # Modules that MUST appear inside the wheel. Keep in sync with the package
 # layout under ``src/plugins/nonebot_plugin_lingchu_bot/`` and the helper
-# packages emitted by ``_lingchu_bot_contracts`` and ``_lingchu_bot_cli``.
+# package emitted by ``_lingchu_bot_contracts``.
 EXPECTED_MODULES: tuple[str, ...] = (
     "_lingchu_bot_contracts",
-    "_lingchu_bot_cli",
     "nonebot_plugin_lingchu_bot",
 )
 
