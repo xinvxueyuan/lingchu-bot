@@ -13,7 +13,12 @@ overrides:
   minimatch: "^10.2.5"
   postcss: "^8.5.23" # GHSA-r28c-9q8g-f849 (sourceMappingURL path traversal)
   vite: "^8.1.5" # latest 8.x
-  js-yaml: "^4.3.0" # latest 4.x
+  js-yaml: "^4.3.1" # Dependabot security update
+  nanoid: "^3.3.17" # Dependabot security update
+  hono: "^4.12.34" # Dependabot security update
+  fast-uri: "^3.1.5" # Dependabot security update
+  ip-address: "^10.3.1" # Dependabot security update
+  undici: "^7.29.0" # Dependabot security update
   markdown-it: "^14.3.0" # latest 14.x
   sharp: "^0.35.3" # GHSA-f88m-g3jw-g9cj (libvips)
   adm-zip: "^0.6.0" # CVE-2026-39244

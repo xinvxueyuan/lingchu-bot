@@ -100,7 +100,7 @@ test = [
     # auth and by oracledb for TLS.
     "psycopg[binary]>=3.3.4", # PostgreSQL
     "aiomysql>=0.3.2",        # MySQL and MariaDB (SQLAlchemy auto-detects dialect)
-    "cryptography>=49.0.0",   # pymysql/aiomysql/oracledb auth
+    "cryptography>=50.0.0",   # pymysql/aiomysql/oracledb auth
     "oracledb>=4.0.2",        # Oracle Thin mode (no Oracle Client required)
     "aioodbc>=0.5.0",         # SQL Server async ODBC
     # aioodbc depends on pyodbc, which needs system ODBC drivers:
