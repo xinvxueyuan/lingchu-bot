@@ -109,20 +109,19 @@ async def execute_persistent_job(job_id: str) -> None:
     """Load a persisted scheduler job and dispatch its registered handler."""
     async with get_session() as session:
         job = await repository.get_job_spec(session, job_id)
+        if job is None or not job.enabled:
+            return
+        handler_key = job.handler_key
+        handler = _handlers.get(handler_key)
+        if handler is None:
+            logger.warning(
+                "Scheduled job %s has no registered handler %s",
+                job_id,
+                handler_key,
+            )
+            return
+        _, args, kwargs = repository.decode_job_payload(job)
 
-    if job is None or not job.enabled:
-        return
-
-    handler = _handlers.get(job.handler_key)
-    if handler is None:
-        logger.warning(
-            "Scheduled job %s has no registered handler %s",
-            job_id,
-            job.handler_key,
-        )
-        return
-
-    _, args, kwargs = repository.decode_job_payload(job)
     await _maybe_await(handler(*args, **kwargs))
 
 
@@ -177,30 +176,46 @@ async def initialize_scheduler_service() -> None:
         async with get_session() as session, session.begin():
             await _ensure_builtin_jobs(session)
             jobs = await repository.list_enabled_job_specs(session)
+            # 在 session 内解码 payload 并提取标量字段,避免 ORM 对象
+            # 在 session 关闭(commit)后访问属性触发 DetachedInstanceError。
+            job_specs: list[dict[str, Any]] = []
+            for job in jobs:
+                if job.handler_key not in _handlers:
+                    logger.warning(
+                        "Skipping scheduled job %s without handler %s",
+                        job.job_id,
+                        job.handler_key,
+                    )
+                    continue
+                try:
+                    trigger_kwargs, _, _ = repository.decode_job_payload(job)
+                except (TypeError, ValueError):
+                    logger.exception(
+                        "Failed to schedule persisted job %s",
+                        job.job_id,
+                    )
+                    continue
+                job_specs.append({
+                    "job_id": job.job_id,
+                    "trigger_type": job.trigger_type,
+                    "trigger_kwargs": trigger_kwargs,
+                    "coalesce": job.coalesce,
+                    "max_instances": job.max_instances,
+                    "misfire_grace_time": job.misfire_grace_time,
+                })
     except DatabaseError:
         logger.exception("Failed to load persisted scheduler jobs")
         return
 
-    for job in jobs:
-        try:
-            if job.handler_key not in _handlers:
-                logger.warning(
-                    "Skipping scheduled job %s without handler %s",
-                    job.job_id,
-                    job.handler_key,
-                )
-                continue
-            trigger_kwargs, _, _ = repository.decode_job_payload(job)
-            _schedule_runtime_job(
-                job_id=job.job_id,
-                trigger_type=job.trigger_type,
-                trigger_kwargs=trigger_kwargs,
-                coalesce=job.coalesce,
-                max_instances=job.max_instances,
-                misfire_grace_time=job.misfire_grace_time,
-            )
-        except (TypeError, ValueError):
-            logger.exception("Failed to schedule persisted job %s", job.job_id)
+    for spec in job_specs:
+        _schedule_runtime_job(
+            job_id=spec["job_id"],
+            trigger_type=spec["trigger_type"],
+            trigger_kwargs=spec["trigger_kwargs"],
+            coalesce=spec["coalesce"],
+            max_instances=spec["max_instances"],
+            misfire_grace_time=spec["misfire_grace_time"],
+        )
 
 
 async def remove_persistent_job(job_id: str) -> tuple[int, bool]:

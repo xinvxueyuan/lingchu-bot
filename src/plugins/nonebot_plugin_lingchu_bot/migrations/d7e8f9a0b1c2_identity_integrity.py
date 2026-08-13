@@ -136,7 +136,7 @@ _FOREIGN_KEYS = (
     ),
     (
         "lingchu_platform_identity_groups",
-        "fk_lingchu_platform_identity_groups_parent_group_id_identity_groups",
+        "fk_lingchu_identity_groups_parent",
         ["parent_group_id"],
         "lingchu_platform_identity_groups",
         ["group_id"],

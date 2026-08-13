@@ -93,7 +93,11 @@ class PlatformAccount(Model):
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     uid: Mapped[str] = mapped_column(
         compat_string(64),
-        ForeignKey("lingchu_identity_users.uid", ondelete="CASCADE"),
+        ForeignKey(
+            "lingchu_identity_users.uid",
+            ondelete="CASCADE",
+            name="fk_lingchu_platform_accounts_uid_identity_users",
+        ),
         index=True,
     )
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
@@ -130,6 +134,7 @@ class PlatformIdentityGroup(Model):
         ForeignKey(
             "lingchu_platform_identity_groups.group_id",
             ondelete="SET NULL",
+            name="fk_lingchu_identity_groups_parent",
         ),
         index=True,
     )
@@ -167,12 +172,20 @@ class IdentityMembership(Model):
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     uid: Mapped[str] = mapped_column(
         compat_string(64),
-        ForeignKey("lingchu_identity_users.uid", ondelete="CASCADE"),
+        ForeignKey(
+            "lingchu_identity_users.uid",
+            ondelete="CASCADE",
+            name="fk_lingchu_identity_memberships_uid_identity_users",
+        ),
         index=True,
     )
     group_id: Mapped[str] = mapped_column(
         compat_string(128),
-        ForeignKey("lingchu_platform_identity_groups.group_id", ondelete="CASCADE"),
+        ForeignKey(
+            "lingchu_platform_identity_groups.group_id",
+            ondelete="CASCADE",
+            name="fk_lingchu_identity_memberships_group_id_identity_groups",
+        ),
         index=True,
     )
     scope_type: Mapped[str] = mapped_column(
@@ -209,7 +222,11 @@ class PermissionGrant(Model):
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     group_id: Mapped[str] = mapped_column(
         compat_string(128),
-        ForeignKey("lingchu_platform_identity_groups.group_id", ondelete="CASCADE"),
+        ForeignKey(
+            "lingchu_platform_identity_groups.group_id",
+            ondelete="CASCADE",
+            name="fk_lingchu_permission_grants_group_id_identity_groups",
+        ),
         index=True,
     )
     command_key: Mapped[str] = mapped_column(compat_string(128), index=True)

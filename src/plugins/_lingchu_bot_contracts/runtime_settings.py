@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 import json
+import os
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -20,6 +21,12 @@ def _value(mapping: Mapping[str, Any], *names: str, default: Any) -> Any:
     for name in names:
         if name in mapping:
             return mapping[name]
+    # NoneBot's pydantic Config only surfaces declared fields via model_dump(),
+    # so deployment settings provided purely via OS environment variables
+    # (e.g. CI job env with no .env file) must fall back to os.environ.
+    for name in names:
+        if name in os.environ:
+            return os.environ[name]
     return default
 
 
