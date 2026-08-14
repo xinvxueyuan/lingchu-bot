@@ -32,13 +32,12 @@ def _apply_default_startup_mocks(
     Each mock defaults to a successful no-op; tests override the specific
     mock they want to fail.
     """
-    log_exception = MagicMock()
-    monkeypatch.setattr(startup_module.logger, "exception", log_exception)
-
-    monkeypatch.setattr(startup_module, "ensure_menu_config_file_async", AsyncMock())
+    log_error = MagicMock()
+    monkeypatch.setattr(startup_module.logger, "error", log_error)
 
     handle_manager_mock = MagicMock()
     handle_manager_mock.ensure_config_files = AsyncMock()
+    handle_manager_mock.get_all_configs = AsyncMock()
     monkeypatch.setattr(
         startup_module, "get_handle_config_manager", lambda: handle_manager_mock
     )
@@ -54,9 +53,14 @@ def _apply_default_startup_mocks(
             )
         ),
     )
-    monkeypatch.setattr(startup_module.menu_module, "set_menu_pages", MagicMock())
-    monkeypatch.setattr(startup_module.menu_module, "set_menu_features", MagicMock())
-    monkeypatch.setattr(startup_module, "initialize_handle_config_manager", AsyncMock())
+    set_menu_pages = MagicMock()
+    set_menu_features = MagicMock()
+    monkeypatch.setattr(startup_module.menu_module, "set_menu_pages", set_menu_pages)
+    monkeypatch.setattr(
+        startup_module.menu_module,
+        "set_menu_features",
+        set_menu_features,
+    )
     monkeypatch.setattr(startup_module, "get_adapters", dict)
     monkeypatch.setattr(startup_module, "validate_enabled_adapters_loaded", MagicMock())
     monkeypatch.setattr(
@@ -86,8 +90,10 @@ def _apply_default_startup_mocks(
     )
 
     return {
-        "log_exception": log_exception,
+        "log_error": log_error,
         "handle_manager_mock": handle_manager_mock,
+        "set_menu_pages": set_menu_pages,
+        "set_menu_features": set_menu_features,
         "import_handle": import_handle_mock,
         "register_scheduler_handler": register_scheduler_handler,
         "initialize_scheduler_service": initialize_scheduler_service,
@@ -103,11 +109,6 @@ async def test_startup_imports_group_and_menu_handlers(
         side_effect=lambda kind: calls.append(f"import_handle:{kind}")
     )
 
-    monkeypatch.setattr(
-        startup_module,
-        "ensure_menu_config_file_async",
-        AsyncMock(side_effect=lambda: calls.append("ensure_menu_config")),
-    )
     monkeypatch.setattr(startup_module, "load_bot_state", AsyncMock())
     monkeypatch.setattr(
         startup_module,
@@ -128,6 +129,14 @@ async def test_startup_imports_group_and_menu_handlers(
         startup_module.menu_module,
         "set_menu_features",
         MagicMock(side_effect=lambda _features: calls.append("set_menu_features")),
+    )
+    handle_manager_mock = MagicMock()
+    handle_manager_mock.ensure_config_files = AsyncMock()
+    handle_manager_mock.get_all_configs = AsyncMock(
+        side_effect=lambda: calls.append("load_handle_configs")
+    )
+    monkeypatch.setattr(
+        startup_module, "get_handle_config_manager", lambda: handle_manager_mock
     )
     monkeypatch.setattr(startup_module, "get_adapters", dict)
     monkeypatch.setattr(
@@ -180,7 +189,9 @@ async def test_startup_imports_group_and_menu_handlers(
         startup_module.cleanup_expired_messages,
     )
     initialize_scheduler_service.assert_awaited_once()
-    assert calls.index("ensure_menu_config") < calls.index("import_handle:menu")
+    handle_manager_mock.get_all_configs.assert_awaited_once_with()
+    handle_manager_mock.ensure_config_files.assert_not_awaited()
+    assert calls.index("load_handle_configs") < calls.index("import_handle:menu")
     assert calls.index("set_menu_pages") < calls.index("import_handle:menu")
     assert calls.index("set_menu_features") < calls.index("import_handle:menu")
 
@@ -309,34 +320,43 @@ async def test_lifecycle_on_shutdown_calls_scheduler_and_message_store_in_order(
 
 
 @pytest.mark.asyncio
-async def test_startup_logs_when_ensure_menu_config_fails(
+async def test_startup_does_not_create_runtime_config_files(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mocks = _apply_default_startup_mocks(monkeypatch)
+
+    await startup_module.startup()
+
+    mocks["handle_manager_mock"].ensure_config_files.assert_not_awaited()
+    mocks["handle_manager_mock"].get_all_configs.assert_awaited_once_with()
+    mocks["initialize_scheduler_service"].assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_startup_uses_menu_defaults_when_config_is_invalid(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     mocks = _apply_default_startup_mocks(monkeypatch)
     monkeypatch.setattr(
         startup_module,
-        "ensure_menu_config_file_async",
-        AsyncMock(side_effect=RuntimeError("menu boom")),
+        "load_menu_config",
+        AsyncMock(
+            side_effect=startup_module.MenuConfigError(
+                Path("menu.toml"), ValueError("invalid menu")
+            )
+        ),
     )
 
     await startup_module.startup()
 
-    mocks["log_exception"].assert_any_call("Failed to ensure menu config file")
-    mocks["initialize_scheduler_service"].assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_startup_logs_when_handle_config_files_fail(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    mocks = _apply_default_startup_mocks(monkeypatch)
-    mocks["handle_manager_mock"].ensure_config_files = AsyncMock(
-        side_effect=RuntimeError("handle files boom")
+    mocks["log_error"].assert_called_once()
+    assert "using in-memory defaults" in mocks["log_error"].call_args.args[0]
+    mocks["set_menu_pages"].assert_called_with(
+        startup_module.menu_module._DEFAULT_MENU_PAGES
     )
-
-    await startup_module.startup()
-
-    mocks["log_exception"].assert_any_call("Failed to ensure handle config files")
+    mocks["set_menu_features"].assert_called_with(
+        startup_module.menu_module._DEFAULT_MENU_FEATURES
+    )
     mocks["initialize_scheduler_service"].assert_awaited_once()
 
 
@@ -348,29 +368,16 @@ async def test_startup_logs_when_load_menu_config_fails(
     monkeypatch.setattr(
         startup_module,
         "load_menu_config",
-        AsyncMock(side_effect=RuntimeError("menu load boom")),
+        AsyncMock(
+            side_effect=startup_module.MenuConfigError(
+                Path("menu.toml"), ValueError("menu load boom")
+            )
+        ),
     )
 
     await startup_module.startup()
 
-    mocks["log_exception"].assert_any_call("Failed to load menu config")
-    mocks["initialize_scheduler_service"].assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_startup_logs_when_initialize_handle_config_manager_fails(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    mocks = _apply_default_startup_mocks(monkeypatch)
-    monkeypatch.setattr(
-        startup_module,
-        "initialize_handle_config_manager",
-        AsyncMock(side_effect=RuntimeError("handle manager boom")),
-    )
-
-    await startup_module.startup()
-
-    mocks["log_exception"].assert_any_call("Failed to initialize handle config manager")
+    mocks["log_error"].assert_called_once()
     mocks["initialize_scheduler_service"].assert_awaited_once()
 
 

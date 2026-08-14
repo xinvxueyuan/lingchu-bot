@@ -1,9 +1,12 @@
 """测试 common.py 中新增的权限检查和审计函数。"""
 
+import inspect
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from nonebot.adapters.onebot.v11.exception import ActionFailed as Onebot11ActionFailed
+from nonebot.exception import FinishedException
+from nonebot.internal.matcher.matcher import Matcher, current_bot, current_event
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import DatabaseError
@@ -20,6 +23,8 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands import (
     common as common_module,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.common import (
+    _silent_call,
+    _state_wrapper,
     selected_adapter_handle,
 )
 
@@ -663,6 +668,16 @@ class TestSelectedAdapterHandle:
 class TestStateWrapperBody:
     """_state_wrapper 内部 wrapper 主体调用测试（覆盖行 88-92）。"""
 
+    def test_state_wrapper_preserves_handler_signature(self) -> None:
+        """状态包装器保留 NoneBot 依赖注入所读取的处理器签名。"""
+
+        async def handler(bot: Any, event: Any, session: Any) -> None:
+            del bot, event, session
+
+        wrapped = _state_wrapper(cast("Any", MagicMock()), handler, platform_id="qq")
+
+        assert inspect.signature(wrapped) == inspect.signature(handler)
+
     @pytest.mark.asyncio
     async def test_state_wrapper_blocks_when_gate_inactive(self) -> None:
         """门禁关闭时 wrapper 直接返回 None 且不调用 handler。"""
@@ -708,34 +723,53 @@ class TestStateWrapperBody:
         assert result == "normal-result"
 
 
-# ================= _silent_call 恢复测试 =================
+# ================= _silent_call 请求上下文测试 =================
 
 
-class _SilentCallFakeCommand:
-    """模拟匹配器命令类，用于 _silent_call 单元测试。"""
-
-    @classmethod
-    async def finish(cls, _message: Any = None, **_kwargs: Any) -> Any:
-        """模拟 finish 方法。"""
-        return "original"
+class _SilentCallFakeCommand(Matcher):
+    """模拟 NoneBot matcher，用于 _silent_call 单元测试。"""
 
 
 class TestSilentCallBody:
-    """_silent_call 主体调用测试（覆盖行 104-117）。"""
+    """_silent_call 主体调用测试。"""
 
     @pytest.mark.asyncio
-    async def test_restores_finish_on_exception(self) -> None:
-        """_silent_call 在处理器抛出异常时仍恢复原始 finish。"""
-        from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.common import (
-            _silent_call,
-        )
+    async def test_suppresses_reply_without_mutating_matcher(self) -> None:
+        """静默调用抑制当前请求回复且不向 matcher 类写入 finish。"""
+        bot = MagicMock()
+        bot.send = AsyncMock()
+        event = MagicMock()
 
-        original = _SilentCallFakeCommand.__dict__["finish"]
+        async def handler(*_args: Any, **_kwargs: Any) -> Any:
+            await _SilentCallFakeCommand.finish("消息")
+            return "result"
+
+        bot_token = current_bot.set(bot)
+        event_token = current_event.set(event)
+        try:
+            with pytest.raises(FinishedException):
+                await _silent_call(cast("Any", _SilentCallFakeCommand), handler)
+        finally:
+            current_bot.reset(bot_token)
+            current_event.reset(event_token)
+
+        bot.send.assert_not_awaited()
+        assert "finish" not in _SilentCallFakeCommand.__dict__
+
+    @pytest.mark.asyncio
+    async def test_restores_context_on_exception(self) -> None:
+        """处理器异常时静默上下文仍恢复到调用前状态。"""
+        bot = MagicMock()
 
         async def handler(*_args: Any, **_kwargs: Any) -> Any:
             raise RuntimeError("error")
 
-        with pytest.raises(RuntimeError, match="error"):
-            await _silent_call(cast("Any", _SilentCallFakeCommand), handler)
+        bot_token = current_bot.set(bot)
+        try:
+            with pytest.raises(RuntimeError, match="error"):
+                await _silent_call(cast("Any", _SilentCallFakeCommand), handler)
+            assert current_bot.get() is bot
+        finally:
+            current_bot.reset(bot_token)
 
-        assert _SilentCallFakeCommand.__dict__["finish"] is original
+        assert "finish" not in _SilentCallFakeCommand.__dict__

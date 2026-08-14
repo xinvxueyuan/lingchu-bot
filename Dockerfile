@@ -109,4 +109,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 # invokes the image without a command override and selects the branch via
 # SMOKE_TEST=true. The production branch uses ``exec`` so NoneBot receives
 # process signals directly (equivalent to exec-form ENTRYPOINT).
-CMD if [ "${SMOKE_TEST}" = "true" ]; then exec python /app/docker/smoke-test.py; else exec python -m nonebot; fi
+CMD ["sh", "-c", "if [ \"${SMOKE_TEST}\" = \"true\" ]; then exec python /app/docker/smoke-test.py; else exec python -m nonebot; fi"]

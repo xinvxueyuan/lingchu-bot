@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import ast
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.plugins.nonebot_plugin_lingchu_bot.database.models import SubjectPolicyEntry
 from src.plugins.nonebot_plugin_lingchu_bot.permissions import subject_policy
 
 if TYPE_CHECKING:
@@ -26,6 +29,56 @@ def mock_session() -> Mock:
     sess.add = MagicMock()
     sess.add_all = MagicMock()
     return sess
+
+
+def test_subject_policy_scope_helpers_remain_public() -> None:
+    assert subject_policy.GLOBAL_SCOPE_KEY == "*"
+    assert subject_policy.scope_key_for("group", 123) == "123"
+    assert subject_policy.scope_key_for("global", 123) == "*"
+    with pytest.raises(ValueError, match="group_id"):
+        subject_policy.scope_key_for("group", None)
+
+
+def test_subject_policy_does_not_import_blocklist_module() -> None:
+    source_path = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "plugins"
+        / "nonebot_plugin_lingchu_bot"
+        / "permissions"
+        / "subject_policy.py"
+    )
+    tree = ast.parse(source_path.read_text(encoding="utf-8"))
+
+    reverse_imports = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        and node.module is not None
+        and node.module.endswith("repositories.blocklist")
+    ]
+    assert reverse_imports == []
+
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_subject_policies_delegates_to_delete(
+    mock_session: Mock,
+) -> None:
+    delete_mock = AsyncMock(return_value=(2, True))
+
+    with patch.object(subject_policy, "delete", delete_mock):
+        result = await subject_policy.cleanup_expired_subject_policies(mock_session)
+
+    assert result == (2, True)
+    assert delete_mock.await_args is not None
+    conditions = delete_mock.await_args.kwargs["conditions"]
+    delete_mock.assert_awaited_once_with(
+        mock_session,
+        SubjectPolicyEntry,
+        {},
+        conditions=conditions,
+    )
+    assert len(conditions) == 2
 
 
 @pytest.mark.asyncio

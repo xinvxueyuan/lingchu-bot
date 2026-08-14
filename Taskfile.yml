@@ -78,6 +78,11 @@ tasks:
       - uv sync --all-extras --upgrade
       - pnpm update
 
+  clean:dev-data:
+    desc: Remove disposable local runtime data (use CLI_ARGS=--include-artifacts for caches)
+    cmds:
+      - uv run python scripts/clean_dev_data.py --apply --yes {{.CLI_ARGS}}
+
   check:
     desc: Run all static checks (lint + format + markdown + type check)
     cmds:

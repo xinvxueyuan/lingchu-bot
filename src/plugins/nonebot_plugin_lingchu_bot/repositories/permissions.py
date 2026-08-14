@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from typing import TYPE_CHECKING
+
+from sqlalchemy import and_, or_
 
 from ..database.models import (
     IdentityMembership,
@@ -12,7 +14,8 @@ from ..database.models import (
     PlatformAccount,
     PlatformIdentityGroup,
 )
-from ..database.orm_crud import create, delete, get_one, list_items, update, upsert
+from ..database.models.identity import GLOBAL_SCOPE_ID_SENTINEL
+from ..database.orm_crud import delete, get_one, list_items, update, upsert
 from ..permissions.types import PlatformIdentityGroupSeed
 
 if TYPE_CHECKING:
@@ -50,6 +53,7 @@ async def bind_platform_account(
     account_id: str,
     account_type: str = "user",
     display_name: str | None = None,
+    source: str = MANUAL_SOURCE,
 ) -> PlatformAccount:
     return await upsert(
         session,
@@ -60,12 +64,14 @@ async def bind_platform_account(
             "account_id": account_id,
             "account_type": account_type,
             "display_name": display_name,
+            "source": source,
         },
         conflict_fields=["platform_id", "account_id"],
         update_values={
             "uid": uid,
             "account_type": account_type,
             "display_name": display_name,
+            "source": source,
         },
     )
 
@@ -201,27 +207,18 @@ async def upsert_membership(
     scope_id: str | None = None,
     source: str = MANUAL_SOURCE,
 ) -> IdentityMembership:
-    filters = {
-        "uid": uid,
-        "group_id": group_id,
-        "scope_type": scope_type,
-        "scope_id": scope_id,
-    }
-    existing = await get_one(session, IdentityMembership, filters)
-    if existing is not None:
-        await update(session, IdentityMembership, filters, {"source": source})
-        updated = await get_one(session, IdentityMembership, filters)
-        if updated is not None:
-            return updated
-
-    return await create(
+    return await upsert(
         session,
         IdentityMembership,
-        uid=uid,
-        group_id=group_id,
-        scope_type=scope_type,
-        scope_id=scope_id,
-        source=source,
+        {
+            "uid": uid,
+            "group_id": group_id,
+            "scope_type": scope_type,
+            "scope_id": scope_id,
+            "source": source,
+        },
+        conflict_fields=["uid", "group_id", "scope_type", "scope_id"],
+        update_values={"source": source},
     )
 
 
@@ -240,8 +237,94 @@ async def delete_membership(
             "uid": uid,
             "group_id": group_id,
             "scope_type": scope_type,
-            "scope_id": scope_id,
+            "scope_id": (GLOBAL_SCOPE_ID_SENTINEL if scope_id is None else scope_id),
         },
+    )
+
+
+async def delete_stale_superuser_memberships(
+    session: AsyncSession | async_scoped_session[AsyncSession],
+    *,
+    configured_uids: Collection[str],
+) -> tuple[int, bool]:
+    """Delete global superuser memberships outside the configured UID set.
+
+    The caller owns the surrounding transaction.  An empty configured set is
+    rejected so a malformed call cannot accidentally delete every superuser.
+    """
+    configured_uid_values = tuple(configured_uids)
+    if not configured_uid_values:
+        raise ValueError
+
+    return await delete(
+        session,
+        IdentityMembership,
+        {
+            "group_id": SUPERUSERS_GROUP_ID,
+            "scope_type": "global",
+            "scope_id": GLOBAL_SCOPE_ID_SENTINEL,
+        },
+        conditions=[IdentityMembership.uid.not_in(configured_uid_values)],
+    )
+
+
+async def delete_stale_superuser_accounts(
+    session: AsyncSession | async_scoped_session[AsyncSession],
+    *,
+    configured_accounts: Collection[tuple[str, str]],
+) -> tuple[int, bool]:
+    """Delete configuration-owned platform accounts absent from the config.
+
+    The caller owns the surrounding transaction.  An empty configured set is
+    rejected so a malformed call cannot accidentally remove every managed
+    account.
+    """
+    configured_account_values = tuple(configured_accounts)
+    if not configured_account_values:
+        raise ValueError
+
+    # SQL Server does not support row-value (tuple) comparisons such as
+    # (a, b) IN ((c, d), ...), so expand each configured pair into an OR of
+    # AND conditions instead of using tuple_(...).in_(...).
+    configured_account_expression = or_(
+        *(
+            and_(
+                PlatformAccount.platform_id == platform_id,
+                PlatformAccount.account_id == account_id,
+            )
+            for platform_id, account_id in configured_account_values
+        )
+    )
+    return await delete(
+        session,
+        PlatformAccount,
+        {},
+        conditions=[
+            PlatformAccount.source == SUPERUSER_SOURCE,
+            ~configured_account_expression,
+        ],
+    )
+
+
+async def delete_stale_superuser_grants(
+    session: AsyncSession | async_scoped_session[AsyncSession],
+    *,
+    configured_command_keys: Collection[str],
+) -> tuple[int, bool]:
+    """Delete superuser-group grants whose command key is no longer configured.
+
+    The caller owns the surrounding transaction.  An empty configured set is
+    rejected so a malformed call cannot accidentally remove every grant.
+    """
+    configured_command_values = tuple(configured_command_keys)
+    if not configured_command_values:
+        raise ValueError
+
+    return await delete(
+        session,
+        PermissionGrant,
+        {"group_id": SUPERUSERS_GROUP_ID},
+        conditions=[PermissionGrant.command_key.not_in(configured_command_values)],
     )
 
 
@@ -281,7 +364,7 @@ async def is_superuser(
             "uid": uid,
             "group_id": SUPERUSERS_GROUP_ID,
             "scope_type": "global",
-            "scope_id": None,
+            "scope_id": GLOBAL_SCOPE_ID_SENTINEL,
         },
     )
     return membership is not None

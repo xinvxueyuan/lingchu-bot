@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Literal
 from sqlalchemy import or_
 
 from ..database.models import BlocklistEntry
-from ..database.orm_crud import delete, get_one, upsert
+from ..database.orm_crud import ROWCOUNT_UNKNOWN, delete, get_one, upsert
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
@@ -235,7 +235,7 @@ async def cleanup_expired_blocks(
     session: AsyncSession | async_scoped_session[AsyncSession],
 ) -> tuple[int, bool]:
     now = datetime.now(UTC)
-    return await delete(
+    blocklist_result = await delete(
         session,
         BlocklistEntry,
         {},
@@ -244,6 +244,12 @@ async def cleanup_expired_blocks(
             BlocklistEntry.expires_at <= now,
         ],
     )
+    from ..permissions.subject_policy import cleanup_expired_subject_policies
+
+    policy_result = await cleanup_expired_subject_policies(session, now=now)
+    if not blocklist_result[1] or not policy_result[1]:
+        return ROWCOUNT_UNKNOWN, False
+    return blocklist_result[0] + policy_result[0], True
 
 
 def active_block_condition() -> object:

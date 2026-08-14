@@ -4,8 +4,7 @@ from typing import Any, cast
 
 from nonebot import require
 from nonebot.adapters import Bot, Event
-from nonebot.exception import FinishedException
-from nonebot.internal.matcher.matcher import Matcher
+from nonebot.internal.matcher.matcher import Matcher, current_bot
 from nonebot.params import Depends
 
 require("nonebot_plugin_alconna")
@@ -20,6 +19,26 @@ from ....platforms import get_platform_profile, is_adapter_enabled
 
 type GroupCommand = type[AlconnaMatcher | Matcher]
 type GroupHandler = Callable[..., Awaitable[Any]]
+
+
+class _SilentBotProxy:
+    """Suppress matcher replies without mutating the shared matcher class."""
+
+    def __init__(self, bot: Bot) -> None:
+        self._bot = bot
+
+    async def send(
+        self,
+        event: Event,
+        message: Any,
+        **kwargs: Any,
+    ) -> None:
+        """Drop a matcher reply for the current request only."""
+        del event, message, kwargs
+
+    def __getattr__(self, name: str) -> Any:
+        """Delegate non-send operations to the real bot."""
+        return getattr(self._bot, name)
 
 
 def selected_adapter_handle(
@@ -101,18 +120,21 @@ async def _silent_call(
     *args: Any,
     **kwargs: Any,
 ) -> Any:
-    """Call func with suppressed finish messages."""
-    has_own_finish = "finish" in command.__dict__
-    original_finish = command.__dict__.get("finish")
+    """Call ``func`` with matcher replies suppressed in the current context."""
+    del command
+    try:
+        bot = current_bot.get()
+    except LookupError:
+        bot = kwargs.get("bot")
 
-    async def _suppressed_finish(_message: Any = None, **_kw: Any) -> Any:
-        raise FinishedException
-
-    cast("Any", command).finish = _suppressed_finish
+    bot_token = None
+    if bot is not None:
+        proxy = _SilentBotProxy(cast("Bot", bot))
+        bot_token = current_bot.set(cast("Bot", proxy))
+        if kwargs.get("bot") is bot:
+            kwargs = {**kwargs, "bot": proxy}
     try:
         return await func(*args, **kwargs)
     finally:
-        if has_own_finish:
-            cast("Any", command).finish = original_finish
-        elif "finish" in command.__dict__:
-            delattr(command, "finish")
+        if bot_token is not None:
+            current_bot.reset(bot_token)

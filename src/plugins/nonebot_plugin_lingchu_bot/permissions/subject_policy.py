@@ -10,11 +10,12 @@ from sqlalchemy import or_
 
 from ..database.models import SubjectPolicyEntry
 from ..database.orm_crud import delete, get_one, upsert
-from ..repositories.blocklist import GLOBAL_SCOPE_KEY, BlockScope, scope_key_for
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 
+BlockScope = Literal["group", "global"]
+GLOBAL_SCOPE_KEY = "*"
 SubjectPolicyType = Literal["blocked", "protected"]
 
 
@@ -31,6 +32,16 @@ class SubjectPolicyUpsert:
     reason: str | None
     expires_at: datetime | None
     protocol_id: str | None = None
+
+
+def scope_key_for(scope: BlockScope, group_id: str | int | None = None) -> str:
+    """Return the stable scope key used by subject policy records."""
+    if scope == "global":
+        return GLOBAL_SCOPE_KEY
+    if group_id is None:
+        msg = "group_id is required for group blocklist scope"
+        raise ValueError(msg)
+    return str(group_id)
 
 
 def expires_at_from_duration(duration: int | None) -> datetime | None:
@@ -134,6 +145,24 @@ async def clear_subject_policy(
     if protocol_id is not None:
         filters["protocol_id"] = protocol_id
     return await delete(session, SubjectPolicyEntry, filters)
+
+
+async def cleanup_expired_subject_policies(
+    session: AsyncSession | async_scoped_session[AsyncSession],
+    *,
+    now: datetime | None = None,
+) -> tuple[int, bool]:
+    """Delete every expired subject policy entry."""
+    cutoff = datetime.now(UTC) if now is None else now
+    return await delete(
+        session,
+        SubjectPolicyEntry,
+        {},
+        conditions=[
+            SubjectPolicyEntry.expires_at.is_not(None),
+            SubjectPolicyEntry.expires_at <= cutoff,
+        ],
+    )
 
 
 async def find_active_subject_policy(

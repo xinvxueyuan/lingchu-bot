@@ -13,7 +13,8 @@ from nonebot_plugin_localstore import get_plugin_data_file
 
 from ..database.toml_store import (
     DatabaseError,
-    ensure_toml_dict_file_async,
+    InvalidTOMLRootTypeError,
+    TOMLFileReadError,
     load_toml_dict_async,
     write_toml_dict_file_async,
 )
@@ -62,12 +63,13 @@ class BotStateFile:
 
     @classmethod
     def from_mapping(cls, raw: dict[str, Any]) -> BotStateFile:
+        """Build a typed state model, ignoring invalid scalar values."""
         global_raw = raw.get("global", {})
         if not isinstance(global_raw, dict):
             raise InvalidBotStateGlobalError
         global_state = BotStateGlobal(
-            handle_active=bool(global_raw.get("handle_active", True)),
-            silent_mode=bool(global_raw.get("silent_mode", False)),
+            handle_active=_strict_bool(global_raw.get("handle_active"), default=True),
+            silent_mode=_strict_bool(global_raw.get("silent_mode"), default=False),
         )
         platforms: dict[str, BotStatePlatform] = {}
         raw_platforms = raw.get("platforms", {})
@@ -77,8 +79,8 @@ class BotStateFile:
             if not isinstance(value, dict):
                 raise InvalidBotStatePlatformError
             platforms[str(platform_id)] = BotStatePlatform(
-                handle_active=value.get("handle_active"),
-                silent_mode=value.get("silent_mode"),
+                handle_active=_optional_bool(value.get("handle_active")),
+                silent_mode=_optional_bool(value.get("silent_mode")),
             )
         return cls(global_state, platforms)
 
@@ -87,6 +89,16 @@ class BotStateFile:
             "global": asdict(self.global_),
             "platforms": {key: asdict(value) for key, value in self.platforms.items()},
         }
+
+
+def _strict_bool(value: Any, *, default: bool) -> bool:
+    """Return a boolean only for actual TOML booleans."""
+    return value if isinstance(value, bool) else default
+
+
+def _optional_bool(value: Any) -> bool | None:
+    """Return a platform override only for actual booleans or ``None``."""
+    return value if isinstance(value, bool) else None
 
 
 _state: dict[str, Any] = {
@@ -106,14 +118,39 @@ def _bot_state_defaults() -> dict[str, Any]:
 
 async def load_bot_state() -> None:
     path = _get_state_file_path()
-    defaults = _bot_state_defaults()
-    await ensure_toml_dict_file_async(path, defaults)
+    default_model = BotStateFile()
+    defaults = default_model.to_mapping()
     try:
         data = await load_toml_dict_async(path, default=defaults, merge_default=True)
         model = BotStateFile.from_mapping(data)
-    except (DatabaseError, ValueError) as exc:
-        logger.error("Failed to load bot state, using defaults: {}", exc)
-        model = BotStateFile()
+    except InvalidTOMLRootTypeError as exc:
+        logger.error(
+            "Invalid bot state TOML root at {}; using in-memory defaults: {}",
+            path,
+            exc,
+        )
+        model = default_model
+    except TOMLFileReadError as exc:
+        if isinstance(exc.__cause__, OSError):
+            logger.error(
+                "I/O error reading bot state at {}; using in-memory defaults: {}",
+                path,
+                exc,
+            )
+        else:
+            logger.error(
+                "Invalid bot state TOML at {}; using in-memory defaults: {}",
+                path,
+                exc,
+            )
+        model = default_model
+    except DatabaseError as exc:
+        logger.error(
+            "Failed to read bot state from {}; using in-memory defaults: {}",
+            path,
+            exc,
+        )
+        model = default_model
     _state["global_handle_active"] = model.global_.handle_active
     _state["global_silent_mode"] = model.global_.silent_mode
     _state["platforms"] = {

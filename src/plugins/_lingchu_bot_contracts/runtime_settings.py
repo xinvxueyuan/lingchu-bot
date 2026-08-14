@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 import json
+import os
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -20,12 +21,40 @@ def _value(mapping: Mapping[str, Any], *names: str, default: Any) -> Any:
     for name in names:
         if name in mapping:
             return mapping[name]
+    # NoneBot's pydantic Config only surfaces declared fields via model_dump(),
+    # so deployment settings provided purely via OS environment variables
+    # (e.g. CI job env with no .env file) must fall back to os.environ.
+    for name in names:
+        if name in os.environ:
+            return os.environ[name]
     return default
 
 
 def _non_negative_int(name: str, value: Any) -> int:
     if type(value) is not int or value < 0:
         raise SettingsValidationError(f"{name} must be a non-negative integer")
+    return value
+
+
+def _coerce_bool(name: str, value: Any) -> bool:
+    """Parse boolean settings, including case-insensitive env strings."""
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+        raise SettingsValidationError(f"{name} must be a boolean")
+    return bool(value)
+
+
+def _coerce_int(name: str, value: Any) -> int:
+    """Parse integer settings, including numeric env strings."""
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except ValueError as exc:
+            raise SettingsValidationError(f"{name} must be an integer") from exc
     return value
 
 
@@ -105,27 +134,36 @@ class DeploymentSettings:
             )
         retention = _non_negative_int(
             "message_store_retention_days",
-            _value(
-                source,
-                "LINGCHU_MESSAGE_STORE_RETENTION_DAYS",
+            _coerce_int(
                 "message_store_retention_days",
-                default=30,
+                _value(
+                    source,
+                    "LINGCHU_MESSAGE_STORE_RETENTION_DAYS",
+                    "message_store_retention_days",
+                    default=30,
+                ),
             ),
         )
         summary = _non_negative_int(
             "message_store_summary_limit",
-            _value(
-                source,
-                "LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT",
+            _coerce_int(
                 "message_store_summary_limit",
-                default=500,
+                _value(
+                    source,
+                    "LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT",
+                    "message_store_summary_limit",
+                    default=500,
+                ),
             ),
         )
-        count = _value(
-            source,
-            "LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT",
+        count = _coerce_int(
             "recall_message_default_count",
-            default=10,
+            _value(
+                source,
+                "LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT",
+                "recall_message_default_count",
+                default=10,
+            ),
         )
         if type(count) is not int or not 1 <= count <= MAX_RECALL_MESSAGE_DEFAULT_COUNT:
             raise SettingsValidationError(
@@ -140,31 +178,34 @@ class DeploymentSettings:
                     default=cls().superuser_key,
                 )
             ),
-            message_store_enabled=bool(
+            message_store_enabled=_coerce_bool(
+                "message_store_enabled",
                 _value(
                     source,
                     "LINGCHU_MESSAGE_STORE_ENABLED",
                     "message_store_enabled",
                     default=True,
-                )
+                ),
             ),
             message_store_retention_days=retention,
             message_store_summary_limit=summary,
-            message_store_record_api_calls=bool(
+            message_store_record_api_calls=_coerce_bool(
+                "message_store_record_api_calls",
                 _value(
                     source,
                     "LINGCHU_MESSAGE_STORE_RECORD_API_CALLS",
                     "message_store_record_api_calls",
                     default=True,
-                )
+                ),
             ),
-            message_store_cleanup_enabled=bool(
+            message_store_cleanup_enabled=_coerce_bool(
+                "message_store_cleanup_enabled",
                 _value(
                     source,
                     "LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED",
                     "message_store_cleanup_enabled",
                     default=True,
-                )
+                ),
             ),
             recall_message_default_count=count,
             protected_subject_feature_keys=frozenset(
