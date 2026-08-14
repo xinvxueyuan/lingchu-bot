@@ -54,6 +54,7 @@ in effect for the relevant contribution at the time of its submission.
 
 ## Release Records
 
+- `0.5.0` (2026-08-14): minor release removing the LLM/NovelAI MCP and Pydantic stack, with runtime hardening, dev-data cleanup, and release-flow fixes. Does not trigger the future phase (`0.x`).
 - `0.4.1` (2026-08-03): patch release hardening release/CI infrastructure (Docker runtime reverted to `python:3.13-slim`, tag pushes via fine-grained PAT after workflow merges, Actions DRY refactor). Does not trigger the future phase (`0.x`).
 - `0.0.1` (2026-07-06): first formal 0.x release for the current LGPL/GFDL/CC0 phase. This release does not trigger the future phase because the transition rule treats the first public release example as `1.0.0` and excludes `0.x`.
 
