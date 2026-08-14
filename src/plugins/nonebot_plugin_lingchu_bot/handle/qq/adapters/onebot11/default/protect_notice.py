@@ -35,7 +35,7 @@ from .common import (
 )
 
 
-def _is_group_ban_notice(event: Any) -> bool:
+def _is_group_ban_notice(event: OneBot11GroupBanNoticeEvent) -> bool:
     """仅匹配群禁言通知；避免 block=True 吞掉 poke 等其他 notice 事件。"""
     return isinstance(event, OneBot11GroupBanNoticeEvent)
 
