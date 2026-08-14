@@ -19,7 +19,7 @@ manage_handle_defaults_cmd: type[AlconnaMatcher] = on_alconna(
         Args["handle?", str, None]["field?", str, None]["value?", str, None],
     ),
     aliases=_MANAGE_HANDLE_DEFAULTS.aliases,
-    priority=5,
+    priority=805,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,

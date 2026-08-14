@@ -72,7 +72,7 @@ send_group_announcement_cmd: type[AlconnaMatcher] = on_alconna(
         Args["content", str]["image?", UniImage, None],
     ),
     aliases=_SEND_ANNOUNCEMENT.aliases,
-    priority=5,
+    priority=805,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,

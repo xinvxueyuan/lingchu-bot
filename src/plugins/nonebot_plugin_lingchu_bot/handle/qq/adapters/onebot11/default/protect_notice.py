@@ -21,6 +21,7 @@ from nonebot.adapters.onebot.v11.event import (
     GroupBanNoticeEvent as OneBot11GroupBanNoticeEvent,
 )
 from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
+from nonebot.rule import Rule
 
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import async_scoped_session, get_session
@@ -33,7 +34,17 @@ from .common import (
     operator_is_superuser_onebot11,
 )
 
-protect_restore_notice = on_notice(priority=1, block=True)
+
+def _is_group_ban_notice(event: Any) -> bool:
+    """仅匹配群禁言通知；避免 block=True 吞掉 poke 等其他 notice 事件。"""
+    return isinstance(event, OneBot11GroupBanNoticeEvent)
+
+
+# block=True 只对群禁言事件生效：rule 不命中时事件继续传播，
+# 不会拦截 poke/加群/退群等其他 notice（2026-08-15 修复 poke 无响应）。
+protect_restore_notice = on_notice(
+    priority=1, block=True, rule=Rule(_is_group_ban_notice)
+)
 
 
 async def _record_protect_restore_audit(

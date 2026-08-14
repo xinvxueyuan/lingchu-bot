@@ -18,7 +18,7 @@ kick_member_cmd: type[AlconnaMatcher] = on_alconna(
         Args["user", At | int]["reason?", str, None],
     ),
     aliases=_KICK_MEMBER.aliases,
-    priority=5,
+    priority=805,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,
