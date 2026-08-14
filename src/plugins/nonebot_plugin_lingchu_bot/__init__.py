@@ -31,10 +31,7 @@ __plugin_meta__ = PluginMetadata(
     config=None,
     supported_adapters=get_supported_adapters(),
     extra={
-        "author": [
-            {"name": "lingchu-bot", "email": "support@xinvstar.xyz"},
-            {"name": "xinvxueyuan", "email": "xinvxueyuan@yeah.net"},
-        ],
+        "author": "xinvxueyuan",
         "maintainer": "xinvxueyuan",
         "priority": 50,
         "startup": True,
@@ -61,6 +58,15 @@ from .start.startup import startup as startup
 # Register runtime hooks after business modules because handlers depend on
 # services.message_store and start.startup.
 from . import hooks as hooks
+
+# zhenxun 等宿主环境同时注册 150+ 插件的 Alconna 命令，默认上限 200 会被突破。
+# 在 lingchu 自身命令注册前抬高全局上限，避免 ExceedMaxCount。
+from arclet.alconna.config import config as _alconna_config
+
+_ALCONNA_COMMAND_MAX_COUNT = 500
+
+if getattr(_alconna_config, "command_max_count", 200) < _ALCONNA_COMMAND_MAX_COUNT:
+    _alconna_config.command_max_count = _ALCONNA_COMMAND_MAX_COUNT
 # isort: on
 
 config = Config.from_nonebot()
