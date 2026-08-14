@@ -20,6 +20,35 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Security
 
+## [0.5.0] - 2026-08-14
+
+次要版本发布：移除 LLM / NovelAI MCP 与 Pydantic 技术栈，运行时与开发数据治理加固。
+
+### Removed
+
+- **BREAKING** 移除基于 `pydantic-ai` 的 LLM 运行时与 `mcp` 依赖，以及 NovelAI MCP
+  服务端/客户端、MCP 管理脚本（`scripts/mcp_admin.py`、`scripts/check-wheel-entrypoints.py`）。
+- **BREAKING** 删除 MCP / LLM 相关文档页与 `.env.example` / `.env.prod.example` 配置项。
+
+### Changed
+
+- 运行时生命周期、身份、审核与出站 HTTP 行为 fail-safe 化（出站请求仅 2xx 视为成功并验证对端地址）。
+- 身份完整性迁移：清理孤儿行后再建外键；缩短超长外键名以适配 MySQL 64 字符标识符限制。
+- 调度器在会话内读取 ORM 字段并解码 payload，避免提交后 DetachedInstanceError。
+- 权限 IN 展开为 OR-of-ANDs 以兼容 SQL Server；同步时清理过期超级用户授权。
+- 新增 `clean_dev_data` 开发数据清理命令（拒绝解析到仓库外的路径）。
+- `ci:version:bump` 改用 PEP 440 排序选取最新 tag。
+
+### Fixed
+
+- MCP 移除后重新连接 Alembic 迁移链（`message_protocol_default` 迁移）。
+- 修复 Dependabot alerts。
+- 修复 CI badges、docs 测试路由与 docs smoke 的 checkout 顺序。
+- Release 流程修复：pypi 环境声明（Trusted Publishing OIDC）、本地复合动作前显式
+  checkout、Task >= 3.52 变量覆盖、不再提前删除 `.github` 目录。
+- 修复 bump-style 发布流程的版本推导（pre-release 最新 tag 下开启新版本循环）与
+  本地 `release:prepare`（pyproject.toml 持久化、Windows CR 清洗）。
+
 ## [0.4.1] - 2026-08-03
 
 Release and CI infrastructure hardening, plus a Docker runtime stability fix.
@@ -336,7 +365,8 @@ Initial formal release for QQ group management through OneBot V11.
 - Documentation remains under `GFDL-1.3-or-later`.
 - Visual elements remain under `CC0-1.0`.
 
-[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.5.0
 [0.4.1]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.4.1
 [0.4.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.4.0
 [0.3.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.3.0
