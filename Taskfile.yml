@@ -267,17 +267,20 @@ tasks:
 
         # Determine bump strategy:
         # - release tags need <level>+<prerelease> (e.g. --bump patch --bump beta)
-        # - pre-release tags of the same type just bump the pre-release (e.g. --bump beta)
-        # - pre-release tags of a different type need <level>+<prerelease>
+        # - dev pre-releases of the same (patch) cycle just bump the pre-release (e.g. --bump dev)
+        # - pre-releases of a different class need <level>+<prerelease> (e.g. --bump minor --bump dev)
         # - stable clears the pre-release component
         if [ "$bump_prerelease" = "stable" ]; then
           set -- --bump stable
         elif [ -n "$latest_tag" ] && [[ "$tag_version" != *dev* ]] && [[ "$tag_version" != *a* ]] && [[ "$tag_version" != *b* ]] && [[ "$tag_version" != *rc* ]]; then
           # Latest tag is a stable release — must bump level + prerelease
           set -- --bump "$bump_level" --bump "$bump_prerelease"
+        elif [ "$bump_level" = "patch" ] && [ "$bump_prerelease" = "dev" ]; then
+          # Latest tag is a dev pre-release of the same (patch) cycle — continue it
+          set -- --bump dev
         else
-          # Latest tag is already a pre-release — just bump the prerelease component
-          set -- --bump "$bump_prerelease"
+          # Latest tag is a pre-release of a different class — start a new cycle
+          set -- --bump "$bump_level" --bump "$bump_prerelease"
         fi
 
         version_json="$(uv version "$@" --output-format json --frozen)"
@@ -411,6 +414,7 @@ tasks:
         # scaffolding the release notes file. The DRY_RUN flag reverts
         # the pyproject.toml mutation afterwards.
         new_version="$(task ci:version:bump BUMP_LEVEL="$bump_level" BUMP_PRERELEASE="$bump_prerelease" DRY_RUN=true | tail -n1)"
+        new_version="$(printf '%s' "$new_version" | tr -d '\r')"
 
         # Switch / create branch
         if git show-ref --verify --quiet "refs/heads/${branch}"; then
@@ -419,7 +423,8 @@ tasks:
           git switch -c "$branch"
         fi
 
-        # Persist the version into core/config.py and package.json
+        # Persist the version into pyproject.toml, core/config.py and package.json
+        uv version "$new_version" --frozen
         VERSION="$new_version" \
           CONFIG_PATH="src/plugins/nonebot_plugin_lingchu_bot/core/config.py" \
           task ci:version:write-config
@@ -469,6 +474,7 @@ tasks:
         fi
 
         new_version="$(task ci:version:bump BUMP_LEVEL="$bump_level" BUMP_PRERELEASE="$bump_prerelease" DRY_RUN=true | tail -n1)"
+        new_version="$(printf '%s' "$new_version" | tr -d '\r')"
         notes_path=".github/releases/${new_version}.md"
         if [ -f "$notes_path" ]; then
           echo "Notes file already exists: ${notes_path}"
