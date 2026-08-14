@@ -327,6 +327,43 @@ jobs:
       - name: 🏷️ Create tag
         run: task ci:version:tag-only VERSION="${{ needs.validate.outputs.version }}"
 
+      - name: 🧬 Merge manual notes with GitHub-generated changelog
+        # GitHub 的 generate-notes API 基于 PR/commit 自动生成变更说明，
+        # 与 .github/releases/<version>.md 手工 notes 合并后作为 release body。
+        # 必须在 Create tag 之后调用，previous-tag 推断才准确。
+        # 同时修复原跨 job 引用 RUNNER_TEMP body_path 的隐患（不同 job 的
+        # RUNNER_TEMP 相互隔离，原 body 文件在 github-release runner 上不存在）。
+        id: auto-notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          version="${VERSION}"
+          auto_body="$(
+            curl -sS -f -X POST \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/generate-notes" \
+              -d "{\"tag_name\":\"v${version}\",\"target_commitish\":\"${TARGET_SHA}\"}" \
+              | jq -r .body
+          )"
+          manual_notes=".github/releases/${version}.md"
+          if [ ! -f "${manual_notes}" ]; then
+            echo "::error::Missing release notes: ${manual_notes}"
+            exit 1
+          fi
+          merged="${RUNNER_TEMP}/merged-release-notes-${version}.md"
+          {
+            cat "${manual_notes}"
+            printf "\n---\n\n"
+            printf '%s\n' "${auto_body}"
+          } > "${merged}"
+          echo "body_path=${merged}" >> "$GITHUB_OUTPUT"
+
       - name: 📥 Download dist
         # pinned from actions/download-artifact@v7.0.0
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -341,4 +378,4 @@ jobs:
           tag_name: v${{ needs.validate.outputs.version }}
           name: Lingchu Bot v${{ needs.validate.outputs.version }}
           files: dist/*
-          body_path: ${{ needs.validate.outputs.notes_body_path }}
+          body_path: ${{ steps.auto-notes.outputs.body_path }}
