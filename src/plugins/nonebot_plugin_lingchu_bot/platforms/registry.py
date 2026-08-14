@@ -249,6 +249,33 @@ def iter_platform_profiles(
     return PLATFORM_PROFILES
 
 
+def is_profile_enabled(
+    profile: PlatformProfile,
+    configured: AdapterConfig | object = _UNSET,
+) -> bool:
+    """Return whether any adapter of a platform profile is selected as enabled.
+
+    A platform is only considered enabled when at least one of its NoneBot
+    adapters is part of the resolved ``LINGCHUAdapter`` selection, so platform
+    modules for unused platforms are never imported or seeded.
+    """
+    enabled = resolve_enabled_adapters(configured)
+    return any(adapter in enabled for adapter in profile.nonebot_adapters)
+
+
+def iter_enabled_profiles(
+    *,
+    implemented_only: bool = True,
+    configured: AdapterConfig | object = _UNSET,
+) -> tuple[PlatformProfile, ...]:
+    """Return platform profiles whose adapter is enabled in configuration."""
+    return tuple(
+        profile
+        for profile in iter_platform_profiles(implemented_only=implemented_only)
+        if is_profile_enabled(profile, configured)
+    )
+
+
 def parse_configured_adapters(configured: AdapterConfig) -> tuple[str, ...]:
     """Parse Lingchu adapter configuration into normalized adapter ids."""
     if configured is None:

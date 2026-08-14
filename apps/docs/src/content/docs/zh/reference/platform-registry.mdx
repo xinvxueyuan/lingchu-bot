@@ -52,6 +52,7 @@ QQ profile 声明了完整的能力集合：
 
 - `parse_configured_adapters()` 接受字符串（`"~onebot.v11"`）、`+` 分隔字符串（`"~onebot.v11+~milky"`）或列表/元组，并将每个条目归一化为小写、`~` 前缀的 id。
 - `resolve_enabled_adapters()` 返回每个已实现平台启用的唯一适配器。若某平台配置了多个适配器，则抛出 `PlatformAdapterConflictError`。
+- `is_profile_enabled(profile)` 与 `iter_enabled_profiles()` 报告哪些平台 profile 拥有已启用的适配器。权限层使用 `iter_enabled_profiles()`，因此只有实际使用的平台权限模块才会被导入与种子。
 - `validate_enabled_adapters_loaded()` 校验每个 Lingchu 启用的适配器是否确实由 NoneBot 注册；否则抛出 `PlatformAdapterNotLoadedError`。
 
 `is_adapter_enabled(adapter_name)` 是消息存储与 API 审计使用的运行时检查。NoneBot 注册但 Lingchu 未选中的适配器会被忽略 —— 视为未启用，不参与平台识别，在存储记录中归入稳定的 `unknown` 平台。

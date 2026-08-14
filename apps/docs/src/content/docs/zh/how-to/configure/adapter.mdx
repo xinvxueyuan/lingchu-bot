@@ -7,6 +7,8 @@ import { Aside } from "@astrojs/starlight/components";
 
 通过设置 `LINGCHUAdapter`（或 `LINGCHU_ADAPTER` 环境变量）选择 Lingchu Bot 在启动时加载的平台适配器。每个平台只启用一个适配器；默认为 OneBot V11。
 
+未被选中的平台会被完全排除在运行时之外：其权限模块不会被导入，身份组种子也不会被创建。你只需要为实际使用的平台安装适配器包。
+
 ## 受支持的适配器 ID
 
 | 适配器 ID | 平台 | 是否默认 |

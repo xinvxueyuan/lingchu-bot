@@ -13,6 +13,8 @@ from src.plugins.nonebot_plugin_lingchu_bot.platforms import (
     get_supported_adapters,
     is_adapter_enabled,
     is_known_adapter,
+    is_profile_enabled,
+    iter_enabled_profiles,
     iter_platform_profiles,
     parse_configured_adapters,
     resolve_adapter_id,
@@ -138,6 +140,37 @@ def test_qq_profile_has_permission_module() -> None:
 
     assert profile is not None
     assert profile.permission_module == "..platforms.qq.permissions"
+
+
+def test_is_profile_enabled_matches_configured_adapter() -> None:
+    """默认配置(~onebot.v11)下只有 QQ 平台启用。"""
+    profiles = {profile.platform_id: profile for profile in iter_platform_profiles()}
+
+    assert is_profile_enabled(profiles["qq"])
+    assert not is_profile_enabled(profiles["telegram"])
+
+
+def test_is_profile_enabled_respects_explicit_configuration() -> None:
+    """显式配置只启用对应的平台 profile。"""
+    profiles = {profile.platform_id: profile for profile in iter_platform_profiles()}
+
+    assert is_profile_enabled(profiles["telegram"], "~telegram")
+    assert not is_profile_enabled(profiles["qq"], "~telegram")
+    assert is_profile_enabled(profiles["qq"], "~onebot.v11+~telegram")
+    assert is_profile_enabled(profiles["telegram"], "~onebot.v11+~telegram")
+
+
+def test_iter_enabled_profiles_returns_only_enabled_platforms() -> None:
+    """默认配置下只返回 QQ 平台的 profile。"""
+    assert [profile.platform_id for profile in iter_enabled_profiles()] == ["qq"]
+    assert [
+        profile.platform_id for profile in iter_enabled_profiles(configured="~telegram")
+    ] == ["telegram"]
+
+
+def test_iter_enabled_profiles_defaults_to_implemented_only() -> None:
+    """implemented_only=False 时与默认结果一致（全部已实现）。"""
+    assert iter_enabled_profiles() == iter_enabled_profiles(implemented_only=False)
 
 
 # ---------------------------------------------------------------------------

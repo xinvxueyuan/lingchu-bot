@@ -39,10 +39,10 @@ async def resolve_runtime_identity_groups(
 def _iter_permission_modules() -> tuple[Any, ...]:
     from importlib import import_module
 
-    from ..platforms.registry import iter_platform_profiles
+    from ..platforms.registry import iter_enabled_profiles
 
     modules: list[Any] = []
-    for profile in iter_platform_profiles():
+    for profile in iter_enabled_profiles():
         if profile.permission_module is None:
             continue
         modules.append(import_module(profile.permission_module, package=__package__))
