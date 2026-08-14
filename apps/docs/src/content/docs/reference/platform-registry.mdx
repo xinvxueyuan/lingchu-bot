@@ -52,6 +52,7 @@ Other platform profiles (such as Milky, native QQ, or OneBot V12) have been remo
 
 - `parse_configured_adapters()` accepts a string (`"~onebot.v11"`), a `+`-delimited string (`"~onebot.v11+~milky"`), or a list/tuple, and normalizes each entry to a lowercase `~`-prefixed id.
 - `resolve_enabled_adapters()` returns the single enabled adapter for each implemented platform. If a platform has more than one configured adapter, it raises `PlatformAdapterConflictError`.
+- `is_profile_enabled(profile)` and `iter_enabled_profiles()` report which platform profiles have an enabled adapter. The permission layer uses `iter_enabled_profiles()` so platform permission modules are only imported and seeded for platforms you actually use.
 - `validate_enabled_adapters_loaded()` checks that every Lingchu-enabled adapter was actually registered by NoneBot; otherwise it raises `PlatformAdapterNotLoadedError`.
 
 `is_adapter_enabled(adapter_name)` is the runtime check used by message storage and API audit. Adapters that NoneBot registered but Lingchu did not select are ignored — they are treated as disabled, excluded from platform resolution, and grouped under the stable `unknown` platform in stored records.

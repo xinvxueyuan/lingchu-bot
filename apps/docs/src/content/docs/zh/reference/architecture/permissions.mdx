@@ -104,7 +104,7 @@ protected_subject_feature_keys = [
 
 ## 权限种子与平台角色树
 
-默认身份组从各平台权限模块种子而来。`permissions/platforms.py::iter_default_identity_groups()` 遍历每个 `PlatformProfile.permission_module`，并调用其 `get_default_identity_groups()`。
+默认身份组从各平台权限模块种子而来，但只种子**已启用**平台的模块。`permissions/platforms.py::iter_default_identity_groups()` 仅遍历 `LINGCHUAdapter` 选中（通过 `iter_enabled_profiles()`）的 `PlatformProfile.permission_module` 条目，并调用其 `get_default_identity_groups()`。未配置适配器的平台既不会被导入也不会被种子，因此无需为不使用的平台安装适配器。若之后启用某平台，其身份组会在下次启动时补种。
 
 对于 QQ，`platforms/qq/permissions.py` 声明 `PLATFORM_ID = "qq"` 并种子以下树：
 
@@ -121,7 +121,7 @@ protected_subject_feature_keys = [
 
 运行时，`resolve_runtime_identity_groups()` 将 OneBot V11 发送者角色（`owner` / `admin` / `member`）映射到对应 `qq.group.*` 组 ID。若事件中缺少角色，会回退到 `bot.call_api("get_group_member_info", ...)`，API 失败时最终回退到 `member` 角色。
 
-平台权限模块通过适配器注册表的 `PlatformProfile.permission_module` 字段动态发现——核心权限层中没有硬编码的模块路径。
+平台权限模块通过适配器注册表的 `PlatformProfile.permission_module` 字段动态发现——核心权限层中没有硬编码的模块路径。`resolve_runtime_identity_groups()` 只导入事件来源平台对应的权限模块，且仅在该平台适配器已启用时导入。
 
 ## 权限数据模型
 

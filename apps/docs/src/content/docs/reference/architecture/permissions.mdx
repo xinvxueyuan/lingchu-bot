@@ -104,7 +104,7 @@ Subject policies are stored in the `lingchu_subject_policy` table and exposed th
 
 ## Permission seeds and platform role tree
 
-Default identity groups are seeded from each platform's permission module. `permissions/platforms.py::iter_default_identity_groups()` walks every `PlatformProfile.permission_module` and calls `get_default_identity_groups()` on it.
+Default identity groups are seeded from each **enabled** platform's permission module. `permissions/platforms.py::iter_default_identity_groups()` walks only the `PlatformProfile.permission_module` entries whose adapter is selected by `LINGCHUAdapter` (via `iter_enabled_profiles()`) and calls `get_default_identity_groups()` on them. Platforms whose adapter is not configured are never imported or seeded, so you do not need to install an adapter for a platform you do not use. If a platform is enabled later, its identity groups are seeded on the next startup.
 
 For QQ, `platforms/qq/permissions.py` declares `PLATFORM_ID = "qq"` and seeds the following tree:
 
@@ -121,7 +121,7 @@ For QQ, `platforms/qq/permissions.py` declares `PLATFORM_ID = "qq"` and seeds th
 
 At runtime, `resolve_runtime_identity_groups()` maps the OneBot V11 sender role (`owner` / `admin` / `member`) to the corresponding `qq.group.*` group IDs. If the role is missing from the event, it falls back to `bot.call_api("get_group_member_info", ...)` and ultimately to the `member` role on API failure.
 
-Platform permission modules are discovered dynamically through the adapter registry's `PlatformProfile.permission_module` field — there are no hard-coded module paths in the core permission layer.
+Platform permission modules are discovered dynamically through the adapter registry's `PlatformProfile.permission_module` field — there are no hard-coded module paths in the core permission layer. `resolve_runtime_identity_groups()` only imports the permission module of the platform the event originates from, and only when that platform's adapter is enabled.
 
 ## Permission data model
 

@@ -7,6 +7,8 @@ import { Aside } from "@astrojs/starlight/components";
 
 Choose which platform adapter Lingchu Bot loads at startup by setting `LINGCHUAdapter` (or the `LINGCHU_ADAPTER` environment variable). Only one adapter is enabled per platform; the default is OneBot V11.
 
+Platforms that are not selected are left completely out of the runtime: their permission modules are never imported and their identity-group seeds are not created. You only need to install the adapter packages for the platforms you actually use.
+
 ## Supported adapter IDs
 
 | Adapter ID | Platform | Default? |
