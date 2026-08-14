@@ -25,7 +25,9 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.triggers import (
 from tests.handle.commands.conftest import finish_text
 
 # 测试用 user_id 常量（避免 PLR2004 魔数值警告）
-_TEST_USER_ID_BLOCK = 111222333
+# _TEST_USER_ID_BLOCK 不能等于 mock_onebot11_event.user_id（111222333），
+# 否则会触发"不能拉黑自己"拦截。
+_TEST_USER_ID_BLOCK = 222333444
 _TEST_USER_ID_UNBLOCK = 444555666
 _TEST_BLOCK_DURATION = 60
 
@@ -98,6 +100,31 @@ async def test_onebot11_block_member_stores_record_and_kicks(
         reject_add_request=False,
     )
     assert "已拉黑并踢出" in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_onebot11_block_member_rejects_self_target(
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_at: MagicMock,
+    mock_session: Mock,
+) -> None:
+    """不能拉黑自己。"""
+    mock_onebot11_event.user_id = 987654321
+    mock_onebot11_bot.set_group_kick = AsyncMock()
+
+    with patch.object(block_member_cmd, "finish") as mock_finish:
+        await block_module.onebot11_block_member(
+            user=mock_at,
+            duration=None,
+            reason=None,
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+            session=mock_session,
+        )
+
+    assert "不能拉黑自己" in finish_text(mock_finish)
+    mock_onebot11_bot.set_group_kick.assert_not_awaited()
 
 
 @pytest.mark.asyncio

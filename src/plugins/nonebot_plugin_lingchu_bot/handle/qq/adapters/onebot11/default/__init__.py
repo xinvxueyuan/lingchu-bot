@@ -12,6 +12,7 @@ from . import (
     mute as mute,
     profile as profile,
     protect as protect,
+    protect_notice as protect_notice,
     remote as remote,
 )
 from .menu import (

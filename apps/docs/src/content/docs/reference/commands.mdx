@@ -68,6 +68,8 @@ The unmute command runs permission pre-checks before executing: `check_target_pr
 
 </Aside>
 
+Unmuting your own account is allowed — `解禁` / `unmute` is a restorative action, so the operator's own QQ is not rejected (only the bot itself is excluded).
+
 ## Whole-group mute
 
 ```text
@@ -121,6 +123,8 @@ English: `block`, `global-block`, `unblock`, `global-unblock`, `clear-blocklist`
 `清空黑名单` only clears the current group blocklist. Use `全局清空黑名单` to clear global entries.
 `拉白` and `删白` only affect the current group whitelist. Use the global variants for protected users across groups.
 
+Blocking yourself or the bot is rejected: `拉黑` / `block` (and the remote variants) refuse targets that are the operator's own account or the bot itself.
+
 ## Group settings and operations
 
 | Capability | Chinese command | English command |
@@ -158,6 +162,8 @@ Remote commands operate on a **target group** other than the current one. The `<
 | Mass announcement | `群发公告 <内容> [群号或群名称列表或全部群] [图片]` | `mass-announcement <content> [group_ids_or_group_names_or_all] [image]` |
 
 Mass announcement uses the command key / feature name `mass announcement` / `群发公告`. The content argument comes first. If the target list is omitted, the bot sends to all groups it has joined. To target multiple groups, separate group IDs or group names with `,`, `，`, `、`, `;`, or `；`. Use `全部群` or `all` to explicitly target all joined groups.
+
+Remote unmute (`远程解禁` / `remote-unmute`) allows unmuting your own account in the target group. Remote block (`远程拉黑` / `remote-block`) rejects targeting yourself or the bot.
 
 <Aside type="caution" title="Announcement availability">
 

@@ -161,6 +161,33 @@ class TestOneBot11Mute:
         assert "已解禁:" in finish_text(mock_finish)
 
     @pytest.mark.asyncio
+    async def test_onebot11_unmute_allows_self_target(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_at: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        """解禁自己应当被允许（目标为操作者本人）。"""
+        mock_onebot11_event.user_id = 987654321
+        mock_onebot11_bot.set_group_ban = AsyncMock()
+
+        with patch.object(member_unmute_cmd, "finish") as mock_finish:
+            await onebot11_unmute(
+                user=mock_at,
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+                session=mock_session,
+            )
+
+        mock_onebot11_bot.set_group_ban.assert_called_once_with(
+            group_id=mock_onebot11_event.group_id,
+            user_id=987654321,
+            duration=0,
+        )
+        assert "已解禁:" in finish_text(mock_finish)
+
+    @pytest.mark.asyncio
     async def test_onebot11_set_default_mute_duration_updates_config(
         self,
         mock_onebot11_bot: MagicMock,
