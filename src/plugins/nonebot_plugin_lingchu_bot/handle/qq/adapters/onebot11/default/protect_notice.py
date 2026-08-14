@@ -73,6 +73,7 @@ async def _record_protect_restore_audit(
                     audit_type="notice",
                 ),
             )
+            await session.commit()
     except DatabaseError:
         logger.exception(
             "记录受保护用户自动解禁审计失败: group=%s user=%s", group_id, user_id

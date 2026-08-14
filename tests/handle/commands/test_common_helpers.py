@@ -349,7 +349,7 @@ class TestRecordCommandAudit:
         with (
             patch(
                 "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.get_session",
-                return_value=_FakeSessionContext(MagicMock()),
+                return_value=_FakeSessionContext(AsyncMock()),
             ),
             patch(
                 "src.plugins.nonebot_plugin_lingchu_bot.repositories.message_store.record_api_call",
@@ -383,7 +383,7 @@ class TestRecordCommandAudit:
         with (
             patch(
                 "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.get_session",
-                return_value=_FakeSessionContext(MagicMock()),
+                return_value=_FakeSessionContext(AsyncMock()),
             ),
             patch(
                 "src.plugins.nonebot_plugin_lingchu_bot.repositories.message_store.record_api_call",
@@ -505,7 +505,7 @@ class TestRecordAuditFireAndForget:
             ),
             patch(
                 "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.get_session",
-                return_value=_FakeSessionContext(MagicMock()),
+                return_value=_FakeSessionContext(AsyncMock()),
             ),
             patch(
                 "src.plugins.nonebot_plugin_lingchu_bot.repositories.message_store.record_api_call",

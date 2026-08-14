@@ -120,6 +120,7 @@ class DeploymentSettings:
         protected = _value(
             source,
             "LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS",
+            "lingchu_protected_subject_feature_keys",
             "protected_subject_feature_keys",
             default=cls().protected_subject_feature_keys,
         )
@@ -139,6 +140,7 @@ class DeploymentSettings:
                 _value(
                     source,
                     "LINGCHU_MESSAGE_STORE_RETENTION_DAYS",
+                    "lingchu_message_store_retention_days",
                     "message_store_retention_days",
                     default=30,
                 ),
@@ -151,6 +153,7 @@ class DeploymentSettings:
                 _value(
                     source,
                     "LINGCHU_MESSAGE_STORE_SUMMARY_LIMIT",
+                    "lingchu_message_store_summary_limit",
                     "message_store_summary_limit",
                     default=500,
                 ),
@@ -161,6 +164,7 @@ class DeploymentSettings:
             _value(
                 source,
                 "LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT",
+                "lingchu_recall_message_default_count",
                 "recall_message_default_count",
                 default=10,
             ),
@@ -174,6 +178,7 @@ class DeploymentSettings:
                 _value(
                     source,
                     "LINGCHU_SUPERUSER_KEY",
+                    "lingchu_superuser_key",
                     "superuser_key",
                     default=cls().superuser_key,
                 )
@@ -183,6 +188,7 @@ class DeploymentSettings:
                 _value(
                     source,
                     "LINGCHU_MESSAGE_STORE_ENABLED",
+                    "lingchu_message_store_enabled",
                     "message_store_enabled",
                     default=True,
                 ),
@@ -194,6 +200,7 @@ class DeploymentSettings:
                 _value(
                     source,
                     "LINGCHU_MESSAGE_STORE_RECORD_API_CALLS",
+                    "lingchu_message_store_record_api_calls",
                     "message_store_record_api_calls",
                     default=True,
                 ),
@@ -203,6 +210,7 @@ class DeploymentSettings:
                 _value(
                     source,
                     "LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED",
+                    "lingchu_message_store_cleanup_enabled",
                     "message_store_cleanup_enabled",
                     default=True,
                 ),

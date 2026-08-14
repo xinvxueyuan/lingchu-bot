@@ -70,10 +70,12 @@ async def cleanup_expired_messages() -> tuple[int, bool]:
         return (0, True)
     try:
         async with get_session() as session:
-            return await repository.cleanup_expired_messages(
+            result = await repository.cleanup_expired_messages(
                 session,
                 retention_days=plugin_config.message_store_retention_days,
             )
+            await session.commit()
+            return result
     except DatabaseError:
         logger.exception("Failed to cleanup expired message records")
         return (0, False)
@@ -114,6 +116,7 @@ async def record_bot_lifecycle(bot: Bot, event_type: str) -> bool:
                     audit_type="lifecycle",
                 ),
             )
+            await session.commit()
     except DatabaseError:
         logger.exception("Failed to record bot lifecycle event: %s", event_type)
         return False
@@ -144,6 +147,7 @@ async def handle_event_received(normalized: NormalizedMessageEvent) -> None:
                 raw_message=normalized.raw_message,
                 raw_event=normalized.raw_event,
             )
+            await session.commit()
     except DatabaseError:
         logger.exception("Failed to record incoming message event")
 
@@ -161,7 +165,7 @@ async def handle_matcher_result(
         status = f"{status}:blocked"
     try:
         async with get_session() as session:
-            return await repository.record_matcher_result(
+            result = await repository.record_matcher_result(
                 session,
                 platform_id=identity.platform_id,
                 adapter_id=identity.adapter_id,
@@ -173,6 +177,8 @@ async def handle_matcher_result(
                 process_status=status,
                 exception_summary=_stringify(exception),
             )
+            await session.commit()
+            return result
     except DatabaseError:
         logger.exception("Failed to update message processing status")
         return False
@@ -206,5 +212,6 @@ async def handle_api_called(
                     exception_summary=_stringify(exception),
                 ),
             )
+            await session.commit()
     except DatabaseError:
         logger.exception("Failed to record platform API call: %s", api)
