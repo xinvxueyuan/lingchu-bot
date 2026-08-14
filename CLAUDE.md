@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (5090 symbols, 9328 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (5092 symbols, 9330 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -249,7 +249,7 @@ For handle, QQ command, adapter handler, matcher, `command_key`, menu, trigger, 
 - Use `CommandAudit` for command audit payloads, then call `record_audit_fire_and_forget()` or `record_command_audit()`.
 - Do not add long parameter lists for platform, adapter, bot, group, target, reason, and duration; create a request object.
 - Use `fire_and_forget(coro, *, name="...")` only for discardable background work whose result is not needed by the caller.
-- **Session-first parameter convention**: All `database/orm_crud/*.py` and `repositories/*.py` functions MUST accept `session: AsyncSession | async_scoped_session` as the first positional parameter. Functions MUST NOT open their own `get_session()` (only background tasks in `services/scheduler.py` and `services/message_store.py` retain `async with get_session() as s:` because they own their lifecycle). Functions MUST NOT `commit`/`rollback` — the caller controls the transaction boundary.
+- **Session-first parameter convention**: All `database/orm_crud/*.py` and `repositories/*.py` functions MUST accept `session: AsyncSession | async_scoped_session` as the first positional parameter. Functions MUST NOT open their own `get_session()` (only background tasks in `services/scheduler.py` and `services/message_store.py` retain `async with get_session() as s:` because they own their lifecycle). Functions MUST NOT `commit`/`rollback` — the caller controls the transaction boundary. **Exception — self-owned sessions MUST self-commit**: code paths that open their own `get_session()` (background tasks, fire-and-forget audit writers) are their own transaction boundary; they MUST `await session.commit()` after writes. `async with get_session() as s:` only closes the session on exit — an uncommitted flushed transaction is silently rolled back (2026-08-14: the message store wrote zero rows for months because of this).
 - **Fire-and-forget audit/permission helpers**: When a handler-side helper (e.g. `_default_permission_resolver`, `_default_audit_writer`) wraps a repository function whose signature now requires `session`, the helper MUST open its own scoped session (`async with get_session() as session:`) to satisfy the Protocol/Callable type the caller still expects. Do not push the session parameter into the Protocol signature; keep the boundary seam local to the helper.
 
 ## T — Tools
@@ -398,7 +398,15 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - Handler signatures that need NoneBot dependency injection (bot, event, session) MUST use `@wraps(func)` on any wrapper so `inspect.signature(wrapper)` follows the wrapped function — NoneBot reads the signature to know which kwargs to inject.
 - Inside wrappers (e.g. `_permission_wrapper`), extract the injected session via `session = kwargs.get("session")`; do not re-open `get_session()`.
 - Test fixtures for handlers use `mock_session = AsyncMock()` with `sess.add = MagicMock()` / `sess.add_all = MagicMock()` (sync mocks for sync API), then call the handler with `session=mock_session`. For `mock.call_args` assertions, remember that `args[0]` is now `session` (repository/permission functions take session as first positional arg).
-- Background tasks (`services/scheduler.py`, `services/message_store.py`) keep `async with get_session() as session:` because they own their lifecycle and are not NoneBot handler dependencies.
+- Background tasks (`services/scheduler.py`, `services/message_store.py`) keep `async with get_session() as session:` because they own their lifecycle and are not NoneBot handler dependencies. They MUST `await session.commit()` inside the block after writes — the `async with` exit only closes the session (rolling back any uncommitted transaction); there is no outer caller to commit for them (2026-08-14: the message store silently recorded nothing for months, which made `撤回`/recall always return 0/0/0).
+
+#### NoneBot Config Passthrough
+
+- NoneBot's `Config` is case-insensitive: custom env keys are stored **lowercase** in `Config.model_dump()` (`LINGCHU_MESSAGE_STORE_ENABLED` → `lingchu_message_store_enabled`). Attribute access (`driver.config.LINGCHU_X`) is case-insensitive and works; **dict lookups on `model_dump()` MUST use the lowercase key**.
+- When reading custom keys through `_value(source, *names, default)`, the name list MUST include the lowercase full name (`lingchu_<field>`), not just the uppercase env name. Otherwise the key never matches and the setting is a **dead config** — runtime always equals the default no matter what `.env.dev` says. Fixed 2026-08-14: 7 keys in `_lingchu_bot_contracts/runtime_settings.py` (message_store_enabled, retention_days, summary_limit, record_api_calls, cleanup_enabled, recall_message_default_count, superuser_key, protected_subject_feature_keys) were silently dead and now resolve.
+- Diagnosis: a setting visible in the startup DEBUG log `Loaded Config: {...}` is NOT proof it takes effect. Check whether the consumer reads via attribute access or via dict lookup on `model_dump()`. Dead-config symptom: changing `.env.dev` has zero runtime effect and the value stays at the default.
+- Env file resolution: `Env()` reads `.env` → `ENVIRONMENT` → `nonebot.init()` loads `.env.{ENVIRONMENT}` (e.g. `.env.dev`) as `_env_file`. The DEBUG line `Current Env: dev` confirms the chain.
+- zhenxun host deployment: `_lingchu_bot_contracts` is imported from the **site-packages copy** (installed via uv), NOT `zhenxun/plugins/` — patch the venv copy too; a later `uv sync`/reinstall wipes the manual edit.
 
 #### Adapter Handle Decorators
 
