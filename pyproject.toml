@@ -335,7 +335,6 @@ allowed-confusables = [
 # BLE001: startup/probe code uses intentional fail-closed/fail-soft exception handling
 # E402: nonebot2 require() must precede cross-plugin imports at module level
 "src/plugins/nonebot_plugin_lingchu_bot/core/bot_state.py" = ["BLE001", "E402", "TC003"]
-"src/plugins/nonebot_plugin_lingchu_bot/core/sqlite_tuning.py" = ["BLE001"]
 "src/plugins/nonebot_plugin_lingchu_bot/services/protocol_restart_feedback.py" = ["BLE001"]
 # E402: nonebot2 require() must precede cross-plugin imports at module level
 "src/plugins/nonebot_plugin_lingchu_bot/start/startup.py" = ["BLE001", "E402"]
