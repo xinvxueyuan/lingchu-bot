@@ -75,7 +75,7 @@ def patched_runtime_config(
 @pytest.fixture(autouse=True)
 def patched_session(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     """Patch ``get_session`` in ``message_store`` to yield a mock session."""
-    session = MagicMock(name="async_session")
+    session = AsyncMock(name="async_session")
     monkeypatch.setattr(
         message_store,
         "get_session",

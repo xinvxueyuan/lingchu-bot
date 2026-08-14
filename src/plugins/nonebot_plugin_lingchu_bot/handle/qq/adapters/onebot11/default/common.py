@@ -374,6 +374,7 @@ async def record_command_audit(
                     audit_type="command",
                 ),
             )
+            await s.commit()
     except DatabaseError:
         logger.exception(f"记录命令审计失败: action={audit.action}")
 
