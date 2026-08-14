@@ -102,6 +102,15 @@ protected_subject_feature_keys = [
 
 `find_active_subject_policy()` 先查 global 作用域，再查 group 作用域，并惰性删除已过期条目。`active_subject_policy_condition()` 返回一个 SQLAlchemy 过滤器，排除 `expires_at` 已过期的行，供需要连接策略表的仓库查询使用。
 
+### 受保护用户自动恢复（OneBot V11）
+
+在 OneBot V11 适配器上，被禁言的受保护用户会被自动再次解禁。`handle/qq/adapters/onebot11/default/protect_notice.py` 监听 `GroupBanNoticeEvent`（`sub_type == "ban"` 且时长为正），当被禁言用户命中群级或全局 `protected` 策略时，调用 `set_group_ban(group_id, user_id, duration=0)`。这覆盖了人类管理员在 QQ 客户端发起的禁言，而不仅是 bot 自己的命令。监听器始终生效，不受开机/关机门禁影响。
+
+例外情况：
+
+- **全体禁言期间**：群级全体禁言时无法单独解禁个人，因此当 bot 自身在该群也被禁言时跳过恢复。
+- **超级用户覆盖**：超级用户禁言非超级用户的受保护成员会强制生效、不自动恢复；禁言同为超级用户的受保护用户仍会恢复。
+
 ## 权限种子与平台角色树
 
 默认身份组从各平台权限模块种子而来，但只种子**已启用**平台的模块。`permissions/platforms.py::iter_default_identity_groups()` 仅遍历 `LINGCHUAdapter` 选中（通过 `iter_enabled_profiles()`）的 `PlatformProfile.permission_module` 条目，并调用其 `get_default_identity_groups()`。未配置适配器的平台既不会被导入也不会被种子，因此无需为不使用的平台安装适配器。若之后启用某平台，其身份组会在下次启动时补种。

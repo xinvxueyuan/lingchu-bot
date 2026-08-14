@@ -387,7 +387,12 @@ async def onebot11_remote_unmute(
 
     # 4. 边界条件检查
     if not await check_self_target(
-        target_user_id, bot, event, remote_unmute_cmd, "解禁"
+        target_user_id,
+        bot,
+        event,
+        remote_unmute_cmd,
+        "解禁",
+        check_self=False,
     ):
         return None
 
@@ -647,6 +652,11 @@ async def onebot11_remote_block(
     if user_result is None:
         return None
     target_user_id, target_name = user_result
+
+    if not await check_self_target(
+        target_user_id, bot, event, remote_block_cmd, "拉黑"
+    ):
+        return None
 
     if not await _check_remote_target_privilege(
         session, bot, event, group_id_int, target_user_id, remote_block_cmd

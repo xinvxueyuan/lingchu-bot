@@ -497,9 +497,6 @@ async def onebot11_unmute(
         return await member_unmute_cmd.finish(str(e))
 
     # 2. 边界条件检查
-    if target_user_id == event.user_id:
-        return await member_unmute_cmd.finish(await _("不能解禁自己"))
-
     bot_self_id = bot_self_id_safe(bot)
     if bot_self_id is not None and target_user_id == bot_self_id:
         return await member_unmute_cmd.finish(await _("不能解禁机器人"))

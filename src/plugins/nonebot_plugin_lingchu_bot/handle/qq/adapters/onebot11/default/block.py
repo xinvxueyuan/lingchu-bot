@@ -38,6 +38,7 @@ from .common import (
     CommandAudit,
     bot_id,
     check_bot_privilege,
+    check_self_target,
     check_target_privilege,
     default_admin_reason,
     finish_action_error_onebot11,
@@ -96,6 +97,10 @@ async def _block_member(
     default_reason_text = config.defaults.get("default_reason", "违反群规")
 
     target_user_id, target_name = await resolve_user_onebot11(user, bot, event)
+
+    # 边界条件检查：不能拉黑自己或机器人
+    if not await check_self_target(target_user_id, bot, event, command, "拉黑"):
+        return None
 
     # 目标用户权限预检
     if not await check_target_privilege(session, bot, event, target_user_id, command):

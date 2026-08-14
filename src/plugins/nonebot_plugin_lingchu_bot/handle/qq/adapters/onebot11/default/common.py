@@ -169,9 +169,15 @@ async def check_self_target(
     event: Onebot11GroupMessageEvent,
     cmd_matcher: Any,
     action_name: str,
+    *,
+    check_self: bool = True,
 ) -> bool:
-    """检查是否尝试操作自己或机器人。返回 True 表示通过检查。"""
-    if target_user_id == event.user_id:
+    """检查是否尝试操作自己或机器人。返回 True 表示通过检查。
+
+    ``check_self=False`` 时跳过"操作自己"的拦截（例如允许解禁自己），
+    但仍会拦截对机器人的操作。
+    """
+    if check_self and target_user_id == event.user_id:
         msg = await _("不能{action}自己")
         await cmd_matcher.finish(msg.format(action=action_name))
         return False

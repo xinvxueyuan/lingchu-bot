@@ -448,6 +448,42 @@ class TestRemoteUnmute:
                 group_id=_GROUP_ID_1, user_id=_TARGET_USER_ID, duration=0
             )
 
+    @pytest.mark.asyncio
+    async def test_remote_unmute_allows_self_target(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+        mock_session: Mock,
+    ) -> None:
+        """远程解禁自己应当被允许（目标为操作者本人）。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_group_member_info.return_value = {
+            "role": "admin",
+            "user_id": mock_event.user_id,
+        }
+        mock_bot.set_group_ban.return_value = {}
+
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                return_value=(mock_event.user_id, "自己"),
+            ),
+            patch.object(remote_unmute_cmd, "finish", new_callable=AsyncMock),
+        ):
+            await onebot11_remote_unmute(
+                group_id=_GROUP_ID_1,
+                user=At("user", str(mock_event.user_id)),
+                bot=mock_bot,
+                event=mock_event,
+                session=mock_session,
+                reason="测试原因",
+            )
+            mock_bot.set_group_ban.assert_called_once_with(
+                group_id=_GROUP_ID_1, user_id=mock_event.user_id, duration=0
+            )
+
 
 class TestRemoteWholeMute:
     """测试远程全体禁言命令。"""
@@ -589,6 +625,44 @@ class TestRemoteBlock:
                 reason="测试原因",
             )
             mock_bot.set_group_kick.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_remote_block_rejects_self_target(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+        mock_session: Mock,
+    ) -> None:
+        """远程拉黑自己应被拒绝。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.get_group_member_info.side_effect = [
+            {"role": "admin", "user_id": int(mock_bot.self_id)},
+            {"role": "member", "user_id": mock_event.user_id},
+        ]
+        mock_bot.set_group_kick = AsyncMock()
+
+        with (
+            patch(
+                f"{remote_module.__name__}.resolve_user_onebot11",
+                new_callable=AsyncMock,
+                return_value=(mock_event.user_id, "自己"),
+            ),
+            patch.object(
+                remote_block_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            await onebot11_remote_block(
+                group_id=_GROUP_ID_1,
+                user=At("user", str(mock_event.user_id)),
+                duration=3600,
+                bot=mock_bot,
+                event=mock_event,
+                session=mock_session,
+                reason="测试原因",
+            )
+            assert "不能拉黑自己" in str(mock_finish.call_args)
+            mock_bot.set_group_kick.assert_not_called()
 
 
 class TestRemoteUnblock:
