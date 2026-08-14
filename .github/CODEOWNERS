@@ -5,7 +5,7 @@
 # Source code (Python backend plugin)
 /src/                                 @xinvxueyuan
 
-# Documentation site (Next.js + Fumadocs)
+# Documentation site (Astro Starlight)
 /apps/docs/                           @xinvxueyuan
 
 # GitHub configuration, workflows, issue & PR templates

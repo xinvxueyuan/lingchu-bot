@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlalchemy import ForeignKeyConstraint, UniqueConstraint, select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.schema import CreateTable
 
 from src.plugins.nonebot_plugin_lingchu_bot.database.models import (
     IdentityMembership,
@@ -11,6 +15,9 @@ from src.plugins.nonebot_plugin_lingchu_bot.database.models import (
     PermissionGrant,
     PlatformAccount,
     PlatformIdentityGroup,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.database.models.identity import (
+    GLOBAL_SCOPE_ID_SENTINEL,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.permissions.types import (
     PlatformIdentityGroupSeed,
@@ -41,6 +48,7 @@ def _platform_account(*, uid: str = "u1", platform_id: str = "qq") -> MagicMock:
     item.account_id = "acc-1"
     item.account_type = "user"
     item.display_name = None
+    item.source = MANUAL_SOURCE
     return item
 
 
@@ -85,6 +93,64 @@ def mock_session() -> Mock:
     sess.add = MagicMock()
     sess.add_all = MagicMock()
     return sess
+
+
+def test_identity_models_declare_foreign_keys_and_unique_constraints() -> None:
+    """Identity tables enforce their cross-row references and identities."""
+    foreign_keys = {
+        (foreign_key.parent.name, foreign_key.target_fullname, foreign_key.ondelete)
+        for table in (
+            PlatformAccount.__table__,
+            PlatformIdentityGroup.__table__,
+            IdentityMembership.__table__,
+            PermissionGrant.__table__,
+        )
+        for constraint in table.constraints
+        if isinstance(constraint, ForeignKeyConstraint)
+        for foreign_key in constraint.elements
+    }
+
+    assert (
+        "uid",
+        "lingchu_identity_users.uid",
+        "CASCADE",
+    ) in foreign_keys
+    assert (
+        "parent_group_id",
+        "lingchu_platform_identity_groups.group_id",
+        "SET NULL",
+    ) in foreign_keys
+    assert (
+        "group_id",
+        "lingchu_platform_identity_groups.group_id",
+        "CASCADE",
+    ) in foreign_keys
+
+    unique_constraints = {
+        constraint.name: tuple(column.name for column in constraint.columns)
+        for table in (
+            PlatformAccount.__table__,
+            PlatformIdentityGroup.__table__,
+            IdentityMembership.__table__,
+            PermissionGrant.__table__,
+        )
+        for constraint in table.constraints
+        if isinstance(constraint, UniqueConstraint) and constraint.name is not None
+    }
+    assert unique_constraints["uq_lingchu_platform_account_identity"] == (
+        "platform_id",
+        "account_id",
+    )
+    assert unique_constraints["uq_lingchu_identity_membership_identity"] == (
+        "uid",
+        "group_id",
+        "scope_type",
+        "scope_id",
+    )
+    assert unique_constraints["uq_lingchu_permission_grant_identity"] == (
+        "group_id",
+        "command_key",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +227,7 @@ async def test_bind_platform_account_calls_upsert_with_correct_values(
     assert insert_values["account_id"] == "acc-1"
     assert insert_values["account_type"] == "user"
     assert insert_values["display_name"] == "Alice"
+    assert insert_values["source"] == MANUAL_SOURCE
     assert upsert_mock.call_args.kwargs["conflict_fields"] == [
         "platform_id",
         "account_id",
@@ -169,6 +236,7 @@ async def test_bind_platform_account_calls_upsert_with_correct_values(
     assert update_values["uid"] == "u1"
     assert update_values["account_type"] == "user"
     assert update_values["display_name"] == "Alice"
+    assert update_values["source"] == MANUAL_SOURCE
 
 
 @pytest.mark.asyncio
@@ -396,13 +464,9 @@ async def test_upsert_membership_creates_new_when_not_existing(
     mock_session: Mock,
 ) -> None:
     membership = _membership()
-    get_one_mock = AsyncMock(return_value=None)
-    create_mock = AsyncMock(return_value=membership)
+    upsert_mock = AsyncMock(return_value=membership)
 
-    with (
-        patch.object(repo, "get_one", get_one_mock),
-        patch.object(repo, "create", create_mock),
-    ):
+    with patch.object(repo, "upsert", upsert_mock):
         result = await repo.upsert_membership(
             mock_session,
             uid="u1",
@@ -411,36 +475,32 @@ async def test_upsert_membership_creates_new_when_not_existing(
         )
 
     assert result is membership
-    get_one_mock.assert_awaited_once()
-    assert get_one_mock.call_args.args[0] is mock_session
-    assert get_one_mock.call_args.args[1] is IdentityMembership
-    create_mock.assert_awaited_once()
-    assert create_mock.call_args.args[0] is mock_session
-    assert create_mock.call_args.args[1] is IdentityMembership
-    assert create_mock.call_args.kwargs == {
+    upsert_mock.assert_awaited_once()
+    assert upsert_mock.call_args.args[:2] == (mock_session, IdentityMembership)
+    assert upsert_mock.call_args.args[2] == {
         "uid": "u1",
         "group_id": "g1",
         "scope_type": "global",
         "scope_id": None,
         "source": "manual",
     }
+    assert upsert_mock.call_args.kwargs["conflict_fields"] == [
+        "uid",
+        "group_id",
+        "scope_type",
+        "scope_id",
+    ]
+    assert upsert_mock.call_args.kwargs["update_values"] == {"source": "manual"}
 
 
 @pytest.mark.asyncio
 async def test_upsert_membership_updates_source_when_existing(
     mock_session: Mock,
 ) -> None:
-    existing = _membership(source="old")
     updated = _membership(source="new")
-    get_one_mock = AsyncMock(side_effect=[existing, updated])
-    update_mock = AsyncMock(return_value=(1, True))
-    create_mock = AsyncMock()
+    upsert_mock = AsyncMock(return_value=updated)
 
-    with (
-        patch.object(repo, "get_one", get_one_mock),
-        patch.object(repo, "update", update_mock),
-        patch.object(repo, "create", create_mock),
-    ):
+    with patch.object(repo, "upsert", upsert_mock):
         result = await repo.upsert_membership(
             mock_session,
             uid="u1",
@@ -449,11 +509,139 @@ async def test_upsert_membership_updates_source_when_existing(
         )
 
     assert result is updated
-    update_mock.assert_awaited_once()
-    assert update_mock.call_args.args[0] is mock_session
-    assert update_mock.call_args.args[1] is IdentityMembership
-    assert update_mock.call_args.args[3] == {"source": "new"}
-    create_mock.assert_not_awaited()
+    upsert_mock.assert_awaited_once()
+    assert upsert_mock.call_args.kwargs["update_values"] == {"source": "new"}
+
+
+@pytest.mark.asyncio
+async def test_upsert_membership_is_conflict_safe_for_scoped_identity(
+    tmp_path: Path,
+) -> None:
+    """Repeated scoped writes update one row through the database upsert."""
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'identity.db'}")
+    tables = (
+        IdentityUser.__table__,
+        PlatformIdentityGroup.__table__,
+        IdentityMembership.__table__,
+    )
+
+    try:
+        async with engine.begin() as connection:
+            for table in tables:
+                await connection.execute(CreateTable(table))
+
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with session_factory() as session:
+            await session.execute(
+                IdentityUser.__table__.insert().values(uid="u1", nickname="User 1")
+            )
+            await session.execute(
+                PlatformIdentityGroup.__table__.insert().values(
+                    group_id="g1",
+                    platform_id="qq",
+                    display_name="Group 1",
+                    builtin=False,
+                )
+            )
+            await repo.upsert_membership(
+                session,
+                uid="u1",
+                group_id="g1",
+                scope_type="group",
+                scope_id="10001",
+                source="old",
+            )
+            updated = await repo.upsert_membership(
+                session,
+                uid="u1",
+                group_id="g1",
+                scope_type="group",
+                scope_id="10001",
+                source="new",
+            )
+            await session.commit()
+
+            rows = (
+                (
+                    await session.execute(
+                        select(IdentityMembership).where(
+                            IdentityMembership.uid == "u1",
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+        assert updated.source == "new"
+        assert len(rows) == 1
+        assert rows[0].source == "new"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_upsert_membership_is_conflict_safe_for_global_identity(
+    tmp_path: Path,
+) -> None:
+    """Repeated global writes update one row despite SQL NULL uniqueness rules."""
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'global.db'}")
+    tables = (
+        IdentityUser.__table__,
+        PlatformIdentityGroup.__table__,
+        IdentityMembership.__table__,
+    )
+
+    try:
+        async with engine.begin() as connection:
+            for table in tables:
+                await connection.execute(CreateTable(table))
+
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with session_factory() as session:
+            await session.execute(
+                IdentityUser.__table__.insert().values(uid="u1", nickname="User 1")
+            )
+            await session.execute(
+                PlatformIdentityGroup.__table__.insert().values(
+                    group_id="g1",
+                    platform_id="qq",
+                    display_name="Group 1",
+                    builtin=False,
+                )
+            )
+            await repo.upsert_membership(
+                session,
+                uid="u1",
+                group_id="g1",
+                source="old",
+            )
+            updated = await repo.upsert_membership(
+                session,
+                uid="u1",
+                group_id="g1",
+                source="new",
+            )
+            await session.commit()
+
+            rows = (
+                (
+                    await session.execute(
+                        select(IdentityMembership).where(
+                            IdentityMembership.uid == "u1",
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+        assert updated.source == "new"
+        assert len(rows) == 1
+        assert rows[0].source == "new"
+        assert rows[0].scope_id is None
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio
@@ -478,8 +666,121 @@ async def test_delete_membership_calls_delete_with_correct_filters(
         "uid": "u1",
         "group_id": "g1",
         "scope_type": "global",
-        "scope_id": None,
+        "scope_id": GLOBAL_SCOPE_ID_SENTINEL,
     }
+
+
+@pytest.mark.asyncio
+async def test_delete_stale_superuser_memberships_uses_configured_uid_set(
+    mock_session: Mock,
+) -> None:
+    delete_mock = AsyncMock(return_value=(1, True))
+
+    with patch.object(repo, "delete", delete_mock):
+        result = await repo.delete_stale_superuser_memberships(
+            mock_session,
+            configured_uids={"u1"},
+        )
+
+    assert result == (1, True)
+    assert delete_mock.call_args.args[0] is mock_session
+    assert delete_mock.call_args.args[1] is IdentityMembership
+    assert delete_mock.call_args.args[2] == {
+        "group_id": SUPERUSERS_GROUP_ID,
+        "scope_type": "global",
+        "scope_id": GLOBAL_SCOPE_ID_SENTINEL,
+    }
+    condition = delete_mock.call_args.kwargs["conditions"][0]
+    compiled_condition = str(condition.compile(compile_kwargs={"literal_binds": True}))
+    assert "NOT IN" in compiled_condition
+    assert "u1" in compiled_condition
+
+
+@pytest.mark.asyncio
+async def test_delete_stale_superuser_memberships_rejects_empty_uid_set(
+    mock_session: Mock,
+) -> None:
+    with pytest.raises(ValueError):
+        await repo.delete_stale_superuser_memberships(
+            mock_session,
+            configured_uids=(),
+        )
+
+
+@pytest.mark.asyncio
+async def test_delete_stale_superuser_accounts_uses_configured_account_set(
+    mock_session: Mock,
+) -> None:
+    delete_mock = AsyncMock(return_value=(1, True))
+
+    with patch.object(repo, "delete", delete_mock):
+        result = await repo.delete_stale_superuser_accounts(
+            mock_session,
+            configured_accounts={("qq", "42")},
+        )
+
+    assert result == (1, True)
+    assert delete_mock.call_args.args[0] is mock_session
+    assert delete_mock.call_args.args[1] is PlatformAccount
+    assert delete_mock.call_args.args[2] == {}
+    conditions = delete_mock.call_args.kwargs["conditions"]
+    assert len(conditions) == 2
+    compiled_conditions = " ".join(
+        str(condition.compile(compile_kwargs={"literal_binds": True}))
+        for condition in conditions
+    )
+    assert "superusers_config" in compiled_conditions
+    # The tuple IN condition is expanded into OR of ANDs so it compiles on
+    # SQL Server, which lacks row-value comparisons.
+    assert "platform_id = 'qq'" in compiled_conditions
+    assert "account_id = '42'" in compiled_conditions
+    assert "AND" in compiled_conditions
+    assert "NOT" in compiled_conditions
+
+
+@pytest.mark.asyncio
+async def test_delete_stale_superuser_accounts_rejects_empty_account_set(
+    mock_session: Mock,
+) -> None:
+    with pytest.raises(ValueError):
+        await repo.delete_stale_superuser_accounts(
+            mock_session,
+            configured_accounts=(),
+        )
+
+
+@pytest.mark.asyncio
+async def test_delete_stale_superuser_grants_uses_configured_command_keys(
+    mock_session: Mock,
+) -> None:
+    delete_mock = AsyncMock(return_value=(1, True))
+
+    with patch.object(repo, "delete", delete_mock):
+        result = await repo.delete_stale_superuser_grants(
+            mock_session,
+            configured_command_keys={"kick_member", "block_member"},
+        )
+
+    assert result == (1, True)
+    assert delete_mock.call_args.args[0] is mock_session
+    assert delete_mock.call_args.args[1] is PermissionGrant
+    assert delete_mock.call_args.args[2] == {"group_id": SUPERUSERS_GROUP_ID}
+    condition = delete_mock.call_args.kwargs["conditions"][0]
+    compiled_condition = str(condition.compile(compile_kwargs={"literal_binds": True}))
+    assert "NOT IN" in compiled_condition
+    assert "kick_member" in compiled_condition
+    assert "block_member" in compiled_condition
+
+
+@pytest.mark.asyncio
+async def test_delete_stale_superuser_grants_rejects_empty_command_set(
+    mock_session: Mock,
+) -> None:
+    with pytest.raises(ValueError):
+        await repo.delete_stale_superuser_grants(
+            mock_session,
+            configured_command_keys=(),
+        )
 
 
 @pytest.mark.asyncio
@@ -535,7 +836,7 @@ async def test_is_superuser_returns_true_when_membership_exists(
         "uid": "u1",
         "group_id": SUPERUSERS_GROUP_ID,
         "scope_type": "global",
-        "scope_id": None,
+        "scope_id": GLOBAL_SCOPE_ID_SENTINEL,
     }
 
 

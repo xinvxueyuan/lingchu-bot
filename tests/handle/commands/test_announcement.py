@@ -226,3 +226,26 @@ async def test_resolve_image_path_returns_path_attribute(
 
     assert result is not None
     assert result.local_path == existing_path
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_uses_bounded_public_download(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(announcement, "plugin_config", fake_config)
+    download = AsyncMock(return_value=b"safe-image")
+    monkeypatch.setattr(announcement, "download_public_http_bytes", download)
+
+    image = create_mock_image()
+    image.url = "https://example.com/announcement.png"
+
+    result = await announcement._resolve_image_path(image)
+
+    assert result is not None
+    download.assert_awaited_once_with(
+        "https://example.com/announcement.png",
+        max_bytes=10 * 1024 * 1024,
+    )

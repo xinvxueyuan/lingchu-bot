@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.database.models import BlocklistEntry
+from src.plugins.nonebot_plugin_lingchu_bot.permissions import subject_policy
 from src.plugins.nonebot_plugin_lingchu_bot.repositories import blocklist
 
 if TYPE_CHECKING:
@@ -406,19 +407,32 @@ async def test_find_active_block_passes_protocol_id_and_returns_unexpired_entry(
 
 
 @pytest.mark.asyncio
-async def test_cleanup_expired_blocks_delegates_to_delete_with_conditions(
+async def test_cleanup_expired_blocks_deletes_blocklist_and_subject_policy_entries(
     mock_session: Mock,
 ) -> None:
     delete_mock = AsyncMock(return_value=(3, True))
+    policy_cleanup_mock = AsyncMock(return_value=(2, True))
 
-    with patch.object(blocklist, "delete", delete_mock):
+    with (
+        patch.object(blocklist, "delete", delete_mock),
+        patch.object(
+            subject_policy,
+            "cleanup_expired_subject_policies",
+            policy_cleanup_mock,
+        ),
+    ):
         result = await blocklist.cleanup_expired_blocks(mock_session)
 
-    assert result == (3, True)
+    assert result == (5, True)
     delete_mock.assert_awaited_once()
     kwargs = delete_mock.call_args.kwargs
     assert "conditions" in kwargs
     assert len(kwargs["conditions"]) == 2
+    assert policy_cleanup_mock.await_args is not None
+    policy_cleanup_mock.assert_awaited_once_with(
+        mock_session,
+        now=policy_cleanup_mock.await_args.kwargs["now"],
+    )
 
 
 def test_active_block_condition_returns_or_clause() -> None:

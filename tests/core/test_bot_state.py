@@ -11,8 +11,13 @@ import rtoml
 
 from src.plugins.nonebot_plugin_lingchu_bot.core import bot_state as bot_state_module
 from src.plugins.nonebot_plugin_lingchu_bot.core.bot_state import (
+    BotStateFile,
+    InvalidBotStateGlobalError,
     _save_bot_state,
     load_bot_state,
+)
+from src.plugins.nonebot_plugin_lingchu_bot.database.toml_store import (
+    TOMLFileReadError,
 )
 
 if TYPE_CHECKING:
@@ -40,19 +45,16 @@ def patched_state_dir(tmp_path: Path) -> Iterator[Path]:
 async def test_bot_state_default_contains_expected_payload(
     patched_state_dir: Path,
 ) -> None:
-    """First-time load writes a schema directive outside the data table."""
+    """First-time load uses typed defaults without creating a data file."""
     bot_state_module._reset_state_for_testing()
     await load_bot_state()
 
     state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
-    assert state_file.exists()
-    content = state_file.read_text(encoding="utf-8")
-    payload = rtoml.loads(content)
-    assert "#:schema" not in content
-    assert "$schema" not in payload
-    assert payload["global"]["handle_active"] is True
-    assert payload["global"]["silent_mode"] is False
-    assert payload["platforms"] == {}
+    assert not state_file.exists()
+    assert bot_state_module.get_global_handle_active() is True
+    assert bot_state_module.get_global_silent_mode() is False
+    assert bot_state_module.get_platform_handle_active("qq") is True
+    assert bot_state_module.get_platform_silent_mode("qq") is False
 
 
 async def test_bot_state_existing_file_preserves_user_state(
@@ -78,6 +80,93 @@ async def test_bot_state_existing_file_preserves_user_state(
     assert bot_state_module.get_global_silent_mode() is True
     assert bot_state_module.is_handle_active("qq") is False
     assert bot_state_module.is_silent_mode("qq") is True
+
+
+@pytest.mark.parametrize(
+    ("handle_active", "silent_mode"),
+    [("false", 0), (None, "true")],
+)
+def test_bot_state_mapping_rejects_non_boolean_scalars(
+    handle_active: object,
+    silent_mode: object,
+) -> None:
+    model = BotStateFile.from_mapping({
+        "global": {
+            "handle_active": handle_active,
+            "silent_mode": silent_mode,
+        },
+        "platforms": {
+            "qq": {
+                "handle_active": "false",
+                "silent_mode": 1,
+            }
+        },
+    })
+
+    assert model.global_.handle_active is True
+    assert model.global_.silent_mode is False
+    assert model.platforms["qq"].handle_active is None
+    assert model.platforms["qq"].silent_mode is None
+
+
+async def test_bot_state_invalid_toml_uses_defaults_without_rewriting(
+    patched_state_dir: Path,
+) -> None:
+    """Malformed TOML falls back in memory and leaves the file untouched."""
+    bot_state_module._reset_state_for_testing()
+    bot_state_module._state["global_handle_active"] = False
+    state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
+    invalid_content = "[global\nhandle_active = false\n"
+    state_file.write_text(invalid_content, encoding="utf-8")
+
+    await load_bot_state()
+
+    assert bot_state_module.get_global_handle_active() is True
+    assert state_file.read_text(encoding="utf-8") == invalid_content
+
+
+async def test_bot_state_invalid_structure_fails_without_rewriting(
+    patched_state_dir: Path,
+) -> None:
+    """Invalid state shape remains a startup error and is never repaired."""
+    bot_state_module._reset_state_for_testing()
+    state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
+    invalid_content = "global = []\n"
+    state_file.write_text(invalid_content, encoding="utf-8")
+
+    with pytest.raises(InvalidBotStateGlobalError):
+        await load_bot_state()
+
+    assert state_file.read_text(encoding="utf-8") == invalid_content
+
+
+async def test_bot_state_io_error_uses_defaults_without_rewriting(
+    patched_state_dir: Path,
+) -> None:
+    """Read I/O failures fall back in memory and do not trigger a write."""
+    bot_state_module._reset_state_for_testing()
+    state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
+    invalid_content = "global = {}\n"
+    state_file.write_text(invalid_content, encoding="utf-8")
+    read_error = TOMLFileReadError(state_file, PermissionError("denied"))
+    read_error.__cause__ = PermissionError("denied")
+
+    with (
+        patch.object(
+            bot_state_module,
+            "load_toml_dict_async",
+            side_effect=read_error,
+        ),
+        patch.object(bot_state_module.logger, "error") as log_error,
+    ):
+        await load_bot_state()
+
+    assert bot_state_module.get_global_handle_active() is True
+    assert state_file.read_text(encoding="utf-8") == invalid_content
+    assert any(
+        "I/O error reading bot state" in call.args[0]
+        for call in log_error.call_args_list
+    )
 
 
 @pytest.mark.asyncio

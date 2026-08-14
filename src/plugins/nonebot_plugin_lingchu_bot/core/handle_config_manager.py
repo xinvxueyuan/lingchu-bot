@@ -11,6 +11,9 @@ require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
 
 from ..database.toml_store import (
+    DatabaseError,
+    InvalidTOMLRootTypeError,
+    TOMLFileReadError,
     ensure_toml_dict_file_async,
     load_toml_dict_async,
     write_toml_dict_file_async,
@@ -55,8 +58,41 @@ class HandleConfigManager:
                 file_path, default=default_config, merge_default=True
             )
             config = self._build_handle_config(_validate_config(config_dict))
-        except Exception:
-            logger.error("Failed to load handle config for {}", command_key)
+        except InvalidTOMLRootTypeError as exc:
+            logger.error(
+                "Invalid handle config TOML root for {}; using in-memory defaults: {}",
+                command_key,
+                exc,
+            )
+            config = self._build_handle_config(default_config)
+        except TOMLFileReadError as exc:
+            if isinstance(exc.__cause__, OSError):
+                logger.error(
+                    "I/O error reading handle config for {}; "
+                    "using in-memory defaults: {}",
+                    command_key,
+                    exc,
+                )
+            else:
+                logger.error(
+                    "Invalid handle config TOML for {}; using in-memory defaults: {}",
+                    command_key,
+                    exc,
+                )
+            config = self._build_handle_config(default_config)
+        except (TypeError, ValueError) as exc:
+            logger.error(
+                "Invalid handle config for {}; using in-memory defaults: {}",
+                command_key,
+                exc,
+            )
+            config = self._build_handle_config(default_config)
+        except DatabaseError as exc:
+            logger.error(
+                "Failed to read handle config for {}; using in-memory defaults: {}",
+                command_key,
+                exc,
+            )
             config = self._build_handle_config(default_config)
         self._cache[command_key] = config
         return config
@@ -66,12 +102,9 @@ class HandleConfigManager:
             raise ValueError(f"command_key not registered: {command_key}")
         file_path = get_plugin_config_file(f"{command_key}.toml")
         defaults = HANDLE_DEFAULTS_REGISTRY[command_key]()
-        try:
-            config_dict = await load_toml_dict_async(
-                file_path, default=defaults, merge_default=True
-            )
-        except Exception:
-            config_dict = defaults
+        config_dict = await load_toml_dict_async(
+            file_path, default=defaults, merge_default=True
+        )
         for section, update in updates.items():
             if section in {"defaults", "policies"} and isinstance(update, dict):
                 existing = config_dict.get(section, {})

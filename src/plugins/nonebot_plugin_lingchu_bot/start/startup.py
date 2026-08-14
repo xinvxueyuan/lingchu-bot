@@ -4,11 +4,8 @@ require("nonebot_plugin_orm")
 from nonebot_plugin_orm import get_session
 
 from ..core.bot_state import load_bot_state
-from ..core.config import (
-    get_handle_config_manager,
-    initialize_handle_config_manager,
-)
-from ..core.menu_config import ensure_menu_config_file_async, load_menu_config
+from ..core.config import get_handle_config_manager
+from ..core.menu_config import MenuConfigError, load_menu_config
 from ..handle import menu as menu_module
 from ..handle.qq.adapters import import_handle
 from ..i18n import _async as _, warm_translation_cache
@@ -31,26 +28,20 @@ from ..services.scheduler import (
 
 
 async def startup() -> None:
-    """Initialize configuration, handlers, stores, and scheduler."""
-    try:
-        await ensure_menu_config_file_async()
-    except Exception:
-        logger.exception("Failed to ensure menu config file")
-    try:
-        await get_handle_config_manager().ensure_config_files()
-    except Exception:
-        logger.exception("Failed to ensure handle config files")
+    """Load runtime state and initialize handlers, stores, and scheduler."""
     await load_bot_state()
     try:
         menu_pages, menu_features = await load_menu_config()
         menu_module.set_menu_pages(menu_pages)
         menu_module.set_menu_features(menu_features)
-    except Exception:
-        logger.exception("Failed to load menu config")
-    try:
-        await initialize_handle_config_manager()
-    except Exception:
-        logger.exception("Failed to initialize handle config manager")
+    except MenuConfigError as exc:
+        logger.error(
+            "Failed to load menu config; using in-memory defaults: {}",
+            exc,
+        )
+        menu_module.set_menu_pages(menu_module._DEFAULT_MENU_PAGES)
+        menu_module.set_menu_features(menu_module._DEFAULT_MENU_FEATURES)
+    await get_handle_config_manager().get_all_configs()
     registered_adapter_names = tuple(
         str(adapter_name) for adapter_name in get_adapters()
     )

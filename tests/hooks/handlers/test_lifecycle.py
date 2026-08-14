@@ -34,10 +34,19 @@ async def test_on_shutdown_calls_scheduler_then_message_store(
         lifecycle, "shutdown_scheduler_service", _shutdown_scheduler_service
     )
     monkeypatch.setattr(lifecycle, "shutdown_message_store", _shutdown_message_store)
+    monkeypatch.setattr(
+        lifecycle,
+        "drain_background_tasks",
+        lambda: _record_background_tasks(call_order),
+    )
 
     await lifecycle.on_shutdown()
 
-    assert call_order == ["scheduler", "message_store"]
+    assert call_order == ["scheduler", "message_store", "background_tasks"]
+
+
+async def _record_background_tasks(call_order: list[str]) -> None:
+    call_order.append("background_tasks")
 
 
 @pytest.mark.asyncio
@@ -46,15 +55,18 @@ async def test_on_shutdown_attempts_every_service_and_reports_failures(
 ) -> None:
     scheduler = AsyncMock(side_effect=RuntimeError("scheduler failed"))
     message_store = AsyncMock()
+    background_tasks = AsyncMock()
     log_error = MagicMock()
     monkeypatch.setattr(lifecycle, "shutdown_scheduler_service", scheduler)
     monkeypatch.setattr(lifecycle, "shutdown_message_store", message_store)
+    monkeypatch.setattr(lifecycle, "drain_background_tasks", background_tasks)
     monkeypatch.setattr(lifecycle.logger, "error", log_error, raising=False)
 
     await lifecycle.on_shutdown()
 
     scheduler.assert_awaited_once()
     message_store.assert_awaited_once()
+    background_tasks.assert_awaited_once()
     assert log_error.call_count == 1
 
 
@@ -64,14 +76,17 @@ async def test_on_shutdown_finishes_cleanup_before_propagating_cancellation(
 ) -> None:
     scheduler = AsyncMock(side_effect=asyncio.CancelledError())
     message_store = AsyncMock()
+    background_tasks = AsyncMock()
     monkeypatch.setattr(lifecycle, "shutdown_scheduler_service", scheduler)
     monkeypatch.setattr(lifecycle, "shutdown_message_store", message_store)
+    monkeypatch.setattr(lifecycle, "drain_background_tasks", background_tasks)
 
     with pytest.raises(asyncio.CancelledError):
         await lifecycle.on_shutdown()
 
     scheduler.assert_awaited_once()
     message_store.assert_awaited_once()
+    background_tasks.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -90,10 +105,14 @@ async def test_on_shutdown_external_cancellation_waits_for_every_cleanup(
     async def _shutdown_message_store() -> None:
         call_order.append("message_store")
 
+    async def _drain_background_tasks() -> None:
+        call_order.append("background_tasks")
+
     monkeypatch.setattr(
         lifecycle, "shutdown_scheduler_service", _shutdown_scheduler_service
     )
     monkeypatch.setattr(lifecycle, "shutdown_message_store", _shutdown_message_store)
+    monkeypatch.setattr(lifecycle, "drain_background_tasks", _drain_background_tasks)
 
     async def _run_shutdown() -> None:
         await lifecycle.on_shutdown()
@@ -109,7 +128,7 @@ async def test_on_shutdown_external_cancellation_waits_for_every_cleanup(
     with pytest.raises(asyncio.CancelledError):
         await shutdown_task
 
-    assert call_order == ["scheduler", "message_store"]
+    assert call_order == ["scheduler", "message_store", "background_tasks"]
 
 
 @pytest.mark.asyncio

@@ -5,14 +5,22 @@
 - 全局状态标志读写（bot_state 模块）
 - 闭嘴/说话/开机/关机四个命令处理器
 - _state_wrapper 门禁阻断与放行行为
-- _silent_call 静默抑制与 finish 恢复行为
+- _silent_call 静默抑制与请求上下文隔离行为
 - 集成场景：门禁关闭时全体禁言被阻断、静默模式下全体禁言抑制 finish
 """
 
+import asyncio
+from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from nonebot.exception import FinishedException
+from nonebot.internal.matcher.matcher import (
+    Matcher,
+    current_bot,
+    current_event,
+    current_matcher,
+)
 import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.core import bot_state as bot_state_module
@@ -41,7 +49,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.bot_state import 
     bot_speak_cmd,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.common import (
-    _silent_call,
     _state_wrapper,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.mute import (
@@ -423,13 +430,8 @@ class TestGateBlocking:
 # ================= 静默抑制测试 =================
 
 
-class _FakeCommand:
-    """模拟匹配器命令类，用于 _state_wrapper 单元测试。"""
-
-    @classmethod
-    async def finish(cls, _message: Any = None, **_kwargs: Any) -> Any:
-        """模拟 finish 方法。"""
-        return "original"
+class _FakeCommand(Matcher):
+    """模拟 NoneBot matcher，用于 _state_wrapper 单元测试。"""
 
 
 class TestSilentSuppression:
@@ -438,6 +440,9 @@ class TestSilentSuppression:
     @pytest.mark.asyncio
     async def test_silent_mode_suppresses_finish(self) -> None:
         """测试静默模式下 _state_wrapper 抑制 finish 消息。"""
+        bot = MagicMock()
+        bot.send = AsyncMock()
+        event = MagicMock()
 
         async def fake_handler(*_args: Any, **_kwargs: Any) -> Any:
             await _FakeCommand.finish("消息")
@@ -448,13 +453,24 @@ class TestSilentSuppression:
         )
 
         set_global_silent_mode(silent=True)
-        with pytest.raises(FinishedException):
-            await wrapped()
+        bot_token = current_bot.set(bot)
+        event_token = current_event.set(event)
+        try:
+            with pytest.raises(FinishedException):
+                await wrapped()
+        finally:
+            current_bot.reset(bot_token)
+            current_event.reset(event_token)
+
+        bot.send.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_silent_mode_calls_handler(self) -> None:
         """测试静默模式下处理器函数仍被执行。"""
         handler_called = False
+        bot = MagicMock()
+        bot.send = AsyncMock()
+        event = MagicMock()
 
         async def fake_handler(*_args: Any, **_kwargs: Any) -> Any:
             nonlocal handler_called
@@ -467,20 +483,30 @@ class TestSilentSuppression:
         )
 
         set_global_silent_mode(silent=True)
-        with pytest.raises(FinishedException):
-            await wrapped()
+        bot_token = current_bot.set(bot)
+        event_token = current_event.set(event)
+        try:
+            with pytest.raises(FinishedException):
+                await wrapped()
+        finally:
+            current_bot.reset(bot_token)
+            current_event.reset(event_token)
 
         assert handler_called is True
+        bot.send.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_bypass_silent_allows_finish_when_silent(self) -> None:
         """测试 check_silent=False 时即使静默模式开启也正常调用。"""
-        finish_called = False
+        handler_called = False
+        bot = MagicMock()
+        bot.send = AsyncMock()
+        event = MagicMock()
 
         async def fake_handler(*_args: Any, **_kwargs: Any) -> Any:
-            nonlocal finish_called
+            nonlocal handler_called
+            handler_called = True
             await _FakeCommand.finish("消息")
-            finish_called = True
             return "result"
 
         wrapped = _state_wrapper(
@@ -491,10 +517,17 @@ class TestSilentSuppression:
         )
 
         set_global_silent_mode(silent=True)
-        result = await wrapped()
+        bot_token = current_bot.set(bot)
+        event_token = current_event.set(event)
+        try:
+            with pytest.raises(FinishedException):
+                await wrapped()
+        finally:
+            current_bot.reset(bot_token)
+            current_event.reset(event_token)
 
-        assert result == "result"
-        assert finish_called is True
+        assert handler_called is True
+        bot.send.assert_awaited_once_with(event=event, message="消息")
 
     @pytest.mark.asyncio
     async def test_silent_mode_suppresses_whole_mute_finish(
@@ -514,18 +547,82 @@ class TestSilentSuppression:
         )
 
         set_global_silent_mode(silent=True)
-        with (
-            patch.object(whole_mute_cmd, "finish") as mock_finish,
-            pytest.raises(FinishedException),
-        ):
-            await wrapped(
-                bot=mock_onebot11_bot,
-                event=mock_onebot11_event,
-                session=mock_session,
-            )
+        mock_onebot11_bot.send = AsyncMock()
+        bot_token = current_bot.set(mock_onebot11_bot)
+        event_token = current_event.set(mock_onebot11_event)
+        matcher_token = current_matcher.set(cast("Matcher", SimpleNamespace(state={})))
+        try:
+            with pytest.raises(FinishedException):
+                await wrapped(
+                    bot=mock_onebot11_bot,
+                    event=mock_onebot11_event,
+                    session=mock_session,
+                )
+        finally:
+            current_bot.reset(bot_token)
+            current_event.reset(event_token)
+            current_matcher.reset(matcher_token)
 
         mock_onebot11_bot.set_group_whole_ban.assert_called_once()
-        mock_finish.assert_not_called()
+        mock_onebot11_bot.send.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_silent_mode_isolated_between_concurrent_requests(self) -> None:
+        """测试同一 matcher 的静默状态不会泄漏到并发请求。"""
+        silent_bot = MagicMock()
+        silent_bot.send = AsyncMock()
+        normal_bot = MagicMock()
+        normal_bot.send = AsyncMock()
+        silent_event = MagicMock()
+        normal_event = MagicMock()
+
+        async def silent_handler() -> None:
+            await asyncio.sleep(0)
+            await _FakeCommand.finish("静默消息")
+
+        async def normal_handler() -> None:
+            await asyncio.sleep(0)
+            await _FakeCommand.finish("正常消息")
+
+        silent_wrapper = _state_wrapper(
+            cast("Any", _FakeCommand),
+            silent_handler,
+            platform_id="qq",
+            check_silent=True,
+        )
+        bypass_wrapper = _state_wrapper(
+            cast("Any", _FakeCommand),
+            normal_handler,
+            platform_id="qq",
+            check_silent=False,
+        )
+
+        async def invoke(
+            wrapped: Any,
+            bot: Any,
+            event: Any,
+        ) -> None:
+            bot_token = current_bot.set(bot)
+            event_token = current_event.set(event)
+            try:
+                with pytest.raises(FinishedException):
+                    await wrapped()
+            finally:
+                current_bot.reset(bot_token)
+                current_event.reset(event_token)
+
+        set_global_silent_mode(silent=True)
+        await asyncio.gather(
+            invoke(silent_wrapper, silent_bot, silent_event),
+            invoke(bypass_wrapper, normal_bot, normal_event),
+        )
+
+        silent_bot.send.assert_not_awaited()
+        normal_bot.send.assert_awaited_once_with(
+            event=normal_event,
+            message="正常消息",
+        )
+        assert "finish" not in _FakeCommand.__dict__
 
     @pytest.mark.asyncio
     async def test_speak_handler_responds_when_silent(
@@ -541,58 +638,6 @@ class TestSilentSuppression:
 
         assert is_silent_mode("qq") is False
         assert finish_text(mock_finish) == "已退出静默模式"
-
-
-# ================= _silent_call 恢复测试 =================
-
-
-class TestSilentCallRestore:
-    """_silent_call 恢复 finish 方法测试。"""
-
-    @pytest.mark.asyncio
-    async def test_restores_finish_after_handler(self) -> None:
-        """测试 _silent_call 在处理器完成后恢复原始 finish。"""
-        original = _FakeCommand.__dict__["finish"]
-
-        async def fake_handler(*_args: Any, **_kwargs: Any) -> Any:
-            await _FakeCommand.finish("消息")
-            return "result"
-
-        with pytest.raises(FinishedException):
-            await _silent_call(cast("Any", _FakeCommand), fake_handler)
-
-        assert _FakeCommand.__dict__["finish"] is original
-
-    @pytest.mark.asyncio
-    async def test_restores_finish_on_exception(self) -> None:
-        """测试 _silent_call 在处理器抛出异常时仍恢复原始 finish。"""
-        original = _FakeCommand.__dict__["finish"]
-
-        async def fake_handler(*_args: Any, **_kwargs: Any) -> Any:
-            raise RuntimeError("error")
-
-        with pytest.raises(RuntimeError, match="error"):
-            await _silent_call(cast("Any", _FakeCommand), fake_handler)
-
-        assert _FakeCommand.__dict__["finish"] is original
-
-    @pytest.mark.asyncio
-    async def test_deletes_shadow_finish_when_inherited(self) -> None:
-        """测试 finish 为继承方法时 _silent_call 删除影子属性。"""
-
-        class Child(_FakeCommand):
-            pass
-
-        assert "finish" not in Child.__dict__
-
-        async def fake_handler(*_args: Any, **_kwargs: Any) -> Any:
-            await Child.finish("消息")
-            return "result"
-
-        with pytest.raises(FinishedException):
-            await _silent_call(cast("Any", Child), fake_handler)
-
-        assert "finish" not in Child.__dict__
 
 
 # ================= __getattr__ 懒加载导出测试 =================
