@@ -32,7 +32,7 @@ NAPCAT_IMPL: Final = "NapCat.Onebot"
 menu_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(_MENU.primary),
     aliases=_MENU.aliases,
-    priority=5,
+    priority=805,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,
@@ -179,7 +179,7 @@ def _menu_page_command(page: MenuPage) -> str:
 menu_page_cmds: Final[dict[str, type[AlconnaMatcher]]] = {
     page.id: on_alconna(
         command=Alconna(_menu_page_command(page)),
-        priority=5,
+        priority=805,
         block=True,
         use_cmd_sep=True,
         use_cmd_start=True,

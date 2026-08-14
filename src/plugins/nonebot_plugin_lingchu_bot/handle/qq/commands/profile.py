@@ -61,7 +61,7 @@ async def _resolve_image_path(image: UniImage | None) -> Path | None:
 set_group_name_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(_SET_GROUP_NAME.primary, Args["new_group_name", str]),
     aliases=_SET_GROUP_NAME.aliases,
-    priority=5,
+    priority=805,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,
@@ -69,7 +69,7 @@ set_group_name_cmd: type[AlconnaMatcher] = on_alconna(
 set_group_avatar_cmd: type[AlconnaMatcher] = on_alconna(
     command=Alconna(_SET_GROUP_AVATAR.primary, Args["image", UniImage | None]),
     aliases=_SET_GROUP_AVATAR.aliases,
-    priority=5,
+    priority=805,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,

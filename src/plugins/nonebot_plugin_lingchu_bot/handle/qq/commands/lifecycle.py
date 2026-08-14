@@ -16,7 +16,7 @@ _RESTART_PROTOCOL_ENDPOINT = COMMAND_TRIGGERS["restart_protocol_endpoint"]
 quit_group_cmd: type[Matcher] = on_alconna(
     command=Alconna(_LEAVE_GROUP.primary),
     aliases=_LEAVE_GROUP.aliases,
-    priority=5,
+    priority=805,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,
@@ -28,7 +28,7 @@ restart_protocol_endpoint_cmd: type[Matcher] = on_alconna(
         Args["platform?", str, None],
     ),
     aliases=_RESTART_PROTOCOL_ENDPOINT.aliases,
-    priority=5,
+    priority=805,
     block=True,
     use_cmd_sep=True,
     use_cmd_start=True,

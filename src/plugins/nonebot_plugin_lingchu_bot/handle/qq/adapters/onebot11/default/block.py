@@ -48,8 +48,8 @@ from .common import (
     store_block_record,
 )
 
-blocklisted_message = on_message(priority=1, block=False)
-blocklisted_group_request = on_request(priority=1, block=False)
+blocklisted_message = on_message(priority=801, block=False)
+blocklisted_group_request = on_request(priority=801, block=False)
 
 
 async def _finish_database_error(
