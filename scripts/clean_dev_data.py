@@ -62,14 +62,18 @@ def _validate_target(root: Path, target: Path) -> Path:
     if candidate == root:
         raise RuntimeError("refusing to operate on the repository root")
 
-    if candidate.is_symlink():
-        resolved_link = candidate.resolve(strict=False)
-        try:
-            resolved_link.relative_to(root)
-        except ValueError as exc:
-            raise RuntimeError(
-                f"refusing to follow symlink outside repository: {candidate}"
-            ) from exc
+    # A parent directory may be a symlink pointing outside the repository,
+    # making the candidate itself not a symlink while its resolved path
+    # escapes the root (e.g. repo/src -> /outside, repo/src/pkg/__pycache__).
+    resolved = candidate.resolve(strict=False)
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"refusing to follow path outside repository: {candidate}"
+        ) from exc
+    if resolved == root:
+        raise RuntimeError("refusing to operate on the repository root")
     return candidate
 
 

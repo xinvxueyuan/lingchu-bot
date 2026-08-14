@@ -273,7 +273,11 @@ async def test_request_one_hop_uses_generic_client_when_no_native_client() -> No
 
     class GenericSession:
         request = AsyncMock(
-            return_value=SimpleNamespace(status_code=200, content=b"ok")
+            return_value=SimpleNamespace(
+                status_code=200,
+                content=b"ok",
+                peer_address=("93.184.216.34", 443),
+            )
         )
 
         @property
@@ -308,7 +312,13 @@ async def test_download_public_http_bytes_checks_status_and_size(
         "resolve_host_addresses",
         AsyncMock(return_value=("93.184.216.34",)),
     )
-    request = AsyncMock(return_value=SimpleNamespace(status_code=200, content=b"png"))
+    request = AsyncMock(
+        return_value=SimpleNamespace(
+            status_code=200,
+            content=b"png",
+            peer_address=("93.184.216.34", 443),
+        )
+    )
 
     class SessionContext:
         async def __aenter__(self) -> Any:
@@ -345,11 +355,13 @@ async def test_download_public_http_bytes_revalidates_each_redirect(
                 status_code=302,
                 headers={"Location": "/image.png"},
                 content=b"",
+                peer_address=("93.184.216.34", 443),
             ),
             SimpleNamespace(
                 status_code=200,
                 headers={"Content-Length": "3"},
                 content=b"png",
+                peer_address=("1.1.1.1", 443),
             ),
         ]
     )
@@ -392,6 +404,7 @@ async def test_download_public_http_bytes_rejects_private_redirect(
             status_code=302,
             headers={"Location": "http://internal.example/image.png"},
             content=b"",
+            peer_address=("93.184.216.34", 443),
         )
     )
 
@@ -427,6 +440,7 @@ async def test_download_public_http_bytes_rejects_https_downgrade(
             status_code=302,
             headers={"Location": "http://example.com/image.png"},
             content=b"",
+            peer_address=("93.184.216.34", 443),
         )
     )
 
@@ -501,6 +515,7 @@ async def test_download_public_http_bytes_limits_streamed_body(
             status_code=200,
             headers={},
             content=body(),
+            peer_address=("93.184.216.34", 443),
         )
     )
 

@@ -224,7 +224,13 @@ async def test_resolve_image_path_downloads_and_caches_url(
     monkeypatch.setattr(profile, "plugin_config", fake_config)
 
     downloaded_content = b"downloaded-image-bytes"
-    request_call = AsyncMock(return_value=SimpleNamespace(content=downloaded_content))
+    request_call = AsyncMock(
+        return_value=SimpleNamespace(
+            content=downloaded_content,
+            status_code=200,
+            peer_address=("93.184.216.34", 443),
+        )
+    )
 
     class SessionContext:
         async def __aenter__(self) -> Any:

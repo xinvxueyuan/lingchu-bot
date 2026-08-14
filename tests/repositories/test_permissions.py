@@ -730,7 +730,12 @@ async def test_delete_stale_superuser_accounts_uses_configured_account_set(
         for condition in conditions
     )
     assert "superusers_config" in compiled_conditions
-    assert "NOT IN" in compiled_conditions
+    # The tuple IN condition is expanded into OR of ANDs so it compiles on
+    # SQL Server, which lacks row-value comparisons.
+    assert "platform_id = 'qq'" in compiled_conditions
+    assert "account_id = '42'" in compiled_conditions
+    assert "AND" in compiled_conditions
+    assert "NOT" in compiled_conditions
 
 
 @pytest.mark.asyncio
@@ -741,6 +746,40 @@ async def test_delete_stale_superuser_accounts_rejects_empty_account_set(
         await repo.delete_stale_superuser_accounts(
             mock_session,
             configured_accounts=(),
+        )
+
+
+@pytest.mark.asyncio
+async def test_delete_stale_superuser_grants_uses_configured_command_keys(
+    mock_session: Mock,
+) -> None:
+    delete_mock = AsyncMock(return_value=(1, True))
+
+    with patch.object(repo, "delete", delete_mock):
+        result = await repo.delete_stale_superuser_grants(
+            mock_session,
+            configured_command_keys={"kick_member", "block_member"},
+        )
+
+    assert result == (1, True)
+    assert delete_mock.call_args.args[0] is mock_session
+    assert delete_mock.call_args.args[1] is PermissionGrant
+    assert delete_mock.call_args.args[2] == {"group_id": SUPERUSERS_GROUP_ID}
+    condition = delete_mock.call_args.kwargs["conditions"][0]
+    compiled_condition = str(condition.compile(compile_kwargs={"literal_binds": True}))
+    assert "NOT IN" in compiled_condition
+    assert "kick_member" in compiled_condition
+    assert "block_member" in compiled_condition
+
+
+@pytest.mark.asyncio
+async def test_delete_stale_superuser_grants_rejects_empty_command_set(
+    mock_session: Mock,
+) -> None:
+    with pytest.raises(ValueError):
+        await repo.delete_stale_superuser_grants(
+            mock_session,
+            configured_command_keys=(),
         )
 
 

@@ -129,7 +129,10 @@ async def _silent_call(
 
     bot_token = None
     if bot is not None:
-        bot_token = current_bot.set(cast("Bot", _SilentBotProxy(cast("Bot", bot))))
+        proxy = _SilentBotProxy(cast("Bot", bot))
+        bot_token = current_bot.set(cast("Bot", proxy))
+        if kwargs.get("bot") is bot:
+            kwargs = {**kwargs, "bot": proxy}
     try:
         return await func(*args, **kwargs)
     finally:

@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 _HTTP_SCHEMES = frozenset({"http", "https"})
 _HTTP_ERROR_STATUS = 400
+_HTTP_SUCCESS_RANGE = (200, 300)
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _MAX_REDIRECTS = 3
 
@@ -277,7 +278,7 @@ async def _request_one_hop_httpx(
             required=True,
         )
         status_code = response.status_code
-        if status_code >= _HTTP_ERROR_STATUS or status_code in _REDIRECT_STATUSES:
+        if not _HTTP_SUCCESS_RANGE[0] <= status_code < _HTTP_SUCCESS_RANGE[1]:
             return _SingleHopResponse(status_code, headers, b"")
         content = await _read_limited_chunks(response.aiter_bytes(), max_bytes)
     return _SingleHopResponse(status_code, headers, content)
@@ -308,7 +309,7 @@ async def _request_one_hop_aiohttp(
             required=True,
         )
         status_code = response.status
-        if status_code >= _HTTP_ERROR_STATUS or status_code in _REDIRECT_STATUSES:
+        if not _HTTP_SUCCESS_RANGE[0] <= status_code < _HTTP_SUCCESS_RANGE[1]:
             return _SingleHopResponse(status_code, headers, b"")
         content = await _read_limited_chunks(
             response.content.iter_chunked(8192),
@@ -327,13 +328,22 @@ async def _request_one_hop_generic(
     response = await session.request(request)
     headers = getattr(response, "headers", None)
     _validate_declared_response_size(headers, max_bytes)
+    # Generic driver sessions cannot guarantee that automatic redirects are
+    # disabled or that a peer address is always reported. Require a verified
+    # peer address before reading any body so the DNS pinning cannot be
+    # bypassed by a redirect-following driver.
     _validate_peer_host(
         _response_peer_host(response),
         allowed_addresses,
-        required=False,
+        required=True,
     )
-    status_code = getattr(response, "status_code", 200)
-    if status_code >= _HTTP_ERROR_STATUS or status_code in _REDIRECT_STATUSES:
+    status_code = getattr(response, "status_code", None)
+    if not isinstance(status_code, int) or not (
+        _HTTP_SUCCESS_RANGE[0] <= status_code < _HTTP_SUCCESS_RANGE[1]
+    ):
+        if status_code is None:
+            msg = "download response is missing a status code"
+            raise UnsafeDownloadURLError(msg)
         return _SingleHopResponse(status_code, headers, b"")
     content = await _read_response_content(
         getattr(response, "content", b""),
@@ -418,7 +428,11 @@ async def download_public_http_bytes(
                     raise UnsafeDownloadURLError(msg)
                 current_url = _redirect_url(current_url, response.headers)
                 continue
-            if response.status_code >= _HTTP_ERROR_STATUS:
+            if (
+                not _HTTP_SUCCESS_RANGE[0]
+                <= response.status_code
+                < _HTTP_SUCCESS_RANGE[1]
+            ):
                 msg = "image download failed"
                 raise UnsafeDownloadURLError(msg)
             return response.content

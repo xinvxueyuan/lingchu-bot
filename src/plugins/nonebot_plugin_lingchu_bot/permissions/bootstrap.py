@@ -131,6 +131,11 @@ async def _sync_superusers(
         session,
         configured_uids=superusers.keys(),
     )
+    configured_command_keys = [feature.command_key for feature in MENU_FEATURES]
+    await repo.delete_stale_superuser_grants(
+        session,
+        configured_command_keys=configured_command_keys,
+    )
     for feature in MENU_FEATURES:
         await repo.grant_command(
             session,

@@ -169,6 +169,54 @@ _FOREIGN_KEYS = (
 )
 
 
+def _remove_orphan_identity_rows() -> None:
+    """Delete rows that would violate the new foreign keys.
+
+    Historic data may contain rows referencing deleted users/groups because
+    the previous schema only had plain indexes. MySQL/PostgreSQL validate
+    existing rows when creating a foreign key, so orphans must be removed
+    first or the migration aborts mid-upgrade.
+    """
+    bind = op.get_bind()
+    users = sa.table("lingchu_identity_users", sa.column("uid", sa.String(64)))
+    groups = sa.table(
+        "lingchu_platform_identity_groups",
+        sa.column("group_id", sa.String(128)),
+        sa.column("parent_group_id", sa.String(128)),
+    )
+    accounts = sa.table(_PLATFORM_ACCOUNTS_TABLE, sa.column("uid", sa.String(64)))
+    memberships = sa.table(
+        _MEMBERSHIP_TABLE,
+        sa.column("uid", sa.String(64)),
+        sa.column("group_id", sa.String(128)),
+    )
+    grants = sa.table(
+        "lingchu_permission_grants",
+        sa.column("group_id", sa.String(128)),
+    )
+    known_uids = sa.select(users.c.uid)
+    known_groups = sa.select(groups.c.group_id)
+    # MySQL forbids referencing the target table directly in UPDATE/DELETE
+    # subqueries; wrap the self-referential group subquery in a derived table.
+    known_groups_derived = known_groups.subquery()
+    known_group_ids = sa.select(known_groups_derived.c.group_id)
+    bind.execute(accounts.delete().where(accounts.c.uid.not_in(known_uids)))
+    bind.execute(memberships.delete().where(memberships.c.uid.not_in(known_uids)))
+    bind.execute(
+        memberships.delete().where(memberships.c.group_id.not_in(known_groups))
+    )
+    bind.execute(grants.delete().where(grants.c.group_id.not_in(known_groups)))
+    bind.execute(
+        groups
+        .update()
+        .where(
+            groups.c.parent_group_id.is_not(None),
+            groups.c.parent_group_id.not_in(known_group_ids),
+        )
+        .values(parent_group_id=None)
+    )
+
+
 def upgrade(name: str = "") -> None:
     """Backfill global scopes and add identity referential integrity."""
     if name:
@@ -176,6 +224,7 @@ def upgrade(name: str = "") -> None:
 
     _backfill_global_scope_ids()
     _add_platform_account_source()
+    _remove_orphan_identity_rows()
     for (
         table_name,
         constraint_name,

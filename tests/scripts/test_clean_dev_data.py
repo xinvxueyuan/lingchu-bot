@@ -62,3 +62,26 @@ def test_clean_dev_data_apply_removes_runtime_and_artifacts(
 def test_validate_target_rejects_path_outside_repository(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="outside repository"):
         clean_dev_data._validate_target(tmp_path, tmp_path.parent / "outside")
+
+
+def test_validate_target_rejects_path_escaping_via_parent_symlink(
+    tmp_path: Path,
+) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "pkg").mkdir()
+    (outside / "pkg" / "__pycache__").mkdir()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "src").symlink_to(outside, target_is_directory=True)
+    candidate = repo / "src" / "pkg" / "__pycache__"
+
+    with pytest.raises(RuntimeError, match="outside repository"):
+        clean_dev_data._validate_target(repo, candidate)
+
+
+def test_validate_target_rejects_repository_root_via_resolution(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(RuntimeError, match="repository root"):
+        clean_dev_data._validate_target(tmp_path, tmp_path)

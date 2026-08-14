@@ -68,6 +68,7 @@ async def test_sync_superusers_grants_all_menu_features() -> None:
         patch.object(repo, "bind_platform_account", AsyncMock()),
         patch.object(repo, "delete_stale_superuser_accounts", AsyncMock()),
         patch.object(repo, "delete_stale_superuser_memberships", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_grants", AsyncMock()),
         patch.object(repo, "grant_command", grant_mock),
     ):
         await bootstrap._sync_superusers(Mock(), _superusers())
@@ -88,6 +89,7 @@ async def test_sync_superusers_grants_with_superuser_group_id() -> None:
         patch.object(repo, "bind_platform_account", AsyncMock()),
         patch.object(repo, "delete_stale_superuser_accounts", AsyncMock()),
         patch.object(repo, "delete_stale_superuser_memberships", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_grants", AsyncMock()),
         patch.object(repo, "grant_command", grant_mock),
     ):
         await bootstrap._sync_superusers(Mock(), _superusers())
@@ -106,6 +108,7 @@ async def test_sync_superusers_propagates_grant_failure() -> None:
         patch.object(repo, "bind_platform_account", AsyncMock()),
         patch.object(repo, "delete_stale_superuser_accounts", AsyncMock()),
         patch.object(repo, "delete_stale_superuser_memberships", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_grants", AsyncMock()),
         patch.object(repo, "grant_command", grant_mock),
         pytest.raises(RuntimeError, match="boom"),
     ):
@@ -129,6 +132,7 @@ async def test_sync_superusers_stops_after_first_grant_failure() -> None:
         patch.object(repo, "bind_platform_account", AsyncMock()),
         patch.object(repo, "delete_stale_superuser_accounts", AsyncMock()),
         patch.object(repo, "delete_stale_superuser_memberships", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_grants", AsyncMock()),
         patch.object(repo, "grant_command", grant_mock),
         pytest.raises(RuntimeError, match="boom"),
     ):
@@ -162,6 +166,7 @@ async def test_sync_superusers_preserves_dependency_chain_order() -> None:
         patch.object(repo, "bind_platform_account", record_bind_platform_account),
         patch.object(repo, "delete_stale_superuser_accounts", AsyncMock()),
         patch.object(repo, "delete_stale_superuser_memberships", AsyncMock()),
+        patch.object(repo, "delete_stale_superuser_grants", AsyncMock()),
         patch.object(repo, "grant_command", AsyncMock()),
     ):
         await bootstrap._sync_superusers(Mock(), _superusers())

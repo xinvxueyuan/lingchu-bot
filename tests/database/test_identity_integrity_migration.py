@@ -142,3 +142,111 @@ def test_identity_integrity_migration_backfills_and_roundtrips() -> None:
             ]
     finally:
         engine.dispose()
+
+
+def test_identity_integrity_migration_removes_orphan_rows() -> None:
+    """Orphan rows referencing deleted users/groups are removed before FKs."""
+    module_name = ".".join((
+        "src.plugins.nonebot_plugin_lingchu_bot.migrations",
+        "d7e8f9a0b1c2_identity_integrity",
+    ))
+    migration = import_module(module_name)
+    engine = create_engine("sqlite://")
+    try:
+        metadata = sa.MetaData()
+        users, groups, accounts, memberships, grants = _identity_tables(metadata)
+        metadata.create_all(engine)
+
+        with engine.begin() as connection:
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            connection.execute(users.insert(), [{"uid": "u1"}])
+            connection.execute(
+                groups.insert(),
+                [
+                    {"group_id": "g1", "parent_group_id": None},
+                    {"group_id": "orphan-child", "parent_group_id": "ghost-parent"},
+                ],
+            )
+            connection.execute(
+                accounts.insert(),
+                [
+                    {"id": 1, "uid": "u1"},
+                    {"id": 2, "uid": "ghost-user"},  # orphan uid
+                ],
+            )
+            connection.execute(
+                memberships.insert(),
+                [
+                    {
+                        "id": 1,
+                        "uid": "u1",
+                        "group_id": "g1",
+                        "scope_type": "global",
+                        "scope_id": None,
+                        "updated_at": datetime(2026, 1, 1, tzinfo=UTC),
+                        "source": "manual",
+                    },
+                    {
+                        "id": 2,
+                        "uid": "ghost-user",  # orphan uid
+                        "group_id": "g1",
+                        "scope_type": "global",
+                        "scope_id": None,
+                        "updated_at": datetime(2026, 1, 1, tzinfo=UTC),
+                        "source": "manual",
+                    },
+                    {
+                        "id": 3,
+                        "uid": "u1",
+                        "group_id": "ghost-group",  # orphan group_id
+                        "scope_type": "global",
+                        "scope_id": None,
+                        "updated_at": datetime(2026, 1, 1, tzinfo=UTC),
+                        "source": "manual",
+                    },
+                ],
+            )
+            connection.execute(
+                grants.insert(),
+                [
+                    {"id": 1, "group_id": "g1"},
+                    {"id": 2, "group_id": "ghost-group"},  # orphan group_id
+                ],
+            )
+
+            operations = Operations(MigrationContext.configure(connection))
+            with patch.object(migration, "op", operations):
+                migration.upgrade()
+
+            assert connection.execute(
+                sa.select(accounts.c.id).order_by(accounts.c.id)
+            ).scalars().all() == [1]
+            assert connection.execute(
+                sa.select(memberships.c.id).order_by(memberships.c.id)
+            ).scalars().all() == [1]
+            assert connection.execute(
+                sa.select(grants.c.id).order_by(grants.c.id)
+            ).scalars().all() == [1]
+            parent_ids = connection.execute(
+                sa.select(groups.c.group_id, groups.c.parent_group_id)
+            ).all()
+            parent_map: dict[str, str | None] = {}
+            for group_id, parent_group_id in parent_ids:
+                parent_map[str(group_id)] = (
+                    str(parent_group_id) if parent_group_id is not None else None
+                )
+            assert parent_map == {
+                "g1": None,
+                "orphan-child": None,  # dangling parent_group_id reset to NULL
+            }
+
+            # FK creation must succeed on the cleaned data.
+            foreign_keys = connection.exec_driver_sql(
+                "PRAGMA foreign_key_list('lingchu_identity_memberships')"
+            ).all()
+            assert {row[2] for row in foreign_keys} == {
+                "lingchu_identity_users",
+                "lingchu_platform_identity_groups",
+            }
+    finally:
+        engine.dispose()

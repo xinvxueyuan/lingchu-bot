@@ -50,17 +50,51 @@ def _telegram_bot_id(bot: Bot) -> str:
     return str(getattr(bot, "self_id", ""))
 
 
-def _telegram_member_status(member: Any) -> str:
+def _telegram_member_field(member: Any, name: str) -> Any:
+    """Read a member field from either a dict or an object response."""
     if isinstance(member, dict):
-        value = member.get("status")
-    else:
-        value = getattr(member, "status", None)
+        return member.get(name)
+    return getattr(member, name, None)
+
+
+def _telegram_member_status(member: Any) -> str:
+    value = _telegram_member_field(member, "status")
     return value if isinstance(value, str) else ""
 
 
 def _telegram_is_superuser(user_id: int) -> bool:
     superusers = getattr(getattr(get_driver(), "config", None), "superusers", ())
-    return str(user_id) in {str(value) for value in superusers}
+    text_id = str(user_id)
+    configured = {str(value) for value in superusers}
+    # NoneBot 2.5 supports both plain IDs and adapter-prefixed entries such as
+    # "telegram:123456789"; match both so prefixed superusers are honored.
+    return text_id in configured or f"telegram:{text_id}" in configured
+
+
+def _normalized_block_duration(duration: Any) -> int | None:
+    """Normalize a configured block duration for Telegram.
+
+    TOML values may be strings or invalid types; coerce them to seconds and
+    return None (permanent) when the value is not a positive number. Telegram
+    treats until_date values less than 30 seconds in the future as a permanent
+    ban, so positive durations are raised to a 30-second minimum to keep the
+    local expires_at consistent with the actual ban behavior.
+    """
+    if isinstance(duration, bool):
+        return None
+    if isinstance(duration, str):
+        text = duration.strip()
+        try:
+            value = int(text)
+        except ValueError:
+            return None
+    elif isinstance(duration, int):
+        value = duration
+    else:
+        return None
+    if value <= 0:
+        return None
+    return max(value, 30)
 
 
 async def _finish_database_error(
@@ -93,7 +127,7 @@ async def _check_telegram_bot_privilege(
     if status == "creator":
         return True
     if status != "administrator" or not bool(
-        getattr(member, "can_restrict_members", False)
+        _telegram_member_field(member, "can_restrict_members")
     ):
         await command.finish(await _("机器人缺少管理员权限"))
         return False
@@ -276,7 +310,7 @@ async def telegram_block_member(
     config = await get_handle_config_manager().get_config("block_member")
     if not config.enabled:
         return await block_member_cmd.finish(await _("该功能已禁用"))
-    actual_duration = (
+    actual_duration = _normalized_block_duration(
         duration if duration is not None else config.defaults.get("block_duration")
     )
     default_reason = config.defaults.get("default_reason", "违反群规")
@@ -315,6 +349,7 @@ async def telegram_block_member(
         await _rollback_session(session)
         return await _finish_rejected(block_member_cmd, "拉黑成员", error)
     except DatabaseError as error:
+        await _rollback_session(session)
         return await _finish_database_error(block_member_cmd, "拉黑成员", error)
     await _record_telegram_audit(
         session,
@@ -361,6 +396,7 @@ async def telegram_unblock_member(
         await _rollback_session(session)
         return await _finish_rejected(unblock_member_cmd, "解除拉黑", error)
     except DatabaseError as error:
+        await _rollback_session(session)
         return await _finish_database_error(unblock_member_cmd, "解除拉黑", error)
     await _record_telegram_audit(
         session,

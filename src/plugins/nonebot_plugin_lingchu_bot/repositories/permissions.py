@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Collection, Iterable
 from typing import TYPE_CHECKING
 
-from sqlalchemy import tuple_
+from sqlalchemy import and_, or_
 
 from ..database.models import (
     IdentityMembership,
@@ -283,10 +283,18 @@ async def delete_stale_superuser_accounts(
     if not configured_account_values:
         raise ValueError
 
-    configured_account_expression = tuple_(
-        PlatformAccount.platform_id,
-        PlatformAccount.account_id,
-    ).in_(configured_account_values)
+    # SQL Server does not support row-value (tuple) comparisons such as
+    # (a, b) IN ((c, d), ...), so expand each configured pair into an OR of
+    # AND conditions instead of using tuple_(...).in_(...).
+    configured_account_expression = or_(
+        *(
+            and_(
+                PlatformAccount.platform_id == platform_id,
+                PlatformAccount.account_id == account_id,
+            )
+            for platform_id, account_id in configured_account_values
+        )
+    )
     return await delete(
         session,
         PlatformAccount,
@@ -295,6 +303,28 @@ async def delete_stale_superuser_accounts(
             PlatformAccount.source == SUPERUSER_SOURCE,
             ~configured_account_expression,
         ],
+    )
+
+
+async def delete_stale_superuser_grants(
+    session: AsyncSession | async_scoped_session[AsyncSession],
+    *,
+    configured_command_keys: Collection[str],
+) -> tuple[int, bool]:
+    """Delete superuser-group grants whose command key is no longer configured.
+
+    The caller owns the surrounding transaction.  An empty configured set is
+    rejected so a malformed call cannot accidentally remove every grant.
+    """
+    configured_command_values = tuple(configured_command_keys)
+    if not configured_command_values:
+        raise ValueError
+
+    return await delete(
+        session,
+        PermissionGrant,
+        {"group_id": SUPERUSERS_GROUP_ID},
+        conditions=[PermissionGrant.command_key.not_in(configured_command_values)],
     )
 
 

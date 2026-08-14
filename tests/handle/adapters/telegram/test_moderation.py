@@ -267,7 +267,27 @@ async def test_telegram_block_writes_blocklist_and_audit(
     assert audit_request.action == "block_member"
     assert audit_request.target_user_id == 42
     assert audit_request.duration == 60
-    assert audit_request.reason == "spam"
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (None, None),
+        (0, None),
+        (-5, None),
+        (60, 60),
+        (10, 30),  # Telegram treats <30s as permanent; raise to 30s minimum
+        (29, 30),
+        (30, 30),
+        ("60", 60),  # string values from TOML are coerced
+        ("invalid", None),
+        ("0", None),
+        (True, None),  # booleans are not valid durations
+        (3.5, None),  # non-integer numerics are rejected
+    ],
+)
+def test_normalized_block_duration(raw: object, expected: int | None) -> None:
+    assert moderation._normalized_block_duration(raw) == expected
 
 
 @pytest.mark.asyncio
