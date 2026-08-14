@@ -6,6 +6,7 @@ from nonebot_plugin_orm import get_session
 from ..core.bot_state import load_bot_state
 from ..core.config import get_handle_config_manager
 from ..core.menu_config import MenuConfigError, load_menu_config
+from ..core.sqlite_tuning import tune_sqlite_connection
 from ..handle import menu as menu_module
 from ..handle.qq.adapters import import_handle
 from ..i18n import _async as _, warm_translation_cache
@@ -29,6 +30,7 @@ from ..services.scheduler import (
 
 async def startup() -> None:
     """Load runtime state and initialize handlers, stores, and scheduler."""
+    await tune_sqlite_connection()
     await load_bot_state()
     try:
         menu_pages, menu_features = await load_menu_config()
