@@ -20,7 +20,9 @@
 #        gh-alive   -> continue with a no-op config (GitHub runs the checks)
 #        gh-down    -> continue with .circleci/checks.yml (full takeover)
 #        gh-unknown -> fail open: continue with .circleci/checks.yml
-#   4. `circleci continuation continue` submits the generated config.
+#   4. `scripts/ci_gh_continue.py` POSTs the generated config to the
+#      /api/v2/pipeline/continue endpoint (the new circleci-cli dropped the
+#      `continuation` subcommand, so the REST API is called directly).
 #
 # Manual one-time setup (cannot be expressed in config):
 #   - app.circleci.com -> Add Projects -> lingchu-bot -> Set Up Project
@@ -30,6 +32,8 @@
 #     context works too. Fork PR builds carry no secrets -> they fail open.
 #   - Recommended: Project Settings -> Advanced -> "Build forked pull
 #     requests" (CircleCI does not build fork PRs by default).
+#   - Hourly fallback: create a Schedule Trigger in Project Settings ->
+#     Triggers that triggers a pipeline on `main` every hour.
 #
 # No orbs are used; the image is a pinned cimg minor tag.
 
@@ -40,16 +44,6 @@ executors:
   preflight-executor:
     docker:
       - image: cimg/python:3.13.15
-
-commands:
-  install-circleci-cli:
-    description: Install the CircleCI CLI (needed for continuation continue)
-    steps:
-      - run:
-          name: Install CircleCI CLI
-          command: |
-            curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | bash
-            echo 'export PATH="$HOME/.circleci/bin:$PATH"' >> "$BASH_ENV"
 
 jobs:
   preflight:
@@ -74,7 +68,6 @@ jobs:
             DECISION="$(python3 scripts/ci_gh_preflight.py --sha "${SHA}" --token "${GITHUB_TOKEN:-}")"
             echo "PREFLIGHT_DECISION=${DECISION}" >> "$BASH_ENV"
             echo "Preflight decision: ${DECISION}"
-      - install-circleci-cli
       - run:
           name: Continue with full checks or no-op
           command: |
@@ -82,10 +75,10 @@ jobs:
             DECISION="${PREFLIGHT_DECISION:-gh-unknown}"
             if [ "${DECISION}" = "gh-alive" ]; then
               echo "GitHub Actions is healthy - CircleCI stays out (no-op continuation)."
-              circleci continuation continue --configuration .circleci/skip.yml
+              python3 scripts/ci_gh_continue.py --config .circleci/skip.yml
             else
               echo "GitHub Actions is down/failed (decision=${DECISION}) - taking over with full checks."
-              circleci continuation continue --configuration .circleci/checks.yml
+              python3 scripts/ci_gh_continue.py --config .circleci/checks.yml
             fi
 
 workflows:
