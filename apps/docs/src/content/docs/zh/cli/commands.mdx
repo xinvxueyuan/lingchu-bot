@@ -1,0 +1,17 @@
+---
+icon: List
+title: 命令参考
+---
+
+运行 `lc --help` 查看完整命令面。常用子命令：
+
+| 命令 | 用途 |
+| --- | --- |
+| `lc env` | 侦测运行时环境（OS、Python、uv/pip、适配器）。 |
+| `lc doctor` | 运行诊断；有缺失项时退出码为 3。 |
+| `lc run` | 安全启动并监督机器人。 |
+| `lc init` | 缺失时生成最小 `.env`。 |
+| `lc install` / `lc uninstall` / `lc update` | 管理依赖。 |
+| `lc repair` | 依据 `lc doctor` 结果修复问题。 |
+| `lc db` | 数据库迁移（`upgrade` / `check` / `revision` / `sync`）。 |
+| `lc self-update` | 更新 `lingc-cli` 自身。 |

@@ -1,0 +1,35 @@
+---
+icon: Terminal
+title: lingc-cli (lc)
+---
+
+`lingc-cli` is an **operations convenience command-line tool** for Lingchu Bot.
+It is published as an independent PyPI package (command `lc`) with its own
+version line, and is not bundled into the bot runtime. It helps you operate and
+maintain a deployed bot from the terminal: check the environment, start it
+safely, manage dependencies, run database migrations, and repair issues.
+
+## Install
+
+Install it as a standalone tool:
+
+```bash
+uv tool install lingc-cli
+# or
+pipx install lingc-cli
+```
+
+## Quick start
+
+```bash
+lc --version
+lc doctor        # diagnose the environment
+lc run           # start the bot safely
+lc db upgrade    # apply database migrations
+```
+
+## Independent package
+
+`lingc-cli` has its own release cycle and is not distributed with the
+`nonebot-plugin-lingchu-bot` package. See the [commands](/cli/commands/)
+reference for the full `lc` command surface.

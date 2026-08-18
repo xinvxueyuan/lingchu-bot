@@ -138,6 +138,10 @@ export default defineConfig({
       ],
       sidebar: [
         {
+          label: "Plugin",
+          translations: { zh: "插件" },
+          items: [
+        {
           label: "Tutorials",
           translations: { zh: "教程" },
           items: [
@@ -226,6 +230,16 @@ export default defineConfig({
               translations: { zh: "架构" },
               items: [{ slug: "explanation/architecture/introduction" }],
             },
+          ],
+        },
+          ],
+        },
+        {
+          label: "CLI",
+          translations: { zh: "CLI" },
+          items: [
+            { slug: "cli/index" },
+            { slug: "cli/commands" },
           ],
         },
       ],
