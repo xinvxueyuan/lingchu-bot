@@ -70,6 +70,7 @@ ignore = [
     "FBT001", "FBT002", "FBT003",
     "B008",  # typer.Option(...) as defaults is idiomatic for CLI flags
     "COM812",
+    "PLC0415",  # lazy import of optional runtime deps (nonebot/adapters) is intentional
 ]
 
 [tool.ruff.lint.per-file-ignores]
