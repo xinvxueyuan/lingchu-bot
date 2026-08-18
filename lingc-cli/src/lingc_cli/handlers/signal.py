@@ -27,7 +27,7 @@ async def terminate_process(
     No-op if the process already exited. On POSIX the signal is sent to the
     child's process group (created via ``start_new_session`` inside
     ``create_process``); on Windows ``process.terminate()`` is used. Either
-    way the launcher waits for the child to exit before returning.
+    way lingc-cli waits for the child to exit before returning.
     """
     if process.returncode is not None:
         return

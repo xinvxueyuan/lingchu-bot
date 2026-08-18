@@ -1,11 +1,11 @@
 [project]
 name = "lingc-cli"
 version = "0.1.0"
-description = "Lingchu Bot runtime launcher — a game-launcher style runtime shell (safe startup, env detection, install/uninstall, diagnostics/repair, updates)."
+description = "A convenience command-line tool for operating and maintaining Lingchu Bot (safe startup, env detection, install/uninstall, diagnostics/repair, updates)."
 readme = "README.md"
 requires-python = ">=3.13, <3.14"
 license = { text = "LGPL-3.0-or-later" }
-keywords = ["nonebot", "lingchu", "cli", "launcher"]
+keywords = ["nonebot", "lingchu", "cli", "tooling"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Environment :: Console",
