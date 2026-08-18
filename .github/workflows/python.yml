@@ -225,10 +225,12 @@ jobs:
 
 
       - name: Run migrations
-        run: uvx --from nb-cli nb orm upgrade
+        # Validate BOTH migration entry points (&& so a failure in either fails the step):
+        # nb orm (compat) and the launcher built-in lc db.
+        run: uvx --from nb-cli nb orm upgrade && uv run lc db upgrade
 
       - name: Verify migration/model consistency
-        run: uvx --from nb-cli nb orm check
+        run: uvx --from nb-cli nb orm check && uv run lc db check
 
       - name: Type Check (Pyright)
         run: uv run -m pyright
