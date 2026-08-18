@@ -1,14 +1,14 @@
 ---
 icon: Database
 title: Storage and ORM
-description: nonebot_plugin_orm backend, cross-dialect types, six-backend upsert, and TOML store.
+description: nonebot_plugin_orm backend, cross-dialect types, four-backend upsert, and TOML store.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
 
 # Storage and ORM
 
-Lingchu Bot stores runtime data through two cooperating layers: `nonebot_plugin_orm` for relational data and a TOML-backed file store for lightweight runtime configuration. This page covers the default backend, the six supported databases, the cross-dialect type compatibility layer, the dialect-specific upsert implementation, and the TOML store that works alongside `nonebot_plugin_localstore`.
+Lingchu Bot stores runtime data through two cooperating layers: `nonebot_plugin_orm` for relational data and a TOML-backed file store for lightweight runtime configuration. This page covers the default backend, the four supported databases, the cross-dialect type compatibility layer, the dialect-specific upsert implementation, and the TOML store that works alongside `nonebot_plugin_localstore`.
 
 ## Default backend
 
@@ -16,9 +16,9 @@ The default database backend is SQLite via `aiosqlite`, provided by `nonebot_plu
 
 All relational access goes through `nonebot_plugin_orm` sessions. The project does not introduce custom engine management; `database/orm_crud/` exposes typed async helpers that take an externally-owned `AsyncSession` as their first positional parameter (see [Session ownership](#session-ownership-and-handler-injection) below).
 
-## Six supported backends
+## Four supported backends
 
-`SQLALCHEMY_DATABASE_URL` (consumed by `nonebot_plugin_orm`) selects the backend. Six engines are supported:
+`SQLALCHEMY_DATABASE_URL` (consumed by `nonebot_plugin_orm`) selects the backend. Four engines are supported:
 
 | Backend | Driver (URL scheme) | Notes |
 | --- | --- | --- |
@@ -26,10 +26,8 @@ All relational access goes through `nonebot_plugin_orm` sessions. The project do
 | PostgreSQL | `postgresql+psycopg://` or `postgresql+asyncpg://` | Uses `on_conflict_do_update` |
 | MySQL | `mysql+aiomysql://` | Uses `on_duplicate_key_update` |
 | MariaDB | `mariadb+aiomysql://` | Shares the MySQL path; `aiomysql` driver |
-| Oracle | `oracle+oracledb://` | Thin mode by default; `MERGE INTO` upsert |
-| SQL Server | `mssql+aioodbc://` | Requires `msodbcsql18`; `MERGE INTO` upsert |
 
-When `SQLALCHEMY_DATABASE_URL` is unset, `nonebot_plugin_orm` falls back to the default SQLite database. The CI matrix exercises all six engines plus version variants (PostgreSQL 16/18, MySQL 8.4/9.7, MariaDB 11.4/11.8, Oracle 23ai, SQL Server 2022/2025).
+When `SQLALCHEMY_DATABASE_URL` is unset, `nonebot_plugin_orm` falls back to the default SQLite database. The CI matrix exercises all four engines plus version variants (PostgreSQL 16/18, MySQL 8.4/9.7, MariaDB 11.4/11.8). Oracle and SQL Server are not supported.
 
 ## Cross-dialect types
 
@@ -37,30 +35,26 @@ ORM models MUST use the compatibility types from `database/_dialect_compat.py` i
 
 | Helper | Behavior |
 | --- | --- |
-| `CompatBoolean` | Native `BOOLEAN` on most backends; `NUMBER(1)` on Oracle pre-23c |
+| `CompatBoolean` | Native `BOOLEAN` on all four backends |
 | `CompatDateTimeTZ` | `DateTime(timezone=True)` on most backends; `DATETIME(fsp=6)` on MySQL / MariaDB |
-| `CompatText` | `TEXT` on most backends; `CLOB` on Oracle to avoid `VARCHAR2(4000)` truncation |
-| `compat_string(length)` | `VARCHAR(length)` by default; `NVARCHAR(MAX)` on SQL Server when `length > 4000`; `CLOB` on Oracle when `length > 4000` |
+| `CompatText` | `TEXT` on SQLite / PostgreSQL; `LONGTEXT` on MySQL / MariaDB |
+| `compat_string(length)` | `VARCHAR(length)` on all four backends |
 
 `CompatDateTimeTZ` on MySQL / MariaDB emits a "timezone only supported in MySQL 5.6+" warning. Writes use `datetime.now(UTC)` (the `utc_now()` helper in `database/models/message.py`) so no drift occurs in practice.
 
-All current `String` columns in the repository are ≤ 128 characters, so `compat_string(length)` stays on `VARCHAR(N)` for every backend — the `NVARCHAR(MAX)` / `CLOB` branch is reserved for future long-string columns.
+All current `String` columns in the repository are ≤ 128 characters, so `compat_string(length)` stays on `VARCHAR(N)` for every backend.
 
-## Six-backend upsert
+## Four-backend upsert
 
-`database/orm_crud/_bulk.py::upsert()` is the single entry point for atomic upsert across all six backends. It dispatches by session dialect name:
+`database/orm_crud/_bulk.py::upsert()` is the single entry point for atomic upsert across all four backends. It dispatches by session dialect name:
 
 | Dialect(s) | Implementation | RETURNING support |
 | --- | --- | --- |
 | `sqlite` | `sqlite_insert(model).on_conflict_do_update(...)` | Yes — uses `RETURNING` |
 | `postgresql` | `postgresql_insert(model).on_conflict_do_update(...)` | Yes — uses `RETURNING` |
 | `mysql`, `mariadb` | `mysql_insert(model).on_duplicate_key_update(...)` | No — follow-up `SELECT` by `conflict_fields` |
-| `oracle` | Hand-written `MERGE INTO ... USING (SELECT ... FROM DUAL) s ...` via `text()` | No — follow-up `SELECT`; detects `ORA-00001` for conflict races |
-| `mssql` | Hand-written `MERGE INTO ... USING (SELECT ...) s ...` via `text()` with `WITH (HOLDLOCK)` and `SET LOCK_TIMEOUT 5000` | No — follow-up `SELECT` |
 
-The Oracle and SQL Server paths exist because SQLAlchemy 2.0.51 does not provide `sqlalchemy.dialects.{oracle,mssql}.insert`, and the generic `sqlalchemy.insert()` returns an `Insert` object without an `on_conflict_do_update` method. `_build_merge_sql()` constructs the parameterized `MERGE INTO` text with named bind parameters; `_prepare_merge_insert_values()` fills in Python-side column defaults that SQLAlchemy would normally apply when building an `INSERT` construct.
-
-All upsert calls require either `conflict_fields` or `constraint` (mutually exclusive). MySQL / MariaDB / Oracle / SQL Server require `conflict_fields` because they use it for the follow-up `SELECT` to fetch the row.
+All upsert calls require either `conflict_fields` or `constraint` (mutually exclusive). MySQL / MariaDB require `conflict_fields` because they use it for the follow-up `SELECT` to fetch the row.
 
 ## `ALEMBIC_STARTUP_CHECK`
 
@@ -102,7 +96,7 @@ This project adds Taskfile aliases for convenience:
 
 ### Post-generation `Compat*` rewrite
 
-Autogenerate emits generic SQLAlchemy types. For six-backend compatibility, manually replace them with the helpers from `database/_dialect_compat.py`:
+Autogenerate emits generic SQLAlchemy types. For cross-dialect compatibility, manually replace them with the helpers from `database/_dialect_compat.py`:
 
 | Autogenerated | Replace with |
 | --- | --- |
@@ -117,7 +111,7 @@ For unique-constraint or index rebuilds, follow `migrations/cf2c06d51a17_blockli
 
 - Autogenerate cannot detect column or table renames — it emits `drop_column` + `add_column`, which loses data. For renames, author the migration manually using `op.alter_column(..., new_column_name=...)`.
 - Autogenerate does not emit `Compat*` types — the manual rewrite above is mandatory.
-- Autogenerate does not infer dialect-specific `MERGE INTO` upsert logic; upsert changes stay in `database/orm_crud/_bulk.py`, not in migrations.
+- Autogenerate does not infer dialect-specific upsert logic; upsert changes stay in `database/orm_crud/_bulk.py`, not in migrations.
 
 ## TOML store and localstore
 

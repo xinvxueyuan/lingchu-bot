@@ -13,20 +13,15 @@ utility, with fixtures providing reusable mock objects and session configuration
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from nonebot_plugin_orm import Model
 import pytest
-from sqlalchemy.dialects import mssql, mysql, oracle, postgresql, sqlite
+from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from src.plugins.nonebot_plugin_lingchu_bot.database.models import (
-    IdentityUser,
-    PlatformIdentityGroup,
-)
 from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import (
     ROWCOUNT_UNKNOWN,
     DatabaseError,
@@ -1443,9 +1438,7 @@ class TestUpsert:
     @staticmethod
     def _set_dialect(mock_async_session: Mock, name: str) -> None:
         dialects = {
-            "mssql": mssql.dialect(),
             "mysql": mysql.dialect(),
-            "oracle": oracle.dialect(),
             "postgresql": postgresql.dialect(),
             "sqlite": sqlite.dialect(),
         }
@@ -1511,353 +1504,6 @@ class TestUpsert:
             "constraint": "uq_fake",
             "set_": {"name": "updated"},
         }
-
-    @pytest.mark.asyncio
-    async def test_oracle_upsert_runs_merge_sql(
-        self, mock_model: type[FakeModel], mock_async_session: Mock
-    ) -> None:
-        """Oracle upsert executes a hand-written MERGE INTO statement."""
-        self._set_dialect(mock_async_session, "oracle")
-        obj = FakeModel(id=ID_1, name="new")
-        mock_async_session.execute.side_effect = [
-            MagicMock(),  # MERGE statement result (not used)
-            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
-        ]
-
-        result = await upsert(
-            mock_async_session,
-            model=mock_model,
-            insert_values={"id": ID_1, "name": "new"},
-            conflict_fields=["id"],
-        )
-
-        assert result is obj
-        # First call is the MERGE statement with bind params
-        merge_call = mock_async_session.execute.call_args_list[0]
-        merge_sql_text = str(merge_call.args[0])
-        merge_params = merge_call.args[1]
-        assert "MERGE INTO" in merge_sql_text
-        assert "USING (SELECT" in merge_sql_text
-        assert "FROM DUAL" in merge_sql_text
-        assert "WHEN MATCHED THEN UPDATE SET" in merge_sql_text
-        assert "WHEN NOT MATCHED THEN INSERT" in merge_sql_text
-        assert "t.id = s.c1" in merge_sql_text
-        assert merge_params == {"p1": ID_1, "p2": "new"}
-        # Flush is awaited exactly once after the MERGE
-        mock_async_session.flush.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_mssql_upsert_runs_merge_sql(
-        self, mock_model: type[FakeModel], mock_async_session: Mock
-    ) -> None:
-        """SQL Server upsert executes a hand-written MERGE INTO statement."""
-        self._set_dialect(mock_async_session, "mssql")
-        obj = FakeModel(id=ID_1, name="new")
-        mock_async_session.execute.side_effect = [
-            MagicMock(),  # SET LOCK_TIMEOUT result (not used)
-            MagicMock(),  # MERGE statement result (not used)
-            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
-        ]
-
-        result = await upsert(
-            mock_async_session,
-            model=mock_model,
-            insert_values={"id": ID_1, "name": "new"},
-            conflict_fields=["id"],
-        )
-
-        assert result is obj
-        merge_call = mock_async_session.execute.call_args_list[1]
-        merge_sql_text = str(merge_call.args[0])
-        merge_params = merge_call.args[1]
-        assert "MERGE INTO" in merge_sql_text
-        assert "WITH (HOLDLOCK) AS t" in merge_sql_text
-        assert "USING (SELECT" in merge_sql_text
-        # SQL Server does NOT use FROM DUAL.
-        assert "FROM DUAL" not in merge_sql_text
-        assert "WHEN MATCHED THEN UPDATE SET" in merge_sql_text
-        assert "WHEN NOT MATCHED THEN INSERT" in merge_sql_text
-        assert "t.id = s.c1" in merge_sql_text
-        assert merge_params == {"p1": ID_1, "p2": "new"}
-        mock_async_session.flush.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_oracle_upsert_merge_insert_includes_python_defaults(
-        self, mock_async_session: Mock
-    ) -> None:
-        """Oracle raw MERGE inserts include Python defaults and omit identity id."""
-        self._set_dialect(mock_async_session, "oracle")
-        obj = PlatformIdentityGroup(
-            group_id="system.superusers",
-            platform_id="system",
-            display_name="SUPERUSERS",
-            builtin=True,
-        )
-        mock_async_session.execute.side_effect = [
-            MagicMock(),
-            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
-        ]
-
-        result = await upsert(
-            mock_async_session,
-            model=PlatformIdentityGroup,
-            insert_values={
-                "group_id": "system.superusers",
-                "platform_id": "system",
-                "parent_group_id": None,
-                "display_name": "SUPERUSERS",
-                "builtin": True,
-                "managed_by": None,
-            },
-            conflict_fields=["group_id"],
-            update_values={
-                "platform_id": "system",
-                "parent_group_id": None,
-                "display_name": "SUPERUSERS",
-                "builtin": True,
-                "managed_by": None,
-            },
-        )
-
-        assert result is obj
-        merge_call = mock_async_session.execute.call_args_list[0]
-        merge_sql_text = str(merge_call.args[0])
-        merge_params = merge_call.args[1]
-        assert "created_at" in merge_sql_text
-        assert "updated_at" in merge_sql_text
-        assert "INSERT (id" not in merge_sql_text
-        assert isinstance(merge_params["p7"], datetime)
-        assert isinstance(merge_params["p8"], datetime)
-        assert "id" not in merge_params
-
-    @pytest.mark.asyncio
-    async def test_mssql_upsert_merge_insert_includes_python_defaults(
-        self, mock_async_session: Mock
-    ) -> None:
-        """SQL Server raw MERGE inserts include Python defaults and omit identity id."""
-        self._set_dialect(mock_async_session, "mssql")
-        obj = PlatformIdentityGroup(
-            group_id="system.superusers",
-            platform_id="system",
-            display_name="SUPERUSERS",
-            builtin=True,
-        )
-        mock_async_session.execute.side_effect = [
-            MagicMock(),  # SET LOCK_TIMEOUT result (not used)
-            MagicMock(),  # MERGE statement result (not used)
-            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
-        ]
-
-        result = await upsert(
-            mock_async_session,
-            model=PlatformIdentityGroup,
-            insert_values={
-                "group_id": "system.superusers",
-                "platform_id": "system",
-                "parent_group_id": None,
-                "display_name": "SUPERUSERS",
-                "builtin": True,
-                "managed_by": None,
-            },
-            conflict_fields=["group_id"],
-            update_values={
-                "platform_id": "system",
-                "parent_group_id": None,
-                "display_name": "SUPERUSERS",
-                "builtin": True,
-                "managed_by": None,
-            },
-        )
-
-        assert result is obj
-        merge_call = mock_async_session.execute.call_args_list[1]
-        merge_sql_text = str(merge_call.args[0])
-        merge_params = merge_call.args[1]
-        assert "created_at" in merge_sql_text
-        assert "updated_at" in merge_sql_text
-        assert "INSERT (id" not in merge_sql_text
-        assert isinstance(merge_params["p7"], datetime)
-        assert isinstance(merge_params["p8"], datetime)
-        assert "id" not in merge_params
-
-    @pytest.mark.asyncio
-    async def test_oracle_upsert_merge_uses_safe_bind_names_for_uid(
-        self, mock_async_session: Mock
-    ) -> None:
-        """Oracle MERGE avoids raw bind names such as :uid that SQLAlchemy quotes."""
-        self._set_dialect(mock_async_session, "oracle")
-        obj = IdentityUser(uid="user1", nickname="user1")
-        mock_async_session.execute.side_effect = [
-            MagicMock(),
-            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
-        ]
-
-        result = await upsert(
-            mock_async_session,
-            model=IdentityUser,
-            insert_values={"uid": "user1", "nickname": "user1"},
-            conflict_fields=["uid"],
-            update_values={"nickname": "user1"},
-        )
-
-        assert result is obj
-        merge_call = mock_async_session.execute.call_args_list[0]
-        merge_sql_text = str(merge_call.args[0])
-        merge_params = merge_call.args[1]
-        assert ':"uid"' not in merge_sql_text
-        assert ":uid" not in merge_sql_text
-        assert " AS uid" not in merge_sql_text
-        assert 't."uid" = s.c1' in merge_sql_text
-        assert '"uid"' in merge_sql_text
-        assert "p1" in merge_params
-        assert merge_params["p1"] == "user1"
-        assert merge_params["u1"] == "user1"
-
-    @pytest.mark.asyncio
-    async def test_mssql_upsert_merge_uses_safe_bind_names_for_uid(
-        self, mock_async_session: Mock
-    ) -> None:
-        """SQL Server MERGE uses generated bind names for keyword-like fields."""
-        self._set_dialect(mock_async_session, "mssql")
-        obj = IdentityUser(uid="user1", nickname="user1")
-        mock_async_session.execute.side_effect = [
-            MagicMock(),  # SET LOCK_TIMEOUT result (not used)
-            MagicMock(),  # MERGE statement result (not used)
-            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
-        ]
-
-        result = await upsert(
-            mock_async_session,
-            model=IdentityUser,
-            insert_values={"uid": "user1", "nickname": "user1"},
-            conflict_fields=["uid"],
-            update_values={"nickname": "user1"},
-        )
-
-        assert result is obj
-        merge_call = mock_async_session.execute.call_args_list[1]
-        merge_sql_text = str(merge_call.args[0])
-        merge_params = merge_call.args[1]
-        assert ':"uid"' not in merge_sql_text
-        assert ":uid" not in merge_sql_text
-        assert " AS uid" not in merge_sql_text
-        assert "t.uid = s.c1" in merge_sql_text
-        assert "p1" in merge_params
-        assert merge_params["p1"] == "user1"
-        assert merge_params["u1"] == "user1"
-
-    @pytest.mark.asyncio
-    async def test_oracle_upsert_rejects_constraint(
-        self, mock_model: type[FakeModel], mock_async_session: Mock
-    ) -> None:
-        """Oracle upsert rejects constraint parameter."""
-        self._set_dialect(mock_async_session, "oracle")
-
-        with pytest.raises(expected_exception=ValueError, match="constraint"):
-            await upsert(
-                mock_async_session,
-                model=mock_model,
-                insert_values={"id": ID_1, "name": "new"},
-                constraint="uq_fake",
-            )
-
-    @pytest.mark.asyncio
-    async def test_mssql_upsert_rejects_constraint(
-        self, mock_model: type[FakeModel], mock_async_session: Mock
-    ) -> None:
-        """SQL Server upsert rejects constraint parameter."""
-        self._set_dialect(mock_async_session, "mssql")
-
-        with pytest.raises(expected_exception=ValueError, match="constraint"):
-            await upsert(
-                mock_async_session,
-                model=mock_model,
-                insert_values={"id": ID_1, "name": "new"},
-                constraint="uq_fake",
-            )
-
-    @pytest.mark.asyncio
-    async def test_oracle_upsert_db_error(
-        self, mock_model: type[FakeModel], mock_async_session: Mock
-    ) -> None:
-        """Oracle upsert raises DatabaseError on failure; rollback is the caller's job."""
-        self._set_dialect(mock_async_session, "oracle")
-        mock_async_session.execute.side_effect = SQLAlchemyError()
-
-        with pytest.raises(expected_exception=DatabaseError, match="Upsert failed"):
-            await upsert(
-                mock_async_session,
-                model=mock_model,
-                insert_values={"id": ID_1, "name": "new"},
-                conflict_fields=["id"],
-            )
-
-    @pytest.mark.asyncio
-    async def test_oracle_upsert_unique_conflict_fetches_existing_row(
-        self, mock_model: type[FakeModel], mock_async_session: Mock
-    ) -> None:
-        """Oracle upsert treats ORA-00001 MERGE races as an existing row."""
-        self._set_dialect(mock_async_session, "oracle")
-        obj = FakeModel(id=ID_1, name="new")
-        unique_error = IntegrityError(
-            "MERGE INTO fake_table ...",
-            {"p1": ID_1, "p2": "new"},
-            Exception("ORA-00001: unique constraint violated"),
-        )
-        mock_async_session.execute.side_effect = [
-            unique_error,
-            MagicMock(scalar_one_or_none=MagicMock(return_value=obj)),
-        ]
-
-        result = await upsert(
-            mock_async_session,
-            model=mock_model,
-            insert_values={"id": ID_1, "name": "new"},
-            conflict_fields=["id"],
-        )
-
-        assert result is obj
-        assert mock_async_session.execute.await_count == 2
-
-    @pytest.mark.asyncio
-    async def test_oracle_upsert_unique_conflict_without_row_raises(
-        self, mock_model: type[FakeModel], mock_async_session: Mock
-    ) -> None:
-        """Oracle upsert does not hide ORA-00001 if the row cannot be read."""
-        self._set_dialect(mock_async_session, "oracle")
-        unique_error = IntegrityError(
-            "MERGE INTO fake_table ...",
-            {"p1": ID_1, "p2": "new"},
-            Exception("ORA-00001: unique constraint violated"),
-        )
-        mock_async_session.execute.side_effect = [
-            unique_error,
-            MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
-        ]
-
-        with pytest.raises(expected_exception=DatabaseError, match="Upsert failed"):
-            await upsert(
-                mock_async_session,
-                model=mock_model,
-                insert_values={"id": ID_1, "name": "new"},
-                conflict_fields=["id"],
-            )
-
-    @pytest.mark.asyncio
-    async def test_mssql_upsert_db_error(
-        self, mock_model: type[FakeModel], mock_async_session: Mock
-    ) -> None:
-        """SQL Server upsert raises DatabaseError on failure; rollback is caller's job."""
-        self._set_dialect(mock_async_session, "mssql")
-        mock_async_session.execute.side_effect = SQLAlchemyError()
-
-        with pytest.raises(expected_exception=DatabaseError, match="Upsert failed"):
-            await upsert(
-                mock_async_session,
-                model=mock_model,
-                insert_values={"id": ID_1, "name": "new"},
-                conflict_fields=["id"],
-            )
 
     @pytest.mark.asyncio
     async def test_mysql_upsert_uses_on_duplicate_key_update(
@@ -2004,6 +1650,23 @@ class TestUpsert:
                 mock_async_session,
                 model=mock_model,
                 insert_values={"id": ID_1},
+                conflict_fields=["id"],
+            )
+
+    @pytest.mark.asyncio
+    async def test_upsert_unsupported_dialect_raises(
+        self, mock_model: type[FakeModel], mock_async_session: Mock
+    ) -> None:
+        """Test upsert on an unsupported dialect raises DatabaseError."""
+        bind = MagicMock()
+        bind.dialect.name = "oracle"
+        mock_async_session.get_bind = MagicMock(return_value=bind)
+
+        with pytest.raises(expected_exception=DatabaseError, match="not supported"):
+            await upsert(
+                mock_async_session,
+                model=mock_model,
+                insert_values={"id": ID_1, "name": "new"},
                 conflict_fields=["id"],
             )
 

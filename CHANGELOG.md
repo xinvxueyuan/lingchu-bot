@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Removed
 
+- **BREAKING** 移除 Oracle 与 SQL Server 方言数据库支持，仅支持
+  SQLite / PostgreSQL / MySQL / MariaDB（与 nonebot-plugin-orm 官方矩阵一致）；
+  同步裁剪 `_dialect_compat` 变体、手写 MERGE upsert、CI 矩阵与相关依赖
+  （`oracledb` / `aioodbc` / `pyodbc`）。
+
 ### Fixed
 
 ### Security

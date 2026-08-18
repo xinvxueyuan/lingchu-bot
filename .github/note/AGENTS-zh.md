@@ -414,24 +414,19 @@ task ci
 - Alembic model package 必须 import 所有 models，保证 discovery 生效。
 - 非 SQLite 测试前先运行 migrations。
 - `ensure_toml_dict_file_async()` 只创建缺失文件；覆盖写入用 `write_toml_dict_file_async()`。
-- 迁移生成工作流：`nb orm revision -m "msg" --branch-label nonebot_plugin_lingchu_bot` 默认开启 autogenerate（无 `--autogenerate` 标志）。Taskfile 别名：`task db:revision -- MSG="..."`、`task db:check`、`task db:upgrade`。autogenerate 产出的是 `sa.Boolean` / `sa.DateTime(timezone=True)` / `sa.Text` / `sa.String`，必须手动改写为 `database/_dialect_compat.py` 中的 `CompatBoolean` / `CompatDateTimeTZ` / `CompatText` / `compat_string(length)` 以兼容六种数据库。autogenerate 无法识别列/表重命名（会生成 drop+add，丢数据），重命名需手动用 `op.alter_column` 编写迁移。CI 在 `nb orm upgrade` 后运行 `nb orm check` 强制模型与迁移同步。不带 --branch-label 时文件会落到 ./migrations/versions/ 而非插件迁移目录。
+- 迁移生成工作流：`nb orm revision -m "msg" --branch-label nonebot_plugin_lingchu_bot` 默认开启 autogenerate（无 `--autogenerate` 标志）。Taskfile 别名：`task db:revision -- MSG="..."`、`task db:check`、`task db:upgrade`。autogenerate 产出的是 `sa.Boolean` / `sa.DateTime(timezone=True)` / `sa.Text` / `sa.String`，必须手动改写为 `database/_dialect_compat.py` 中的 `CompatBoolean` / `CompatDateTimeTZ` / `CompatText` / `compat_string(length)` 以兼容跨方言。autogenerate 无法识别列/表重命名（会生成 drop+add，丢数据），重命名需手动用 `op.alter_column` 编写迁移。CI 在 `nb orm upgrade` 后运行 `nb orm check` 强制模型与迁移同步。不带 --branch-label 时文件会落到 ./migrations/versions/ 而非插件迁移目录。
 - `nb orm upgrade` 在本地开发库上不可靠：当库由 `Base.metadata.create_all()` 或早期直接建表产生时，alembic 版本表无初始迁移记录，`nb orm upgrade` 会重跑 `initial schema` 导致 `sqlite3.OperationalError: table lingchu_message_records already exists`。每次更改模型定义时都应手写迁移脚本（autogenerate 仅作起点，不是终点）。本地开发库若已存在表但无迁移历史，用 `nb orm stamp head` 标记为最新而非重跑迁移；或删除 DB 文件后从头执行 `nb orm upgrade`。
 
-#### 跨数据库方言适配（随 MariaDB / Oracle / SQL Server 支持新增）
+#### 跨数据库方言适配
 
 - `database/_dialect_compat.py` 提供 `CompatBoolean`、`CompatDateTimeTZ`、`CompatText`、`compat_string(length)` 作为跨方言类型；ORM model MUST 使用这些 helper，禁止直接用裸的 `String` / `Text` / `Boolean` / `DateTime(timezone=True)`。
 - `CompatDateTimeTZ` 在 MySQL / MariaDB 上编译为 `DATETIME(6)` 并发出 "timezone only supported in MySQL 5.6+" 警告；写入侧统一用 `datetime.now(UTC)`（即 `database/models/message.py` 中的 `utc_now()`），实际无时区漂移。
-- `CompatBoolean` 在 Oracle pre-23c 映射 `NUMBER(1)`，23c+ 用原生 `BOOLEAN`；应用层不需要做方言分支。
-- `CompatText` 在 Oracle 映射 `CLOB`，避免 `VARCHAR2(4000)` 截断长文本。
-- `compat_string(length)` 仅在 `length > 4000` 时切换为 SQL Server 的 `NVARCHAR(MAX)`；本仓库所有 `String` 列均 ≤ 128，各方言均保持为 `VARCHAR(N)`。
-- `orm_crud/_bulk.py::upsert` 支持 6 个后端：SQLite / PostgreSQL 使用 `sqlite_insert` / `postgresql_insert` + `on_conflict_do_update`；MySQL / MariaDB 共用 `mysql_insert` + `on_duplicate_key_update`（`mariadb` 官方驱动在 SQLAlchemy 2.0.51 仍以 `mysql` dialect 路径编译，但 `dialect.name == "mariadb"`）；Oracle / SQL Server 通过私有函数 `_oracle_upsert` / `_mssql_upsert` 显式拼装 `MERGE INTO` 原始 SQL（经 `sqlalchemy.text()` + 命名绑定参数）。
-- **Oracle / SQL Server upsert 验证事实**：`from sqlalchemy.dialects.{oracle,mssql} import insert` 抛 `ImportError: cannot import name 'insert'`；通用 `from sqlalchemy import insert` 返回的 `Insert` 对象**无** `on_conflict_do_update` 方法；`oracle/base.py` 与 `mssql/base.py` 中无 `MERGE INTO` / `visit_insert` 编译逻辑。如未来升级 SQLAlchemy ≥ 2.1（已提供 `mssql.insert` / `oracle.insert`）需重新评估。
-- Oracle `MERGE INTO` 用 `USING (SELECT :p1 AS c1, :p2 AS c2 FROM DUAL) s`；SQL Server 用 `USING (SELECT :p1 AS c1, :p2 AS c2) s`（无 `FROM DUAL`）。两个后端均无 `INSERT ... RETURNING`，执行 MERGE 后通过 `SELECT ... WHERE conflict_keys` 取回最新行。
-- Oracle 最低版本 12.2（2016-12）；现有表 / 约束名均在 128 字符限制内，未做重命名。新增标识符前需核对部署目标是否兼容 30 字符限制。
+- `CompatBoolean` 在四个后端上都映射原生 `BOOLEAN`；应用层不需要做方言分支。
+- `CompatText` 在 SQLite / PostgreSQL 映射 `TEXT`，在 MySQL / MariaDB 映射 `LONGTEXT`，用于不限长度文本。
+- `compat_string(length)` 在四个后端上都编译为 `VARCHAR(length)`；本仓库所有 `String` 列均 ≤ 128，因此均保持为 `VARCHAR(N)`。
+- `orm_crud/_bulk.py::upsert` 支持 4 个后端：SQLite / PostgreSQL 使用 `sqlite_insert` / `postgresql_insert` + `on_conflict_do_update`；MySQL / MariaDB 共用 `mysql_insert` + `on_duplicate_key_update`（`mariadb` 官方驱动仍以 `mysql` dialect 路径编译，但 `dialect.name == "mariadb"`）。
 - MariaDB 与 MySQL 使用统一驱动 `aiomysql`；SQLAlchemy 通过连接字符串自动检测 dialect（`mysql` vs `mariadb`），无需专用 `mariadb` Python 驱动。移除专用驱动可简化依赖并避免 CI 静态分析环境的系统库问题（`mariadb` 驱动依赖系统级 MariaDB Connector/C，在极简 CI 环境可能构建失败）。
-- `oracledb` 2.0+ 默认 Thin 模式，CI 镜像无需安装 Oracle Instant Client。
-- `aioodbc`（含传递依赖 `pyodbc`）在 Linux CI 需要系统 ODBC Driver 18 包（`ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev`）；macOS 用同名 brew 包；Windows 自带。
-- CI 矩阵跨 6 个引擎跑 10 个任务，均启用 `fail-fast: false`（SQLite + PostgreSQL 16/18 + MySQL 8.4/9.7 LTS + MariaDB 11.4/11.8 LTS + Oracle 23ai + SQL Server 2022/2025）；Oracle / SQL Server 启动慢（health-start-period 90-180s），单次全跑约 8-15 分钟，预算 CI 时间时需要考虑。SQL Server 已从废弃的 `azure-sql-edge` 镜像迁移到 `mcr.microsoft.com/mssql/server:{2022,2025}-latest`（两者均自带 `mssql-tools18` 用于健康检查）。矩阵条目携带 `engine` + `image` 字段；服务容器通过 `${{ matrix.db.engine == '<engine>' && matrix.db.image || '' }}` 选择镜像，使同一引擎的多个版本可在一个矩阵中共存。
+- CI 矩阵跨 4 个引擎跑 8 个任务，均启用 `fail-fast: false`（SQLite + PostgreSQL 16/18 + MySQL 8.4/9.7 LTS + MariaDB 11.4/11.8 LTS），单次全跑通常远低于正常 CI 时间预算。矩阵条目携带 `engine` + `image` 字段；服务容器通过 `${{ matrix.db.engine == '<engine>' && matrix.db.image || '' }}` 选择镜像，使同一引擎的多个版本可在一个矩阵中共存。
 
 #### Actions DRY 重构
 
@@ -453,7 +448,7 @@ task ci
 - `.github` YAML 注释使用英文；移除空的/损坏的 schema comment。
 - `git push origin --delete` 前用 `git ls-remote` 检查远端分支是否存在。
 - CI 工作流按领域拆分：`python.yml`（Python 静态分析 + 多数据库测试矩阵 + auto-format）、`frontend.yml`（docs lint/type/test/links）、`docs.yml`（docs 部署）、`ci-builds.yml`（版本 bump + build artifacts + SLSA provenance）、`release.yml`（PyPI/GHCR 发布）、`clear-workflow.yml`（手动 dispatch；通过 `actions: write` 删除非运行中的 workflow run）、`issues-top.yml`（每日定时；label 并展示 top issues）、`stale.yml`（每日定时；14+7 天无活动后标记并关闭陈旧 issue）、`react-doctor.yml`（`.tsx` 变更时 PR/push；直接运行 React Doctor CLI — 见 Pending Rollbacks）、`playwright.yml`（`apps/docs` 变更时 PR/push；带 browser cache 的 Playwright E2E）。共享的变更检测位于 `.github/actions/detect-changes` 复合 action（输出 python/markdown/frontend-\* 标志）。共享的 setup 逻辑位于 `.github/actions/{checkout,setup-node-pnpm,setup-uv-task,setup-toolchain,verify-wheel,attest-slsa}` 复合 actions 中，每个工作流只需声明 `uses:` 引用即可。标准触发约定：PR 仅跑检查（不提交/部署）；push 到 `main`/`dev` 跑检查 + auto-format + 部署。每个工作流有独立的 concurrency group 以避免互相取消。Workflow 文件名不再带前导 emoji（`name:` 字段仍保留），以便跨平台文件系统与 CLI tab-completion 保持稳定。
-- Python CI 的 Static Analysis job 使用 `uv sync --no-dev --group lint --group git --frozen` + `UV_NO_SYNC=1` 来只安装 lint/format 所需的最小依赖集（ruff、pyright、ty、prek），避免安装 test 组中包含的数据库驱动（mariadb、aioodbc）——这些驱动需要系统级库，在极简 CI 环境中可能构建失败。任何不需要运行测试的 CI job 都可使用此模式。
+- Python CI 的 Static Analysis job 使用 `uv sync --no-dev --group lint --group git --frozen` + `UV_NO_SYNC=1` 来只安装 lint/format 所需的最小依赖集（ruff、pyright、ty、prek），避免安装 test 组中包含的数据库驱动（如 `mariadb` 包）——这些驱动需要系统级库，在极简 CI 环境中可能构建失败。任何不需要运行测试的 CI job 都可使用此模式。
 
 #### Pending Rollbacks
 

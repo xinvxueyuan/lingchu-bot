@@ -25,7 +25,7 @@ Lingchu Bot 在 `nonebot-plugin-apscheduler` 之上运行一个持久化调度�
 
 ## 数据模型
 
-`database/models/scheduler.py` 在 `lingchu_scheduled_jobs` 表上定义 `ScheduledJob` ORM 模型。它使用 `database/_dialect_compat.py` 中的跨方言兼容类型（`compat_string`、`CompatText`、`CompatBoolean`、`CompatDateTimeTZ`），使同一套 schema 可在 SQLite、PostgreSQL、MySQL/MariaDB、Oracle 与 SQL Server 上工作。
+`database/models/scheduler.py` 在 `lingchu_scheduled_jobs` 表上定义 `ScheduledJob` ORM 模型。它使用 `database/_dialect_compat.py` 中的跨方言兼容类型（`compat_string`、`CompatText`、`CompatBoolean`、`CompatDateTimeTZ`），使同一套 schema 可在 SQLite、PostgreSQL、MySQL 与 MariaDB 上工作。
 
 | 列 | 类型 | 说明 |
 | --- | --- | --- |
