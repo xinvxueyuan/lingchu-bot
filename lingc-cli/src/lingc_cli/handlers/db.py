@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import importlib
 import os
+from pathlib import Path
+import sys
 
 from lingc_cli.exceptions import EnvironmentNotReadyError
 from lingc_cli.i18n import _
@@ -37,6 +39,12 @@ def _ensure_nonebot() -> None:
     else:
         return
 
+    root = Path.cwd()
+    for candidate in (root, root / "src"):
+        textual = str(candidate)
+        if textual not in sys.path:
+            sys.path.insert(0, textual)
+
     init_config: dict[str, object] = {
         "LOCALSTORE_USE_CWD": "True",
         "DRIVER": "~fastapi+~httpx+~websockets",
@@ -54,7 +62,6 @@ def _ensure_nonebot() -> None:
 
     driver.register_adapter(OneBotV11Adapter)
     nonebot.load_from_toml("pyproject.toml")
-    nonebot.load_plugin("nonebot_plugin_lingchu_bot")
 
 
 def _exit_code(result: object) -> int:
