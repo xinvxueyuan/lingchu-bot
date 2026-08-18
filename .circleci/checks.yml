@@ -33,14 +33,16 @@ commands:
             set -euo pipefail
             sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d
             if [ -x "$HOME/.local/bin/task" ]; then
+              export PATH="$HOME/.local/bin:$PATH"
               echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
             elif [ -x "$PWD/bin/task" ]; then
+              export PATH="$PWD/bin:$PATH"
               echo "export PATH=\"$PWD/bin:\$PATH\"" >> "$BASH_ENV"
             else
               echo "task binary not found after install" >&2
               exit 1
             fi
-            command -v task
+            task --version
   install-pnpm:
     description: Enable pnpm via corepack (version from package.json packageManager)
     steps:
