@@ -40,22 +40,29 @@ jobs:
       - name: 🔨 Setup uv + Task
         uses: ./.github/actions/setup-uv-task
 
-      - name: 🔖 Bump lingc-cli version
+      - name: 🔖 Resolve lingc-cli version
         id: bump
         shell: bash
         run: |
           set -euo pipefail
-          level="${{ github.event.inputs.bump }}"
-          if [ "$level" = "stable" ]; then
-            args="--bump stable"
-          else
-            args="--bump $level"
-          fi
           cd lingc-cli
-          version_json="$(uv version $args --output-format json --frozen)"
+          git fetch --tags --quiet
+          if git tag -l "lingc-cli/v*" | grep -q .; then
+            # Prior release exists -> apply the requested bump input.
+            level="${{ github.event.inputs.bump }}"
+            if [ "$level" = "stable" ]; then
+              args="--bump stable"
+            else
+              args="--bump $level"
+            fi
+            version_json="$(uv version $args --output-format json --frozen)"
+          else
+            # First release: publish the current committed version (e.g. 0.1.0).
+            version_json="$(uv version --output-format json --frozen)"
+          fi
           version="$(python -c 'import json,sys;print(json.load(sys.stdin)["version"])' <<< "$version_json")"
           echo "new_version=$version" >> "$GITHUB_OUTPUT"
-          echo "Bumped lingc-cli to: $version"
+          echo "Publishing lingc-cli to: $version"
 
       - name: 📝 Locate release notes
         id: notes
