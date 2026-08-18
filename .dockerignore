@@ -88,6 +88,7 @@ cache/
 
 # ── Infrastructure directories (not needed in image) ──
 .github/
+.circleci/
 .trae/
 .gitnexus/
 .agents/

@@ -5,7 +5,7 @@ title: 测试与 CI
 
 ## 测试与 CI
 
-CI 由 GitHub Actions 运行，主要包含静态检查、类型检查、测试、构建、自动格式修复和文档部署。仓库本地自动化以 `Taskfile.yml` 为主入口。
+CI 由 GitHub Actions 运行，主要包含静态检查、类型检查、测试、构建、自动格式修复和文档部署。CircleCI 看门狗（`.circleci/`）镜像检查管线：当 GitHub Actions 对某个 commit 全部失败时（例如 GitHub 平台故障），CircleCI 会自动接管全量静态分析、多数据库测试矩阵与文档检查。构建、发布与部署仍仅由 GitHub Actions 负责。仓库本地自动化以 `Taskfile.yml` 为主入口。
 
 ## Taskfile 主入口
 

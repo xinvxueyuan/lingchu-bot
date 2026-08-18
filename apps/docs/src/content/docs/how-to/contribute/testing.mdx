@@ -3,7 +3,7 @@ icon: CircleCheck
 title: Run tests and CI checks
 ---
 
-Run the right checks for your change scope before committing. CI runs through GitHub Actions and covers static checks, type checks, tests, builds, automatic format fixes, and documentation deployment. Local automation uses `Taskfile.yml` as the main entrypoint.
+Run the right checks for your change scope before committing. CI runs through GitHub Actions and covers static checks, type checks, tests, builds, automatic format fixes, and documentation deployment. A CircleCI watchdog (`.circleci/`) mirrors the check pipeline: when GitHub Actions entirely fails for a commit (for example a GitHub platform outage), CircleCI automatically takes over the full static analysis, database test matrix, and docs checks. Builds, releases, and deployment remain GitHub Actions only. Local automation uses `Taskfile.yml` as the main entrypoint.
 
 ## Taskfile entrypoints
 
