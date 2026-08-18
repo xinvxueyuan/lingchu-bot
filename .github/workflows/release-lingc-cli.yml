@@ -1,0 +1,183 @@
+name: 🚀 Release lingc-cli
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Release bump (major / minor / patch / stable / alpha / beta / rc)"
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+          - stable
+          - alpha
+          - beta
+          - rc
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-lingc-cli-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate & bump lingc-cli version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.new_version }}
+      notes_body_path: ${{ steps.notes.outputs.body_path }}
+    steps:
+      - name: 📥 Checkout
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+
+      - name: 🔨 Setup uv + Task
+        uses: ./.github/actions/setup-uv-task
+
+      - name: 🔖 Bump lingc-cli version
+        id: bump
+        shell: bash
+        run: |
+          set -euo pipefail
+          level="${{ github.event.inputs.bump }}"
+          if [ "$level" = "stable" ]; then
+            args="--bump stable"
+          else
+            args="--bump $level"
+          fi
+          cd lingc-cli
+          version_json="$(uv version $args --output-format json --frozen)"
+          version="$(python -c 'import json,sys;print(json.load(sys.stdin)["version"])' <<< "$version_json")"
+          echo "new_version=$version" >> "$GITHUB_OUTPUT"
+          echo "Bumped lingc-cli to: $version"
+
+      - name: 📝 Locate release notes
+        id: notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.bump.outputs.new_version }}"
+          notes_path=".github/releases/lingc-cli-${version}.md"
+          if [ ! -f "$notes_path" ]; then
+            echo "::error::Missing release notes: ${notes_path}"
+            echo "Create .github/releases/lingc-cli-${version}.md before re-running."
+            exit 1
+          fi
+          body_path="${RUNNER_TEMP}/lingc-cli-notes-${version}.md"
+          cp "$notes_path" "$body_path"
+          echo "body_path=$body_path" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build lingc-cli wheel
+    runs-on: ubuntu-latest
+    needs: validate
+    permissions:
+      contents: write
+    steps:
+      - name: 📥 Checkout
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: 🔨 Setup toolchain
+        # Commposable local action (Node + pnpm + uv + Task); enable-uv-cache
+        # required because uv build populates the uv cache.
+        uses: ./.github/actions/setup-toolchain
+        with:
+          enable-uv-cache: "true"
+
+      - name: 📦 Build wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cd lingc-cli
+          uv build --wheel --clear --no-sources --out-dir ../dist
+
+      - name: 🔍 Verify lingc-cli wheel
+        shell: bash
+        run: uv run python lingc-cli/scripts/ci_verify_wheel.py dist
+
+      - name: 📤 Upload dist
+        # pinned from actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: lingc-cli-dist-${{ needs.validate.outputs.version }}
+          path: dist
+          if-no-files-found: error
+
+  publish-pypi:
+    name: Publish lingc-cli to PyPI
+    runs-on: ubuntu-latest
+    needs: [validate, build]
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: 📥 Checkout
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: 📥 Download dist
+        # pinned from actions/download-artifact@v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: lingc-cli-dist-${{ needs.validate.outputs.version }}
+          path: dist
+
+      - name: 🛡 Attest build provenance
+        uses: ./.github/actions/attest-slsa
+        with:
+          subject-path: dist/*
+
+      - name: 📦 Publish to PyPI
+        # pinned from pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+
+  github-release:
+    name: GitHub Release (lingc-cli)
+    runs-on: ubuntu-latest
+    needs: [validate, publish-pypi]
+    permissions:
+      contents: write
+    steps:
+      - name: 📥 Checkout
+        # pinned from actions/checkout@v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.WORKFLOW_TOKEN }}
+
+      - name: 🔨 Setup uv + Task
+        uses: ./.github/actions/setup-uv-task
+
+      - name: 🏷 Create tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.validate.outputs.version }}"
+          git tag "lingc-cli/v${version}"
+          git push origin "lingc-cli/v${version}"
+
+      - name: 📥 Download dist
+        # pinned from actions/download-artifact@v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: lingc-cli-dist-${{ needs.validate.outputs.version }}
+          path: dist
+
+      - name: 🚀 Create GitHub Release
+        # pinned from softprops/action-gh-release@v2.6.2
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
+        with:
+          tag_name: lingc-cli/v${{ needs.validate.outputs.version }}
+          name: lingc-cli v${{ needs.validate.outputs.version }}
+          files: dist/*
+          body_path: ${{ needs.validate.outputs.notes_body_path }}

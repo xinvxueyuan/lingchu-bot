@@ -62,6 +62,10 @@ Documentation = "https://lingchu.zone.id/"
 Repository = "https://github.com/xinvxueyuan/lingchu-bot"
 Issues = "https://github.com/xinvxueyuan/lingchu-bot/issues"
 
+# uv workspace: root project (plugin) + lingc-cli member (independent package).
+[tool.uv.workspace]
+members = ["lingc-cli"]
+
 [dependency-groups]
 dev = [
     { include-group = "script" },
@@ -74,9 +78,8 @@ git = [
     # "bump-my-version>=1.3.0",
     "prek>=0.4.10",
 ]
-lint = ["ruff>=0.16.0", "pyright>=1.1.411", "ty>=0.0.63"]
+lint = ["reuse[charset-normalizer]>=6.0", "ruff>=0.16.0", "pyright>=1.1.411", "ty>=0.0.63"]
 test = [
-    "nb-cli>=1.7.4",
     "nonebug>=0.4.4",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
@@ -236,6 +239,8 @@ allowed-confusables = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# Typer CLI exposes boolean flags/options as bool-typed parameters (idiomatic pattern).
+"lingc-cli/**" = ["FBT001", "FBT002", "FBT003"]
 # pytest fixtures may not be used directly in test functions but are still required for setup
 "tests/**" = [
     "ARG002",  # unused-argument
@@ -485,6 +490,7 @@ exclude = [
     ".trae/skills",
     "apps",
     "packages",
+    "lingc-cli",
     "docker",
     ".venv",
     "node_modules",
@@ -511,6 +517,7 @@ exclude = [
     ".trae/skills/",
     "apps/",
     "packages/",
+    "lingc-cli/",
     "docker/",
     # `tests/` lives outside the runtime src tree and is checked by the
     # matrix `tests` job (with the test dependency group installed).

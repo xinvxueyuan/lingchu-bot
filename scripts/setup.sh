@@ -655,7 +655,7 @@ final_verify() {
     echo -e "  ${BOLD}── 快速启动命令 ──${NC}"
     echo
     if command -v uv &>/dev/null; then
-        echo -e "    ${GREEN}uv run nb run${NC}              启动机器人"
+        echo -e "    ${GREEN}uv run lc run${NC}              启动机器人"
     fi
     echo -e "    ${GREEN}cd apps/docs${NC}"
     echo -e "    ${GREEN}pnpm dev${NC}                    启动文档站点"

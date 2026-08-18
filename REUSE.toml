@@ -106,3 +106,44 @@ path = [
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 lingchu-bot contributors <support@xinvstar.xyz>"
 SPDX-License-Identifier = "CC0-1.0"
+
+# ---------------------------------------------------------------------------
+# Build artifacts & derivative/cache files — CC0 1.0
+# ---------------------------------------------------------------------------
+# Bytecode caches (__pycache__/*.pyc), binary extensions (.pyd/.so), pytest,
+# ruff, mypy, pyright caches, coverage/build outputs, the Turborepo cache
+# (.turbo/), uv cache (.uv-cache/), local virtualenvs and the bundled Node
+# toolchain (node_modules/) are derivative artifacts that REUSE still scans;
+# annotate them as CC0 (public domain) to avoid false "missing license"
+# reports. They are also gitignored and never committed.
+[[annotations]]
+path = [
+  "**/*.pyc",
+  "**/*.pyo",
+  "**/*.pyd",
+  "**/*.so",
+  "**/*.egg-info/**",
+  "**/__pycache__/**",
+  "**/.pytest_cache/**",
+  "**/.pytest-localstore/**",
+  "**/.ruff_cache/**",
+  "**/.mypy_cache/**",
+  "**/.pyright/**",
+  "**/htmlcov/**",
+  "**/.coverage",
+  "**/.coverage.*",
+  "**/coverage.xml",
+  "**/test-results/**",
+  # docs/site build output and tooling caches
+  "**/dist/**",
+  "**/.turbo/**",
+  "**/.uv-cache/**",
+  # local virtualenvs (installed third-party sources, not project code)
+  "**/.venv/**",
+  "**/venv/**",
+  # Node toolchain
+  "node_modules/**",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 lingchu-bot contributors <support@xinvstar.xyz>"
+SPDX-License-Identifier = "CC0-1.0"

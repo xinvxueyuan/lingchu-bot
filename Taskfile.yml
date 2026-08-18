@@ -496,17 +496,17 @@ tasks:
       - sh: test -n "{{.MSG}}"
         msg: 'MSG 参数必填，用法: task db:revision -- MSG="描述变更"'
     cmds:
-      - ENVIRONMENT=dev nb orm revision -m "{{.MSG}}" --branch-label nonebot_plugin_lingchu_bot
+      - ENVIRONMENT=dev uv run lc db revision -m "{{.MSG}}" --branch-label nonebot_plugin_lingchu_bot
 
   db:check:
     desc: 检查是否有未应用的数据库迁移
     cmds:
-      - ENVIRONMENT=dev nb orm check
+      - ENVIRONMENT=dev uv run lc db check
 
   db:upgrade:
     desc: 应用待执行的数据库迁移
     cmds:
-      - ENVIRONMENT=dev nb orm upgrade
+      - ENVIRONMENT=dev uv run lc db upgrade
 
   gitmoji:
     desc: 显示 gitmoji + Conventional Commits 中文速查表
