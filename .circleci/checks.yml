@@ -5,8 +5,10 @@
 # .github/workflows/frontend.yml (docs lint/type/test), command for command.
 #
 # Design notes:
-#   - No orbs. Tools (uv, task, pnpm) come from official installers; images
-#     are pinned cimg minor tags (cimg/python:3.13.15, cimg/node:24.19).
+#   - The only orb is the official certified `codecov/codecov` orb (version
+#     pinned) used to upload the SQLite coverage report; everything else
+#     comes from official installers and pinned cimg minor tags
+#     (cimg/python:3.13.15, cimg/node:24.19).
 #   - uv cache (~/.cache/uv) and the pnpm store are cached keyed on their
 #     lockfiles.
 #   - The DB matrix cells are enumerated explicitly: CircleCI matrix is a
@@ -14,6 +16,9 @@
 #   - No path filtering: when CircleCI takes over, it runs EVERYTHING.
 
 version: 2.1
+
+orbs:
+  codecov: codecov/codecov@6.0.0
 
 commands:
   install-uv:
@@ -220,6 +225,8 @@ jobs:
       SQLALCHEMY_DATABASE_URL: sqlite+aiosqlite:///db.sqlite3
     steps:
       - python-tests
+      - codecov/upload:
+          files: test-results/coverage.xml
 
   tests-db:
     description: Tests & type checks on a database sidecar (parameterized by matrix cell)
