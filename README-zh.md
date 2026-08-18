@@ -7,6 +7,7 @@
 [![Downloads](https://img.shields.io/pypi/dm/nonebot-plugin-lingchu-bot)](https://pypi.org/project/nonebot-plugin-lingchu-bot/)
 [![Image size](https://ghcr-badge.egpl.dev/xinvxueyuan/lingchu-bot/size)](https://github.com/xinvxueyuan/lingchu-bot/pkgs/container/lingchu-bot)
 [![License](https://img.shields.io/github/license/xinvxueyuan/lingchu-bot)](LICENSE-code)
+[![REUSE status](https://api.reuse.software/badge/github.com/xinvxueyuan/lingchu-bot)](https://api.reuse.software/info/github.com/xinvxueyuan/lingchu-bot)
 [![Python](https://img.shields.io/badge/python-3.13-blue)](pyproject.toml)
 [![NoneBot2](https://img.shields.io/badge/NoneBot2-2.x-orange)](https://nonebot.dev/)
 [![Docs](https://img.shields.io/badge/docs-lingchu.zone.id-brightgreen)](https://lingchu.zone.id/)

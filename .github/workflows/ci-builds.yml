@@ -188,7 +188,7 @@ jobs:
           enable-cache: "true"
 
       - name: 📦 Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --all-packages
 
       - name: 🚬 Run prod-env smoke test
         shell: bash
@@ -198,7 +198,7 @@ jobs:
           # timeout kills the process after 60s (exit 124); the || true
           # prevents that from failing the step — the grep below is the
           # actual pass/fail gate.
-          timeout 60s uv run nb run -r > /tmp/nb-output.log 2>&1 || true
+          timeout 60s uv run lc run --reload > /tmp/nb-output.log 2>&1 || true
           cat /tmp/nb-output.log
           if grep -q "Application startup complete." /tmp/nb-output.log; then
             echo "✓ Application startup complete marker detected"

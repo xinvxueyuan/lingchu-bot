@@ -95,6 +95,8 @@ jobs:
           task ci:fix
           task ci:hooks
           task ci:static
+      - name: REUSE compliance
+        run: uv run reuse lint
 
   tests:
     name: 🧪 Tests & Type Check (${{ matrix.db.label }})
@@ -261,7 +263,7 @@ jobs:
           timeout_minutes: 5
           max_attempts: 4
           retry_wait_seconds: 30
-          command: uv sync --frozen --all-extras
+          command: uv sync --frozen --all-extras --all-packages
 
       - name: Install system ODBC driver (SQL Server)
         if: matrix.db.driver_install == 'mssql_odbc'
@@ -274,10 +276,10 @@ jobs:
         run: echo "oracledb uses Thin mode; no Oracle Client required"
 
       - name: Run migrations
-        run: uv run nb orm upgrade
+        run: uv run lc db upgrade
 
       - name: Verify migration/model consistency
-        run: uv run nb orm check
+        run: uv run lc db check
 
       - name: Type Check (Pyright)
         run: uv run -m pyright
