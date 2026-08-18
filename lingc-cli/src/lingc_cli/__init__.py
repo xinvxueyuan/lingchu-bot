@@ -1,7 +1,7 @@
-"""Lingc CLI — Lingchu Bot runtime launcher.
+"""Lingc CLI — a convenience command-line tool for operating Lingchu Bot.
 
-A game-launcher style runtime shell for Lingchu Bot: safe startup,
-environment detection, package management, diagnostics/repair and updates.
+Provides safe startup, environment detection, package management,
+diagnostics/repair and updates.
 """
 
 from __future__ import annotations

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 class ReloaderError(Exception):
     """A child failed to complete startup (timeout or early exit).
 
-    Carries the exit code the launcher should report so the reload loop can
+    Carries the exit code the CLI should report so the reload loop can
     hand the failure back instead of pretending the bot started cleanly.
     """
 

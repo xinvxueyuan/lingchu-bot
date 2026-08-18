@@ -1,6 +1,6 @@
 # lingc-cli
 
-Lingchu Bot runtime launcher — a "game launcher" style runtime shell.
+A convenience command-line tool for operating and maintaining Lingchu Bot.
 
 Provides safe startup (`lc run`), environment detection (`lc env`),
 diagnostics (`lc doctor`), package management (`lc install/uninstall/update`),

@@ -65,35 +65,7 @@ uvx --from nb-cli nb.exe run
    ENVIRONMENT=prod uvx --from nb-cli nb.exe run
    ```
 
-3. 验收标准：进程到达 `Application startup complete.` 且无硬错误。`LLM configuration missing or invalid; AI is unavailable` 告警可接受（之后运行 `lingchu config init` 种子化 `llm.toml`）；任何 traceback、schema 写入或迁移副作用都是硬错误。
-
-### 阶段 3 — CLI 工具验证
-
-验证 `lingchu` CLI 在开发环境和打包分发两种形态下均可用。
-
-**开发环境** — 通过 `uv` 直接调用源码 CLI：
-
-```bash
-uv run lingchu --version
-uv run lingchu doctor
-uv run lingchu config path
-```
-
-`lingchu doctor` 应对 `nonebot2`、`nonebot-adapter-onebot`、`nonebot-plugin-localstore`、`nonebot-plugin-lingchu-bot` 报告 `ok`。任何 `missing` 状态都是硬错误。
-
-**生产封包检查** — 验证构建出的 wheel 暴露正确的 entry point 且在隔离环境中行为正常：
-
-```bash
-task ci:wheel-smoke
-```
-
-该任务运行 `scripts/check-wheel-entrypoints.py`，构建 wheel 后在一个临时项目中（剥离 `LINGCHU_*`、`LOCALSTORE_*`、`ENVIRONMENT` 环境变量）断言：
-
-- wheel 声明了 `lingchu = "_lingchu_bot_cli.app:main"` 和 `nb lingchu = "_lingchu_bot_cli.nb_plugin:install"` entry point；
-- `Typer` 被声明为运行时依赖，`nb-cli` 不是；
-- `lingchu --help`、`nb lingchu --help`、`nb lingchu doctor --json` 成功；
-- `nb lingchu config validate --path missing.toml` 保留 Typer 域错误（退出码 1 且 stderr 包含 `missing configuration file`）；
-- `lingchu config init`、`lingchu config validate`、`lingchu schema install` 正确往返，不向项目 cwd 写入文件或残留 `.tmp` 文件。
+3. 验收标准：进程到达 `Application startup complete.` 且无硬错误。`LLM configuration missing or invalid; AI is unavailable` 告警可接受；任何 traceback、schema 写入或迁移副作用都是硬错误。
 
 ## CI/CD 冒烟测试
 

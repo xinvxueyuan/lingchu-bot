@@ -9,7 +9,7 @@ from lingc_cli.commands import add_all
 from lingc_cli.core import config
 
 app = typer.Typer(
-    help="Lingchu Bot runtime launcher (game-launcher style runtime shell).",
+    help="A convenience command-line tool for operating and maintaining Lingchu Bot.",
     add_completion=False,
     no_args_is_help=True,
 )
@@ -28,7 +28,7 @@ def _cli(
         True, "--venv/--no-venv", help="Auto detect virtual environment."
     ),
 ) -> None:
-    """Lingchu Bot runtime launcher."""
+    """A convenience command-line tool for operating and maintaining Lingchu Bot."""
     if version:
         typer.echo(f"lc: lingc cli version {__version__}")
         raise typer.Exit

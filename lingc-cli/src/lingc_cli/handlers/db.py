@@ -1,6 +1,6 @@
 """Database migration dispatch for Lingc CLI (lc db).
 
-Wraps the installed nonebot-plugin-orm command-line so the launcher can drive
+Wraps the installed nonebot-plugin-orm command-line so lingc-cli can drive
 Alembic migrations (upgrade / check / revision / sync) with normalized exit
 codes. The orm module is imported lazily so an unconfigured environment can
 be reported cleanly as EnvironmentNotReadyError. NoneBot must be initialized
@@ -19,7 +19,7 @@ from lingc_cli.exceptions import EnvironmentNotReadyError
 from lingc_cli.i18n import _
 
 # nonebot / adapters / the lingchu plugin are optional runtime deps of this
-# launcher command (only ``lc db`` imports them at all).
+# command (only ``lc db`` imports them at all).
 # pyright: reportMissingImports=false
 
 

@@ -1,6 +1,6 @@
 """Self-update for Lingc CLI (lc self-update).
 
-Probes how the launcher was installed (uv tool vs pipx) and upgrades it in
+Probes how lingc-cli was installed (uv tool vs pipx) and upgrades it in
 place, falling back to instructing a manual upgrade when neither is found.
 """
 

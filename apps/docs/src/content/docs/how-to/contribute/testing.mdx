@@ -63,35 +63,7 @@ Verify the bot starts cleanly from a pristine localstore state, which proves sta
    ENVIRONMENT=prod uvx --from nb-cli nb.exe run
    ```
 
-3. Acceptance: the process reaches `Application startup complete.` without hard errors. A `LLM configuration missing or invalid; AI is unavailable` warning is acceptable (run `lingchu config init` afterwards to seed `llm.toml`); any traceback, schema-write, or migration side effect is a hard failure.
-
-### Stage 3 — CLI tool verification
-
-Verify the `lingchu` CLI works in both the development environment and as a packaged distribution.
-
-**Development environment** — exercise the in-tree CLI directly through `uv`:
-
-```bash
-uv run lingchu --version
-uv run lingchu doctor
-uv run lingchu config path
-```
-
-`lingchu doctor` reports `ok` for `nonebot2`, `nonebot-adapter-onebot`, `nonebot-plugin-localstore`, and `nonebot-plugin-lingchu-bot`. Any `missing` status is a hard failure.
-
-**Production packaging check** — verify the built wheel exposes the correct entry points and behaves in an isolated environment:
-
-```bash
-task ci:wheel-smoke
-```
-
-This runs `scripts/check-wheel-entrypoints.py`, which builds the wheel and then in a temporary project (with `LINGCHU_*`, `LOCALSTORE_*`, and `ENVIRONMENT` env vars stripped) asserts that:
-
-- the wheel declares `lingchu = "_lingchu_bot_cli.app:main"` and `nb lingchu = "_lingchu_bot_cli.nb_plugin:install"` entry points;
-- `Typer` is declared as a runtime dependency and `nb-cli` is not;
-- `lingchu --help`, `nb lingchu --help`, and `nb lingchu doctor --json` succeed;
-- `nb lingchu config validate --path missing.toml` preserves the Typer domain error (exit code 1 with `missing configuration file`);
-- `lingchu config init`, `lingchu config validate`, and `lingchu schema install` round-trip correctly without writing into the project cwd or leaving `.tmp` files behind.
+3. Acceptance: the process reaches `Application startup complete.` without hard errors. A `LLM configuration missing or invalid; AI is unavailable` warning is acceptable; any traceback, schema-write, or migration side effect is a hard failure.
 
 ## CI/CD smoke test
 
