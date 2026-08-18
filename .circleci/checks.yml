@@ -238,7 +238,6 @@ jobs:
     environment:
       SQLALCHEMY_DATABASE_URL: << parameters.db-url >>
     steps:
-      - checkout
       - wait-for-db:
           engine: << parameters.engine >>
       - python-tests
