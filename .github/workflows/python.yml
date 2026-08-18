@@ -195,11 +195,6 @@ jobs:
           --health-timeout 5s
           --health-retries 30
           --health-start-period 60s
-
-          --health-interval 15s
-          --health-timeout 10s
-          --health-retries 30
-          --health-start-period 90s
     steps:
       - name: 📥 Checkout
         # setup-uv-task (used below) does NOT include checkout, so this
