@@ -25,7 +25,7 @@ The service requires `nonebot_plugin_apscheduler` through NoneBot's `require()` 
 
 ## Data model
 
-`database/models/scheduler.py` defines the `ScheduledJob` ORM model on the `lingchu_scheduled_jobs` table. It uses cross-dialect compatibility types from `database/_dialect_compat.py` (`compat_string`, `CompatText`, `CompatBoolean`, `CompatDateTimeTZ`) so the same schema works across SQLite, PostgreSQL, MySQL/MariaDB, Oracle, and SQL Server.
+`database/models/scheduler.py` defines the `ScheduledJob` ORM model on the `lingchu_scheduled_jobs` table. It uses cross-dialect compatibility types from `database/_dialect_compat.py` (`compat_string`, `CompatText`, `CompatBoolean`, `CompatDateTimeTZ`) so the same schema works across SQLite, PostgreSQL, MySQL, and MariaDB.
 
 | Column | Type | Notes |
 | --- | --- | --- |

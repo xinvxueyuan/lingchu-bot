@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Prevent uv run from auto-syncing the environment, which would
-      # install the test group with database drivers (mariadb, aioodbc)
+      # install the test group with database drivers (mariadb)
       # that require system-level libraries and fail to build in minimal
       # CI environments. Static Analysis only needs lint + git groups.
       UV_NO_SYNC: "1"
@@ -87,7 +87,7 @@ jobs:
       - name: Install Python dependencies (lint + git only)
         # Install minimal dependencies for static analysis: project runtime
         # deps + lint group + git group. Skip test group to avoid building
-        # database drivers (mariadb, aioodbc) that need system libraries.
+        # database drivers (mariadb) that need system libraries.
         run: uv sync --no-dev --all-extras --group lint --group git --frozen
       - name: Static Analysis
         run: |
@@ -117,59 +117,37 @@ jobs:
           - engine: sqlite
             url: sqlite+aiosqlite:///db.sqlite3
             label: SQLite
-            driver_install: ""
             image: ""
           # ── PostgreSQL: 16 (supported until Nov 2028) + 18 (latest, Sep 2025) ──
           - engine: postgresql
             url: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
             label: PostgreSQL 16
-            driver_install: ""
             image: postgres:16-alpine
           - engine: postgresql
             url: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
             label: PostgreSQL 18
-            driver_install: ""
             image: postgres:18-alpine
           # ── MySQL: 8.4 LTS (until ~2032) + 9.7 LTS (until ~2034, Apr 2026) ──
           - engine: mysql
             url: mysql+aiomysql://mysql:mysql@localhost:3306/mymysql
             label: MySQL 8.4 LTS
-            driver_install: ""
             image: mysql:8.4
           - engine: mysql
             url: mysql+aiomysql://mysql:mysql@localhost:3306/mymysql
             label: MySQL 9.7 LTS
-            driver_install: ""
             image: mysql:9.7
           # ── MariaDB: 11.4 LTS (until May 2029) + 11.8 LTS (until Jun 2028) ──
           - engine: mariadb
             url: mysql+aiomysql://mariadb:mariadb@localhost:3306/mymariadb
             label: MariaDB 11.4 LTS
-            driver_install: ""
             image: mariadb:11.4
           - engine: mariadb
             url: mysql+aiomysql://mariadb:mariadb@localhost:3306/mymariadb
             label: MariaDB 11.8 LTS
-            driver_install: ""
             image: mariadb:11.8
-          # ── Oracle 23ai Free (only freely available version; no LTS split) ──
-          # Use ghcr.io (GitHub Container Registry) to avoid Docker Hub rate limits.
-          - engine: oracle
-            url: oracle+oracledb://system:oracle@localhost:1521/?service_name=FREEPDB1
-            label: Oracle 23ai
-            driver_install: oracle_thin
-            image: ghcr.io/gvenzl/oracle-free:23-slim
-          # ── SQL Server: 2022 + 2025 (migrated off deprecated azure-sql-edge) ──
-          - engine: mssql
-            url: mssql+aioodbc://sa:Password!1@localhost:1433/master?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
-            label: SQL Server 2022
-            driver_install: mssql_odbc
-            image: mcr.microsoft.com/mssql/server:2022-latest
-          - engine: mssql
-            url: mssql+aioodbc://sa:Password!1@localhost:1433/master?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
-            label: SQL Server 2025
-            driver_install: mssql_odbc
-            image: mcr.microsoft.com/mssql/server:2025-latest
+          # Oracle / SQL Server dialect support was dropped; supported backends
+          # are SQLite, PostgreSQL, MySQL, MariaDB (nonebot-plugin-orm standard).
+
     env:
       SQLALCHEMY_DATABASE_URL: ${{ matrix.db.url }}
     services:
@@ -217,27 +195,7 @@ jobs:
           --health-timeout 5s
           --health-retries 30
           --health-start-period 60s
-      oracle:
-        image: ${{ matrix.db.engine == 'oracle' && matrix.db.image || '' }}
-        env:
-          ORACLE_PASSWORD: oracle
-        ports:
-          - 1521:1521
-        options: >-
-          --health-cmd "bash -c 'echo > /dev/tcp/localhost/1521'"
-          --health-interval 15s
-          --health-timeout 10s
-          --health-retries 40
-          --health-start-period 180s
-      mssql:
-        image: ${{ matrix.db.engine == 'mssql' && matrix.db.image || '' }}
-        env:
-          ACCEPT_EULA: "Y"
-          MSSQL_SA_PASSWORD: "Password!1"
-        ports:
-          - 1433:1433
-        options: >-
-          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Password!1' -No -Q 'SELECT 1' || exit 1"
+
           --health-interval 15s
           --health-timeout 10s
           --health-retries 30
@@ -265,15 +223,6 @@ jobs:
           retry_wait_seconds: 30
           command: uv sync --frozen --all-extras --all-packages
 
-      - name: Install system ODBC driver (SQL Server)
-        if: matrix.db.driver_install == 'mssql_odbc'
-        run: |
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev
-
-      - name: Verify Oracle Thin mode (no Oracle Client needed)
-        if: matrix.db.driver_install == 'oracle_thin'
-        run: echo "oracledb uses Thin mode; no Oracle Client required"
 
       - name: Run migrations
         run: uvx --from nb-cli nb orm upgrade
@@ -326,7 +275,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Prevent uv run from auto-syncing the environment, which would
-      # install the test group with database drivers (mariadb, aioodbc)
+      # install the test group with database drivers (mariadb)
       # that require system-level libraries and fail to build in minimal
       # CI environments. Auto-format only needs lint + git groups.
       UV_NO_SYNC: "1"
@@ -349,7 +298,7 @@ jobs:
       - name: Install Python dependencies (lint + git only)
         # Install minimal dependencies for auto-format: project runtime
         # deps + lint group + git group. Skip test group to avoid building
-        # database drivers (mariadb, aioodbc) that need system libraries.
+        # database drivers (mariadb) that need system libraries.
         run: uv sync --no-dev --all-extras --group lint --group git --frozen
       - name: Auto Fix & Format
         run: task ci:fix

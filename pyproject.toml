@@ -100,16 +100,12 @@ test = [
     "respx>=0.23.1",
     # Multi-database testing drivers (SQLALCHEMY_DATABASE_URL).
     # cryptography is required by pymysql/aiomysql for MySQL 8 caching_sha2_password
-    # auth and by oracledb for TLS.
+    # auth.
+    # Supported backends: SQLite / PostgreSQL / MySQL / MariaDB (nonebot-plugin-orm
+    # standard). Oracle / SQL Server dialect support was dropped.
     "psycopg[binary]>=3.3.4", # PostgreSQL
     "aiomysql>=0.3.2",        # MySQL and MariaDB (SQLAlchemy auto-detects dialect)
-    "cryptography>=50.0.0",   # pymysql/aiomysql/oracledb auth
-    "oracledb>=4.0.2",        # Oracle Thin mode (no Oracle Client required)
-    "aioodbc>=0.5.0",         # SQL Server async ODBC
-    # aioodbc depends on pyodbc, which needs system ODBC drivers:
-    # - Linux: msodbcsql18 (apt; CI installs via ACCEPT_EULA=Y)
-    # - macOS: msodbcsql18 (brew)
-    # - Windows: built-in (no extra install)
+    "cryptography>=50.0.0",   # pymysql/aiomysql auth
 ]
 
 
@@ -523,7 +519,7 @@ exclude = [
     # matrix `tests` job (with the test dependency group installed).
     # Excluding it here keeps `task ci:fix` (ty check --fix) green in the
     # lint-only environment, which deliberately skips the test group to
-    # avoid building system-level database drivers (mariadb, aioodbc).
+    # avoid building system-level database drivers (e.g. mariadb).
     "tests/",
 ]
 
