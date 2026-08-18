@@ -276,10 +276,10 @@ jobs:
         run: echo "oracledb uses Thin mode; no Oracle Client required"
 
       - name: Run migrations
-        run: uv run lc db upgrade
+        run: uvx --from nb-cli nb orm upgrade
 
       - name: Verify migration/model consistency
-        run: uv run lc db check
+        run: uvx --from nb-cli nb orm check
 
       - name: Type Check (Pyright)
         run: uv run -m pyright
