@@ -157,7 +157,7 @@ The project prefers NoneBot plugin configuration, localstore, and ORM plugin cap
 
 Potentially blocking paths such as file storage, TOML parsing, deepcopy, command parsing, and translation catalog loading are moved to worker threads to avoid blocking the NoneBot event loop.
 
-Plugin startup does not create deployment configuration files or install JSON Schema files. Generate editor schemas explicitly with `lingchu schema install`.
+Plugin startup does not create deployment configuration files or install JSON Schema files. Generate editor schemas manually with pydantic's `model_json_schema()`, or hand them to NoneBot configuration management.
 
 ## Configuration model
 
@@ -169,13 +169,13 @@ Lingchu Bot uses pydantic as the source of truth for deployment, mutable runtime
 | Online-editable settings | `_lingchu_bot_contracts::MutableRuntimeSettings` | Persisted by `core/mutable_settings.py` in localstore-owned `runtime-overrides.toml`. |
 | Per-command handle config | `core/handle_config_defaults/<command>.py::<Model>(BaseModel)` | Registered via `register_handle_defaults()`; `HANDLE_DEFAULTS_REGISTRY` is `dict[str, type[BaseModel]]`. `HandleConfigManager.get_config()` / `update_config()` use `type_validate_python(model_cls, toml_dict)`. `HandleConfig` dataclass still holds `dict[str, Any]` to preserve the frozen-dataclass interface; `_build_handle_config` bridges the pydantic ↔ dict boundary via `model_dump(mode="json")`. |
 | Bot state | `core/bot_state.py::BotStateFile(BaseModel)` | Uses `Field(alias="global")` + `populate_by_name=True` to bridge the `global` Python keyword; `_save_bot_state()` serializes with `model_dump(mode="json", by_alias=True)`. |
-| JSON Schema files | Generated explicitly with `lingchu schema install` | CLI tooling calls pydantic `model_json_schema()` on request; startup never installs them. |
+| JSON Schema files | Generated manually with pydantic `model_json_schema()` | pydantic owns JSON Schema emission; startup never installs them. |
 
 ### Adding a new handle config
 
 1. Declare a `pydantic.BaseModel` subclass in `core/handle_config_defaults/<command>.py`.
 2. Register it via `register_handle_defaults("<command_key>", <Model>)`.
-3. Run `task db:check`, then run `lingchu schema install` when editor schemas are needed to regenerate `<basename>.schema.json`.
+3. Run `task db:check`; regenerate editor schemas via pydantic when they are needed.
 4. The corresponding `<command_key>.toml` is created on first read; users can edit it and `HandleConfigManager.get_config(<command_key>)` will validate through pydantic.
 
 Do not return bare `dict` defaults — pydantic owns validation and JSON Schema emission. `HandleConfigManager.validate_config()` is removed; pydantic raises on invalid input.

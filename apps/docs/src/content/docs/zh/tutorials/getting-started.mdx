@@ -96,24 +96,11 @@ NoneBot 配置文件只接受标准 JSON 小写 `true` / `false`。写 `True` / 
 
 </Aside>
 
-## 用 CLI 验证
-
-`lingchu` CLI 随插件提供。确认它工作正常：
-
-```bash
-uv run lingchu --version
-uv run lingchu doctor
-uv run lingchu config path
-```
-
-`lingchu doctor` 应为 `nonebot2`、`nonebot-adapter-onebot`、`nonebot-plugin-localstore` 和 `nonebot-plugin-lingchu-bot` 报告 `ok`。
-
 ## 你学到了什么
 
 - Lingchu Bot 通过 `uv` 和 `scripts/setup.sh` 安装。
 - 配置存放在 `.env` 中，由 NoneBot 管理。
 - 启动成功的标志是日志中出现 `Application startup complete.`。
-- `lingchu` CLI 可验证安装。
 
 ## 下一步
 
