@@ -1654,12 +1654,13 @@ class TestUpsert:
             )
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("dialect", ["oracle", "mssql"])
     async def test_upsert_unsupported_dialect_raises(
-        self, mock_model: type[FakeModel], mock_async_session: Mock
+        self, mock_model: type[FakeModel], mock_async_session: Mock, dialect: str
     ) -> None:
-        """Test upsert on an unsupported dialect raises DatabaseError."""
+        """Upsert on a dropped (Oracle / SQL Server) dialect raises DatabaseError."""
         bind = MagicMock()
-        bind.dialect.name = "oracle"
+        bind.dialect.name = dialect
         mock_async_session.get_bind = MagicMock(return_value=bind)
 
         with pytest.raises(expected_exception=DatabaseError, match="not supported"):
