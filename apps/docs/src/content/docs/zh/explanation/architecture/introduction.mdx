@@ -157,7 +157,7 @@ Lingchu Bot 是一个以 NoneBot2 为基础的应用侧机器人项目。当前�
 
 文件存储、TOML 解析、deepcopy、命令解析和翻译 catalog 加载等潜在阻塞路径会放到 worker thread 执行，避免阻塞 NoneBot 事件循环。
 
-插件启动不会创建部署配置文件，也不会安装 JSON Schema 文件。需要编辑器 schema 时，请显式运行 `lingchu schema install`。
+插件启动不会创建部署配置文件，也不会安装 JSON Schema 文件。需要编辑器 schema 时，请手动用 pydantic 的 `model_json_schema()` 生成，或交由 nonebot 配置管理处理。
 
 ## 配置模型
 
@@ -169,13 +169,13 @@ Lingchu Bot 以 pydantic 作为部署配置、运行时可变设置、handle 与
 | 在线可编辑设置 | `_lingchu_bot_contracts::MutableRuntimeSettings` | 由 `core/mutable_settings.py` 持久化到 localstore 管理的 `runtime-overrides.toml`。 |
 | Per-command handle 配置 | `core/handle_config_defaults/<command>.py::<Model>(BaseModel)` | 通过 `register_handle_defaults()` 注册；`HANDLE_DEFAULTS_REGISTRY` 类型为 `dict[str, type[BaseModel]]`。`HandleConfigManager.get_config()` / `update_config()` 使用 `type_validate_python(model_cls, toml_dict)`。`HandleConfig` dataclass 仍持有 `dict[str, Any]` 以保留 frozen-dataclass 接口；`_build_handle_config` 通过 `model_dump(mode="json")` 桥接 pydantic ↔ dict 边界。 |
 | Bot 状态 | `core/bot_state.py::BotStateFile(BaseModel)` | 使用 `Field(alias="global")` + `populate_by_name=True` 桥接 `global` Python 关键字；`_save_bot_state()` 以 `model_dump(mode="json", by_alias=True)` 序列化。 |
-| JSON Schema 文件 | 通过 `lingchu schema install` 显式生成 | CLI 按需调用 pydantic `model_json_schema()`；启动过程不会安装 schema。 |
+| JSON Schema 文件 | 手动用 pydantic `model_json_schema()` 生成 | pydantic 负责 JSON Schema 输出；启动过程不会安装 schema。 |
 
 ### 新增 handle 配置
 
 1. 在 `core/handle_config_defaults/<command>.py` 中声明 `pydantic.BaseModel` 子类。
 2. 通过 `register_handle_defaults("<command_key>", <Model>)` 注册。
-3. 运行 `task db:check`；需要编辑器 schema 时，再运行 `lingchu schema install` 重新生成 `<basename>.schema.json`。
+3. 运行 `task db:check`；需要编辑器 schema 时，再用 pydantic 重新生成。
 4. 对应的 `<command_key>.toml` 在首次读取时创建；用户可以编辑它，`HandleConfigManager.get_config(<command_key>)` 会通过 pydantic 校验。
 
 不要返回裸 `dict` 默认值 —— 校验和 JSON Schema 输出由 pydantic 拥有。`HandleConfigManager.validate_config()` 已移除；非法输入由 pydantic 直接抛错。

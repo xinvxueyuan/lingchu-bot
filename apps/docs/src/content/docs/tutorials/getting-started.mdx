@@ -96,24 +96,11 @@ NoneBot configuration files only accept standard JSON lowercase `true` / `false`
 
 </Aside>
 
-## Verify with the CLI
-
-The `lingchu` CLI ships with the plugin. Confirm it works:
-
-```bash
-uv run lingchu --version
-uv run lingchu doctor
-uv run lingchu config path
-```
-
-`lingchu doctor` should report `ok` for `nonebot2`, `nonebot-adapter-onebot`, `nonebot-plugin-localstore`, and `nonebot-plugin-lingchu-bot`.
-
 ## What you learned
 
 - Lingchu Bot installs through `uv` and `scripts/setup.sh`.
 - Configuration lives in `.env` under NoneBot's management.
 - Startup is confirmed by `Application startup complete.` in the logs.
-- The `lingchu` CLI verifies the installation.
 
 ## Next steps
 
