@@ -25,23 +25,21 @@ commands:
             curl -LsSf https://astral.sh/uv/install.sh | sh
             echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
   install-task:
-    description: Install go-task and persist PATH via BASH_ENV
+    description: Install go-task to ~/.local/bin (outside the workspace) and persist PATH via BASH_ENV
     steps:
       - run:
           name: Install Task
           command: |
             set -euo pipefail
-            sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d
-            if [ -x "$HOME/.local/bin/task" ]; then
-              export PATH="$HOME/.local/bin:$PATH"
-              echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
-            elif [ -x "$PWD/bin/task" ]; then
-              export PATH="$PWD/bin:$PATH"
-              echo "export PATH=\"$PWD/bin:\$PATH\"" >> "$BASH_ENV"
-            else
-              echo "task binary not found after install" >&2
-              exit 1
-            fi
+            # Pinned release binary installed outside the workspace: the
+            # official install.sh drops a `bin/task` into the working tree,
+            # which pollutes `reuse lint` in the same job.
+            curl -fSL https://github.com/go-task/task/releases/download/v3.53.1/task_linux_amd64.tar.gz -o /tmp/task.tar.gz
+            tar -xzf /tmp/task.tar.gz -C /tmp task
+            mkdir -p "$HOME/.local/bin"
+            mv /tmp/task "$HOME/.local/bin/task"
+            export PATH="$HOME/.local/bin:$PATH"
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
             task --version
   install-pnpm:
     description: Enable pnpm via corepack (version from package.json packageManager)
