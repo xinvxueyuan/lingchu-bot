@@ -6,9 +6,12 @@
 #     outage), so a GitHub failure can never leave a PR/push unvalidated.
 #
 # How it works (CircleCI dynamic config):
-#   1. Every push/PR webhook triggers this SETUP pipeline; an hourly schedule
-#      (cron) acts as a fallback in case the GitHub webhook channel itself
-#      is down.
+#   1. Every push/PR webhook triggers this SETUP pipeline. An hourly fallback
+#      is provided by a project-level Schedule Trigger (CircleCI Project
+#      Settings -> Triggers, or the schedules API) that triggers a pipeline on
+#      `main` every hour in case the GitHub webhook channel itself is down.
+#      NOTE: `triggers: schedule` inside a setup config is NOT supported
+#      (scheduled workflows are incompatible with dynamic configuration).
 #   2. The `preflight` job sleeps PREFLIGHT_DELAY_SECONDS (15s default) to
 #      give GitHub Actions a 10-20s startup window, then runs
 #      `scripts/ci_gh_preflight.py` to inspect the head commit's
@@ -87,9 +90,8 @@ jobs:
 
 workflows:
   preflight:
-    triggers:
-      - schedule:
-          cron: "0 * * * *"
+    jobs:
+      - preflight:
           filters: &ci-branches
             branches:
               only:
@@ -100,6 +102,3 @@ workflows:
                 - /feature\/.*/
                 - /fix\/.*/
                 - /hotfix\/.*/
-    jobs:
-      - preflight:
-          filters: *ci-branches
