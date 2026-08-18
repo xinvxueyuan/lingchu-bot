@@ -102,6 +102,9 @@ def run_db(args: list[str]) -> int:
     try:
         result = orm_main.main(args, prog_name="lc db", standalone_mode=False)
     except Exception as exc:
+        # Echo the underlying orm failure (it is not a LingcCliError, so the
+        # CLI layer would otherwise exit silently with a bare code).
+        sys.stderr.write(f"lc db error: {type(exc).__name__}: {exc}\n")
         return _error_exit_code(exc)
     return _exit_code(result)
 
