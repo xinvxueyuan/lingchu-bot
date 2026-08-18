@@ -1,0 +1,32 @@
+---
+icon: Terminal
+title: lingc-cli（lc）
+---
+
+`lingc-cli` 是 Lingchu Bot 的一个**运维便捷命令行工具**。它以独立 PyPI 包发布
+（命令 `lc`），拥有独立版本线，不随 bot 运行时打包。用于在终端里对已部署的
+机器人做运维：环境侦测、安全启动、依赖管理、数据库迁移与故障修复。
+
+## 安装
+
+作为独立工具安装：
+
+```bash
+uv tool install lingc-cli
+# 或
+pipx install lingc-cli
+```
+
+## 快速上手
+
+```bash
+lc --version
+lc doctor        # 环境诊断
+lc run           # 安全启动机器人
+lc db upgrade    # 应用数据库迁移
+```
+
+## 独立包
+
+`lingc-cli` 有独立的发布周期，不随 `nonebot-plugin-lingchu-bot` 分发。
+完整 `lc` 命令面见 [commands](/cli/commands/) 参考。

@@ -1,0 +1,17 @@
+---
+icon: List
+title: Command Reference
+---
+
+Run `lc --help` for the full surface. Notable subcommands:
+
+| Command | Purpose |
+| --- | --- |
+| `lc env` | Inspect the runtime environment (OS, Python, uv/pip, adapters). |
+| `lc doctor` | Run diagnostics; exit code 3 when something is missing. |
+| `lc run` | Safely start the bot and supervise it. |
+| `lc init` | Generate a minimal `.env` if missing. |
+| `lc install` / `lc uninstall` / `lc update` | Manage dependencies. |
+| `lc repair` | Fix issues reported by `lc doctor`. |
+| `lc db` | Database migrations (`upgrade` / `check` / `revision` / `sync`). |
+| `lc self-update` | Upgrade `lingc-cli` itself. |
