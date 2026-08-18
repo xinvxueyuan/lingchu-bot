@@ -283,9 +283,10 @@ async def delete_stale_superuser_accounts(
     if not configured_account_values:
         raise ValueError
 
-    # SQL Server does not support row-value (tuple) comparisons such as
-    # (a, b) IN ((c, d), ...), so expand each configured pair into an OR of
-    # AND conditions instead of using tuple_(...).in_(...).
+    # Row-value (tuple) comparisons such as (a, b) IN ((c, d), ...) are not
+    # portable across all supported backends (SQLite lacks them), so expand each
+    # configured pair into an OR of AND conditions instead of using
+    # tuple_(...).in_(...).
     configured_account_expression = or_(
         *(
             and_(

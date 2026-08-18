@@ -29,7 +29,7 @@ class ScheduledJob(Model):
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     # ``job_id`` 由 ``__table_args__`` 的 ``UniqueConstraint`` 提供唯一索引；
-    # 不再额外声明 ``index=True``，避免在 Oracle 上与约束的唯一索引冲突。
+    # 不再额外声明 ``index=True``，避免在部分后端上与约束的唯一索引重复冲突。
     job_id: Mapped[str] = mapped_column(compat_string(128))
     handler_key: Mapped[str] = mapped_column(compat_string(128), index=True)
     trigger_type: Mapped[str] = mapped_column(compat_string(32))
