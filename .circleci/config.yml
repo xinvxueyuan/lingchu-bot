@@ -1,0 +1,105 @@
+# ── CircleCI watchdog config (setup pipeline) ──────────────────────────────
+# Dual-line CI with GitHub Actions:
+#   - GitHub Actions is the PRIMARY check runner (unchanged).
+#   - CircleCI is the WATCHDOG: it only takes over the full checks when
+#     GitHub Actions entirely failed for the head commit (e.g. platform
+#     outage), so a GitHub failure can never leave a PR/push unvalidated.
+#
+# How it works (CircleCI dynamic config):
+#   1. Every push/PR webhook triggers this SETUP pipeline; an hourly schedule
+#      (cron) acts as a fallback in case the GitHub webhook channel itself
+#      is down.
+#   2. The `preflight` job sleeps PREFLIGHT_DELAY_SECONDS (15s default) to
+#      give GitHub Actions a 10-20s startup window, then runs
+#      `scripts/ci_gh_preflight.py` to inspect the head commit's
+#      `actions/runs` (requires the manually configured GITHUB_TOKEN).
+#   3. Decision (full matrix in scripts/ci_gh_preflight.py):
+#        gh-alive   -> continue with a no-op config (GitHub runs the checks)
+#        gh-down    -> continue with .circleci/checks.yml (full takeover)
+#        gh-unknown -> fail open: continue with .circleci/checks.yml
+#   4. `circleci continuation continue` submits the generated config.
+#
+# Manual one-time setup (cannot be expressed in config):
+#   - app.circleci.com -> Add Projects -> lingchu-bot -> Set Up Project
+#     (select "Use existing config").
+#   - Project Settings -> Environment Variables: GITHUB_TOKEN (PAT with
+#     `actions: read`; read-only suffices for a public repo). A CircleCI
+#     context works too. Fork PR builds carry no secrets -> they fail open.
+#   - Recommended: Project Settings -> Advanced -> "Build forked pull
+#     requests" (CircleCI does not build fork PRs by default).
+#
+# No orbs are used; the image is a pinned cimg minor tag.
+
+version: 2.1
+setup: true
+
+executors:
+  preflight-executor:
+    docker:
+      - image: cimg/python:3.13.15
+
+commands:
+  install-circleci-cli:
+    description: Install the CircleCI CLI (needed for continuation continue)
+    steps:
+      - run:
+          name: Install CircleCI CLI
+          command: |
+            curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | bash
+            echo 'export PATH="$HOME/.circleci/bin:$PATH"' >> "$BASH_ENV"
+
+jobs:
+  preflight:
+    description: Decide whether GitHub Actions is healthy; continue with full checks or no-op
+    executor: preflight-executor
+    environment:
+      PREFLIGHT_DELAY_SECONDS: "15"
+    steps:
+      - checkout
+      - run:
+          name: Wait for GitHub Actions startup window
+          command: |
+            set -euo pipefail
+            echo "Delaying ${PREFLIGHT_DELAY_SECONDS}s so GitHub Actions has a startup window before preflight."
+            sleep "${PREFLIGHT_DELAY_SECONDS}"
+      - run:
+          name: Query GitHub Actions status for the head commit
+          command: |
+            set -euo pipefail
+            SHA="$(git rev-parse HEAD)"
+            echo "Head commit: ${SHA}"
+            DECISION="$(python3 scripts/ci_gh_preflight.py --sha "${SHA}" --token "${GITHUB_TOKEN:-}")"
+            echo "PREFLIGHT_DECISION=${DECISION}" >> "$BASH_ENV"
+            echo "Preflight decision: ${DECISION}"
+      - install-circleci-cli
+      - run:
+          name: Continue with full checks or no-op
+          command: |
+            set -euo pipefail
+            DECISION="${PREFLIGHT_DECISION:-gh-unknown}"
+            if [ "${DECISION}" = "gh-alive" ]; then
+              echo "GitHub Actions is healthy - CircleCI stays out (no-op continuation)."
+              circleci continuation continue --configuration .circleci/skip.yml
+            else
+              echo "GitHub Actions is down/failed (decision=${DECISION}) - taking over with full checks."
+              circleci continuation continue --configuration .circleci/checks.yml
+            fi
+
+workflows:
+  preflight:
+    triggers:
+      - schedule:
+          cron: "0 * * * *"
+          filters: &ci-branches
+            branches:
+              only:
+                - main
+                - dev
+                - /dev.*/
+                - /releases\/.*/
+                - /feature\/.*/
+                - /fix\/.*/
+                - /hotfix\/.*/
+    jobs:
+      - preflight:
+          filters: *ci-branches

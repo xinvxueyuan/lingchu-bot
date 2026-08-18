@@ -1,0 +1,12 @@
+# No-op continuation config.
+# Submitted by the preflight job (via `circleci continuation continue`) when
+# GitHub Actions is healthy: the pipeline exists but performs no work, so the
+# CircleCI run costs no credits and the check verdict stays with GitHub.
+version: 2.1
+jobs:
+  skip-check:
+    type: no-op
+workflows:
+  ci-skip:
+    jobs:
+      - skip-check

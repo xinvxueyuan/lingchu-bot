@@ -1,0 +1,316 @@
+# ── CircleCI full-checks config (continued from .circleci/config.yml) ───────
+# This file is submitted via `circleci continuation continue` by the preflight
+# job when GitHub Actions is down/failed. It mirrors the check pipeline of
+# .github/workflows/python.yml (static analysis + 7-cell DB test matrix) and
+# .github/workflows/frontend.yml (docs lint/type/test), command for command.
+#
+# Design notes:
+#   - No orbs. Tools (uv, task, pnpm) come from official installers; images
+#     are pinned cimg minor tags (cimg/python:3.13.15, cimg/node:24.19).
+#   - uv cache (~/.cache/uv) and the pnpm store are cached keyed on their
+#     lockfiles.
+#   - The DB matrix cells are enumerated explicitly: CircleCI matrix is a
+#     cartesian product and cannot zip parameter lists.
+#   - No path filtering: when CircleCI takes over, it runs EVERYTHING.
+
+version: 2.1
+
+commands:
+  install-uv:
+    description: Install uv (astral) and persist PATH via BASH_ENV
+    steps:
+      - run:
+          name: Install uv
+          command: |
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
+  install-task:
+    description: Install go-task and persist PATH via BASH_ENV
+    steps:
+      - run:
+          name: Install Task
+          command: |
+            sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
+  install-pnpm:
+    description: Enable pnpm via corepack (version from package.json packageManager)
+    steps:
+      - run:
+          name: Install pnpm (corepack)
+          command: |
+            corepack enable
+            corepack install
+            pnpm --version
+  restore-uv-cache:
+    steps:
+      - restore_cache:
+          name: Restore uv cache
+          keys:
+            - v2-uv-{{ checksum "uv.lock" }}
+            - v2-uv-
+  save-uv-cache:
+    steps:
+      - save_cache:
+          name: Save uv cache
+          key: v2-uv-{{ checksum "uv.lock" }}
+          paths:
+            - ~/.cache/uv
+  restore-pnpm-cache:
+    steps:
+      - restore_cache:
+          name: Restore pnpm store
+          keys:
+            - v2-pnpm-{{ checksum "pnpm-lock.yaml" }}
+            - v2-pnpm-
+  save-pnpm-cache:
+    steps:
+      - save_cache:
+          name: Save pnpm store
+          key: v2-pnpm-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - ~/.local/share/pnpm/store
+  install-node-deps:
+    steps:
+      - install-pnpm
+      - restore-pnpm-cache
+      - run:
+          name: Install Node dependencies
+          command: pnpm install --frozen-lockfile
+      - save-pnpm-cache
+  wait-for-db:
+    description: Wait for the database sidecar to accept connections (parity with GH Actions health checks)
+    parameters:
+      engine:
+        type: string
+    steps:
+      - run:
+          name: Wait for database to be ready
+          command: |
+            set -euo pipefail
+            case "<< parameters.engine >>" in
+              postgresql)
+                sudo apt-get update -qq
+                sudo apt-get install -y -qq postgresql-client
+                for i in $(seq 1 60); do
+                  if pg_isready -h localhost -U postgres -q; then
+                    echo "PostgreSQL is ready."
+                    exit 0
+                  fi
+                  sleep 2
+                done
+                ;;
+              mysql)
+                sudo apt-get update -qq
+                sudo apt-get install -y -qq default-mysql-client
+                for i in $(seq 1 90); do
+                  if MYSQL_PWD=mysql mysqladmin ping -h 127.0.0.1 -uroot --silent; then
+                    echo "MySQL is ready."
+                    exit 0
+                  fi
+                  sleep 2
+                done
+                ;;
+              mariadb)
+                sudo apt-get update -qq
+                sudo apt-get install -y -qq default-mysql-client
+                for i in $(seq 1 90); do
+                  if MYSQL_PWD=mariadb mysqladmin ping -h 127.0.0.1 -umariadb --silent; then
+                    echo "MariaDB is ready."
+                    exit 0
+                  fi
+                  sleep 2
+                done
+                ;;
+              *)
+                echo "Unknown engine: << parameters.engine >>" >&2
+                exit 1
+                ;;
+            esac
+            echo "Database did not become ready in time." >&2
+            exit 1
+  python-tests:
+    description: Shared Python test pipeline (mirrors .github/workflows/python.yml tests job)
+    steps:
+      - checkout
+      - install-uv
+      - restore-uv-cache
+      - run:
+          name: Install Python dependencies
+          command: |
+            set -euo pipefail
+            for i in 1 2 3; do
+              if uv sync --frozen --all-extras --all-packages; then
+                echo "uv sync OK (attempt ${i})."
+                break
+              fi
+              echo "uv sync failed (attempt ${i}/3); retrying in 30s."
+              sleep 30
+              if [ "${i}" = "3" ]; then
+                echo "uv sync failed after 3 attempts." >&2
+                exit 1
+              fi
+            done
+      - run:
+          name: Run migrations
+          command: uvx --from nb-cli nb orm upgrade && uv run lc db upgrade
+      - run:
+          name: Verify migration/model consistency
+          command: uvx --from nb-cli nb orm check && uv run lc db check
+      - run:
+          name: Type Check (Pyright)
+          command: uv run -m pyright
+      - run:
+          name: Type Check (ty)
+          command: uv run -m ty check --output-format github
+      - run:
+          name: Run Tests
+          command: |
+            mkdir -p test-results
+            uv run -m pytest -n auto --dist=worksteal --junitxml=test-results/pytest.xml --timeout=300
+      - store_test_results:
+          path: test-results
+      - store_artifacts:
+          path: test-results/coverage.xml
+          destination: coverage
+      - save-uv-cache
+
+jobs:
+  static-analysis:
+    description: Static analysis (ruff, markdownlint, turbo lint) + hooks + REUSE
+    docker:
+      - image: cimg/node:24.19
+    environment:
+      UV_NO_SYNC: "1"
+    steps:
+      - checkout
+      - install-uv
+      - install-task
+      - install-node-deps
+      - restore-uv-cache
+      - run:
+          name: Install Python dependencies (lint + git only)
+          command: uv sync --no-dev --all-extras --group lint --group git --frozen
+      - run:
+          name: Static Analysis (auto-fix then validate)
+          command: |
+            set -euo pipefail
+            task ci:fix
+            task ci:hooks
+            task ci:static
+      - run:
+          name: REUSE compliance
+          command: uv run reuse lint
+      - save-uv-cache
+
+  tests-sqlite:
+    description: Tests & type checks on SQLite
+    docker:
+      - image: cimg/python:3.13.15
+    environment:
+      SQLALCHEMY_DATABASE_URL: sqlite+aiosqlite:///db.sqlite3
+    steps:
+      - python-tests
+
+  tests-db:
+    description: Tests & type checks on a database sidecar (parameterized by matrix cell)
+    parameters:
+      db-image:
+        type: string
+      db-url:
+        type: string
+      engine:
+        type: string
+    docker:
+      - image: cimg/python:3.13.15
+      - image: << parameters.db-image >>
+        environment:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+          MYSQL_ROOT_PASSWORD: mysql
+          MYSQL_USER: mysql
+          MYSQL_PASSWORD: mysql
+          MYSQL_DATABASE: mymysql
+          MARIADB_USER: mariadb
+          MARIADB_PASSWORD: mariadb
+          MARIADB_DATABASE: mymariadb
+          MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    environment:
+      SQLALCHEMY_DATABASE_URL: << parameters.db-url >>
+    steps:
+      - checkout
+      - wait-for-db:
+          engine: << parameters.engine >>
+      - python-tests
+
+  frontend:
+    description: Docs lint, type check and tests (mirrors .github/workflows/frontend.yml)
+    docker:
+      - image: cimg/node:24.19
+    steps:
+      - checkout
+      - install-node-deps
+      - run:
+          name: ESLint
+          command: pnpm --filter docs lint
+      - run:
+          name: Type Check
+          command: pnpm --filter docs check-types
+      - run:
+          name: Test
+          command: pnpm --filter docs test
+
+workflows:
+  ci:
+    jobs:
+      - static-analysis:
+          filters: &ci-branches
+            branches:
+              only:
+                - main
+                - dev
+                - /dev.*/
+                - /releases\/.*/
+                - /feature\/.*/
+                - /fix\/.*/
+                - /hotfix\/.*/
+      - tests-sqlite:
+          filters: *ci-branches
+      - tests-db:
+          name: tests-postgresql-16
+          db-image: postgres:16-alpine
+          db-url: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
+          engine: postgresql
+          filters: *ci-branches
+      - tests-db:
+          name: tests-postgresql-18
+          db-image: postgres:18-alpine
+          db-url: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
+          engine: postgresql
+          filters: *ci-branches
+      - tests-db:
+          name: tests-mysql-84
+          db-image: mysql:8.4
+          db-url: mysql+aiomysql://mysql:mysql@localhost:3306/mymysql
+          engine: mysql
+          filters: *ci-branches
+      - tests-db:
+          name: tests-mysql-97
+          db-image: mysql:9.7
+          db-url: mysql+aiomysql://mysql:mysql@localhost:3306/mymysql
+          engine: mysql
+          filters: *ci-branches
+      - tests-db:
+          name: tests-mariadb-114
+          db-image: mariadb:11.4
+          db-url: mysql+aiomysql://mariadb:mariadb@localhost:3306/mymariadb
+          engine: mariadb
+          filters: *ci-branches
+      - tests-db:
+          name: tests-mariadb-118
+          db-image: mariadb:11.8
+          db-url: mysql+aiomysql://mariadb:mariadb@localhost:3306/mymariadb
+          engine: mariadb
+          filters: *ci-branches
+      - frontend:
+          filters: *ci-branches
