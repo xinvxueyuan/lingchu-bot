@@ -188,8 +188,11 @@ Feedback text and command trigger language use `LINGCHU_LOCALE` from the current
 | Capability | Chinese command | English command |
 | --- | --- | --- |
 | Restart protocol endpoint | `重启协议端 [平台]` | `restart-protocol-endpoint [platform]` |
+| Reset Lingchu config | `重置灵初配置` | `reset-lingchu-config` |
 
 `重启协议端` restarts the current QQ OneBot V11 protocol endpoint when the platform argument is omitted. After the protocol endpoint reconnects, Lingchu sends a confirmation message to the group where the command was issued.
+
+`重置灵初配置` reloads Lingchu runtime configuration from disk: bot state (`bot_state.toml`), menu, handle config files, and mutable runtime overrides (`runtime-overrides.toml`). Use it after editing these TOML files by hand so the running bot picks up the changes without a restart. Command trigger overrides still require a restart because matchers are registered at startup.
 
 ```text
 silence

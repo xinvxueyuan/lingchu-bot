@@ -9,9 +9,11 @@ from src.plugins.nonebot_plugin_lingchu_bot.core import (
 )
 from src.plugins.nonebot_plugin_lingchu_bot.core.mutable_settings import (
     MutableSettingsError,
+    flush_mutable_settings_if_dirty,
     get_mutable_settings,
     load_mutable_settings,
     load_mutable_settings_sync,
+    reload_mutable_settings_from_disk,
     save_mutable_settings,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.database.toml_store import DatabaseError
@@ -20,6 +22,8 @@ from src.plugins.nonebot_plugin_lingchu_bot.database.toml_store import DatabaseE
 @pytest.fixture(autouse=True)
 def clear_settings_cache() -> None:
     settings_module._cache.value = None
+    settings_module._cache.dirty = False
+    settings_module._cache.persisted_checksum = None
 
 
 def test_load_mutable_settings_sync_validates_and_caches(
@@ -89,8 +93,31 @@ async def test_save_mutable_settings_serializes_and_refreshes_cache(
 
     await save_mutable_settings(settings)
 
-    write.assert_awaited_once_with(target, settings.to_dict())
+    write.assert_not_awaited()
     assert get_mutable_settings() is settings
+    assert settings_module._cache.dirty is True
+
+
+@pytest.mark.asyncio
+async def test_flush_mutable_settings_if_dirty_writes_once(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "runtime-overrides.toml"
+    write = AsyncMock()
+    monkeypatch.setattr(settings_module, "get_mutable_settings_file", lambda: target)
+    monkeypatch.setattr(settings_module, "write_toml_dict_file_async", write)
+    settings = MutableRuntimeSettings(
+        permission_platform_runtime_passthrough={"qq": False}
+    )
+    await save_mutable_settings(settings)
+
+    first = await flush_mutable_settings_if_dirty()
+    second = await flush_mutable_settings_if_dirty()
+
+    assert first is True
+    assert second is False
+    write.assert_awaited_once_with(target, settings.to_dict())
 
 
 def test_invalid_mutable_settings_are_domain_error(
@@ -131,4 +158,20 @@ async def test_save_mutable_settings_maps_storage_error(
     )
 
     with pytest.raises(MutableSettingsError, match="write broken"):
-        await save_mutable_settings(MutableRuntimeSettings())
+        await save_mutable_settings(MutableRuntimeSettings(), flush=True)
+
+
+@pytest.mark.asyncio
+async def test_reload_mutable_settings_from_disk_delegates_to_loader(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected = MutableRuntimeSettings(
+        command_trigger_overrides={"menu": {"english": "help"}}
+    )
+    loader = AsyncMock(return_value=expected)
+    monkeypatch.setattr(settings_module, "load_mutable_settings", loader)
+
+    result = await reload_mutable_settings_from_disk()
+
+    loader.assert_awaited_once()
+    assert result is expected

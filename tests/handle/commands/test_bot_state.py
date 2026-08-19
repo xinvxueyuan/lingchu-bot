@@ -23,7 +23,6 @@ from nonebot.internal.matcher.matcher import (
 )
 import pytest
 
-from src.plugins.nonebot_plugin_lingchu_bot.core import bot_state as bot_state_module
 from src.plugins.nonebot_plugin_lingchu_bot.core.bot_state import (
     _reset_state_for_testing,
     get_platform_handle_active,
@@ -74,20 +73,9 @@ def _reset_bot_state() -> Any:
 
 @pytest.fixture(autouse=True)
 def _mock_fire_and_forget() -> Any:
-    """避免审计记录和状态持久化触发后台任务。"""
-    captured: list[tuple[Any, str]] = []
-
-    def _spy(coro: Any, *, name: str = "fire_and_forget") -> Any:
-        captured.append((coro, name))
-        return MagicMock()
-
-    with (
-        patch.object(mute_module, "record_audit_fire_and_forget", new=AsyncMock()),
-        patch.object(bot_state_module, "fire_and_forget", side_effect=_spy),
-    ):
+    """避免审计记录触发后台任务（状态持久化已改为脏标记 + 关机 flush）。"""
+    with patch.object(mute_module, "record_audit_fire_and_forget", new=AsyncMock()):
         yield
-    for coro, _name in captured:
-        coro.close()
 
 
 @pytest.fixture

@@ -14,7 +14,9 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.bot_state import (
     BotStateFile,
     InvalidBotStateGlobalError,
     _save_bot_state,
+    flush_bot_state_if_dirty,
     load_bot_state,
+    set_global_handle_active,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.database.toml_store import (
     TOMLFileReadError,
@@ -181,3 +183,20 @@ async def test_bot_state_save_writes_expected_payload(
     state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
     content = state_file.read_text(encoding="utf-8")
     assert "#:schema" not in content
+
+
+@pytest.mark.asyncio
+async def test_bot_state_flush_writes_only_when_state_changed(
+    patched_state_dir: Path,
+) -> None:
+    bot_state_module._reset_state_for_testing()
+    await load_bot_state()
+    set_global_handle_active(active=False)
+
+    first = await flush_bot_state_if_dirty()
+    second = await flush_bot_state_if_dirty()
+
+    state_file = patched_state_dir / bot_state_module._BOT_STATE_FILENAME
+    assert first is True
+    assert second is False
+    assert state_file.exists()

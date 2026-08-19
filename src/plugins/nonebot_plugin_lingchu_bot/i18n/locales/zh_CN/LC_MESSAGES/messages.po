@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nonebot-plugin-lingchu-bot 0.0.0.dev8\n"
 "Report-Msgid-Bugs-To: xinvxueyuan@yeah.net\n"
-"POT-Creation-Date: 2026-08-14 15:50+0800\n"
+"POT-Creation-Date: 2026-08-20 04:40+0800\n"
 "PO-Revision-Date: 2026-05-20 00:00+0800\n"
 "Last-Translator: xinvxueyuan <xinvxueyuan@yeah.net>\n"
 "Language: zh_CN\n"
@@ -44,7 +44,7 @@ msgstr ""
 "期望布尔值，但收到 {value_type}: {value!r}\n"
 "请检查 NoneBot2 配置文件。"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:660
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/menu.py:669
 msgid "灵初功能菜单"
 msgstr "灵初功能菜单"
 
@@ -315,26 +315,30 @@ msgstr ""
 msgid "已踢出群成员 {name}{reason}"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:51
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:56
 msgid "退出群失败，操作被拒绝"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:54
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:59
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/telegram/adapters/default/moderation.py:493
 msgid "退出当前群"
 msgstr "退出当前群"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:68
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:73
 msgid "当前仅支持重启当前 QQ OneBot V11 协议端"
 msgstr "当前仅支持重启当前 QQ OneBot V11 协议端"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:73
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:78
 msgid "已请求重启协议端，重新连接后会发送反馈"
 msgstr ""
 
-#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:90
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:95
 msgid "重启协议端失败，操作被拒绝"
 msgstr "重启协议端失败，操作被拒绝"
+
+#: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/lifecycle.py:113
+msgid "灵初配置已从磁盘重置"
+msgstr "灵初配置已从磁盘重置"
 
 #: src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/member.py:56
 #, python-brace-format
@@ -809,12 +813,12 @@ msgstr ""
 msgid "协议端已重启并重新连接"
 msgstr "协议端已重启并重新连接"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:53
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:38
 #, python-brace-format
 msgid "Lingchu 启用适配器: {adapters}"
 msgstr "Lingchu 启用适配器: {adapters}"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:59
+#: src/plugins/nonebot_plugin_lingchu_bot/start/startup.py:44
 #, python-brace-format
 msgid "Lingchu 忽略未选中的已注册适配器: {adapters}"
 msgstr "Lingchu 忽略未选中的已注册适配器: {adapters}"
