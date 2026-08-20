@@ -52,6 +52,7 @@ __plugin_meta__ = PluginMetadata(
 from .database import toml_store as toml_store
 from .database import models as models
 from .database import orm_crud as orm_crud
+from .database import sqlite_pragmas as sqlite_pragmas
 from .services import message_store as message_store
 from .start.startup import startup as startup
 

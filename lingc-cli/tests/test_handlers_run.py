@@ -22,6 +22,11 @@ CRASH_EXIT = 3
 RUN_EXIT = 5
 STARTUP_MARKER = run_mod.STARTUP_MARKER
 MARKER_BYTES = STARTUP_MARKER.encode()
+MINIMAL_PROJECT = "[tool.nonebot]\n"
+
+
+def _write_project(tmp_path: Path, content: str = MINIMAL_PROJECT) -> None:
+    (tmp_path / "pyproject.toml").write_text(content, encoding="utf-8")
 
 
 class FakeProcess:
@@ -121,9 +126,61 @@ def test_build_entry_uses_bot_py(tmp_path: Path) -> None:
     assert entry == ["python", "bot.py"]
 
 
-def test_build_entry_falls_back_to_nonebot(tmp_path: Path) -> None:
+def test_build_entry_generates_nb_cli_style_script(tmp_path: Path) -> None:
+    _write_project(
+        tmp_path,
+        """
+[tool.nonebot]
+builtin_plugins = ["nonebot_plugin_docs"]
+
+[tool.nonebot.adapters]
+nonebot-adapter-onebot = [
+    { name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11" },
+]
+""",
+    )
+
     entry = _build_entry("python", [], tmp_path)
-    assert entry == ["python", "-m", "nonebot"]
+
+    assert entry[:2] == ["python", "-c"]
+    script = entry[2]
+    assert "import importlib" in script
+    assert "nonebot.init()" in script
+    assert (
+        "driver.register_adapter(importlib.import_module("
+        '"nonebot.adapters.onebot.v11").Adapter)'
+    ) in script
+    assert 'nonebot.load_builtin_plugins("nonebot_plugin_docs")' in script
+    assert 'nonebot.load_from_toml("pyproject.toml")' in script
+    assert script.endswith("nonebot.run()\n")
+
+
+def test_build_entry_supports_legacy_adapter_config(tmp_path: Path) -> None:
+    _write_project(
+        tmp_path,
+        """
+[tool.nonebot]
+adapters = [
+    { name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11" },
+]
+""",
+    )
+
+    entry = _build_entry("python", [], tmp_path)
+
+    assert '"nonebot.adapters.onebot.v11").Adapter)' in entry[2]
+
+
+def test_build_entry_requires_nonebot_project(tmp_path: Path) -> None:
+    with pytest.raises(EnvironmentNotReadyError, match=r"pyproject\.toml"):
+        _build_entry("python", [], tmp_path)
+
+
+def test_build_entry_rejects_invalid_adapter_config(tmp_path: Path) -> None:
+    _write_project(tmp_path, '[tool.nonebot]\nadapters = "invalid"\n')
+
+    with pytest.raises(EnvironmentNotReadyError, match="adapters"):
+        _build_entry("python", [], tmp_path)
 
 
 def test_build_entry_explicit_cmd_wins(tmp_path: Path) -> None:
@@ -136,6 +193,7 @@ async def test_run_reports_startup_timeout(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    _write_project(tmp_path)
     proc = FakeProcess(lines=[], finished=False)
     _patch_run(monkeypatch, _fake_create(proc), check_python=True, forwarder=True)
     code = await run(cmd=[], cwd=tmp_path, timeout=0.1)
@@ -147,6 +205,7 @@ async def test_run_returns_nonzero_when_startup_crashes(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    _write_project(tmp_path)
     proc = FakeProcess(
         lines=[b"[ERROR] boom"],
         exit_code=CRASH_EXIT,

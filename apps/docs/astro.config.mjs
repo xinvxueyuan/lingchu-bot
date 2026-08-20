@@ -238,7 +238,7 @@ export default defineConfig({
           label: "CLI",
           translations: { zh: "CLI" },
           items: [
-            { slug: "cli/index" },
+            { slug: "cli" },
             { slug: "cli/commands" },
           ],
         },

@@ -10,6 +10,7 @@
 """
 
 import asyncio
+from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -23,7 +24,6 @@ from nonebot.internal.matcher.matcher import (
 )
 import pytest
 
-from src.plugins.nonebot_plugin_lingchu_bot.core import bot_state as bot_state_module
 from src.plugins.nonebot_plugin_lingchu_bot.core.bot_state import (
     _reset_state_for_testing,
     get_platform_handle_active,
@@ -65,7 +65,7 @@ onebot11_whole_mute = mute_module.onebot11_whole_mute
 
 
 @pytest.fixture(autouse=True)
-def _reset_bot_state() -> Any:
+def _reset_bot_state() -> Iterator[None]:
     """每个测试前后重置机器人状态标志为默认值。"""
     _reset_state_for_testing()
     yield
@@ -73,21 +73,10 @@ def _reset_bot_state() -> Any:
 
 
 @pytest.fixture(autouse=True)
-def _mock_fire_and_forget() -> Any:
-    """避免审计记录和状态持久化触发后台任务。"""
-    captured: list[tuple[Any, str]] = []
-
-    def _spy(coro: Any, *, name: str = "fire_and_forget") -> Any:
-        captured.append((coro, name))
-        return MagicMock()
-
-    with (
-        patch.object(mute_module, "record_audit_fire_and_forget", new=AsyncMock()),
-        patch.object(bot_state_module, "fire_and_forget", side_effect=_spy),
-    ):
+def _mock_fire_and_forget() -> Iterator[None]:
+    """避免审计记录触发后台任务（状态持久化已改为脏标记 + 关机 flush）。"""
+    with patch.object(mute_module, "record_audit_fire_and_forget", new=AsyncMock()):
         yield
-    for coro, _name in captured:
-        coro.close()
 
 
 @pytest.fixture

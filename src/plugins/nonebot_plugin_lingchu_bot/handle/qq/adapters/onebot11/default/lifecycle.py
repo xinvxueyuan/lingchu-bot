@@ -10,13 +10,18 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11Action
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import async_scoped_session
 
+from ......core.runtime_config import reload_runtime_configs_from_disk
 from ......i18n import _async as _
 from ......services.protocol_restart_feedback import (
     clear_pending_restart_feedback_for,
     register_pending_restart_feedback,
 )
 from ....commands.common import selected_adapter_handle
-from ....commands.lifecycle import quit_group_cmd, restart_protocol_endpoint_cmd
+from ....commands.lifecycle import (
+    quit_group_cmd,
+    reset_runtime_config_cmd,
+    restart_protocol_endpoint_cmd,
+)
 
 _CURRENT_PLATFORM_ALIASES = {
     "",
@@ -91,3 +96,18 @@ async def onebot11_restart_protocol_endpoint(
         )
 
     return None
+
+
+@selected_adapter_handle(
+    reset_runtime_config_cmd,
+    "~onebot.v11",
+    "reset_runtime_config",
+)
+async def onebot11_reset_runtime_config(
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
+) -> Any:
+    del bot, event, session
+    await reload_runtime_configs_from_disk()
+    return await reset_runtime_config_cmd.finish(await _("灵初配置已从磁盘重置"))

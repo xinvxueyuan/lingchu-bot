@@ -178,7 +178,9 @@ async def upsert_command_trigger_override(
     raw = dict(settings.command_trigger_overrides)
     raw[command_key] = _override_to_json(override)
     with contextlib.suppress(MutableSettingsError):
-        await save_mutable_settings(replace(settings, command_trigger_overrides=raw))
+        await save_mutable_settings(
+            replace(settings, command_trigger_overrides=raw), flush=True
+        )
     return merged
 
 
@@ -192,7 +194,9 @@ async def delete_command_trigger_override(command_key: str) -> bool:
         return False
     del raw[command_key]
     try:
-        await save_mutable_settings(replace(settings, command_trigger_overrides=raw))
+        await save_mutable_settings(
+            replace(settings, command_trigger_overrides=raw), flush=True
+        )
     except MutableSettingsError:
         return False
     return True
@@ -452,6 +456,12 @@ _DEFAULT_COMMAND_TRIGGERS = {
         english="restart-protocol-endpoint",
         chinese_aliases=frozenset({"重启协议", "重启应用端"}),
         english_aliases=frozenset({"restart-protocol", "restart-endpoint"}),
+    ),
+    "reset_runtime_config": CommandTrigger(
+        chinese="重置灵初配置",
+        english="reset-lingchu-config",
+        chinese_aliases=frozenset({"重置配置", "重载灵初配置"}),
+        english_aliases=frozenset({"reload-lingchu-config", "reset-config"}),
     ),
     "bot_silence": CommandTrigger(
         chinese="闭嘴",

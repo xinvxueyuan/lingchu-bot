@@ -7,6 +7,7 @@ import asyncio
 from nonebot import get_driver, logger
 
 from ...core.async_utils import drain_background_tasks
+from ...core.runtime_config import flush_runtime_configs_on_shutdown
 from ...services.message_store import shutdown_message_store
 from ...services.scheduler import shutdown_scheduler_service
 from ...start.startup import startup
@@ -26,6 +27,7 @@ async def on_shutdown() -> None:
     services = (
         ("scheduler", shutdown_scheduler_service),
         ("message store", shutdown_message_store),
+        ("runtime config", flush_runtime_configs_on_shutdown),
         ("background tasks", drain_background_tasks),
     )
 

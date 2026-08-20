@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import asdict, dataclass, field
+import hashlib
+import json
 from pathlib import Path
 from typing import Any
 
@@ -18,9 +21,9 @@ from ..database.toml_store import (
     load_toml_dict_async,
     write_toml_dict_file_async,
 )
-from .async_utils import fire_and_forget
 
 _BOT_STATE_FILENAME = "bot_state.toml"
+_FLUSH_ATTEMPT_LIMIT = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +111,16 @@ _state: dict[str, Any] = {
 }
 
 
+@dataclass(slots=True)
+class _StateCache:
+    dirty: bool = False
+    persisted_checksum: str | None = None
+
+
+_cache = _StateCache()
+_flush_lock = asyncio.Lock()
+
+
 def _get_state_file_path() -> Path:
     return get_plugin_data_file(_BOT_STATE_FILENAME)
 
@@ -159,26 +172,39 @@ async def load_bot_state() -> None:
         }
         for platform_id, platform in model.platforms.items()
     }
+    _cache.persisted_checksum = _state_checksum()
+    _cache.dirty = False
 
 
-async def _save_bot_state() -> None:
-    try:
-        await write_toml_dict_file_async(
-            _get_state_file_path(),
-            BotStateFile.from_mapping({
-                "global": {
-                    "handle_active": _state["global_handle_active"],
-                    "silent_mode": _state["global_silent_mode"],
-                },
-                "platforms": _state["platforms"],
-            }).to_mapping(),
-        )
-    except Exception:
-        logger.exception("Failed to save bot state")
+async def _save_bot_state(state_mapping: dict[str, Any] | None = None) -> None:
+    await write_toml_dict_file_async(
+        _get_state_file_path(),
+        _state_mapping() if state_mapping is None else state_mapping,
+    )
+
+
+def _state_mapping() -> dict[str, Any]:
+    return BotStateFile.from_mapping({
+        "global": {
+            "handle_active": _state["global_handle_active"],
+            "silent_mode": _state["global_silent_mode"],
+        },
+        "platforms": _state["platforms"],
+    }).to_mapping()
+
+
+def _state_checksum(state_mapping: dict[str, Any] | None = None) -> str:
+    payload = json.dumps(
+        _state_mapping() if state_mapping is None else state_mapping,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _persist_state() -> None:
-    fire_and_forget(_save_bot_state(), name="save_bot_state")
+    _cache.dirty = _state_checksum() != _cache.persisted_checksum
 
 
 def get_global_handle_active() -> bool:
@@ -229,3 +255,38 @@ def _reset_state_for_testing() -> None:
     _state["global_handle_active"] = True
     _state["global_silent_mode"] = False
     _state["platforms"] = {}
+    _cache.dirty = False
+    _cache.persisted_checksum = None
+
+
+async def flush_bot_state_if_dirty() -> bool:
+    """Persist bot state with a stable snapshot and post-write validation."""
+    async with _flush_lock:
+        flushed = False
+        for _attempt in range(_FLUSH_ATTEMPT_LIMIT):
+            state_mapping = _state_mapping()
+            snapshot_checksum = _state_checksum(state_mapping)
+            if not _cache.dirty or snapshot_checksum == _cache.persisted_checksum:
+                _cache.dirty = False
+                return flushed
+
+            await _save_bot_state(state_mapping)
+            _cache.persisted_checksum = snapshot_checksum
+            flushed = True
+
+            if _state_checksum() == snapshot_checksum:
+                _cache.dirty = False
+                return True
+            _cache.dirty = True
+
+        logger.warning(
+            "Bot state changed during flush; leaving the latest "
+            "state dirty after {} attempts",
+            _FLUSH_ATTEMPT_LIMIT,
+        )
+        return flushed
+
+
+async def reload_bot_state_from_disk() -> None:
+    """Reload bot state from disk and replace in-memory state."""
+    await load_bot_state()

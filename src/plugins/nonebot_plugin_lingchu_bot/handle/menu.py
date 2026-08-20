@@ -583,6 +583,15 @@ _BASE_MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         PlatformCapability.APPLICATION_OPERATION,
         _QQ_BOTH,
     ),
+    MenuFeature(
+        "reset-runtime-config",
+        "reset_runtime_config",
+        "application-operation",
+        LocalizedText("重置灵初配置", "Reset Lingchu config"),
+        LocalizedText("", ""),
+        PlatformCapability.APPLICATION_OPERATION,
+        _QQ_BOTH,
+    ),
 )
 
 _TELEGRAM_COMMAND_KEYS: Final = frozenset({
