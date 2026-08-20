@@ -234,6 +234,34 @@ async def test_flush_mutable_settings_retries_when_settings_change_during_write(
     assert settings_module._cache.dirty is False
 
 
+@pytest.mark.asyncio
+async def test_flush_mutable_settings_stops_after_retries_are_exhausted(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "runtime-overrides.toml"
+    writes = 0
+
+    async def write_settings(_path: Path, _settings: dict[str, object]) -> None:
+        nonlocal writes
+        writes += 1
+        await save_mutable_settings(
+            MutableRuntimeSettings(
+                permission_platform_runtime_passthrough={"qq": writes % 2 == 1},
+            )
+        )
+
+    monkeypatch.setattr(settings_module, "get_mutable_settings_file", lambda: target)
+    monkeypatch.setattr(settings_module, "write_toml_dict_file_async", write_settings)
+    await save_mutable_settings(
+        MutableRuntimeSettings(permission_platform_runtime_passthrough=False)
+    )
+
+    assert await flush_mutable_settings_if_dirty() is True
+    assert writes == 3
+    assert settings_module._cache.dirty is True
+
+
 def test_reset_mutable_settings_cache_uses_clean_defaults() -> None:
     settings_module._cache.value = MutableRuntimeSettings(
         permission_platform_runtime_passthrough=False,

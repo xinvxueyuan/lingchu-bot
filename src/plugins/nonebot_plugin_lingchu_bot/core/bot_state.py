@@ -23,6 +23,7 @@ from ..database.toml_store import (
 )
 
 _BOT_STATE_FILENAME = "bot_state.toml"
+_FLUSH_ATTEMPT_LIMIT = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -262,7 +263,7 @@ async def flush_bot_state_if_dirty() -> bool:
     """Persist bot state with a stable snapshot and post-write validation."""
     async with _flush_lock:
         flushed = False
-        while True:
+        for _attempt in range(_FLUSH_ATTEMPT_LIMIT):
             state_mapping = _state_mapping()
             snapshot_checksum = _state_checksum(state_mapping)
             if not _cache.dirty or snapshot_checksum == _cache.persisted_checksum:
@@ -277,6 +278,13 @@ async def flush_bot_state_if_dirty() -> bool:
                 _cache.dirty = False
                 return True
             _cache.dirty = True
+
+        logger.warning(
+            "Bot state changed during flush; leaving the latest "
+            "state dirty after {} attempts",
+            _FLUSH_ATTEMPT_LIMIT,
+        )
+        return flushed
 
 
 async def reload_bot_state_from_disk() -> None:

@@ -87,9 +87,8 @@ async def test_load_runtime_configs_on_startup_resets_mutable_defaults_on_failur
     set_menu_features = MagicMock()
     manager = MagicMock()
     manager.get_all_configs = AsyncMock()
-    load_mutable_settings = AsyncMock(
-        side_effect=runtime_config.MutableSettingsError("broken settings")
-    )
+    load_error = runtime_config.MutableSettingsError("broken settings")
+    load_mutable_settings = AsyncMock(side_effect=load_error)
     log_error = MagicMock()
 
     monkeypatch.setattr(runtime_config, "load_bot_state", load_bot_state)
@@ -114,7 +113,10 @@ async def test_load_runtime_configs_on_startup_resets_mutable_defaults_on_failur
     set_menu_features.assert_called_once()
     manager.get_all_configs.assert_awaited_once()
     load_mutable_settings.assert_awaited_once()
-    log_error.assert_called_once()
+    log_error.assert_called_once_with(
+        "Failed to load mutable settings; using in-memory defaults: {}",
+        load_error,
+    )
 
 
 @pytest.mark.asyncio
@@ -199,11 +201,24 @@ async def test_flush_runtime_configs_on_shutdown_flushes_dirty_only(
     assert result == (True, False)
 
 
-@pytest.mark.parametrize("failing", ["bot", "mutable"])
+@pytest.mark.parametrize(
+    ("failing", "expected_exception", "expected_message"),
+    [
+        pytest.param("bot", DatabaseError, "bot state failed"),
+        pytest.param("bot_oserror", OSError, "bot state failed"),
+        pytest.param(
+            "mutable",
+            runtime_config.MutableSettingsError,
+            "mutable settings failed",
+        ),
+    ],
+)
 @pytest.mark.asyncio
 async def test_flush_runtime_configs_on_shutdown_attempts_both_domains(
     monkeypatch: pytest.MonkeyPatch,
     failing: str,
+    expected_exception: type[BaseException],
+    expected_message: str,
 ) -> None:
     call_order: list[str] = []
 
@@ -211,6 +226,8 @@ async def test_flush_runtime_configs_on_shutdown_attempts_both_domains(
         call_order.append("bot")
         if failing == "bot":
             raise DatabaseError("bot state failed")
+        if failing == "bot_oserror":
+            raise OSError("bot state failed")
         return True
 
     async def flush_mutable_settings() -> bool:
@@ -226,7 +243,7 @@ async def test_flush_runtime_configs_on_shutdown_attempts_both_domains(
         flush_mutable_settings,
     )
 
-    with pytest.raises((DatabaseError, runtime_config.MutableSettingsError)):
+    with pytest.raises(expected_exception, match=expected_message):
         await runtime_config.flush_runtime_configs_on_shutdown()
 
     assert call_order == ["bot", "mutable"]

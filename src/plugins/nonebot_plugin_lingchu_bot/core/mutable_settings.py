@@ -8,7 +8,7 @@ import json
 from typing import TYPE_CHECKING, Final
 
 from _lingchu_bot_contracts import MutableRuntimeSettings
-from nonebot import require
+from nonebot import logger, require
 
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 MUTABLE_SETTINGS_FILENAME: Final = "runtime-overrides.toml"
+_FLUSH_ATTEMPT_LIMIT = 3
 
 
 class MutableSettingsError(RuntimeError):
@@ -137,7 +138,7 @@ async def flush_mutable_settings_if_dirty() -> bool:
     """Persist settings with a stable snapshot and post-write validation."""
     async with _flush_lock:
         flushed = False
-        while True:
+        for _attempt in range(_FLUSH_ATTEMPT_LIMIT):
             settings = _cache.value
             if settings is None:
                 return flushed
@@ -161,6 +162,13 @@ async def flush_mutable_settings_if_dirty() -> bool:
                 _cache.dirty = False
                 return True
             _cache.dirty = True
+
+        logger.warning(
+            "Mutable settings changed during flush; leaving the latest "
+            "settings dirty after {} attempts",
+            _FLUSH_ATTEMPT_LIMIT,
+        )
+        return flushed
 
 
 async def reload_mutable_settings_from_disk() -> MutableRuntimeSettings:

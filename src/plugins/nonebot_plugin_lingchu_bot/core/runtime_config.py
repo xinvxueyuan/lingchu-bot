@@ -44,25 +44,23 @@ async def reload_runtime_configs_from_disk() -> None:
 
 async def flush_runtime_configs_on_shutdown() -> tuple[bool, bool]:
     """Flush dirty runtime TOML configs to disk before process exits."""
-    bot_state_flushed: bool | None = None
-    mutable_settings_flushed: bool | None = None
+    bot_state_flushed = False
+    mutable_settings_flushed = False
     first_error: BaseException | None = None
     try:
         bot_state_flushed = await flush_bot_state_if_dirty()
     except asyncio.CancelledError as exc:
         first_error = exc
-    except (DatabaseError, MutableSettingsError) as exc:
+    except (DatabaseError, MutableSettingsError, OSError) as exc:
         first_error = exc
     try:
         mutable_settings_flushed = await flush_mutable_settings_if_dirty()
     except asyncio.CancelledError as exc:
         first_error = first_error or exc
-    except (DatabaseError, MutableSettingsError) as exc:
+    except (DatabaseError, MutableSettingsError, OSError) as exc:
         first_error = first_error or exc
     if first_error is not None:
         raise first_error
-    assert bot_state_flushed is not None
-    assert mutable_settings_flushed is not None
     return (bot_state_flushed, mutable_settings_flushed)
 
 
