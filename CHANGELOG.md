@@ -25,6 +25,20 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Security
 
+## [0.6.1] - 2026-08-20
+
+补丁版本：合并运行时配置缓存、持久化可靠性和 CLI 无 `bot.py` 项目启动推导修复。
+
+### Changed
+
+- 运行时配置和机器人状态使用稳定快照、写后校验与有界重试，避免异步 flush 覆盖较新的内存状态。
+- `lc-cli` 在项目没有 `bot.py` 时增强入口推导，并补齐相关文档命令引用。
+
+### Fixed
+
+- 启动时可变设置读取失败会回退到干净默认值；关机时两个配置域独立 flush，即使一个失败也不会阻断另一个。
+- SQLite PRAGMA 游标创建、执行和关闭异常均 fail-soft 记录日志。
+
 ## [0.5.0] - 2026-08-14
 
 次要版本发布：移除 LLM / NovelAI MCP 与 Pydantic 技术栈，运行时与开发数据治理加固。
@@ -370,7 +384,8 @@ Initial formal release for QQ group management through OneBot V11.
 - Documentation remains under `GFDL-1.3-or-later`.
 - Visual elements remain under `CC0-1.0`.
 
-[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.6.1
 [0.5.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.5.0
 [0.4.1]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.4.1
 [0.4.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.4.0
