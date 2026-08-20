@@ -43,6 +43,7 @@ async def update_platform_runtime_passthrough_config(
         updated = values
     with contextlib.suppress(MutableSettingsError):
         await save_mutable_settings(
-            replace(settings, permission_platform_runtime_passthrough=updated)
+            replace(settings, permission_platform_runtime_passthrough=updated),
+            flush=True,
         )
     return updated

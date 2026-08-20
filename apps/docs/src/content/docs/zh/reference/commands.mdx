@@ -189,8 +189,11 @@ recall [@user] [count]
 | 能力 | 中文命令 | 英文命令 |
 | --- | --- | --- |
 | 重启协议端 | `重启协议端 [平台]` | `restart-protocol-endpoint [platform]` |
+| 重置灵初配置 | `重置灵初配置` | `reset-lingchu-config` |
 
 `重启协议端` 省略平台参数时重启当前 QQ OneBot V11 协议端。协议端重新连接后，Lingchu 会向发起命令的群发送确认反馈。
+
+`重置灵初配置` 从磁盘重新加载灵初运行时配置：机器人状态（`bot_state.toml`）、菜单、功能配置文件以及运行时覆盖（`runtime-overrides.toml`）。手工编辑这些 TOML 文件后执行该命令，无需重启即可让运行中的机器人读取最新配置。命令触发词覆盖仍需重启，因为匹配器在启动时注册。
 
 ```text
 闭嘴

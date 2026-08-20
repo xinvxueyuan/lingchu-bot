@@ -7,8 +7,10 @@ import pytest
 
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.lifecycle import (
     onebot11_quit_group,
+    onebot11_reset_runtime_config,
     onebot11_restart_protocol_endpoint,
     quit_group_cmd,
+    reset_runtime_config_cmd,
     restart_protocol_endpoint_cmd,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.services import protocol_restart_feedback
@@ -196,3 +198,24 @@ async def test_onebot11_restart_protocol_endpoint_failed_bot_keeps_other_pending
     assert len(pending) == 1
     assert pending[0].bot_id == "bot-a"
     assert pending[0].conversation_id == "10001"
+
+
+@pytest.mark.asyncio
+async def test_onebot11_reset_runtime_config_reloads_runtime_state(
+    mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock, mock_session: Mock
+) -> None:
+    with (
+        patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.lifecycle.reload_runtime_configs_from_disk",
+            new=AsyncMock(),
+        ) as reload_runtime_configs,
+        patch.object(reset_runtime_config_cmd, "finish") as mock_finish,
+    ):
+        await onebot11_reset_runtime_config(
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+            session=mock_session,
+        )
+
+    reload_runtime_configs.assert_awaited_once()
+    assert finish_text(mock_finish) == "灵初配置已从磁盘重置"

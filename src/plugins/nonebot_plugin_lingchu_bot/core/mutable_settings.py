@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
+import json
 from typing import TYPE_CHECKING, Final
 
 from _lingchu_bot_contracts import MutableRuntimeSettings
-from nonebot import require
+from nonebot import logger, require
 
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_config_file
@@ -21,6 +24,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 MUTABLE_SETTINGS_FILENAME: Final = "runtime-overrides.toml"
+_FLUSH_ATTEMPT_LIMIT = 3
 
 
 class MutableSettingsError(RuntimeError):
@@ -29,9 +33,12 @@ class MutableSettingsError(RuntimeError):
 
 class _SettingsCache:
     value: MutableRuntimeSettings | None = None
+    dirty: bool = False
+    persisted_checksum: str | None = None
 
 
 _cache = _SettingsCache()
+_flush_lock = asyncio.Lock()
 
 
 def get_mutable_settings_file() -> Path:
@@ -46,6 +53,29 @@ def _validate(raw: dict[str, object]) -> MutableRuntimeSettings:
         raise MutableSettingsError(str(exc)) from exc
 
 
+def _checksum(settings: MutableRuntimeSettings) -> str:
+    payload = json.dumps(
+        settings.to_dict(),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _set_loaded_cache(settings: MutableRuntimeSettings) -> None:
+    _cache.value = settings
+    _cache.persisted_checksum = _checksum(settings)
+    _cache.dirty = False
+
+
+def reset_mutable_settings_cache() -> MutableRuntimeSettings:
+    """Replace the cache with clean defaults without writing to disk."""
+    settings = MutableRuntimeSettings()
+    _set_loaded_cache(settings)
+    return settings
+
+
 def load_mutable_settings_sync() -> MutableRuntimeSettings:
     """Read and cache mutable settings for synchronous runtime consumers."""
     try:
@@ -54,10 +84,15 @@ def load_mutable_settings_sync() -> MutableRuntimeSettings:
             default={},
             merge_default=False,
         )
+        settings = _validate(raw)
     except DatabaseError as exc:
+        reset_mutable_settings_cache()
         raise MutableSettingsError(str(exc)) from exc
-    _cache.value = _validate(raw)
-    return _cache.value
+    except MutableSettingsError:
+        reset_mutable_settings_cache()
+        raise
+    _set_loaded_cache(settings)
+    return settings
 
 
 def get_mutable_settings() -> MutableRuntimeSettings:
@@ -75,19 +110,67 @@ async def load_mutable_settings() -> MutableRuntimeSettings:
             default={},
             merge_default=False,
         )
+        settings = _validate(raw)
     except DatabaseError as exc:
+        reset_mutable_settings_cache()
         raise MutableSettingsError(str(exc)) from exc
-    _cache.value = _validate(raw)
-    return _cache.value
+    except MutableSettingsError:
+        reset_mutable_settings_cache()
+        raise
+    _set_loaded_cache(settings)
+    return settings
 
 
-async def save_mutable_settings(settings: MutableRuntimeSettings) -> None:
-    """Atomically replace the mutable settings file and refresh the cache."""
-    try:
-        await write_toml_dict_file_async(
-            get_mutable_settings_file(),
-            settings.to_dict(),
-        )
-    except DatabaseError as exc:
-        raise MutableSettingsError(str(exc)) from exc
+async def save_mutable_settings(
+    settings: MutableRuntimeSettings,
+    *,
+    flush: bool = False,
+) -> None:
+    """Update in-memory mutable settings and optionally flush to disk."""
+    checksum = _checksum(settings)
     _cache.value = settings
+    _cache.dirty = checksum != _cache.persisted_checksum
+    if flush:
+        await flush_mutable_settings_if_dirty()
+
+
+async def flush_mutable_settings_if_dirty() -> bool:
+    """Persist settings with a stable snapshot and post-write validation."""
+    async with _flush_lock:
+        flushed = False
+        for _attempt in range(_FLUSH_ATTEMPT_LIMIT):
+            settings = _cache.value
+            if settings is None:
+                return flushed
+            snapshot = MutableRuntimeSettings.from_mapping(settings.to_dict())
+            snapshot_checksum = _checksum(snapshot)
+            if not _cache.dirty or snapshot_checksum == _cache.persisted_checksum:
+                _cache.dirty = False
+                return flushed
+            try:
+                await write_toml_dict_file_async(
+                    get_mutable_settings_file(),
+                    snapshot.to_dict(),
+                )
+            except DatabaseError as exc:
+                raise MutableSettingsError(str(exc)) from exc
+            _cache.persisted_checksum = snapshot_checksum
+            flushed = True
+
+            current = _cache.value
+            if current is not None and _checksum(current) == snapshot_checksum:
+                _cache.dirty = False
+                return True
+            _cache.dirty = True
+
+        logger.warning(
+            "Mutable settings changed during flush; leaving the latest "
+            "settings dirty after {} attempts",
+            _FLUSH_ATTEMPT_LIMIT,
+        )
+        return flushed
+
+
+async def reload_mutable_settings_from_disk() -> MutableRuntimeSettings:
+    """Reload mutable settings from disk and replace in-memory cache."""
+    return await load_mutable_settings()

@@ -12,6 +12,7 @@ from .triggers import COMMAND_TRIGGERS
 
 _LEAVE_GROUP = COMMAND_TRIGGERS["leave_group"]
 _RESTART_PROTOCOL_ENDPOINT = COMMAND_TRIGGERS["restart_protocol_endpoint"]
+_RESET_RUNTIME_CONFIG = COMMAND_TRIGGERS["reset_runtime_config"]
 
 quit_group_cmd: type[Matcher] = on_alconna(
     command=Alconna(_LEAVE_GROUP.primary),
@@ -34,9 +35,19 @@ restart_protocol_endpoint_cmd: type[Matcher] = on_alconna(
     use_cmd_start=True,
 )
 
+reset_runtime_config_cmd: type[Matcher] = on_alconna(
+    command=Alconna(_RESET_RUNTIME_CONFIG.primary),
+    aliases=_RESET_RUNTIME_CONFIG.aliases,
+    priority=805,
+    block=True,
+    use_cmd_sep=True,
+    use_cmd_start=True,
+)
+
 _LAZY_EXPORTS = {
     "onebot11_quit_group": "..adapters.onebot11.default.lifecycle",
     "onebot11_restart_protocol_endpoint": "..adapters.onebot11.default.lifecycle",
+    "onebot11_reset_runtime_config": "..adapters.onebot11.default.lifecycle",
 }
 
 

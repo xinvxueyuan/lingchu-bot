@@ -3,10 +3,7 @@ from nonebot import get_adapters, logger, require
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import get_session
 
-from ..core.bot_state import load_bot_state
-from ..core.config import get_handle_config_manager
-from ..core.menu_config import MenuConfigError, load_menu_config
-from ..handle import menu as menu_module
+from ..core.runtime_config import load_runtime_configs_on_startup
 from ..handle.qq.adapters import import_handle
 from ..i18n import _async as _, warm_translation_cache
 from ..permissions import validate_and_seed_permission_system
@@ -29,19 +26,7 @@ from ..services.scheduler import (
 
 async def startup() -> None:
     """Load runtime state and initialize handlers, stores, and scheduler."""
-    await load_bot_state()
-    try:
-        menu_pages, menu_features = await load_menu_config()
-        menu_module.set_menu_pages(menu_pages)
-        menu_module.set_menu_features(menu_features)
-    except MenuConfigError as exc:
-        logger.error(
-            "Failed to load menu config; using in-memory defaults: {}",
-            exc,
-        )
-        menu_module.set_menu_pages(menu_module._DEFAULT_MENU_PAGES)
-        menu_module.set_menu_features(menu_module._DEFAULT_MENU_FEATURES)
-    await get_handle_config_manager().get_all_configs()
+    await load_runtime_configs_on_startup()
     registered_adapter_names = tuple(
         str(adapter_name) for adapter_name in get_adapters()
     )
