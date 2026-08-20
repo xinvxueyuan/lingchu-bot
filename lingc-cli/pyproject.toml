@@ -1,6 +1,6 @@
 [project]
 name = "lingc-cli"
-version = "0.1.0"
+version = "0.2.0"
 description = "A convenience command-line tool for operating and maintaining Lingchu Bot (safe startup, env detection, install/uninstall, diagnostics/repair, updates)."
 readme = "README.md"
 requires-python = ">=3.13, <3.14"

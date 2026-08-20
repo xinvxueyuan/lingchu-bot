@@ -121,7 +121,7 @@ class Config(DeploymentSettings):
 
     """
 
-    core_version: str = "0.5.0"
+    core_version: str = "0.6.1"
     data_dir: Path = field(default_factory=get_plugin_data_dir)
     config_dir: Path = field(default_factory=get_plugin_config_dir)
     cache_dir: Path = field(default_factory=get_plugin_cache_dir)

@@ -15,4 +15,4 @@ _PACKAGE = "lingc-cli"
 try:
     __version__ = version(_PACKAGE)
 except PackageNotFoundError:  # running uninstalled (source checkout)
-    __version__ = "0.1.0"
+    __version__ = "0.2.0"

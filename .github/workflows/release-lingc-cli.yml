@@ -49,6 +49,9 @@ jobs:
           git fetch --tags --quiet
           if git tag -l "lingc-cli/v*" | grep -q .; then
             # Prior release exists -> apply the requested bump input.
+            latest_tag="$(git tag -l "lingc-cli/v*" --sort=-version:refname | head -n1)"
+            base_version="${latest_tag#lingc-cli/v}"
+            uv version "$base_version" --frozen >/dev/null
             level="${{ github.event.inputs.bump }}"
             if [ "$level" = "stable" ]; then
               args="--bump stable"
@@ -104,7 +107,9 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           cd lingc-cli
+          uv version "${{ needs.validate.outputs.version }}" --frozen
           uv build --wheel --clear --no-sources --out-dir ../dist
+          test -f "../dist/lingc_cli-${{ needs.validate.outputs.version }}-py3-none-any.whl"
 
       - name: 🔍 Verify lingc-cli wheel
         shell: bash
