@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from nonebot import logger
 
+from ..database.toml_store import DatabaseError
 from ..handle import menu as menu_module
 from .bot_state import flush_bot_state_if_dirty, load_bot_state
 from .config import get_handle_config_manager
@@ -12,6 +15,7 @@ from .mutable_settings import (
     MutableSettingsError,
     flush_mutable_settings_if_dirty,
     load_mutable_settings,
+    reset_mutable_settings_cache,
 )
 
 
@@ -24,6 +28,7 @@ async def load_runtime_configs_on_startup() -> None:
     try:
         await load_mutable_settings()
     except MutableSettingsError as exc:
+        reset_mutable_settings_cache()
         logger.error(
             "Failed to load mutable settings; using in-memory defaults: {}",
             exc,
@@ -39,8 +44,25 @@ async def reload_runtime_configs_from_disk() -> None:
 
 async def flush_runtime_configs_on_shutdown() -> tuple[bool, bool]:
     """Flush dirty runtime TOML configs to disk before process exits."""
-    bot_state_flushed = await flush_bot_state_if_dirty()
-    mutable_settings_flushed = await flush_mutable_settings_if_dirty()
+    bot_state_flushed: bool | None = None
+    mutable_settings_flushed: bool | None = None
+    first_error: BaseException | None = None
+    try:
+        bot_state_flushed = await flush_bot_state_if_dirty()
+    except asyncio.CancelledError as exc:
+        first_error = exc
+    except (DatabaseError, MutableSettingsError) as exc:
+        first_error = exc
+    try:
+        mutable_settings_flushed = await flush_mutable_settings_if_dirty()
+    except asyncio.CancelledError as exc:
+        first_error = first_error or exc
+    except (DatabaseError, MutableSettingsError) as exc:
+        first_error = first_error or exc
+    if first_error is not None:
+        raise first_error
+    assert bot_state_flushed is not None
+    assert mutable_settings_flushed is not None
     return (bot_state_flushed, mutable_settings_flushed)
 
 

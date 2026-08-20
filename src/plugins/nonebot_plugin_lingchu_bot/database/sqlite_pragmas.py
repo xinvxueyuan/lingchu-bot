@@ -21,12 +21,17 @@ def _set_sqlite_pragmas(dbapi_connection: Any, _connection_record: Any) -> None:
     # aiosqlite connections arrive as SQLAlchemy's AsyncAdapt_aiosqlite_connection,
     # whose cursor()/execute()/close() are synchronous greenlet facades, so the
     # sync call sequence below is correct on both sqlite3 and aiosqlite paths.
-    cursor = dbapi_connection.cursor()
+    cursor = None
     try:
+        cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA journal_mode=WAL;")
         cursor.execute("PRAGMA synchronous=NORMAL;")
         cursor.execute("PRAGMA busy_timeout=5000;")
     except Exception as exc:
         logger.warning("Failed to apply SQLite PRAGMA optimizations: {}", exc)
     finally:
-        cursor.close()
+        if cursor is not None:
+            try:
+                cursor.close()
+            except Exception as exc:
+                logger.warning("Failed to close SQLite PRAGMA cursor: {}", exc)

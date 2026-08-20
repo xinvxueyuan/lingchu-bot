@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -17,6 +18,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.bot_state import (
     flush_bot_state_if_dirty,
     load_bot_state,
     set_global_handle_active,
+    set_global_silent_mode,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.database.toml_store import (
     TOMLFileReadError,
@@ -200,3 +202,30 @@ async def test_bot_state_flush_writes_only_when_state_changed(
     assert first is True
     assert second is False
     assert state_file.exists()
+
+
+@pytest.mark.asyncio
+async def test_bot_state_flush_retries_when_state_changes_during_write(
+    patched_state_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    del patched_state_dir
+    bot_state_module._reset_state_for_testing()
+    await load_bot_state()
+    set_global_handle_active(active=False)
+    writes: list[dict[str, object]] = []
+
+    async def write_state(_path: Path, state: dict[str, object]) -> None:
+        writes.append(state)
+        if len(writes) == 1:
+            set_global_silent_mode(silent=True)
+            await asyncio.sleep(0)
+
+    monkeypatch.setattr(bot_state_module, "write_toml_dict_file_async", write_state)
+
+    assert await flush_bot_state_if_dirty() is True
+    assert [write["global"] for write in writes] == [
+        {"handle_active": False, "silent_mode": False},
+        {"handle_active": False, "silent_mode": True},
+    ]
+    assert bot_state_module._cache.dirty is False

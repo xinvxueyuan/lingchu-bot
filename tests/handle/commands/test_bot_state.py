@@ -10,6 +10,7 @@
 """
 
 import asyncio
+from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -64,7 +65,7 @@ onebot11_whole_mute = mute_module.onebot11_whole_mute
 
 
 @pytest.fixture(autouse=True)
-def _reset_bot_state() -> Any:
+def _reset_bot_state() -> Iterator[None]:
     """每个测试前后重置机器人状态标志为默认值。"""
     _reset_state_for_testing()
     yield
@@ -72,7 +73,7 @@ def _reset_bot_state() -> Any:
 
 
 @pytest.fixture(autouse=True)
-def _mock_fire_and_forget() -> Any:
+def _mock_fire_and_forget() -> Iterator[None]:
     """避免审计记录触发后台任务（状态持久化已改为脏标记 + 关机 flush）。"""
     with patch.object(mute_module, "record_audit_fire_and_forget", new=AsyncMock()):
         yield

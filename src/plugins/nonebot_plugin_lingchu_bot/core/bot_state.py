@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import asdict, dataclass, field
 import hashlib
 import json
@@ -116,6 +117,7 @@ class _StateCache:
 
 
 _cache = _StateCache()
+_flush_lock = asyncio.Lock()
 
 
 def _get_state_file_path() -> Path:
@@ -173,8 +175,11 @@ async def load_bot_state() -> None:
     _cache.dirty = False
 
 
-async def _save_bot_state() -> None:
-    await write_toml_dict_file_async(_get_state_file_path(), _state_mapping())
+async def _save_bot_state(state_mapping: dict[str, Any] | None = None) -> None:
+    await write_toml_dict_file_async(
+        _get_state_file_path(),
+        _state_mapping() if state_mapping is None else state_mapping,
+    )
 
 
 def _state_mapping() -> dict[str, Any]:
@@ -187,9 +192,9 @@ def _state_mapping() -> dict[str, Any]:
     }).to_mapping()
 
 
-def _state_checksum() -> str:
+def _state_checksum(state_mapping: dict[str, Any] | None = None) -> str:
     payload = json.dumps(
-        _state_mapping(),
+        _state_mapping() if state_mapping is None else state_mapping,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
@@ -254,15 +259,24 @@ def _reset_state_for_testing() -> None:
 
 
 async def flush_bot_state_if_dirty() -> bool:
-    """Persist bot state only when memory content changed."""
-    current_checksum = _state_checksum()
-    if not _cache.dirty or current_checksum == _cache.persisted_checksum:
-        _cache.dirty = False
-        return False
-    await _save_bot_state()
-    _cache.persisted_checksum = current_checksum
-    _cache.dirty = False
-    return True
+    """Persist bot state with a stable snapshot and post-write validation."""
+    async with _flush_lock:
+        flushed = False
+        while True:
+            state_mapping = _state_mapping()
+            snapshot_checksum = _state_checksum(state_mapping)
+            if not _cache.dirty or snapshot_checksum == _cache.persisted_checksum:
+                _cache.dirty = False
+                return flushed
+
+            await _save_bot_state(state_mapping)
+            _cache.persisted_checksum = snapshot_checksum
+            flushed = True
+
+            if _state_checksum() == snapshot_checksum:
+                _cache.dirty = False
+                return True
+            _cache.dirty = True
 
 
 async def reload_bot_state_from_disk() -> None:
