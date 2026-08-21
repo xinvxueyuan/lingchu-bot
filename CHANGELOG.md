@@ -16,6 +16,33 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Removed
 
+### Fixed
+
+### Security
+
+## [0.6.2] - 2026-08-21
+
+补丁版本：基于整仓安全评审，收敛权限 fail-open、静默泄漏、数据一致性与时序脆弱点。
+
+### Security
+
+- 权限平台运行时组 passthrough 默认改为 `False`，未知平台不再放行；配置/查询异常时同样拒绝。
+- SUPERUSERS 判定统一走数据库 `is_superuser`，移除对 `driver.config.superusers` 的旁路依赖。
+- 静默模式（闭嘴/全局静默）下 `call_api("send_*")` 与 `send_*` 方法一并抑制，不再漏发。
+- Handle 配置文件损坏时该指令默认**禁用**而非回退为启用。
+- 群发公告限制单次目标数量并要求显式指定目标，避免单指令无限流群发。
+- 原始事件/消息入库增加长度上限，降低 PII 明文落库体积。
+
+### Changed
+
+- 启动阶段的运行时配置加载与数据库播种支持有限重试，瞬时故障不再直接打崩 NoneBot。
+- 会话 ID 加入 `group:`/`supergroup:`/`peer:` 前缀，避免跨类型碰撞。
+- TOML 写入增加跨进程 lock-file 与文件/目录 `fsync`，降低断电丢数据风险。
+- 消息摘要截断保证不超过字段上限。
+- `release.yml` 改为手动触发（`workflow_dispatch` + `bump` 输入），不再推送 `releases/<bump>` 分支。
+
+### Removed
+
 - **BREAKING** 移除 Oracle 与 SQL Server 方言数据库支持，仅支持
   SQLite / PostgreSQL / MySQL / MariaDB（与 nonebot-plugin-orm 官方矩阵一致）；
   同步裁剪 `_dialect_compat` 变体、手写 MERGE upsert、CI 矩阵与相关依赖
@@ -23,7 +50,25 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Fixed
 
-### Security
+- `protocol_id` 唯一约束不再因 `NULL` 失效（`unknown` sentinel + 迁移 `g7b8c9d0e1f2`）。
+- MySQL/MariaDB upsert 不再覆盖 `created_at`；blocklist 与 subject policy 双写置于 savepoint 内。
+- 空序列 `IN` 过滤改为抛错，避免静默匹配不到任何记录。
+- 外键冲突识别补齐 MySQL `1451/1452/23000`，不再误判为唯一冲突。
+- 修复 `core → handle` 顶层导入环（函数内延迟导入）。
+
+## [0.6.1] - 2026-08-20
+
+补丁版本：合并运行时配置缓存、持久化可靠性和 CLI 无 `bot.py` 项目启动推导修复。
+
+### Changed
+
+- 运行时配置和机器人状态使用稳定快照、写后校验与有界重试，避免异步 flush 覆盖较新的内存状态。
+- `lc-cli` 在项目没有 `bot.py` 时增强入口推导，并补齐相关文档命令引用。
+
+### Fixed
+
+- 启动时可变设置读取失败会回退到干净默认值；关机时两个配置域独立 flush，即使一个失败也不会阻断另一个。
+- SQLite PRAGMA 游标创建、执行和关闭异常均 fail-soft 记录日志。
 
 ## [0.5.0] - 2026-08-14
 
@@ -370,7 +415,9 @@ Initial formal release for QQ group management through OneBot V11.
 - Documentation remains under `GFDL-1.3-or-later`.
 - Visual elements remain under `CC0-1.0`.
 
-[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.6.2
+[0.6.1]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.6.1
 [0.5.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.5.0
 [0.4.1]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.4.1
 [0.4.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.4.0
