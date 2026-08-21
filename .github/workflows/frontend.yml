@@ -3,7 +3,7 @@ name: 🧪 Frontend CI
 on:
   pull_request:
     branches:
-      [main, dev, "dev**", "releases/**", "feature/**", "fix/**", "hotfix/*"]
+      [main, dev, "dev**", "feature/**", "fix/**", "hotfix/*"]
     paths:
       - "**.ts"
       - "**.tsx"

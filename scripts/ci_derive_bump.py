@@ -14,7 +14,6 @@ Called by:
 Inputs:
 
 - ``<bare-bump>``         -> derives from the seven release bump names (``workflow_dispatch`` input / local ``BUMP`` var)
-- ``releases/<bump>``     -> same as the bare bump (legacy branch-name form, still accepted for compatibility)
 - ``dev[-minor|-major]-*`` -> derives from dev-* branch conventions
 - ``main`` / ``dev``      -> patch + dev (default development bump)
 
@@ -29,7 +28,7 @@ from __future__ import annotations
 import re
 import sys
 
-# Release bumps: branch name (after ``releases/``) or workflow_dispatch input.
+# Release bumps: workflow_dispatch `bump` input or the local `BUMP` var.
 RELEASE_BUMPS: dict[str, tuple[str, str]] = {
     "major": ("major", "dev"),
     "minor": ("minor", "dev"),
@@ -52,7 +51,7 @@ _DEV_PRERELEASE_PATTERNS: tuple[tuple[str, str], ...] = (
 
 
 def derive_release(bump: str) -> tuple[str, str]:
-    """Resolve a release-bump name (or branch-suffix) to level + prerelease."""
+    """Resolve a release-bump name to level + prerelease."""
     if bump not in RELEASE_BUMPS:
         expected = ", ".join(RELEASE_BUMPS)
         raise SystemExit(
@@ -78,20 +77,16 @@ def derive_dev(branch: str) -> tuple[str, str]:
 
 def derive(source: str) -> tuple[str, str]:
     """Dispatch between release and dev branch conventions."""
-    if source.startswith("releases/"):
-        return derive_release(source.removeprefix("releases/"))
     if source.startswith("dev-") or source in {"main", "dev"}:
         return derive_dev(source)
-    # Bare bump name (workflow_dispatch input).
+    # Bare bump name (workflow_dispatch input / local BUMP var).
     return derive_release(source)
 
 
 def main(argv: list[str]) -> None:
     # argv[0] is the script name, so we need at least one positional argument.
     if len(argv) < 1 + 1:
-        raise SystemExit(
-            "usage: ci_derive_bump.py <release-bump | dev-branch | releases/<bump>>"
-        )
+        raise SystemExit("usage: ci_derive_bump.py <release-bump | dev-branch>")
     level, pre = derive(argv[1])
     print(f"bump_level={level}")
     print(f"bump_prerelease={pre}")
