@@ -32,8 +32,8 @@
 #       → actions/attest-build-provenance (SLSA, in workflow — not a task)
 #       → ci:version:tag-only    (creates + pushes git tag)
 #
-#   Release pipeline (release.yml):
-#     ci:version:derive-bump  (BUMP_LEVEL / BUMP_PRERELEASE derived from releases/<bump> branch or workflow_dispatch)
+#   Release pipeline (release.yml, manual trigger only):
+#     ci:version:derive-bump  (BUMP_LEVEL / BUMP_PRERELEASE derived from the workflow_dispatch `bump` input)
 #     ci:version:bump
 #       → ci:version:precheck   (PEP 440, > all tags, source consistency, no duplicate tag)
 #       → ci:version:write-config  (writes VERSION into core/config.py + package.json)
@@ -43,8 +43,8 @@
 #       → ci:version:tag-only    (creates + pushes git tag)
 #     release:verify-version    (pyproject.toml / package.json / core/config.py consistency)  [CI: release.yml, called by ci:version:postcheck]
 #     ci:version:tag-only       (tag only)                                                     [CI: release.yml]
-#     release:prepare           (local: branch + ci:version:bump + ci:version:write-config + release:verify-version + scaffold release notes)
-#     release:publish           (local: push releases/<bump-name> branch)                      [docs: CONTRIBUTING.md]
+#     release:prepare           (local: ci:version:bump + ci:version:write-config + release:verify-version + scaffold release notes, no branch switch)
+#     release:publish           (local: gh workflow run release.yml -f bump=<bump> — manual trigger)   [docs: CONTRIBUTING.md]
 #     release:notes             (local: scaffold .github/releases/<computed_version>.md)        [docs: CONTRIBUTING.md]
 #     ci:version:from-tag       (restore version from git tag into core/config.py)              [local-only; not invoked by current CI]
 #
@@ -389,7 +389,7 @@ tasks:
         python scripts/release_verify_version.py
 
   release:prepare:
-    desc: Prepare a release branch and synchronize version files (bump-style branch required)
+    desc: Prepare a release on the current branch and synchronize version files (manual-trigger release)
     requires:
       vars: [BUMP]
     cmds:
@@ -400,7 +400,7 @@ tasks:
         # Delegate bump -> level/prerelease mapping to ci:version:derive-bump,
         # which is the single source of truth (also called by release.yml and
         # ci-builds.yml). Local invocation just prints the two values.
-        derived="$(task -s ci:version:derive-bump SOURCE="releases/${bump}")"
+        derived="$(task -s ci:version:derive-bump SOURCE="${bump}")"
         bump_level="${derived%%|*}"
         bump_prerelease="${derived##*|}"
         if [ -z "$bump_level" ] || [ -z "$bump_prerelease" ] || [[ "$derived" != *"|"* ]]; then
@@ -408,20 +408,15 @@ tasks:
           exit 1
         fi
 
-        branch="releases/${bump}"
-
         # Compute the version locally so the developer knows it BEFORE
         # scaffolding the release notes file. The DRY_RUN flag reverts
         # the pyproject.toml mutation afterwards.
         new_version="$(task ci:version:bump BUMP_LEVEL="$bump_level" BUMP_PRERELEASE="$bump_prerelease" DRY_RUN=true | tail -n1)"
         new_version="$(printf '%s' "$new_version" | tr -d '\r')"
 
-        # Switch / create branch
-        if git show-ref --verify --quiet "refs/heads/${branch}"; then
-          git switch "$branch"
-        else
-          git switch -c "$branch"
-        fi
+        # Manual-trigger flow runs on the current branch (normally main);
+        # no releases/<bump> branch is created or pushed.
+        current_branch="${GITHUB_REF_NAME:-$(git branch --show-current)}"
 
         # Persist the version into pyproject.toml, core/config.py and package.json
         uv version "$new_version" --frozen
@@ -437,39 +432,45 @@ tasks:
         notes_path=".github/releases/${new_version}.md"
         if [ ! -f "$notes_path" ]; then
           printf '# Lingchu Bot %s\n\nRelease notes for %s.\n' "$new_version" "$new_version" > "$notes_path"
-          echo "Scaffolded ${notes_path}; edit and commit before pushing."
+          echo "Scaffolded ${notes_path}; edit and commit before triggering."
         else
           echo "Reusing existing ${notes_path}."
         fi
 
-        echo "Prepared ${branch} at version ${new_version}."
-        echo "Next: edit ${notes_path}, git add + commit, then run task release:publish BUMP=${bump}."
+        echo "Prepared ${current_branch} at version ${new_version}."
+        echo "Next: edit ${notes_path} + update CHANGELOG.md, git add + commit + push, then run task release:publish BUMP=${bump}."
 
   release:publish:
-    desc: Push a prepared releases/<bump> branch to trigger the release workflow
+    desc: Trigger the release workflow manually (gh workflow run with the bump input)
     requires:
       vars: [BUMP]
     cmds:
-      - git push origin "releases/{{.BUMP}}"
+      - gh workflow run release.yml -f "bump={{.BUMP}}"
 
   release:notes:
-    desc: Scaffold the release notes file for the current releases/<bump> branch
+    desc: Scaffold the release notes file for a bump (BUMP var or current releases/<bump> branch)
+    vars:
+      BUMP: '{{.BUMP | default ""}}'
     cmds:
       - |
         set -euo pipefail
-        current_branch="${GITHUB_REF_NAME:-$(git branch --show-current)}"
-        case "$current_branch" in
-          releases/major|releases/minor|releases/patch|releases/stable|releases/alpha|releases/beta|releases/rc) ;;
-          *) echo "Not on a releases/<bump> branch (current: ${current_branch}); refusing to scaffold." >&2; exit 1 ;;
-        esac
+        bump="{{.BUMP}}"
+        if [ -z "$bump" ]; then
+          current_branch="${GITHUB_REF_NAME:-$(git branch --show-current)}"
+          case "$current_branch" in
+            releases/major|releases/minor|releases/patch|releases/stable|releases/alpha|releases/beta|releases/rc) ;;
+            *) echo "Pass BUMP=... (or run from a releases/<bump> branch) to scaffold release notes." >&2; exit 1 ;;
+          esac
+          bump="${current_branch#releases/}"
+        fi
 
         # Delegate bump -> level/prerelease mapping to ci:version:derive-bump
         # (single source of truth, shared with release.yml / ci-builds.yml).
-        derived="$(task -s ci:version:derive-bump SOURCE="${current_branch}")"
+        derived="$(task -s ci:version:derive-bump SOURCE="${bump}")"
         bump_level="${derived%%|*}"
         bump_prerelease="${derived##*|}"
         if [ -z "$bump_level" ] || [ -z "$bump_prerelease" ] || [[ "$derived" != *"|"* ]]; then
-          echo "ci:version:derive-bump returned no level/prerelease for ${current_branch}" >&2
+          echo "ci:version:derive-bump returned no level/prerelease for ${bump}" >&2
           exit 1
         fi
 

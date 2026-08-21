@@ -183,7 +183,7 @@ If you only change documentation that describes i18n, gettext catalogs do not ne
 - `🧪 Python CI`: A shared `detect-changes` composite action (`.github/actions/detect-changes`) outputs boolean flags per file type (python/markdown/frontend/frontend-code/frontend-style/frontend-content/frontend-tsx), then conditionally runs Static Analysis (on Python or markdown changes, via `task ci:static`) and Tests & Type Check (on Python changes, across the multi-database matrix). Auto Fix & Format runs on `main`/`dev` pushes. Conditions align with pre-commit v3 `NEEDS_LINT`/`NEEDS_TYPE_CHECK`/`NEEDS_DOCS_TEST`.
 - `🧪 Frontend CI`: Uses the same `detect-changes` action, then conditionally runs Docs Check — ESLint on code/style, check-types on any frontend, link validation on content, Vitest on code/content.
 - `🎭 Playwright`: runs docs E2E tests for `apps/docs` and `packages` changes, installs browser dependencies, and uploads Playwright report artifacts.
-- `👷 CI-builds`: runs `task ci:build`; on pushes to `main`, `dev`, or `releases/**`, it also syncs the version from the latest tag, bumps the dev version, writes `core_version`, builds, archives artifacts, generates provenance, and tags the version.
+- `👷 CI-builds`: runs `task ci:build`; on pushes to `dev*` (and manually via `workflow_dispatch`), it also syncs the version from the latest tag, bumps the dev version, writes `core_version`, builds, archives artifacts, generates provenance, and tags the version.
 - `📚 Docs Deploy`: when docs-related paths are pushed to `main` or `dev`, it runs pnpm/Turbo lint, docs test, docs build, and deploys GitHub Pages.
 
 ## Handling CI failures
