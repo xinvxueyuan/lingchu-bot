@@ -435,7 +435,7 @@ tasks:
       - gh workflow run release.yml -f "bump={{.BUMP}}"
 
   release:notes:
-    desc: Scaffold the release notes file for a bump (BUMP var or current releases/<bump> branch)
+    desc: Scaffold the release notes file for a bump (BUMP required)
     vars:
       BUMP: '{{.BUMP | default ""}}'
     cmds:
@@ -443,12 +443,8 @@ tasks:
         set -euo pipefail
         bump="{{.BUMP}}"
         if [ -z "$bump" ]; then
-          current_branch="${GITHUB_REF_NAME:-$(git branch --show-current)}"
-          case "$current_branch" in
-            releases/major|releases/minor|releases/patch|releases/stable|releases/alpha|releases/beta|releases/rc) ;;
-            *) echo "Pass BUMP=... (or run from a releases/<bump> branch) to scaffold release notes." >&2; exit 1 ;;
-          esac
-          bump="${current_branch#releases/}"
+          echo "BUMP is required (major|minor|patch|stable|alpha|beta|rc)" >&2
+          exit 1
         fi
 
         # Delegate bump -> level/prerelease mapping to ci:version:derive-bump
