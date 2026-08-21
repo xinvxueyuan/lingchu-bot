@@ -82,7 +82,7 @@ async def test_get_platform_runtime_passthrough_uses_default_on_read_error(
         AsyncMock(side_effect=config_module.MutableSettingsError("broken")),
     )
 
-    assert await get_platform_runtime_passthrough_config() is True
+    assert await get_platform_runtime_passthrough_config() is False
 
 
 @pytest.mark.asyncio

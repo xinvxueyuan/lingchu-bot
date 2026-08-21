@@ -152,7 +152,9 @@ def _prepare_upsert_update_values[T: Model](
             raise ValueError("At least one update column is required for upsert")
         return [], explicit_update_values
 
-    update_keys = [key for key in insert_values if key not in conflict_keys]
+    update_keys = [
+        key for key in insert_values if key not in conflict_keys and key != "created_at"
+    ]
     if not update_keys:
         raise ValueError("At least one update column is required for upsert")
     return update_keys, None

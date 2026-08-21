@@ -39,7 +39,9 @@ class MessageRecord(Model):
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)
-    protocol_id: Mapped[str | None] = mapped_column(compat_string(64), index=True)
+    protocol_id: Mapped[str] = mapped_column(
+        compat_string(64), default="unknown", index=True
+    )
     framework_id: Mapped[str] = mapped_column(
         compat_string(64), default="nonebot", index=True
     )

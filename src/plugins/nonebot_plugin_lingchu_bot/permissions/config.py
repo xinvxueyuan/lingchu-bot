@@ -24,7 +24,7 @@ async def get_platform_runtime_passthrough_config() -> bool | dict[str, bool]:
     try:
         return (await load_mutable_settings()).permission_platform_runtime_passthrough
     except MutableSettingsError:
-        return True
+        return False
 
 
 async def update_platform_runtime_passthrough_config(

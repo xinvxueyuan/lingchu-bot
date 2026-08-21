@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from nonebot import logger, require
 
@@ -16,8 +16,9 @@ from ..database.toml_store import (
     ensure_toml_dict_file_async,
     load_toml_dict_async,
 )
-from ..handle import menu as menu_module
-from ..handle.menu import LocalizedText, MenuFeature, MenuPage
+
+if TYPE_CHECKING:
+    from ..handle.menu import LocalizedText, MenuFeature, MenuPage
 
 MENU_FILENAME: Final = "menu.toml"
 MENU_CONFIG_VERSION: Final = 2
@@ -51,6 +52,8 @@ def get_menu_config_file() -> Path:
 
 def menu_config_defaults() -> dict[str, Any]:
     """Return TOML-compatible defaults generated from code-owned menu data."""
+    from ..handle import menu as menu_module
+
     return {
         "version": MENU_CONFIG_VERSION,
         "pages": [_serialize_page(page) for page in menu_module._DEFAULT_MENU_PAGES],
@@ -94,6 +97,8 @@ async def ensure_menu_config_file_async(
 
 
 def _serialize_page(page: MenuPage) -> dict[str, Any]:
+    from ..handle import menu as menu_module
+
     result: dict[str, Any] = {
         "id": page.id,
         "title": _serialize_localized_text(page.title),
@@ -128,6 +133,8 @@ def _merge_menu_config(
     raw_config: dict[str, Any],
     path: Path,
 ) -> tuple[tuple[MenuPage, ...], tuple[MenuFeature, ...]]:
+    from ..handle import menu as menu_module
+
     default_pages = menu_module._DEFAULT_MENU_PAGES
     default_features = menu_module.default_menu_features()
     context = _MergeContext(
@@ -277,6 +284,8 @@ def _merge_feature(
 
 
 def _localized_from_raw(raw: Any, default: LocalizedText) -> LocalizedText:
+    from ..handle.menu import LocalizedText
+
     if raw is None:
         return default
     if not isinstance(raw, dict):

@@ -59,6 +59,8 @@ from .common import (
 
 _MASS_TARGET_SEPARATOR = re.compile(r"[,，、;；]")
 _MASS_ALL_TARGETS = frozenset({"全部群", "所有群", "all", "*"})
+_MASS_MAX_TARGETS = 20
+_MASS_CONFIRM_TARGETS = 5
 
 
 @dataclass(frozen=True)
@@ -250,7 +252,9 @@ async def _check_remote_target_privilege(
         await cmd_matcher.finish(await _("无法验证操作权限"))
         return False
 
-    if _operator_can_manage_privileged_target(operator_info, event.user_id):
+    if _operator_can_manage_privileged_target(
+        operator_info, event.user_id
+    ) or await operator_is_superuser_onebot11(session, event.user_id):
         return True
 
     await cmd_matcher.finish(await _("目标用户权限过高，无法执行"))
@@ -998,6 +1002,14 @@ async def onebot11_mass_announcement(
     )
     if group_ids is None:
         return None
+    if len(group_ids) > _MASS_MAX_TARGETS:
+        return await mass_announcement_cmd.finish(
+            (await _("群发目标超过 {limit} 个，已拒绝执行")).format(
+                limit=_MASS_MAX_TARGETS
+            )
+        )
+    if len(group_ids) > _MASS_CONFIRM_TARGETS and targets is None:
+        return await mass_announcement_cmd.finish(await _("请明确指定群发目标后重试"))
 
     image_path = await _resolve_image_path(image) if image is not None else None
     results: list[MassAnnouncementResult] = []

@@ -182,7 +182,7 @@ async def test_upsert_subject_policy_global_scope_without_operator(
     assert values["user_id"] == "456"
     assert values["operator_id"] is None
     assert values["reason"] is None
-    assert values["protocol_id"] is None
+    assert values["protocol_id"] == "unknown"
     assert upsert_mock.await_args.kwargs["conflict_fields"] == [
         "policy_type",
         "platform_id",

@@ -235,7 +235,7 @@ class DeploymentSettings:
 class MutableRuntimeSettings:
     """Online-editable settings stored in one typed localstore file."""
 
-    permission_platform_runtime_passthrough: bool | dict[str, bool] = True
+    permission_platform_runtime_passthrough: bool | dict[str, bool] = False
     command_trigger_overrides: dict[str, dict[str, Any]] = field(default_factory=dict)
     menu_page_trigger_overrides: dict[str, dict[str, Any]] = field(default_factory=dict)
 
@@ -246,7 +246,7 @@ class MutableRuntimeSettings:
             raise SettingsValidationError(
                 f"unknown configuration fields: {', '.join(sorted(unknown))}"
             )
-        value = raw.get("permission_platform_runtime_passthrough", True)
+        value = raw.get("permission_platform_runtime_passthrough", False)
         if not isinstance(value, (bool, dict)):
             raise SettingsValidationError(
                 "permission_platform_runtime_passthrough must be bool or mapping"

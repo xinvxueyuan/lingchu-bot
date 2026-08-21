@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+import inspect
 from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import or_
@@ -59,7 +60,7 @@ async def upsert_block(
     values = {
         "platform_id": request.platform_id,
         "adapter_id": request.adapter_id,
-        "protocol_id": request.protocol_id,
+        "protocol_id": request.protocol_id or "unknown",
         "bot_id": request.bot_id,
         "scope": request.scope,
         "scope_key": scope_key,
@@ -73,28 +74,32 @@ async def upsert_block(
         "created_at": now,
         "updated_at": now,
     }
-    entry = await upsert(
-        session,
-        BlocklistEntry,
-        values,
-        conflict_fields=[
-            "platform_id",
-            "adapter_id",
-            "protocol_id",
-            "bot_id",
-            "scope",
-            "scope_key",
-            "user_id",
-        ],
-        update_values={
-            "protocol_id": request.protocol_id,
-            "operator_id": values["operator_id"],
-            "reason": request.reason,
-            "expires_at": request.expires_at,
-            "updated_at": now,
-        },
-    )
-    await _sync_blocked_policy_upsert(session, request)
+    nested = session.begin_nested()
+    if inspect.isawaitable(nested):
+        nested = await nested
+    async with nested:
+        entry = await upsert(
+            session,
+            BlocklistEntry,
+            values,
+            conflict_fields=[
+                "platform_id",
+                "adapter_id",
+                "protocol_id",
+                "bot_id",
+                "scope",
+                "scope_key",
+                "user_id",
+            ],
+            update_values={
+                "protocol_id": request.protocol_id or "unknown",
+                "operator_id": values["operator_id"],
+                "reason": request.reason,
+                "expires_at": request.expires_at,
+                "updated_at": now,
+            },
+        )
+        await _sync_blocked_policy_upsert(session, request)
     return entry
 
 
@@ -270,7 +275,7 @@ async def _sync_blocked_policy_upsert(
             policy_type="blocked",
             platform_id=request.platform_id,
             adapter_id=request.adapter_id,
-            protocol_id=request.protocol_id,
+            protocol_id=request.protocol_id or "unknown",
             bot_id=request.bot_id,
             scope=request.scope,
             group_id=request.group_id,

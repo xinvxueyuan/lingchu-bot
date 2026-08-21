@@ -355,9 +355,7 @@ class TestConds:
         conds = _conds(mock_model, {"name": ["a", "b"]})
         assert len(conds) == COLLS_LEN_1
 
-    def test_empty_sequence_warning(
-        self, mock_model: type[FakeModel], caplog: Any
-    ) -> None:
+    def test_empty_sequence_rejected(self, mock_model: type[FakeModel]) -> None:
         """Test warning on empty sequence in filters.
 
         Verifies that empty sequences trigger a warning log message.
@@ -369,9 +367,8 @@ class TestConds:
         Raises:
             AssertionError: If warning is not logged for empty sequence.
         """
-        with caplog.at_level(logging.WARNING):
+        with pytest.raises(ValueError, match="Empty sequence"):
             _conds(mock_model, {"name": []})
-        assert "empty sequence" in caplog.text
 
     def test_unknown_column_raises(self, mock_model: type[FakeModel]) -> None:
         """Test rejection of non-existent columns in filters.

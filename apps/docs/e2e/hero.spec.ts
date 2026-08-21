@@ -17,7 +17,7 @@ const collectErrors = (page: Page): string[] => {
 
 test("p5 React island renders a canvas without console errors", async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto("/developer-guide/engineering/p5-shadcn-integration/");
+  await page.goto("/how-to/docs/p5-shadcn/");
 
   await expect(
     page.getByRole("heading", { level: 1, name: "p5.js & shadcn Integration" }),
@@ -43,7 +43,7 @@ test("home hero flow-field renders a canvas behind the hero content", async ({ p
 });
 
 test("shadcn dialog React island opens in MDX", async ({ page }) => {
-  await page.goto("/developer-guide/engineering/p5-shadcn-integration/");
+  await page.goto("/how-to/docs/p5-shadcn/");
 
   await page.getByRole("button", { name: "Open Dialog" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
@@ -51,7 +51,7 @@ test("shadcn dialog React island opens in MDX", async ({ page }) => {
 });
 
 test("shadcn badge and alert render as static content in MDX", async ({ page }) => {
-  await page.goto("/developer-guide/engineering/p5-shadcn-integration/");
+  await page.goto("/how-to/docs/p5-shadcn/");
 
   // Badge renders inline with a data-slot attribute.
   await expect(page.locator('[data-slot="badge"]').first()).toBeVisible();

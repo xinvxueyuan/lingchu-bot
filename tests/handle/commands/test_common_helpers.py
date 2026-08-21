@@ -71,13 +71,17 @@ class TestCheckTargetPrivilege:
         matcher = MagicMock()
         matcher.finish = AsyncMock()
 
-        result = await check_target_privilege(
-            mock_session,
-            mock_onebot11_bot,
-            mock_onebot11_event,
-            _TARGET_USER_ID,
-            matcher,
-        )
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.operator_is_superuser_onebot11",
+            AsyncMock(return_value=False),
+        ):
+            result = await check_target_privilege(
+                mock_session,
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                _TARGET_USER_ID,
+                matcher,
+            )
 
         assert result is True
         matcher.finish.assert_not_called()
@@ -96,13 +100,17 @@ class TestCheckTargetPrivilege:
         matcher = MagicMock()
         matcher.finish = AsyncMock()
 
-        result = await check_target_privilege(
-            mock_session,
-            mock_onebot11_bot,
-            mock_onebot11_event,
-            _TARGET_USER_ID,
-            matcher,
-        )
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.operator_is_superuser_onebot11",
+            AsyncMock(return_value=False),
+        ):
+            result = await check_target_privilege(
+                mock_session,
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                _TARGET_USER_ID,
+                matcher,
+            )
 
         assert result is False
         matcher.finish.assert_called_once()
@@ -121,13 +129,17 @@ class TestCheckTargetPrivilege:
         matcher = MagicMock()
         matcher.finish = AsyncMock()
 
-        result = await check_target_privilege(
-            mock_session,
-            mock_onebot11_bot,
-            mock_onebot11_event,
-            _TARGET_USER_ID,
-            matcher,
-        )
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.operator_is_superuser_onebot11",
+            AsyncMock(return_value=False),
+        ):
+            result = await check_target_privilege(
+                mock_session,
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                _TARGET_USER_ID,
+                matcher,
+            )
 
         assert result is True
         matcher.finish.assert_not_called()
@@ -146,11 +158,10 @@ class TestCheckTargetPrivilege:
         matcher = MagicMock()
         matcher.finish = AsyncMock()
 
-        with patch("nonebot.get_driver") as mock_get_driver:
-            mock_config = MagicMock()
-            mock_config.superusers = {str(mock_onebot11_event.user_id)}
-            mock_get_driver.return_value.config = mock_config
-
+        with patch(
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.operator_is_superuser_onebot11",
+            AsyncMock(return_value=True),
+        ):
             result = await check_target_privilege(
                 mock_session,
                 mock_onebot11_bot,

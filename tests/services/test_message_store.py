@@ -103,7 +103,7 @@ async def test_handle_event_received_records_event(
     assert record_kwargs["adapter_id"] == "~onebot.v11"
     assert record_kwargs["protocol_id"] == "default"
     assert record_kwargs["bot_id"] == "bot-1"
-    assert record_kwargs["conversation_id"] == "group-1"
+    assert record_kwargs["conversation_id"] == "group:group-1"
     assert record_kwargs["message_id"] == "msg-1"
     assert record_kwargs["event_type"] == "message.group"
     assert record_kwargs["event_category"] == "message"
@@ -423,7 +423,7 @@ def test_truncate_returns_value_unchanged_when_size_le_zero() -> None:
 
 
 def test_truncate_truncates_long_value_with_ellipsis() -> None:
-    assert message_store._truncate("hello world", 5) == "hello..."
+    assert message_store._truncate("hello world", 5) == "he..."
 
 
 def test_truncate_uses_runtime_config_limit_when_no_limit_passed(
@@ -431,7 +431,7 @@ def test_truncate_uses_runtime_config_limit_when_no_limit_passed(
 ) -> None:
     _ = patched_runtime_config
     assert patched_runtime_config.message_store_summary_limit == 10
-    assert message_store._truncate("0123456789ABC") == "0123456789..."
+    assert message_store._truncate("0123456789ABC") == "0123456..."
 
 
 def test_stringify_returns_none_for_none_value() -> None:
@@ -439,7 +439,7 @@ def test_stringify_returns_none_for_none_value() -> None:
 
 
 def test_stringify_truncates_string_representation_of_arbitrary_value() -> None:
-    assert message_store._stringify("hello world", limit=5) == "hello..."
+    assert message_store._stringify("hello world", limit=5) == "he..."
     assert message_store._stringify(12345, limit=10) == "12345"
 
 

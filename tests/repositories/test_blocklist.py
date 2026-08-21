@@ -172,8 +172,8 @@ async def test_upsert_block_defaults_protocol_id_to_none(mock_session: Mock) -> 
         )
 
     _, _, insert_values = upsert_mock.call_args.args[:3]
-    assert insert_values["protocol_id"] is None
-    assert upsert_mock.call_args.kwargs["update_values"]["protocol_id"] is None
+    assert insert_values["protocol_id"] == "unknown"
+    assert upsert_mock.call_args.kwargs["update_values"]["protocol_id"] == "unknown"
 
 
 @pytest.mark.asyncio

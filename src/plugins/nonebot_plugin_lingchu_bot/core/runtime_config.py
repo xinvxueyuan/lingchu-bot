@@ -7,7 +7,6 @@ import asyncio
 from nonebot import logger
 
 from ..database.toml_store import DatabaseError
-from ..handle import menu as menu_module
 from .bot_state import flush_bot_state_if_dirty, load_bot_state
 from .config import get_handle_config_manager
 from .menu_config import MenuConfigError, load_menu_config
@@ -17,6 +16,15 @@ from .mutable_settings import (
     load_mutable_settings,
     reset_mutable_settings_cache,
 )
+
+
+def __getattr__(name: str):
+    """Expose the menu module lazily for integrations and tests."""
+    if name == "menu_module":
+        from ..handle import menu
+
+        return menu
+    raise AttributeError(name)
 
 
 async def load_runtime_configs_on_startup() -> None:
@@ -65,6 +73,8 @@ async def flush_runtime_configs_on_shutdown() -> tuple[bool, bool]:
 
 
 async def _load_menu_runtime() -> None:
+    from ..handle import menu as menu_module
+
     try:
         menu_pages, menu_features = await load_menu_config()
         menu_module.set_menu_pages(menu_pages)

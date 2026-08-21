@@ -21,6 +21,46 @@ from .exceptions import (
     TOMLSerializationError,
 )
 
+_LOCK_TIMEOUT_SECONDS = 5.0
+_LOCK_POLL_SECONDS = 0.05
+
+
+def _lock_path(path: Path) -> Path:
+    return path.with_name(f".{path.name}.lock")
+
+
+async def _acquire_file_lock(path: Path) -> int:
+    lock_path = _lock_path(path)
+    deadline = asyncio.get_running_loop().time() + _LOCK_TIMEOUT_SECONDS
+    while True:
+        try:
+            return await asyncio.to_thread(
+                os.open,
+                lock_path,
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                0o600,
+            )
+        except FileExistsError as exc:
+            if asyncio.get_running_loop().time() >= deadline:
+                raise TimeoutError from exc
+            await asyncio.sleep(_LOCK_POLL_SECONDS)
+
+
+async def _release_file_lock(path: Path, fd: int) -> None:
+    await asyncio.to_thread(os.close, fd)
+    with contextlib.suppress(OSError):
+        await aiofiles.os.unlink(_lock_path(path))
+
+
+async def _fsync_path(path: Path) -> None:
+    """Flush a file and its parent directory where the platform supports it."""
+    with contextlib.suppress(OSError):
+        directory_fd = await asyncio.to_thread(os.open, path.parent, os.O_RDONLY)
+        try:
+            await asyncio.to_thread(os.fsync, directory_fd)
+        finally:
+            await asyncio.to_thread(os.close, directory_fd)
+
 
 def load_toml_dict_sync(
     file_path: str | Path,
@@ -116,6 +156,7 @@ async def ensure_toml_dict_file_async(
         return path
     await aiofiles.os.makedirs(path.parent, exist_ok=True)
     temp_path: Path | None = None
+    lock_fd = await _acquire_file_lock(path)
     try:
         content = await _toml_dumps_async(default, schema_basename=schema_basename)
         fd, temp_name = await asyncio.to_thread(
@@ -127,7 +168,10 @@ async def ensure_toml_dict_file_async(
         temp_path = Path(os.fsdecode(temp_name))
         async with aiofiles.open(fd, "w", encoding="utf-8") as file:
             await file.write(content)
+            await file.flush()
+            await asyncio.to_thread(os.fsync, file.fileno())
         await aiofiles.os.replace(temp_path, path)
+        await _fsync_path(path)
     except TOMLSerializationError:
         with contextlib.suppress(OSError):
             if temp_path is not None:
@@ -138,6 +182,8 @@ async def ensure_toml_dict_file_async(
             if temp_path is not None:
                 await aiofiles.os.unlink(temp_path)
         raise TOMLFileReadError(path, exc) from exc
+    finally:
+        await _release_file_lock(path, lock_fd)
     return path
 
 
@@ -150,6 +196,7 @@ async def write_toml_dict_file_async(
     path = Path(file_path)
     await aiofiles.os.makedirs(path.parent, exist_ok=True)
     temp_path: Path | None = None
+    lock_fd = await _acquire_file_lock(path)
     try:
         content = await _toml_dumps_async(data, schema_basename=schema_basename)
         fd, temp_name = await asyncio.to_thread(
@@ -161,7 +208,10 @@ async def write_toml_dict_file_async(
         temp_path = Path(os.fsdecode(temp_name))
         async with aiofiles.open(fd, "w", encoding="utf-8") as file:
             await file.write(content)
+            await file.flush()
+            await asyncio.to_thread(os.fsync, file.fileno())
         await aiofiles.os.replace(temp_path, path)
+        await _fsync_path(path)
     except TOMLSerializationError:
         with contextlib.suppress(OSError):
             if temp_path is not None:
@@ -172,4 +222,6 @@ async def write_toml_dict_file_async(
             if temp_path is not None:
                 await aiofiles.os.unlink(temp_path)
         raise TOMLFileReadError(path, exc) from exc
+    finally:
+        await _release_file_lock(path, lock_fd)
     return path

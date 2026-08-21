@@ -224,7 +224,7 @@ async def _record_telegram_audit(
             AuditEvent(
                 platform_id=TELEGRAM_PLATFORM_ID,
                 adapter_id=TELEGRAM_ADAPTER_ID,
-                protocol_id=None,
+                protocol_id="unknown",
                 bot_id=_telegram_bot_id(bot),
                 api_name=f"command:{audit.action}",
                 data_summary=data_summary,
