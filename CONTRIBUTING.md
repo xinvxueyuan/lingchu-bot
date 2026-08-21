@@ -224,7 +224,7 @@ Version changes run through guarded tasks defined in `Taskfile.yml`:
 - `task ci:version:bump` — accepts `BUMP_LEVEL` (default `patch`), `BUMP_PRERELEASE` (default `dev`), and `DRY_RUN` (default `false`). In `DRY_RUN=true` mode the task computes the version without mutating files, reverting any `pyproject.toml` change `uv version` made. The smart bump strategy handles stable vs. pre-release tags: stable labels require both a level and a pre-release segment, same-class pre-release labels only bump the pre-release counter, and `stable` clears the pre-release segment.
 - `task ci:version:precheck` — runs before the version is written. It validates PEP 440 compliance, ensures the candidate version is greater than every existing tag, checks source-file consistency (advisory), and rejects duplicate tags.
 - `task ci:version:postcheck` — runs after `ci:version:write-config`. It calls `release:verify-version` and validates dev-release semantics so a broken version never reaches the build artifacts.
-- `task release:prepare BUMP=<name>` — local helper: derive bump, compute the new version in `DRY_RUN` mode, run `uv version` + `ci:version:write-config` + `release:verify-version` on the current branch, and scaffold `.github/releases/<version>.md` if missing. No `releases/<bump>` branch is created.
+- `task release:prepare BUMP=<name>` — local helper: derive the bump, preview the version the workflow will derive via `uv version` (`DRY_RUN`), and scaffold `.github/releases/<version>.md` if missing. It never writes version files — the workflow is the single authority for the version. No `releases/<bump>` branch is created.
 - `task release:publish BUMP=<name>` — local helper: `gh workflow run release.yml -f bump=<name>` to manually trigger the release workflow.
 - `task release:notes BUMP=<name>` — local helper: scaffold (or report) `.github/releases/<version>.md` for the given bump, computing the version via `ci:version:bump DRY_RUN=true` so the working tree stays clean.
 
@@ -232,9 +232,10 @@ Version changes run through guarded tasks defined in `Taskfile.yml`:
 
 `release.yml` runs the **same** `ci:version:bump` → `ci:version:precheck` → `ci:version:write-config` → `ci:version:postcheck` chain as `versioned-build`, then:
 
-1. Locates `.github/releases/<computed_version>.md` and uses it as the GitHub Release body.
-2. Syncs any version drift onto the dispatch branch (so the tag matches the source files).
-3. Builds, attests SLSA Build L3, publishes to PyPI + GHCR, and creates the GitHub Release with `v<computed_version>` tag. Stable bumps additionally push a Docker `latest` tag.
+1. Derives the release version entirely via `uv version --bump` from the latest tag — the developer never writes version files.
+2. Locates `.github/releases/<computed_version>.md` and uses it as the GitHub Release body.
+3. The `build` job writes the derived version files and commits them to the dispatch branch (`main`); the `github-release` job tags that synced commit (so the tag matches the source files).
+4. Builds, attests SLSA Build L3, publishes to PyPI + GHCR, and creates the GitHub Release with `v<computed_version>` tag. Stable bumps additionally push a Docker `latest` tag.
 
 `release.yml` is **manual-trigger only**: it runs via `workflow_dispatch` with a `bump` input (`major|minor|patch|stable|alpha|beta|rc`); no `releases/**` branches are pushed.
 
@@ -243,9 +244,9 @@ When you cut a release:
 ```bash
 git switch main
 git pull --ff-only
-task release:prepare BUMP=stable           # writes version + core/config.py + package.json, scaffolds release notes
+task release:prepare BUMP=stable           # previews the derived version, scaffolds .github/releases/<version>.md (no version write)
 # edit .github/releases/<version>.md, update CHANGELOG.md
-git add .github/releases/<version>.md CHANGELOG.md pyproject.toml package.json core/config.py
+git add .github/releases/<version>.md CHANGELOG.md
 git commit -m "🔧 chore(release): release <version>"
 git push origin main
 task release:publish BUMP=stable           # gh workflow run release.yml -f bump=stable
@@ -298,12 +299,12 @@ If CI fails, open the failed job's logs first and locate the specific command, r
 
 ## Release Process
 
-Formal releases are **manual-trigger only**: prepare the version on `main`, then dispatch `release.yml` with a `bump` input. No `releases/**` branches are pushed.
+Formal releases are **manual-trigger only**: commit release notes on `main`, then dispatch `release.yml` with a `bump` input. No `releases/**` branches are pushed, and the developer never writes version files — the workflow derives the version entirely via `uv version --bump` from the latest tag.
 
-1. Run `task release:prepare BUMP=stable` on a fresh `main` (writes the version into `pyproject.toml`, `core/config.py`, `package.json`, and scaffolds `.github/releases/<version>.md`).
+1. Run `task release:prepare BUMP=stable` on a fresh `main` (previews the derived version and scaffolds `.github/releases/<version>.md`; no version write).
 2. Update `CHANGELOG.md`, `.github/releases/<version>.md`, README status text, and policy records.
 3. Run `task check && task test && task ci:build && task smoke`.
-4. Commit, push `main`, then trigger with `task release:publish BUMP=stable` (runs `gh workflow run release.yml -f bump=stable`).
+4. Commit, push `main`, then trigger with `task release:publish BUMP=stable` (runs `gh workflow run release.yml -f bump=stable`). The workflow derives the version, commits the version files to `main`, and tags that synced commit.
 5. Verify PyPI, GHCR, and GitHub Release artifacts.
 
 The release workflow runs `scripts/clean-release-infra.sh` before building artifacts so agent, CI, and local workspace infrastructure is not copied into distribution outputs.

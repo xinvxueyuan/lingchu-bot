@@ -6,7 +6,7 @@ description: 手动触发发布、release:prepare / release:publish / release:no
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-在 `main` 上准备版本，然后用 `bump` 输入**手动触发** `release.yml` 即可完成 Lingchu Bot 发布。不再需要推送 `releases/<bump>` 分支 —— `task release:publish BUMP=...` 改为运行 `gh workflow run release.yml -f bump=...`。`release.yml` 复用 `ci-builds.yml::versioned-build` 在开发分支上使用的同一条 `ci:version:bump` → `ci:version:precheck` → `ci:version:write-config` → `ci:version:postcheck` 流水线，因此 PEP 440 版本推导只此一份。
+在 `main` 上提交发布说明，然后用 `bump` 输入**手动触发** `release.yml` 即可完成 Lingchu Bot 发布。不再需要推送 `releases/<bump>` 分支 —— `task release:publish BUMP=...` 改为运行 `gh workflow run release.yml -f bump=...`。发布版本**完全由工作流用 `uv version --bump` 从最新 tag 推导**；开发者不写版本文件。`release.yml` 复用 `ci-builds.yml::versioned-build` 在每日定时任务中使用的同一条 `ci:version:bump` → `ci:version:precheck` → `ci:version:write-config` → `ci:version:postcheck` 流水线，因此 PEP 440 版本推导只此一份。
 
 ## bump 输入
 
@@ -44,12 +44,10 @@ import { Aside, Steps } from "@astrojs/starlight/components";
    任务会：
 
    - 校验 `BUMP` 必须是七个允许值之一。
-   - 调用 `task ci:version:bump BUMP_LEVEL=patch BUMP_PRERELEASE=stable DRY_RUN=true` 计算下一个版本，不修改 `pyproject.toml`。
-   - 运行 `uv version` 把版本写入 `pyproject.toml`，再调用 `task ci:version:write-config` 把版本写入 `core/config.py` 与 `package.json`。
-   - 调用 `task release:verify-version` 校验 `pyproject.toml` / `package.json` / `core/config.py` 三者一致。
+   - 调用 `task ci:version:bump BUMP_LEVEL=patch BUMP_PRERELEASE=stable DRY_RUN=true` 预览下一个版本，不修改 `pyproject.toml`。
    - 若 `.github/releases/<computed_version>.md` 不存在则脚手架出该文件。
 
-   它作用于当前分支（`main`）—— **不会**创建或切换到 `releases/<bump>` 分支。
+   它作用于当前分支（`main`）—— **不会**写版本文件，也**不会**创建 `releases/<bump>` 分支。发布版本完全由工作流用 `uv version --bump` 从最新 tag 推导。
 
 3. ### 编辑发布说明
 
@@ -60,7 +58,7 @@ import { Aside, Steps } from "@astrojs/starlight/components";
    在 `CHANGELOG.md` 增加 `## [<version>] - YYYY-MM-DD` 章节并更新底部 compare 链接，然后提交：
 
    ```bash
-   git add .github/releases/<version>.md CHANGELOG.md pyproject.toml package.json core/config.py
+   git add .github/releases/<version>.md CHANGELOG.md
    git commit -m "🔧 chore(release): release <version>"
    git push origin main
    ```
@@ -71,13 +69,13 @@ import { Aside, Steps } from "@astrojs/starlight/components";
    task release:publish BUMP=stable
    ```
 
-   该命令运行 `gh workflow run release.yml -f bump=stable`，对已推送的 `main` commit 派发 `release.yml`。
+   该命令运行 `gh workflow run release.yml -f bump=stable`，对已推送的 `main` commit 派发 `release.yml`。工作流会推导版本、把版本文件提交回 `main`，并在同步后的提交上打 tag。
 
 </Steps>
 
 <Aside type="tip" title="在 prepare 后单独重新脚手架发布说明">
 
-如果仅需要重新生成发布说明文件（例如重新拿一次版本号），运行 `task release:notes BUMP=stable`。它调用 `ci:version:bump DRY_RUN=true` 推导版本，并在文件缺失时创建。
+如果仅需要重新生成发布说明文件（例如重新预览版本号），运行 `task release:notes BUMP=stable`。它调用 `ci:version:bump DRY_RUN=true` 推导版本，并在文件缺失时创建。
 
 </Aside>
 
@@ -87,11 +85,11 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 
 | Job | 职责 |
 | --- | --- |
-| `validate` | 从 `bump` 派发输入推导 `BUMP_LEVEL` / `BUMP_PRERELEASE`；依次执行 `ci:version:bump` → `precheck` → `write-config` → `postcheck`；定位 `.github/releases/<version>.md`；把计算出的版本号透出给下游 job。 |
-| `build` | 若版本出现漂移则把 CI 计算的版本同步到触发分支（保证 tag 与源码一致）；执行 `task ci:build`；上传 wheel + sdist。 |
+| `validate` | 从 `bump` 派发输入推导 `BUMP_LEVEL` / `BUMP_PRERELEASE`；依次执行 `ci:version:bump`（uv，从最新 tag）→ `precheck` → `write-config` → `postcheck`；定位 `.github/releases/<version>.md`；把计算出的版本号透出给下游 job。 |
+| `build` | 把推导出的版本文件写入工作树、提交并推送到触发分支（`main`），然后执行 `task ci:build`；上传 wheel + sdist。 |
 | `publish-pypi` | 签发 SLSA Build L3 provenance；通过 Trusted Publishing / OIDC 发布到 PyPI。 |
 | `publish-image` | 构建并推送 Docker 镜像到 GHCR；stable bump 同时打 `latest` 标签（其它仅打 `${version}` + `${version%.*}`）。 |
-| `github-release` | 在派发 commit 上创建 `v<version>` git tag；用 `.github/releases/<version>.md` 内容作为正文创建 GitHub Release。 |
+| `github-release` | 同步到最新 `main` 提交（版本同步提交），在该提交上创建 `v<version>` git tag，并用 `.github/releases/<version>.md` 内容作为正文创建 GitHub Release。 |
 
 `validate` 与 `build` 调用的是与 `versioned-build` 在每日定时任务中相同的 `ci:version:bump` 任务，版本号事实来源只有一份。
 
@@ -102,4 +100,4 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 | `Invalid release branch / input: <name>` | `bump` 输入不是七个 bump 名称之一。 | 改用 `major` / `minor` / `patch` / `stable` / `alpha` / `beta` / `rc`。 |
 | `Missing release notes: .github/releases/<version>.md` | 触发前未提交说明文件。 | 运行 `task release:notes BUMP=<bump>` 脚手架，提交并推送后再触发。 |
 | `Tag v<version> already exists on origin` | Tag 已被发布；`ci:version:tag-only` 跳过创建。 | 确认 tag 与 commit SHA 一致；如需重发，先在 origin 删除 tag 再重跑工作流。 |
-| CI 与本地出现版本漂移 | 开发者的本地 bump 与 CI 计算结果不一致。 | `build` job 的 `Sync version files to dispatch branch` 步骤会把 CI 计算的版本提交到触发分支。检查最终 commit 与 tag。 |
+| 重跑后版本不一致 | 工作流推导的版本与上次运行不同。 | `build` job 会把 CI 推导的版本文件提交到 `main`；`github-release` job 在同步后的提交上打 tag。检查最终 commit 与 tag。 |

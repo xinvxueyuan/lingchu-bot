@@ -6,7 +6,7 @@ description: Manual-trigger releases, release:prepare / release:publish / releas
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-Cut a Lingchu Bot release by preparing the version on `main` and triggering `release.yml` manually with a `bump` input. There are no `releases/<bump>` branches to push — `task release:publish BUMP=...` runs `gh workflow run release.yml -f bump=...` instead. `release.yml` runs the same `ci:version:bump` → `ci:version:precheck` → `ci:version:write-config` → `ci:version:postcheck` chain that `ci-builds.yml::versioned-build` uses for the daily development build, so a single piece of PEP 440 logic governs every version transition.
+Cut a Lingchu Bot release by committing release notes on `main` and triggering `release.yml` manually with a `bump` input. There are no `releases/<bump>` branches to push — `task release:publish BUMP=...` runs `gh workflow run release.yml -f bump=...` instead. The release version is **derived entirely by the workflow via `uv version --bump`** from the latest tag; the developer never writes version files. `release.yml` runs the same `ci:version:bump` → `ci:version:precheck` → `ci:version:write-config` → `ci:version:postcheck` chain that `ci-builds.yml::versioned-build` uses for the daily development build, so a single piece of PEP 440 logic governs every version transition.
 
 ## Bump inputs
 
@@ -44,12 +44,10 @@ Literal version strings are never accepted as inputs. The workflow `case` reject
    The task:
 
    - Validates `BUMP` against the seven allowed values.
-   - Calls `task ci:version:bump BUMP_LEVEL=patch BUMP_PRERELEASE=stable DRY_RUN=true` to compute the next version without mutating `pyproject.toml`.
-   - Runs `uv version` to write the version into `pyproject.toml`, then `task ci:version:write-config` to write it into `core/config.py` and `package.json`.
-   - Runs `task release:verify-version` to confirm `pyproject.toml` / `package.json` / `core/config.py` agree.
+   - Calls `task ci:version:bump BUMP_LEVEL=patch BUMP_PRERELEASE=stable DRY_RUN=true` to preview the next version without mutating `pyproject.toml`.
    - Scaffolds `.github/releases/<computed_version>.md` if it does not exist.
 
-   It works on the current branch (`main`) — it does **not** create or switch to a `releases/<bump>` branch.
+   It works on the current branch (`main`) — it does **not** write version files and does **not** create a `releases/<bump>` branch. The release version is derived entirely by the workflow via `uv version --bump` from the latest tag.
 
 3. ### Edit the release notes
 
@@ -60,7 +58,7 @@ Literal version strings are never accepted as inputs. The workflow `case` reject
    Add a `## [<version>] - YYYY-MM-DD` section to `CHANGELOG.md` and update the compare links at the bottom, then commit:
 
    ```bash
-   git add .github/releases/<version>.md CHANGELOG.md pyproject.toml package.json core/config.py
+   git add .github/releases/<version>.md CHANGELOG.md
    git commit -m "🔧 chore(release): release <version>"
    git push origin main
    ```
@@ -71,13 +69,13 @@ Literal version strings are never accepted as inputs. The workflow `case` reject
    task release:publish BUMP=stable
    ```
 
-   This runs `gh workflow run release.yml -f bump=stable`, dispatching `release.yml` against the pushed `main` commit.
+   This runs `gh workflow run release.yml -f bump=stable`, dispatching `release.yml` against the pushed `main` commit. The workflow derives the version, commits the version files to `main`, and tags that synced commit.
 
 </Steps>
 
 <Aside type="tip" title="Editing the notes after prepare">
 
-If you only need to re-scaffold the notes file (e.g., after computing the version), run `task release:notes BUMP=stable`. It calls `ci:version:bump DRY_RUN=true` and creates the file if it is missing.
+If you only need to re-scaffold the notes file (e.g., after previewing the version), run `task release:notes BUMP=stable`. It calls `ci:version:bump DRY_RUN=true` and creates the file if it is missing.
 
 </Aside>
 
@@ -87,11 +85,11 @@ If you only need to re-scaffold the notes file (e.g., after computing the versio
 
 | Job | Responsibility |
 | --- | --- |
-| `validate` | Derive `BUMP_LEVEL` / `BUMP_PRERELEASE` from the `bump` dispatch input; run `ci:version:bump` → `precheck` → `write-config` → `postcheck`; locate `.github/releases/<version>.md`; expose the computed version to downstream jobs. |
-| `build` | Sync the computed version to the dispatch branch if drift is detected (so the tag and source files stay in sync); run `task ci:build`; upload the wheel + sdist. |
+| `validate` | Derive `BUMP_LEVEL` / `BUMP_PRERELEASE` from the `bump` dispatch input; run `ci:version:bump` (uv, from latest tag) → `precheck` → `write-config` → `postcheck`; locate `.github/releases/<version>.md`; expose the computed version to downstream jobs. |
+| `build` | Write the derived version files into the tree, commit + push them to the dispatch branch (`main`), then run `task ci:build`; upload the wheel + sdist. |
 | `publish-pypi` | Attest SLSA Build L3 provenance; publish to PyPI via Trusted Publishing / OIDC. |
 | `publish-image` | Build and push the Docker image to GHCR with the `latest` tag (stable only) plus `${version}` and `${version%.*}`. |
-| `github-release` | Create the `v<version>` git tag on the dispatch commit; create the GitHub Release with the dist artifacts and the body from `.github/releases/<version>.md`. |
+| `github-release` | Sync to the latest `main` tip (the version-sync commit), create the `v<version>` git tag there, and create the GitHub Release with the dist artifacts and the body from `.github/releases/<version>.md`. |
 
 The `validate` and `build` jobs both invoke the same `ci:version:bump` task that `versioned-build` runs on the daily schedule, so the source-of-truth for the version lives in one place.
 
@@ -102,4 +100,4 @@ The `validate` and `build` jobs both invoke the same `ci:version:bump` task that
 | `Invalid release branch / input: <name>` | The `bump` input is not one of the seven bump names. | Use `major`, `minor`, `patch`, `stable`, `alpha`, `beta`, or `rc`. |
 | `Missing release notes: .github/releases/<version>.md` | The notes file was not committed before triggering. | Run `task release:notes BUMP=<bump>` to scaffold it, then commit and push before re-triggering. |
 | `Tag v<version> already exists on origin` | The tag is already published; `ci:version:tag-only` skips recreation. | Verify the tag matches the commit SHA; if a re-publish is needed, delete the tag on origin and re-run the workflow. |
-| CI version drift after `release:prepare` | The developer's local bump produced a different version than CI. | The `build` job's `Sync version files to dispatch branch` step commits the CI-computed version onto the dispatch branch. Verify the resulting commit and tag. |
+| Version mismatch after a re-run | The workflow derived a version that differs from the last run. | The `build` job writes the CI-derived version files onto `main`; the `github-release` job tags that synced commit. Verify the resulting commit and tag. |
