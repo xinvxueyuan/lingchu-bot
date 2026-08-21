@@ -43,7 +43,7 @@
 #       → ci:version:tag-only    (creates + pushes git tag)
 #     release:verify-version    (pyproject.toml / package.json / core/config.py consistency)  [CI: release.yml, called by ci:version:postcheck]
 #     ci:version:tag-only       (tag only)                                                     [CI: release.yml]
-#     release:prepare           (local: ci:version:bump + ci:version:write-config + release:verify-version + scaffold release notes, no branch switch)
+#     release:prepare           (local: preview the uv-derived version + scaffold release notes; no version write, no branch switch)
 #     release:publish           (local: gh workflow run release.yml -f bump=<bump> — manual trigger)   [docs: CONTRIBUTING.md]
 #     release:notes             (local: scaffold .github/releases/<computed_version>.md)        [docs: CONTRIBUTING.md]
 #     ci:version:from-tag       (restore version from git tag into core/config.py)              [local-only; not invoked by current CI]
@@ -389,7 +389,7 @@ tasks:
         python scripts/release_verify_version.py
 
   release:prepare:
-    desc: Prepare a release on the current branch and synchronize version files (manual-trigger release)
+    desc: Scaffold release notes for a bump (version is derived by the workflow via uv — no local version write)
     requires:
       vars: [BUMP]
     cmds:
@@ -408,24 +408,11 @@ tasks:
           exit 1
         fi
 
-        # Compute the version locally so the developer knows it BEFORE
-        # scaffolding the release notes file. The DRY_RUN flag reverts
-        # the pyproject.toml mutation afterwards.
+        # Preview the version the workflow will derive via `uv version` from the
+        # latest tag (DRY_RUN keeps pyproject.toml untouched). The workflow is
+        # the single authority — the developer never writes version files.
         new_version="$(task ci:version:bump BUMP_LEVEL="$bump_level" BUMP_PRERELEASE="$bump_prerelease" DRY_RUN=true | tail -n1)"
         new_version="$(printf '%s' "$new_version" | tr -d '\r')"
-
-        # Manual-trigger flow runs on the current branch (normally main);
-        # no releases/<bump> branch is created or pushed.
-        current_branch="${GITHUB_REF_NAME:-$(git branch --show-current)}"
-
-        # Persist the version into pyproject.toml, core/config.py and package.json
-        uv version "$new_version" --frozen
-        VERSION="$new_version" \
-          CONFIG_PATH="src/plugins/nonebot_plugin_lingchu_bot/core/config.py" \
-          task ci:version:write-config
-
-        # Verify the three files agree
-        task release:verify-version VERSION="$new_version"
 
         # Scaffold the release notes file (only if missing) so the
         # developer can edit it before pushing.
@@ -437,8 +424,8 @@ tasks:
           echo "Reusing existing ${notes_path}."
         fi
 
-        echo "Prepared ${current_branch} at version ${new_version}."
-        echo "Next: edit ${notes_path} + update CHANGELOG.md, git add + commit + push, then run task release:publish BUMP=${bump}."
+        echo "Expected release version: ${new_version} (derived by release.yml via uv)."
+        echo "Next: edit ${notes_path} + update CHANGELOG.md, git add + commit + push main, then run task release:publish BUMP=${bump}."
 
   release:publish:
     desc: Trigger the release workflow manually (gh workflow run with the bump input)
