@@ -196,11 +196,10 @@ task i18n
 | `feature/` | 新功能 |
 | `fix/` | 缺陷修复 |
 | `hotfix/` | 紧急生产修复 |
-| `releases/` | 发布分支 |
 | `docs/` | 文档变更 |
 | `refactor/` | 代码重构 |
 
-GitHub Actions 也会匹配 `feature/**`、`fix/**`、`hotfix/*`、`releases/**`、`main` 和 `dev` 等分支。实际目标分支应遵循维护者或 PR 页面的指引。
+GitHub Actions 也会匹配 `feature/**`、`fix/**`、`hotfix/*`、`main` 和 `dev` 等分支。正式发布仅手动触发 —— 参见[发布版本](./release)，不再推送 `releases/**` 分支。实际目标分支应遵循维护者或 PR 页面的指引。
 
 提交信息必须遵循 gitmoji + Conventional Commits。参见[提交风格](./commits)。
 

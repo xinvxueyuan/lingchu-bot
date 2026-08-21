@@ -125,7 +125,7 @@ gh attestation verify oci://ghcr.io/xinvxueyuan/lingchu-bot:0.0.1 \
   --repository xinvxueyuan/lingchu-bot
 ```
 
-A successful verification prints the attestation source (the `ci-builds.yml` workflow run on the `releases/**` ref) and confirms the artifact was built from the claimed commit. If verification fails, do not install or run the artifact — report it through the private vulnerability reporting channel above.
+A successful verification prints the attestation source (the `release.yml` workflow run dispatched from `main`) and confirms the artifact was built from the claimed commit. If verification fails, do not install or run the artifact — report it through the private vulnerability reporting channel above.
 
 Additional supply chain notes:
 

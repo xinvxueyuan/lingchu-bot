@@ -7,14 +7,14 @@ Single source of truth for the seven release bumps plus dev-* branch mapping.
 Called by:
 
 - ``.github/workflows/ci-builds.yml::versioned-build`` (dev branches)
-- ``.github/workflows/release.yml::validate`` (releases/<bump> + workflow_dispatch)
+- ``.github/workflows/release.yml::validate`` (manual-trigger ``workflow_dispatch`` ``bump`` input)
 - ``Taskfile.yml::release:prepare`` (local release scaffolding)
 - ``Taskfile.yml::release:notes`` (local notes scaffolding)
 
 Inputs:
 
-- ``releases/<bump>``     -> derives from the seven release bump names
-- ``<bare-bump>``         -> same as above, used by ``workflow_dispatch`` inputs
+- ``<bare-bump>``         -> derives from the seven release bump names (``workflow_dispatch`` input / local ``BUMP`` var)
+- ``releases/<bump>``     -> same as the bare bump (legacy branch-name form, still accepted for compatibility)
 - ``dev[-minor|-major]-*`` -> derives from dev-* branch conventions
 - ``main`` / ``dev``      -> patch + dev (default development bump)
 

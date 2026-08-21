@@ -92,7 +92,7 @@ Before starting, read [README.md](README.md), [Repository-Policy.md](Repository-
 
 1. Confirm the problem, success criteria, out-of-scope items, and impact first. If requirements are unclear, add context in an Issue or PR discussion before proceeding.
 2. Run `git status --short` before starting to identify existing changes. Do not revert, format, or rewrite files unrelated to the current task.
-3. Create a working branch targeting the PR branch; common target branches are `main` or `dev`. Feature/fix branches typically use `feature/`, `fix/`, `hotfix/`, or `releases/` prefixes, as determined by maintainers or the PR page.
+3. Create a working branch targeting the PR branch; common target branches are `main` or `dev`. Feature/fix branches typically use `feature/`, `fix/`, `hotfix/`, or `docs/` prefixes, as determined by maintainers or the PR page.
 4. For larger features, refactors, or behavioral changes, write a plan before implementing. The plan should describe the goal, key changes, test approach, and assumptions.
 5. When implementing, prefer following the existing repository structure, tools, and style. Keep the change scope minimal and avoid incidental refactoring.
 6. After modifying code, run the necessary checks and state the actual commands and results in the PR.
@@ -183,9 +183,9 @@ Run `task gitmoji` for a quick reference. During interactive commits, `.husky/pr
 
 ## Version Validation System
 
-Lingchu Bot automates version bumps through two CI surfaces: `ci-builds.yml::versioned-build` for development branches, and `release.yml` for release branches. Both derive the bump level and pre-release segment from the **branch name** via the shared `task ci:version:derive-bump` task (delegating to `scripts/ci_derive_bump.py`), so a single piece of PEP 440 logic governs every version transition.
+Lingchu Bot automates version bumps through two CI surfaces: `ci-builds.yml::versioned-build` for development branches, and `release.yml` for formal releases. Both derive the bump level and pre-release segment via the shared `task ci:version:derive-bump` task (delegating to `scripts/ci_derive_bump.py`), so a single piece of PEP 440 logic governs every version transition.
 
-### Branch name conventions
+### Bump derivation
 
 **Development branches (drive `versioned-build`)**
 
@@ -203,19 +203,19 @@ Lingchu Bot automates version bumps through two CI surfaces: `ci-builds.yml::ver
 | `dev-stable-*` | `stable` (clears the pre-release segment) | `0.1.0` |
 | any other `dev-*` | `dev` | `0.1.0.dev1` |
 
-**Release branches (drive `release.yml`)**
+**Release bumps (drive `release.yml`, manual-trigger `bump` input)**
 
-| Branch | `BUMP_LEVEL` | `BUMP_PRERELEASE` | Resulting version |
+| `bump` | `BUMP_LEVEL` | `BUMP_PRERELEASE` | Resulting version |
 | --- | --- | --- | --- |
-| `releases/major` | `major` | `dev` | `next major + .dev1` |
-| `releases/minor` | `minor` | `dev` | `next minor + .dev1` |
-| `releases/patch` | `patch` | `dev` | `next patch + .dev1` |
-| `releases/stable` | `patch` | `stable` | `next patch` (no pre-release) |
-| `releases/alpha` | `patch` | `alpha` | `next patch + a1` |
-| `releases/beta` | `patch` | `beta` | `next patch + b1` |
-| `releases/rc` | `patch` | `rc` | `next patch + rc1` |
+| `major` | `major` | `dev` | `next major + .dev1` |
+| `minor` | `minor` | `dev` | `next minor + .dev1` |
+| `patch` | `patch` | `dev` | `next patch + .dev1` |
+| `stable` | `patch` | `stable` | `next patch` (no pre-release) |
+| `alpha` | `patch` | `alpha` | `next patch + a1` |
+| `beta` | `patch` | `beta` | `next patch + b1` |
+| `rc` | `patch` | `rc` | `next patch + rc1` |
 
-> The version on a release branch is **derived**, not literal. `releases/0.4.0` is no longer accepted; use `releases/stable` (or the appropriate bump) so the workflow can compute the version from the latest tag.
+> The release version is **derived**, not literal. Only the seven bump names above are accepted; literal version inputs are rejected with a clear error. There are no `releases/<bump>` branches to push — the release is triggered manually from the dispatch branch (`main`).
 
 ### Validation tasks
 
@@ -224,30 +224,31 @@ Version changes run through guarded tasks defined in `Taskfile.yml`:
 - `task ci:version:bump` — accepts `BUMP_LEVEL` (default `patch`), `BUMP_PRERELEASE` (default `dev`), and `DRY_RUN` (default `false`). In `DRY_RUN=true` mode the task computes the version without mutating files, reverting any `pyproject.toml` change `uv version` made. The smart bump strategy handles stable vs. pre-release tags: stable labels require both a level and a pre-release segment, same-class pre-release labels only bump the pre-release counter, and `stable` clears the pre-release segment.
 - `task ci:version:precheck` — runs before the version is written. It validates PEP 440 compliance, ensures the candidate version is greater than every existing tag, checks source-file consistency (advisory), and rejects duplicate tags.
 - `task ci:version:postcheck` — runs after `ci:version:write-config`. It calls `release:verify-version` and validates dev-release semantics so a broken version never reaches the build artifacts.
-- `task release:prepare BUMP=<name>` — local helper: derive bump, compute the new version in `DRY_RUN` mode, switch / create `releases/<name>`, run `ci:version:write-config` + `release:verify-version`, and scaffold `.github/releases/<version>.md` if missing.
-- `task release:publish BUMP=<name>` — local helper: `git push origin releases/<name>` to trigger `release.yml`.
-- `task release:notes` — local helper: scaffold (or report) `.github/releases/<version>.md` for the current `releases/<bump>` branch, computing the version via `ci:version:bump DRY_RUN=true` so the working tree stays clean.
+- `task release:prepare BUMP=<name>` — local helper: derive bump, compute the new version in `DRY_RUN` mode, run `uv version` + `ci:version:write-config` + `release:verify-version` on the current branch, and scaffold `.github/releases/<version>.md` if missing. No `releases/<bump>` branch is created.
+- `task release:publish BUMP=<name>` — local helper: `gh workflow run release.yml -f bump=<name>` to manually trigger the release workflow.
+- `task release:notes BUMP=<name>` — local helper: scaffold (or report) `.github/releases/<version>.md` for the given bump, computing the version via `ci:version:bump DRY_RUN=true` so the working tree stays clean.
 
 ### Release workflow
 
 `release.yml` runs the **same** `ci:version:bump` → `ci:version:precheck` → `ci:version:write-config` → `ci:version:postcheck` chain as `versioned-build`, then:
 
 1. Locates `.github/releases/<computed_version>.md` and uses it as the GitHub Release body.
-2. Syncs any version drift back to the release branch (so the tag matches the source files).
+2. Syncs any version drift onto the dispatch branch (so the tag matches the source files).
 3. Builds, attests SLSA Build L3, publishes to PyPI + GHCR, and creates the GitHub Release with `v<computed_version>` tag. Stable bumps additionally push a Docker `latest` tag.
 
-`workflow_dispatch` accepts a `bump` input (`major|minor|patch|stable|alpha|beta|rc`) for emergency manual releases; the same derivation table applies.
+`release.yml` is **manual-trigger only**: it runs via `workflow_dispatch` with a `bump` input (`major|minor|patch|stable|alpha|beta|rc`); no `releases/**` branches are pushed.
 
 When you cut a release:
 
 ```bash
 git switch main
 git pull --ff-only
-task release:prepare BUMP=stable           # creates releases/stable, writes version, scaffolds release notes
-# edit .github/releases/<version>.md
-git add .github/releases/<version>.md pyproject.toml package.json core/config.py
+task release:prepare BUMP=stable           # writes version + core/config.py + package.json, scaffolds release notes
+# edit .github/releases/<version>.md, update CHANGELOG.md
+git add .github/releases/<version>.md CHANGELOG.md pyproject.toml package.json core/config.py
 git commit -m "🔧 chore(release): release <version>"
-task release:publish BUMP=stable           # push to trigger release.yml
+git push origin main
+task release:publish BUMP=stable           # gh workflow run release.yml -f bump=stable
 ```
 
 ## Pull Request Requirements
@@ -277,7 +278,7 @@ Before requesting review, confirm each item:
 - User-visible behavior, configuration, or compatibility changes have a matching `CHANGELOG.md` entry under `## [Unreleased]`.
 - Code changes include a GitNexus impact analysis result (or a note that no code symbols were modified).
 - The relevant checks from the quick verification matrix were run and pass.
-- Release PRs (branch `releases/**`) additionally confirm: the version was written by `task ci:version:write-config`, `ci:version:precheck` and `ci:version:postcheck` both pass, and the build artifacts carry SLSA Build L3 provenance (see [SECURITY.md](SECURITY.md) for the `gh attestation verify` command).
+- Release PRs additionally confirm: the version was written by `task ci:version:write-config`, `ci:version:precheck` and `ci:version:postcheck` both pass, and the build artifacts carry SLSA Build L3 provenance (see [SECURITY.md](SECURITY.md) for the `gh attestation verify` command).
 
 ## CI and Failure Handling
 
@@ -287,7 +288,7 @@ PRs trigger GitHub Actions; pushes to `main` and `dev` also trigger the main CI 
 - `🧪 Frontend CI` (`frontend.yml`) — runs Docs Check (Turbo lint, type check, link validation, docs test) when frontend paths change.
 - `📚 Docs Deploy` (`docs.yml`) — on pushes to `main` and `dev`, runs pnpm/turbo lint, docs test, docs build, a docs smoke test, then deploys to GitHub Pages.
 - `👷 CI-builds` (`ci-builds.yml`) — runs `task ci:build` on PRs and non-`main`/`dev` push branches, followed by a containerized smoke test. On pushes to `main` and `dev`, the `versioned-build` job bumps the development version, writes it to `core/config.py` and `package.json`, builds artifacts, attests SLSA Build L3 provenance, and pushes the version tag.
-- `🚀 Release` (`release.yml`) — triggered by pushes to `releases/**`. Builds dist artifacts, publishes to PyPI via Trusted Publishing/OIDC, pushes the Docker image to GHCR with `GITHUB_TOKEN`, attests SLSA Build L3 provenance, and creates the GitHub Release from `.github/releases/<version>.md`.
+- `🚀 Release` (`release.yml`) — **manual-trigger only** via `workflow_dispatch` with a `bump` input. Builds dist artifacts, publishes to PyPI via Trusted Publishing/OIDC, pushes the Docker image to GHCR with `GITHUB_TOKEN`, attests SLSA Build L3 provenance, and creates the GitHub Release from `.github/releases/<version>.md`.
 - `🩺 React Doctor` (`react-doctor.yml`) — scans `.tsx` changes for security, performance, correctness, accessibility, bundle-size, and architecture issues.
 - `🎭 Playwright` (`playwright.yml`) — runs docs end-to-end tests (`pnpm --filter docs run test:e2e`) on docs/frontend changes.
 - `🧹 Clear Workflow` (`clear-workflow.yml`) — manually dispatched workflow that deletes non-running workflow run history.
@@ -297,20 +298,20 @@ If CI fails, open the failed job's logs first and locate the specific command, r
 
 ## Release Process
 
-Formal releases use `releases/<version>` branches.
+Formal releases are **manual-trigger only**: prepare the version on `main`, then dispatch `release.yml` with a `bump` input. No `releases/**` branches are pushed.
 
-1. Run `task release:prepare VERSION=0.0.1`.
-2. Update `CHANGELOG.md`, `.github/releases/0.0.1.md`, README status text, and policy records.
+1. Run `task release:prepare BUMP=stable` on a fresh `main` (writes the version into `pyproject.toml`, `core/config.py`, `package.json`, and scaffolds `.github/releases/<version>.md`).
+2. Update `CHANGELOG.md`, `.github/releases/<version>.md`, README status text, and policy records.
 3. Run `task check && task test && task ci:build && task smoke`.
-4. Push with `task release:publish VERSION=0.0.1`.
+4. Commit, push `main`, then trigger with `task release:publish BUMP=stable` (runs `gh workflow run release.yml -f bump=stable`).
 5. Verify PyPI, GHCR, and GitHub Release artifacts.
 
 The release workflow runs `scripts/clean-release-infra.sh` before building artifacts so agent, CI, and local workspace infrastructure is not copied into distribution outputs.
-GitHub Release body text comes from `.github/releases/<version>.md`; keep that file reviewed with the changelog before pushing a release branch.
+GitHub Release body text comes from `.github/releases/<version>.md`; keep that file reviewed with the changelog before triggering.
 
 Publishing uses short-lived, OIDC-based credentials — no long-lived package tokens are stored in the repository:
 
-- **PyPI** publishes through Trusted Publishing / OIDC. The PyPI project is configured to trust this repository's `release.yml` workflow on the `releases/**` branch ref.
+- **PyPI** publishes through Trusted Publishing / OIDC. The PyPI project trusts this repository's `release.yml` workflow (the `pypi` environment is referenced by the `publish-pypi` job).
 - **GHCR** (`ghcr.io/xinvxueyuan/lingchu-bot`) pushes with the ephemeral `GITHUB_TOKEN` scoped to `packages: write`.
 - Build artifacts (`dist/*`) are attested with SLSA Build L3 provenance via `actions/attest-build-provenance@v4.1.0`. See [SECURITY.md](SECURITY.md) for the `gh attestation verify` command consumers can run.
 

@@ -1,15 +1,6 @@
 name: 🚀 Release
 
 on:
-  push:
-    branches:
-      - "releases/major"
-      - "releases/minor"
-      - "releases/patch"
-      - "releases/stable"
-      - "releases/alpha"
-      - "releases/beta"
-      - "releases/rc"
   workflow_dispatch:
     inputs:
       bump:
@@ -61,21 +52,16 @@ jobs:
         # Derive needs uv + Task to call ci:version:derive-bump + ci:version:bump.
         uses: ./.github/actions/setup-uv-task
 
-      - name: 🔖 Derive bump from branch or dispatch input
+      - name: 🔖 Derive bump from dispatch input
         id: derive
         # ci:version:derive-bump is the single source of truth for the seven
         # release bumps; the same task is called by ci-builds.yml, release:prepare,
-        # and release:notes. Refs GITHUB_REF_NAME for push events and the
-        # `bump` dispatch input for manual runs.
+        # and release:notes. Manual-only trigger: the `bump` dispatch input is
+        # the sole source for the release level.
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            source="${{ github.event.inputs.bump }}"
-          else
-            source="${GITHUB_REF_NAME}"
-          fi
-          task -s ci:version:derive-bump SOURCE="$source"
+          task -s ci:version:derive-bump SOURCE="${{ github.event.inputs.bump }}"
 
       - name: 🔖 Bump release version
         id: bump
@@ -124,7 +110,7 @@ jobs:
           notes_path=".github/releases/${version}.md"
           if [ ! -f "$notes_path" ]; then
             echo "::error::Missing release notes: ${notes_path}"
-            echo "Create the file (run \`task release:notes\` on a releases/<bump> branch) and push before re-running."
+            echo "Create the file (run \`task release:prepare BUMP=...\` on the dispatch branch) and push before re-running."
             exit 1
           fi
           body_path="${RUNNER_TEMP}/release-notes-${version}.md"
@@ -135,7 +121,7 @@ jobs:
     name: 📦 Build artifacts
     runs-on: ubuntu-latest
     needs: validate
-    # contents: write is required to amend the release branch with the
+    # contents: write is required to sync the dispatch branch with the
     # version that `ci:version:write-config` just produced, so the tag
     # and the source files stay in sync.
     permissions:
@@ -160,7 +146,7 @@ jobs:
           with-retry: "true"
           enable-uv-cache: "true"
 
-      - name: 🔄 Sync version files to release branch
+      - name: 🔄 Sync version files to dispatch branch
         shell: bash
         run: |
           set -euo pipefail

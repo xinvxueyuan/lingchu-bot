@@ -194,11 +194,10 @@ Common branch prefixes:
 | `feature/` | New features |
 | `fix/` | Bug fixes |
 | `hotfix/` | Urgent production fixes |
-| `releases/` | Release branches |
 | `docs/` | Documentation changes |
 | `refactor/` | Code refactoring |
 
-GitHub Actions also match branches such as `feature/**`, `fix/**`, `hotfix/*`, `releases/**`, `main`, and `dev`. The actual target branch should follow maintainer or PR-page guidance.
+GitHub Actions also match branches such as `feature/**`, `fix/**`, `hotfix/*`, `main`, and `dev`. Formal releases are manual-trigger only — see [Cut a release](./release) — so no `releases/**` branches are pushed. The actual target branch should follow maintainer or PR-page guidance.
 
 Commit messages must follow gitmoji + Conventional Commits. See [Commit Style](./commits).
 
