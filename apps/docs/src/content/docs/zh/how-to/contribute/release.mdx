@@ -93,7 +93,7 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 | `publish-image` | 构建并推送 Docker 镜像到 GHCR；stable bump 同时打 `latest` 标签（其它仅打 `${version}` + `${version%.*}`）。 |
 | `github-release` | 在派发 commit 上创建 `v<version>` git tag；用 `.github/releases/<version>.md` 内容作为正文创建 GitHub Release。 |
 
-`validate` 与 `build` 调用的是与 `versioned-build` 在 `dev-*` 分支上相同的 `ci:version:bump` 任务，版本号事实来源只有一份。
+`validate` 与 `build` 调用的是与 `versioned-build` 在每日定时任务中相同的 `ci:version:bump` 任务，版本号事实来源只有一份。
 
 ## 故障排查
 

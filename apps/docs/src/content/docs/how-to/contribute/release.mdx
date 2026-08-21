@@ -6,7 +6,7 @@ description: Manual-trigger releases, release:prepare / release:publish / releas
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-Cut a Lingchu Bot release by preparing the version on `main` and triggering `release.yml` manually with a `bump` input. There are no `releases/<bump>` branches to push — `task release:publish BUMP=...` runs `gh workflow run release.yml -f bump=...` instead. `release.yml` runs the same `ci:version:bump` → `ci:version:precheck` → `ci:version:write-config` → `ci:version:postcheck` chain that `ci-builds.yml::versioned-build` uses for development branches, so a single piece of PEP 440 logic governs every version transition.
+Cut a Lingchu Bot release by preparing the version on `main` and triggering `release.yml` manually with a `bump` input. There are no `releases/<bump>` branches to push — `task release:publish BUMP=...` runs `gh workflow run release.yml -f bump=...` instead. `release.yml` runs the same `ci:version:bump` → `ci:version:precheck` → `ci:version:write-config` → `ci:version:postcheck` chain that `ci-builds.yml::versioned-build` uses for the daily development build, so a single piece of PEP 440 logic governs every version transition.
 
 ## Bump inputs
 
@@ -93,7 +93,7 @@ If you only need to re-scaffold the notes file (e.g., after computing the versio
 | `publish-image` | Build and push the Docker image to GHCR with the `latest` tag (stable only) plus `${version}` and `${version%.*}`. |
 | `github-release` | Create the `v<version>` git tag on the dispatch commit; create the GitHub Release with the dist artifacts and the body from `.github/releases/<version>.md`. |
 
-The `validate` and `build` jobs both invoke the same `ci:version:bump` task that `versioned-build` runs on `dev-*` branches, so the source-of-truth for the version lives in one place.
+The `validate` and `build` jobs both invoke the same `ci:version:bump` task that `versioned-build` runs on the daily schedule, so the source-of-truth for the version lives in one place.
 
 ## Troubleshooting
 

@@ -185,7 +185,7 @@ task i18n
 - `🧪 Python CI`：共享的 `detect-changes` 复合 action（`.github/actions/detect-changes`）按文件类型输出布尔标志（python/markdown/frontend/frontend-code/frontend-style/frontend-content/frontend-tsx），然后条件触发 Static Analysis（Python 或 markdown 变更时，通过 `task ci:static`）和 Tests & Type Check（Python 变更时，跨多数据库矩阵）。Auto Fix & Format 在 `main`/`dev` push 时运行。条件与 pre-commit v3 的 `NEEDS_LINT`/`NEEDS_TYPE_CHECK`/`NEEDS_DOCS_TEST` 对齐。
 - `🧪 Frontend CI`：使用同一个 `detect-changes` action，然后条件触发 Docs Check — ESLint 在代码/样式变更时，check-types 在任意前端变更时，link validation 在内容变更时，Vitest 在代码/内容变更时。
 - `🎭 Playwright`：针对 `apps/docs` 和 `packages` 变更运行 docs E2E 测试，安装浏览器依赖，并上传 Playwright report 产物。
-- `👷 CI-builds`：运行 `task ci:build`；在 `dev*` 分支 push（或 `workflow_dispatch` 手动触发）时还会 bump dev version、写回 `core_version`、构建、归档产物、生成 provenance 并提交 tag。
+- `👷 CI-builds`：运行 `task ci:build`；`versioned-build` 作业改为**每日定时**（北京时间 02:00，UTC `0 18 * * *`）——从最新 tag 同步版本、bump dev version、写回 `core_version`、构建、归档产物、生成 provenance 并提交 tag。
 - `📚 Docs Deploy`：docs 相关路径 push 到 `main` 或 `dev` 时，运行 pnpm/turbo lint、docs test 和 docs build，然后部署 GitHub Pages。
 
 ## CI 失败处理
