@@ -75,7 +75,7 @@ async def _record_protect_restore_audit(
                 AuditEvent(
                     platform_id=QQ_PLATFORM_ID,
                     adapter_id=ONEBOT_V11_ADAPTER_ID,
-                    protocol_id=None,
+                    protocol_id="default",
                     bot_id=bot_id(bot),
                     api_name="notice:protect_auto_unmute",
                     data_summary=data_summary,

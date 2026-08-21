@@ -93,10 +93,10 @@ def test_normalize_message_event_truncates_text(
     assert normalized.identity.adapter_id == "~onebot.v11"
     assert normalized.identity.protocol_id == "default"
     assert normalized.identity.bot_id == "bot-1"
-    assert normalized.identity.conversation_id == "group-1"
+    assert normalized.identity.conversation_id == "group:group-1"
     assert normalized.identity.message_id == "msg-1"
     assert normalized.user_id == "user-1"
-    assert normalized.text_summary == "hello worl..."
+    assert normalized.text_summary == "hello w..."
     assert normalized.raw_message == '"hello"'
     assert '"peer_id": "group-1"' in (normalized.raw_event or "")
 
@@ -113,7 +113,7 @@ def test_normalize_message_event_handles_missing_message_id(
 
     assert isinstance(normalized, NormalizedMessageEvent)
     assert normalized.identity.message_id is None
-    assert normalized.identity.conversation_id == "group-1"
+    assert normalized.identity.conversation_id == "group:group-1"
 
 
 def test_normalize_message_event_prefers_group_id_over_session_id(
@@ -127,7 +127,7 @@ def test_normalize_message_event_prefers_group_id_over_session_id(
     normalized = normalize_message_event(make_bot(), event)
 
     assert isinstance(normalized, NormalizedMessageEvent)
-    assert normalized.identity.conversation_id == "868258211"
+    assert normalized.identity.conversation_id == "group:868258211"
 
 
 def test_normalize_telegram_group_message_uses_chat_id(
@@ -149,7 +149,7 @@ def test_normalize_telegram_group_message_uses_chat_id(
     assert isinstance(normalized, NormalizedMessageEvent)
     assert normalized.identity.platform_id == "telegram"
     assert normalized.identity.adapter_id == "~telegram"
-    assert normalized.identity.conversation_id == "-1001234567890"
+    assert normalized.identity.conversation_id == "supergroup:-1001234567890"
 
 
 def test_normalize_telegram_message_uses_from_user_id(
@@ -214,7 +214,7 @@ def test_truncate_returns_none_for_none() -> None:
 
 
 def test_truncate_respects_explicit_limit() -> None:
-    assert _truncate("hello world", limit=5) == "hello..."
+    assert _truncate("hello world", limit=5) == "he..."
 
 
 def test_safe_call_swallows_exceptions() -> None:
@@ -257,7 +257,7 @@ def test_conversation_id_falls_back_to_event_data() -> None:
     event.peer_id = None
     event.session_id = None
     event.data = SimpleNamespace(group_id="g1")
-    assert _conversation_id(event) == "g1"
+    assert _conversation_id(event) == "peer:g1"
 
 
 def test_conversation_id_falls_back_to_session_id() -> None:
@@ -269,7 +269,7 @@ def test_conversation_id_falls_back_to_session_id() -> None:
     event.data = SimpleNamespace()
     event.chat = None
     event.get_session_id.return_value = "session-1"
-    assert _conversation_id(event) == "session-1"
+    assert _conversation_id(event) == "peer:session-1"
 
 
 def test_user_id_falls_back_to_event_attr() -> None:

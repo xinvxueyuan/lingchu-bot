@@ -86,7 +86,7 @@ async def test_get_config_uses_defaults_without_rewriting_invalid_toml(
 
     config = await manager.get_config("kick_member")
 
-    assert config.enabled is True
+    assert config.enabled is False
     assert config.defaults["require_reason"] is False
     assert config_file.read_text(encoding="utf-8") == invalid_content
 
@@ -112,7 +112,7 @@ async def test_get_config_classifies_io_errors_without_raising(
     ):
         config = await manager.get_config("kick_member")
 
-    assert config.enabled is True
+    assert config.enabled is False
     assert any(
         "I/O error reading handle config" in call.args[0]
         for call in log_error.call_args_list

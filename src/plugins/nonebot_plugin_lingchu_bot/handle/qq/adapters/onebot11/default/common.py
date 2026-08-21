@@ -258,7 +258,9 @@ async def check_target_privilege(
         await cmd_matcher.finish(await _("无法验证操作权限"))
         return False
 
-    if _operator_can_manage_privileged_target(operator_info, event.user_id):
+    if _operator_can_manage_privileged_target(
+        operator_info, event.user_id
+    ) or await operator_is_superuser_onebot11(session, event.user_id):
         return True
 
     await cmd_matcher.finish(await _("目标用户权限过高，无法执行"))
@@ -299,7 +301,7 @@ async def operator_is_superuser_onebot11(
         )
         uid = getattr(user, "uid", None) if user is not None else None
         return bool(uid and await permission_repo.is_superuser(session, str(uid)))
-    except DatabaseError:
+    except (DatabaseError, AttributeError, TypeError):
         logger.exception("验证 SUPERUSERS 权限失败: user_id=%s", operator_user_id)
         return False
 
@@ -308,14 +310,13 @@ def _operator_can_manage_privileged_target(
     operator_info: Any,
     operator_user_id: int,
 ) -> bool:
-    operator_role = operator_info.get("role", "member")
-    if operator_role == "owner":
-        return True
+    """Return only the platform-local owner privilege.
 
-    from nonebot import get_driver
-
-    superusers = get_driver().config.superusers
-    return str(operator_user_id) in superusers
+    SUPERUSERS are checked asynchronously against the permission database by
+    ``operator_is_superuser_onebot11`` before this helper is called.
+    """
+    del operator_user_id
+    return operator_info.get("role", "member") == "owner"
 
 
 async def check_bot_privilege(
@@ -365,7 +366,7 @@ async def record_command_audit(
                 AuditEvent(
                     platform_id=QQ_PLATFORM_ID,
                     adapter_id=ONEBOT_V11_ADAPTER_ID,
-                    protocol_id=None,
+                    protocol_id="default",
                     bot_id=bot_id(bot),
                     api_name=f"command:{audit.action}",
                     data_summary=data_summary,

@@ -36,8 +36,20 @@ class _SilentBotProxy:
         """Drop a matcher reply for the current request only."""
         del event, message, kwargs
 
+    async def call_api(self, api: str, **data: Any) -> Any:
+        """Suppress outbound message APIs while preserving non-message APIs."""
+        if api.startswith("send_") or api in {"send", "send_msg"}:
+            return None
+        return await self._bot.call_api(api, **data)
+
     def __getattr__(self, name: str) -> Any:
-        """Delegate non-send operations to the real bot."""
+        """Delegate non-message operations to the real bot."""
+        if name.startswith("send_"):
+
+            async def suppress(*args: Any, **kwargs: Any) -> None:
+                del args, kwargs
+
+            return suppress
         return getattr(self._bot, name)
 
 

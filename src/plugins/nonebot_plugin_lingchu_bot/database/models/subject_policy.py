@@ -38,7 +38,9 @@ class SubjectPolicyEntry(Model):
     policy_type: Mapped[str] = mapped_column(compat_string(32), index=True)
     platform_id: Mapped[str] = mapped_column(compat_string(64), index=True)
     adapter_id: Mapped[str] = mapped_column(compat_string(64), index=True)
-    protocol_id: Mapped[str | None] = mapped_column(compat_string(64), index=True)
+    protocol_id: Mapped[str] = mapped_column(
+        compat_string(64), default="unknown", index=True
+    )
     bot_id: Mapped[str] = mapped_column(compat_string(128), index=True)
     scope: Mapped[str] = mapped_column(compat_string(32), index=True)
     scope_key: Mapped[str] = mapped_column(compat_string(128), index=True)

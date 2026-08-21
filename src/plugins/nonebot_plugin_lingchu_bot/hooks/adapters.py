@@ -16,7 +16,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 SUMMARY_LIMIT = 500
+ELLIPSIS_LENGTH = 3
 RAW_PAYLOAD_MAX_DEPTH = 8
+RAW_PAYLOAD_MAX_LENGTH = 8192
 DEFAULT_PROTOCOL_ID = "default"
 
 
@@ -53,7 +55,9 @@ def _truncate(value: str | None, limit: int | None = None) -> str | None:
     size = limit if limit is not None else plugin_config.message_store_summary_limit
     if size <= 0 or len(value) <= size:
         return value
-    return f"{value[:size]}..."
+    if size <= ELLIPSIS_LENGTH:
+        return value[:size]
+    return f"{value[: size - ELLIPSIS_LENGTH]}..."
 
 
 def _stringify(value: Any, *, limit: int = SUMMARY_LIMIT) -> str | None:
@@ -129,7 +133,8 @@ def _message_type(event: Event) -> str | None:
 def _conversation_id(event: Event) -> str | None:
     chat_id = getattr(getattr(event, "chat", None), "id", None)
     if isinstance(chat_id, (str, int)):
-        return _stringify(chat_id, limit=128)
+        chat_type = getattr(getattr(event, "chat", None), "type", "chat")
+        return _stringify(f"{chat_type}:{chat_id}", limit=128)
     value = _first_attr(
         event,
         "group_id",
@@ -153,7 +158,8 @@ def _conversation_id(event: Event) -> str | None:
             value = None
     if value is None:
         value = _safe_call(event, "get_session_id")
-    return _stringify(value, limit=128)
+    prefix = "group" if getattr(event, "group_id", None) is not None else "peer"
+    return _stringify(f"{prefix}:{value}", limit=128) if value is not None else None
 
 
 def _user_id(event: Event) -> str | None:
@@ -228,9 +234,14 @@ def _json_summary(value: Any) -> str | None:
     if value is None:
         return None
     try:
-        return json.dumps(_jsonable(value), ensure_ascii=False, sort_keys=True)
+        return _truncate(
+            json.dumps(_jsonable(value), ensure_ascii=False, sort_keys=True),
+            RAW_PAYLOAD_MAX_LENGTH,
+        )
     except (TypeError, ValueError):
-        return json.dumps(str(value), ensure_ascii=False)
+        return _truncate(
+            json.dumps(str(value), ensure_ascii=False), RAW_PAYLOAD_MAX_LENGTH
+        )
 
 
 def _raw_message(event: Event) -> str | None:

@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /wheel
 
-RUN python -m pip install --user uv
+ARG UV_VERSION=0.9.5
+RUN python -m pip install --user "uv==${UV_VERSION}"
 
 COPY ./pyproject.toml ./uv.lock /wheel/
 

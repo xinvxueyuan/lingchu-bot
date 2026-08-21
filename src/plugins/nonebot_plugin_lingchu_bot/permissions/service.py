@@ -134,7 +134,7 @@ def platform_runtime_passthrough_enabled(context: PermissionContext) -> bool:
     platform_value = setting.get(context.platform_id)
     if isinstance(platform_value, bool):
         return platform_value
-    return True
+    return False
 
 
 async def allowed_command_keys(
@@ -208,11 +208,13 @@ def _membership_matches_context(membership: Any, context: PermissionContext) -> 
 async def _with_ancestor_groups(
     session: AsyncSession | async_scoped_session[AsyncSession],
     group_ids: set[str],
+    platform_id: str | None = None,
 ) -> frozenset[str]:
     if not group_ids:
         return frozenset()
     groups = {
-        group.group_id: group for group in await repo.list_identity_groups(session)
+        group.group_id: group
+        for group in await repo.list_identity_groups(session, platform_id)
     }
     expanded = set(group_ids)
     stack = list(group_ids)
@@ -240,4 +242,4 @@ async def _effective_group_ids(
     for membership in await repo.list_memberships(session, uid=context.uid):
         if _membership_matches_context(membership, context):
             direct_groups.add(membership.group_id)
-    return await _with_ancestor_groups(session, direct_groups)
+    return await _with_ancestor_groups(session, direct_groups, context.platform_id)

@@ -64,7 +64,7 @@ class HandleConfigManager:
                 command_key,
                 exc,
             )
-            config = self._build_handle_config(default_config)
+            config = self._build_handle_config(default_config, safe_mode=True)
         except TOMLFileReadError as exc:
             if isinstance(exc.__cause__, OSError):
                 logger.error(
@@ -79,21 +79,21 @@ class HandleConfigManager:
                     command_key,
                     exc,
                 )
-            config = self._build_handle_config(default_config)
+            config = self._build_handle_config(default_config, safe_mode=True)
         except (TypeError, ValueError) as exc:
             logger.error(
                 "Invalid handle config for {}; using in-memory defaults: {}",
                 command_key,
                 exc,
             )
-            config = self._build_handle_config(default_config)
+            config = self._build_handle_config(default_config, safe_mode=True)
         except DatabaseError as exc:
             logger.error(
                 "Failed to read handle config for {}; using in-memory defaults: {}",
                 command_key,
                 exc,
             )
-            config = self._build_handle_config(default_config)
+            config = self._build_handle_config(default_config, safe_mode=True)
         self._cache[command_key] = config
         return config
 
@@ -133,9 +133,11 @@ class HandleConfigManager:
         self._cache.clear()
 
     @staticmethod
-    def _build_handle_config(raw: dict[str, Any]) -> HandleConfig:
+    def _build_handle_config(
+        raw: dict[str, Any], *, safe_mode: bool = False
+    ) -> HandleConfig:
         return HandleConfig(
-            enabled=raw.get("enabled", True),
+            enabled=False if safe_mode else raw.get("enabled", True),
             defaults=dict(raw.get("defaults", {})),
             policies=dict(raw.get("policies", {})),
         )

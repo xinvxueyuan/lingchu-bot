@@ -53,11 +53,14 @@ def _is_fk_constraint_violation(e: IntegrityError) -> bool:
     sqlstate = getattr(orig, "sqlstate", None)
     if sqlstate is not None:
         try:
-            return str(sqlstate) == "23503"
+            return str(sqlstate) in {"23503", "23000"}
         except (AttributeError, TypeError):
             pass
     msg = str(orig).lower()
-    return "foreign key" in msg
+    errno = getattr(orig, "errno", None)
+    if errno in {1451, 1452}:
+        return True
+    return "foreign key" in msg or "constraint fails" in msg
 
 
 def _conds[T: Model](
@@ -88,11 +91,7 @@ def _conds[T: Model](
             c.append(col.is_(None))
         elif isinstance(v, Sequence) and not isinstance(v, (str, bytes)):
             if len(v) == 0:
-                logger.warning(
-                    "Filter '%s' uses an empty sequence; will generate `col.in_([])`, "
-                    "which never matches any records",
-                    k,
-                )
+                raise ValueError(f"Empty sequence filter for '{k}'")
             c.append(col.in_(list(v)))
         else:
             c.append(col == v)

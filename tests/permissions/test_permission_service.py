@@ -95,6 +95,11 @@ async def test_group_grant_permission_allows_child_runtime_group(
     bot: MagicMock,
 ) -> None:
     monkeypatch.setattr(
+        service_module,
+        "get_mutable_settings",
+        lambda: MutableRuntimeSettings(permission_platform_runtime_passthrough=True),
+    )
+    monkeypatch.setattr(
         repo,
         "get_user_by_platform_account",
         AsyncMock(return_value=SimpleNamespace(uid="userA")),
@@ -281,6 +286,11 @@ async def test_allowed_command_keys_non_superuser_partial_filter(
         return []
 
     monkeypatch.setattr(
+        service_module,
+        "get_mutable_settings",
+        lambda: MutableRuntimeSettings(permission_platform_runtime_passthrough=True),
+    )
+    monkeypatch.setattr(
         repo,
         "get_user_by_platform_account",
         AsyncMock(return_value=SimpleNamespace(uid="userA")),
@@ -354,7 +364,7 @@ def test_platform_runtime_passthrough_dict_platform_false(
     assert platform_runtime_passthrough_enabled(_make_context()) is False
 
 
-def test_platform_runtime_passthrough_dict_missing_platform_defaults_true(
+def test_platform_runtime_passthrough_dict_missing_platform_defaults_false(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -364,7 +374,7 @@ def test_platform_runtime_passthrough_dict_missing_platform_defaults_true(
             permission_platform_runtime_passthrough={"discord": True}
         ),
     )
-    assert platform_runtime_passthrough_enabled(_make_context()) is True
+    assert platform_runtime_passthrough_enabled(_make_context()) is False
 
 
 def test_adapter_name_returns_none_when_no_adapter() -> None:

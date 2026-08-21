@@ -1299,6 +1299,11 @@ class TestCheckRemoteTargetPrivilege:
                 f"{remote_module.__name__}._operator_can_manage_privileged_target",
                 return_value=False,
             ),
+            patch(
+                f"{remote_module.__name__}.operator_is_superuser_onebot11",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
             patch.object(matcher, "finish", new_callable=AsyncMock) as mock_finish,
         ):
             mock_finish.side_effect = Exception("finish called")

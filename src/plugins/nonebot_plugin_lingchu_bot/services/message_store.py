@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 SCHEDULER_CLEANUP_HANDLER_KEY = "message_store.cleanup_expired_messages"
 STATE_KEY = "_lingchu_message_record_identity"
 SUMMARY_LIMIT = 500
+ELLIPSIS_LENGTH = 3
 
 
 def _truncate(value: str | None, limit: int | None = None) -> str | None:
@@ -37,7 +38,9 @@ def _truncate(value: str | None, limit: int | None = None) -> str | None:
     size = limit if limit is not None else plugin_config.message_store_summary_limit
     if size <= 0 or len(value) <= size:
         return value
-    return f"{value[:size]}..."
+    if size <= ELLIPSIS_LENGTH:
+        return value[:size]
+    return f"{value[: size - ELLIPSIS_LENGTH]}..."
 
 
 def _stringify(value: Any, *, limit: int = SUMMARY_LIMIT) -> str | None:
@@ -106,7 +109,7 @@ async def record_bot_lifecycle(bot: Bot, event_type: str) -> bool:
                 repository.AuditEvent(
                     platform_id=profile.platform_id,
                     adapter_id=adapter_id,
-                    protocol_id=None,
+                    protocol_id="unknown",
                     bot_id=_stringify(getattr(bot, "self_id", None), limit=128)
                     or "unknown",
                     api_name=event_type,
