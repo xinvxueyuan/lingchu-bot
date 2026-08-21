@@ -269,9 +269,14 @@ tasks:
         # - release tags need <level>+<prerelease> (e.g. --bump patch --bump beta)
         # - dev pre-releases of the same (patch) cycle just bump the pre-release (e.g. --bump dev)
         # - pre-releases of a different class need <level>+<prerelease> (e.g. --bump minor --bump dev)
-        # - stable clears the pre-release component
+        # - stable clears the pre-release component; if the latest tag is already
+        #   stable it advances the level to the next stable patch
         if [ "$bump_prerelease" = "stable" ]; then
-          set -- --bump stable
+          if [ -n "$latest_tag" ] && [[ "$tag_version" != *dev* ]] && [[ "$tag_version" != *a* ]] && [[ "$tag_version" != *b* ]] && [[ "$tag_version" != *rc* ]]; then
+            set -- --bump "$bump_level"
+          else
+            set -- --bump stable
+          fi
         elif [ -n "$latest_tag" ] && [[ "$tag_version" != *dev* ]] && [[ "$tag_version" != *a* ]] && [[ "$tag_version" != *b* ]] && [[ "$tag_version" != *rc* ]]; then
           # Latest tag is a stable release — must bump level + prerelease
           set -- --bump "$bump_level" --bump "$bump_prerelease"
