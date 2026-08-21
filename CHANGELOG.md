@@ -20,6 +20,20 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Security
 
+## [0.6.3] - 2026-08-21
+
+补丁版本：修复 CI 静态分析失败，并把发布流程收敛为「全在 main 上、版本由 uv 推导」的线性模型。
+
+### Fixed
+
+- 修复 Python CI `Static Analysis` 失败：恢复 `[tool.ty.src]` 对 `tests/` 的排除 —— 仅 lint 依赖的静态分析环境无法解析 `pytest`/`nonebug`/`pytest_asyncio`，测试由带测试依赖组的矩阵 `tests` 作业负责。
+- 修复 `stable` bump 语义：当最新 tag 已是稳定版时（如 `v0.6.2`），`bump=stable` 现在推进到下一个稳定补丁（`0.6.3`）。
+
+### Changed
+
+- 发布改为全程在 `main` 上执行，彻底移除 `releases/<bump>` 分支：`release.yml` 仅手动触发；发布版本由工作流用 `uv version --bump` 从最新 tag 推导，开发者不再写版本文件；`build` 作业把版本文件提交回 `main`，`github-release` 在同步提交上打 tag。
+- dev 版本构建改为每日定时（北京时间 02:00，UTC `0 18 * * *`），不再随推送触发，避免发布提交被打 dev 标签。
+
 ## [0.6.2] - 2026-08-21
 
 补丁版本：基于整仓安全评审，收敛权限 fail-open、静默泄漏、数据一致性与时序脆弱点。
@@ -415,7 +429,8 @@ Initial formal release for QQ group management through OneBot V11.
 - Documentation remains under `GFDL-1.3-or-later`.
 - Visual elements remain under `CC0-1.0`.
 
-[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/xinvxueyuan/lingchu-bot/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.6.3
 [0.6.2]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.6.2
 [0.6.1]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.6.1
 [0.5.0]: https://github.com/xinvxueyuan/lingchu-bot/releases/tag/v0.5.0
