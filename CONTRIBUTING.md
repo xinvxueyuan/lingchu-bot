@@ -183,7 +183,7 @@ Run `task gitmoji` for a quick reference. During interactive commits, `.husky/pr
 
 ## Version Validation System
 
-Lingchu Bot automates version bumps through two CI surfaces: `ci-builds.yml::versioned-build` for development branches, and `release.yml` for formal releases. Both derive the bump level and pre-release segment via the shared `task ci:version:derive-bump` task (delegating to `scripts/ci_derive_bump.py`), so a single piece of PEP 440 logic governs every version transition.
+Lingchu Bot automates version bumps through two CI surfaces: `ci-builds.yml::versioned-build` for the daily development build, and `release.yml` for formal releases. Both derive the bump level and pre-release segment via the shared `task ci:version:derive-bump` task (delegating to `scripts/ci_derive_bump.py`), so a single piece of PEP 440 logic governs every version transition.
 
 ### Bump derivation
 
@@ -287,7 +287,7 @@ PRs trigger GitHub Actions; pushes to `main` and `dev` also trigger the main CI 
 - `🧪 Python CI` (`python.yml`) — runs Static Analysis (`task ci:static`) and Tests & Type Check (Pyright, ty, pytest across the multi-database matrix). On pushes to `main` and `dev`, an auto-format job runs `task ci:fix` and may auto-commit format fixes. An informational `ignore-comment-audit` job posts a PR comment when new inline ignore comments are detected in changed Python files.
 - `🧪 Frontend CI` (`frontend.yml`) — runs Docs Check (Turbo lint, type check, link validation, docs test) when frontend paths change.
 - `📚 Docs Deploy` (`docs.yml`) — on pushes to `main` and `dev`, runs pnpm/turbo lint, docs test, docs build, a docs smoke test, then deploys to GitHub Pages.
-- `👷 CI-builds` (`ci-builds.yml`) — runs `task ci:build` on PRs and non-`main`/`dev` push branches, followed by a containerized smoke test. On pushes to `main` and `dev`, the `versioned-build` job bumps the development version, writes it to `core/config.py` and `package.json`, builds artifacts, attests SLSA Build L3 provenance, and pushes the version tag.
+- `👷 CI-builds` (`ci-builds.yml`) — runs `task ci:build` on PRs and non-`dev` push branches, followed by a containerized smoke test. The `versioned-build` job runs on a **daily schedule (02:00 Asia/Shanghai, UTC `0 18 * * *`)**: it bumps the development version from the latest tag, writes it to `core/config.py` and `package.json`, builds artifacts, attests SLSA Build L3 provenance, and pushes the version tag. `main` is stable-only: neither `dev*` pushes nor release-prep commits receive dev auto-tags — releases are cut manually from `main` via `release.yml` `workflow_dispatch`, keeping release history linear.
 - `🚀 Release` (`release.yml`) — **manual-trigger only** via `workflow_dispatch` with a `bump` input. Builds dist artifacts, publishes to PyPI via Trusted Publishing/OIDC, pushes the Docker image to GHCR with `GITHUB_TOKEN`, attests SLSA Build L3 provenance, and creates the GitHub Release from `.github/releases/<version>.md`.
 - `🩺 React Doctor` (`react-doctor.yml`) — scans `.tsx` changes for security, performance, correctness, accessibility, bundle-size, and architecture issues.
 - `🎭 Playwright` (`playwright.yml`) — runs docs end-to-end tests (`pnpm --filter docs run test:e2e`) on docs/frontend changes.

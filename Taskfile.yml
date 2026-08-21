@@ -22,7 +22,7 @@
 #   smoke                         → docker compose --profile smoke up                               [docs: CONTRIBUTING.md]
 #   ci:smoke                      → docker compose --profile smoke run (JUnit report)              [local-only; CI invokes docker compose inline]
 #
-#   Version pipeline (push to main/dev* via ci-builds.yml versioned-build job):
+#   Version pipeline (daily 02:00 Asia/Shanghai via ci-builds.yml versioned-build schedule job; main is stable-only):
 #     ci:version:derive-bump  (BUMP_LEVEL / BUMP_PRERELEASE from branch / dispatch input — single source of truth)
 #     ci:version:bump
 #       → ci:version:precheck   (PEP 440, > all tags, source consistency, no duplicate tag)

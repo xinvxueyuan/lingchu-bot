@@ -24,7 +24,6 @@ on:
       - ".github/workflows/ci-builds.yml"
   push:
     branches:
-      - main
       - "dev*"
       - "feature/**"
       - "fix/**"
@@ -42,6 +41,11 @@ on:
       - "apps/docs/**"
       - "packages/**"
       - ".github/workflows/ci-builds.yml"
+  # Daily development build: one dev version per day at 02:00 Asia/Shanghai
+  # (UTC+8) == 18:00 UTC. versioned-build no longer runs on pushes, so neither
+  # dev* pushes nor release-prep commits on main ever receive dev auto-tags.
+  schedule:
+    - cron: "0 18 * * *"
 
 permissions:
   contents: read
@@ -58,7 +62,6 @@ jobs:
       github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' &&
-       !startsWith(github.ref, 'refs/heads/main') &&
        !startsWith(github.ref, 'refs/heads/dev'))
     permissions:
       contents: read
@@ -209,10 +212,10 @@ jobs:
   versioned-build:
     name: 🔖 Versioned build
     runs-on: ubuntu-latest
-    if: >-
-      github.event_name == 'push' &&
-      (startsWith(github.ref, 'refs/heads/main') ||
-       startsWith(github.ref, 'refs/heads/dev'))
+    # Daily dev build only (schedule 02:00 Asia/Shanghai). Runs on the default
+    # branch (main); GITHUB_REF_NAME == main derives patch+dev. Not triggered by
+    # pushes, so release-prep commits on main never get dev auto-tags.
+    if: github.event_name == 'schedule'
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
     permissions:
@@ -250,7 +253,8 @@ jobs:
         id: derive
         # ci:version:derive-bump is the single source of truth for the seven
         # release bumps; the same task is called by release.yml, release:prepare,
-        # and release:notes. Push events always run on main / dev* branches.
+        # and release:notes. versioned-build runs on the daily schedule against
+        # the default branch (main), which derives patch + dev.
         shell: bash
         run: |
           set -euo pipefail
