@@ -158,3 +158,21 @@ async def test_on_calling_api_noop(
 ) -> None:
     _ = patched_runtime_config
     await handler_module.on_calling_api(make_bot(), "send_message", {})
+
+
+async def test_on_called_api_swallows_context_resolution_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    """resolve_platform_context 意外异常时不冒泡到适配器 API 调用路径。"""
+    _ = patched_runtime_config
+    captured = install_fire_and_forget_spy(monkeypatch)
+    monkeypatch.setattr(
+        handler_module,
+        "resolve_platform_context",
+        MagicMock(side_effect=RuntimeError("boom")),
+    )
+
+    await handler_module.on_called_api(make_bot(), None, "send_message", {}, {})
+
+    assert captured == []
