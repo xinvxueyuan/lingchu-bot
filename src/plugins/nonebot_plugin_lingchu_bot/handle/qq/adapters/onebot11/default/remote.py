@@ -239,7 +239,14 @@ async def _check_remote_target_privilege(
             group_id=group_id, user_id=target_user_id, no_cache=True
         )
     except OneBot11ActionFailed:
-        return True
+        # Fail closed: 目标角色无法确认时拒绝操作，避免越权操作只依赖协议端兜底。
+        logger.warning(
+            "无法获取目标用户角色，拒绝操作: group_id=%s, target_user_id=%s",
+            group_id,
+            target_user_id,
+        )
+        await cmd_matcher.finish(await _("无法验证操作权限"))
+        return False
 
     if target_info.get("role", "member") not in ("admin", "owner"):
         return True
