@@ -167,7 +167,7 @@ async def _forward_output(
 async def _start_and_confirm(
     entry: list[str],
     cwd: Path,
-    timeout: int,
+    timeout: float,
 ) -> asyncio.subprocess.Process:
     """Spawn *entry*, forward output, and wait for a clean startup.
 
@@ -207,7 +207,7 @@ async def run(
     cmd: list[str],
     *,
     cwd: Path | None = None,
-    timeout: int = DEFAULT_STARTUP_TIMEOUT,
+    timeout: float = DEFAULT_STARTUP_TIMEOUT,
     reload: bool = False,
 ) -> int:
     """Safely start the bot and supervise it until it exits.

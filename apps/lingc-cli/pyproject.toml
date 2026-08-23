@@ -95,6 +95,19 @@ pythonVersion = "3.13"
 pythonPlatform = "All"
 typeCheckingMode = "strict"
 include = ["src", "tests"]
+# Typer registers commands via decorators; reportUnusedFunction is a false
+# positive for CLI entry points (same policy as the root pyproject).
+reportUnusedFunction = "none"
+# nonebot / watchfiles lack complete stubs; unknown-type reports on their
+# APIs are false positives (mirrors the root pyproject policy).
+reportUnknownVariableType = "none"
+reportUnknownMemberType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownLambdaType = "none"
+reportUnknownParameterType = "none"
+reportMissingTypeArgument = "none"
+# Tests intentionally access private members for white-box verification.
+reportPrivateUsage = "none"
 
 [tool.ty]
 [tool.ty.src]

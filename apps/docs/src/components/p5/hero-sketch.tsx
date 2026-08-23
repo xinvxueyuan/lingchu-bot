@@ -67,10 +67,7 @@ function parseColor(raw: string, fallback: [number, number, number]): [number, n
 /** Read a CSS variable from the document, resolved to its current computed value. */
 function readVar(name: string, fallback: [number, number, number]): [number, number, number] {
   if (typeof globalThis === "undefined") return fallback;
-  const raw = globalThis
-    .getComputedStyle(document.documentElement)
-    .getPropertyValue(name)
-    .trim();
+  const raw = globalThis.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return raw ? parseColor(raw, fallback) : fallback;
 }
 

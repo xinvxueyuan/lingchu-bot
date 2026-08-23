@@ -1,0 +1,12 @@
+{
+  "name": "@repo/lingc-cli",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "uv run -m ruff check . --output-format=github",
+    "format": "uv run -m ruff format .",
+    "check-types": "uv run -m pyright && uv run -m ty check --output-format github",
+    "test": "uv run -m pytest",
+    "build": "uv build --clear --no-sources --out-dir dist"
+  }
+}

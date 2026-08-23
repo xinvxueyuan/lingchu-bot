@@ -2,23 +2,31 @@
 #
 # Task dependency graph (maintainer reference — kept in sync with .github/workflows/*.yml):
 #
-#   install                       → uv sync, pnpm install
-#   up                            → uv sync --upgrade, pnpm update
-#   check                         → ruff check, ruff format check, markdownlint, turbo lint, pyright, ty, turbo check-types
-#   test                          → pytest, docs test
-#   format                        → ruff format, prettier, markdownlint --fix
-#   fix                           → ruff check --fix, ruff format, prettier, ty --fix, markdownlint --fix
-#   build                         → turbo build
+# Task orchestration is delegated to Turborepo: root tasks (//#py:*, //#md:*,
+# //#js:*, //#wheel-smoke — scripts live in root package.json) run alongside
+# workspace package tasks (docs, @repo/lingc-cli) with caching and parallel
+# scheduling. Taskfile keeps tasks that need GITHUB_OUTPUT / secrets / CLI arg
+# passthrough (release, version, db, hooks, smoke, gitmoji, clean:dev-data).
+#
+#   install                       → uv sync --all-extras --all-packages, pnpm install
+#   up                            → uv sync --all-extras --all-packages --upgrade, pnpm update
+#   check                         → turbo: lint + py:lint + py:format-check + md:lint + check-types + py:typecheck
+#   test                          → turbo: test (docs, lingc-cli) + py:test (root pytest, junitxml)
+#   py:test                       → root pytest, CLI_ARGS passthrough (bypasses turbo cache)
+#   format                        → turbo: format (lingc-cli) + py:format + js:format + md:fix
+#   fix                           → turbo: py:fix (ruff --fix + format + ty --fix) + js:format + md:fix
+#   build                         → turbo: build (docs, lingc-cli) + py:build (root wheel)
 #   ci                            → ci:hooks → check → test → build
 #   hooks:validate                → prek validate-config                                             [CI: python.yml, husky pre-commit]
 #   hooks:staged                  → prek run --stage pre-commit                                      [husky pre-commit Phase 1]
-#   ci:hooks                      → hooks:validate + prek run --all-files                            [CI: python.yml]
-#   ci:static                     → ruff check, ruff format check, markdownlint, turbo lint          [CI: python.yml]
-#   ci:typecheck                  → pyright, ty, turbo check-types                                 [local-only; CI runs pyright/ty inline]
-#   ci:test                       → pytest --junitxml, docs test                                    [local-only; CI runs pytest inline]
-#   ci:fix                        → ruff check --fix, ruff format, prettier, ty --fix, markdownlint --fix     [CI: python.yml]
-#   ci:build                      → uv build, turbo build                                          [CI: ci-builds.yml, release.yml]
-#   ci:docs                       → docs lint, docs test, docs check-types, docs build             [local-only; CI runs workflow inline]
+#   ci:hooks                      → hooks:validate + prek run --all-files                            [CI: python.yml, .circleci/checks.yml]
+#   ci:static                     → turbo: lint + py:lint + py:format-check + md:lint                [CI: python.yml, .circleci/checks.yml]
+#   ci:typecheck                  → turbo: check-types + py:typecheck                                [local-only; CI runs pyright/ty inline]
+#   ci:test                       → turbo: test + py:test (junitxml via root script)                 [local-only; CI runs pytest inline]
+#   ci:fix                        → turbo: py:fix + js:format + md:fix                               [CI: python.yml auto-format, .circleci/checks.yml]
+#   ci:wheel-smoke                → uv run --locked python scripts/ci_verify_wheel.py               [kept for direct runs; ci:build goes through turbo]
+#   ci:build                      → turbo: build + py:build + wheel-smoke                            [CI: ci-builds.yml, release.yml]
+#   ci:docs                       → turbo (docs only, serialized): lint + test + check-types + build  [local-only; CI runs workflow inline]
 #   smoke                         → docker compose --profile smoke up                               [docs: CONTRIBUTING.md]
 #   ci:smoke                      → docker compose --profile smoke run (JUnit report)              [local-only; CI invokes docker compose inline]
 #
@@ -28,7 +36,7 @@
 #       → ci:version:precheck   (PEP 440, > all tags, source consistency, no duplicate tag)
 #       → ci:version:write-config  (writes VERSION into core/config.py + package.json)
 #       → ci:version:postcheck  (calls release:verify-version + dev release semantics)
-#       → ci:build              (uv build + turbo build)
+#       → ci:build              (turbo: build + py:build + wheel-smoke)
 #       → actions/attest-build-provenance (SLSA, in workflow — not a task)
 #       → ci:version:tag-only    (creates + pushes git tag)
 #
@@ -38,7 +46,7 @@
 #       → ci:version:precheck   (PEP 440, > all tags, source consistency, no duplicate tag)
 #       → ci:version:write-config  (writes VERSION into core/config.py + package.json)
 #       → ci:version:postcheck  (calls release:verify-version + dev release semantics)
-#       → ci:build              (uv build + turbo build)
+#       → ci:build              (turbo: build + py:build + wheel-smoke)
 #       → actions/attest-build-provenance (SLSA, in workflow — not a task)
 #       → ci:version:tag-only    (creates + pushes git tag)
 #     release:verify-version    (pyproject.toml / package.json / core/config.py consistency)  [CI: release.yml, called by ci:version:postcheck]
@@ -69,13 +77,13 @@ tasks:
   install:
     desc: Install all dependencies
     cmds:
-      - uv sync --all-extras
+      - uv sync --all-extras --all-packages
       - pnpm install
 
   up:
     desc: Update all dependencies
     cmds:
-      - uv sync --all-extras --upgrade
+      - uv sync --all-extras --all-packages --upgrade
       - pnpm update
 
   clean:dev-data:
@@ -86,40 +94,32 @@ tasks:
   check:
     desc: Run all static checks (lint + format + markdown + type check)
     cmds:
-      - uv run -m ruff check . --output-format=github
-      - uv run -m ruff format --check .
-      - pnpm exec markdownlint-cli2
-      - pnpm turbo run lint --log-order=stream
-      - uv run -m pyright
-      - uv run -m ty check --output-format github
-      - pnpm turbo run check-types
+      - pnpm turbo run lint py:lint py:format-check md:lint check-types py:typecheck --log-order=stream
 
   test:
-    desc: Run all tests (Python + Docs)
+    desc: Run all tests (root pytest + lingc-cli + docs, via turbo)
+    cmds:
+      - pnpm turbo run test py:test
+
+  py:test:
+    desc: Run root pytest with CLI args passthrough (e.g. task py:test -- -k name)
     cmds:
       - uv run -m pytest -n auto --dist=worksteal --capture=sys {{.CLI_ARGS}}
-      - pnpm --filter docs test
 
   format:
     desc: Format all code
     cmds:
-      - uv run -m ruff format .
-      - pnpm exec prettier --write "apps/docs/src/**/*.{ts,tsx,css,json}"
-      - pnpm exec markdownlint-cli2 --fix
+      - pnpm turbo run format py:format js:format md:fix
 
   fix:
     desc: Auto-fix all linting and type issues
     cmds:
-      - uv run -m ruff check --fix .
-      - uv run -m ruff format .
-      - pnpm exec prettier --write "apps/docs/src/**/*.{ts,tsx,css,json}"
-      - uv run -m ty check --fix .
-      - pnpm exec markdownlint-cli2 --fix
+      - pnpm turbo run py:fix js:format md:fix
 
   build:
-    desc: Build all workspaces
+    desc: Build all workspaces (docs + lingc-cli + root wheel)
     cmds:
-      - pnpm turbo run build
+      - pnpm turbo run build py:build
 
   ci:
     desc: Run the full local CI sequence
@@ -149,32 +149,22 @@ tasks:
   ci:static:
     desc: "[CI] Static analysis checks"
     cmds:
-      - uv run -m ruff check . --output-format=github
-      - uv run -m ruff format --check .
-      - pnpm exec markdownlint-cli2
-      - pnpm turbo run lint
+      - pnpm turbo run lint py:lint py:format-check md:lint
 
   ci:typecheck:
     desc: "[CI] Type checks"
     cmds:
-      - uv run -m pyright
-      - uv run -m ty check --output-format github
-      - pnpm turbo run check-types
+      - pnpm turbo run check-types py:typecheck
 
   ci:test:
     desc: "[CI] Tests with report output"
     cmds:
-      - uv run -m pytest -n auto --dist=worksteal --capture=sys --junitxml=test-results/pytest.xml
-      - pnpm --filter docs test
+      - pnpm turbo run test py:test
 
   ci:fix:
     desc: "[CI] Auto-fix and format"
     cmds:
-      - uv run -m ruff check --fix .
-      - uv run -m ruff format .
-      - pnpm exec prettier --write "apps/docs/src/**/*.{ts,tsx,css,json}"
-      - uv run -m ty check --fix .
-      - pnpm exec markdownlint-cli2 --fix
+      - pnpm turbo run py:fix js:format md:fix
 
   ci:wheel-smoke:
     desc: "[CI] Verify wheel contents"
@@ -182,19 +172,16 @@ tasks:
       - uv run --locked python scripts/ci_verify_wheel.py
 
   ci:build:
-    desc: "[CI] Build distribution artifacts"
+    desc: "[CI] Build distribution artifacts (wheel + docs + lingc-cli) and verify wheel"
     cmds:
-      - uv build --clear --no-sources
-      - task: ci:wheel-smoke
-      - pnpm turbo run build
+      - pnpm turbo run build py:build wheel-smoke
 
   ci:docs:
     desc: "[CI] Docs-only check, test and build (no Python toolchain required)"
     cmds:
-      - pnpm --filter docs lint
-      - pnpm --filter docs test
-      - pnpm --filter docs check-types
-      - pnpm --filter docs build
+      # --concurrency=1: astro check and astro build both sync .astro/ types —
+      # serialize to avoid write races (turbo would otherwise run them in parallel).
+      - pnpm turbo run lint test check-types build --filter=docs --concurrency=1
 
   smoke:
     desc: Run the smoke test suite locally with Docker Compose

@@ -64,16 +64,14 @@ Issues = "https://github.com/xinvxueyuan/lingchu-bot/issues"
 
 # uv workspace: root project (plugin) + lingc-cli member (independent package).
 [tool.uv.workspace]
-members = ["lingc-cli"]
+members = ["apps/lingc-cli"]
 
 [dependency-groups]
 dev = [
-    { include-group = "script" },
     { include-group = "test" },
     { include-group = "lint" },
     { include-group = "git" },
 ]
-script = ["poethepoet>=0.48.0"]
 git = [
     # "bump-my-version>=1.3.0",
     "prek>=0.4.10",
@@ -107,9 +105,6 @@ test = [
     "aiomysql>=0.3.2",        # MySQL and MariaDB (SQLAlchemy auto-detects dialect)
     "cryptography>=50.0.0",   # pymysql/aiomysql auth
 ]
-
-
-# [tool.poe.tasks]
 
 [tool.nonebot]
 plugin_dirs = ["src/plugins"]
@@ -236,7 +231,7 @@ allowed-confusables = [
 
 [tool.ruff.lint.per-file-ignores]
 # Typer CLI exposes boolean flags/options as bool-typed parameters (idiomatic pattern).
-"lingc-cli/**" = ["FBT001", "FBT002", "FBT003"]
+"apps/lingc-cli/**" = ["FBT001", "FBT002", "FBT003"]
 # pytest fixtures may not be used directly in test functions but are still required for setup
 "tests/**" = [
     "ARG002",  # unused-argument
@@ -488,7 +483,7 @@ exclude = [
     ".trae/skills",
     "apps",
     "packages",
-    "lingc-cli",
+    "apps/lingc-cli",
     "docker",
     ".venv",
     "node_modules",
@@ -515,7 +510,7 @@ exclude = [
     ".trae/skills/",
     "apps/",
     "packages/",
-    "lingc-cli/",
+    "apps/lingc-cli/",
     "docker/",
     # `tests/` lives outside the runtime src tree and is checked by the
     # matrix `tests` job (with the test dependency group installed).

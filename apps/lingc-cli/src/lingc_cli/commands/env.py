@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import cast
 
 import typer
 
@@ -30,7 +31,7 @@ def register(app: typer.Typer) -> None:
         typer.echo(f"python: {snapshot['python_version']} ({snapshot['python_path']})")
         typer.echo(f"uv: {snapshot['uv']} | pip: {snapshot['pip']}")
         typer.echo(f"venv: {snapshot['venv']}")
-        adapters = snapshot["adapters"]
+        adapters = cast("list[dict[str, str]]", snapshot["adapters"])
         if adapters:
             typer.echo("adapters:")
             for adapter in adapters:

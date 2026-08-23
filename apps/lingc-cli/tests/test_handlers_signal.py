@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import signal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -35,7 +35,7 @@ async def test_terminate_process_windows_branch(
 ) -> None:
     monkeypatch.setattr(signal_mod, "WINDOWS", True)
     proc = _FakeProcess()
-    await terminate_process(proc)
+    await terminate_process(cast("asyncio.subprocess.Process", proc))
     assert proc.terminated is True
     assert proc._waited.is_set() is True
 
@@ -53,7 +53,9 @@ async def test_terminate_process_posix_branch_forwards_signal(
         "killpg",
         lambda pgid, sig: killed.append((pgid, sig)),
     )
-    await terminate_process(proc, sig=signal.SIGTERM)
+    await terminate_process(
+        cast("asyncio.subprocess.Process", proc), sig=signal.SIGTERM
+    )
     assert killed == [(9000, signal.SIGTERM)]
     assert proc.terminated is False
 
@@ -63,5 +65,5 @@ async def test_terminate_process_is_noop_when_already_exited(
 ) -> None:
     monkeypatch.setattr(signal_mod, "WINDOWS", True)
     proc = _FakeProcess(returncode=0)
-    await terminate_process(proc)
+    await terminate_process(cast("asyncio.subprocess.Process", proc))
     assert proc.terminated is False

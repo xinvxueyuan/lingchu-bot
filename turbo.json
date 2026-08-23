@@ -1,6 +1,18 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
+  "globalPassThroughEnv": [
+    "UV_*",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "PROGRAMFILES",
+    "PROGRAMDATA",
+    "USERPROFILE",
+    "HOMEDRIVE",
+    "HOMEPATH",
+    "SYSTEMDRIVE",
+    "PNPM_HOME"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -13,12 +25,161 @@
     "check-types": {
       "dependsOn": ["^check-types"]
     },
+    "format": {},
     "dev": {
       "cache": false,
       "persistent": true
     },
     "test": {
       "dependsOn": ["^build"]
+    },
+    "//#py:lint": {
+      "inputs": [
+        "src/plugins/**",
+        "tests/**",
+        "scripts/**",
+        "docker/**",
+        "apps/lingc-cli/**",
+        "pyproject.toml",
+        "apps/lingc-cli/pyproject.toml",
+        "uv.lock",
+        "!**/__pycache__/**",
+        "!**/.ruff_cache/**",
+        "!**/.pytest_cache/**",
+        "!**/.pytest-localstore/**",
+        "!**/.pyright/**",
+        "!**/dist/**",
+        "!**/htmlcov/**",
+        "!**/test-results/**",
+        "!**/.turbo/**",
+        "!**/.venv/**"
+      ]
+    },
+    "//#py:format": {
+      "inputs": [
+        "src/plugins/**",
+        "tests/**",
+        "scripts/**",
+        "docker/**",
+        "apps/lingc-cli/**",
+        "pyproject.toml",
+        "apps/lingc-cli/pyproject.toml",
+        "uv.lock",
+        "!**/__pycache__/**",
+        "!**/.ruff_cache/**",
+        "!**/.pytest_cache/**",
+        "!**/.pytest-localstore/**",
+        "!**/.pyright/**",
+        "!**/dist/**",
+        "!**/htmlcov/**",
+        "!**/test-results/**",
+        "!**/.turbo/**",
+        "!**/.venv/**"
+      ]
+    },
+    "//#py:format-check": {
+      "inputs": [
+        "src/plugins/**",
+        "tests/**",
+        "scripts/**",
+        "docker/**",
+        "apps/lingc-cli/**",
+        "pyproject.toml",
+        "apps/lingc-cli/pyproject.toml",
+        "uv.lock",
+        "!**/__pycache__/**",
+        "!**/.ruff_cache/**",
+        "!**/.pytest_cache/**",
+        "!**/.pytest-localstore/**",
+        "!**/.pyright/**",
+        "!**/dist/**",
+        "!**/htmlcov/**",
+        "!**/test-results/**",
+        "!**/.turbo/**",
+        "!**/.venv/**"
+      ]
+    },
+    "//#py:fix": {
+      "cache": false
+    },
+    "//#py:typecheck": {
+      "inputs": [
+        "src/plugins/**",
+        "tests/**",
+        "pyproject.toml",
+        "uv.lock",
+        "!**/__pycache__/**",
+        "!**/.ruff_cache/**",
+        "!**/.pytest_cache/**",
+        "!**/.pytest-localstore/**",
+        "!**/.pyright/**"
+      ]
+    },
+    "//#py:test": {
+      "inputs": [
+        "src/plugins/**",
+        "tests/**",
+        "pyproject.toml",
+        "uv.lock",
+        "!**/__pycache__/**",
+        "!**/.ruff_cache/**",
+        "!**/.pytest_cache/**",
+        "!**/.pytest-localstore/**",
+        "!**/.pyright/**"
+      ],
+      "env": ["SQLALCHEMY_DATABASE_URL", "ENVIRONMENT", "LINGCHU_*"],
+      "outputs": ["test-results/**", "htmlcov/**"]
+    },
+    "//#py:build": {
+      "inputs": [
+        "src/plugins/**",
+        "pyproject.toml",
+        "uv.lock",
+        "README.md",
+        "LICENSE-*",
+        "CLA.md",
+        "Repository-Policy.md",
+        "!**/__pycache__/**"
+      ],
+      "outputs": ["dist/**"]
+    },
+    "//#wheel-smoke": {
+      "dependsOn": ["//#py:build"],
+      "inputs": ["scripts/ci_verify_wheel.py"]
+    },
+    "//#md:lint": {
+      "inputs": [
+        "*.md",
+        "apps/**/*.md",
+        "packages/**/*.md",
+        ".github/**/*.md",
+        ".markdownlint-cli2.jsonc"
+      ]
+    },
+    "//#md:fix": {
+      "inputs": [
+        "*.md",
+        "apps/**/*.md",
+        "packages/**/*.md",
+        ".github/**/*.md",
+        ".markdownlint-cli2.jsonc"
+      ]
+    },
+    "//#js:format": {
+      "inputs": [
+        "apps/docs/src/**/*.{ts,tsx,css,json}",
+        ".prettierrc.json",
+        ".prettierignore"
+      ]
+    },
+    "//#i18n": {
+      "inputs": [
+        "src/plugins/nonebot_plugin_lingchu_bot/**",
+        "!src/plugins/nonebot_plugin_lingchu_bot/i18n/locales/**",
+        "!src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot",
+        "!**/__pycache__/**"
+      ],
+      "outputs": ["src/plugins/nonebot_plugin_lingchu_bot/i18n/**"]
     }
   }
 }

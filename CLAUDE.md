@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lingchu-bot** (5610 symbols, 10307 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lingchu-bot** (5612 symbols, 10307 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -76,10 +76,12 @@ When editing this file, follow DRY and SMAR/TL:
 
 ## C — Context
 
-Lingchu Bot is a NoneBot2-based group management bot. The monorepo contains:
+Lingchu Bot is a NoneBot2-based group management bot. The monorepo follows a strict asset hierarchy:
 
-- Python backend plugin: `src/plugins/nonebot_plugin_lingchu_bot/`
-- Astro Starlight documentation site: `apps/docs/`
+- `src/` — primary asset: the Python backend plugin `src/plugins/nonebot_plugin_lingchu_bot/` (stays in place; never migrate it into `apps/`)
+- `apps/` — additional assets: the Astro Starlight documentation site `apps/docs/` and the operations CLI `apps/lingc-cli/` (independently published PyPI package; uv workspace member and turbo workspace node)
+- `packages/` — shared JS configurations
+- Repo root — repo-level orchestration: uv workspace root, `turbo.json`, root `package.json`, and the thin-delegation `Taskfile.yml`
 - Project-local skills (single source of truth): `.agents/skills/`
   - `.claude/skills/` and `.trae/skills/` are **whole-directory symlinks** to `.agents/skills/`, so Codex, Trae, and Claude Code all read from the same set; add or update a skill in `.agents/skills/` and all three agents see it.
 - Chinese agent guide mirror: `.github/note/AGENTS-zh.md`
@@ -109,6 +111,12 @@ Docs site:
 - i18n, Starlight/Pagefind search, sitemap, Mermaid, Twoslash
 - Starlight content collections own docs routing, sidebar, and localized static output
 - Turborepo workspace using `pnpm`
+
+Task orchestration:
+
+- Turborepo unifies the whole monorepo: root tasks (`//#py:*`, `//#md:*`, `//#js:*`, `//#wheel-smoke`, scripts in root `package.json`) wrap the Python toolchain with caching; `apps/docs` and `apps/lingc-cli` are turbo workspace nodes
+- `Taskfile.yml` is a thin delegation shell: `check` / `test` / `build` / `format` / `fix` / `ci:*` are single-line `pnpm turbo run ...` calls; release / version / db / hooks / smoke / gitmoji stay in Taskfile (GITHUB_OUTPUT, secrets, CLI arg passthrough)
+- `task install` = `uv sync --all-extras --all-packages` + `pnpm install`
 
 ## R — Role
 
@@ -302,7 +310,36 @@ Lighter alternatives: `grilling` replace `grill-with-docs` + `domain-modeling` w
 
 ### Development Commands
 
-Python:
+Turbo aggregate entrypoints (first choice):
+
+```bash
+pnpm lint          # docs + lingc-cli lint, root ruff check, markdownlint
+pnpm check-types   # docs + lingc-cli type checks, root pyright + ty
+pnpm test          # root pytest + lingc-cli pytest + docs Vitest
+pnpm build         # root wheel + lingc-cli wheel + docs build
+pnpm format        # ruff format + prettier + markdownlint --fix
+```
+
+Taskfile (thin turbo delegation, CI-compatible entry):
+
+```bash
+task check
+task test
+task build
+task format
+task fix
+task ci:static
+task ci:typecheck
+task ci:test
+task ci:fix
+task ci:build
+task ci:docs
+task py:test -- -k <name>   # root pytest with arg passthrough (bypasses turbo)
+task i18n
+task ci
+```
+
+Python (equivalent low-level calls):
 
 ```bash
 uv run -m ruff check . --output-format=github
@@ -321,17 +358,6 @@ pnpm --filter docs lint
 pnpm --filter docs test
 pnpm --filter docs check-types
 pnpm --filter docs build
-```
-
-Project:
-
-```bash
-pnpm exec markdownlint-cli2
-pnpm exec markdownlint-cli2 --fix
-task i18n
-task check
-task test
-task ci
 ```
 
 ### Quick Verification Matrix
@@ -442,6 +468,14 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - SubAgents spawn scratch files (`_tmp_cov.sh`, `_writetest.txt`, probe scripts) and never self-clean. The orchestrator MUST run `git status --short` after SubAgent batches and `rm -f` any scratch file before staging or commit, otherwise pre-commit hooks fail on unintended files and the commit carries garbage.
 - When overriding `list.__getitem__` in tests, match the typeshed signature: `def __getitem__(self, index: SupportsIndex | slice, /) -> list[object]`. Using `int | slice` or omitting the `/` triggers `reportIncompatibleMethodOverride`. Override `BaseException.args` is brittle (signature mismatch with the read-write property); prefer `__getattribute__` interception for hostile-args tests.
 - Pytest fixtures using `yield` MUST declare return type `collections.abc.Iterator[None]` (or `Generator[None, None, None]`), never `-> None`. Pyright in strict mode flags `-> None` on generator functions as a return-type error and the husky pre-commit Phase 4 hook blocks the commit.
+
+#### Monorepo Task Orchestration
+
+- Turborepo owns task scheduling: root tasks (`//#py:*` / `//#md:*` / `//#js:*` / `//#wheel-smoke`, scripts in root `package.json`) wrap the Python toolchain; Taskfile `check` / `test` / `build` / `format` / `fix` / `ci:*` are single-line `pnpm turbo run ...` delegations. release / version / db / hooks / smoke / gitmoji / clean:dev-data stay in Taskfile (GITHUB_OUTPUT, secrets, CLI arg passthrough don't fit turbo).
+- Turbo custom `inputs` globs do NOT respect `.gitignore` (package-level default inputs do). Root-task inputs MUST explicitly exclude `__pycache__` / `.ruff_cache` / `.pytest_cache` / `dist` / `test-results` / `htmlcov`, or cache-dir writes change the hash and destroy cache hits.
+- Turbo strict env mode: env vars a task needs (e.g. `SQLALCHEMY_DATABASE_URL` for `//#py:test`) MUST be declared in the task's `env` list to reach the script and join the cache hash; `UV_*` and Windows toolchain paths live in `globalPassThroughEnv`.
+- `task test` does not forward CLI args through turbo; use `task py:test -- -k <name>` for targeted root pytest runs.
+- python.yml's 8-engine tests matrix intentionally runs pytest / pyright / ty directly (per-engine env matrix — pnpm/turbo overhead outweighs cache gains); every other CI surface enters via `task ci:*` and inherits turbo automatically.
 
 #### Docs Site And Frontend
 

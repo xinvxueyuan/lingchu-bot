@@ -7,7 +7,7 @@ import { Aside, Card, CardGrid, Steps } from "@astrojs/starlight/components";
 
 ## 工作流
 
-保持开发变更小而聚焦、验证明确、影响可理解。仓库使用 `Taskfile.yml` 作为主要自动化入口：Python/代码工作通过 `uv` 运行，文档/前端工作通过 `pnpm` 运行，跨工作区任务由 Turbo 编排。
+保持开发变更小而聚焦、验证明确、影响可理解。仓库使用 Turborepo 作为统一任务编排器：根任务（`//#py:*`、`//#md:*`、`//#js:*`，脚本位于根 `package.json`）覆盖 Python 工具链，工作区包（`apps/docs`、`apps/lingc-cli`）各自负责 lint / 类型 / 测试 / 构建。`Taskfile.yml` 是薄委托壳——`task check` / `task test` / `task build` / `task format` / `task fix` / `task ci:*` 均为单行 `pnpm turbo run ...` 委托——并保留需要 secrets 或 CLI 参数透传的 release / version / db / hooks / smoke 任务。
 
 ## 开发环境搭建
 
@@ -54,7 +54,7 @@ import { Aside, Card, CardGrid, Steps } from "@astrojs/starlight/components";
 
    ```bash
    task check    # 静态检查、格式化、Markdown lint、类型检查
-   task test     # Python 测试 + 文档测试
+   task test     # 根 pytest + lingc-cli 测试 + 文档测试
    ```
 
    如果两者均通过，则环境已准备好进行开发。
@@ -96,7 +96,7 @@ import { Aside, Card, CardGrid, Steps } from "@astrojs/starlight/components";
 ### 构建
 
 ```bash
-task build      # 构建所有工作区（Python + 文档）
+task build      # 构建所有工作区（根 wheel + lingc-cli + 文档）
 pnpm turbo run build --filter=docs  # 仅构建文档站点
 uv build --clear  # 仅构建 Python 包
 ```
