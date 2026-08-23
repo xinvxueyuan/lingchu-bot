@@ -2,6 +2,7 @@
 
 import hashlib
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import aiofiles
@@ -15,7 +16,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.announcement impo
 from tests.handle.commands.conftest import finish_text
 
 
-def create_mock_image(raw: bytes | memoryview | None = None) -> MagicMock:
+def create_mock_image(raw: Any = None) -> MagicMock:
     """创建模拟的 UniImage 对象。"""
     image = MagicMock()
     image.raw = raw
@@ -269,6 +270,50 @@ async def test_resolve_image_path_accepts_memoryview_raw(
     assert result.local_path == expected_path
     async with aiofiles.open(result.local_path, "rb") as f:
         assert await f.read() == raw_bytes
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_unknown_raw_falls_back_to_url(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Raw 为未知类型时跳过 raw 分支，回退到 URL 下载。"""
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(announcement, "plugin_config", fake_config)
+    download = AsyncMock(return_value=b"safe-image")
+    monkeypatch.setattr(announcement, "download_public_http_bytes", download)
+
+    image = create_mock_image(raw=object())
+    image.url = "https://example.com/announcement.png"
+
+    result = await announcement._resolve_image_path(image)
+
+    assert result is not None
+    download.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_returns_none_when_download_unavailable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """URL 下载返回 None（如 driver 无会话）时整体返回 None。"""
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(announcement, "plugin_config", fake_config)
+    monkeypatch.setattr(
+        announcement,
+        "download_public_http_bytes",
+        AsyncMock(return_value=None),
+    )
+
+    image = create_mock_image()
+    image.url = "https://example.com/announcement.png"
+
+    result = await announcement._resolve_image_path(image)
+
+    assert result is None
 
 
 @pytest.mark.asyncio

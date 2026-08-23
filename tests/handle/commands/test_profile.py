@@ -22,7 +22,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.commands.profile import (
 from tests.handle.commands.conftest import finish_text
 
 
-def create_mock_image(raw: bytes | None = None) -> MagicMock:
+def create_mock_image(raw: Any = None) -> MagicMock:
     """创建模拟的 UniImage 对象。"""
     image = MagicMock()
     image.raw = raw
@@ -330,3 +330,67 @@ async def test_resolve_image_path_uses_bounded_public_download_for_avatar(
         "https://example.com/avatar.png",
         max_bytes=10 * 1024 * 1024,
     )
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_accepts_memoryview_raw(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Raw 为 memoryview 时正确转换为 bytes（不因类型假设崩溃）。"""
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(profile, "plugin_config", fake_config)
+
+    raw_bytes = b"fake-avatar-bytes"
+    image = create_mock_image(raw=memoryview(raw_bytes))
+
+    result = await profile._resolve_image_path(image)
+
+    expected_md5 = hashlib.md5(raw_bytes).hexdigest()
+    expected_path = tmp_path / "announcement_images" / f"{expected_md5}.png"
+    assert result is not None
+    assert result == expected_path
+    async with aiofiles.open(result, "rb") as f:
+        assert await f.read() == raw_bytes
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_unknown_raw_falls_back_to_url(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Raw 为未知类型时跳过 raw 分支，回退到 URL 下载。"""
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(profile, "plugin_config", fake_config)
+    download = AsyncMock(return_value=b"safe-avatar")
+    monkeypatch.setattr(profile, "download_public_http_bytes", download)
+
+    image = create_mock_image(raw=object())
+    image.url = "https://example.com/avatar.png"
+
+    result = await profile._resolve_image_path(image)
+
+    assert result is not None
+    download.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_resolve_image_path_rejects_foreign_local_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Path 属性指向插件目录外时拒绝（防任意文件读取外发）。"""
+    fake_config = MagicMock()
+    fake_config.cache_dir = tmp_path
+    monkeypatch.setattr(profile, "plugin_config", fake_config)
+
+    foreign_path = tmp_path.parent / "secret.png"
+    image = MagicMock()
+    image.raw = None
+    image.path = str(foreign_path)
+    image.url = None
+
+    result = await profile._resolve_image_path(image)
+
+    assert result is None
