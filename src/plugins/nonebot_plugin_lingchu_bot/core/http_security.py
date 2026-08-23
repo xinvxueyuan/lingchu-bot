@@ -9,7 +9,7 @@ import socket
 from typing import TYPE_CHECKING, Any
 from urllib.parse import ParseResult, urljoin, urlparse
 
-from nonebot import get_driver
+from nonebot import get_driver, logger
 from nonebot.drivers import Request
 
 if TYPE_CHECKING:
@@ -20,6 +20,7 @@ _HTTP_ERROR_STATUS = 400
 _HTTP_SUCCESS_RANGE = (200, 300)
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _MAX_REDIRECTS = 3
+_DEFAULT_DOWNLOAD_TIMEOUT: float = 10.0
 
 
 class UnsafeDownloadURLError(ValueError):
@@ -410,12 +411,22 @@ async def download_public_http_bytes(
         raise UnsafeDownloadURLError(msg)
     get_session = getattr(get_driver(), "get_session", None)
     if get_session is None:
+        logger.warning(
+            "Driver does not provide an HTTP session client; "
+            "URL image download is disabled. Configure a driver with HTTP client "
+            "support (e.g. ~fastapi+~httpx) to enable it."
+        )
         return None
+    # NoneBot drivers treat timeout=None as "all timeouts disabled", which lets a
+    # slow or malicious server hang the handler forever. Always enforce a timeout.
+    effective_timeout = (
+        request_timeout if request_timeout is not None else _DEFAULT_DOWNLOAD_TIMEOUT
+    )
     async with get_session() as session:
         current_url = url
         for redirect_count in range(_MAX_REDIRECTS + 1):
             _, allowed_addresses = await _validate_and_resolve_http_url(current_url)
-            request = Request("GET", current_url, timeout=request_timeout)
+            request = Request("GET", current_url, timeout=effective_timeout)
             response = await _request_one_hop(
                 session,
                 request,
