@@ -87,6 +87,31 @@ class TestCheckTargetPrivilege:
         matcher.finish.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_target_info_failure_fails_closed(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """目标角色查询 ActionFailed 时 fail-closed 拒绝操作。"""
+        mock_onebot11_bot.get_group_member_info = AsyncMock(
+            side_effect=Onebot11ActionFailed()
+        )
+        matcher = MagicMock()
+        matcher.finish = AsyncMock()
+
+        result = await check_target_privilege(
+            mock_session,
+            mock_onebot11_bot,
+            mock_onebot11_event,
+            _TARGET_USER_ID,
+            matcher,
+        )
+
+        assert result is False
+        matcher.finish.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_admin_target_rejects_non_owner_operator(
         self,
         mock_onebot11_bot: MagicMock,

@@ -242,8 +242,15 @@ async def check_target_privilege(
             group_id=event.group_id, user_id=target_user_id, no_cache=True
         )
     except Onebot11ActionFailed:
-        # 无法获取目标用户信息，允许操作（让 API 层处理）
-        return True
+        # Fail closed: 目标角色无法确认时拒绝操作，与 operator_is_superuser_onebot11
+        # 的失败基线一致，避免越权操作只依赖协议端兜底。
+        logger.warning(
+            "无法获取目标用户角色，拒绝操作: group_id=%s, target_user_id=%s",
+            event.group_id,
+            target_user_id,
+        )
+        await cmd_matcher.finish(await _("无法验证操作权限"))
+        return False
 
     target_role = member_info.get("role", "member")
     if target_role not in ("admin", "owner"):
