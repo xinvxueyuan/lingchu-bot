@@ -286,7 +286,13 @@ allowed-confusables = [
 # making such fixes unsafe (would break runtime). NoneBot's get_type_hints() also cannot
 # resolve TYPE_CHECKING-only imports during handler/matcher registration.
 # E402: nonebot2 require() must precede cross-plugin imports at module level
-"src/plugins/nonebot_plugin_lingchu_bot/hooks/handlers/message_store.py" = ["TC002"]
+# BLE001: hook handlers must swallow any normalization/audit failure so a storage
+# bug never aborts event dispatch (fail-soft design, see AGENTS.md adapter lessons).
+"src/plugins/nonebot_plugin_lingchu_bot/hooks/handlers/message_store.py" = [
+    "TC002",
+    "BLE001",
+]
+"src/plugins/nonebot_plugin_lingchu_bot/hooks/handlers/api_audit.py" = ["BLE001"]
 "src/plugins/nonebot_plugin_lingchu_bot/hooks/handlers/bot_connection.py" = ["TC002"]
 "src/plugins/nonebot_plugin_lingchu_bot/database/models/scheduler.py" = ["TC003", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/database/models/subject_policy.py" = ["TC003", "E402"]

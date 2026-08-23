@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from nonebot import logger
 from nonebot.adapters import Bot
 
 from ...core.async_utils import fire_and_forget
@@ -36,7 +37,12 @@ async def on_called_api(
         or not plugin_config.message_store_record_api_calls
     ):
         return
-    platform_context = resolve_platform_context(bot)
+    try:
+        platform_context = resolve_platform_context(bot)
+    except Exception:
+        # Audit failures must never propagate into the adapter API call path.
+        logger.exception("API audit context resolution failed; skipping audit")
+        return
     if platform_context is None:
         return
     fire_and_forget(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from nonebot import logger
 from nonebot.adapters import Bot, Event
 from nonebot.matcher import Matcher
 from nonebot.message import (
@@ -31,7 +32,13 @@ async def message_store_preprocessor(
     """Store incoming event metadata before matcher processing."""
     if not plugin_config.message_store_enabled:
         return
-    normalized = normalize_message_event(bot, event)
+    try:
+        normalized = normalize_message_event(bot, event)
+    except Exception:
+        # Storage failures must never abort event dispatch, otherwise a bug here
+        # would silence every group command for the event.
+        logger.exception("Message store normalization failed; skipping storage")
+        return
     if normalized is None:
         return
     state[STATE_KEY] = normalized.identity
