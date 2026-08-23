@@ -425,6 +425,49 @@ async def test_execute_persistent_job_logs_missing_handler(
     assert "Scheduled job cleanup has no registered handler missing" in caplog.text
 
 
+async def test_execute_persistent_job_logs_database_error(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """DB 短暂不可用时记录日志并跳过执行，不向 APScheduler 抛异常。"""
+    handler = AsyncMock()
+    scheduler_service.register_scheduler_handler("cleanup", handler)
+    monkeypatch.setattr(
+        scheduler_service.repository,
+        "get_job_spec",
+        AsyncMock(side_effect=scheduler_service.DatabaseError("db down")),
+    )
+
+    await scheduler_service.execute_persistent_job("cleanup")
+
+    handler.assert_not_awaited()
+    assert "Failed to load scheduled job cleanup" in caplog.text
+
+
+async def test_execute_persistent_job_logs_decode_error(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Payload 解码失败时记录日志并跳过执行。"""
+    handler = AsyncMock()
+    scheduler_service.register_scheduler_handler("cleanup", handler)
+    monkeypatch.setattr(
+        scheduler_service.repository,
+        "get_job_spec",
+        AsyncMock(return_value=make_job()),
+    )
+    monkeypatch.setattr(
+        scheduler_service.repository,
+        "decode_job_payload",
+        MagicMock(side_effect=ValueError("bad payload")),
+    )
+
+    await scheduler_service.execute_persistent_job("cleanup")
+
+    handler.assert_not_awaited()
+    assert "Failed to decode payload for scheduled job cleanup" in caplog.text
+
+
 async def test_remove_persistent_job_removes_runtime_and_persisted_job(
     monkeypatch: pytest.MonkeyPatch,
     patched_session: MagicMock,

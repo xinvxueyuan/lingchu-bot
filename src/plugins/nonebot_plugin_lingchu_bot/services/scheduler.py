@@ -8,6 +8,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from apscheduler.jobstores.base import JobLookupError
+from apscheduler.schedulers.base import SchedulerNotRunningError
 from nonebot import require
 
 require("nonebot_plugin_apscheduler")
@@ -107,20 +108,29 @@ def _schedule_runtime_job(
 
 async def execute_persistent_job(job_id: str) -> None:
     """Load a persisted scheduler job and dispatch its registered handler."""
-    async with get_session() as session:
-        job = await repository.get_job_spec(session, job_id)
-        if job is None or not job.enabled:
-            return
-        handler_key = job.handler_key
-        handler = _handlers.get(handler_key)
-        if handler is None:
-            logger.warning(
-                "Scheduled job %s has no registered handler %s",
-                job_id,
-                handler_key,
-            )
-            return
-        _, args, kwargs = repository.decode_job_payload(job)
+    try:
+        async with get_session() as session:
+            job = await repository.get_job_spec(session, job_id)
+            if job is None or not job.enabled:
+                return
+            handler_key = job.handler_key
+            handler = _handlers.get(handler_key)
+            if handler is None:
+                logger.warning(
+                    "Scheduled job %s has no registered handler %s",
+                    job_id,
+                    handler_key,
+                )
+                return
+            _, args, kwargs = repository.decode_job_payload(job)
+    except DatabaseError:
+        # Transient DB failures must surface as a logged, skipped run instead of
+        # propagating into APScheduler as an unhandled job error.
+        logger.exception("Failed to load scheduled job %s; skipping run", job_id)
+        return
+    except (TypeError, ValueError):
+        logger.exception("Failed to decode payload for scheduled job %s", job_id)
+        return
 
     await _maybe_await(handler(*args, **kwargs))
 
@@ -224,6 +234,9 @@ async def remove_persistent_job(job_id: str) -> tuple[int, bool]:
         scheduler.remove_job(job_id)
     except JobLookupError:
         logger.debug("Runtime scheduler job %s was not present", job_id)
+        _runtime_job_ids.discard(job_id)
+    except SchedulerNotRunningError:
+        logger.debug("Scheduler already stopped; job %s not removed", job_id)
         _runtime_job_ids.discard(job_id)
     else:
         _runtime_job_ids.discard(job_id)
