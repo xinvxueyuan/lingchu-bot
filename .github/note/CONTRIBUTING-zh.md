@@ -15,7 +15,7 @@
 task install
 ```
 
-`task install` 会执行 `uv sync --all-extras` 和 `pnpm install`。如果只处理单侧改动，也可以分别运行 `uv sync --frozen` 或 `pnpm install --frozen-lockfile`。
+`task install` 会执行 `uv sync --all-extras --all-packages` 和 `pnpm install`。如果只处理单侧改动，也可以分别运行 `uv sync --frozen` 或 `pnpm install --frozen-lockfile`。
 
 开始前请阅读 [README.md](../../README.md)、[Repository-Policy.md](../../Repository-Policy.md) 和 [CODE_OF_CONDUCT.md](../../CODE_OF_CONDUCT.md)。提交媒体、截图或示例数据时，遵守仓库策略中的许可和脱敏要求。
 
@@ -117,8 +117,8 @@ gitnexus_impact({target: "symbolName", direction: "upstream"})
 
 ```bash
 task check      # 静态检查、格式检查、Markdown、lint、类型检查
-task test       # Python 测试 + docs 测试
-task build      # 构建所有工作区
+task test       # 根 pytest + lingc-cli 测试 + docs 测试
+task build      # 构建所有工作区（根 wheel + lingc-cli + docs）
 task ci         # check + test + build
 task i18n       # 提取、更新并编译 gettext catalog
 ```

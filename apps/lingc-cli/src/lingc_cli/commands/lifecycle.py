@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import anyio
 import typer
 
@@ -10,8 +12,11 @@ from lingc_cli.exceptions import LingcCliError
 from lingc_cli.handlers import lifecycle
 from lingc_cli.i18n import _
 
+if TYPE_CHECKING:
+    from typing import NoReturn
 
-def _abort(error: LingcCliError) -> None:
+
+def _abort(error: LingcCliError) -> NoReturn:
     """Print an error and exit with a non-zero status."""
     typer.echo(_("error: {message}").format(message=error), err=True)
     raise typer.Exit(1) from error

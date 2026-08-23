@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from lingc_cli.handlers import process as process_mod
 from lingc_cli.handlers.process import await_process, create_process
@@ -56,4 +56,5 @@ EXIT_CODE = 2
 
 
 async def test_await_process_returns_exit_code() -> None:
-    assert await await_process(_Proc(EXIT_CODE)) == EXIT_CODE
+    fake = cast("asyncio.subprocess.Process", _Proc(EXIT_CODE))
+    assert await await_process(fake) == EXIT_CODE

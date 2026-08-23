@@ -53,7 +53,10 @@ export function Alert({ className, variant = "default", icon, children, ...props
       )}
       {...props}
     >
-      <span className={cn("mt-0.5 shrink-0", iconColor[variant])} aria-hidden="true">
+      <span
+        className={cn("mt-0.5 shrink-0", iconColor[variant])}
+        aria-hidden="true"
+      >
         {icon ?? defaultIcon[variant]}
       </span>
       <div className="[&>p]:m-0 [&>p+p]:mt-2">{children}</div>

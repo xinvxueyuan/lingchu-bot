@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from lingc_cli.handlers.env import env_snapshot
 
@@ -75,7 +75,7 @@ def test_env_snapshot_adapters_and_plugin(
 ) -> None:
     _patch(monkeypatch)
     snapshot = env_snapshot(tmp_path)
-    adapters = snapshot["adapters"]
+    adapters = cast("list[dict[str, str]]", snapshot["adapters"])
     assert [(item["name"], item["version"]) for item in adapters] == [
         ("nonebot-adapter-onebot", "2.4.3"),
     ]

@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 import sys
 import types
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
@@ -31,7 +31,9 @@ def _install_fake_orm(
 ) -> None:
     """Register a fake nonebot_plugin_orm module in sys.modules."""
     parent = types.ModuleType("nonebot_plugin_orm")
-    main_module = types.ModuleType("nonebot_plugin_orm.__main__")
+    # ``types.ModuleType`` blocks unknown attribute assignment in strict mode;
+    # cast to ``Any`` so the fake ``main`` entry point can be attached.
+    main_module = cast("Any", types.ModuleType("nonebot_plugin_orm.__main__"))
     main_module.main = main
     monkeypatch.setitem(sys.modules, "nonebot_plugin_orm", parent)
     monkeypatch.setitem(sys.modules, "nonebot_plugin_orm.__main__", main_module)
