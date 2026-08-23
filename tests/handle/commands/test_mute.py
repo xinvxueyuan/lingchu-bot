@@ -3,6 +3,10 @@
 import json
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+from nonebot.adapters.onebot.v11.exception import (
+    ActionFailed as OneBot11ActionFailed,
+    NetworkError as OneBot11NetworkError,
+)
 from nonebot_plugin_alconna.uniseg import At
 import pytest
 
@@ -544,3 +548,89 @@ class TestOneBot11Mute:
         assert list_recent.await_count == RECALL_QUERY_COUNT
         mock_onebot11_bot.delete_msg.assert_awaited_once_with(message_id=101)
         assert "目标: @测试用户" in finish_text(mock_finish)
+
+
+class TestCanRecallSenderFailClosed:
+    """_can_recall_sender 在无法确认发送者角色时 fail-closed（跳过撤回）。"""
+
+    @pytest.mark.asyncio
+    async def test_action_failed_skips_recall(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        """目标角色查询 ActionFailed 时返回 False 而不是放行。"""
+        mock_onebot11_bot.get_group_member_info = AsyncMock(
+            side_effect=OneBot11ActionFailed()
+        )
+
+        with patch.object(
+            mute_module,
+            "find_active_subject_policy",
+            AsyncMock(return_value=None),
+        ):
+            result = await mute_module._can_recall_sender(
+                mock_session, mock_onebot11_bot, mock_onebot11_event, 2001
+            )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_network_error_skips_recall(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        """目标角色查询网络异常时返回 False 而不是放行。"""
+        mock_onebot11_bot.get_group_member_info = AsyncMock(
+            side_effect=OneBot11NetworkError()
+        )
+
+        with patch.object(
+            mute_module,
+            "find_active_subject_policy",
+            AsyncMock(return_value=None),
+        ):
+            result = await mute_module._can_recall_sender(
+                mock_session, mock_onebot11_bot, mock_onebot11_event, 2001
+            )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_sender_decision_cached_per_sender(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        """同一 sender 的角色查询在缓存命中时只发一次 API 请求。"""
+        get_member_info = AsyncMock(return_value={"role": "member"})
+        mock_onebot11_bot.get_group_member_info = get_member_info
+        sender_decisions: dict[int, bool] = {}
+
+        with patch.object(
+            mute_module,
+            "find_active_subject_policy",
+            AsyncMock(return_value=None),
+        ):
+            first = await mute_module._can_recall_sender(
+                mock_session,
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                2001,
+                sender_decisions=sender_decisions,
+            )
+            second = await mute_module._can_recall_sender(
+                mock_session,
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                2001,
+                sender_decisions=sender_decisions,
+            )
+
+        assert first is True
+        assert second is True
+        get_member_info.assert_awaited_once()
