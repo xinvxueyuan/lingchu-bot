@@ -144,14 +144,22 @@ async def allowed_command_keys(
     command_keys: frozenset[str],
 ) -> frozenset[str]:
     context = await resolve_permission_context(session, bot, event)
-    if context.uid is not None and await repo.is_superuser(session, context.uid):
+    if context.uid is None:
+        return frozenset()
+    if await repo.is_superuser(session, context.uid):
         return command_keys
-    allowed: set[str] = set()
-    for command_key in command_keys:
-        decision = await check_permission_for_context(session, command_key, context)
-        if decision.allowed:
-            allowed.add(command_key)
-    return frozenset(allowed)
+    effective_groups = await _effective_group_ids(session, context)
+    if not effective_groups:
+        return frozenset()
+    # Fetch grants for all effective groups in one query instead of one query
+    # per command_key (the previous shape issued 4 SQL round-trips per key).
+    grants = await repo.list_grants(session, group_ids=effective_groups)
+    granted_keys = {
+        grant.command_key
+        for grant in grants
+        if grant.effect == repo.ALLOW_EFFECT and grant.command_key in command_keys
+    }
+    return frozenset(granted_keys)
 
 
 def _adapter_name(bot: Any) -> str | None:
