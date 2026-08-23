@@ -173,6 +173,29 @@ async def test_message_store_preprocessor_swallows_database_errors(
     record_event.assert_awaited_once()
 
 
+async def test_message_store_preprocessor_swallows_normalization_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+) -> None:
+    """Normalize 阶段的意外异常不得冒泡阻断事件分发。"""
+    _ = patched_runtime_config
+    record_event = AsyncMock()
+    monkeypatch.setattr(message_store.repository, "record_event_received", record_event)
+    captured = install_fire_and_forget_spy(monkeypatch)
+    monkeypatch.setattr(
+        handler_module,
+        "normalize_message_event",
+        MagicMock(side_effect=RuntimeError("boom")),
+    )
+    state: dict[str, Any] = {}
+
+    await handler_module.message_store_preprocessor(make_bot(), make_event(), state)
+
+    assert captured == []
+    assert message_store.STATE_KEY not in state
+    record_event.assert_not_awaited()
+
+
 async def test_run_postprocessor_updates_status(
     monkeypatch: pytest.MonkeyPatch,
     patched_runtime_config: SimpleNamespace,
