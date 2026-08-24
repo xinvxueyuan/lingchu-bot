@@ -1,3 +1,4 @@
+import asyncio
 import base64
 from pathlib import Path
 
@@ -24,7 +25,9 @@ async def set_group_portrait_napcat(
     """
     async with aiofiles.open(image_path, "rb") as f:
         raw_bytes = await f.read()
-    file_field = "base64://" + base64.b64encode(raw_bytes).decode()
+    # base64 over up-to-10MB payloads is CPU-bound; run it off the event loop.
+    encoded = await asyncio.to_thread(base64.b64encode, raw_bytes)
+    file_field = "base64://" + encoded.decode()
     try:
         await bot.call_api(
             "set_group_portrait",
