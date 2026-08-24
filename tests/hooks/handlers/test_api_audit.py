@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
-from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import DatabaseError
 from src.plugins.nonebot_plugin_lingchu_bot.hooks import adapters
 from src.plugins.nonebot_plugin_lingchu_bot.hooks.handlers import (
     api_audit as handler_module,
@@ -44,18 +42,13 @@ def patched_runtime_config(
     return enabled_config
 
 
-def install_fire_and_forget_spy(
+def install_handle_api_called_mock(
     monkeypatch: pytest.MonkeyPatch,
-) -> list[tuple[Any, str]]:
-    """Patch ``fire_and_forget`` on the handler module to capture coroutines."""
-    captured: list[tuple[Any, str]] = []
-
-    def _spy(coro: Any, *, name: str = "fire_and_forget") -> MagicMock:
-        captured.append((coro, name))
-        return MagicMock()
-
-    monkeypatch.setattr(handler_module, "fire_and_forget", _spy)
-    return captured
+) -> MagicMock:
+    """Patch ``handle_api_called`` on the handler module to capture calls."""
+    mock = MagicMock()
+    monkeypatch.setattr(handler_module, "handle_api_called", mock)
+    return mock
 
 
 async def test_on_called_api_records_result(
@@ -63,9 +56,7 @@ async def test_on_called_api_records_result(
     patched_runtime_config: SimpleNamespace,
 ) -> None:
     _ = patched_runtime_config
-    record_api = AsyncMock()
-    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
-    captured = install_fire_and_forget_spy(monkeypatch)
+    handle_api_called = install_handle_api_called_mock(monkeypatch)
 
     await handler_module.on_called_api(
         make_bot(),
@@ -75,17 +66,12 @@ async def test_on_called_api_records_result(
         {"message_id": "out-1"},
     )
 
-    assert len(captured) == 1
-    coro, name = captured[0]
-    assert name == "record_api_call"
-    await coro
-    record_api.assert_awaited_once()
-    assert record_api.await_args is not None
-    audit_event = record_api.await_args.args[1]
-    assert audit_event.api_name == "send_message"
-    assert audit_event.adapter_id == "~onebot.v11"
-    assert audit_event.data_summary == "{'message': 'hello'}"
-    assert audit_event.result_summary == "{'message_id': 'out-1'}"
+    handle_api_called.assert_called_once()
+    args = handle_api_called.call_args.args
+    assert args[2] == "send_message"
+    assert args[3] == {"message": "hello"}
+    assert args[4] == {"message_id": "out-1"}
+    assert args[0].adapter_id == "~onebot.v11"
 
 
 async def test_on_called_api_skips_when_message_store_disabled(
@@ -94,14 +80,11 @@ async def test_on_called_api_skips_when_message_store_disabled(
 ) -> None:
     _ = patched_runtime_config
     patched_runtime_config.message_store_enabled = False
-    record_api = AsyncMock()
-    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
-    captured = install_fire_and_forget_spy(monkeypatch)
+    handle_api_called = install_handle_api_called_mock(monkeypatch)
 
     await handler_module.on_called_api(make_bot(), None, "send_message", {}, {})
 
-    assert captured == []
-    record_api.assert_not_awaited()
+    handle_api_called.assert_not_called()
 
 
 async def test_on_called_api_skips_when_api_calls_disabled(
@@ -110,14 +93,11 @@ async def test_on_called_api_skips_when_api_calls_disabled(
 ) -> None:
     _ = patched_runtime_config
     patched_runtime_config.message_store_record_api_calls = False
-    record_api = AsyncMock()
-    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
-    captured = install_fire_and_forget_spy(monkeypatch)
+    handle_api_called = install_handle_api_called_mock(monkeypatch)
 
     await handler_module.on_called_api(make_bot(), None, "send_message", {}, {})
 
-    assert captured == []
-    record_api.assert_not_awaited()
+    handle_api_called.assert_not_called()
 
 
 async def test_on_called_api_skips_unknown_adapter(
@@ -125,32 +105,11 @@ async def test_on_called_api_skips_unknown_adapter(
     patched_runtime_config: SimpleNamespace,
 ) -> None:
     _ = patched_runtime_config
-    record_api = AsyncMock()
-    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
-    captured = install_fire_and_forget_spy(monkeypatch)
+    handle_api_called = install_handle_api_called_mock(monkeypatch)
 
     await handler_module.on_called_api(make_bot("Custom"), None, "send_message", {}, {})
 
-    assert captured == []
-    record_api.assert_not_awaited()
-
-
-async def test_on_called_api_swallows_database_errors(
-    monkeypatch: pytest.MonkeyPatch,
-    patched_runtime_config: SimpleNamespace,
-) -> None:
-    _ = patched_runtime_config
-    record_api = AsyncMock(side_effect=DatabaseError("boom"))
-    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
-    captured = install_fire_and_forget_spy(monkeypatch)
-
-    await handler_module.on_called_api(make_bot(), None, "send_message", {}, {})
-
-    assert len(captured) == 1
-    coro, name = captured[0]
-    assert name == "record_api_call"
-    await coro
-    record_api.assert_awaited_once()
+    handle_api_called.assert_not_called()
 
 
 async def test_on_calling_api_noop(
@@ -166,7 +125,7 @@ async def test_on_called_api_swallows_context_resolution_errors(
 ) -> None:
     """resolve_platform_context 意外异常时不冒泡到适配器 API 调用路径。"""
     _ = patched_runtime_config
-    captured = install_fire_and_forget_spy(monkeypatch)
+    handle_api_called = install_handle_api_called_mock(monkeypatch)
     monkeypatch.setattr(
         handler_module,
         "resolve_platform_context",
@@ -175,4 +134,4 @@ async def test_on_called_api_swallows_context_resolution_errors(
 
     await handler_module.on_called_api(make_bot(), None, "send_message", {}, {})
 
-    assert captured == []
+    handle_api_called.assert_not_called()

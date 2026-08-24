@@ -20,7 +20,11 @@ from ...services.message_store import (
     handle_event_received,
     handle_matcher_result,
 )
-from ..adapters import MessageIdentity, normalize_message_event
+from ..adapters import (
+    MessageIdentity,
+    extract_message_identity,
+    normalize_message_event,
+)
 
 
 @event_preprocessor
@@ -33,16 +37,30 @@ async def message_store_preprocessor(
     if not plugin_config.message_store_enabled:
         return
     try:
-        normalized = normalize_message_event(bot, event)
+        identity = extract_message_identity(bot, event)
     except Exception:
         # Storage failures must never abort event dispatch, otherwise a bug here
         # would silence every group command for the event.
+        logger.exception("Message store identity extraction failed; skipping storage")
+        return
+    if identity is None:
+        return
+    state[STATE_KEY] = identity
+    # Heavy payload normalization (JSON serialization of the whole event) runs
+    # in the background task so the event loop is not blocked per message.
+    fire_and_forget(record_event_received_job(bot, event), name="record_event_received")
+
+
+async def record_event_received_job(bot: Bot, event: Event) -> None:
+    """Normalize and persist an event off the event loop."""
+    try:
+        normalized = normalize_message_event(bot, event)
+    except Exception:
         logger.exception("Message store normalization failed; skipping storage")
         return
     if normalized is None:
         return
-    state[STATE_KEY] = normalized.identity
-    fire_and_forget(handle_event_received(normalized), name="record_event_received")
+    await handle_event_received(normalized)
 
 
 @event_postprocessor
