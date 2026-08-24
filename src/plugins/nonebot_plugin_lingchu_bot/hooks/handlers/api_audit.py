@@ -7,7 +7,6 @@ from typing import Any
 from nonebot import logger
 from nonebot.adapters import Bot
 
-from ...core.async_utils import fire_and_forget
 from ...core.config import plugin_config
 from ...services.message_store import handle_api_called
 from ..adapters import resolve_platform_context
@@ -45,7 +44,5 @@ async def on_called_api(
         return
     if platform_context is None:
         return
-    fire_and_forget(
-        handle_api_called(platform_context, exception, api, data, result),
-        name="record_api_call",
-    )
+    # Synchronous bounded-queue enqueue; DB writes happen in the audit worker.
+    handle_api_called(platform_context, exception, api, data, result)

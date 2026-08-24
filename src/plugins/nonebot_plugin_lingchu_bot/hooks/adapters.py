@@ -275,15 +275,20 @@ def resolve_platform_context(bot: Bot) -> PlatformContext | None:
     )
 
 
-def normalize_message_event(bot: Bot, event: Event) -> NormalizedMessageEvent | None:
-    """Normalize an adapter event into message-store metadata."""
+def extract_message_identity(bot: Bot, event: Event) -> MessageIdentity | None:
+    """Extract the lightweight identity fields of an adapter event.
+
+    Only performs cheap accessor calls (no JSON serialization), so it is safe
+    to run synchronously on the event loop; heavy payload normalization belongs
+    to :func:`normalize_message_event`, which should run off the loop.
+    """
     adapter = _adapter_name(bot)
     adapter_identity = _adapter_identity(adapter)
     if adapter_identity is None:
         return None
     platform_id, adapter_id = adapter_identity
     bot_id = _stringify(getattr(bot, "self_id", None), limit=128) or "unknown"
-    identity = MessageIdentity(
+    return MessageIdentity(
         platform_id=platform_id,
         adapter_id=adapter_id,
         protocol_id=DEFAULT_PROTOCOL_ID,
@@ -292,6 +297,18 @@ def normalize_message_event(bot: Bot, event: Event) -> NormalizedMessageEvent | 
         conversation_id=_conversation_id(event),
         message_id=_message_id(event),
     )
+
+
+def normalize_message_event(bot: Bot, event: Event) -> NormalizedMessageEvent | None:
+    """Normalize an adapter event into message-store metadata.
+
+    Includes full payload serialization (``raw_event``/``raw_message``) and is
+    CPU-heavy; callers on the event loop should invoke it from a background
+    task instead of synchronously.
+    """
+    identity = extract_message_identity(bot, event)
+    if identity is None:
+        return None
     return NormalizedMessageEvent(
         identity=identity,
         user_id=_user_id(event),
@@ -325,6 +342,7 @@ __all__ = [
     "_safe_call",
     "_stringify",
     "_user_id",
+    "extract_message_identity",
     "normalize_message_event",
     "resolve_platform_context",
 ]
