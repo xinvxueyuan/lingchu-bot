@@ -95,10 +95,8 @@ async def load_toml_dict_async(
     default_copy = await _deepcopy_async(default if default is not None else {})
     if not await aiofiles.os.path.exists(path):
         return default_copy
-    try:
-        content = await read_text(path)
-    except OSError as exc:
-        raise TOMLFileReadError(path, exc) from exc
+    # read_text swallows OSError and returns None, so no try/except is needed.
+    content = await read_text(path)
     if content is None or not content.strip():
         return default_copy
     if not verify_checksum(content):
