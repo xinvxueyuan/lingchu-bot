@@ -100,4 +100,4 @@
 
 集成：`toml_store` 的 `write_toml_dict_file_async` / `load_toml_dict_async` / `ensure_*` 全部接入校验、备份、恢复与日志；函数签名不变，向后兼容。
 
-测试：新增 `tests/database/test_persistence.py` 19 个用例，覆盖校验篡改检测、原子写备份、损坏恢复（有/无备份）、temp 清理、日志记录、版本读写、legacy 文件兼容、round-trip。全量 1024 passed，覆盖率 88.65%。
+测试：新增 `tests/database/test_persistence.py` 46 个用例，覆盖校验篡改检测、原子写备份、损坏恢复（有/无备份）、temp 清理、日志记录、版本读写、legacy 文件兼容、round-trip，以及异常分支（锁超时、fsync 目录、OSError 清理 temp、非法 TOML/根类型、迁移缺失注册、版本头解析边界）。全量 1051 passed，覆盖率 89.73%；persistence 模块覆盖率 99-100%，`toml_store/_sync.py` 93%。CI 全绿（含 codecov/patch）。
