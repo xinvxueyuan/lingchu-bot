@@ -75,7 +75,7 @@ def _reset_bot_state() -> Iterator[None]:
 @pytest.fixture(autouse=True)
 def _mock_fire_and_forget() -> Iterator[None]:
     """避免审计记录触发后台任务（状态持久化已改为脏标记 + 关机 flush）。"""
-    with patch.object(mute_module, "record_audit_fire_and_forget", new=AsyncMock()):
+    with patch.object(mute_module, "record_audit_fire_and_forget", new=MagicMock()):
         yield
 
 

@@ -50,7 +50,7 @@ async def onebot11_manage_handle_defaults(
         updated = await update_handle_default(handle, field, value)
     except HandleDefaultValueError:
         return await manage_handle_defaults_cmd.finish(await _("功能默认值或值无效"))
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(

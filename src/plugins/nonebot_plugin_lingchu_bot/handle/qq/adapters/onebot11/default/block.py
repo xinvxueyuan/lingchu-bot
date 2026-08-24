@@ -134,7 +134,7 @@ async def _block_member(
         return await finish_action_error_onebot11(command, await _("拉黑"), error)
 
     # 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(
@@ -243,7 +243,7 @@ async def _unblock_member(
         return await _finish_database_error(command, await _("删黑"), error)
 
     # 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(
@@ -341,7 +341,7 @@ async def _clear_blocklist(
         return await _finish_database_error(command, await _("清空黑名单"), error)
 
     # 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot, event, CommandAudit(action="clear_blocklist", reason=reason_text)
     )
 

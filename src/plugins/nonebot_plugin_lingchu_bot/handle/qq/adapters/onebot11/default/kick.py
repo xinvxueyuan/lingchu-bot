@@ -88,7 +88,7 @@ async def _kick_member(
         return await command.finish(await _("踢出群成员失败，操作被拒绝"))
 
     # 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(
