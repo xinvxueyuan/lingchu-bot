@@ -84,3 +84,20 @@
 - **async**：932.6ms 期间 ticker **25 次**触发（事件循环保持响应）
 
 重构后事件循环在 CPU 密集操作期间持续响应，其他协程（消息处理/心跳/定时任务）不再被阻塞。全量 1005 passed，覆盖率 88.86%。
+
+## 7. 数据持久化存储方案（补充批次）
+
+新增统一持久化层 `database/persistence/`，补齐 TOML 状态存储的可靠性缺口（原子写入与脏标记 flush 此前已具备）：
+
+| 要求 | 实现 |
+| --- | --- |
+| 数据完整性 | `checksum.py`：写入时在 TOML 末尾附加 `# lingchu-checksum: <sha256>` 行，读取时验证；无校验行的旧文件按"未校验"接受（向前兼容） |
+| 原子性 | `atomic.py`：temp + fsync + rename + 目录 fsync + 文件锁；写前将现有文件备份为 `<name>.bak` |
+| 恢复可靠性 | `recovery.py`：读取校验失败时从 `.bak` 回滚（损坏文件隔离为 `<name>.corrupt`）；无备份则回退默认值；`startup.py` 启动时清理残留 `.tmp` |
+| 性能优化 | 复用既有脏标记 + 关机批量 flush（bot_state/mutable_settings），不新增高频写路径 |
+| 日志记录 | `journal.py`：append-only `persistence.log`，记录每次写/恢复/回退（时间、路径、校验和、详情） |
+| 兼容性 | `versioning.py`：`# lingchu-version: N` 版本头 + 迁移注册表 `MIGRATIONS`，旧文件默认版本 1 |
+
+集成：`toml_store` 的 `write_toml_dict_file_async` / `load_toml_dict_async` / `ensure_*` 全部接入校验、备份、恢复与日志；函数签名不变，向后兼容。
+
+测试：新增 `tests/database/test_persistence.py` 19 个用例，覆盖校验篡改检测、原子写备份、损坏恢复（有/无备份）、temp 清理、日志记录、版本读写、legacy 文件兼容、round-trip。全量 1024 passed，覆盖率 88.65%。

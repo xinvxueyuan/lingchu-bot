@@ -3,11 +3,19 @@ from typing import Any
 
 from nonebot import get_adapters, logger, require
 
+require("nonebot_plugin_localstore")
+from nonebot_plugin_localstore import (
+    get_plugin_cache_dir,
+    get_plugin_config_dir,
+    get_plugin_data_dir,
+)
+
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import get_session
 
 from ..core.runtime_config import load_runtime_configs_on_startup
 from ..database.orm_crud import DatabaseError
+from ..database.persistence import cleanup_stale_temp_files
 from ..handle.qq.adapters import import_handle
 from ..i18n import _async as _, warm_translation_cache
 from ..permissions import validate_and_seed_permission_system
@@ -32,6 +40,7 @@ _STARTUP_ATTEMPTS = 3
 
 async def startup() -> None:
     """Load runtime state and initialize handlers, stores, and scheduler."""
+    await _cleanup_stale_persistence_files()
     await _retry_startup_step(load_runtime_configs_on_startup, "runtime config")
     registered_adapter_names = tuple(
         str(adapter_name) for adapter_name in get_adapters()
@@ -67,6 +76,22 @@ async def startup() -> None:
         cleanup_expired_messages,
     )
     await initialize_scheduler_service()
+
+
+async def _cleanup_stale_persistence_files() -> None:
+    """Remove leftover temp files from interrupted writes at startup."""
+    for directory in (
+        get_plugin_data_dir(),
+        get_plugin_config_dir(),
+        get_plugin_cache_dir(),
+    ):
+        try:
+            removed = await cleanup_stale_temp_files(directory)
+        except OSError:
+            logger.debug("Failed to scan {} for stale temp files", directory)
+            continue
+        if removed:
+            logger.info("Cleaned up {} stale temp file(s) in {}", removed, directory)
 
 
 async def _retry_startup_step(step: Any, name: str) -> None:
