@@ -24,11 +24,11 @@
 | D13 | 低 | 健壮 | 图片 raw 类型假定非 BytesIO 即 bytes，memoryview 触发 `TypeError` 炸命令 | `commands/announcement.py`、`profile.py` | `963d006` |
 | D14 | 低 | 可观测 | `ensure_config_files` 吞异常无原因；重启反馈非异常失败分支静默；shutdown 失败只记类名；recall 依赖注入缺失静默返回 | `core/`、`services/`、`hooks/` | `4d92619`、`351a1c7`、`4400954` |
 
-未修复（已评估，记录原因）：
+遗留项执行（补充批次，提交 `45ff210` 后追加）：
 
-- `record_audit_fire_and_forget` 声明 async 却无 await（语义异味）：改为同步需改全部调用方签名，收益低风险高，维持现状。
-- `message_store` 事件循环上的 JSON 序列化：identity 需同步写入 state 供 postprocessor 使用，重构 normalize 返回结构的风险大于收益，暂缓。
-- API 审计写入无背压：需要队列/串行化设计，超出本批次"最小修复"范围，建议单独立项。
+- `record_audit_fire_and_forget` 去除伪 async：改为同步函数，24 处调用方去掉无意义 `await`，避免空转协程开销。
+- `message_store` 序列化移出事件循环：拆分轻量 `extract_message_identity`（同步取 identity 写 state），重活 `normalize_message_event`（整事件 JSON 序列化）移入后台 job，事件循环每条消息不再被 CPU 序列化阻塞。
+- API 审计写入加背压：有界队列（1000）+ 单 worker 批量落库（单事务串行化，缓解 SQLite 锁竞争）；队列满时丢弃并间隔告警；shutdown 时先停 worker 再 flush 队列，再执行清理任务。
 
 ## 2. 关键决策记录
 
