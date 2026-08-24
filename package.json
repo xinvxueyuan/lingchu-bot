@@ -1,6 +1,6 @@
 {
   "name": "lingchu-bot",
-  "version": "0.7.0.dev1",
+  "version": "0.7.0",
   "description": "",
   "private": true,
   "scripts": {
