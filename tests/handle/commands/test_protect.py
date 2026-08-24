@@ -33,7 +33,7 @@ def mock_session() -> Mock:
 
 @pytest.fixture(autouse=True)
 def _mock_record_audit_fire_and_forget():
-    with patch.object(protect_module, "record_audit_fire_and_forget", new=AsyncMock()):
+    with patch.object(protect_module, "record_audit_fire_and_forget", new=MagicMock()):
         yield
 
 

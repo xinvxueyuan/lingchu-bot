@@ -29,10 +29,12 @@
 
 ## C — Context
 
-Lingchu Bot 是基于 NoneBot2 的群管理机器人。Monorepo 包含：
+Lingchu Bot 是基于 NoneBot2 的群管理机器人。Monorepo 遵循严格的资产层级：
 
-- Python 后端插件：`src/plugins/nonebot_plugin_lingchu_bot/`
-- Astro Starlight 文档站：`apps/docs/`
+- `src/` — 主要资产：Python 后端插件 `src/plugins/nonebot_plugin_lingchu_bot/`（保持原位；绝不迁移到 `apps/`）
+- `apps/` — 附加资产：Astro Starlight 文档站 `apps/docs/` 和运维 CLI `apps/lingc-cli/`（独立发布的 PyPI 包；uv workspace 成员和 turbo workspace 节点）
+- `packages/` — 共享 JS 配置
+- 仓库根目录 — 仓库级编排：uv workspace 根、`turbo.json`、根 `package.json`、薄委托 `Taskfile.yml`
 - 项目本地 skills（单一来源）：`.agents/skills/`
   - `.claude/skills/` 和 `.trae/skills/` 是指向 `.agents/skills/` 的**整目录软链**，让 Codex、Trae、Claude Code 三家代理读同一套 skill；在 `.agents/skills/` 增删 skill 三个代理同时生效。
 - 中文 agent 指南镜像：`.github/note/AGENTS-zh.md`
@@ -62,6 +64,12 @@ Python 后端：
 - i18n、Starlight/Pagefind search、sitemap、Mermaid、Twoslash
 - Starlight content collections 负责 docs routing、sidebar 和本地化静态输出
 - Turborepo workspace，包管理器为 `pnpm`
+
+任务编排：
+
+- Turborepo 统一接管整个 monorepo：根任务（`//#py:*`、`//#md:*`、`//#js:*`、`//#wheel-smoke`，脚本位于根 `package.json`）带缓存地包装 Python 工具链；`apps/docs` 和 `apps/lingc-cli` 是 turbo workspace 节点
+- `Taskfile.yml` 是薄委托壳：`check` / `test` / `build` / `format` / `fix` / `ci:*` 均为单行 `pnpm turbo run ...` 调用；release / version / db / hooks / smoke / gitmoji 保留在 Taskfile（GITHUB_OUTPUT、secrets、CLI 参数透传）
+- `task install` = `uv sync --all-extras --all-packages` + `pnpm install`
 
 ## R — Role
 
@@ -254,7 +262,36 @@ prek                     ← 阶段 5：COMMIT
 
 ### Development Commands
 
-Python:
+Turbo 聚合入口（首选）：
+
+```bash
+pnpm lint          # docs + lingc-cli lint, root ruff check, markdownlint
+pnpm check-types   # docs + lingc-cli type checks, root pyright + ty
+pnpm test          # root pytest + lingc-cli pytest + docs Vitest
+pnpm build         # root wheel + lingc-cli wheel + docs build
+pnpm format        # ruff format + prettier + markdownlint --fix
+```
+
+Taskfile（薄 turbo 委托，CI 兼容入口）：
+
+```bash
+task check
+task test
+task build
+task format
+task fix
+task ci:static
+task ci:typecheck
+task ci:test
+task ci:fix
+task ci:build
+task ci:docs
+task py:test -- -k <name>   # root pytest with arg passthrough (bypasses turbo)
+task i18n
+task ci
+```
+
+Python（等价低层调用）：
 
 ```bash
 uv run -m ruff check . --output-format=github
@@ -273,17 +310,6 @@ pnpm --filter docs lint
 pnpm --filter docs test
 pnpm --filter docs check-types
 pnpm --filter docs build
-```
-
-Project:
-
-```bash
-pnpm exec markdownlint-cli2
-pnpm exec markdownlint-cli2 --fix
-task i18n
-task check
-task test
-task ci
 ```
 
 ### Quick Verification Matrix
@@ -394,6 +420,14 @@ task ci
 - SubAgent 会产生临时文件（`_tmp_cov.sh`、`_writetest.txt`、探针脚本等）且从不自行清理。编排者 MUST 在 SubAgent 批次结束后运行 `git status --short`，并在 staging/commit 前 `rm -f` 所有临时文件，否则 pre-commit 钩子会因意外文件失败，提交也会携带垃圾。
 - 在测试中重写 `list.__getitem__` 时，必须匹配 typeshed 签名：`def __getitem__(self, index: SupportsIndex | slice, /) -> list[object]`。使用 `int | slice` 或省略 `/` 会触发 `reportIncompatibleMethodOverride`。重写 `BaseException.args` 容易签名不兼容（与读写 property 冲突）；敌对 args 测试优先用 `__getattribute__` 拦截。
 - 使用 `yield` 的 pytest fixture MUST 声明返回类型 `collections.abc.Iterator[None]`（或 `Generator[None, None, None]`），绝不能用 `-> None`。Pyright strict 模式会把 generator 函数的 `-> None` 当作返回类型错误，husky pre-commit Phase 4 钩子会阻断提交。
+
+#### Monorepo Task Orchestration
+
+- Turborepo 负责任务调度：根任务（`//#py:*` / `//#md:*` / `//#js:*` / `//#wheel-smoke`，脚本位于根 `package.json`）包装 Python 工具链；Taskfile 的 `check` / `test` / `build` / `format` / `fix` / `ci:*` 均为单行 `pnpm turbo run ...` 委托。release / version / db / hooks / smoke / gitmoji / clean:dev-data 保留在 Taskfile（GITHUB_OUTPUT、secrets、CLI 参数透传不适合 turbo）。
+- Turbo 自定义 `inputs` glob 不遵循 `.gitignore`（包级默认 inputs 遵循）。根任务 inputs MUST 显式排除 `__pycache__` / `.ruff_cache` / `.pytest_cache` / `dist` / `test-results` / `htmlcov`，否则缓存目录写入会改变哈希并摧毁缓存命中。
+- Turbo strict env 模式：任务需要的环境变量（如 `//#py:test` 的 `SQLALCHEMY_DATABASE_URL`）MUST 声明在任务的 `env` 列表中才能到达脚本并加入缓存哈希；`UV_*` 和 Windows 工具链路径放在 `globalPassThroughEnv`。
+- `task test` 不通过 turbo 转发 CLI 参数；定向跑根 pytest 用 `task py:test -- -k <name>`。
+- python.yml 的 8 引擎测试矩阵有意直跑 pytest / pyright / ty（每引擎独立 env 矩阵 —— pnpm/turbo 开销大于缓存收益）；其余 CI 面均经 `task ci:*` 进入并自动继承 turbo。
 
 #### Docs Site And Frontend
 

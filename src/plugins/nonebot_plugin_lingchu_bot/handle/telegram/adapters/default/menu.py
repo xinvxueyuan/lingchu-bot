@@ -32,9 +32,11 @@ async def _allowed_menu_keys(
     session: async_scoped_session,
     bot: Bot,
     event: Event | None,
-) -> frozenset[str] | None:
+) -> frozenset[str]:
+    # Fail closed: without an event there is no identity to check permissions
+    # against, so no command may be shown (AGENTS.md menu rule).
     if event is None:
-        return None
+        return frozenset()
     command_keys = frozenset(feature.command_key for feature in MENU_FEATURES)
     return await allowed_command_keys(session, bot, event, command_keys)
 

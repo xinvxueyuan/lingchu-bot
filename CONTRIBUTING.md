@@ -15,7 +15,7 @@ Welcome to Lingchu Bot. The project welcomes code, tests, documentation, bug rep
 task install
 ```
 
-`task install` runs `uv sync --all-extras` and `pnpm install`. If you're only working on one side, you can run `uv sync --frozen` or `pnpm install --frozen-lockfile` separately.
+`task install` runs `uv sync --all-extras --all-packages` and `pnpm install`. If you're only working on one side, you can run `uv sync --frozen` or `pnpm install --frozen-lockfile` separately.
 
 Before starting, read [README.md](README.md), [Repository-Policy.md](Repository-Policy.md), and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). When submitting media, screenshots, or sample data, comply with the license and anonymization requirements in the repository policy.
 
@@ -117,8 +117,8 @@ Prefer Taskfile high-level tasks:
 
 ```bash
 task check      # Static checks, format checks, Markdown, lint, type check
-task test       # Python tests + docs tests
-task build      # Build all workspaces
+task test       # Root pytest + lingc-cli tests + docs tests
+task build      # Build all workspaces (root wheel + lingc-cli + docs)
 task ci         # check + test + build
 task i18n       # Extract, update and compile gettext catalog
 ```

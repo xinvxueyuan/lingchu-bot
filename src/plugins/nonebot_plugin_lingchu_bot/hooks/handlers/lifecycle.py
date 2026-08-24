@@ -38,7 +38,12 @@ async def on_shutdown() -> None:
             if isinstance(result, asyncio.CancelledError):
                 service_cancellation = service_cancellation or result
             elif isinstance(result, BaseException):
-                logger.error("Failed to shut down {}: {}", name, type(result).__name__)
+                logger.error(
+                    "Failed to shut down {}: {}",
+                    name,
+                    type(result).__name__,
+                    exc_info=result,
+                )
         return service_cancellation
 
     cleanup_task = asyncio.create_task(_close_services())

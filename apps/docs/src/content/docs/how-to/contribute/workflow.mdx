@@ -5,7 +5,7 @@ title: Development workflow
 
 import { Aside, Card, CardGrid, Steps } from "@astrojs/starlight/components";
 
-Keep development changes small, validation explicit, and impact understandable. The repository uses `Taskfile.yml` as the main automation entrypoint: Python/code work runs through `uv`, docs/frontend work runs through `pnpm`, and cross-workspace tasks are orchestrated by Turbo.
+Keep development changes small, validation explicit, and impact understandable. The repository uses Turborepo as the unified task orchestrator: root tasks (`//#py:*`, `//#md:*`, `//#js:*` — scripts in root `package.json`) cover the Python toolchain, while workspace packages (`apps/docs`, `apps/lingc-cli`) own their lint / type / test / build tasks. `Taskfile.yml` is a thin delegation shell — `task check` / `task test` / `task build` / `task format` / `task fix` / `task ci:*` are single-line `pnpm turbo run ...` calls — and keeps release / version / db / hooks / smoke tasks that need secrets or CLI arg passthrough.
 
 ## Development environment setup
 
@@ -52,7 +52,7 @@ This section guides external developers from zero to a working development envir
 
    ```bash
    task check    # Static checks, format, Markdown lint, type check
-   task test     # Python tests + docs tests
+   task test     # Root pytest + lingc-cli tests + docs tests
    ```
 
    If both pass, the environment is ready for development.
@@ -94,7 +94,7 @@ The typical development cycle:
 ### Building
 
 ```bash
-task build      # Build all workspaces (Python + docs)
+task build      # Build all workspaces (root wheel + lingc-cli + docs)
 pnpm turbo run build --filter=docs  # Build docs site only
 uv build --clear  # Build Python package only
 ```

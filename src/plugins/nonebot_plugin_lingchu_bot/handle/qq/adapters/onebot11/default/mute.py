@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 import json
 from typing import Any
@@ -7,7 +8,10 @@ from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
 from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent as OneBot11GroupMessageEvent,
 )
-from nonebot.adapters.onebot.v11.exception import ActionFailed as OneBot11ActionFailed
+from nonebot.adapters.onebot.v11.exception import (
+    ActionFailed as OneBot11ActionFailed,
+    NetworkError as OneBot11NetworkError,
+)
 
 require("nonebot_plugin_alconna")
 from nonebot_plugin_alconna.uniseg import At
@@ -84,6 +88,9 @@ async def _verified_recall_message(
     except OneBot11ActionFailed:
         logger.debug(f"撤回校验失败，消息不存在或不可访问: message_id={message_id}")
         return None
+    except OneBot11NetworkError as e:
+        logger.warning(f"撤回校验网络异常: message_id={message_id}, error={e!r}")
+        return None
     if not _message_type_matches(message) or not _group_id_matches(message, group_id):
         return None
     sender_id = _sender_id_from_message(message)
@@ -117,12 +124,33 @@ async def _can_recall_sender(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     sender_id: int,
+    *,
+    sender_decisions: dict[int, bool] | None = None,
 ) -> bool:
+    """Return True when messages from sender_id may be recalled.
+
+    Fail closed: when the sender's role cannot be verified (API failure),
+    skip the recall instead of potentially recalling an admin/owner message.
+    """
     if sender_id == event.user_id:
         return False
     bot_self = bot_self_id_safe(bot)
     if bot_self is not None and sender_id == bot_self:
         return False
+    if sender_decisions is not None and sender_id in sender_decisions:
+        return sender_decisions[sender_id]
+    decision = await _evaluate_recall_sender(session, bot, event, sender_id)
+    if sender_decisions is not None:
+        sender_decisions[sender_id] = decision
+    return decision
+
+
+async def _evaluate_recall_sender(
+    session: async_scoped_session,
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
+    sender_id: int,
+) -> bool:
     if await _is_recall_protected_target(session, bot, event, sender_id):
         return False
     try:
@@ -132,7 +160,17 @@ async def _can_recall_sender(
             no_cache=True,
         )
     except OneBot11ActionFailed:
-        return True
+        logger.warning(
+            f"无法确认发送者角色，跳过撤回: group_id={event.group_id}, "
+            f"sender_id={sender_id}"
+        )
+        return False
+    except OneBot11NetworkError as e:
+        logger.warning(
+            f"查询发送者角色网络异常，跳过撤回: group_id={event.group_id}, "
+            f"sender_id={sender_id}, error={e!r}"
+        )
+        return False
     return member_info.get("role", "member") not in ("admin", "owner")
 
 
@@ -145,18 +183,18 @@ def _record_conversation_id(record: Any) -> str | None:
     return value if isinstance(value, str) else None
 
 
-def _record_raw_event(record: Any) -> dict[str, Any] | None:
+async def _record_raw_event(record: Any) -> dict[str, Any] | None:
     raw_event = getattr(record, "raw_event", None)
     if not isinstance(raw_event, str):
         return None
     try:
-        parsed = json.loads(raw_event)
+        parsed = await asyncio.to_thread(json.loads, raw_event)
     except json.JSONDecodeError:
         return None
     return parsed if isinstance(parsed, dict) else None
 
 
-def _record_belongs_to_group(record: Any, group_id: int) -> bool:
+async def _record_belongs_to_group(record: Any, group_id: int) -> bool:
     group_id_text = str(group_id)
     conversation_id = _record_conversation_id(record)
     if conversation_id == group_id_text:
@@ -165,13 +203,13 @@ def _record_belongs_to_group(record: Any, group_id: int) -> bool:
         f"group_{group_id_text}_"
     ):
         return True
-    raw_event = _record_raw_event(record)
+    raw_event = await _record_raw_event(record)
     if raw_event is None:
         return False
     return _message_id_int(raw_event.get("group_id")) == group_id
 
 
-def _merge_recall_candidates(
+async def _merge_recall_candidates(
     *record_groups: list[Any],
     group_id: int,
 ) -> list[Any]:
@@ -181,7 +219,7 @@ def _merge_recall_candidates(
         for record in group:
             message_id = getattr(record, "message_id", None)
             key = str(message_id) if message_id is not None else f"id:{id(record)}"
-            if key in seen or not _record_belongs_to_group(record, group_id):
+            if key in seen or not await _record_belongs_to_group(record, group_id):
                 continue
             seen.add(key)
             records.append(record)
@@ -214,7 +252,7 @@ async def _list_recall_candidate_records(
         conversation_id=str(event.group_id),
         limit=fetch_limit,
     )
-    return _merge_recall_candidates(
+    return await _merge_recall_candidates(
         broad_records,
         group_records,
         group_id=event.group_id,
@@ -261,6 +299,7 @@ async def _recall_record_message(
     *,
     trigger_message_id: str,
     target_user_id: int | None,
+    sender_decisions: dict[int, bool],
 ) -> str:
     message_id = _message_id_int(getattr(record, "message_id", None))
     if message_id is None or str(message_id) == trigger_message_id:
@@ -277,13 +316,16 @@ async def _recall_record_message(
     if sender_id is None:
         sender_id = _message_id_int(getattr(record, "user_id", None))
     if sender_id is None or not await _can_recall_sender(
-        session, bot, event, sender_id
+        session, bot, event, sender_id, sender_decisions=sender_decisions
     ):
         return "skipped"
     try:
         await bot.delete_msg(message_id=message_id)
     except OneBot11ActionFailed as e:
         logger.warning(f"撤回失败: message_id={message_id}, error={e!r}")
+        return "failed"
+    except OneBot11NetworkError as e:
+        logger.warning(f"撤回网络异常: message_id={message_id}, error={e!r}")
         return "failed"
     return "recalled"
 
@@ -299,6 +341,7 @@ async def _recall_records(
 ) -> RecallResult:
     result = RecallResult()
     trigger_message_id = str(getattr(event, "message_id", ""))
+    sender_decisions: dict[int, bool] = {}
     for record in records:
         if result.recalled >= recall_count:
             break
@@ -309,6 +352,7 @@ async def _recall_records(
             record,
             trigger_message_id=trigger_message_id,
             target_user_id=target_user_id,
+            sender_decisions=sender_decisions,
         )
         if status == "recalled":
             result.recalled += 1
@@ -380,7 +424,7 @@ async def onebot11_mute(
         return await member_mute_cmd.finish(await _("禁言失败，操作被拒绝"))
 
     # 6. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(
@@ -440,7 +484,7 @@ async def onebot11_set_default_mute_duration(
         str(duration),
         config_manager=config_manager,
     )
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(action="set_default_mute_duration", duration=duration),
@@ -472,7 +516,7 @@ async def onebot11_whole_mute(
         return await whole_mute_cmd.finish(await _("全体禁言失败，操作被拒绝"))
 
     # 3. 记录审计
-    await record_audit_fire_and_forget(bot, event, CommandAudit(action="whole_mute"))
+    record_audit_fire_and_forget(bot, event, CommandAudit(action="whole_mute"))
 
     return await whole_mute_cmd.finish(await _("全体禁言成功"))
 
@@ -511,7 +555,7 @@ async def onebot11_unmute(
         return await member_unmute_cmd.finish(await _("解禁失败，操作被拒绝"))
 
     # 4. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(action="member_unmute", target_user_id=target_user_id),
@@ -546,7 +590,7 @@ async def onebot11_whole_unmute(
         return await whole_unmute_cmd.finish(await _("全体解禁失败，操作被拒绝"))
 
     # 记录审计
-    await record_audit_fire_and_forget(bot, event, CommandAudit(action="whole_unmute"))
+    record_audit_fire_and_forget(bot, event, CommandAudit(action="whole_unmute"))
 
     return await whole_unmute_cmd.finish(await _("全体解禁成功"))
 
@@ -560,6 +604,7 @@ async def onebot11_recall_message(
     event: OneBot11GroupMessageEvent | None = None,
 ) -> Any:
     if bot is None or event is None:
+        logger.warning("撤回命令缺少 bot/event 依赖注入，无法执行")
         return None
 
     # 检查功能是否启用
@@ -604,7 +649,7 @@ async def onebot11_recall_message(
         recall_count=recall_count,
     )
 
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(

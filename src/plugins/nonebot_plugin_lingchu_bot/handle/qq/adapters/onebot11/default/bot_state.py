@@ -23,7 +23,7 @@ async def onebot11_bot_silence(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
-    set_global_silent_mode(silent=True)
+    await set_global_silent_mode(silent=True)
     return await bot_silence_cmd.finish(await _("已进入静默模式"))
 
 
@@ -32,7 +32,7 @@ async def onebot11_bot_speak(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
-    set_global_silent_mode(silent=False)
+    await set_global_silent_mode(silent=False)
     return await bot_speak_cmd.finish(await _("已退出静默模式"))
 
 
@@ -43,7 +43,7 @@ async def onebot11_bot_boot(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
-    set_global_handle_active(active=True)
+    await set_global_handle_active(active=True)
     return await bot_boot_cmd.finish(await _("已开机"))
 
 
@@ -58,5 +58,5 @@ async def onebot11_bot_shutdown(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
 ) -> Any:
-    set_global_handle_active(active=False)
+    await set_global_handle_active(active=False)
     return await bot_shutdown_cmd.finish(await _("已关机"))

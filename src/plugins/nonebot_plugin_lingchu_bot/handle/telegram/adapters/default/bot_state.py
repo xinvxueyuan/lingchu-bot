@@ -37,7 +37,7 @@ async def telegram_bot_silence(
     session: async_scoped_session,
 ) -> Any:
     del bot, event, session
-    set_global_silent_mode(silent=True)
+    await set_global_silent_mode(silent=True)
     return await bot_silence_cmd.finish(await _("已进入静默模式"))
 
 
@@ -53,7 +53,7 @@ async def telegram_bot_speak(
     session: async_scoped_session,
 ) -> Any:
     del bot, event, session
-    set_global_silent_mode(silent=False)
+    await set_global_silent_mode(silent=False)
     return await bot_speak_cmd.finish(await _("已退出静默模式"))
 
 
@@ -70,7 +70,7 @@ async def telegram_bot_boot(
     session: async_scoped_session,
 ) -> Any:
     del bot, event, session
-    set_global_handle_active(active=True)
+    await set_global_handle_active(active=True)
     return await bot_boot_cmd.finish(await _("已开机"))
 
 
@@ -87,5 +87,5 @@ async def telegram_bot_shutdown(
     session: async_scoped_session,
 ) -> Any:
     del bot, event, session
-    set_global_handle_active(active=False)
+    await set_global_handle_active(active=False)
     return await bot_shutdown_cmd.finish(await _("已关机"))

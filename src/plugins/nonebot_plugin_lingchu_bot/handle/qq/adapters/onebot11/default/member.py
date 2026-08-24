@@ -84,7 +84,7 @@ async def onebot11_set_group_member_card(
         )
 
     # 7. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(action="set_member_card", target_user_id=target_user_id),
@@ -159,7 +159,7 @@ async def onebot11_set_group_member_special_title(
         )
 
     # 7. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(action="set_member_title", target_user_id=target_user_id),
@@ -212,7 +212,7 @@ async def onebot11_set_group_member_admin(
         )
 
     # 5. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(action="set_member_admin", target_user_id=target_user_id),

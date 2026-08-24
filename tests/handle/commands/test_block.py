@@ -44,7 +44,7 @@ def mock_session() -> Mock:
 @pytest.fixture(autouse=True)
 def _mock_record_audit_fire_and_forget():
     """避免审计记录触发后台任务和数据库调用。"""
-    with patch.object(block_module, "record_audit_fire_and_forget", new=AsyncMock()):
+    with patch.object(block_module, "record_audit_fire_and_forget", new=MagicMock()):
         yield
 
 

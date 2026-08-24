@@ -87,6 +87,31 @@ class TestCheckTargetPrivilege:
         matcher.finish.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_target_info_failure_fails_closed(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """目标角色查询 ActionFailed 时 fail-closed 拒绝操作。"""
+        mock_onebot11_bot.get_group_member_info = AsyncMock(
+            side_effect=Onebot11ActionFailed()
+        )
+        matcher = MagicMock()
+        matcher.finish = AsyncMock()
+
+        result = await check_target_privilege(
+            mock_session,
+            mock_onebot11_bot,
+            mock_onebot11_event,
+            _TARGET_USER_ID,
+            matcher,
+        )
+
+        assert result is False
+        matcher.finish.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_admin_target_rejects_non_owner_operator(
         self,
         mock_onebot11_bot: MagicMock,
@@ -453,10 +478,10 @@ class TestRecordAuditFireAndForget:
             return MagicMock()
 
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.core.async_utils.fire_and_forget",
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.fire_and_forget",
             side_effect=_spy,
         ):
-            await record_audit_fire_and_forget(
+            record_audit_fire_and_forget(
                 mock_onebot11_bot,
                 mock_onebot11_event,
                 CommandAudit(
@@ -484,10 +509,10 @@ class TestRecordAuditFireAndForget:
             return MagicMock()
 
         with patch(
-            "src.plugins.nonebot_plugin_lingchu_bot.core.async_utils.fire_and_forget",
+            "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.fire_and_forget",
             side_effect=_spy,
         ):
-            await record_audit_fire_and_forget(
+            record_audit_fire_and_forget(
                 mock_onebot11_bot,
                 mock_onebot11_event,
                 CommandAudit(action="whole_mute"),
@@ -511,7 +536,7 @@ class TestRecordAuditFireAndForget:
 
         with (
             patch(
-                "src.plugins.nonebot_plugin_lingchu_bot.core.async_utils.fire_and_forget",
+                "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.fire_and_forget",
                 side_effect=_spy,
             ),
             patch(
@@ -523,7 +548,7 @@ class TestRecordAuditFireAndForget:
                 AsyncMock(),
             ) as mock_record,
         ):
-            await record_audit_fire_and_forget(
+            record_audit_fire_and_forget(
                 mock_onebot11_bot,
                 mock_onebot11_event,
                 CommandAudit(

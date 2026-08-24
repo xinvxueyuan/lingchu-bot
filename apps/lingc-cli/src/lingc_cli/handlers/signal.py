@@ -12,7 +12,6 @@ from lingc_cli.consts import WINDOWS
 if TYPE_CHECKING:
     from collections.abc import Callable
     from types import FrameType
-    from typing import Any
 
 _FORWARD_SIGNALS = (signal.SIGINT, signal.SIGTERM)
 
@@ -52,7 +51,8 @@ def register_signal_forwarder(
     """
     loop = asyncio.get_running_loop()
     previous: dict[
-        int, Callable[[int, FrameType | None], Any] | signal.Handlers | None
+        int,
+        Callable[[int, FrameType | None], object] | signal.Handlers | int | None,
     ] = {}
     tasks: set[asyncio.Task[None]] = set()
 

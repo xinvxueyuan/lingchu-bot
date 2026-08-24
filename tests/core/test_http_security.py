@@ -2,7 +2,7 @@ from collections.abc import AsyncIterator
 import socket
 from types import SimpleNamespace
 from typing import Any, cast
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -339,6 +339,63 @@ async def test_download_public_http_bytes_checks_status_and_size(
     )
     with pytest.raises(UnsafeDownloadURLError):
         await download_public_http_bytes("https://example.com/image.png", max_bytes=2)
+
+
+@pytest.mark.asyncio
+async def test_download_public_http_bytes_applies_default_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """request_timeout=None 时强制使用默认超时，避免驱动层禁用全部超时。"""
+    monkeypatch.setattr(
+        http_security,
+        "resolve_host_addresses",
+        AsyncMock(return_value=("93.184.216.34",)),
+    )
+    request = AsyncMock(
+        return_value=SimpleNamespace(
+            status_code=200,
+            content=b"png",
+            peer_address=("93.184.216.34", 443),
+        )
+    )
+
+    class SessionContext:
+        async def __aenter__(self) -> Any:
+            return SimpleNamespace(request=request)
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+    monkeypatch.setattr(
+        http_security,
+        "get_driver",
+        lambda: SimpleNamespace(get_session=SessionContext),
+    )
+
+    await download_public_http_bytes("https://example.com/image.png", max_bytes=3)
+    assert request.call_args.args[0].timeout == http_security._DEFAULT_DOWNLOAD_TIMEOUT
+
+    await download_public_http_bytes(
+        "https://example.com/image.png", max_bytes=3, request_timeout=2.5
+    )
+    assert request.call_args.args[0].timeout == 2.5
+
+
+@pytest.mark.asyncio
+async def test_download_public_http_bytes_warns_when_driver_has_no_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Driver 无 get_session 时返回 None 并记录告警而不是静默失效。"""
+    monkeypatch.setattr(http_security, "get_driver", SimpleNamespace)
+    logger_mock = SimpleNamespace(warning=MagicMock())
+    monkeypatch.setattr(http_security, "logger", logger_mock)
+
+    result = await download_public_http_bytes(
+        "https://example.com/image.png", max_bytes=3
+    )
+
+    assert result is None
+    logger_mock.warning.assert_called_once()
 
 
 @pytest.mark.asyncio

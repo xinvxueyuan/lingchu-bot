@@ -21,15 +21,24 @@ class FakeExecutor:
         self.cwd = cwd
         self.calls: list[tuple[str, list[str]]] = []
 
-    async def install(self, *packages: Requirement, extra_args=(), dev=False) -> None:
+    async def install(
+        self,
+        *packages: Requirement,
+        extra_args: tuple[str, ...] = (),
+        dev: bool = False,
+    ) -> None:
         del extra_args, dev
         self.calls.append(("install", [str(p) for p in packages]))
 
-    async def uninstall(self, *packages: Requirement, extra_args=()) -> None:
+    async def uninstall(
+        self, *packages: Requirement, extra_args: tuple[str, ...] = ()
+    ) -> None:
         del extra_args
         self.calls.append(("uninstall", [str(p) for p in packages]))
 
-    async def update(self, *packages: Requirement, extra_args=()) -> None:
+    async def update(
+        self, *packages: Requirement, extra_args: tuple[str, ...] = ()
+    ) -> None:
         del packages, extra_args
         self.calls.append(("update", []))
 
@@ -162,7 +171,7 @@ async def test_repair_performs_all_missing_fixes(
     inited: list[Path] = []
     migrated: list[list[str]] = []
 
-    async def _install(root: Path, packages=None):
+    async def _install(root: Path, packages: list[str] | None = None) -> None:
         installed.append((root, packages))
 
     def _init(root: Path, *, force: bool = False) -> list[Path]:
