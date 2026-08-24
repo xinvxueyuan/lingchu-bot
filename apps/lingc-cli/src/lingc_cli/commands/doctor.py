@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import json
 
+from rich.table import Table
 import typer
 
+from lingc_cli.console import get_console
 from lingc_cli.core.meta import project_root
 from lingc_cli.handlers.doctor import has_missing, run_checks
 from lingc_cli.i18n import _
 
 MISSING_EXIT_CODE = 3
+
+_STATUS_STYLE = {"ok": "green", "warning": "yellow", "missing": "red"}
 
 
 def register(app: typer.Typer) -> None:
@@ -37,10 +41,20 @@ def register(app: typer.Typer) -> None:
             ]
             typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
         else:
+            table = Table(title=_("Diagnostics"))
+            table.add_column(_("Check"), style="cyan", no_wrap=True)
+            table.add_column(_("Status"))
+            table.add_column(_("Detail"))
+            table.add_column(_("Advice"))
             for check in checks:
-                typer.echo(f"{check.name}: {check.status} — {check.detail}")
-                if check.advice:
-                    typer.echo(f"  advice: {check.advice}")
+                table.add_row(
+                    check.name,
+                    check.status,
+                    check.detail,
+                    check.advice,
+                    style=_STATUS_STYLE.get(check.status, ""),
+                )
+            get_console().print(table)
         if has_missing(checks):
             raise typer.Exit(code=MISSING_EXIT_CODE)
 

@@ -12,7 +12,7 @@ from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from packaging.requirements import Requirement
-import typer
+import questionary
 
 from lingc_cli.core.environment import (
     EnvironmentExecutor,
@@ -74,9 +74,11 @@ async def install(
 def _confirm_uninstall(requirements: Sequence[Requirement]) -> bool:
     """Ask the operator to confirm uninstalling the given packages."""
     names = ", ".join(requirement.name for requirement in requirements)
-    return typer.confirm(
-        _("Uninstall {packages}? [y/N]").format(packages=names),
-        default=False,
+    return bool(
+        questionary.confirm(
+            _("Uninstall {packages}?").format(packages=names),
+            default=False,
+        ).ask()
     )
 
 

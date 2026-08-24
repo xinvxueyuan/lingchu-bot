@@ -24,6 +24,8 @@ def verify_wheel(dist_dir: Path) -> None:
         names = archive.namelist()
     if not any(name.startswith(EXPECTED_PACKAGE) for name in names):
         raise SystemExit(f"Missing package {EXPECTED_PACKAGE} in {wheel.name}")
+    if not any("locales" in name for name in names):
+        raise SystemExit(f"Missing locales in {wheel.name}")
     if "entry_points.txt" in names:
         entries = archive.read("entry_points.txt").decode("utf-8")
         if "lc = lingc_cli.app:main" not in entries:

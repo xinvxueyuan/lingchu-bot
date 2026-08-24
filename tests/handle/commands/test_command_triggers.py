@@ -268,6 +268,12 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         "chinese_aliases": {"重启协议", "重启应用端"},
         "english_aliases": {"restart-protocol", "restart-endpoint"},
     },
+    "restart_app": {
+        "primary": "重启应用",
+        "english": "restart-app",
+        "chinese_aliases": set(),
+        "english_aliases": set(),
+    },
     "reset_runtime_config": {
         "primary": "重置灵初配置",
         "english": "reset-lingchu-config",

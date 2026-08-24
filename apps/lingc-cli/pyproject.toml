@@ -16,9 +16,10 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "typer>=0.12",
+    "typer>=0.27.1",
     "anyio>=4.0",
-    "noneprompt>=0.1.0",
+    "rich>=15.0.0",
+    "questionary>=2.1.1",
     "watchfiles>=1.0",
     "packaging>=24.0",
 ]
@@ -31,6 +32,7 @@ Repository = "https://github.com/xinvxueyuan/lingchu-bot"
 
 [dependency-groups]
 dev = [
+    "babel>=2.18.0",
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
     "ruff>=0.16.0",
@@ -41,6 +43,9 @@ dev = [
 [tool.uv.build-backend]
 module-name = ["lingc_cli"]
 module-root = "src"
+# uv_build only packages Python code by default; ship the compiled gettext
+# catalogs explicitly so translations work from an installed wheel.
+source-include = ["src/lingc_cli/locales/**"]
 
 [build-system]
 requires = ["uv_build>=0.11.8,<0.13"]
