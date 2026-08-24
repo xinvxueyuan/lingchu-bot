@@ -127,7 +127,9 @@ class HandleConfigManager:
                     get_plugin_config_file(f"{command_key}.toml"), factory()
                 )
             except Exception:
-                logger.error("Failed to ensure handle config file for {}", command_key)
+                logger.exception(
+                    "Failed to ensure handle config file for {}", command_key
+                )
 
     def clear_cache(self) -> None:
         self._cache.clear()

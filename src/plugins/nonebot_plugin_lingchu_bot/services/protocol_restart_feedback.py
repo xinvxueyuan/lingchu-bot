@@ -99,9 +99,15 @@ async def _is_reconnected_onebot11_ready(bot: Any, *, expected_bot_id: str) -> b
         logger.exception("Failed to verify protocol restart login account")
         return False
 
-    if not isinstance(login_info, dict):
-        return False
-    if str(login_info.get("user_id", "")) != expected_bot_id:
+    if (
+        not isinstance(login_info, dict)
+        or str(login_info.get("user_id", "")) != expected_bot_id
+    ):
+        logger.warning(
+            "Protocol restart verification failed: unexpected login info or "
+            "account mismatch (expected=%s)",
+            expected_bot_id,
+        )
         return False
 
     try:
@@ -111,8 +117,16 @@ async def _is_reconnected_onebot11_ready(bot: Any, *, expected_bot_id: str) -> b
         return False
 
     if not isinstance(status, dict):
+        logger.warning("Protocol restart verification got unexpected status payload")
         return False
-    return status.get("good") is True and status.get("online") is not False
+    if status.get("good") is not True or status.get("online") is False:
+        logger.warning(
+            "Protocol restart verification failed: good=%s, online=%s",
+            status.get("good"),
+            status.get("online"),
+        )
+        return False
+    return True
 
 
 def _adapter_name(bot: Any) -> str | None:

@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -30,7 +30,7 @@ async def test_telegram_bot_state_handlers_update_global_state(
     setter_name: str,
     expected: dict[str, bool],
 ) -> None:
-    setter = MagicMock()
+    setter = AsyncMock()
     monkeypatch.setattr(bot_state, setter_name, setter)
     command = getattr(bot_state, f"{handler_name.removeprefix('telegram_')}_cmd")
     monkeypatch.setattr(command, "finish", AsyncMock())

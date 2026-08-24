@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd lingc-cli
+          cd apps/lingc-cli
           git fetch --tags --quiet
           if git tag -l "lingc-cli/v*" | grep -q .; then
             # Prior release exists -> apply the requested bump input.
@@ -103,12 +103,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          cd lingc-cli
-          uv build --wheel --clear --no-sources --out-dir ../dist
+          cd apps/lingc-cli
+          uv build --wheel --clear --no-sources --out-dir ../../dist
 
       - name: 🔍 Verify lingc-cli wheel
         shell: bash
-        run: uv run python lingc-cli/scripts/ci_verify_wheel.py dist
+        run: uv run python apps/lingc-cli/scripts/ci_verify_wheel.py dist
 
       - name: 📤 Upload dist
         # pinned from actions/upload-artifact@v7.0.1

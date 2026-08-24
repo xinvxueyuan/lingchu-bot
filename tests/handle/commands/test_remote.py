@@ -62,7 +62,7 @@ def mock_session() -> Mock:
 @pytest.fixture(autouse=True)
 def _mock_record_audit_fire_and_forget():
     """避免审计记录触发后台任务和数据库调用。"""
-    with patch.object(remote_module, "record_audit_fire_and_forget", new=AsyncMock()):
+    with patch.object(remote_module, "record_audit_fire_and_forget", new=MagicMock()):
         yield
 
 
@@ -1226,16 +1226,19 @@ class TestCheckRemoteTargetPrivilege:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_returns_true_when_target_member_info_action_failed(
+    async def test_returns_false_when_target_member_info_action_failed(
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
     ) -> None:
+        """目标角色查询 ActionFailed 时 fail-closed 拒绝操作。"""
         matcher = MagicMock()
         matcher._lingchu_command_key = None
+        matcher.finish = AsyncMock()
         mock_bot.get_group_member_info.side_effect = OneBot11ActionFailed()
         result = await remote_module._check_remote_target_privilege(
             mock_session, mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
         )
-        assert result is True
+        assert result is False
+        matcher.finish.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_returns_true_when_target_admin_and_operator_can_manage(

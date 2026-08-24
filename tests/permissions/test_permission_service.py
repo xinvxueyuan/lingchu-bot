@@ -273,17 +273,87 @@ async def test_allowed_command_keys_non_superuser_filters(
 
 
 @pytest.mark.asyncio
+async def test_allowed_command_keys_anonymous_returns_empty(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
+    bot: MagicMock,
+) -> None:
+    """匿名事件（无 uid）不做任何授权查询，直接返回空集（fail-closed）。"""
+    is_superuser_mock = AsyncMock(return_value=False)
+    list_grants_mock = AsyncMock(return_value=[])
+    monkeypatch.setattr(
+        service_module,
+        "resolve_permission_context",
+        AsyncMock(
+            return_value=PermissionContext(
+                platform_id="qq",
+                adapter_id="~onebot.v11",
+                account_id=None,
+            )
+        ),
+    )
+    monkeypatch.setattr(repo, "is_superuser", is_superuser_mock)
+    monkeypatch.setattr(repo, "list_grants", list_grants_mock)
+
+    keys = await allowed_command_keys(
+        mock_session, bot, event(), frozenset({"member_mute", "kick_member"})
+    )
+
+    assert keys == frozenset()
+    is_superuser_mock.assert_not_awaited()
+    list_grants_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_allowed_command_keys_no_effective_groups_returns_empty(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_session: Mock,
+    bot: MagicMock,
+) -> None:
+    """无任何有效身份组时直接返回空集，不发起授权查询。"""
+    list_grants_mock = AsyncMock(return_value=[])
+    monkeypatch.setattr(
+        service_module,
+        "resolve_permission_context",
+        AsyncMock(
+            return_value=PermissionContext(
+                platform_id="qq",
+                adapter_id="~onebot.v11",
+                account_id="42",
+                uid="userA",
+            )
+        ),
+    )
+    monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=False))
+    monkeypatch.setattr(repo, "list_memberships", AsyncMock(return_value=[]))
+    monkeypatch.setattr(repo, "list_identity_groups", AsyncMock(return_value=[]))
+    monkeypatch.setattr(
+        service_module,
+        "get_mutable_settings",
+        lambda: MutableRuntimeSettings(permission_platform_runtime_passthrough=False),
+    )
+    monkeypatch.setattr(repo, "list_grants", list_grants_mock)
+
+    keys = await allowed_command_keys(
+        mock_session, bot, event(), frozenset({"member_mute"})
+    )
+
+    assert keys == frozenset()
+    list_grants_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_allowed_command_keys_non_superuser_partial_filter(
     monkeypatch: pytest.MonkeyPatch,
     mock_session: Mock,
     bot: MagicMock,
 ) -> None:
     """Non-superuser gets only the subset of commands they are granted."""
-
-    async def list_grants_side_effect(*_args: object, **kwargs: object) -> list[object]:
-        if kwargs.get("command_key") == "member_mute":
-            return [SimpleNamespace(group_id="qq.group", effect="allow")]
-        return []
+    grants = [
+        SimpleNamespace(group_id="qq.group", effect="allow", command_key="member_mute"),
+    ]
+    list_grants_mock = AsyncMock(return_value=grants)
+    is_superuser_mock = AsyncMock(return_value=False)
 
     monkeypatch.setattr(
         service_module,
@@ -295,7 +365,7 @@ async def test_allowed_command_keys_non_superuser_partial_filter(
         "get_user_by_platform_account",
         AsyncMock(return_value=SimpleNamespace(uid="userA")),
     )
-    monkeypatch.setattr(repo, "is_superuser", AsyncMock(return_value=False))
+    monkeypatch.setattr(repo, "is_superuser", is_superuser_mock)
     monkeypatch.setattr(repo, "list_memberships", AsyncMock(return_value=[]))
     monkeypatch.setattr(
         repo,
@@ -307,13 +377,16 @@ async def test_allowed_command_keys_non_superuser_partial_filter(
             ]
         ),
     )
-    monkeypatch.setattr(repo, "list_grants", list_grants_side_effect)
+    monkeypatch.setattr(repo, "list_grants", list_grants_mock)
 
     keys = await allowed_command_keys(
         mock_session, bot, event(), frozenset({"member_mute", "kick_member"})
     )
 
     assert keys == frozenset({"member_mute"})
+    # N+1 修复：grants 批量查询一次、is_superuser 只查询一次
+    list_grants_mock.assert_awaited_once()
+    is_superuser_mock.assert_awaited_once()
 
 
 def test_platform_runtime_passthrough_bool_true(

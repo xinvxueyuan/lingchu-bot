@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -30,6 +32,92 @@ SCHEDULER_CLEANUP_HANDLER_KEY = "message_store.cleanup_expired_messages"
 STATE_KEY = "_lingchu_message_record_identity"
 SUMMARY_LIMIT = 500
 ELLIPSIS_LENGTH = 3
+
+# API audit pipeline: a bounded queue drained by a single worker so concurrent
+# API calls cannot fan out into parallel DB writes (SQLite lock contention).
+_API_AUDIT_QUEUE_MAX = 1000
+_API_AUDIT_DROP_WARN_INTERVAL = 100
+
+if TYPE_CHECKING:
+    # (platform_context, exception, api, data, result) captured at call time;
+    # payload stringification is deferred to the worker.
+    _ApiAuditItem = tuple[PlatformContext, Exception | None, str, dict[str, Any], Any]
+
+
+class _ApiAuditPipeline:
+    """Bounded queue + single worker for serialized audit persistence."""
+
+    def __init__(self) -> None:
+        self.queue: asyncio.Queue[_ApiAuditItem] = asyncio.Queue(
+            maxsize=_API_AUDIT_QUEUE_MAX
+        )
+        self.worker: asyncio.Task[None] | None = None
+        self.dropped = 0
+
+    def ensure_worker(self) -> None:
+        """Start the audit worker task if it is not currently running."""
+        if self.worker is not None and not self.worker.done():
+            return
+        self.worker = asyncio.create_task(
+            self._worker_loop(), name="message_store:api_audit_worker"
+        )
+        self.worker.add_done_callback(self._on_worker_done)
+
+    @staticmethod
+    def _on_worker_done(task: asyncio.Task[None]) -> None:
+        """Log unexpected worker death; the next enqueue restarts it lazily."""
+        if task.cancelled():
+            return
+        exc = task.exception()
+        if exc is not None:
+            logger.error("API audit worker stopped unexpectedly: %r", exc)
+
+    def enqueue(
+        self,
+        platform_context: PlatformContext,
+        exception: Exception | None,
+        api: str,
+        data: dict[str, Any],
+        result: Any,
+    ) -> None:
+        """Add one audit item, counting and warning when the queue is full."""
+        try:
+            self.queue.put_nowait((platform_context, exception, api, data, result))
+        except asyncio.QueueFull:
+            self.dropped += 1
+            if self.dropped % _API_AUDIT_DROP_WARN_INTERVAL == 1:
+                logger.warning(
+                    "API audit queue full; dropped %d event(s) so far", self.dropped
+                )
+
+    async def _worker_loop(self) -> None:
+        """Drain queued audit items in batches, one transaction per batch."""
+        while True:
+            item = await self.queue.get()
+            batch: list[_ApiAuditItem] = [item]
+            while not self.queue.empty():
+                batch.append(self.queue.get_nowait())
+            await write_api_audit_batch(batch)
+
+    async def stop(self) -> None:
+        """Cancel the worker and flush whatever is still queued."""
+        worker, self.worker = self.worker, None
+        if worker is not None and not worker.done():
+            worker.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await worker
+        await self.flush()
+
+    async def flush(self) -> int:
+        """Drain pending items and write them in one batch; return the count."""
+        batch: list[_ApiAuditItem] = []
+        while not self.queue.empty():
+            batch.append(self.queue.get_nowait())
+        await write_api_audit_batch(batch)
+        return len(batch)
+
+
+_api_audit = _ApiAuditPipeline()
 
 
 def _truncate(value: str | None, limit: int | None = None) -> str | None:
@@ -61,6 +149,9 @@ async def shutdown_message_store() -> None:
     """Run lightweight shutdown maintenance for message storage."""
     if not plugin_config.message_store_enabled:
         return
+    # Stop the audit worker first so queued events are flushed before the
+    # cleanup job takes the DB write lock.
+    await _stop_api_audit_worker()
     await cleanup_expired_messages()
 
 
@@ -187,34 +278,61 @@ async def handle_matcher_result(
         return False
 
 
-async def handle_api_called(
+def handle_api_called(
     platform_context: PlatformContext,
     exception: Exception | None,
     api: str,
     data: dict[str, Any],
     result: Any,
 ) -> None:
-    """Record a platform API call result."""
+    """Queue a platform API call audit event for serialized persistence.
+
+    Synchronous by design: enqueueing must stay cheap so the adapter API call
+    path is never blocked; the actual DB write happens in the audit worker.
+    """
     if (
         not plugin_config.message_store_enabled
         or not plugin_config.message_store_record_api_calls
     ):
         return
+    _api_audit.ensure_worker()
+    _api_audit.enqueue(platform_context, exception, api, data, result)
+
+
+async def write_api_audit_batch(batch: list[_ApiAuditItem]) -> None:
+    """Persist a batch of audit items in a single transaction."""
+    if not batch:
+        return
     try:
         async with get_session() as session:
-            await repository.record_api_call(
-                session,
-                repository.AuditEvent(
-                    platform_id=platform_context.platform_id,
-                    adapter_id=platform_context.adapter_id,
-                    protocol_id=platform_context.protocol_id,
-                    bot_id=platform_context.bot_id,
-                    api_name=api,
-                    data_summary=_stringify(data),
-                    result_summary=_stringify(result),
-                    exception_summary=_stringify(exception),
-                ),
-            )
+            for platform_context, exception, api, data, result in batch:
+                await repository.record_api_call(
+                    session,
+                    repository.AuditEvent(
+                        platform_id=platform_context.platform_id,
+                        adapter_id=platform_context.adapter_id,
+                        protocol_id=platform_context.protocol_id,
+                        bot_id=platform_context.bot_id,
+                        api_name=api,
+                        data_summary=_stringify(data),
+                        result_summary=_stringify(result),
+                        exception_summary=_stringify(exception),
+                    ),
+                )
             await session.commit()
     except DatabaseError:
-        logger.exception("Failed to record platform API call: %s", api)
+        logger.exception("Failed to record %d platform API audit event(s)", len(batch))
+
+
+async def flush_api_audit_queue() -> int:
+    """Drain pending audit items and write them in one batch.
+
+    Returns the number of items written. Intended for shutdown and tests; the
+    background worker owns the queue during normal operation.
+    """
+    return await _api_audit.flush()
+
+
+async def _stop_api_audit_worker() -> None:
+    """Stop the audit worker and flush whatever is still queued."""
+    await _api_audit.stop()

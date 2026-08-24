@@ -14,9 +14,13 @@ import importlib
 import os
 from pathlib import Path
 import sys
+from typing import TYPE_CHECKING
 
 from lingc_cli.exceptions import EnvironmentNotReadyError
 from lingc_cli.i18n import _
+
+if TYPE_CHECKING:
+    from typing import Any
 
 # nonebot / adapters / the lingchu plugin are optional runtime deps of this
 # command (only ``lc db`` imports them at all).
@@ -45,7 +49,7 @@ def _ensure_nonebot() -> None:
         if textual not in sys.path:
             sys.path.insert(0, textual)
 
-    init_config: dict[str, object] = {
+    init_config: dict[str, Any] = {
         "LOCALSTORE_USE_CWD": "True",
         "DRIVER": "~fastapi+~httpx+~websockets",
         "lingchu_adapter": "~onebot.v11",

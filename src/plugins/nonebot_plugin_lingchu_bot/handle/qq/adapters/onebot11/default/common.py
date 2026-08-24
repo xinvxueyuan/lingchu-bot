@@ -19,6 +19,7 @@ from nonebot_plugin_alconna.uniseg import At
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import get_session
 
+from ......core.async_utils import fire_and_forget
 from ......core.config import plugin_config
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
@@ -242,8 +243,15 @@ async def check_target_privilege(
             group_id=event.group_id, user_id=target_user_id, no_cache=True
         )
     except Onebot11ActionFailed:
-        # 无法获取目标用户信息，允许操作（让 API 层处理）
-        return True
+        # Fail closed: 目标角色无法确认时拒绝操作，与 operator_is_superuser_onebot11
+        # 的失败基线一致，避免越权操作只依赖协议端兜底。
+        logger.warning(
+            "无法获取目标用户角色，拒绝操作: group_id=%s, target_user_id=%s",
+            event.group_id,
+            target_user_id,
+        )
+        await cmd_matcher.finish(await _("无法验证操作权限"))
+        return False
 
     target_role = member_info.get("role", "member")
     if target_role not in ("admin", "owner"):
@@ -402,17 +410,16 @@ def format_user_display_name(
     return f"{target_name}({target_user_id})" if target_name else str(target_user_id)
 
 
-async def record_audit_fire_and_forget(
+def record_audit_fire_and_forget(
     bot: Onebot11Bot,
     event: Onebot11GroupMessageEvent,
     audit: CommandAudit,
 ) -> None:
-    """异步记录审计日志（fire-and-forget 模式）。
+    """调度审计日志后台记录（fire-and-forget 模式，同步函数）。
 
-    封装 fire_and_forget + record_command_audit 的常用模式。
+    封装 fire_and_forget + record_command_audit 的常用模式；本函数自身
+    无需 await——它只注册后台任务并立即返回。
     """
-    from ......core.async_utils import fire_and_forget
-
     fire_and_forget(
         record_command_audit(
             bot,

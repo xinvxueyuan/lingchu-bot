@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -82,6 +83,21 @@ def patched_session(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
         lambda: _FakeSessionContext(session),
     )
     return session
+
+
+@pytest.fixture(autouse=True)
+def isolated_audit_pipeline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> message_store._ApiAuditPipeline:
+    """Give each test a fresh audit pipeline.
+
+    The background worker is disabled (enqueue-only) so tests exercise the
+    queue deterministically through ``flush_api_audit_queue`` / ``stop``.
+    """
+    pipeline = message_store._ApiAuditPipeline()
+    monkeypatch.setattr(message_store, "_api_audit", pipeline)
+    monkeypatch.setattr(pipeline, "ensure_worker", lambda: None)
+    return pipeline
 
 
 async def test_handle_event_received_records_event(
@@ -260,14 +276,16 @@ async def test_handle_api_called_records_result(
     platform_context = adapters.resolve_platform_context(make_bot())
     assert platform_context is not None
 
-    await message_store.handle_api_called(
+    message_store.handle_api_called(
         platform_context,
         None,
         "send_message",
         {"message": "hello"},
         {"message_id": "out-1"},
     )
+    written = await message_store.flush_api_audit_queue()
 
+    assert written == 1
     record_api.assert_awaited_once()
     assert record_api.await_args is not None
     assert record_api.await_args.args[0] is patched_session
@@ -289,13 +307,14 @@ async def test_handle_api_called_skips_when_disabled(
     platform_context = adapters.resolve_platform_context(make_bot())
     assert platform_context is not None
 
-    await message_store.handle_api_called(
+    message_store.handle_api_called(
         platform_context,
         None,
         "send_message",
         {},
         {},
     )
+    await message_store.flush_api_audit_queue()
 
     record_api.assert_not_awaited()
 
@@ -311,13 +330,14 @@ async def test_handle_api_called_skips_when_api_calls_disabled(
     platform_context = adapters.resolve_platform_context(make_bot())
     assert platform_context is not None
 
-    await message_store.handle_api_called(
+    message_store.handle_api_called(
         platform_context,
         None,
         "send_message",
         {},
         {},
     )
+    await message_store.flush_api_audit_queue()
 
     record_api.assert_not_awaited()
 
@@ -332,14 +352,77 @@ async def test_handle_api_called_swallows_database_errors(
     platform_context = adapters.resolve_platform_context(make_bot())
     assert platform_context is not None
 
-    await message_store.handle_api_called(
+    message_store.handle_api_called(
         platform_context,
         None,
         "send_message",
         {},
         {},
     )
+    # flush must swallow the DatabaseError instead of raising it
+    written = await message_store.flush_api_audit_queue()
 
+    assert written == 1
+    record_api.assert_awaited_once()
+
+
+async def test_handle_api_called_writes_batch_in_one_flush(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+    patched_session: MagicMock,
+) -> None:
+    """多条入队后一次 flush 批量落库（单事务串行化）。"""
+    _ = patched_runtime_config
+    record_api = AsyncMock()
+    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
+    platform_context = adapters.resolve_platform_context(make_bot())
+    assert platform_context is not None
+
+    for index in range(3):
+        message_store.handle_api_called(platform_context, None, f"api_{index}", {}, {})
+    written = await message_store.flush_api_audit_queue()
+
+    assert written == 3
+    assert record_api.await_count == 3
+    assert patched_session.commit.await_count == 1
+
+
+async def test_handle_api_called_drops_when_queue_full(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+    isolated_audit_pipeline: message_store._ApiAuditPipeline,
+) -> None:
+    """队列满时丢弃并计数，不抛异常。"""
+    _ = patched_runtime_config
+    record_api = AsyncMock()
+    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
+    platform_context = adapters.resolve_platform_context(make_bot())
+    assert platform_context is not None
+    isolated_audit_pipeline.queue = asyncio.Queue(maxsize=1)
+
+    message_store.handle_api_called(platform_context, None, "api_1", {}, {})
+    message_store.handle_api_called(platform_context, None, "api_2", {}, {})
+
+    assert isolated_audit_pipeline.dropped == 1
+    assert isolated_audit_pipeline.queue.qsize() == 1
+
+
+async def test_stop_api_audit_worker_flushes_queue(
+    monkeypatch: pytest.MonkeyPatch,
+    patched_runtime_config: SimpleNamespace,
+    isolated_audit_pipeline: message_store._ApiAuditPipeline,
+) -> None:
+    """stop() 在 worker 未启动时也应清空队列落库（shutdown 路径）。"""
+    _ = patched_runtime_config
+    record_api = AsyncMock()
+    monkeypatch.setattr(message_store.repository, "record_api_call", record_api)
+    platform_context = adapters.resolve_platform_context(make_bot())
+    assert platform_context is not None
+
+    message_store.handle_api_called(platform_context, None, "api_1", {}, {})
+    await message_store._stop_api_audit_worker()
+
+    assert isolated_audit_pipeline.queue.empty()
     record_api.assert_awaited_once()
 
 

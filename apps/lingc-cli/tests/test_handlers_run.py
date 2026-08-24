@@ -12,7 +12,7 @@ from lingc_cli.handlers import run as run_mod
 from lingc_cli.handlers.run import _build_entry, run
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Sequence
     from pathlib import Path
 
     from _pytest.monkeypatch import MonkeyPatch
@@ -34,7 +34,7 @@ class FakeProcess:
 
     def __init__(
         self,
-        lines: list[bytes] = (),
+        lines: Sequence[bytes] = (),
         *,
         exit_code: int = 0,
         finished: bool = False,
@@ -51,7 +51,7 @@ class FakeProcess:
         if finished and done is None:
             self._finish(exit_code)
 
-    async def _stream(self, lines: list[bytes]) -> AsyncIterator[bytes]:
+    async def _stream(self, lines: Sequence[bytes]) -> AsyncIterator[bytes]:
         for line in lines:
             yield line
         await self._done.wait()

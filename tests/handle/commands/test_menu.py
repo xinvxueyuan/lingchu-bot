@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -365,14 +365,49 @@ async def test_onebot11_menu_reads_version_info_and_finishes() -> None:
             }
         )
     )
+    all_keys = frozenset(feature.command_key for feature in MENU_FEATURES)
 
-    with patch.object(menu_cmd, "finish") as mock_finish:
-        await onebot11_menu(bot=bot, session=Mock())
+    with (
+        patch.object(
+            onebot_menu_module,
+            "allowed_command_keys",
+            AsyncMock(return_value=all_keys),
+        ),
+        patch.object(menu_cmd, "finish") as mock_finish,
+    ):
+        await onebot11_menu(bot=bot, session=Mock(), _event=MagicMock())
 
     bot.get_version_info.assert_awaited_once()
     assert "群聊管理" in finish_text(mock_finish)
     assert "设置群头像" not in finish_text(mock_finish)
     assert "发送群公告" not in finish_text(mock_finish)
+
+
+@pytest.mark.asyncio
+async def test_onebot11_menu_fails_closed_without_event() -> None:
+    """无事件（无身份上下文）时菜单 fail-closed，不展示任何功能。"""
+    bot = SimpleNamespace(
+        get_version_info=AsyncMock(
+            return_value={
+                "protocol_version": "v11",
+                "app_name": NAPCAT_IMPL,
+                "app_version": "4.18.0",
+            }
+        )
+    )
+
+    with (
+        patch.object(
+            onebot_menu_module,
+            "allowed_command_keys",
+            AsyncMock(return_value=frozenset()),
+        ) as allowed_mock,
+        patch.object(menu_cmd, "finish") as mock_finish,
+    ):
+        await onebot11_menu(bot=bot, session=Mock(), _event=None)
+
+    allowed_mock.assert_not_awaited()
+    assert "群聊管理" not in finish_text(mock_finish)
 
 
 @pytest.mark.asyncio
@@ -387,9 +422,19 @@ async def test_onebot11_menu_page_reads_version_info_and_finishes() -> None:
         )
     )
     command = menu_page_cmds["group-chat-management"]
+    all_keys = frozenset(feature.command_key for feature in MENU_FEATURES)
 
-    with patch.object(command, "finish") as mock_finish:
-        await onebot11_menu_pages["group-chat-management"](bot=bot, session=Mock())
+    with (
+        patch.object(
+            onebot_menu_module,
+            "allowed_command_keys",
+            AsyncMock(return_value=all_keys),
+        ),
+        patch.object(command, "finish") as mock_finish,
+    ):
+        await onebot11_menu_pages["group-chat-management"](
+            bot=bot, session=Mock(), _event=MagicMock()
+        )
 
     bot.get_version_info.assert_awaited_once()
     assert "设置群头像" in finish_text(mock_finish)

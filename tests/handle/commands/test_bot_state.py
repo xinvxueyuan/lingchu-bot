@@ -75,7 +75,7 @@ def _reset_bot_state() -> Iterator[None]:
 @pytest.fixture(autouse=True)
 def _mock_fire_and_forget() -> Iterator[None]:
     """避免审计记录触发后台任务（状态持久化已改为脏标记 + 关机 flush）。"""
-    with patch.object(mute_module, "record_audit_fire_and_forget", new=AsyncMock()):
+    with patch.object(mute_module, "record_audit_fire_and_forget", new=MagicMock()):
         yield
 
 
@@ -102,56 +102,64 @@ class TestBotStateFlags:
         """测试默认状态下静默模式为关闭。"""
         assert is_silent_mode("qq") is False
 
-    def test_set_handle_active_false(self) -> None:
+    @pytest.mark.asyncio
+    async def test_set_handle_active_false(self) -> None:
         """测试关闭 handle 门禁。"""
-        set_global_handle_active(active=False)
+        await set_global_handle_active(active=False)
         assert is_handle_active("qq") is False
 
-    def test_set_silent_mode_true(self) -> None:
+    @pytest.mark.asyncio
+    async def test_set_silent_mode_true(self) -> None:
         """测试开启静默模式。"""
-        set_global_silent_mode(silent=True)
+        await set_global_silent_mode(silent=True)
         assert is_silent_mode("qq") is True
 
-    def test_toggle_handle_active(self) -> None:
+    @pytest.mark.asyncio
+    async def test_toggle_handle_active(self) -> None:
         """测试 handle 门禁开关切换。"""
-        set_global_handle_active(active=False)
+        await set_global_handle_active(active=False)
         assert is_handle_active("qq") is False
-        set_global_handle_active(active=True)
+        await set_global_handle_active(active=True)
         assert is_handle_active("qq") is True
 
-    def test_toggle_silent_mode(self) -> None:
+    @pytest.mark.asyncio
+    async def test_toggle_silent_mode(self) -> None:
         """测试静默模式开关切换。"""
-        set_global_silent_mode(silent=True)
+        await set_global_silent_mode(silent=True)
         assert is_silent_mode("qq") is True
-        set_global_silent_mode(silent=False)
+        await set_global_silent_mode(silent=False)
         assert is_silent_mode("qq") is False
 
 
 class TestTwoTierResolution:
     """两层状态模型解析逻辑测试。"""
 
-    def test_global_gate_off_overrides_platform_on(self) -> None:
+    @pytest.mark.asyncio
+    async def test_global_gate_off_overrides_platform_on(self) -> None:
         """全局门禁关闭时，即使平台门禁开启也返回 False。"""
-        set_global_handle_active(active=False)
-        set_platform_handle_active("qq", active=True)
+        await set_global_handle_active(active=False)
+        await set_platform_handle_active("qq", active=True)
         assert is_handle_active("qq") is False
 
-    def test_global_gate_on_respects_platform_off(self) -> None:
+    @pytest.mark.asyncio
+    async def test_global_gate_on_respects_platform_off(self) -> None:
         """全局门禁开启时，平台门禁关闭则返回 False。"""
-        set_global_handle_active(active=True)
-        set_platform_handle_active("qq", active=False)
+        await set_global_handle_active(active=True)
+        await set_platform_handle_active("qq", active=False)
         assert is_handle_active("qq") is False
 
-    def test_global_silent_on_overrides_platform_off(self) -> None:
+    @pytest.mark.asyncio
+    async def test_global_silent_on_overrides_platform_off(self) -> None:
         """全局静默开启时，即使平台静默关闭也返回 True。"""
-        set_global_silent_mode(silent=True)
-        set_platform_silent_mode("qq", silent=False)
+        await set_global_silent_mode(silent=True)
+        await set_platform_silent_mode("qq", silent=False)
         assert is_silent_mode("qq") is True
 
-    def test_global_silent_off_respects_platform_on(self) -> None:
+    @pytest.mark.asyncio
+    async def test_global_silent_off_respects_platform_on(self) -> None:
         """全局静默关闭时，平台静默开启则返回 True。"""
-        set_global_silent_mode(silent=False)
-        set_platform_silent_mode("qq", silent=True)
+        await set_global_silent_mode(silent=False)
+        await set_platform_silent_mode("qq", silent=True)
         assert is_silent_mode("qq") is True
 
     def test_unknown_platform_defaults_to_permissive(self) -> None:
@@ -171,29 +179,33 @@ class TestTwoTierResolution:
 class TestPlatformState:
     """平台级状态管理测试。"""
 
-    def test_set_platform_handle_active(self) -> None:
+    @pytest.mark.asyncio
+    async def test_set_platform_handle_active(self) -> None:
         """测试设置平台级门禁。"""
-        set_platform_handle_active("qq", active=False)
+        await set_platform_handle_active("qq", active=False)
         assert get_platform_handle_active("qq") is False
         assert is_handle_active("qq") is False
 
-    def test_set_platform_silent_mode(self) -> None:
+    @pytest.mark.asyncio
+    async def test_set_platform_silent_mode(self) -> None:
         """测试设置平台级静默模式。"""
-        set_platform_silent_mode("qq", silent=True)
+        await set_platform_silent_mode("qq", silent=True)
         assert get_platform_silent_mode("qq") is True
         assert is_silent_mode("qq") is True
 
-    def test_platform_state_independent(self) -> None:
+    @pytest.mark.asyncio
+    async def test_platform_state_independent(self) -> None:
         """测试不同平台状态互不影响。"""
-        set_platform_handle_active("qq", active=False)
-        set_platform_handle_active("discord", active=True)
+        await set_platform_handle_active("qq", active=False)
+        await set_platform_handle_active("discord", active=True)
         assert is_handle_active("qq") is False
         assert is_handle_active("discord") is True
 
-    def test_global_and_platform_both_off(self) -> None:
+    @pytest.mark.asyncio
+    async def test_global_and_platform_both_off(self) -> None:
         """测试全局和平台都关闭时结果为 False。"""
-        set_global_handle_active(active=False)
-        set_platform_handle_active("qq", active=False)
+        await set_global_handle_active(active=False)
+        await set_platform_handle_active("qq", active=False)
         assert is_handle_active("qq") is False
 
 
@@ -230,7 +242,7 @@ class TestBotSpeakHandler:
         mock_onebot11_event: MagicMock,
     ) -> None:
         """测试说话命令关闭静默模式并返回提示消息。"""
-        set_global_silent_mode(silent=True)
+        await set_global_silent_mode(silent=True)
 
         with patch.object(bot_speak_cmd, "finish") as mock_finish:
             await onebot11_bot_speak(bot=mock_onebot11_bot, event=mock_onebot11_event)
@@ -252,7 +264,7 @@ class TestBotBootHandler:
         mock_onebot11_event: MagicMock,
     ) -> None:
         """测试开机命令开启 handle 门禁并返回提示消息。"""
-        set_global_handle_active(active=False)
+        await set_global_handle_active(active=False)
 
         with patch.object(bot_boot_cmd, "finish") as mock_finish:
             await onebot11_bot_boot(bot=mock_onebot11_bot, event=mock_onebot11_event)
@@ -304,7 +316,7 @@ class TestGateBlocking:
             mock_cmd, fake_handler, platform_id="qq", check_gate=True
         )
 
-        set_global_handle_active(active=False)
+        await set_global_handle_active(active=False)
         result = await wrapped()
 
         assert result is None
@@ -346,7 +358,7 @@ class TestGateBlocking:
             mock_cmd, fake_handler, platform_id="qq", check_gate=False
         )
 
-        set_global_handle_active(active=False)
+        await set_global_handle_active(active=False)
         result = await wrapped()
 
         assert result == "result"
@@ -371,8 +383,8 @@ class TestGateBlocking:
             check_silent=True,
         )
 
-        set_global_handle_active(active=False)
-        set_global_silent_mode(silent=True)
+        await set_global_handle_active(active=False)
+        await set_global_silent_mode(silent=True)
         result = await wrapped()
 
         assert result is None
@@ -394,7 +406,7 @@ class TestGateBlocking:
             whole_mute_cmd, onebot11_whole_mute, platform_id="qq", check_gate=True
         )
 
-        set_global_handle_active(active=False)
+        await set_global_handle_active(active=False)
         result = await wrapped(bot=mock_onebot11_bot, event=mock_onebot11_event)
 
         assert result is None
@@ -407,7 +419,7 @@ class TestGateBlocking:
         mock_onebot11_event: MagicMock,
     ) -> None:
         """测试开机命令在门禁关闭时仍可执行（直接调用处理器）。"""
-        set_global_handle_active(active=False)
+        await set_global_handle_active(active=False)
 
         with patch.object(bot_boot_cmd, "finish") as mock_finish:
             await onebot11_bot_boot(bot=mock_onebot11_bot, event=mock_onebot11_event)
@@ -441,7 +453,7 @@ class TestSilentSuppression:
             cast("Any", _FakeCommand), fake_handler, platform_id="qq", check_silent=True
         )
 
-        set_global_silent_mode(silent=True)
+        await set_global_silent_mode(silent=True)
         bot_token = current_bot.set(bot)
         event_token = current_event.set(event)
         try:
@@ -471,7 +483,7 @@ class TestSilentSuppression:
             cast("Any", _FakeCommand), fake_handler, platform_id="qq", check_silent=True
         )
 
-        set_global_silent_mode(silent=True)
+        await set_global_silent_mode(silent=True)
         bot_token = current_bot.set(bot)
         event_token = current_event.set(event)
         try:
@@ -505,7 +517,7 @@ class TestSilentSuppression:
             check_silent=False,
         )
 
-        set_global_silent_mode(silent=True)
+        await set_global_silent_mode(silent=True)
         bot_token = current_bot.set(bot)
         event_token = current_event.set(event)
         try:
@@ -535,7 +547,7 @@ class TestSilentSuppression:
             whole_mute_cmd, onebot11_whole_mute, platform_id="qq", check_silent=True
         )
 
-        set_global_silent_mode(silent=True)
+        await set_global_silent_mode(silent=True)
         mock_onebot11_bot.send = AsyncMock()
         bot_token = current_bot.set(mock_onebot11_bot)
         event_token = current_event.set(mock_onebot11_event)
@@ -600,7 +612,7 @@ class TestSilentSuppression:
                 current_bot.reset(bot_token)
                 current_event.reset(event_token)
 
-        set_global_silent_mode(silent=True)
+        await set_global_silent_mode(silent=True)
         await asyncio.gather(
             invoke(silent_wrapper, silent_bot, silent_event),
             invoke(bypass_wrapper, normal_bot, normal_event),
@@ -620,7 +632,7 @@ class TestSilentSuppression:
         mock_onebot11_event: MagicMock,
     ) -> None:
         """测试说话命令在静默模式下仍正常响应（直接调用处理器）。"""
-        set_global_silent_mode(silent=True)
+        await set_global_silent_mode(silent=True)
 
         with patch.object(bot_speak_cmd, "finish") as mock_finish:
             await onebot11_bot_speak(bot=mock_onebot11_bot, event=mock_onebot11_event)
