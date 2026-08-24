@@ -171,6 +171,10 @@ jobs:
             git add pyproject.toml uv.lock package.json src/plugins/nonebot_plugin_lingchu_bot/core/config.py
             git commit --no-verify -m "🔧 chore(release): 同步 ${version} 版本文件" \
               --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+            # The dispatch branch may have advanced (e.g. release notes pushed
+            # while this job ran); rebase the version-sync commit on top so the
+            # push is a fast-forward.
+            git pull --rebase origin "${GITHUB_REF_NAME}" --autostash
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
 
