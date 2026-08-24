@@ -66,3 +66,21 @@
 1. 重点关注行为变更面：特权检查拒绝路径（D04/D05）与菜单空集（D08）在真实群环境的体验。
 2. `.env` 若未配置带 HTTP 客户端的 driver（`~fastapi+~httpx`），公告/头像 URL 图片现会输出明确告警而非静默跳过。
 3. 后续可选立项：API 审计写入背压、`bulk_create` 的 `commit` 参数改名、`_conversation_id` 兜底前缀规范化。
+
+## 6. 事件循环阻塞审查与重构（补充批次）
+
+对全插件同步代码做了事件循环阻塞审查（core/hooks/services/handle/database/repositories/permissions 全覆盖）。结论：**无高严重度阻塞点**——文件 I/O 已走 aiofiles/to_thread、网络走异步 driver、DB 全 async session、payload 序列化已移入后台任务。发现 6 处低严重度同步 CPU 操作位于事件循环路径，已全部重构为 `asyncio.to_thread`：
+
+| 位置 | 操作 | 重构 |
+| --- | --- | --- |
+| `commands/announcement.py`、`commands/profile.py` `_cache_image_bytes` | 10MB 图片 MD5 | `await asyncio.to_thread(hashlib.md5, ...)` |
+| `napcat/profile.py` `set_group_portrait_napcat` | 10MB 图片 base64 | `await asyncio.to_thread(base64.b64encode, ...)` |
+| `default/mute.py` `_record_raw_event` 链 | 撤回候选 JSON 解析 | 链改 async + `to_thread(json.loads)` |
+| `core/bot_state.py` 4 个 setter | 状态 checksum（json.dumps+sha256） | setter 改 async + `to_thread(_state_checksum)` |
+
+性能验证（50MB 数据、3 轮 md5+base64、5ms 心跳 ticker）：
+
+- **sync**：930.7ms CPU 工作期间事件循环 ticker **0 次**触发（完全阻塞）
+- **async**：932.6ms 期间 ticker **25 次**触发（事件循环保持响应）
+
+重构后事件循环在 CPU 密集操作期间持续响应，其他协程（消息处理/心跳/定时任务）不再被阻塞。全量 1005 passed，覆盖率 88.86%。
