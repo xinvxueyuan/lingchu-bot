@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
+import json
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -44,6 +45,7 @@ class FakeProcess:
         self._exit_code = exit_code
         self.returncode: int | None = None
         self.terminated = False
+        self.pid = 1234
         self.wait_calls = 0
         self.stdin: object = None
         self.stderr: object = None
@@ -80,6 +82,7 @@ def _fake_create(
     proc: FakeProcess | None = None,
     *,
     calls: list[list[str]] | None = None,
+    envs: list[object] | None = None,
 ):
     async def create(
         cmd: list[str],
@@ -89,9 +92,11 @@ def _fake_create(
         stdout: object = None,
         stderr: object = None,
     ) -> FakeProcess:
-        del cwd, env, stdout, stderr
+        del cwd, stdout, stderr
         if calls is not None:
             calls.append(cmd)
+        if envs is not None:
+            envs.append(env)
         if cmd[1] == "--version":
             return FakeProcess(exit_code=0, finished=True)
         return proc or FakeProcess()
@@ -196,6 +201,14 @@ async def test_run_reports_startup_timeout(
     _write_project(tmp_path)
     proc = FakeProcess(lines=[], finished=False)
     _patch_run(monkeypatch, _fake_create(proc), check_python=True, forwarder=True)
+
+    async def fake_terminate(
+        process: FakeProcess, *, sig: int | None = None, timeout: float | None = None
+    ) -> None:
+        del sig, timeout
+        process.terminate()
+
+    monkeypatch.setattr(run_mod, "terminate_process", fake_terminate)
     code = await run(cmd=[], cwd=tmp_path, timeout=0.1)
     assert code == TIMEOUT_EXIT
     assert proc.terminated is True
@@ -239,6 +252,25 @@ async def test_run_waits_for_marker_then_passes_exit_code(
     assert calls[0] == ["python", "bot.py"]
 
 
+async def test_supervise_returns_exit_code(tmp_path: Path) -> None:
+    proc = FakeProcess()
+    task = asyncio.create_task(
+        run_mod._supervise(
+            cast("asyncio.subprocess.Process", proc),
+            entry=["python", "bot.py"],
+            cwd=tmp_path,
+            timeout=5,
+            restart_flag_path=tmp_path / "restart.flag",
+            base_env=None,
+            interval=0.01,
+        )
+    )
+    await asyncio.sleep(0.02)
+    proc.finish(RUN_EXIT)
+    code = await asyncio.wait_for(task, 10)
+    assert code == RUN_EXIT
+
+
 async def test_check_python_raises_when_spawn_fails(
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -256,3 +288,127 @@ async def test_check_python_raises_when_spawn_fails(
     _patch_run(monkeypatch, boom)
     with pytest.raises(EnvironmentNotReadyError):
         await run_mod._check_python("no-such-python")
+
+
+def test_build_host_env_injects_lc_hosted_identifiers(tmp_path: Path) -> None:
+    flag_path = tmp_path / "restart.flag"
+    env = run_mod._build_host_env(flag_path)
+
+    assert env[run_mod._LC_HOSTED_ENV] == "1"
+    assert env[run_mod._RESTART_FLAG_ENV] == str(flag_path)
+
+
+def test_resolve_restart_flag_path_is_absolute() -> None:
+    path = run_mod._resolve_restart_flag_path()
+
+    assert path.is_absolute()
+    assert path.name == "lingchu_restart.flag"
+
+
+def test_read_restart_flag_missing_returns_none(tmp_path: Path) -> None:
+    assert run_mod._read_restart_flag(tmp_path / "missing.flag") is None
+
+
+def test_read_restart_flag_returns_platform_account_and_deletes(
+    tmp_path: Path,
+) -> None:
+    flag = tmp_path / "restart.flag"
+    flag.write_text(
+        json.dumps({"platform": "qq", "account_id": "12345"}),
+        encoding="utf-8",
+    )
+
+    assert run_mod._read_restart_flag(flag) == "qq:12345"
+    assert not flag.exists()
+
+
+def test_read_restart_flag_invalid_json_returns_none_and_deletes(
+    tmp_path: Path,
+) -> None:
+    flag = tmp_path / "restart.flag"
+    flag.write_text("{not json", encoding="utf-8")
+
+    assert run_mod._read_restart_flag(flag) is None
+    assert not flag.exists()
+
+
+async def test_run_injects_host_env_into_worker(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "bot.py").write_text("x")
+    proc = FakeProcess(lines=[MARKER_BYTES], exit_code=RUN_EXIT)
+    calls: list[list[str]] = []
+    envs: list[object] = []
+    _patch_run(
+        monkeypatch,
+        _fake_create(proc, calls=calls, envs=envs),
+        check_python=True,
+        forwarder=True,
+    )
+
+    run_task = asyncio.create_task(run(cmd=[], cwd=tmp_path, timeout=5))
+    await asyncio.sleep(0.02)
+    proc.finish(RUN_EXIT)
+    code = await asyncio.wait_for(run_task, 10)
+
+    assert code == RUN_EXIT
+    assert len(calls) == 1
+    env = cast("dict[str, str]", envs[0])
+    assert env[run_mod._LC_HOSTED_ENV] == "1"
+    assert env[run_mod._RESTART_FLAG_ENV] == str(run_mod._resolve_restart_flag_path())
+
+
+async def test_supervise_restarts_worker_when_flag_present(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    proc = FakeProcess()
+    restarted = FakeProcess()
+    flag = tmp_path / "restart.flag"
+    flag.write_text(
+        json.dumps({"platform": "qq", "account_id": "12345"}),
+        encoding="utf-8",
+    )
+    envs: list[object] = []
+
+    async def fake_start(
+        entry: list[str],
+        cwd: Path,
+        timeout: float,
+        *,
+        env: object = None,
+    ) -> asyncio.subprocess.Process:
+        del entry, cwd, timeout
+        envs.append(env)
+        return cast("asyncio.subprocess.Process", restarted)
+
+    async def fake_terminate(
+        process: FakeProcess, *, sig: int | None = None, timeout: float | None = None
+    ) -> None:
+        del sig, timeout
+        process.terminate()
+
+    monkeypatch.setattr(run_mod, "_start_and_confirm", fake_start)
+    monkeypatch.setattr(run_mod, "terminate_process", fake_terminate)
+
+    task = asyncio.create_task(
+        run_mod._supervise(
+            cast("asyncio.subprocess.Process", proc),
+            entry=["python", "bot.py"],
+            cwd=tmp_path,
+            timeout=5,
+            restart_flag_path=flag,
+            base_env={"PATH": "/usr/bin"},
+            interval=0.01,
+        )
+    )
+    await asyncio.sleep(0.05)
+    assert proc.terminated is True
+    assert len(envs) == 1
+    env = cast("dict[str, str]", envs[0])
+    assert env[run_mod._RESTART_BY_ENV] == "qq:12345"
+    assert env["PATH"] == "/usr/bin"
+    restarted.finish(RUN_EXIT)
+    code = await asyncio.wait_for(task, 10)
+    assert code == RUN_EXIT

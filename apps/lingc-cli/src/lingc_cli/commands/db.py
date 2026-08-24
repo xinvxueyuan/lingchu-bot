@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typer
 
+from lingc_cli.console import get_console
 from lingc_cli.exceptions import LingcCliError
 from lingc_cli.handlers.db import run_db
 from lingc_cli.i18n import _
@@ -14,7 +15,9 @@ def _run(args: list[str]) -> None:
     try:
         exit_code = run_db(args)
     except LingcCliError as exc:
-        typer.echo(_("error: {message}").format(message=exc), err=True)
+        get_console(stderr=True).print(
+            _("error: {message}").format(message=exc), style="bold red", markup=False
+        )
         raise typer.Exit(1) from exc
     if exit_code != 0:
         raise typer.Exit(exit_code)

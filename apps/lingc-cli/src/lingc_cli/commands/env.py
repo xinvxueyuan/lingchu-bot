@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 from typing import cast
 
+from rich.table import Table
 import typer
 
+from lingc_cli.console import get_console
 from lingc_cli.core.meta import project_root
 from lingc_cli.handlers.env import env_snapshot
 from lingc_cli.i18n import _
@@ -27,20 +29,33 @@ def register(app: typer.Typer) -> None:
         if json_output:
             typer.echo(json.dumps(snapshot, indent=2, ensure_ascii=False))
             raise typer.Exit
-        typer.echo(f"os: {snapshot['os']}")
-        typer.echo(f"python: {snapshot['python_version']} ({snapshot['python_path']})")
-        typer.echo(f"uv: {snapshot['uv']} | pip: {snapshot['pip']}")
-        typer.echo(f"venv: {snapshot['venv']}")
+        table = Table(title=_("Environment snapshot"))
+        table.add_column(_("Key"), style="cyan", no_wrap=True)
+        table.add_column(_("Value"))
+        table.add_row(_("OS"), str(snapshot["os"]))
+        table.add_row(
+            _("Python"),
+            f"{snapshot['python_version']} ({snapshot['python_path']})",
+        )
+        table.add_row(_("uv / pip"), f"{snapshot['uv']} | {snapshot['pip']}")
+        table.add_row(_("venv"), str(snapshot["venv"]))
         adapters = cast("list[dict[str, str]]", snapshot["adapters"])
         if adapters:
-            typer.echo("adapters:")
-            for adapter in adapters:
-                typer.echo(f"  - {adapter['name']} {adapter['version']}")
+            table.add_row(
+                _("adapters"),
+                ", ".join(
+                    f"{adapter['name']} {adapter['version']}" for adapter in adapters
+                ),
+            )
         else:
-            typer.echo("adapters: (none)")
+            table.add_row(_("adapters"), _("(none)"))
         lingchu = snapshot["lingchu_bot_version"]
-        typer.echo(f"nonebot-plugin-lingchu-bot: {lingchu or _('(not installed)')}")
-        typer.echo(f"project root: {snapshot['project_root']}")
+        table.add_row(
+            "nonebot-plugin-lingchu-bot",
+            str(lingchu or _("(not installed)")),
+        )
+        table.add_row(_("project root"), str(snapshot["project_root"]))
+        get_console().print(table)
 
 
 __all__ = ["register"]
