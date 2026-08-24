@@ -152,11 +152,14 @@ jobs:
         # writes version files — this step writes the derived version into the
         # tree, commits it to the dispatch branch (main), and the build below
         # produces artifacts that carry it.
+        # `--no-sync` (not `--frozen`) so uv.lock's project version follows
+        # pyproject.toml; `//:wheel-smoke` runs `uv run --locked` and would
+        # otherwise fail on the version mismatch.
         shell: bash
         run: |
           set -euo pipefail
           version="${{ needs.validate.outputs.version }}"
-          uv version "$version" --frozen
+          uv version "$version" --no-sync
           VERSION="$version" \
             CONFIG_PATH="src/plugins/nonebot_plugin_lingchu_bot/core/config.py" \
             task ci:version:write-config
