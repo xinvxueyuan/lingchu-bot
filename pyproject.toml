@@ -260,6 +260,11 @@ allowed-confusables = [
     "E501",    # line-too-long
     "F541",    # f-string-without-placeholders
     "TRY003",  # raise-vanilla-args: CI scripts use SystemExit with inline messages
+    # ci_version_bump_args.py: the uv-semantics decision table is inherently a
+    # branch matrix (stable/pre/dev/alpha/beta/rc x level x prerelease); each
+    # branch is a single return, so the return/branch counts are structural.
+    "PLR0911", # too-many-return-statements
+    "PLR0912", # too-many-branches
 ]
 # handle handlers may have complex logic with many return paths and NoneBot-mandated parameters
 # E402: nonebot2 require() must precede cross-plugin imports at module level

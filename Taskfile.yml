@@ -249,31 +249,23 @@ tasks:
         latest_tag="$(uv run python scripts/ci_latest_tag.py)"
         if [ -n "$latest_tag" ]; then
           tag_version="${latest_tag#v}"
-          uv version "$tag_version" --frozen
+          # Sync pyproject.toml to the latest tag; stdout is informational and
+          # must not leak into the task output (DRY_RUN callers read the version).
+          uv version "$tag_version" --frozen >/dev/null
+        else
+          tag_version=""
         fi
 
-        # Determine bump strategy:
-        # - release tags need <level>+<prerelease> (e.g. --bump patch --bump beta)
-        # - dev pre-releases of the same (patch) cycle just bump the pre-release (e.g. --bump dev)
-        # - pre-releases of a different class need <level>+<prerelease> (e.g. --bump minor --bump dev)
-        # - stable clears the pre-release component; if the latest tag is already
-        #   stable it advances the level to the next stable patch
-        if [ "$bump_prerelease" = "stable" ]; then
-          if [ -n "$latest_tag" ] && [[ "$tag_version" != *dev* ]] && [[ "$tag_version" != *a* ]] && [[ "$tag_version" != *b* ]] && [[ "$tag_version" != *rc* ]]; then
-            set -- --bump "$bump_level"
-          else
-            set -- --bump stable
-          fi
-        elif [ -n "$latest_tag" ] && [[ "$tag_version" != *dev* ]] && [[ "$tag_version" != *a* ]] && [[ "$tag_version" != *b* ]] && [[ "$tag_version" != *rc* ]]; then
-          # Latest tag is a stable release — must bump level + prerelease
-          set -- --bump "$bump_level" --bump "$bump_prerelease"
-        elif [ "$bump_level" = "patch" ] && [ "$bump_prerelease" = "dev" ]; then
-          # Latest tag is a dev pre-release of the same (patch) cycle — continue it
-          set -- --bump dev
-        else
-          # Latest tag is a pre-release of a different class — start a new cycle
-          set -- --bump "$bump_level" --bump "$bump_prerelease"
-        fi
+        # Derive the uv `--bump` argument sequence from the latest tag + bump
+        # intent. scripts/ci_version_bump_args.py is the single source of truth
+        # for bump semantics (uv official docs + CLI behavior); it replaces the
+        # former bash string-matching strategy and covers every boundary case
+        # (stable level participation, same-type cycle continuation, upgrade /
+        # downgrade conversion, dev -> pre conversion).
+        # `eval "set -- ..."` splits the script's single space-separated line
+        # into positional args without needing `tr`, `mktemp`, or process
+        # substitution (all unavailable on the Windows sh that Task uses).
+        eval "set -- $(uv run --no-sync python scripts/ci_version_bump_args.py "$tag_version" "$bump_level" "$bump_prerelease")"
 
         version_json="$(uv version "$@" --output-format json --frozen)"
         new_version="$(python -c 'import json, sys; print(json.load(sys.stdin)["version"])' <<< "$version_json")"
@@ -403,8 +395,10 @@ tasks:
         # Preview the version the workflow will derive via `uv version` from the
         # latest tag (DRY_RUN keeps pyproject.toml untouched). The workflow is
         # the single authority — the developer never writes version files.
-        new_version="$(task ci:version:bump BUMP_LEVEL="$bump_level" BUMP_PRERELEASE="$bump_prerelease" DRY_RUN=true | tail -n1)"
-        new_version="$(printf '%s' "$new_version" | tr -d '\r')"
+        # DRY_RUN prints only the version, so no `tail` is needed (Windows-safe).
+        new_version="$(task ci:version:bump BUMP_LEVEL="$bump_level" BUMP_PRERELEASE="$bump_prerelease" DRY_RUN=true)"
+        # Strip a trailing CR without `tr` (unavailable on Windows).
+        new_version="${new_version%$'\r'}"
 
         # Scaffold the release notes file (only if missing) so the
         # developer can edit it before pushing.
@@ -449,8 +443,9 @@ tasks:
           exit 1
         fi
 
-        new_version="$(task ci:version:bump BUMP_LEVEL="$bump_level" BUMP_PRERELEASE="$bump_prerelease" DRY_RUN=true | tail -n1)"
-        new_version="$(printf '%s' "$new_version" | tr -d '\r')"
+        new_version="$(task ci:version:bump BUMP_LEVEL="$bump_level" BUMP_PRERELEASE="$bump_prerelease" DRY_RUN=true)"
+        # Strip a trailing CR without `tr` (unavailable on Windows).
+        new_version="${new_version%$'\r'}"
         notes_path=".github/releases/${new_version}.md"
         if [ -f "$notes_path" ]; then
           echo "Notes file already exists: ${notes_path}"
