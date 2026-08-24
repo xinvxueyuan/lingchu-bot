@@ -193,7 +193,7 @@ async def test_bot_state_flush_writes_only_when_state_changed(
 ) -> None:
     bot_state_module._reset_state_for_testing()
     await load_bot_state()
-    set_global_handle_active(active=False)
+    await set_global_handle_active(active=False)
 
     first = await flush_bot_state_if_dirty()
     second = await flush_bot_state_if_dirty()
@@ -212,13 +212,13 @@ async def test_bot_state_flush_retries_when_state_changes_during_write(
     del patched_state_dir
     bot_state_module._reset_state_for_testing()
     await load_bot_state()
-    set_global_handle_active(active=False)
+    await set_global_handle_active(active=False)
     writes: list[dict[str, object]] = []
 
     async def write_state(_path: Path, state: dict[str, object]) -> None:
         writes.append(state)
         if len(writes) == 1:
-            set_global_silent_mode(silent=True)
+            await set_global_silent_mode(silent=True)
             await asyncio.sleep(0)
 
     monkeypatch.setattr(bot_state_module, "write_toml_dict_file_async", write_state)
@@ -239,13 +239,13 @@ async def test_bot_state_flush_stops_after_retries_are_exhausted(
     del patched_state_dir
     bot_state_module._reset_state_for_testing()
     await load_bot_state()
-    set_global_handle_active(active=False)
+    await set_global_handle_active(active=False)
     writes = 0
 
     async def write_state(_path: Path, _state: dict[str, object]) -> None:
         nonlocal writes
         writes += 1
-        set_global_silent_mode(silent=writes % 2 == 1)
+        await set_global_silent_mode(silent=writes % 2 == 1)
 
     monkeypatch.setattr(bot_state_module, "write_toml_dict_file_async", write_state)
 

@@ -203,8 +203,10 @@ def _state_checksum(state_mapping: dict[str, Any] | None = None) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def _persist_state() -> None:
-    _cache.dirty = _state_checksum() != _cache.persisted_checksum
+async def _persist_state() -> None:
+    # Checksum is a CPU-bound json.dumps + sha256; run it off the event loop.
+    checksum = await asyncio.to_thread(_state_checksum)
+    _cache.dirty = checksum != _cache.persisted_checksum
 
 
 def get_global_handle_active() -> bool:
@@ -215,14 +217,14 @@ def get_global_silent_mode() -> bool:
     return _state["global_silent_mode"]
 
 
-def set_global_handle_active(*, active: bool) -> None:
+async def set_global_handle_active(*, active: bool) -> None:
     _state["global_handle_active"] = active
-    _persist_state()
+    await _persist_state()
 
 
-def set_global_silent_mode(*, silent: bool) -> None:
+async def set_global_silent_mode(*, silent: bool) -> None:
     _state["global_silent_mode"] = silent
-    _persist_state()
+    await _persist_state()
 
 
 def get_platform_handle_active(platform_id: str) -> bool:
@@ -233,14 +235,14 @@ def get_platform_silent_mode(platform_id: str) -> bool:
     return _state["platforms"].get(platform_id, {}).get("silent_mode", False)
 
 
-def set_platform_handle_active(platform_id: str, *, active: bool) -> None:
+async def set_platform_handle_active(platform_id: str, *, active: bool) -> None:
     _state["platforms"].setdefault(platform_id, {})["handle_active"] = active
-    _persist_state()
+    await _persist_state()
 
 
-def set_platform_silent_mode(platform_id: str, *, silent: bool) -> None:
+async def set_platform_silent_mode(platform_id: str, *, silent: bool) -> None:
     _state["platforms"].setdefault(platform_id, {})["silent_mode"] = silent
-    _persist_state()
+    await _persist_state()
 
 
 def is_handle_active(platform_id: str) -> bool:

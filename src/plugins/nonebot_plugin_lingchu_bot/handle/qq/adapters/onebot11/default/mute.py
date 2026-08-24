@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 import json
 from typing import Any
@@ -182,18 +183,18 @@ def _record_conversation_id(record: Any) -> str | None:
     return value if isinstance(value, str) else None
 
 
-def _record_raw_event(record: Any) -> dict[str, Any] | None:
+async def _record_raw_event(record: Any) -> dict[str, Any] | None:
     raw_event = getattr(record, "raw_event", None)
     if not isinstance(raw_event, str):
         return None
     try:
-        parsed = json.loads(raw_event)
+        parsed = await asyncio.to_thread(json.loads, raw_event)
     except json.JSONDecodeError:
         return None
     return parsed if isinstance(parsed, dict) else None
 
 
-def _record_belongs_to_group(record: Any, group_id: int) -> bool:
+async def _record_belongs_to_group(record: Any, group_id: int) -> bool:
     group_id_text = str(group_id)
     conversation_id = _record_conversation_id(record)
     if conversation_id == group_id_text:
@@ -202,13 +203,13 @@ def _record_belongs_to_group(record: Any, group_id: int) -> bool:
         f"group_{group_id_text}_"
     ):
         return True
-    raw_event = _record_raw_event(record)
+    raw_event = await _record_raw_event(record)
     if raw_event is None:
         return False
     return _message_id_int(raw_event.get("group_id")) == group_id
 
 
-def _merge_recall_candidates(
+async def _merge_recall_candidates(
     *record_groups: list[Any],
     group_id: int,
 ) -> list[Any]:
@@ -218,7 +219,7 @@ def _merge_recall_candidates(
         for record in group:
             message_id = getattr(record, "message_id", None)
             key = str(message_id) if message_id is not None else f"id:{id(record)}"
-            if key in seen or not _record_belongs_to_group(record, group_id):
+            if key in seen or not await _record_belongs_to_group(record, group_id):
                 continue
             seen.add(key)
             records.append(record)
@@ -251,7 +252,7 @@ async def _list_recall_candidate_records(
         conversation_id=str(event.group_id),
         limit=fetch_limit,
     )
-    return _merge_recall_candidates(
+    return await _merge_recall_candidates(
         broad_records,
         group_records,
         group_id=event.group_id,

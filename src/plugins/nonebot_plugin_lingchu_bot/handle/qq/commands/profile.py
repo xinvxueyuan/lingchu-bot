@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 from importlib import import_module
 from io import BytesIO
@@ -25,8 +26,9 @@ _AVATAR_IMAGE_DOWNLOAD_MAX_BYTES = 10 * 1024 * 1024
 async def _cache_image_bytes(raw_bytes: bytes) -> Path:
     cache_dir = plugin_config.cache_dir / "announcement_images"
     await aiofiles.os.makedirs(cache_dir, exist_ok=True)
-    md5 = hashlib.md5(raw_bytes).hexdigest()
-    cache_path = cache_dir / f"{md5}.png"
+    # MD5 over up-to-10MB payloads is CPU-bound; run it off the event loop.
+    md5 = await asyncio.to_thread(hashlib.md5, raw_bytes)
+    cache_path = cache_dir / f"{md5.hexdigest()}.png"
     async with aiofiles.open(cache_path, "wb") as f:
         await f.write(raw_bytes)
     return cache_path
