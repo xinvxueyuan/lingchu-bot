@@ -99,7 +99,7 @@ async def _protect_member(
     except DatabaseError as error:
         return await _finish_database_error(command, await _("拉白"), error)
 
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(
@@ -213,7 +213,7 @@ async def _unprotect_member(
     except DatabaseError as error:
         return await _finish_database_error(command, await _("删白"), error)
 
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(

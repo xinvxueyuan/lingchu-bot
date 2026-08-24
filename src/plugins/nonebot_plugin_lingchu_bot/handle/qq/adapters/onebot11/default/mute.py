@@ -423,7 +423,7 @@ async def onebot11_mute(
         return await member_mute_cmd.finish(await _("禁言失败，操作被拒绝"))
 
     # 6. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(
@@ -483,7 +483,7 @@ async def onebot11_set_default_mute_duration(
         str(duration),
         config_manager=config_manager,
     )
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(action="set_default_mute_duration", duration=duration),
@@ -515,7 +515,7 @@ async def onebot11_whole_mute(
         return await whole_mute_cmd.finish(await _("全体禁言失败，操作被拒绝"))
 
     # 3. 记录审计
-    await record_audit_fire_and_forget(bot, event, CommandAudit(action="whole_mute"))
+    record_audit_fire_and_forget(bot, event, CommandAudit(action="whole_mute"))
 
     return await whole_mute_cmd.finish(await _("全体禁言成功"))
 
@@ -554,7 +554,7 @@ async def onebot11_unmute(
         return await member_unmute_cmd.finish(await _("解禁失败，操作被拒绝"))
 
     # 4. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(action="member_unmute", target_user_id=target_user_id),
@@ -589,7 +589,7 @@ async def onebot11_whole_unmute(
         return await whole_unmute_cmd.finish(await _("全体解禁失败，操作被拒绝"))
 
     # 记录审计
-    await record_audit_fire_and_forget(bot, event, CommandAudit(action="whole_unmute"))
+    record_audit_fire_and_forget(bot, event, CommandAudit(action="whole_unmute"))
 
     return await whole_unmute_cmd.finish(await _("全体解禁成功"))
 
@@ -648,7 +648,7 @@ async def onebot11_recall_message(
         recall_count=recall_count,
     )
 
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(

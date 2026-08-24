@@ -334,7 +334,7 @@ async def onebot11_remote_mute(
         return await remote_mute_cmd.finish(await _("远程禁言失败，操作被拒绝"))
 
     # 7. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(
@@ -417,7 +417,7 @@ async def onebot11_remote_unmute(
         return await remote_unmute_cmd.finish(await _("远程解禁失败，操作被拒绝"))
 
     # 6. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(
@@ -480,7 +480,7 @@ async def onebot11_remote_whole_mute(
         )
 
     # 4. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(action="remote_whole_mute", group_id=group_id_int),
@@ -528,7 +528,7 @@ async def onebot11_remote_whole_unmute(
         )
 
     # 4. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(action="remote_whole_unmute", group_id=group_id_int),
@@ -607,7 +607,7 @@ async def onebot11_remote_kick(
         return await remote_kick_cmd.finish(await _("远程踢出群成员失败，操作被拒绝"))
 
     # 7. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(
@@ -696,7 +696,7 @@ async def onebot11_remote_block(
         return await remote_block_cmd.finish(await _("远程拉黑失败，操作被拒绝"))
 
     # 5. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(
@@ -778,7 +778,7 @@ async def onebot11_remote_unblock(
         return await remote_unblock_cmd.finish(await _("远程删黑失败，数据库异常"))
 
     # 5. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(
@@ -866,7 +866,7 @@ async def onebot11_remote_announcement(
         return await remote_announcement_cmd.finish(await _("远程公告失败，操作被拒绝"))
 
     # 7. 记录审计
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(action="remote_announcement", group_id=group_id_int),
@@ -1060,7 +1060,7 @@ async def onebot11_mass_announcement(
 
         results.append(MassAnnouncementResult(group_id=group_id, ok=True))
 
-    await record_audit_fire_and_forget(
+    record_audit_fire_and_forget(
         bot,
         event,
         CommandAudit(action="mass_announcement", group_id=event.group_id),

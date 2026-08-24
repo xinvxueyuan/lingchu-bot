@@ -74,7 +74,7 @@ class TestOneBot11Mute:
     @pytest.fixture(autouse=True)
     def _mock_record_audit_fire_and_forget(self):
         """避免审计记录触发后台任务和数据库调用。"""
-        with patch.object(mute_module, "record_audit_fire_and_forget", new=AsyncMock()):
+        with patch.object(mute_module, "record_audit_fire_and_forget", new=MagicMock()):
             yield
 
     @pytest.fixture(autouse=True)
