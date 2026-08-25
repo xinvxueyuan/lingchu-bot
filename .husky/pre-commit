@@ -79,6 +79,20 @@ else
     echo "⚠️  未找到 uv，跳过 Prek 检查。"
 fi
 
+# ── Phase 1.5: REUSE 合规检查（秒级，全仓扫描，阻断性）──────────────
+# 复现 CI 的 `uv run reuse lint`：拦截缺失 SPDX 版权/许可证声明的文件，
+# 让本地提交即提前发现 REUSE 违规（reuse 已在 lint 依赖组，uv 可解析）。
+# reuse lint 扫描全仓（含未暂存文件），与 CI 行为一致；uv 缺失时跳过告警。
+if [ -n "$UV_CMD" ]; then
+    echo "🔍 正在运行 REUSE 合规检查..."
+    if ! "$UV_CMD" run reuse lint; then
+        echo "❌ REUSE 合规检查失败：请为新增/修改文件补充 SPDX 版权与许可证声明（参考 REUSE.toml 与 Repository-Policy.md），修复后重新提交。"
+        exit 1
+    fi
+else
+    echo "⚠️  未找到 uv，跳过 REUSE 合规检查。"
+fi
+
 # ── Phase 2: Markdownlint（秒级，.md 变更触发）──────────────────────
 run_markdown_checks
 
