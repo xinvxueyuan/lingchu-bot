@@ -95,13 +95,21 @@ def _help_option(
 
 def apply() -> None:
     """Apply the Typer i18n patches (idempotent)."""
-    _typer_completion._install_completion_placeholder_function = (
-        _install_completion_placeholder_function
+    # These statements monkeypatch Typer/Click internals whose type stubs
+    # declare a narrower callable signature than our i18n-aware replacements.
+    # ``setattr`` (instead of a direct attribute assignment) keeps strict type
+    # checkers quiet while preserving the identical runtime patching behaviour.
+    setattr(  # noqa: B010
+        _typer_completion,
+        "_install_completion_placeholder_function",
+        _install_completion_placeholder_function,
     )
-    _typer_completion._install_completion_no_auto_placeholder_function = (
-        _install_completion_no_auto_placeholder_function
+    setattr(  # noqa: B010
+        _typer_completion,
+        "_install_completion_no_auto_placeholder_function",
+        _install_completion_no_auto_placeholder_function,
     )
-    _click_decorators.help_option = _help_option
+    setattr(_click_decorators, "help_option", _help_option)  # noqa: B010
     _rich_utils.ARGUMENTS_PANEL_TITLE = _("Arguments")
     _rich_utils.OPTIONS_PANEL_TITLE = _("Options")
     _rich_utils.COMMANDS_PANEL_TITLE = _("Commands")
