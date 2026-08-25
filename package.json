@@ -23,6 +23,7 @@
     "md:fix": "markdownlint-cli2 --fix",
     "js:format": "prettier --write \"apps/docs/src/**/*.{ts,tsx,css,json}\"",
     "i18n": "uv run pybabel extract -F src/plugins/nonebot_plugin_lingchu_bot/i18n/babel.cfg -o src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot src/plugins/nonebot_plugin_lingchu_bot && uv run pybabel update -i src/plugins/nonebot_plugin_lingchu_bot/i18n/messages.pot -d src/plugins/nonebot_plugin_lingchu_bot/i18n/locales -D messages && uv run pybabel compile -d src/plugins/nonebot_plugin_lingchu_bot/i18n/locales -D messages",
+    "i18n:cli": "cd apps/lingc-cli && uv run pybabel extract -F babel.cfg -o messages.pot src/lingc_cli && uv run pybabel update -i messages.pot -d src/lingc_cli/locales -D messages && uv run pybabel compile -d src/lingc_cli/locales -D messages",
     "prepare": "husky",
     "doctor": "npx react-doctor@latest"
   },

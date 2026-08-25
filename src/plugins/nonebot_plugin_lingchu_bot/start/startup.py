@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Any
 
 from nonebot import get_adapters, logger, require
@@ -30,16 +31,23 @@ from ..services.message_store import (
     cleanup_expired_messages,
     initialize_message_store,
 )
+from ..services.restart_app import RESTART_BY_ENV, notify_restart_success
 from ..services.scheduler import (
     initialize_scheduler_service,
     register_scheduler_handler,
 )
 
 _STARTUP_ATTEMPTS = 3
+_startup_tasks: set[asyncio.Task[None]] = set()
 
 
 async def startup() -> None:
     """Load runtime state and initialize handlers, stores, and scheduler."""
+    task = asyncio.create_task(
+        _notify_restart_success_with_retry(), name="startup:restart_success_notify"
+    )
+    _startup_tasks.add(task)
+    task.add_done_callback(_startup_tasks.discard)
     await _cleanup_stale_persistence_files()
     await _retry_startup_step(load_runtime_configs_on_startup, "runtime config")
     registered_adapter_names = tuple(
@@ -76,6 +84,20 @@ async def startup() -> None:
         cleanup_expired_messages,
     )
     await initialize_scheduler_service()
+
+
+async def _notify_restart_success_with_retry() -> None:
+    """Notify the restart requester once the new process is up."""
+    raw = os.environ.get(RESTART_BY_ENV, "")
+    if not raw:
+        return
+    platform_id, _, account_id = raw.partition(":")
+    if not platform_id or not account_id:
+        return
+    for _attempt in range(10):
+        if await notify_restart_success(platform_id, account_id):
+            return
+        await asyncio.sleep(3)
 
 
 async def _cleanup_stale_persistence_files() -> None:

@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Mapping
 import json
+import os
 from pathlib import Path
 import sys
+import tempfile
 import tomllib
 from typing import Any, NoReturn
 
@@ -17,6 +19,90 @@ from lingc_cli.handlers.process import await_process, create_process
 from lingc_cli.handlers.reloader import Reloader, ReloaderError
 from lingc_cli.handlers.signal import register_signal_forwarder, terminate_process
 from lingc_cli.i18n import _
+from lingc_cli.log import get_logger
+
+# 宿主心跳监听间隔(秒)
+HEARTBEAT_INTERVAL = 5.0
+
+# lc 宿主运行时标识: 注入被监督子进程(worker)环境, 使其可识别宿主会话。
+_LC_HOSTED_ENV = "LINGCHU_LC_HOSTED"
+# 重启标志文件路径: worker 写入 JSON 即请求宿主重启自身应用。
+_RESTART_FLAG_ENV = "LINGCHU_RESTART_FLAG_PATH"
+# 重启原因: 宿主重拉起 worker 时注入, 标明由哪个平台/账号触发。
+_RESTART_BY_ENV = "LINGCHU_RESTART_BY"
+
+logger = get_logger("run")
+
+
+def _color_env() -> dict[str, str] | None:
+    """Return child env overrides that force color output on a TTY parent.
+
+    The child's stdout is a pipe (not a TTY), so loguru/rich disable colors.
+    When the parent terminal supports color, force them back on so the
+    forwarded output keeps its styling. Returns ``None`` when the parent
+    stdout is not a terminal (e.g. redirected), leaving colors disabled.
+    """
+    if sys.stdout is None or not sys.stdout.isatty():
+        return None
+    env = dict(os.environ)
+    env.setdefault("LOGURU_COLORIZE", "true")
+    env.setdefault("FORCE_COLOR", "1")
+    return env
+
+
+def _resolve_restart_flag_path() -> Path:
+    """Return the absolute path of the shared restart flag file.
+
+    The worker writes a JSON flag here to ask the host to restart the app;
+    the host's restart probe consumes it so a single request fires once.
+    """
+    return Path(tempfile.gettempdir()) / "lingchu_restart.flag"
+
+
+def _build_host_env(restart_flag_path: Path) -> dict[str, str]:
+    """Build the child environment carrying lc-host runtime identifiers.
+
+    Starts from the parent environment (with forced color overrides on a
+    TTY) and marks the child as lc-hosted, telling it where to leave a
+    restart flag.
+    """
+    env = _color_env() or dict(os.environ)
+    env[_LC_HOSTED_ENV] = "1"
+    env[_RESTART_FLAG_ENV] = str(restart_flag_path)
+    return env
+
+
+def _read_restart_flag(path: Path) -> str | None:
+    """Read and consume the worker's restart flag, if present.
+
+    The flag is a JSON file ``{"platform": ..., "account_id": ...}``.
+    Returns ``"platform:account_id"`` when a valid flag was consumed; the
+    file is deleted in every case so a single request cannot trigger
+    repeated restarts. Returns ``None`` when no flag exists or it cannot
+    be parsed (a stuck flag is removed rather than left to loop forever).
+    """
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        logger.warning(
+            _("Failed to read restart flag {path}: {exc}").format(path=path, exc=exc)
+        )
+        path.unlink(missing_ok=True)
+        return None
+    try:
+        data = json.loads(raw)
+        platform = data["platform"]
+        account_id = data["account_id"]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        logger.warning(
+            _("Invalid restart flag {path}: {exc}").format(path=path, exc=exc)
+        )
+        path.unlink(missing_ok=True)
+        return None
+    path.unlink(missing_ok=True)
+    return f"{platform}:{account_id}"
 
 
 def _raise_invalid_project_config(detail: str) -> NoReturn:
@@ -155,29 +241,42 @@ async def _forward_output(
     """Stream child output to stdout, flagging the startup marker."""
     if stream is None:
         return
-    async for raw in stream:
-        text = raw.decode(errors="replace")
-        if STARTUP_MARKER in text:
-            marker_found.set()
-        if sys.stdout is not None:
-            sys.stdout.write(text)
-            sys.stdout.flush()
+    try:
+        async for raw in stream:
+            text = raw.decode(errors="replace")
+            if STARTUP_MARKER in text:
+                marker_found.set()
+            if sys.stdout is not None:
+                sys.stdout.write(text)
+                sys.stdout.flush()
+    finally:
+        # Close the underlying pipe transport so the Windows proactor event
+        # loop does not warn about an unclosed transport at GC time (the
+        # child already exited, so the pipe is at EOF).
+        transport = getattr(stream, "_transport", None)
+        if transport is not None and not transport.is_closing():
+            transport.close()
 
 
 async def _start_and_confirm(
     entry: list[str],
     cwd: Path,
     timeout: float,
+    *,
+    env: Mapping[str, str] | None = None,
 ) -> asyncio.subprocess.Process:
     """Spawn *entry*, forward output, and wait for a clean startup.
 
-    Raises :class:`ReloaderError` with the exit code when the child exits
-    before the startup marker (a crash) or when startup times out (``124``).
+    *env* is the child environment (including lc-host runtime identifiers)
+    to launch with. Raises :class:`ReloaderError` with the exit code when
+    the child exits before the startup marker (a crash) or when startup
+    times out (``124``).
     """
     marker_found = asyncio.Event()
     proc = await create_process(
         entry,
         cwd=cwd,
+        env=env if env is not None else _color_env(),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
     )
@@ -203,6 +302,46 @@ async def _start_and_confirm(
     raise ReloaderError(124)
 
 
+async def _supervise(  # noqa: PLR0913 - 签名由宿主监督协议固定
+    proc: asyncio.subprocess.Process,
+    *,
+    entry: list[str],
+    cwd: Path,
+    timeout: float,
+    restart_flag_path: Path,
+    base_env: dict[str, str] | None,
+    interval: float = HEARTBEAT_INTERVAL,
+) -> int:
+    """Host the worker, polling its liveness every *interval* seconds.
+
+    Each tick, after confirming the worker is still alive, the shared
+    restart flag is probed. When the worker left a flag, the current
+    worker is terminated and replaced by a fresh instance launched with
+    ``LINGCHU_RESTART_BY`` set to the flag's ``platform:account_id``;
+    supervision then continues with the new worker. Returns the final
+    worker exit code.
+    """
+    while True:
+        await asyncio.sleep(interval)
+        if proc.returncode is not None:
+            return proc.returncode
+        restart_by = _read_restart_flag(restart_flag_path)
+        if restart_by is None:
+            continue
+        logger.info(
+            _("Restart requested by {restart_by}; restarting process.").format(
+                restart_by=restart_by
+            )
+        )
+        await terminate_process(proc)
+        env = dict(base_env or os.environ)
+        env[_RESTART_BY_ENV] = restart_by
+        try:
+            proc = await _start_and_confirm(entry, cwd, timeout, env=env)
+        except ReloaderError as exc:
+            return exc.exit_code
+
+
 async def run(
     cmd: list[str],
     *,
@@ -225,17 +364,27 @@ async def run(
     python = meta.resolve_python(cwd)
     await _check_python(python)
     entry = _build_entry(python, cmd, cwd)
+    restart_flag_path = _resolve_restart_flag_path()
+    host_env = _build_host_env(restart_flag_path)
 
     if reload:
         reloader = Reloader(
-            startup_func=lambda: _start_and_confirm(entry, cwd, timeout),
+            startup_func=lambda: _start_and_confirm(entry, cwd, timeout, env=host_env),
             shutdown_func=terminate_process,
             cwd=cwd,
         )
         return await reloader.run()
 
     try:
-        proc = await _start_and_confirm(entry, cwd, timeout)
+        proc = await _start_and_confirm(entry, cwd, timeout, env=host_env)
     except ReloaderError as exc:
         return exc.exit_code
-    return await await_process(proc)
+
+    return await _supervise(
+        proc,
+        entry=entry,
+        cwd=cwd,
+        timeout=timeout,
+        restart_flag_path=restart_flag_path,
+        base_env=host_env,
+    )
