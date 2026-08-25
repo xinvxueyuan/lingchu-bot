@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import anyio
 import typer
 
+from lingc_cli.console import get_console
 from lingc_cli.core.meta import project_root
 from lingc_cli.exceptions import LingcCliError
 from lingc_cli.handlers import lifecycle
@@ -18,7 +19,9 @@ if TYPE_CHECKING:
 
 def _abort(error: LingcCliError) -> NoReturn:
     """Print an error and exit with a non-zero status."""
-    typer.echo(_("error: {message}").format(message=error), err=True)
+    get_console(stderr=True).print(
+        _("error: {message}").format(message=error), style="bold red", markup=False
+    )
     raise typer.Exit(1) from error
 
 
@@ -38,9 +41,17 @@ def register(app: typer.Typer) -> None:
             _abort(exc)
         if installed:
             names = ", ".join(requirement.name for requirement in installed)
-            typer.echo(_("installed: {packages}").format(packages=names))
+            get_console().print(
+                _("installed: {packages}").format(packages=names),
+                style="green",
+                markup=False,
+            )
         else:
-            typer.echo(_("nothing to install (already present)."))
+            get_console().print(
+                _("nothing to install (already present)."),
+                style="yellow",
+                markup=False,
+            )
 
     @app.command("uninstall", help=_("Uninstall Lingchu Bot plugin or extra packages."))
     def uninstall(
@@ -59,10 +70,14 @@ def register(app: typer.Typer) -> None:
         except LingcCliError as exc:
             _abort(exc)
         if not removed:
-            typer.echo(_("nothing uninstalled."))
+            get_console().print(_("nothing uninstalled."), style="yellow", markup=False)
             return
         names = ", ".join(requirement.name for requirement in removed)
-        typer.echo(_("uninstalled: {packages}").format(packages=names))
+        get_console().print(
+            _("uninstalled: {packages}").format(packages=names),
+            style="green",
+            markup=False,
+        )
 
     @app.command("update", help=_("Pull git changes and update dependencies."))
     def update(
@@ -75,7 +90,7 @@ def register(app: typer.Typer) -> None:
             anyio.run(lambda: lifecycle.update(project_root(), yes=yes))
         except LingcCliError as exc:
             _abort(exc)
-        typer.echo(_("updated."))
+        get_console().print(_("updated."), style="green", markup=False)
 
     @app.command("repair", help=_("Repair missing pieces detected by lc doctor."))
     def repair(
@@ -89,9 +104,13 @@ def register(app: typer.Typer) -> None:
         except LingcCliError as exc:
             _abort(exc)
         if not actions:
-            typer.echo(_("nothing to repair."))
+            get_console().print(_("nothing to repair."), style="yellow", markup=False)
             return
-        typer.echo(_("repaired: {actions}").format(actions=", ".join(actions)))
+        get_console().print(
+            _("repaired: {actions}").format(actions=", ".join(actions)),
+            style="green",
+            markup=False,
+        )
 
 
 __all__ = ["register"]

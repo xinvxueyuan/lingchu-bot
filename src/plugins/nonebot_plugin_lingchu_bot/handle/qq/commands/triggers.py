@@ -457,6 +457,12 @@ _DEFAULT_COMMAND_TRIGGERS = {
         chinese_aliases=frozenset({"重启协议", "重启应用端"}),
         english_aliases=frozenset({"restart-protocol", "restart-endpoint"}),
     ),
+    "restart_app": CommandTrigger(
+        chinese="重启应用",
+        english="restart-app",
+        chinese_aliases=frozenset(),
+        english_aliases=frozenset(),
+    ),
     "reset_runtime_config": CommandTrigger(
         chinese="重置灵初配置",
         english="reset-lingchu-config",

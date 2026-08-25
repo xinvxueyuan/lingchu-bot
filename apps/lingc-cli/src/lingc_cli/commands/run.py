@@ -6,6 +6,7 @@ import asyncio
 
 import typer
 
+from lingc_cli.console import get_console
 from lingc_cli.consts import DEFAULT_STARTUP_TIMEOUT
 from lingc_cli.core import config
 from lingc_cli.exceptions import LingcCliError
@@ -41,6 +42,10 @@ def register(app: typer.Typer) -> None:
                 )
             )
         except LingcCliError as exc:
-            typer.echo(_("Error: {message}").format(message=exc), err=True)
+            get_console(stderr=True).print(
+                _("Error: {message}").format(message=exc),
+                style="bold red",
+                markup=False,
+            )
             raise typer.Exit(1) from exc
         raise typer.Exit(exit_code)

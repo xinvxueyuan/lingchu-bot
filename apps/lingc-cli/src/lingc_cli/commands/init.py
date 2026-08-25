@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typer
 
+from lingc_cli.console import get_console
 from lingc_cli.core.meta import project_root
 from lingc_cli.handlers.init import init_project
 from lingc_cli.i18n import _
@@ -22,10 +23,15 @@ def register(app: typer.Typer) -> None:
         root = project_root()
         created = init_project(root, force=force)
         if not created:
-            typer.echo(_(".env already exists (use --force to overwrite)."))
+            get_console().print(
+                _(".env already exists (use --force to overwrite)."),
+                style="yellow",
+                markup=False,
+            )
             return
+        console = get_console()
         for path in created:
-            typer.echo(f"generated: {path}")
+            console.print(f"generated: {path}", style="green", markup=False)
 
 
 __all__ = ["register"]
