@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final
 
 from arclet.alconna import Alconna
@@ -14,7 +14,6 @@ from ..core.mutable_settings import get_mutable_settings
 from ..i18n import get_configured_locale, gettext, normalize_locale
 from ..platforms import (
     QQ_CAPABILITIES,
-    TELEGRAM_CAPABILITIES,
     PlatformCapability,
 )
 from .qq.commands.triggers import COMMAND_TRIGGERS
@@ -25,8 +24,6 @@ if TYPE_CHECKING:
 _MENU = COMMAND_TRIGGERS["menu"]
 QQ_PLATFORM_ID: Final = "qq"
 ONEBOT_V11_ADAPTER_ID: Final = "~onebot.v11"
-TELEGRAM_PLATFORM_ID: Final = "telegram"
-TELEGRAM_ADAPTER_ID: Final = "~telegram"
 NAPCAT_IMPL: Final = "NapCat.Onebot"
 
 menu_cmd: type[AlconnaMatcher] = on_alconna(
@@ -594,37 +591,7 @@ _BASE_MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
     ),
 )
 
-_TELEGRAM_COMMAND_KEYS: Final = frozenset({
-    "block_member",
-    "bot_boot",
-    "bot_shutdown",
-    "bot_silence",
-    "bot_speak",
-    "kick_member",
-    "leave_group",
-    "member_mute",
-    "member_unmute",
-    "recall_message",
-    "set_group_name",
-    "set_member_admin",
-    "unblock_member",
-    "unset_member_admin",
-    "whole_mute",
-    "whole_unmute",
-})
-_TELEGRAM_AVAILABILITY: Final = MenuAvailability(
-    TELEGRAM_PLATFORM_ID,
-    TELEGRAM_ADAPTER_ID,
-)
-_DEFAULT_MENU_FEATURES: Final = tuple(
-    replace(
-        feature,
-        availability=(*feature.availability, _TELEGRAM_AVAILABILITY),
-    )
-    if feature.command_key in _TELEGRAM_COMMAND_KEYS
-    else feature
-    for feature in _BASE_MENU_FEATURES
-)
+_DEFAULT_MENU_FEATURES: Final = _BASE_MENU_FEATURES
 MENU_FEATURES: tuple[MenuFeature, ...] = _DEFAULT_MENU_FEATURES
 
 
@@ -744,14 +711,6 @@ def qq_menu_context(
         implementation_version=implementation_version,
         protocol_version=protocol_version,
         platform_capabilities=QQ_CAPABILITIES,
-    )
-
-
-def telegram_menu_context() -> MenuRuntimeContext:
-    return MenuRuntimeContext(
-        platform_id=TELEGRAM_PLATFORM_ID,
-        adapter_id=TELEGRAM_ADAPTER_ID,
-        platform_capabilities=TELEGRAM_CAPABILITIES,
     )
 
 

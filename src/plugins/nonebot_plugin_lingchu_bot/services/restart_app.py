@@ -27,9 +27,7 @@ RESTART_FLAG_PATH_ENV = "LINGCHU_RESTART_FLAG_PATH"
 RESTART_BY_ENV = "LINGCHU_RESTART_BY"
 
 _ONEBOT11_ADAPTER_ID: Final[str] = "~onebot.v11"
-_TELEGRAM_ADAPTER_ID: Final[str] = "~telegram"
 _QQ_PLATFORM_ID: Final[str] = "qq"
-_TELEGRAM_PLATFORM_ID: Final[str] = "telegram"
 _RESTART_WORKER_SRC: Final[Path] = (
     Path(__file__).resolve().parent.parent / "restart_worker.py"
 )
@@ -115,8 +113,6 @@ async def notify_restart_success(platform_id: str, account_id: str) -> bool:
         try:
             if platform_id == _QQ_PLATFORM_ID:
                 await bot.send_private_msg(user_id=int(account_id), message=message)
-            elif platform_id == _TELEGRAM_PLATFORM_ID:
-                await bot.send_message(chat_id=int(account_id), text=message)
             else:
                 continue
         except Exception:
@@ -211,17 +207,6 @@ def _extract_context(bot: Any, event: Any) -> tuple[str, str, str, str] | None:
         if isinstance(event, OneBot11GroupMessageEvent):
             return (platform_id, "group", str(event.group_id), str(event.user_id))
         return None
-    if adapter_id == _TELEGRAM_ADAPTER_ID:
-        from nonebot.adapters.telegram.event import (
-            GroupMessageEvent as TelegramGroupMessageEvent,
-            PrivateMessageEvent as TelegramPrivateMessageEvent,
-        )
-
-        if isinstance(event, TelegramPrivateMessageEvent):
-            return (platform_id, "private", str(event.chat.id), str(event.from_.id))
-        if isinstance(event, TelegramGroupMessageEvent):
-            return (platform_id, "group", str(event.chat.id), str(event.from_.id))
-        return None
     return None
 
 
@@ -259,13 +244,6 @@ async def _send_to_conversation(
                 await bot.send_group_msg(
                     group_id=int(pending.conversation_id), message=message
                 )
-        elif pending.platform_id == _TELEGRAM_PLATFORM_ID:
-            chat_id = int(
-                pending.account_id
-                if pending.conversation_type == "private"
-                else pending.conversation_id
-            )
-            await bot.send_message(chat_id=chat_id, text=message)
     except Exception:
         logger.exception("Failed to send restart confirmation timeout message")
 

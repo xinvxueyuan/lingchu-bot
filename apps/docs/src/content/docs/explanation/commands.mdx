@@ -38,10 +38,6 @@ Commands unsupported by the selected platform, protocol, or implementation are h
 
 Fail-closed filtering means the menu never advertises a command the bot cannot execute. This is a deliberate trade-off: the menu is less complete, but users never hit a "not supported" dead end after trying a command.
 
-## Platform divergence
-
-Telegram supports a subset of QQ commands because the Telegram Bot API exposes different capabilities. QQ-only cards, special titles, group avatars, announcements, remote management, and protocol restart commands are hidden on Telegram. This keeps each platform's menu honest about what it can do, rather than showing commands that would always fail.
-
 ## Error feedback
 
 Group management commands return readable error messages for covered adapter network errors and rejected operations. Unknown exceptions are still raised outward so developers can find uncovered cases — the bot does not silently swallow failures it cannot classify.

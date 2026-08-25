@@ -140,7 +140,7 @@ async def test_onebot11_restart_protocol_endpoint_rejects_other_platform(
             bot=mock_onebot11_bot,
             event=mock_onebot11_event,
             session=mock_session,
-            platform="telegram",
+            platform="discord",
         )
 
     mock_onebot11_bot.call_api.assert_not_called()
