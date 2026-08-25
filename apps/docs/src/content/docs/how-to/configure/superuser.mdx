@@ -9,17 +9,17 @@ Grant administrators Lingchu-level privileges that follow them across platforms 
 
 ## Why UID-based identity
 
-Lingchu permissions use stable UIDs and platform account bindings instead of treating a platform account ID as the only identity. A single UID can bind a QQ account, a Telegram account, and a Discord account, so one administrator is one identity regardless of which platform they connect from.
+Lingchu permissions use stable UIDs and platform account bindings instead of treating a platform account ID as the only identity. A single UID can bind a QQ account and a Discord account, so one administrator is one identity regardless of which platform they connect from.
 
 ## Set the environment variable
 
 Configure the superuser mapping as strict JSON inside `LINGCHU_SUPERUSERS`:
 
 ```dotenv
-LINGCHU_SUPERUSERS='{"userA":{"qq":123,"telegram":"tg-id","discord":"discord-id"}}'
+LINGCHU_SUPERUSERS='{"userA":{"qq":123,"discord":"discord-id"}}'
 ```
 
-The object key is the Lingchu UID. Each value maps platform IDs — `qq`, `telegram`, or `discord` — to that user's account ID on the platform.
+The object key is the Lingchu UID. Each value maps platform IDs — `qq` or `discord` — to that user's account ID on the platform.
 
 <Aside type="caution" title="Required field">
 

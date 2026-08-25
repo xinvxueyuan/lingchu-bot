@@ -31,18 +31,16 @@ def test_iter_default_identity_groups_discovers_qq_dynamically() -> None:
     assert "qq.friend" in groups
 
 
-def test_iter_default_identity_groups_only_imports_enabled_platform(
+def test_iter_default_identity_groups_skips_when_no_platform_enabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """禁用平台的权限模块不应被导入，也不应种子其身份组。"""
+    """无启用平台时不应导入任何权限模块，也不种子身份组。"""
     import importlib
 
     from src.plugins.nonebot_plugin_lingchu_bot.permissions import platforms as module
     from src.plugins.nonebot_plugin_lingchu_bot.platforms import registry
 
-    monkeypatch.setattr(
-        registry, "resolve_enabled_adapters", lambda _configured: {"~telegram"}
-    )
+    monkeypatch.setattr(registry, "resolve_enabled_adapters", lambda _configured: set())
     real_import = importlib.import_module
 
     def guarded_import(name: str, package: str | None = None) -> Any:
@@ -54,8 +52,7 @@ def test_iter_default_identity_groups_only_imports_enabled_platform(
 
     groups = {seed.group_id for seed in module.iter_default_identity_groups()}
 
-    assert "telegram.group" in groups
-    assert "qq.group" not in groups
+    assert groups == set()
 
 
 @pytest.mark.asyncio
@@ -107,9 +104,7 @@ async def test_resolve_runtime_identity_groups_skips_disabled_platform(
     from src.plugins.nonebot_plugin_lingchu_bot.permissions import platforms as module
     from src.plugins.nonebot_plugin_lingchu_bot.platforms import registry
 
-    monkeypatch.setattr(
-        registry, "resolve_enabled_adapters", lambda _configured: {"~telegram"}
-    )
+    monkeypatch.setattr(registry, "resolve_enabled_adapters", lambda _configured: set())
     real_import = importlib.import_module
 
     def guarded_import(name: str, package: str | None = None) -> Any:

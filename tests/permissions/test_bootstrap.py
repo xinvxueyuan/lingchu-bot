@@ -182,7 +182,7 @@ async def test_sync_superusers_first_sync_binds_multiple_platform_accounts(
     permission_session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     superusers = {
-        "user1": {"qq": "42", "telegram": "tg-1"},
+        "user1": {"qq": "42"},
         "user2": {"qq": "43"},
     }
 
@@ -199,7 +199,6 @@ async def test_sync_superusers_first_sync_binds_multiple_platform_accounts(
         }
         for platform_id, account_id in (
             ("qq", "42"),
-            ("telegram", "tg-1"),
             ("qq", "43"),
         ):
             account = await repo.get_platform_account(session, platform_id, account_id)
@@ -261,12 +260,12 @@ async def test_sync_superusers_removes_replaced_platform_account_binding(
     )
     await _sync_in_transaction(
         permission_session_factory,
-        {"user1": {"telegram": "tg-1"}},
+        {"user1": {"discord": "tg-1"}},
     )
 
     async with permission_session_factory() as session:
         assert await repo.get_platform_account(session, "qq", "42") is None
-        account = await repo.get_platform_account(session, "telegram", "tg-1")
+        account = await repo.get_platform_account(session, "discord", "tg-1")
         assert account is not None
         assert account.source == repo.SUPERUSER_SOURCE
         assert await repo.get_user_by_platform_account(session, "qq", "42") is None
@@ -345,12 +344,12 @@ def test_normalize_superusers_mapping_preserves_str_values() -> None:
 def test_normalize_superusers_mapping_handles_multiple_platforms() -> None:
     """多平台、多 UID 输入被完整规范化。"""
     raw: dict[str, dict[str, str | int]] = {
-        "user1": {"qq": 42, "telegram": "tg-1"},
+        "user1": {"qq": 42, "discord": "tg-1"},
         "user2": {"qq": "43"},
     }
     result = bootstrap._normalize_superusers_mapping(raw)
     assert result == {
-        "user1": {"qq": "42", "telegram": "tg-1"},
+        "user1": {"qq": "42", "discord": "tg-1"},
         "user2": {"qq": "43"},
     }
 
@@ -484,7 +483,7 @@ def test_validate_platform_account_id_returns_stripped_str_for_non_qq_platform()
     None
 ):
     """非 QQ 平台走默认分支，返回 strip 后的 str（覆盖行 94）。"""
-    result = bootstrap._validate_platform_account_id("telegram", "  abc123  ")
+    result = bootstrap._validate_platform_account_id("discord", "  abc123  ")
     assert result == "abc123"
 
 

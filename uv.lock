@@ -738,20 +738,6 @@ wheels = [
 ]
 
 [[package]]
-name = "nonebot-adapter-telegram"
-version = "0.1.0b20"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "anyio" },
-    { name = "nonebot2" },
-    { name = "pydantic" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/89/18/28944035c60d6cbf9beceefe800cc68e797595effbb439ff253b58fd55ee/nonebot-adapter-telegram-0.1.0b20.tar.gz", hash = "sha256:fc17df61cbdb3162f29dbada1e5712b26f37c185da87602b613694bca32c9ada", size = 29594, upload-time = "2024-11-24T09:01:06.882Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/3e/12d823f920fe3b42a474d8a5220e57ea1113a007d47860c23a224b2f570b/nonebot_adapter_telegram-0.1.0b20-py3-none-any.whl", hash = "sha256:a90acf29b8a9c8a16d4aaa93fb930debde4648d514f2050af945e973cd37a8d4", size = 30266, upload-time = "2024-11-24T09:01:05.258Z" },
-]
-
-[[package]]
 name = "nonebot-plugin-alconna"
 version = "0.62.1"
 source = { registry = "https://pypi.org/simple" }
@@ -837,7 +823,6 @@ dependencies = [
     { name = "aiofiles" },
     { name = "babel" },
     { name = "nonebot-adapter-onebot" },
-    { name = "nonebot-adapter-telegram" },
     { name = "nonebot-plugin-alconna" },
     { name = "nonebot-plugin-apscheduler" },
     { name = "nonebot-plugin-localstore" },
@@ -924,7 +909,6 @@ requires-dist = [
     { name = "babel", specifier = ">=2.18.0" },
     { name = "jinja2", marker = "extra == 'webui'", specifier = ">=3.1.6" },
     { name = "nonebot-adapter-onebot", specifier = ">=2.4.6" },
-    { name = "nonebot-adapter-telegram", specifier = ">=0.1.0b20" },
     { name = "nonebot-plugin-alconna", specifier = ">=0.62.0" },
     { name = "nonebot-plugin-apscheduler", specifier = ">=0.5.0" },
     { name = "nonebot-plugin-docs", marker = "extra == 'docs'", specifier = ">=2.5.0" },

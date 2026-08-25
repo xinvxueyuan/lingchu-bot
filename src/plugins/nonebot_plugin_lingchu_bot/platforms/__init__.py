@@ -2,7 +2,6 @@
 
 from .registry import (
     QQ_CAPABILITIES,
-    TELEGRAM_CAPABILITIES,
     UNKNOWN_PLATFORM_ID,
     PlatformAdapterConflictError,
     PlatformAdapterNotLoadedError,
@@ -30,7 +29,6 @@ from .registry import (
 
 __all__ = [
     "QQ_CAPABILITIES",
-    "TELEGRAM_CAPABILITIES",
     "UNKNOWN_PLATFORM_ID",
     "PlatformAdapterConflictError",
     "PlatformAdapterNotLoadedError",

@@ -183,9 +183,9 @@ def _account_id(event: Any) -> str | None:
     if data_user_id is not None:
         return str(data_user_id)
     sender = getattr(event, "from_", None)
-    telegram_user_id = getattr(sender, "id", None)
-    if telegram_user_id is not None:
-        return str(telegram_user_id)
+    from_id = getattr(sender, "id", None)
+    if from_id is not None:
+        return str(from_id)
     return None
 
 

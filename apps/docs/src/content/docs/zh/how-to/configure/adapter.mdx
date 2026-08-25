@@ -14,7 +14,6 @@ import { Aside } from "@astrojs/starlight/components";
 | 适配器 ID | 平台 | 是否默认 |
 | --- | --- | --- |
 | `~onebot.v11` | 通过 OneBot V11 接入 QQ | 是（未设置时） |
-| `~telegram` | Telegram | 否 |
 
 其他适配器 ID（如 Milky、QQ 或 OneBot V12）未实现；配置它们会抛出 `PlatformAdapterUnknownError`。
 
@@ -26,18 +25,6 @@ import { Aside } from "@astrojs/starlight/components";
 LINGCHUAdapter = "~onebot.v11"
 ```
 
-仅部署 Telegram 时显式选择 `~telegram`：
-
-```toml
-LINGCHUAdapter = "~telegram"
-```
-
-当 NoneBot 同时加载了两个适配器时，可用 `+` 连接 ID 同时启用：
-
-```toml
-LINGCHUAdapter = "~onebot.v11+~telegram"
-```
-
 ## 通过环境变量设置适配器
 
 `LINGCHU_ADAPTER` 环境变量适用于容器和 CI 等不便编辑 `.env` 或 TOML 的场景。它接受单个适配器字符串、`+` 分隔的字符串，或（通过 dotenv/TOML 设置时）JSON 数组：
@@ -45,13 +32,10 @@ LINGCHUAdapter = "~onebot.v11+~telegram"
 ```bash
 # 单个适配器
 LINGCHU_ADAPTER=~onebot.v11
-
-# 多个适配器（字符串形式）
-LINGCHU_ADAPTER=~onebot.v11+~telegram
 ```
 
 ```toml
-LINGCHUAdapter = ["~onebot.v11", "~telegram"]
+LINGCHUAdapter = ["~onebot.v11"]
 ```
 
 ## 配置优先级
@@ -87,5 +71,4 @@ Lingchu Bot 不控制 NoneBot 实际导入或注册哪些适配器；它只通�
 ## 相关页面
 
 - [通过 NapCat 接入 QQ](../connect/qq-napcat) — OneBot V11 连接指南
-- [接入 Telegram](../connect/telegram) — Telegram 连接指南
 - [适配器系统架构](../../reference/architecture/adapter-system) — 适配器注册表和平台 profile
