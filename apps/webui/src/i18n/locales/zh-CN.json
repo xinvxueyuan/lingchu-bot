@@ -1,0 +1,156 @@
+{
+  "app": {
+    "title": "灵初 Bot 管理界面",
+    "tagline": "React Router 8 · shadcn/ui · Simple Icons · Arco Design"
+  },
+  "language": {
+    "en-US": "English",
+    "zh-CN": "中文"
+  },
+  "nav": {
+    "home": "基础信息",
+    "config": "系统配置",
+    "configBasic": "基本配置",
+    "configAdvanced": "高级配置",
+    "devTools": "开发调试",
+    "debugHttp": "接口调试",
+    "debugWs": "实时调试",
+    "theme": "切换主题",
+    "collapse": "折叠侧栏",
+    "expand": "展开侧栏"
+  },
+  "tabs": {
+    "placeholder": "内容占位（待实现）",
+    "home": {
+      "overview": "仪表盘",
+      "accountDetail": "账号详情"
+    },
+    "http": {
+      "request": "请求",
+      "response": "响应",
+      "history": "历史"
+    },
+    "ws": {
+      "connection": "连接",
+      "messages": "消息流"
+    }
+  },
+  "home": {
+    "source": "源代码"
+  },
+  "overview": {
+    "accountTitle": "账号信息",
+    "nickname": "昵称",
+    "qq": "QQ 号",
+    "onlineStatus": "在线状态",
+    "online": "在线",
+    "offline": "离线",
+    "versionTitle": "版本信息",
+    "onebotApp": "OneBot 实现",
+    "lingchuVersion": "灵初版本",
+    "webuiVersion": "WebUI 版本",
+    "summaryTitle": "账号聚合",
+    "groupList": "群列表",
+    "noGroups": "暂无群",
+    "friendList": "好友列表",
+    "noFriends": "暂无好友",
+    "loading": "加载中…",
+    "loadError": "加载失败",
+    "onebotDisconnected": {
+      "title": "未连接 OneBot11",
+      "desc": "后端服务已就绪，但尚未接入 OneBot11 协议端。请启动并连接协议端（如 NapCat、Lagrange.OneBot、go-cqhttp），连接成功后点击「刷新」。",
+      "refresh": "刷新",
+      "cardText": "OneBot 未连接，暂无可展示的数据"
+    }
+  },
+  "config": {
+    "save": "保存",
+    "saving": "保存中…",
+    "saveSuccess": "已保存",
+    "saveFailed": "保存失败，请稍后重试",
+    "loadError": "加载失败，请重试",
+    "retry": "重试",
+    "emptyState": "暂无配置项",
+    "enabled": "启用",
+    "expand": "展开",
+    "collapse": "收起",
+    "bool": {
+      "true": "开",
+      "false": "关"
+    },
+    "boolOrMap": {
+      "global": "全局",
+      "map": "按平台"
+    },
+    "errors": {
+      "required": "此项为必填",
+      "integer": "请输入整数",
+      "range": "取值须在 {{min}} ~ {{max}} 之间",
+      "min": "取值不能小于 {{min}}",
+      "max": "取值不能大于 {{max}}",
+      "json": "JSON 格式无效",
+      "jsonObject": "JSON 须为对象，不能是数组或标量"
+    },
+    "fields": {
+      "permission_platform_runtime_passthrough": "权限平台运行时透传",
+      "command_trigger_overrides": "指令触发覆盖",
+      "menu_page_trigger_overrides": "菜单页触发覆盖",
+      "policies": "策略映射",
+      "require_reason": "要求填写理由",
+      "default_reason": "默认理由",
+      "audit_level": "审计级别",
+      "whitelist_scope": "白名单范围",
+      "block_duration": "封禁时长（秒）",
+      "mute_duration": "禁言时长（秒）",
+      "default_count": "默认撤回条数",
+      "default_platform": "默认平台"
+    },
+    "enums": {
+      "audit_level": {
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "whitelist_scope": {
+        "group": "仅本群",
+        "global": "全局"
+      }
+    },
+    "commands": {
+      "kick_member": "踢出群成员",
+      "protect_member": "保护群成员",
+      "block_member": "拉黑群成员",
+      "member_mute": "群成员禁言",
+      "recall_message": "撤回消息",
+      "remote_mute": "远程禁言",
+      "remote_kick": "远程踢出",
+      "remote_block": "远程拉黑",
+      "remote_announcement": "远程发布公告",
+      "mass_announcement": "群发公告",
+      "restart_protocol_endpoint": "重启协议端",
+      "send_announcement": "发布公告",
+      "set_member_card": "设置成员名片",
+      "set_member_title": "设置成员头衔",
+      "set_member_admin": "设置成员管理员",
+      "set_group_name": "设置群名称",
+      "set_group_avatar": "设置群头像"
+    }
+  },
+  "auth": {
+    "title": "登录",
+    "password": "密码",
+    "passwordPlaceholder": "请输入 WebUI 密码",
+    "login": "登录",
+    "logout": "退出登录",
+    "cancel": "取消",
+    "submitting": "登录中…",
+    "logoutConfirm": {
+      "title": "退出登录",
+      "desc": "确定要退出登录吗？退出后需重新输入密码访问管理界面。"
+    },
+    "error": {
+      "invalidPassword": "密码错误，请重试",
+      "network": "网络错误，请稍后重试"
+    }
+  }
+}

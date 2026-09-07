@@ -392,6 +392,14 @@ allowed-confusables = [
     "TRY003",  # vanilla exceptions for CRUD validation
     "PLR0913",  # parameter-heavy generic CRUD functions
 ]
+# TC002: Starlette Request is evaluated at runtime in endpoint annotations.
+# BLE001: fail-soft upstream/JSON handling must never break request dispatch.
+# PLR2004: QQ id length bounds (4-15) are domain constants kept inline.
+"src/plugins/nonebot_plugin_lingchu_bot/services/webui/**.py" = [
+    "TC002",
+    "BLE001",
+    "PLR2004",
+]
 "src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_single.py" = [
     "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
     "TRY003",  # vanilla exceptions for CRUD validation
