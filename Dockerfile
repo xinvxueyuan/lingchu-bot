@@ -3,7 +3,7 @@
 # ── Builder stage ────────────────────────────────────────────────────────────
 # Uses slim image + build tools for wheel compilation. The builder is discarded
 # in the final image, so build tools do not affect the runtime image size.
-FROM python:3.13-slim@sha256:ffb752e139c0a19692a43af8d8523b274222dd68eebad5d583b45c2201c6e30a AS requirements_stage
+FROM python:3.13-slim@sha256:7ce4b6dfe35e55397b7cda544f8a13f191b7ae28dc5aad71fe664dbc9bc2623f AS requirements_stage
 
 # Install build tools for any C-extension dependencies that lack pre-built
 # wheels for this platform. The builder stage is discarded, so these do not
@@ -42,7 +42,7 @@ RUN python -m uv build --wheel --no-sources --out-dir /dist
 
 
 # ── Runtime stage ────────────────────────────────────────────────────────────
-FROM python:3.13-slim@sha256:ffb752e139c0a19692a43af8d8523b274222dd68eebad5d583b45c2201c6e30a
+FROM python:3.13-slim@sha256:7ce4b6dfe35e55397b7cda544f8a13f191b7ae28dc5aad71fe664dbc9bc2623f
 
 WORKDIR /app
 
