@@ -1,0 +1,156 @@
+{
+  "app": {
+    "title": "Lingchu Bot WebUI",
+    "tagline": "React Router 8 · shadcn/ui · Simple Icons · Arco Design"
+  },
+  "language": {
+    "en-US": "English",
+    "zh-CN": "中文"
+  },
+  "nav": {
+    "home": "Basic Info",
+    "config": "System Configuration",
+    "configBasic": "Basic Config",
+    "configAdvanced": "Advanced Config",
+    "devTools": "Dev Tools",
+    "debugHttp": "HTTP Debug",
+    "debugWs": "WebSocket Debug",
+    "theme": "Switch theme",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar"
+  },
+  "tabs": {
+    "placeholder": "Placeholder (to be implemented)",
+    "home": {
+      "overview": "Dashboard",
+      "accountDetail": "Account Details"
+    },
+    "http": {
+      "request": "Request",
+      "response": "Response",
+      "history": "History"
+    },
+    "ws": {
+      "connection": "Connection",
+      "messages": "Messages"
+    }
+  },
+  "home": {
+    "source": "Source"
+  },
+  "overview": {
+    "accountTitle": "Account",
+    "nickname": "Nickname",
+    "qq": "QQ",
+    "onlineStatus": "Online Status",
+    "online": "Online",
+    "offline": "Offline",
+    "versionTitle": "Versions",
+    "onebotApp": "OneBot Implementation",
+    "lingchuVersion": "Lingchu Version",
+    "webuiVersion": "WebUI Version",
+    "summaryTitle": "Summary",
+    "groupList": "Groups",
+    "noGroups": "No groups yet",
+    "friendList": "Friends",
+    "noFriends": "No friends yet",
+    "loading": "Loading…",
+    "loadError": "Failed to load",
+    "onebotDisconnected": {
+      "title": "OneBot11 Not Connected",
+      "desc": "The backend is running, but no OneBot11 adapter is connected. Start and connect an adapter (e.g. NapCat, Lagrange.OneBot, go-cqhttp), then refresh.",
+      "refresh": "Refresh",
+      "cardText": "OneBot not connected yet"
+    }
+  },
+  "config": {
+    "save": "Save",
+    "saving": "Saving…",
+    "saveSuccess": "Saved",
+    "saveFailed": "Save failed, please try again later",
+    "loadError": "Failed to load, please retry",
+    "retry": "Retry",
+    "emptyState": "No configuration items",
+    "enabled": "Enabled",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "bool": {
+      "true": "On",
+      "false": "Off"
+    },
+    "boolOrMap": {
+      "global": "Global",
+      "map": "Per Platform"
+    },
+    "errors": {
+      "required": "This field is required",
+      "integer": "Please enter an integer",
+      "range": "Value must be between {{min}} and {{max}}",
+      "min": "Value must not be less than {{min}}",
+      "max": "Value must not exceed {{max}}",
+      "json": "Invalid JSON",
+      "jsonObject": "JSON must be an object, not an array or scalar"
+    },
+    "fields": {
+      "permission_platform_runtime_passthrough": "Permission platform runtime passthrough",
+      "command_trigger_overrides": "Command trigger overrides",
+      "menu_page_trigger_overrides": "Menu page trigger overrides",
+      "policies": "Policies",
+      "require_reason": "Require a reason",
+      "default_reason": "Default reason",
+      "audit_level": "Audit level",
+      "whitelist_scope": "Whitelist scope",
+      "block_duration": "Block duration (seconds)",
+      "mute_duration": "Mute duration (seconds)",
+      "default_count": "Default recall count",
+      "default_platform": "Default platform"
+    },
+    "enums": {
+      "audit_level": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "whitelist_scope": {
+        "group": "This group only",
+        "global": "Global"
+      }
+    },
+    "commands": {
+      "kick_member": "Kick Group Member",
+      "protect_member": "Protect Group Member",
+      "block_member": "Block Group Member",
+      "member_mute": "Mute Group Member",
+      "recall_message": "Recall Message",
+      "remote_mute": "Remote Mute",
+      "remote_kick": "Remote Kick",
+      "remote_block": "Remote Block",
+      "remote_announcement": "Remote Announcement",
+      "mass_announcement": "Mass Announcement",
+      "restart_protocol_endpoint": "Restart Protocol Endpoint",
+      "send_announcement": "Send Announcement",
+      "set_member_card": "Set Member Card",
+      "set_member_title": "Set Member Title",
+      "set_member_admin": "Set Member Admin",
+      "set_group_name": "Set Group Name",
+      "set_group_avatar": "Set Group Avatar"
+    }
+  },
+  "auth": {
+    "title": "Sign in",
+    "password": "Password",
+    "passwordPlaceholder": "Enter WebUI password",
+    "login": "Sign in",
+    "logout": "Sign out",
+    "cancel": "Cancel",
+    "submitting": "Signing in…",
+    "logoutConfirm": {
+      "title": "Sign out",
+      "desc": "Are you sure you want to sign out? You will need to re-enter the password to access the admin interface."
+    },
+    "error": {
+      "invalidPassword": "Incorrect password, please try again",
+      "network": "Network error, please try again later"
+    }
+  }
+}

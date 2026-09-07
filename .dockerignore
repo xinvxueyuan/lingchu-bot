@@ -102,8 +102,17 @@ LICENSES/
 !README.md
 !CLA.md
 !Repository-Policy.md
+# ── Workspace packages ──
+# WebUI 单体镜像（apps/webui/Dockerfile）需要 webui 源码与全部 workspace 清单
+# （pnpm --frozen-lockfile 需校验所有 importer 的 package.json）；docs / lingc-cli
+# 的源码进入上下文但不会被镜像 COPY，仅其 package.json 用于 workspace 解析。
+# 各目录下的 node_modules / build / dist / .turbo 等已由上文模式排除，不会进入上下文。
 apps/
+!apps/
+!apps/webui/
 packages/
+!packages/
+!packages/typescript-config/
 
 # ── Docker files (not needed inside image) ──
 Dockerfile

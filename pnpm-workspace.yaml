@@ -27,6 +27,7 @@ overrides:
 allowBuilds:
   '@go-task/cli': true
   '@ladybugdb/core': true
+  '@parcel/watcher': true
   '@scarf/scarf': true
   esbuild: true
   gitnexus: true
