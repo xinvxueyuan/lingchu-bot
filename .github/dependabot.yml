@@ -99,3 +99,10 @@ updates:
       - "docker"
     commit-message:
       prefix: "⬆️ build(deps):"
+    ignore:
+      # Keep Docker's Python base image on the 3.13 line, while skipping
+      # versions at or below 3.13.15. Thus 3.13.16+ is eligible for bumps.
+      - dependency-name: "python"
+        versions:
+          - ">= 3.14"
+          - "<= 3.13.15"

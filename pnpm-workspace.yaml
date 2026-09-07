@@ -16,7 +16,7 @@ overrides:
   js-yaml: "^4.3.1" # Dependabot security update
   nanoid: "^3.3.17" # Dependabot security update
   hono: "^4.12.34" # Dependabot security update
-  fast-uri: "^3.1.5" # Dependabot security update
+  fast-uri: "^3.1.6" # Dependabot security update (GHSA-jqff-g426-hqxp, GHSA-f65p-4m7j-42xc, GHSA-fph4-wmhf-6fwf, GHSA-5jgf-p345-68v8)
   ip-address: "^10.3.1" # Dependabot security update
   undici: "^7.29.0" # Dependabot security update
   markdown-it: "^14.3.0" # latest 14.x
@@ -47,6 +47,7 @@ allowBuilds:
   tree-sitter-ruby: true
   tree-sitter-rust: true
   tree-sitter-typescript: true
+  '@tree-sitter-grammars/tree-sitter-zig': true
   unrs-resolver: true
 
 minimumReleaseAgeExclude:
