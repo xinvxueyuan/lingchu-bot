@@ -44,8 +44,7 @@ function parseColor(raw: string, fallback: [number, number, number]): [number, n
   const m = raw.match(/rgba?\(([^)]+)\)/);
   if (m) {
     const parts = m[1].split(",").map((s) => Number(s.trim()));
-    if (parts.length < 3 || parts.some((n) => Number.isNaN(n))) return fallback;
-    return [parts[0], parts[1], parts[2]];
+    return parts.length < 3 || parts.some((n) => Number.isNaN(n)) ? fallback : [parts[0], parts[1], parts[2]];
   }
   // Non-rgb() formats (hsl(), hex, named colors): let the browser normalize
   // via a probe element's computed style, then read back as rgb().
@@ -86,10 +85,7 @@ const heroSketch = (p: p5) => {
 
   const getParentEl = (): HTMLElement | null => {
     const raw: unknown = canvasRenderer?.elt;
-    if (raw instanceof HTMLElement) {
-      return raw.parentElement;
-    }
-    return null;
+    return raw instanceof HTMLElement ? raw.parentElement : null;
   };
 
   // Resolve the sketch container before createCanvas so the initial buffer
@@ -98,8 +94,7 @@ const heroSketch = (p: p5) => {
   const resolveContainer = (): HTMLElement | null => {
     const node = (p as unknown as { _userNode?: unknown })._userNode;
     if (node instanceof HTMLElement) return node;
-    if (typeof document === "undefined") return null;
-    return document.querySelector<HTMLElement>(".hero-canvas");
+    return typeof document === "undefined" ? null : document.querySelector<HTMLElement>(".hero-canvas");
   };
 
   const refreshThemeColors = () => {
@@ -237,21 +232,23 @@ const heroSketch = (p: p5) => {
     p.background(bgRgb[0], bgRgb[1], bgRgb[2]);
 
     // Refresh colors when Starlight toggles light/dark theme.
-    if (typeof globalThis !== "undefined") {
-      themeObserver = new MutationObserver(() => {
-        refreshThemeColors();
-        if (reducedMotion) {
-          // Preserve the calm static frame with refreshed colors.
-          step();
-        } else {
-          p.background(bgRgb[0], bgRgb[1], bgRgb[2]);
-        }
-      });
-      themeObserver.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ["data-theme", "class"],
-      });
+    if (typeof globalThis === "undefined") {
+      return;
     }
+
+    themeObserver = new MutationObserver(() => {
+      refreshThemeColors();
+      if (reducedMotion) {
+        // Preserve the calm static frame with refreshed colors.
+        step();
+      } else {
+        p.background(bgRgb[0], bgRgb[1], bgRgb[2]);
+      }
+    });
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme", "class"],
+    });
   };
 
   p.draw = () => {
