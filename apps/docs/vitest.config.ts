@@ -10,8 +10,7 @@ export default defineConfig({
     {
       name: "css-ignore",
       transform(_code, id) {
-        if (id.endsWith(".css")) return { code: "" };
-        return;
+        return id.endsWith(".css") ? { code: "" } : undefined;
       },
     },
   ],
