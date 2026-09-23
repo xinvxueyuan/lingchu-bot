@@ -61,9 +61,11 @@ def _derive_defaults_schema(command_key: str) -> list[dict[str, Any]]:
     schema: list[dict[str, Any]] = []
     for name, value in defaults.items():
         if name in _ENUM_OPTIONS:
-            schema.append(
-                {"key": name, "type": "enum", "options": list(_ENUM_OPTIONS[name])}
-            )
+            schema.append({
+                "key": name,
+                "type": "enum",
+                "options": list(_ENUM_OPTIONS[name]),
+            })
         elif type(value) is bool:
             schema.append({"key": name, "type": "boolean"})
         elif type(value) is int:
