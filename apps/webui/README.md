@@ -32,7 +32,7 @@ pnpm build:server   # tsc -p tsconfig.server.json → dist/server
 
 产物：
 
-```
+```text
 dist/server/    # 服务端编译产物（入口 dist/server/index.js）
 build/client/   # 静态资源
 build/server/   # SSR 运行时（react-router build 的 request handler）
