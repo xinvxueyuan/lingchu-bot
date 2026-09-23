@@ -416,4 +416,3 @@ msgstr "收到 {restart_by} 的重启请求；正在重启进程。"
 #, python-brace-format
 msgid "Failed to run: {cmd}"
 msgstr "执行失败：{cmd}"
-

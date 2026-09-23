@@ -865,4 +865,3 @@ msgstr "Lingchu ignored unselected registered adapters: {adapters}"
 
 #~ msgid "不能解禁自己"
 #~ msgstr "Cannot unmute yourself"
-
