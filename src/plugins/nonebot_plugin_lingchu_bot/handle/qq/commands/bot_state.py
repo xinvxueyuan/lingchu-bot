@@ -20,7 +20,7 @@ bot_silence_cmd: type[Matcher] = on_alconna(
     aliases=_BOT_SILENCE.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 bot_speak_cmd: type[Matcher] = on_alconna(
@@ -28,7 +28,7 @@ bot_speak_cmd: type[Matcher] = on_alconna(
     aliases=_BOT_SPEAK.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 bot_boot_cmd: type[Matcher] = on_alconna(
@@ -36,7 +36,7 @@ bot_boot_cmd: type[Matcher] = on_alconna(
     aliases=_BOT_BOOT.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 bot_shutdown_cmd: type[Matcher] = on_alconna(
@@ -44,7 +44,7 @@ bot_shutdown_cmd: type[Matcher] = on_alconna(
     aliases=_BOT_SHUTDOWN.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 

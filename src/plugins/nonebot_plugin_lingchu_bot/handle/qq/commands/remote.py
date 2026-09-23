@@ -33,7 +33,7 @@ remote_mute_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_REMOTE_MUTE.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 
@@ -46,7 +46,7 @@ remote_unmute_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_REMOTE_UNMUTE.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 
@@ -59,7 +59,7 @@ remote_whole_mute_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_REMOTE_WHOLE_MUTE.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 
@@ -72,7 +72,7 @@ remote_whole_unmute_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_REMOTE_WHOLE_UNMUTE.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 
@@ -85,7 +85,7 @@ remote_kick_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_REMOTE_KICK.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 
@@ -100,7 +100,7 @@ remote_block_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_REMOTE_BLOCK.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 
@@ -113,7 +113,7 @@ remote_unblock_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_REMOTE_UNBLOCK.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 
@@ -126,7 +126,7 @@ remote_announcement_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_REMOTE_ANNOUNCEMENT.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 
@@ -139,7 +139,7 @@ mass_announcement_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_MASS_ANNOUNCEMENT.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 

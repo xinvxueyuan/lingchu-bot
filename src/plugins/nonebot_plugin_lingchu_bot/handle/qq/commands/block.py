@@ -26,7 +26,7 @@ block_member_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_BLOCK_MEMBER.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 global_block_member_cmd: type[AlconnaMatcher] = on_alconna(
@@ -37,7 +37,7 @@ global_block_member_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_GLOBAL_BLOCK_MEMBER.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 unblock_member_cmd: type[AlconnaMatcher] = on_alconna(
@@ -48,7 +48,7 @@ unblock_member_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_UNBLOCK_MEMBER.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 global_unblock_member_cmd: type[AlconnaMatcher] = on_alconna(
@@ -59,7 +59,7 @@ global_unblock_member_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_GLOBAL_UNBLOCK_MEMBER.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 clear_blocklist_cmd: type[Matcher] = on_alconna(
@@ -67,7 +67,7 @@ clear_blocklist_cmd: type[Matcher] = on_alconna(
     aliases=_CLEAR_BLOCKLIST.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 global_clear_blocklist_cmd: type[Matcher] = on_alconna(
@@ -75,7 +75,7 @@ global_clear_blocklist_cmd: type[Matcher] = on_alconna(
     aliases=_GLOBAL_CLEAR_BLOCKLIST.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 

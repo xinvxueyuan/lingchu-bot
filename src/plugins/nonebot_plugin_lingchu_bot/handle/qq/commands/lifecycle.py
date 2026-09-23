@@ -20,7 +20,7 @@ quit_group_cmd: type[Matcher] = on_alconna(
     aliases=_LEAVE_GROUP.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 
@@ -32,7 +32,7 @@ restart_protocol_endpoint_cmd: type[Matcher] = on_alconna(
     aliases=_RESTART_PROTOCOL_ENDPOINT.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 
@@ -41,7 +41,7 @@ restart_app_cmd: type[Matcher] = on_alconna(
     aliases=_RESTART_APP.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 
@@ -50,7 +50,7 @@ reset_runtime_config_cmd: type[Matcher] = on_alconna(
     aliases=_RESET_RUNTIME_CONFIG.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 

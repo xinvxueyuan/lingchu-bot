@@ -21,7 +21,7 @@ manage_handle_defaults_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_MANAGE_HANDLE_DEFAULTS.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 

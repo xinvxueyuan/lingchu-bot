@@ -31,7 +31,7 @@ menu_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_MENU.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 
@@ -178,7 +178,7 @@ menu_page_cmds: Final[dict[str, type[AlconnaMatcher]]] = {
         command=Alconna(_menu_page_command(page)),
         priority=805,
         block=True,
-        use_cmd_sep=True,
+        use_cmd_sep=False,
         use_cmd_start=True,
     )
     for page in _page_commands_from_pages(_DEFAULT_MENU_PAGES)

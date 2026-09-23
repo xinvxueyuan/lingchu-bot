@@ -112,14 +112,16 @@ async def test_get_basic_config_returns_values_and_schema(
         permission_platform_runtime_passthrough={"qq": False},
         command_trigger_overrides={"menu": {"english": "help"}},
     )
-    monkeypatch.setattr(endpoints, "load_mutable_settings", AsyncMock(return_value=expected))
+    monkeypatch.setattr(
+        endpoints, "load_mutable_settings", AsyncMock(return_value=expected)
+    )
 
     response = await webui_config_basic_endpoint(
         _request("GET", WEBUI_CONFIG_BASIC_PATH)
     )
 
     assert response.status_code == 200
-    body = json.loads(response.body)
+    body = json.loads(bytes(response.body))
     assert body["values"] == expected.to_dict()
     assert body["schema"] == [
         {"key": "permission_platform_runtime_passthrough", "type": "boolean_or_map"},
@@ -143,7 +145,7 @@ async def test_get_basic_config_maps_read_errors_to_500(
     )
 
     assert response.status_code == 500
-    assert json.loads(response.body) == {"detail": "config_io_error"}
+    assert json.loads(bytes(response.body)) == {"detail": "config_io_error"}
 
 
 # --- 基本配置（PUT /config/basic） ---
@@ -165,11 +167,13 @@ async def test_put_basic_config_saves_and_flushes(
     )
 
     assert response.status_code == 200
-    assert json.loads(response.body) == {"ok": True}
+    assert json.loads(bytes(response.body)) == {"ok": True}
     save.assert_awaited_once()
-    saved = save.await_args.args[0]
+    await_args = save.await_args
+    assert await_args is not None
+    saved = await_args.args[0]
     assert saved.permission_platform_runtime_passthrough == {"qq": True}
-    assert save.await_args.kwargs == {"flush": True}
+    assert await_args.kwargs == {"flush": True}
 
 
 @pytest.mark.asyncio
@@ -184,7 +188,7 @@ async def test_put_basic_config_rejects_unknown_field_without_saving(
     )
 
     assert response.status_code == 400
-    assert "unknown configuration fields" in json.loads(response.body)["detail"]
+    assert "unknown configuration fields" in json.loads(bytes(response.body))["detail"]
     save.assert_not_awaited()
 
 
@@ -204,7 +208,7 @@ async def test_put_basic_config_rejects_bad_type_without_saving(
     )
 
     assert response.status_code == 400
-    assert "must be bool or mapping" in json.loads(response.body)["detail"]
+    assert "must be bool or mapping" in json.loads(bytes(response.body))["detail"]
     save.assert_not_awaited()
 
 
@@ -220,7 +224,7 @@ async def test_put_basic_config_rejects_non_object_body_without_saving(
     )
 
     assert response.status_code == 400
-    assert json.loads(response.body)["detail"] == "settings must be an object"
+    assert json.loads(bytes(response.body))["detail"] == "settings must be an object"
     save.assert_not_awaited()
 
 
@@ -231,14 +235,12 @@ async def test_put_basic_config_rejects_invalid_json_without_saving(
     save = AsyncMock()
     monkeypatch.setattr(endpoints, "save_mutable_settings", save)
 
-    request = _request(
-        "PUT", WEBUI_CONFIG_BASIC_PATH, raw_body=b"{not json"
-    )
+    request = _request("PUT", WEBUI_CONFIG_BASIC_PATH, raw_body=b"{not json")
 
     response = await webui_config_basic_endpoint(request)
 
     assert response.status_code == 400
-    assert json.loads(response.body)["detail"] == "invalid_json"
+    assert json.loads(bytes(response.body))["detail"] == "invalid_json"
     save.assert_not_awaited()
 
 
@@ -257,7 +259,7 @@ async def test_put_basic_config_maps_write_errors_to_500(
     )
 
     assert response.status_code == 500
-    assert json.loads(response.body) == {"detail": "config_io_error"}
+    assert json.loads(bytes(response.body)) == {"detail": "config_io_error"}
 
 
 # --- 高级配置（GET /config/advanced） ---
@@ -301,7 +303,7 @@ async def test_get_advanced_config_returns_commands_and_schema(
     )
 
     assert response.status_code == 200
-    body = json.loads(response.body)
+    body = json.loads(bytes(response.body))
     assert body["commands"]["kick_member"] == {
         "enabled": True,
         "defaults": {
@@ -345,7 +347,7 @@ async def test_get_advanced_config_maps_errors_to_500(
     )
 
     assert response.status_code == 500
-    assert json.loads(response.body) == {"detail": "config_io_error"}
+    assert json.loads(bytes(response.body)) == {"detail": "config_io_error"}
 
 
 # --- 高级配置（PUT /config/advanced） ---
@@ -392,7 +394,7 @@ async def test_put_advanced_config_updates_and_returns_updated_config(
     )
 
     assert response.status_code == 200
-    body = json.loads(response.body)
+    body = json.loads(bytes(response.body))
     assert body["ok"] is True
     assert body["command"] == "kick_member"
     assert body["config"] == {
@@ -425,9 +427,10 @@ async def test_put_advanced_config_rejects_unregistered_key_without_saving(
     )
 
     assert response.status_code == 400
-    assert "command_key not registered: not_a_command" in json.loads(
-        response.body
-    )["detail"]
+    assert (
+        "command_key not registered: not_a_command"
+        in json.loads(bytes(response.body))["detail"]
+    )
     manager.update_config.assert_not_awaited()
 
 
@@ -467,7 +470,7 @@ async def test_put_advanced_config_rejects_unknown_update_field_without_saving(
     )
 
     assert response.status_code == 400
-    assert json.loads(response.body)["detail"] == "unknown update field: bogus"
+    assert json.loads(bytes(response.body))["detail"] == "unknown update field: bogus"
     manager.update_config.assert_not_awaited()
 
 
@@ -487,7 +490,7 @@ async def test_put_advanced_config_maps_io_errors_to_500(
     )
 
     assert response.status_code == 500
-    assert json.loads(response.body) == {"detail": "config_io_error"}
+    assert json.loads(bytes(response.body)) == {"detail": "config_io_error"}
 
 
 @pytest.mark.asyncio
@@ -508,7 +511,7 @@ async def test_put_advanced_config_maps_validation_errors_to_400(
     )
 
     assert response.status_code == 400
-    assert json.loads(response.body)["detail"] == "enabled must be a boolean"
+    assert json.loads(bytes(response.body))["detail"] == "enabled must be a boolean"
 
 
 # --- 鉴权 ---
@@ -520,14 +523,12 @@ async def test_config_endpoints_require_password(
 ) -> None:
     monkeypatch.setattr(endpoints, "verify_webui_password", lambda _request: False)
 
-    basic = await webui_config_basic_endpoint(
-        _request("GET", WEBUI_CONFIG_BASIC_PATH)
-    )
+    basic = await webui_config_basic_endpoint(_request("GET", WEBUI_CONFIG_BASIC_PATH))
     advanced = await webui_config_advanced_endpoint(
         _request("GET", WEBUI_CONFIG_ADVANCED_PATH)
     )
 
     assert basic.status_code == 401
-    assert json.loads(basic.body) == {"detail": "unauthorized"}
+    assert json.loads(bytes(basic.body)) == {"detail": "unauthorized"}
     assert advanced.status_code == 401
-    assert json.loads(advanced.body) == {"detail": "unauthorized"}
+    assert json.loads(bytes(advanced.body)) == {"detail": "unauthorized"}
