@@ -858,4 +858,3 @@ msgstr "Lingchu 忽略未选中的已注册适配器: {adapters}"
 
 #~ msgid "不能解禁自己"
 #~ msgstr ""
-
