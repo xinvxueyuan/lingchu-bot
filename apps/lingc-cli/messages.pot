@@ -415,4 +415,3 @@ msgstr ""
 #, python-brace-format
 msgid "Failed to run: {cmd}"
 msgstr ""
-

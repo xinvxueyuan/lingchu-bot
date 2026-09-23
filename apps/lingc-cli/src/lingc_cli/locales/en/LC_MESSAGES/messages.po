@@ -416,4 +416,3 @@ msgstr "Restart requested by {restart_by}; restarting process."
 #, python-brace-format
 msgid "Failed to run: {cmd}"
 msgstr ""
-
