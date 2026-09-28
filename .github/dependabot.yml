@@ -54,16 +54,22 @@ updates:
           - "*"
 
   # ── npm (pnpm) ───────────────────────────────────────────────────
-  # Two manifests exist in this workspace:
-  #   - /package.json — root dev tooling (turbo, husky, markdownlint-cli2, …)
-  #   - /apps/docs/package.json — Astro/Starlight docs site runtime + dev tools
-  # Both share the same pnpm-lock.yaml at the root, so updates that touch
-  # transitive deps are surfaced on the root manifest. packages/typescript-config
-  # is a config-only workspace package with no real npm deps and is excluded.
+  # Only ONE directory is configured on purpose: "/".
+  #
+  # This workspace is a pnpm monorepo (pnpm-workspace.yaml globs apps/* and
+  # packages/*) but it has a single lockfile, /pnpm-lock.yaml. A Dependabot
+  # npm entry pointing at "/" already resolves every workspace member —
+  # including /apps/docs and /packages/typescript-config — and updates that
+  # single root lockfile, so root-only is sufficient coverage.
+  #
+  # Do NOT re-add an "/apps/*" entry. That entry is treated as an independent
+  # manifest with its own directory-scoped lockfile: it rewrites
+  # apps/docs/package.json without touching /pnpm-lock.yaml, which makes
+  # `pnpm install --frozen-lockfile` fail with ERR_PNPM_OUTDATED_LOCKFILE in
+  # CI. It also duplicates every /apps/docs bump the root entry already
+  # produces. One directory, one lockfile, one PR per update group.
   - package-ecosystem: npm
-    directories:
-      - "/"
-      - "/apps/*"
+    directory: "/"
     schedule:
       interval: weekly
       day: monday

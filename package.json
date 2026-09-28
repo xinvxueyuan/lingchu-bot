@@ -36,13 +36,13 @@
     "pnpm": ">=11"
   },
   "devDependencies": {
-    "eslint-plugin-turbo": "^2.10.13",
+    "eslint-plugin-turbo": "^2.11.3",
     "gitmoji-cli": "^9.7.0",
     "gitnexus": "^1.6.12",
     "husky": "^9.1.7",
-    "markdownlint-cli2": "0.23.2",
-    "prettier": "^3.9.8",
-    "turbo": "^2.10.13",
+    "markdownlint-cli2": "0.23.3",
+    "prettier": "^3.9.9",
+    "turbo": "^2.11.3",
     "typescript": "6.0.3"
   }
 }
