@@ -1,6 +1,6 @@
 """permissions schema
 
-迁移 ID: a1b2c3d4e5f6
+迁移 ID: 1a2b3c4d5e6f
 父迁移: 30f5a01259cd
 创建时间: 2026-06-19 16:30:00
 
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-revision: str = "a1b2c3d4e5f6"
+revision: str = "1a2b3c4d5e6f"
 down_revision: str | Sequence[str] | None = "30f5a01259cd"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
