@@ -479,6 +479,7 @@ pnpm --filter docs build
 - Markdownlint 配置集中在 `.markdownlint-cli2.jsonc`；调用点应依赖该配置。
 - PowerShell markdownlint 优先 `pwsh.exe -NoProfile`，避免临时手写 quoted globs。
 - GitHub Actions pin 到 commit SHA，不 pin annotated tag object SHA。
+- `prek.toml` 的 ruff/ty 钩子 `rev` MUST 与 `uv.lock` 解析出的版本一致；`task ci:hooks:pins`（`scripts/ci_check_hook_pins.py`）在漂移时使 CI 失败。`pre-commit/pre-commit-hooks` 无 uv 工具对应，仅校验其 `# pinned from <repo>@<tag>` 注释格式。
 - Workflow 文件名使用纯 kebab-case（不带前导 emoji）；`name:` 字段仍使用英文并匹配 emoji，使 Actions UI 能视觉分组。修改 `name:` 中的 emoji 不需要重命名文件。
 - `.github` YAML 注释使用英文；移除空的/损坏的 schema comment。
 - `git push origin --delete` 前用 `git ls-remote` 检查远端分支是否存在。

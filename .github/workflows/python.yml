@@ -95,6 +95,12 @@ jobs:
           task ci:fix
           task ci:hooks
           task ci:static
+      - name: Hook Pin Drift Check
+        # `prek.toml` is the only hook source of truth (`.pre-commit-config.yaml`
+        # is abandoned), so the official pre-commit ecosystem never upgrades its
+        # `rev` pins. This step keeps the ruff/ty hook pins aligned with the
+        # versions resolved in `uv.lock`.
+        run: task ci:hooks:pins
       - name: REUSE compliance
         run: uv run reuse lint
 
