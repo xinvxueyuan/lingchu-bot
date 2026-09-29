@@ -1,7 +1,7 @@
 """event partitions and subject policies
 
-迁移 ID: b7c8d9e0f1a2
-父迁移: a1b2c3d4e5f6
+迁移 ID: 2b3c4d5e6f7a
+父迁移: 1a2b3c4d5e6f
 创建时间: 2026-06-24 01:30:00
 
 """
@@ -16,8 +16,8 @@ import sqlalchemy as sa
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-revision: str = "b7c8d9e0f1a2"
-down_revision: str | Sequence[str] | None = "a1b2c3d4e5f6"
+revision: str = "2b3c4d5e6f7a"
+down_revision: str | Sequence[str] | None = "1a2b3c4d5e6f"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
