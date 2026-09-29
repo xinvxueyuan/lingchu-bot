@@ -5,14 +5,12 @@ import {
   Cable,
   ChevronDown,
   ChevronRight,
-  FileCog,
   FlaskConical,
   Home,
   Moon,
   PanelLeft,
   PanelLeftClose,
   Settings,
-  SlidersHorizontal,
   Sun,
   Wrench,
 } from "lucide-react";
@@ -73,14 +71,7 @@ function navLinkClass(
 // lucide-react 已在依赖中，未引入新 UI 库。
 const navEntries: NavEntry[] = [
   { to: "/", labelKey: "nav.home", icon: Home },
-  {
-    labelKey: "nav.config",
-    icon: Settings,
-    children: [
-      { to: "/config/basic", labelKey: "nav.configBasic", icon: SlidersHorizontal },
-      { to: "/config/advanced", labelKey: "nav.configAdvanced", icon: FileCog },
-    ],
-  },
+  { to: "/config", labelKey: "nav.config", icon: Settings },
   {
     labelKey: "nav.devTools",
     icon: Wrench,
@@ -112,9 +103,8 @@ export default function AppLayout() {
   // "1" 折叠 / "0" 展开），避免服务端/客户端首帧不一致触发 hydration mismatch。
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  // 分组展开态：以分组 labelKey 为键，仅内存态。默认展开“系统配置”、收起“开发调试”。
+  // 分组展开态：以分组 labelKey 为键，仅内存态。默认收起“开发调试”。
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    "nav.config": true,
     "nav.devTools": false,
   });
 
