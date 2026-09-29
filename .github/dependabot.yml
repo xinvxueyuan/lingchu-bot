@@ -5,33 +5,41 @@ version: 2
 
 updates:
   # ── GitHub Actions ────────────────────────────────────────────────
-  # Pin updates for workflow dependencies. Most actions are pinned by SHA
-  # in the workflows; Dependabot will open PRs to bump the SHAs (and the
-  # inline `# pinned from <repo>@<tag>` comments document the provenance).
+  # Two directories on purpose: "/" covers .github/workflows/*; the
+  # "/.github/actions/*" glob covers the composite actions, whose pinned SHAs
+  # Dependabot does NOT discover from the workflows that merely reference them
+  # (dependabot-core#6704 — the directory holding action.yml must be listed).
   - package-ecosystem: github-actions
-    directory: /
+    directories:
+      - "/"
+      - "/.github/actions/*"
     schedule:
       interval: weekly
       day: monday
       time: "06:00"
       timezone: Asia/Shanghai
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     labels:
       - "dependencies"
       - "github-actions"
     commit-message:
       prefix: "⬆️ build(deps):"
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     groups:
       github-actions:
         patterns:
           - "*"
+      github-actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   # ── Python (uv) ───────────────────────────────────────────────────
-  # Tracks the NoneBot plugin's runtime + dev dependencies. The root
-  # pyproject.toml is the single source of truth; uv.lock is updated by
-  # the `uv lock` step in the post-update command so the lockfile and
-  # manifest stay in sync.
-  - package-ecosystem: pip
+  # `uv`, not `pip`: the uv ecosystem maintains uv.lock natively, so the
+  # lockfile and manifest stay in sync without a manual `uv lock` follow-up.
+  - package-ecosystem: uv
     directory: /
     schedule:
       interval: weekly
@@ -41,15 +49,22 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
-      - "python"
+      - "python:uv"
     commit-message:
       prefix: "⬆️ build(deps):"
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     groups:
       # Patch + minor updates bundle together; major bumps open individually.
       python-minor:
         update-types:
           - "minor"
           - "patch"
+        patterns:
+          - "*"
+      python-security:
+        applies-to: security-updates
         patterns:
           - "*"
 
@@ -75,17 +90,24 @@ updates:
       day: monday
       time: "06:00"
       timezone: Asia/Shanghai
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     labels:
       - "dependencies"
       - "javascript"
     commit-message:
       prefix: "⬆️ build(deps):"
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     groups:
       npm-minor:
         update-types:
           - "minor"
           - "patch"
+        patterns:
+          - "*"
+      npm-security:
+        applies-to: security-updates
         patterns:
           - "*"
 
@@ -105,6 +127,13 @@ updates:
       - "docker"
     commit-message:
       prefix: "⬆️ build(deps):"
+    cooldown:
+      default-days: 3
+    groups:
+      docker-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
     ignore:
       # Keep Docker's Python base image on the 3.13 line, while skipping
       # versions at or below 3.13.15. Thus 3.13.16+ is eligible for bumps.
