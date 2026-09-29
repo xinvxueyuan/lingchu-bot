@@ -37,13 +37,14 @@ const OCTAVES = 3; // layered Perlin noise
 const MERIDIAN_COUNT = 4; // invisible 灵初 channels
 const MERIDIAN_FRACTION = 0.34; // share of respawns born along meridians
 
-/** Parse a CSS color string into an [r, g, b] tuple. Falls back to a sane default. */
+/*
+ * Parse a CSS color string into an [r, g, b] tuple. Falls back to a sane default.
+ */
 function parseColor(raw: string, fallback: [number, number, number]): [number, number, number] {
   const m = raw.match(/rgba?\(([^)]+)\)/);
   if (m) {
     const parts = m[1].split(",").map((s) => Number(s.trim()));
-    if (parts.length < 3 || parts.some((n) => Number.isNaN(n))) return fallback;
-    return [parts[0], parts[1], parts[2]];
+    return parts.length < 3 || parts.some((n) => Number.isNaN(n)) ? fallback : [parts[0], parts[1], parts[2]];
   }
   // Non-rgb() formats (hsl(), hex, named colors): let the browser normalize
   // via a probe element's computed style, then read back as rgb().
@@ -64,7 +65,9 @@ function parseColor(raw: string, fallback: [number, number, number]): [number, n
   return fallback;
 }
 
-/** Read a CSS variable from the document, resolved to its current computed value. */
+/*
+ * Read a CSS variable from the document, resolved to its current computed value.
+ */
 function readVar(name: string, fallback: [number, number, number]): [number, number, number] {
   if (typeof globalThis === "undefined") return fallback;
   const raw = globalThis.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -82,10 +85,7 @@ const heroSketch = (p: p5) => {
 
   const getParentEl = (): HTMLElement | null => {
     const raw: unknown = canvasRenderer?.elt;
-    if (raw instanceof HTMLElement) {
-      return raw.parentElement;
-    }
-    return null;
+    return raw instanceof HTMLElement ? raw.parentElement : null;
   };
 
   // Resolve the sketch container before createCanvas so the initial buffer
@@ -94,8 +94,7 @@ const heroSketch = (p: p5) => {
   const resolveContainer = (): HTMLElement | null => {
     const node = (p as unknown as { _userNode?: unknown })._userNode;
     if (node instanceof HTMLElement) return node;
-    if (typeof document === "undefined") return null;
-    return document.querySelector<HTMLElement>(".hero-canvas");
+    return typeof document === "undefined" ? null : document.querySelector<HTMLElement>(".hero-canvas");
   };
 
   const refreshThemeColors = () => {
@@ -105,7 +104,9 @@ const heroSketch = (p: p5) => {
     bgRgb = readVar("--sl-color-bg-nav", [2, 8, 23]);
   };
 
-  /** Layered Perlin noise: sum of octaves at decreasing amplitude. */
+  /*
+   * Layered Perlin noise: sum of octaves at decreasing amplitude.
+   */
   const fieldAngle = (x: number, y: number, t: number): number => {
     let sum = 0;
     let amp = 1;
@@ -120,7 +121,9 @@ const heroSketch = (p: p5) => {
     return (sum / norm) * p.TWO_PI * 2;
   };
 
-  /** Invisible 灵初 meridian: a sinusoidal vertical channel at column k. */
+  /*
+   * Invisible 灵初 meridian: a sinusoidal vertical channel at column k.
+   */
   const meridianX = (k: number, y: number): number => {
     const col = (k + 1) / (MERIDIAN_COUNT + 1);
     const baseX = col * p.width;
@@ -155,7 +158,9 @@ const heroSketch = (p: p5) => {
     particles = Array.from({ length: PARTICLE_COUNT }, () => spawn(true));
   };
 
-  /** Slow palette: lerp from shadow tone to accent by speed. */
+  /*
+   * Slow palette: lerp from shadow tone to accent by speed.
+   */
   const strokeForSpeed = (speed: number) => {
     const t = Math.min(1, speed / SPEED_MAX);
     // Brighter at high speed, dimmer at low speed — velocity-mapped color.
@@ -199,7 +204,7 @@ const heroSketch = (p: p5) => {
 
       // Lifecycle: respawn at a fresh origin when exhausted or out of bounds.
       const outOfBounds = a.x < -20 || a.x > p.width + 20 || a.y < -20 || a.y > p.height + 20;
-      if (a.life <= 0 || outOfBounds) {
+      if (outOfBounds || a.life <= 0) {
         Object.assign(a, spawn(false));
       }
     }
@@ -227,21 +232,23 @@ const heroSketch = (p: p5) => {
     p.background(bgRgb[0], bgRgb[1], bgRgb[2]);
 
     // Refresh colors when Starlight toggles light/dark theme.
-    if (typeof globalThis !== "undefined") {
-      themeObserver = new MutationObserver(() => {
-        refreshThemeColors();
-        if (reducedMotion) {
-          // Preserve the calm static frame with refreshed colors.
-          step();
-        } else {
-          p.background(bgRgb[0], bgRgb[1], bgRgb[2]);
-        }
-      });
-      themeObserver.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ["data-theme", "class"],
-      });
+    if (typeof globalThis === "undefined") {
+      return;
     }
+
+    themeObserver = new MutationObserver(() => {
+      refreshThemeColors();
+      if (reducedMotion) {
+        // Preserve the calm static frame with refreshed colors.
+        step();
+      } else {
+        p.background(bgRgb[0], bgRgb[1], bgRgb[2]);
+      }
+    });
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme", "class"],
+    });
   };
 
   p.draw = () => {
