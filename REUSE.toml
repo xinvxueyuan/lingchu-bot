@@ -142,7 +142,7 @@ path = [
   "**/.venv/**",
   "**/venv/**",
   # Node toolchain
-  "node_modules/**",
+  "**/node_modules/**",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 lingchu-bot contributors <support@xinvstar.xyz>"
