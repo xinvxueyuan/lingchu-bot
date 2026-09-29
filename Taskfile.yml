@@ -20,6 +20,7 @@
 #   hooks:validate                → prek validate-config                                             [CI: python.yml, husky pre-commit]
 #   hooks:staged                  → prek run --stage pre-commit                                      [husky pre-commit Phase 1]
 #   ci:hooks                      → hooks:validate + prek run --all-files                            [CI: python.yml, .circleci/checks.yml]
+#   ci:hooks:pins                 → check prek hook pins vs uv.lock                                  [CI: python.yml]
 #   ci:static                     → turbo: lint + py:lint + py:format-check + md:lint                [CI: python.yml, .circleci/checks.yml]
 #   ci:typecheck                  → turbo: check-types + py:typecheck                                [local-only; CI runs pyright/ty inline]
 #   ci:test                       → turbo: test + py:test (junitxml via root script)                 [local-only; CI runs pytest inline]
@@ -145,6 +146,11 @@ tasks:
     cmds:
       - task: hooks:validate
       - uv run prek run --config prek.toml --all-files
+
+  ci:hooks:pins:
+    desc: "[CI] Verify prek hook pins match uv.lock versions"
+    cmds:
+      - uv run python scripts/ci_check_hook_pins.py
 
   ci:static:
     desc: "[CI] Static analysis checks"
