@@ -1,6 +1,20 @@
-import { Navigate } from "react-router";
+import { useTranslation } from "react-i18next";
+import type { Route } from "./+types/config";
 
-/** 旧 /config 占位页已拆分为「基本配置 / 高级配置」两个子页，此处 302 级重定向。 */
+import { PageContainer } from "@/components/page-container";
+import { PlaceholderCard } from "@/components/placeholder-card";
+import { appPageMeta } from "@/lib/meta";
+
+export function meta({}: Route.MetaArgs) {
+  return appPageMeta();
+}
+
 export default function Config() {
-  return <Navigate to="/config/basic" replace />;
+  const { t } = useTranslation();
+
+  return (
+    <PageContainer>
+      <PlaceholderCard title={t("nav.config")} />
+    </PageContainer>
+  );
 }

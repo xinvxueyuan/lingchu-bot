@@ -2,7 +2,7 @@
 
 在 NoneBot 驱动器启动后，将端点挂载到底层 Starlette 应用。导入本模块即
 通过 ``on_startup`` 注册挂载逻辑；插件入口 ``__init__.py`` 末尾 import 本模块即可触发。
-包含只读端点 + 简易字符串密码校验 + 登录密码校验端点 + 配置读写端点，
+包含只读端点 + 简易字符串密码校验 + 登录密码校验端点，
 不实现任何 JWT/令牌功能。
 """
 
@@ -10,12 +10,6 @@ from __future__ import annotations
 
 from nonebot import get_app, get_driver, logger
 
-from .config_endpoints import (
-    WEBUI_CONFIG_ADVANCED_PATH,
-    WEBUI_CONFIG_BASIC_PATH,
-    webui_config_advanced_endpoint,
-    webui_config_basic_endpoint,
-)
 from .info import (
     WEBUI_INFO_PATH,
     WEBUI_ONEBOT_FRIENDS_PATH,
@@ -43,8 +37,6 @@ from .info import (
 
 __all__ = [
     "register_webui_routes",
-    "webui_config_advanced_endpoint",
-    "webui_config_basic_endpoint",
     "webui_info_endpoint",
     "webui_onebot_friends_endpoint",
     "webui_onebot_groups_endpoint",
@@ -74,8 +66,6 @@ def register_webui_routes() -> None:
         (WEBUI_ONEBOT_GROUPS_PATH, webui_onebot_groups_endpoint, ["GET"]),
         (WEBUI_ONEBOT_FRIENDS_PATH, webui_onebot_friends_endpoint, ["GET"]),
         (WEBUI_VERIFY_PASSWORD_PATH, webui_verify_password_endpoint, ["POST"]),
-        (WEBUI_CONFIG_BASIC_PATH, webui_config_basic_endpoint, ["GET", "PUT"]),
-        (WEBUI_CONFIG_ADVANCED_PATH, webui_config_advanced_endpoint, ["GET", "PUT"]),
     )
     for path, endpoint, methods in routes:
         if any(getattr(route, "path", None) == path for route in app.router.routes):
