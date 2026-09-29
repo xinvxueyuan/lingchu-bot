@@ -95,6 +95,12 @@ jobs:
           task ci:fix
           task ci:hooks
           task ci:static
+      - name: Hook Pin Drift Check
+        # `prek.toml` is the only hook source of truth (`.pre-commit-config.yaml`
+        # is abandoned), so the official pre-commit ecosystem never upgrades its
+        # `rev` pins. This step keeps the ruff/ty hook pins aligned with the
+        # versions resolved in `uv.lock`.
+        run: task ci:hooks:pins
       - name: REUSE compliance
         run: uv run reuse lint
 
@@ -252,7 +258,7 @@ jobs:
         # matrix would otherwise upload near-identical reports seven times.
         # pinned from codecov/codecov-action@v7.0.0
         if: matrix.db.engine == 'sqlite'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test-results/coverage.xml

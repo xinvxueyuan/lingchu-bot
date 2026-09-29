@@ -528,6 +528,7 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 - Markdownlint config is centralized in `.markdownlint-cli2.jsonc`; invocation sites should rely on that config.
 - For PowerShell markdownlint, prefer `pwsh.exe -NoProfile` and avoid ad hoc quoted globs.
 - Pin GitHub Actions by commit SHA, not annotated tag object SHA.
+- Pin `prek.toml` ruff/ty hook `rev`s to the versions resolved in `uv.lock`; `task ci:hooks:pins` (`scripts/ci_check_hook_pins.py`) fails CI on drift. `pre-commit/pre-commit-hooks` has no uv tool counterpart, so only its `# pinned from <repo>@<tag>` comment format is enforced.
 - Workflow filenames use plain kebab-case (no leading emoji); the `name:` field still uses English with matching emoji so the Actions UI can group them visually. Updating the `name:` emoji does NOT require renaming the file.
 - `.github` YAML comments should be English; remove broken empty schema comments.
 - Check remote branch existence with `git ls-remote` before `git push origin --delete`.

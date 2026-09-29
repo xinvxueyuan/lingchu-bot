@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nonebot-plugin-lingchu-bot 0.0.0.dev8\n"
 "Report-Msgid-Bugs-To: xinvxueyuan@yeah.net\n"
-"POT-Creation-Date: 2026-08-25 19:36+0800\n"
+"POT-Creation-Date: 2026-09-29 19:35+0800\n"
 "PO-Revision-Date: 2026-05-20 00:00+0800\n"
 "Last-Translator: xinvxueyuan <xinvxueyuan@yeah.net>\n"
 "Language: en_US\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: src/plugins/nonebot_plugin_lingchu_bot/core/config.py:64
+#: src/plugins/nonebot_plugin_lingchu_bot/core/config.py:65
 #, python-brace-format
 msgid ""
 "in_containers 配置错误：\n"
@@ -34,7 +34,7 @@ msgstr ""
 "LINGCHU_IN_CONTAINERS=false\n"
 "Do not use uppercase True/False or other formats."
 
-#: src/plugins/nonebot_plugin_lingchu_bot/core/config.py:97
+#: src/plugins/nonebot_plugin_lingchu_bot/core/config.py:98
 #, python-brace-format
 msgid ""
 "in_containers 配置错误：\n"

@@ -59,8 +59,11 @@ runs:
         FRONTEND_MDX=false
         FRONTEND_TSX=false
 
-        # Python: .py / pyproject.toml / uv.lock / ruff.toml / .python-version
-        if echo "$FILES" | grep -qE '\.py$|(^|/)(pyproject\.toml|uv\.lock|\.python-version|ruff\.toml|\.ruff\.toml)$'; then
+        # Python: .py / pyproject.toml / uv.lock / prek.toml / ruff.toml / .python-version
+        # prek.toml is included because python.yml::static-analysis runs
+        # `task ci:hooks:pins`, which only fires when prek.toml (or uv.lock)
+        # changes — a prek.toml-only PR must not skip that job.
+        if echo "$FILES" | grep -qE '\.py$|(^|/)(pyproject\.toml|uv\.lock|prek\.toml|\.python-version|ruff\.toml|\.ruff\.toml)$'; then
           PYTHON=true
         fi
         # Markdown: .md
