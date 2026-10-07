@@ -112,6 +112,97 @@ class TestCheckTargetPrivilege:
         matcher.finish.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_member_not_found_target_passes(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """目标不在本群（LLBot 报「群成员未找到」）时放行。
+
+        回归：此前会把「查不到人」当作无法确认角色而 fail-closed 拒绝，
+        导致「全局拉黑已退群的骗子」这条主路径走不通。
+        """
+        mock_onebot11_bot.get_group_member_info = AsyncMock(
+            side_effect=Onebot11ActionFailed(
+                status="failed",
+                retcode=1200,
+                data=None,
+                message="群成员未找到",
+                wording="群成员未找到",
+                echo="1516",
+            )
+        )
+        matcher = MagicMock()
+        matcher.finish = AsyncMock()
+
+        result = await check_target_privilege(
+            mock_session,
+            mock_onebot11_bot,
+            mock_onebot11_event,
+            _TARGET_USER_ID,
+            matcher,
+        )
+
+        assert result is True
+        matcher.finish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_other_action_failure_still_fails_closed(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """非「群成员未找到」的其他失败仍 fail-closed（放行只对目标缺群一种情况）。"""
+        mock_onebot11_bot.get_group_member_info = AsyncMock(
+            side_effect=Onebot11ActionFailed(
+                status="failed",
+                retcode=1200,
+                data=None,
+                message="权限不足",
+                wording="权限不足",
+                echo="1517",
+            )
+        )
+        matcher = MagicMock()
+        matcher.finish = AsyncMock()
+
+        result = await check_target_privilege(
+            mock_session,
+            mock_onebot11_bot,
+            mock_onebot11_event,
+            _TARGET_USER_ID,
+            matcher,
+        )
+
+        assert result is False
+        matcher.finish.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("info", "expected"),
+        [
+            ({"wording": "群成员未找到"}, True),
+            ({"message": "群成员未找到"}, True),
+            ({"wording": "member not found"}, True),
+            ({"wording": "Member Not Found"}, True),
+            ({"wording": "群成员不存在"}, True),
+            ({"wording": "权限不足"}, False),
+            ({"wording": ""}, False),
+            ({}, False),
+        ],
+    )
+    def test_is_member_not_found_detection(
+        self, info: dict[str, Any], *, expected: bool
+    ) -> None:
+        """文案识别：命中「目标不在群」类文案才为真（其余一律假，保持 fail-closed）。"""
+        from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common import (
+            is_member_not_found,
+        )
+
+        assert is_member_not_found(Onebot11ActionFailed(**info)) is expected
+
+    @pytest.mark.asyncio
     async def test_admin_target_rejects_non_owner_operator(
         self,
         mock_onebot11_bot: MagicMock,
