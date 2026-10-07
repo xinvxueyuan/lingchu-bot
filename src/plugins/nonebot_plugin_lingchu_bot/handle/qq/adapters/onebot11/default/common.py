@@ -98,16 +98,24 @@ class CommandAudit:
 
 
 async def target_user_onebot11(
-    user: At, bot: Onebot11Bot, event: Onebot11GroupMessageEvent
+    user: At | int, bot: Onebot11Bot, event: Onebot11GroupMessageEvent
 ) -> tuple[int, str]:
-    try:
-        target_user_id: int = int(user.target)
-    except (TypeError, ValueError) as error:
-        msg = f"无效的用户 ID: {user.target!r}"
-        raise ValueError(msg) from error
+    """解析目标用户，同时接受 ``At`` 对象与数字 user_id。
 
-    if user.display:
-        return target_user_id, user.display
+    QQ 的 @ 在协议端拿不到真实 uid，因此各处命令都允许直接传数字 user_id；
+    本函数与 :func:`resolve_user_onebot11` 一致地支持两种形态。
+    """
+    if isinstance(user, int):
+        target_user_id = user
+    else:
+        try:
+            target_user_id = int(user.target)
+        except (TypeError, ValueError) as error:
+            msg = f"无效的用户 ID: {user.target!r}"
+            raise ValueError(msg) from error
+
+        if user.display:
+            return target_user_id, user.display
 
     try:
         member_info = await bot.get_group_member_info(

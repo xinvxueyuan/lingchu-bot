@@ -295,7 +295,7 @@ async def _unblock_member(
 
 @selected_adapter_handle(unblock_member_cmd, "~onebot.v11", "unblock_member")
 async def onebot11_unblock_member(
-    user: At,
+    user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     session: async_scoped_session,
@@ -318,7 +318,7 @@ async def onebot11_unblock_member(
     "global_unblock_member",
 )
 async def onebot11_global_unblock_member(
-    user: At,
+    user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     session: async_scoped_session,
