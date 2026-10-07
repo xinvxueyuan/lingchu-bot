@@ -261,6 +261,40 @@ async def test_target_user_onebot11_falls_back_to_api_nickname(
 
 
 @pytest.mark.asyncio
+async def test_target_user_onebot11_accepts_numeric_user_id(
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+) -> None:
+    """直接传数字 user_id 时也能解析（与 resolve_user_onebot11 行为一致）。"""
+    mock_onebot11_bot.get_group_member_info = AsyncMock(
+        return_value={"card": "", "nickname": "数字目标"}
+    )
+
+    user_id, name = await onebot11_common_module.target_user_onebot11(
+        987654321, mock_onebot11_bot, mock_onebot11_event
+    )
+
+    assert user_id == 987654321
+    assert name == "数字目标"
+
+
+@pytest.mark.asyncio
+async def test_target_user_onebot11_numeric_user_id_api_failure_keeps_id(
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+) -> None:
+    """数字目标且查询成员失败时，仍返回该数字、名字为空（不抛异常）。"""
+    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=OB11ActionFailed())
+
+    user_id, name = await onebot11_common_module.target_user_onebot11(
+        987654321, mock_onebot11_bot, mock_onebot11_event
+    )
+
+    assert user_id == 987654321
+    assert name == ""
+
+
+@pytest.mark.asyncio
 async def test_target_user_onebot11_api_failure_falls_back_to_id(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
