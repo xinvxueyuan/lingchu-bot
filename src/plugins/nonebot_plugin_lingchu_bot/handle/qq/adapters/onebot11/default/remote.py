@@ -51,6 +51,7 @@ from .common import (
     check_self_target,
     default_admin_reason,
     format_user_display_name,
+    is_member_not_found,
     operator_is_superuser_onebot11,
     record_audit_fire_and_forget,
     resolve_user_onebot11,
@@ -238,10 +239,20 @@ async def _check_remote_target_privilege(
         target_info = await bot.get_group_member_info(
             group_id=group_id, user_id=target_user_id, no_cache=True
         )
-    except OneBot11ActionFailed:
-        # Fail closed: 目标角色无法确认时拒绝操作，避免越权操作只依赖协议端兜底。
+    except OneBot11ActionFailed as error:
+        if is_member_not_found(error):
+            # 目标不在该群 → 不可能是该群管理员/群主，按「无群内特权」放行
+            # （跨群/全局操作时目标本就常不在目标群内）。
+            logger.info(
+                "目标不在群内，跳过高权限校验: group_id={} target_user_id={}",
+                group_id,
+                target_user_id,
+            )
+            return True
+        # Fail closed: 其他失败（协议端异常、权限不足等）仍拒绝操作，
+        # 避免越权操作只依赖协议端兜底。
         logger.warning(
-            "无法获取目标用户角色，拒绝操作: group_id=%s, target_user_id=%s",
+            "无法获取目标用户角色，拒绝操作: group_id={}, target_user_id={}",
             group_id,
             target_user_id,
         )

@@ -1241,6 +1241,50 @@ class TestCheckRemoteTargetPrivilege:
         matcher.finish.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_returns_true_when_target_not_in_group(
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
+    ) -> None:
+        """目标不在该群（「群成员未找到」）时放行 —— 跨群/全局操作的主路径。"""
+        matcher = MagicMock()
+        matcher._lingchu_command_key = None
+        matcher.finish = AsyncMock()
+        mock_bot.get_group_member_info.side_effect = OneBot11ActionFailed(
+            status="failed",
+            retcode=1200,
+            data=None,
+            message="群成员未找到",
+            wording="群成员未找到",
+            echo="1600",
+        )
+        result = await remote_module._check_remote_target_privilege(
+            mock_session, mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
+        )
+        assert result is True
+        matcher.finish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_other_action_failure_still_fails_closed(
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
+    ) -> None:
+        """非「群成员未找到」的其他失败仍 fail-closed。"""
+        matcher = MagicMock()
+        matcher._lingchu_command_key = None
+        matcher.finish = AsyncMock()
+        mock_bot.get_group_member_info.side_effect = OneBot11ActionFailed(
+            status="failed",
+            retcode=1200,
+            data=None,
+            message="权限不足",
+            wording="权限不足",
+            echo="1601",
+        )
+        result = await remote_module._check_remote_target_privilege(
+            mock_session, mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
+        )
+        assert result is False
+        matcher.finish.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_returns_true_when_target_admin_and_operator_can_manage(
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
     ) -> None:

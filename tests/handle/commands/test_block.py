@@ -164,6 +164,95 @@ async def test_onebot11_global_block_member_uses_global_scope_and_kicks(
 
 
 @pytest.mark.asyncio
+async def test_global_block_skips_kick_when_target_left_group(
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_at: MagicMock,
+    mock_session: Mock,
+) -> None:
+    """目标已退群时：记录照常入库，踢出被跳过并在回复里注明。
+
+    回归场景：全局拉黑一个已退群的骗子，LLBot 对 set_group_kick 返回
+    「群成员未找到」；此前会把整条命令报成失败（而记录其实已写入）。
+    """
+    from nonebot.adapters.onebot.v11.exception import ActionFailed
+
+    mock_onebot11_bot.set_group_kick = AsyncMock(
+        side_effect=ActionFailed(
+            status="failed",
+            retcode=1200,
+            data=None,
+            message="群成员未找到",
+            wording="群成员未找到",
+            echo="1517",
+        )
+    )
+    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=[{"role": "admin"}])
+
+    with (
+        patch.object(block_module, "store_block_record", AsyncMock()) as upsert_mock,
+        patch.object(global_block_member_cmd, "finish") as mock_finish,
+    ):
+        await block_module.onebot11_global_block_member(
+            user=mock_at,
+            duration=None,
+            reason="涉嫌欺诈",
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+            session=mock_session,
+        )
+
+    # 记录必须已入库（踢出失败不影响拉黑生效）
+    upsert_mock.assert_awaited_once()
+    assert upsert_mock.call_args.kwargs["scope"] == "global"
+    mock_onebot11_bot.set_group_kick.assert_awaited_once()
+    # 回复里注明已跳过踢出，而不是报错
+    text = finish_text(mock_finish)
+    assert "已拉黑并踢出" in text
+    assert "目标不在本群，已跳过踢出" in text
+
+
+@pytest.mark.asyncio
+async def test_global_block_reports_kick_failure_other_than_missing_member(
+    mock_onebot11_bot: MagicMock,
+    mock_onebot11_event: MagicMock,
+    mock_at: MagicMock,
+    mock_session: Mock,
+) -> None:
+    """踢出因**其他**原因失败（非目标缺群）时，仍按失败上报，不静默吞掉。"""
+    from nonebot.adapters.onebot.v11.exception import ActionFailed
+
+    mock_onebot11_bot.set_group_kick = AsyncMock(
+        side_effect=ActionFailed(
+            status="failed",
+            retcode=1200,
+            data=None,
+            message="权限不足",
+            wording="权限不足",
+            echo="1518",
+        )
+    )
+    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=[{"role": "admin"}])
+
+    with (
+        patch.object(block_module, "store_block_record", AsyncMock()),
+        patch.object(
+            block_module, "finish_action_error_onebot11", AsyncMock()
+        ) as error_mock,
+    ):
+        await block_module.onebot11_global_block_member(
+            user=mock_at,
+            duration=None,
+            reason="涉嫌欺诈",
+            bot=mock_onebot11_bot,
+            event=mock_onebot11_event,
+            session=mock_session,
+        )
+
+    error_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_onebot11_unblock_member_removes_group_entry(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
