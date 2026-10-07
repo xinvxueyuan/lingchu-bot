@@ -107,7 +107,6 @@ async def test_upsert_block_uses_scope_identity_and_update_values(
     assert upsert_mock.call_args.kwargs["conflict_fields"] == [
         "platform_id",
         "adapter_id",
-        "protocol_id",
         "bot_id",
         "scope",
         "scope_key",
@@ -144,7 +143,9 @@ async def test_upsert_block_passes_protocol_id_through_to_upsert(
 
     _, _, insert_values = upsert_mock.call_args.args[:3]
     assert insert_values["protocol_id"] == "napcat"
-    assert "protocol_id" in upsert_mock.call_args.kwargs["conflict_fields"]
+    # protocol_id 不是身份的一部分（模型唯一约束为 6 列），只能出现在 update_values：
+    # 一旦放进 conflict_fields，SQLite 的 ON CONFLICT 目标就匹配不到任何唯一索引。
+    assert "protocol_id" not in upsert_mock.call_args.kwargs["conflict_fields"]
     assert upsert_mock.call_args.kwargs["update_values"]["protocol_id"] == "napcat"
 
 

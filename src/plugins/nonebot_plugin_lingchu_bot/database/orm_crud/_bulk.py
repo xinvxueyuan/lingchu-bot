@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 from nonebot import require
@@ -23,7 +24,9 @@ from ._base import (
     _get_session_dialect_name,
     _orders,
     _validate_column_values,
+    declared_unique_targets,
     logger,
+    primary_key_columns,
 )
 
 if TYPE_CHECKING:
@@ -120,6 +123,16 @@ async def bulk_create[T: Model](
     return created, failed
 
 
+@cache
+def _cached_unique_targets(model: type[Model]) -> frozenset[frozenset[str]]:
+    """缓存模型声明的唯一冲突目标（主键 + 唯一约束/索引），避免热路径重复内省。"""
+    targets = set(declared_unique_targets(model))
+    primary_key = primary_key_columns(model)
+    if primary_key:
+        targets.add(primary_key)
+    return frozenset(targets)
+
+
 def _validate_upsert_conflict_target[T: Model](
     model: type[T],
     columns: dict[str, Any],
@@ -136,6 +149,17 @@ def _validate_upsert_conflict_target[T: Model](
     for key in conflict_keys:
         if key not in columns:
             raise ValueError(f"Unknown column '{key}' for model '{model.__name__}'")
+
+    targets = _cached_unique_targets(model)
+    if conflict_keys and targets and frozenset(conflict_keys) not in targets:
+        declared = "; ".join(
+            ",".join(sorted(target)) for target in sorted(targets, key=sorted)
+        )
+        raise ValueError(
+            f"Upsert conflict target {tuple(conflict_keys)} does not match any "
+            f"unique constraint, unique index or primary key declared on "
+            f"'{model.__name__}' (declared: {declared})"
+        )
     return conflict_keys
 
 

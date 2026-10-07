@@ -82,10 +82,15 @@ async def upsert_block(
             session,
             BlocklistEntry,
             values,
+            # ⚠️ 必须与模型 BlocklistEntry 的唯一约束**逐列一致**（6 列，不含
+            # protocol_id）。SQLite 的 ON CONFLICT 目标要精确匹配某个唯一索引，
+            # 多一列就会报 `ON CONFLICT clause does not match any PRIMARY KEY or
+            # UNIQUE constraint`；此前这里多带了 protocol_id，导致所有拉黑命令
+            # 都失败（DatabaseError: Upsert failed）。
+            # protocol_id 仍会在命中冲突时通过 update_values 更新。
             conflict_fields=[
                 "platform_id",
                 "adapter_id",
-                "protocol_id",
                 "bot_id",
                 "scope",
                 "scope_key",
