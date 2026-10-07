@@ -10,6 +10,7 @@ from nonebot import require
 
 require("nonebot_plugin_orm")
 from nonebot_plugin_orm import Model
+from sqlalchemy import Table, UniqueConstraint
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.inspection import inspect
 
@@ -139,6 +140,65 @@ def _orders[T: Model](
                     model.__name__,
                 )
     return o
+
+
+def declared_unique_targets[T: Model](model: type[T]) -> set[frozenset[str]]:
+    """返回模型声明的**非主键**唯一目标（唯一约束 / 唯一索引）。
+
+    用于 upsert 冲突目标校验与数据库模式自检：SQLite 的 ``ON CONFLICT`` 必须与某个
+    唯一索引逐列精确匹配；主键不含在内，因为 SQLite 的 ``INTEGER PRIMARY KEY`` 是
+    rowid 别名，不会出现在 ``PRAGMA index_list`` 里，纳入会产生假告警。
+
+    Args:
+        model: ORM 模型类 / ORM model class.
+
+    Returns:
+        每个唯一目标的列名集合；无法内省（如测试用抽象模型）时为空集合。
+    """
+    try:
+        table = inspect(model).local_table
+    except (AttributeError, SQLAlchemyError, TypeError):
+        logger.debug(
+            "Cannot inspect unique targets for model %s; skipping",
+            model.__name__,
+        )
+        return set()
+    if not isinstance(table, Table):
+        logger.debug(
+            "Model %s has no local Table; skipping unique target inspection",
+            model.__name__,
+        )
+        return set()
+
+    targets: set[frozenset[str]] = set()
+    try:
+        for constraint in table.constraints:
+            if isinstance(constraint, UniqueConstraint):
+                columns = frozenset(column.name for column in constraint.columns)
+                if columns:
+                    targets.add(columns)
+        for index in table.indexes:
+            if index.unique:
+                columns = frozenset(column.name for column in index.columns)
+                if columns:
+                    targets.add(columns)
+    except (AttributeError, SQLAlchemyError, TypeError):
+        return set()
+    return targets
+
+
+def primary_key_columns[T: Model](model: type[T]) -> frozenset[str]:
+    """返回模型主键列名集合（无法内省时为空集合）。"""
+    try:
+        table = inspect(model).local_table
+    except (AttributeError, SQLAlchemyError, TypeError):
+        return frozenset()
+    if not isinstance(table, Table):
+        return frozenset()
+    try:
+        return frozenset(column.name for column in table.primary_key.columns)
+    except (AttributeError, SQLAlchemyError, TypeError):
+        return frozenset()
 
 
 def _get_column_map[T: Model](model: type[T]) -> dict[str, Any]:

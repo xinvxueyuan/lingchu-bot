@@ -327,6 +327,8 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_manager.py" = ["TRY003", "BLE001", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_defaults/__init__.py" = ["TRY003", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_base.py" = ["TRY003", "E402"]
+# E402: nonebot2 require() must precede cross-plugin imports at module level
+"src/plugins/nonebot_plugin_lingchu_bot/database/schema_guard.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/database/toml_store/_helpers.py" = ["TRY003"]
 
 # BLE001: startup/probe code uses intentional fail-closed/fail-soft exception handling
