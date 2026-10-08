@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
@@ -79,20 +78,13 @@ async def test_onebot11_kick_member_with_at(
     mock_at: MagicMock,
     mock_session: Mock,
 ) -> None:
-    """测试使用 At 对象踢出群成员（用户在黑名单中）"""
+    """测试使用 At 对象踢出群成员（**与黑名单无关**）"""
     mock_onebot11_bot.set_group_kick = AsyncMock()
     # check_target_privilege: 已由 autouse fixture mock 为返回 True
     # check_bot_privilege: 机器人为管理员（通过）
     mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=[{"role": "admin"}])
 
-    with (
-        patch.object(
-            kick_module,
-            "find_active_block",
-            AsyncMock(return_value=SimpleNamespace(reason="测试黑名单")),
-        ) as find_block_mock,
-        patch.object(kick_member_cmd, "finish") as mock_finish,
-    ):
+    with patch.object(kick_member_cmd, "finish") as mock_finish:
         await kick_module.onebot11_kick_member(
             user=mock_at,
             reason=None,
@@ -101,7 +93,8 @@ async def test_onebot11_kick_member_with_at(
             session=mock_session,
         )
 
-    assert find_block_mock.call_args.args[0] is mock_session
+    # 踢出是独立的群管操作：目标不在黑名单里也必须能踢（用户 2026-10-08 报的 bug）
+    assert not hasattr(kick_module, "find_active_block")
     mock_onebot11_bot.set_group_kick.assert_awaited_once_with(
         group_id=mock_onebot11_event.group_id,
         user_id=987654321,
@@ -116,7 +109,7 @@ async def test_onebot11_kick_member_with_direct_user_id(
     mock_onebot11_event: MagicMock,
     mock_session: Mock,
 ) -> None:
-    """测试直接传入 user_id (int) 踢出群成员（用户在黑名单中）"""
+    """测试直接传入 user_id (int) 踢出群成员（与黑名单无关）"""
     mock_onebot11_bot.set_group_kick = AsyncMock()
     # resolve_user: 获取用户名片
     # check_target_privilege: 已由 autouse fixture mock 为返回 True
@@ -128,14 +121,7 @@ async def test_onebot11_kick_member_with_direct_user_id(
         ]
     )
 
-    with (
-        patch.object(
-            kick_module,
-            "find_active_block",
-            AsyncMock(return_value=SimpleNamespace(reason="测试黑名单")),
-        ) as find_block_mock,
-        patch.object(kick_member_cmd, "finish") as mock_finish,
-    ):
+    with patch.object(kick_member_cmd, "finish") as mock_finish:
         await kick_module.onebot11_kick_member(
             user=_TEST_KICK_USER_ID,
             reason="测试原因",
@@ -144,7 +130,6 @@ async def test_onebot11_kick_member_with_direct_user_id(
             session=mock_session,
         )
 
-    assert find_block_mock.call_args.args[0] is mock_session
     mock_onebot11_bot.set_group_kick.assert_awaited_once_with(
         group_id=mock_onebot11_event.group_id,
         user_id=_TEST_KICK_USER_ID,
@@ -155,22 +140,22 @@ async def test_onebot11_kick_member_with_direct_user_id(
 
 
 @pytest.mark.asyncio
-async def test_onebot11_kick_member_not_in_blocklist(
+async def test_onebot11_kick_member_works_without_blocklist(
     mock_onebot11_bot: MagicMock,
     mock_onebot11_event: MagicMock,
     mock_at: MagicMock,
     mock_session: Mock,
 ) -> None:
-    """测试用户不在黑名单中时拒绝踢出"""
+    """**回归**：目标不在黑名单里也要能踢出（用户 2026-10-08 报的 bug）。
+
+    踢出是独立的群管操作；此前它要求目标必须在黑名单中（「不在黑名单中，无法执行
+    踢出操作」），导致普通成员根本踢不掉 —— 而该判定取出的 entry 除判空外从未被使用，
+    属于残留耦合。
+    """
     mock_onebot11_bot.set_group_kick = AsyncMock()
-    with (
-        patch.object(
-            kick_module,
-            "find_active_block",
-            AsyncMock(return_value=None),
-        ) as find_block_mock,
-        patch.object(kick_member_cmd, "finish") as mock_finish,
-    ):
+    mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=[{"role": "admin"}])
+
+    with patch.object(kick_member_cmd, "finish") as mock_finish:
         await kick_module.onebot11_kick_member(
             user=mock_at,
             reason=None,
@@ -179,43 +164,27 @@ async def test_onebot11_kick_member_not_in_blocklist(
             session=mock_session,
         )
 
-    assert find_block_mock.call_args.args[0] is mock_session
-    assert "不在黑名单中" in finish_text(mock_finish)
-    # 确保没有调用踢出 API
-    mock_onebot11_bot.set_group_kick.assert_not_called()
+    mock_onebot11_bot.set_group_kick.assert_awaited_once()
+    assert "已踢出群成员" in finish_text(mock_finish)
 
 
-@pytest.mark.asyncio
-async def test_onebot11_kick_member_database_error(
-    mock_onebot11_bot: MagicMock,
-    mock_onebot11_event: MagicMock,
-    mock_at: MagicMock,
-    mock_session: Mock,
-) -> None:
-    """测试查询黑名单时数据库异常"""
-    from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import DatabaseError
+def test_kick_has_no_blocklist_dependency() -> None:
+    """静态守卫：踢出处理器不得再引用黑名单（防止后人把耦合加回来）。
 
-    mock_onebot11_bot.set_group_kick = AsyncMock()
-    with (
-        patch.object(
-            kick_module,
-            "find_active_block",
-            AsyncMock(side_effect=DatabaseError("数据库连接失败")),
-        ) as find_block_mock,
-        patch.object(kick_member_cmd, "finish") as mock_finish,
-    ):
-        await kick_module.onebot11_kick_member(
-            user=mock_at,
-            reason=None,
-            bot=mock_onebot11_bot,
-            event=mock_onebot11_event,
-            session=mock_session,
-        )
+    黑名单一旦重新成为踢出的前置条件，「不在黑名单中，无法执行踢出操作」就会复现，
+    而那是运行时才暴露的体验问题 —— 用源码断言把它挡在提交前。
+    """
+    import inspect
+    import re
 
-    assert find_block_mock.call_args.args[0] is mock_session
-    assert "查询黑名单失败" in finish_text(mock_finish)
-    # 确保没有调用踢出 API
-    mock_onebot11_bot.set_group_kick.assert_not_called()
+    source = inspect.getsource(kick_module)
+    # 去掉注释与文档字符串，避免「提到黑名单」的说明性文字造成误判
+    body = re.sub(r'"""[\s\S]*?"""', "", source)
+    body = re.sub(r"#.*", "", body)
+
+    assert "find_active_block" not in body
+    assert "blocklist" not in body
+    assert "不在黑名单中" not in body
 
 
 @pytest.mark.asyncio
@@ -272,7 +241,7 @@ async def test_onebot11_kick_member_action_failed(
     mock_at: MagicMock,
     mock_session: Mock,
 ) -> None:
-    """测试踢出操作失败的情况（用户已在黑名单中，但 API 调用失败）"""
+    """测试踢出操作失败的情况（权限检查通过，但 API 调用失败）"""
     from nonebot.adapters.onebot.v11.exception import ActionFailed
 
     mock_onebot11_bot.set_group_kick = AsyncMock(side_effect=ActionFailed())
@@ -280,14 +249,7 @@ async def test_onebot11_kick_member_action_failed(
     # check_bot_privilege: 机器人为管理员（通过）
     mock_onebot11_bot.get_group_member_info = AsyncMock(side_effect=[{"role": "admin"}])
 
-    with (
-        patch.object(
-            kick_module,
-            "find_active_block",
-            AsyncMock(return_value=SimpleNamespace(reason="测试黑名单")),
-        ) as find_block_mock,
-        patch.object(kick_member_cmd, "finish") as mock_finish,
-    ):
+    with patch.object(kick_member_cmd, "finish") as mock_finish:
         await kick_module.onebot11_kick_member(
             user=mock_at,
             reason=None,
@@ -296,7 +258,6 @@ async def test_onebot11_kick_member_action_failed(
             session=mock_session,
         )
 
-    assert find_block_mock.call_args.args[0] is mock_session
     assert "踢出群成员失败" in finish_text(mock_finish)
 
 
