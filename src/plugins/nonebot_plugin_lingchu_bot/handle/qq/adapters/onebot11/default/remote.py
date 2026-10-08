@@ -21,10 +21,7 @@ from ......core.config import get_handle_config_manager, plugin_config
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......permissions.subject_policy import find_active_subject_policy
-from ......repositories.blocklist import (
-    find_active_block,
-    remove_block,
-)
+from ......repositories.blocklist import remove_block
 from ....commands.announcement import _resolve_image_path
 from ....commands.common import selected_adapter_handle
 from ....commands.remote import (
@@ -587,26 +584,7 @@ async def onebot11_remote_kick(
     ):
         return None
 
-    # 5. 检查目标用户是否在黑名单中
-    try:
-        entry = await find_active_block(
-            session,
-            platform_id=QQ_PLATFORM_ID,
-            adapter_id=ONEBOT_V11_ADAPTER_ID,
-            bot_id=bot_id(bot),
-            group_id=group_id_int,
-            user_id=target_user_id,
-        )
-    except DatabaseError as error:
-        logger.error(f"查询黑名单失败，数据库异常: {error!r}")
-        return await remote_kick_cmd.finish(await _("查询黑名单失败，数据库异常"))
-
-    if entry is None:
-        display_name = format_user_display_name(target_user_id, target_name)
-        message = await _("用户 {name} 不在黑名单中，无法执行踢出操作")
-        return await remote_kick_cmd.finish(message.format(name=display_name))
-
-    # 6. 执行踢出操作
+    # 执行踢出操作
     try:
         await bot.set_group_kick(
             group_id=group_id_int,
