@@ -67,6 +67,21 @@ def test_parse_muted_members_tolerates_wrong_shapes() -> None:
         assert llbot_mute_list.parse_muted_members(bad) == []
 
 
+def test_parse_muted_members_skips_non_dict_rows() -> None:
+    """数组里混入非 dict 行时跳过该行，不影响其它行。"""
+    payload = [
+        {"uin": "10001", "nick": "甲"},
+        "not-a-dict",
+        None,
+        ["nested"],
+        {"uin": "10002", "nick": "乙"},
+    ]
+
+    members = llbot_mute_list.parse_muted_members(payload)
+
+    assert [m.user_id for m in members] == [10001, 10002]
+
+
 def test_parse_muted_members_display_name_falls_back_to_uin() -> None:
     """Nick 与 cardName 都缺时用 uin 兜底，不留空名字。"""
     payload = {"data": [{"uin": "10001"}, {"uin": "10002", "nick": "   "}]}
