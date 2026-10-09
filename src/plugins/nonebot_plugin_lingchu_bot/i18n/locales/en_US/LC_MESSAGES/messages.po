@@ -853,4 +853,3 @@ msgstr "Lingchu ignored unselected registered adapters: {adapters}"
 
 #~ msgid "用户 {name} 不在黑名单中，无法执行踢出操作"
 #~ msgstr "User {name} is not in the blocklist, cannot kick"
-
