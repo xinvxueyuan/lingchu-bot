@@ -14,7 +14,6 @@ Platforms that are not selected are left completely out of the runtime: their pe
 | Adapter ID | Platform | Default? |
 | --- | --- | --- |
 | `~onebot.v11` | QQ via OneBot V11 | Yes (when unset) |
-| `~telegram` | Telegram | No |
 
 Other adapter IDs (such as Milky, QQ, or OneBot V12) are not implemented; configuring them raises `PlatformAdapterUnknownError`.
 
@@ -26,18 +25,6 @@ Set a global NoneBot configuration value in your `.env` or TOML config:
 LINGCHUAdapter = "~onebot.v11"
 ```
 
-For a Telegram-only deployment, select `~telegram` explicitly:
-
-```toml
-LINGCHUAdapter = "~telegram"
-```
-
-To enable both adapters when both are loaded by NoneBot, join the IDs with `+`:
-
-```toml
-LINGCHUAdapter = "~onebot.v11+~telegram"
-```
-
 ## Set the adapter via environment variable
 
 The `LINGCHU_ADAPTER` environment variable is convenient for containers and CI where editing `.env` or TOML is impractical. It accepts a single adapter string, a `+`-separated string, or (when set via dotenv/TOML) a JSON array:
@@ -45,13 +32,10 @@ The `LINGCHU_ADAPTER` environment variable is convenient for containers and CI w
 ```bash
 # Single adapter
 LINGCHU_ADAPTER=~onebot.v11
-
-# Multiple adapters in string form
-LINGCHU_ADAPTER=~onebot.v11+~telegram
 ```
 
 ```toml
-LINGCHUAdapter = ["~onebot.v11", "~telegram"]
+LINGCHUAdapter = ["~onebot.v11"]
 ```
 
 ## Configuration priority
@@ -87,5 +71,4 @@ An unknown adapter that does not belong to any platform profile is not considere
 ## Related pages
 
 - [Connect QQ via NapCat](../connect/qq-napcat) — OneBot V11 connection guide
-- [Connect Telegram](../connect/telegram) — Telegram connection guide
 - [Adapter system architecture](../../reference/architecture/adapter-system) — adapter registry and platform profiles

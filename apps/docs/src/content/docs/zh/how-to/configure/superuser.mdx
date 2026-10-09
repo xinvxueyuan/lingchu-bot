@@ -9,17 +9,17 @@ import { Aside } from "@astrojs/starlight/components";
 
 ## 为什么使用基于 UID 的身份
 
-Lingchu 权限系统使用稳定的 UID 和平台账号绑定，而不是把平台账号 ID 当作唯一身份。一个 UID 可以同时绑定 QQ 账号、Telegram 账号和 Discord 账号，因此无论管理员从哪个平台接入，都是同一个身份。
+Lingchu 权限系统使用稳定的 UID 和平台账号绑定，而不是把平台账号 ID 当作唯一身份。一个 UID 可以同时绑定 QQ 账号和 Discord 账号，因此无论管理员从哪个平台接入，都是同一个身份。
 
 ## 设置环境变量
 
 在 `LINGCHU_SUPERUSERS` 中以严格 JSON 形式配置超级用户映射：
 
 ```dotenv
-LINGCHU_SUPERUSERS='{"userA":{"qq":123,"telegram":"tg-id","discord":"discord-id"}}'
+LINGCHU_SUPERUSERS='{"userA":{"qq":123,"discord":"discord-id"}}'
 ```
 
-对象键是 Lingchu UID。每个值将平台 ID（`qq`、`telegram` 或 `discord`）映射到该用户在对应平台的账号 ID。
+对象键是 Lingchu UID。每个值将平台 ID（`qq` 或 `discord`）映射到该用户在对应平台的账号 ID。
 
 <Aside type="caution" title="必填字段">
 

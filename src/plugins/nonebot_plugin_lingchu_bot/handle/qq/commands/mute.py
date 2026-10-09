@@ -26,7 +26,7 @@ member_mute_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_MEMBER_MUTE.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 set_default_mute_duration_cmd: type[AlconnaMatcher] = on_alconna(
@@ -37,7 +37,7 @@ set_default_mute_duration_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_SET_DEFAULT_MUTE_DURATION.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 whole_mute_cmd: type[Matcher] = on_alconna(
@@ -47,7 +47,7 @@ whole_mute_cmd: type[Matcher] = on_alconna(
     aliases=_WHOLE_MUTE.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 member_unmute_cmd: type[AlconnaMatcher] = on_alconna(
@@ -58,7 +58,7 @@ member_unmute_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_MEMBER_UNMUTE.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 whole_unmute_cmd: type[Matcher] = on_alconna(
@@ -68,7 +68,7 @@ whole_unmute_cmd: type[Matcher] = on_alconna(
     aliases=_WHOLE_UNMUTE.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 recall_message_cmd: type[AlconnaMatcher] = on_alconna(
@@ -79,7 +79,7 @@ recall_message_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_RECALL_MESSAGE.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 

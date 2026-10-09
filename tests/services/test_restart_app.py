@@ -4,7 +4,6 @@ import asyncio
 from collections.abc import Iterator
 import json
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 from nonebot.adapters.onebot.v11 import Message as OneBot11Message
@@ -12,10 +11,6 @@ from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent as OneBot11GroupMessageEvent,
     PrivateMessageEvent as OneBot11PrivateMessageEvent,
     Sender as OneBot11Sender,
-)
-from nonebot.adapters.telegram.event import (
-    GroupMessageEvent as TelegramGroupMessageEvent,
-    PrivateMessageEvent as TelegramPrivateMessageEvent,
 )
 import pytest
 
@@ -92,8 +87,8 @@ async def test_clear_pending_restart_app_for_pops_once_then_returns_false() -> N
 async def test_clear_pending_restart_app_clears_all() -> None:
     _register_pending()
     restart_app.register_pending_restart_app(
-        platform_id="telegram",
-        adapter_id="~telegram",
+        platform_id="qq",
+        adapter_id="~onebot.v11",
         bot_id="456",
         conversation_type="private",
         conversation_id="111",
@@ -284,20 +279,6 @@ def _make_pending_private() -> restart_app.PendingRestartApp:
     )
 
 
-def _make_telegram_pending(
-    *, conversation_type: str = "private"
-) -> restart_app.PendingRestartApp:
-    return restart_app.PendingRestartApp(
-        platform_id="telegram",
-        adapter_id="~telegram",
-        bot_id="456",
-        conversation_type=conversation_type,
-        conversation_id="111",
-        account_id="222",
-        created_at=0.0,
-    )
-
-
 def _make_onebot11_private_event(user_id: int = 789) -> OneBot11PrivateMessageEvent:
     return OneBot11PrivateMessageEvent(
         time=0,
@@ -335,30 +316,6 @@ def _make_onebot11_group_event(
     )
 
 
-def _make_telegram_private_event(
-    user_id: int = 222, chat_id: int = 111
-) -> TelegramPrivateMessageEvent:
-    return TelegramPrivateMessageEvent.model_validate({
-        "message_id": 1,
-        "date": 0,
-        "chat": {"id": chat_id, "type": "private"},
-        "from": {"id": user_id, "is_bot": False, "first_name": "tester"},
-        "message": "hi",
-    })
-
-
-def _make_telegram_group_event(
-    user_id: int = 222, chat_id: int = 111
-) -> TelegramGroupMessageEvent:
-    return TelegramGroupMessageEvent.model_validate({
-        "message_id": 1,
-        "date": 0,
-        "chat": {"id": chat_id, "type": "group"},
-        "from": {"id": user_id, "is_bot": False, "first_name": "tester"},
-        "message": "hi",
-    })
-
-
 def test_extract_context_onebot11_private() -> None:
     bot = MagicMock()
     bot.adapter.get_name.return_value = "OneBot V11"
@@ -375,34 +332,6 @@ def test_extract_context_onebot11_group() -> None:
     context = restart_app._extract_context(bot, _make_onebot11_group_event())
 
     assert context == ("qq", "group", "456", "789")
-
-
-def test_extract_context_telegram_private(monkeypatch: pytest.MonkeyPatch) -> None:
-    bot = MagicMock()
-    bot.adapter.get_name.return_value = "Telegram"
-    monkeypatch.setattr(
-        restart_app,
-        "get_platform_profile",
-        lambda _adapter_id: SimpleNamespace(platform_id="telegram"),
-    )
-
-    context = restart_app._extract_context(bot, _make_telegram_private_event())
-
-    assert context == ("telegram", "private", "111", "222")
-
-
-def test_extract_context_telegram_group(monkeypatch: pytest.MonkeyPatch) -> None:
-    bot = MagicMock()
-    bot.adapter.get_name.return_value = "Telegram"
-    monkeypatch.setattr(
-        restart_app,
-        "get_platform_profile",
-        lambda _adapter_id: SimpleNamespace(platform_id="telegram"),
-    )
-
-    context = restart_app._extract_context(bot, _make_telegram_group_event())
-
-    assert context == ("telegram", "group", "111", "222")
 
 
 def test_extract_context_unknown_adapter_returns_none() -> None:
@@ -437,28 +366,6 @@ async def test_send_to_conversation_qq_group() -> None:
     await restart_app._send_to_conversation(bot, _make_pending(), "msg")
 
     bot.send_group_msg.assert_awaited_once_with(group_id=456, message="msg")
-
-
-@pytest.mark.asyncio
-async def test_send_to_conversation_telegram_private() -> None:
-    bot = MagicMock()
-    bot.send_message = AsyncMock()
-
-    await restart_app._send_to_conversation(bot, _make_telegram_pending(), "msg")
-
-    bot.send_message.assert_awaited_once_with(chat_id=222, text="msg")
-
-
-@pytest.mark.asyncio
-async def test_send_to_conversation_telegram_group() -> None:
-    bot = MagicMock()
-    bot.send_message = AsyncMock()
-
-    await restart_app._send_to_conversation(
-        bot, _make_telegram_pending(conversation_type="group"), "msg"
-    )
-
-    bot.send_message.assert_awaited_once_with(chat_id=111, text="msg")
 
 
 @pytest.mark.asyncio
@@ -561,26 +468,6 @@ def test_get_bot_returns_bot(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(restart_app, "get_bot", lambda _bot_id: bot)
 
     assert restart_app._get_bot("123") is bot
-
-
-@pytest.mark.asyncio
-async def test_notify_restart_success_telegram_sends_message(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    bot = MagicMock()
-    bot.adapter.get_name.return_value = "Telegram"
-    bot.send_message = AsyncMock()
-    monkeypatch.setattr(restart_app, "get_bots", lambda: {"bot1": bot})
-    monkeypatch.setattr(
-        restart_app,
-        "get_platform_profile",
-        lambda _adapter_id: SimpleNamespace(platform_id="telegram"),
-    )
-
-    result = await restart_app.notify_restart_success("telegram", "222")
-
-    assert result is True
-    bot.send_message.assert_awaited_once_with(chat_id=222, text="灵初已成功重启")
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,7 @@
 """scheduler jobs
 
 迁移 ID: c3d4e5f6a7b8
-父迁移: b7c8d9e0f1a2
+父迁移: 2b3c4d5e6f7a
 创建时间: 2026-07-02 00:00:00
 
 """
@@ -29,7 +29,7 @@ CompatDateTimeTZ = sa.DateTime(timezone=True).with_variant(
 )
 
 revision: str = "c3d4e5f6a7b8"
-down_revision: str | Sequence[str] | None = "b7c8d9e0f1a2"
+down_revision: str | Sequence[str] | None = "2b3c4d5e6f7a"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

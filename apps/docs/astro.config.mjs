@@ -20,7 +20,6 @@ const docRedirectMap = {
   // How-to — Connect a Platform
   "/platforms/qq/onebot-v11/napcat": "/how-to/connect/qq-napcat",
   "/platforms/qq/frameworks/snowluma-docker": "/how-to/connect/qq-snowluma",
-  "/platforms/telegram/overview": "/how-to/connect/telegram",
   // How-to — Troubleshooting
   "/user-guide/troubleshooting": "/how-to/troubleshoot",
   // How-to — Contributing
@@ -172,7 +171,6 @@ export default defineConfig({
               items: [
                 { slug: "how-to/connect/qq-napcat" },
                 { slug: "how-to/connect/qq-snowluma" },
-                { slug: "how-to/connect/telegram" },
               ],
             },
             { slug: "how-to/troubleshoot" },

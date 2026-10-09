@@ -36,26 +36,6 @@ DRIVER=~fastapi+~httpx+~websockets
 ONEBOT_ACCESS_TOKEN=your-token
 ```
 
-## Telegram 平台 profile
-
-Telegram 使用 `nonebot-adapter-telegram`，通过
-`LINGCHUAdapter=~telegram` 显式选择。该适配器需要 ForwardDriver，推荐
-HTTPX：
-
-```dotenv
-DRIVER=~fastapi+~httpx
-LINGCHUAdapter=~telegram
-telegram_bots=[{"token":"1234567890:..."}]
-```
-
-默认使用 long polling；Webhook 需要 HTTPS 入口及适配器对应配置。受限网络
-请配置 `telegram_proxy`。如果需要接收群内普通非命令消息，必须在 BotFather
-中关闭 privacy mode；`chat_member` 更新通常还要求机器人是管理员并显式订阅。
-
-Telegram 群消息使用 Telegram 的 `chat.id` 作为持久化会话 ID，而不是适配器
-session ID，因为后者包含发送者及论坛主题信息。仅在选择 `~telegram` 时暴露
-Telegram 能力，不支持的 QQ 专属操作保持隐藏。
-
 ## 错误处理
 
 适配器注册表在配置无效时抛出特定异常：
@@ -82,7 +62,7 @@ Telegram 能力，不支持的 QQ 专属操作保持隐藏。
 
 ## 添加新的平台 profile
 
-要添加对新平台（如 Telegram 或 Discord）的支持：
+要添加对新平台（如 Discord）的支持：
 
 1. 在 `platforms/` 中创建新的平台 profile 类，声明平台名称、已知适配器和默认适配器。
 2. 在 `platforms/registry.py` 中注册 profile。

@@ -60,6 +60,10 @@ from .start.startup import startup as startup
 # services.message_store and start.startup.
 from . import hooks as hooks
 
+# WebUI 动态运行时端点（只读 + 登录密码校验，无登录/JWT/令牌功能）。
+# 导入即触发 on_startup 挂载逻辑。
+from .services import webui as webui
+
 # zhenxun 等宿主环境同时注册 150+ 插件的 Alconna 命令，默认上限 200 会被突破。
 # 在 lingchu 自身命令注册前抬高全局上限，避免 ExceedMaxCount。
 from arclet.alconna.config import config as _alconna_config

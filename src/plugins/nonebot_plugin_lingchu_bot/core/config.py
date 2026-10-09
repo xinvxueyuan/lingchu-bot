@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
+import os
 from pathlib import Path
 import platform
 from typing import Any, Final, Literal, cast
@@ -114,6 +115,7 @@ class Config(DeploymentSettings):
         data_dir: 数据存储目录路径。
         config_dir: 配置文件存储目录路径。
         cache_dir: 缓存文件存储目录路径。
+        lingchu_webui_password: WebUI 只读端点的简易字符串密码（默认空，空则不鉴权）。
         superuser_key: 运行时超级用户密钥。
         message_store_enabled: 是否启用消息存储。
         lingchu_superusers: 结构化超级用户平台账号绑定。
@@ -126,6 +128,7 @@ class Config(DeploymentSettings):
     config_dir: Path = field(default_factory=get_plugin_config_dir)
     cache_dir: Path = field(default_factory=get_plugin_cache_dir)
     in_containers: bool = False
+    lingchu_webui_password: str = ""
 
     @classmethod
     def from_nonebot(cls) -> Config:
@@ -163,6 +166,17 @@ class Config(DeploymentSettings):
             config_dir=get_plugin_config_dir(),
             cache_dir=get_plugin_cache_dir(),
             in_containers=in_containers,
+            # .env 的 LINGCHU_WEBUI_PASSWORD 可能被解析为 int（如 123456），
+            # 与字段声明 str 不符，统一强转为 str 供 hmac.compare_digest 使用。
+            lingchu_webui_password=str(
+                values.get(
+                    "LINGCHU_WEBUI_PASSWORD",
+                    values.get(
+                        "lingchu_webui_password",
+                        os.environ.get("LINGCHU_WEBUI_PASSWORD", ""),
+                    ),
+                )
+            ),
         )
 
     # --- 平台检测 Properties ---

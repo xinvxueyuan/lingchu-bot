@@ -80,11 +80,14 @@ path = [
   # shell & scripts
   "**/*.sh",
   "**/*.bash",
+  # plain-text data/config (e.g. public/robots.txt from scaffolds)
+  "**/*.txt",
   # i18n translation catalogs (data)
   "**/*.po",
   "**/*.pot",
   "**/*.mo",
   # docker / compose
+  "**/Dockerfile",
   "Dockerfile",
   "docker-compose.yml",
   # github ownership routing (extensionless)

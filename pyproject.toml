@@ -44,7 +44,6 @@ dependencies = [
     "babel>=2.18.0",
     "rtoml>=0.13.0",
     "packaging>=26.2",
-    "nonebot-adapter-telegram>=0.1.0b20",
 ]
 
 [project.optional-dependencies]
@@ -114,7 +113,6 @@ nonebot-adapter-onebot = [
     { name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11" },
 ]
 "@local" = []
-nonebot-adapter-telegram = [{name = "Telegram", module_name = "nonebot.adapters.telegram"}]
 
 [tool.nonebot.plugins]
 nonebot-plugin-apscheduler = ["nonebot_plugin_apscheduler"]
@@ -276,14 +274,6 @@ allowed-confusables = [
     "TC001",    # typing-only-first-party-import (NoneBot evaluates type hints at runtime)
     "TC002",    # typing-only-third-party-import (Bot/Event imports needed by get_type_hints())
 ]
-# Telegram handlers use the same NoneBot runtime annotation and DI contract.
-"src/plugins/nonebot_plugin_lingchu_bot/handle/telegram/adapters/default/**.py" = [
-    "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)
-    "PLR0913",  # too-many-arguments (NoneBot handler + Telegram API signatures)
-    "PLR0917",  # too-many-positional-arguments (NoneBot DI injection contract)
-    "TC001",    # typing-only-first-party-import (NoneBot evaluates annotations)
-    "TC002",    # typing-only-third-party-import (NoneBot evaluates annotations)
-]
 # TC001/TC002/TC003: NoneBot evaluates forward references at hook registration time;
 # these runtime imports must not be hidden behind TYPE_CHECKING.
 # Additionally, with future-annotations = true in ruff config, TC rules suggest moving
@@ -337,6 +327,8 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_manager.py" = ["TRY003", "BLE001", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/core/handle_config_defaults/__init__.py" = ["TRY003", "E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_base.py" = ["TRY003", "E402"]
+# E402: nonebot2 require() must precede cross-plugin imports at module level
+"src/plugins/nonebot_plugin_lingchu_bot/database/schema_guard.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/database/toml_store/_helpers.py" = ["TRY003"]
 
 # BLE001: startup/probe code uses intentional fail-closed/fail-soft exception handling
@@ -401,6 +393,14 @@ allowed-confusables = [
     "TC003",  # runtime stdlib imports needed by NoneBot
     "TRY003",  # vanilla exceptions for CRUD validation
     "PLR0913",  # parameter-heavy generic CRUD functions
+]
+# TC002: Starlette Request is evaluated at runtime in endpoint annotations.
+# BLE001: fail-soft upstream/JSON handling must never break request dispatch.
+# PLR2004: QQ id length bounds (4-15) are domain constants kept inline.
+"src/plugins/nonebot_plugin_lingchu_bot/services/webui/**.py" = [
+    "TC002",
+    "BLE001",
+    "PLR2004",
 ]
 "src/plugins/nonebot_plugin_lingchu_bot/database/orm_crud/_single.py" = [
     "E402",     # module-import-not-at-top-of-file (nonebot2 require() pattern)

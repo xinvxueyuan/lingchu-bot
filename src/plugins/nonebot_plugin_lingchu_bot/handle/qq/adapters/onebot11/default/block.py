@@ -43,6 +43,7 @@ from .common import (
     default_admin_reason,
     finish_action_error_onebot11,
     format_user_display_name,
+    is_member_not_found,
     record_audit_fire_and_forget,
     resolve_user_onebot11,
     store_block_record,
@@ -68,12 +69,27 @@ async def _kick_blocked_user(
     bot: OneBot11Bot,
     group_id: int,
     user_id: int,
-) -> None:
-    await bot.set_group_kick(
-        group_id=group_id,
-        user_id=user_id,
-        reject_add_request=False,
-    )
+) -> bool:
+    """踢出被拉黑成员；目标不在群时跳过并返回 ``False``。
+
+    「全局拉黑」的常见场景是处理**已退群**的骗子：此时踢出没有对象，协议端会报
+    「群成员未找到」。黑名单记录在调用本函数之前已入库，因此这里按「已跳过踢出」
+    处理（返回 False 由调用方在回复里注明），而不是整体报错。
+    """
+    try:
+        await bot.set_group_kick(
+            group_id=group_id,
+            user_id=user_id,
+            reject_add_request=False,
+        )
+    except OneBot11ActionFailed as error:
+        if is_member_not_found(error):
+            logger.info(
+                "目标不在本群，跳过踢出: group_id={} user_id={}", group_id, user_id
+            )
+            return False
+        raise
+    return True
 
 
 async def _block_member(
@@ -127,7 +143,7 @@ async def _block_member(
             reason=reason_text,
             bot=bot,
         )
-        await _kick_blocked_user(bot, event.group_id, target_user_id)
+        kicked = await _kick_blocked_user(bot, event.group_id, target_user_id)
     except DatabaseError as error:
         return await _finish_database_error(command, await _("拉黑"), error)
     except OneBot11ActionFailed as error:
@@ -166,6 +182,8 @@ async def _block_member(
         reason=reason_text,
         target_user_id=target_user_id,
     )
+    if not kicked:
+        message += "\n" + await _("（目标不在本群，已跳过踢出）")
     logger.info(message)
     return await command.finish(message=message)
 
@@ -277,7 +295,7 @@ async def _unblock_member(
 
 @selected_adapter_handle(unblock_member_cmd, "~onebot.v11", "unblock_member")
 async def onebot11_unblock_member(
-    user: At,
+    user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     session: async_scoped_session,
@@ -300,7 +318,7 @@ async def onebot11_unblock_member(
     "global_unblock_member",
 )
 async def onebot11_global_unblock_member(
-    user: At,
+    user: At | int,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     session: async_scoped_session,

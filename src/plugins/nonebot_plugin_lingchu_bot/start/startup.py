@@ -17,6 +17,7 @@ from nonebot_plugin_orm import get_session
 from ..core.runtime_config import load_runtime_configs_on_startup
 from ..database.orm_crud import DatabaseError
 from ..database.persistence import cleanup_stale_temp_files
+from ..database.schema_guard import log_schema_drift
 from ..handle.qq.adapters import import_handle
 from ..i18n import _async as _, warm_translation_cache
 from ..permissions import validate_and_seed_permission_system
@@ -76,6 +77,7 @@ async def startup() -> None:
             await validate_and_seed_permission_system(session)
 
     await _retry_startup_step(seed_database, "database seed")
+    await log_schema_drift()
     await import_handle("command")
     await import_handle("menu")
     await initialize_message_store()

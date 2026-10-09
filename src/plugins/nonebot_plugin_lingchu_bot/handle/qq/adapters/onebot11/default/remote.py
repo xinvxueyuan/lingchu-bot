@@ -21,10 +21,7 @@ from ......core.config import get_handle_config_manager, plugin_config
 from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......permissions.subject_policy import find_active_subject_policy
-from ......repositories.blocklist import (
-    find_active_block,
-    remove_block,
-)
+from ......repositories.blocklist import remove_block
 from ....commands.announcement import _resolve_image_path
 from ....commands.common import selected_adapter_handle
 from ....commands.remote import (
@@ -51,6 +48,7 @@ from .common import (
     check_self_target,
     default_admin_reason,
     format_user_display_name,
+    is_member_not_found,
     operator_is_superuser_onebot11,
     record_audit_fire_and_forget,
     resolve_user_onebot11,
@@ -238,10 +236,20 @@ async def _check_remote_target_privilege(
         target_info = await bot.get_group_member_info(
             group_id=group_id, user_id=target_user_id, no_cache=True
         )
-    except OneBot11ActionFailed:
-        # Fail closed: 目标角色无法确认时拒绝操作，避免越权操作只依赖协议端兜底。
+    except OneBot11ActionFailed as error:
+        if is_member_not_found(error):
+            # 目标不在该群 → 不可能是该群管理员/群主，按「无群内特权」放行
+            # （跨群/全局操作时目标本就常不在目标群内）。
+            logger.info(
+                "目标不在群内，跳过高权限校验: group_id={} target_user_id={}",
+                group_id,
+                target_user_id,
+            )
+            return True
+        # Fail closed: 其他失败（协议端异常、权限不足等）仍拒绝操作，
+        # 避免越权操作只依赖协议端兜底。
         logger.warning(
-            "无法获取目标用户角色，拒绝操作: group_id=%s, target_user_id=%s",
+            "无法获取目标用户角色，拒绝操作: group_id={}, target_user_id={}",
             group_id,
             target_user_id,
         )
@@ -576,26 +584,7 @@ async def onebot11_remote_kick(
     ):
         return None
 
-    # 5. 检查目标用户是否在黑名单中
-    try:
-        entry = await find_active_block(
-            session,
-            platform_id=QQ_PLATFORM_ID,
-            adapter_id=ONEBOT_V11_ADAPTER_ID,
-            bot_id=bot_id(bot),
-            group_id=group_id_int,
-            user_id=target_user_id,
-        )
-    except DatabaseError as error:
-        logger.error(f"查询黑名单失败，数据库异常: {error!r}")
-        return await remote_kick_cmd.finish(await _("查询黑名单失败，数据库异常"))
-
-    if entry is None:
-        display_name = format_user_display_name(target_user_id, target_name)
-        message = await _("用户 {name} 不在黑名单中，无法执行踢出操作")
-        return await remote_kick_cmd.finish(message.format(name=display_name))
-
-    # 6. 执行踢出操作
+    # 执行踢出操作
     try:
         await bot.set_group_kick(
             group_id=group_id_int,

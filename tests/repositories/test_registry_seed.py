@@ -237,25 +237,25 @@ async def test_seed_registry_tables_continues_after_one_item_fails_in_batch(
             "implemented": True,
         },
         {
-            "platform_id": "telegram",
-            "display_name": "Telegram",
+            "platform_id": "whatsapp",
+            "display_name": "WhatsApp",
             "capabilities": "[]",
             "implemented": True,
         },
     ]
 
-    telegram_error = DatabaseError("telegram boom")
+    whatsapp_error = DatabaseError("whatsapp boom")
 
-    def _raise_on_telegram(
+    def _raise_on_whatsapp(
         _session: object,
         model: type,
         insert_values: dict[str, Any],
         **_kwargs: object,
     ) -> None:
-        if model is Platform and insert_values.get("platform_id") == "telegram":
-            raise telegram_error
+        if model is Platform and insert_values.get("platform_id") == "whatsapp":
+            raise whatsapp_error
 
-    upsert_mock = AsyncMock(side_effect=_raise_on_telegram)
+    upsert_mock = AsyncMock(side_effect=_raise_on_whatsapp)
 
     with (
         patch.object(registry_repo, "upsert", upsert_mock),
@@ -277,4 +277,4 @@ async def test_seed_registry_tables_continues_after_one_item_fails_in_batch(
         for call in upsert_mock.call_args_list
         if call.args[1] is Platform
     ]
-    assert set(platform_ids) == {"qq", "discord", "telegram"}
+    assert set(platform_ids) == {"qq", "discord", "whatsapp"}

@@ -3,6 +3,7 @@
 
 # generated content
 .source
+/.astro
 
 # test & build
 /coverage

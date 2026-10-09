@@ -92,7 +92,7 @@ set_group_name_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_SET_GROUP_NAME.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 set_group_avatar_cmd: type[AlconnaMatcher] = on_alconna(
@@ -100,7 +100,7 @@ set_group_avatar_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_SET_GROUP_AVATAR.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 
