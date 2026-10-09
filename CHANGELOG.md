@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Added
 
+- `一键解禁` / `unmute-muted`: unmutes every member currently muted in the group, one
+  at a time, and reports the result per member. Failures are listed individually and
+  never abort or retry the remaining members.
+- `禁言列表` / `mute-list`: lists the muted members of the group with the remaining
+  mute time and the reason, one member per line.
+- New protocol-private layer `handle/qq/adapters/onebot11/llbot/` backed by the
+  LLBot-private API `get_group_shut_list`. It is reached through the `default/`
+  middle layer, which resolves the implementation and reports "unsupported" for any
+  other protocol end. A static guard keeps `default/` free of private API calls.
+- Repository helper `list_recent_command_audits()` to read back command-level audit
+  entries (used to recover the mute reason).
+
 ### Changed
 
 - Agent context: `AGENTS.md` and `CLAUDE.md` now record the OneBot V11 layering rule — a protocol-private API (NapCat `set_group_portrait`, LLBot `get_group_shut_list`, …) MUST live under `handle/qq/adapters/onebot11/<implementation>/` and be dispatched from the `default/` middle layer, which stays on the standard OneBot V11 API surface.

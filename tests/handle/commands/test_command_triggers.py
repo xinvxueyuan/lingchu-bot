@@ -29,6 +29,33 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         "chinese_aliases": {"禁言用户", "禁言群成员", "禁言成员", "禁", "封禁"},
         "english_aliases": {"ban", "mute-member", "ban-member"},
     },
+    "one_click_unmute": {
+        "primary": "一键解禁",
+        "english": "unmute-muted",
+        "chinese_aliases": {
+            "解禁全部",
+            "解禁所有",
+            "全部解禁",
+            "批量解禁",
+            "解除全部禁言",
+            "解除禁言名单",
+            "解禁被禁言",
+        },
+        "english_aliases": {"unmute-all-muted", "clear-mutes"},
+    },
+    "mute_list": {
+        "primary": "禁言列表",
+        "english": "mute-list",
+        "chinese_aliases": {
+            "被禁言列表",
+            "查看禁言",
+            "禁言名单",
+            "查询禁言",
+            "谁被禁言",
+            "被禁言名单",
+        },
+        "english_aliases": {"list-mutes", "muted-members"},
+    },
     "manage_handle_defaults": {
         "primary": "设置功能默认值",
         "english": "set-handle-default",

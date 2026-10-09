@@ -46,6 +46,15 @@ def mock_onebot11_bot() -> MagicMock:
 
 
 @pytest.fixture
+def mock_session() -> MagicMock:
+    """Provide a mock AsyncSession for handler Depends() injection."""
+    sess = AsyncMock()
+    sess.add = MagicMock()
+    sess.add_all = MagicMock()
+    return sess
+
+
+@pytest.fixture
 def mock_at() -> MagicMock:
     """
     创建并返回一个符合 At 规格的模拟（MagicMock），表示一个提及对象。

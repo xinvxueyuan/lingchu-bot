@@ -1,6 +1,8 @@
 import asyncio
 from dataclasses import dataclass
 import json
+import re
+import time
 from typing import Any
 
 from nonebot import logger, require
@@ -21,6 +23,7 @@ from nonebot_plugin_orm import async_scoped_session
 
 from ......core.config import get_handle_config_manager, plugin_config
 from ......core.handle_default_values import update_handle_default
+from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
 from ......permissions.subject_policy import find_active_subject_policy
 from ......repositories import message_store as message_repository
@@ -28,14 +31,22 @@ from ....commands.common import selected_adapter_handle
 from ....commands.mute import (
     member_mute_cmd,
     member_unmute_cmd,
+    mute_list_cmd,
+    one_click_unmute_cmd,
     recall_message_cmd,
     set_default_mute_duration_cmd,
     whole_mute_cmd,
     whole_unmute_cmd,
 )
+from ..llbot.mute_list import (
+    LLBOT_APP_NAME,
+    MutedMember,
+    fetch_group_shut_list,
+)
 from .common import (
     MUTE_DURATION_MAX,
     MUTE_DURATION_MIN,
+    ONEBOT_V11_ADAPTER_ID,
     CommandAudit,
     bot_id,
     bot_self_id_safe,
@@ -48,6 +59,183 @@ from .common import (
 )
 
 RECALL_COUNT_MAX = 100
+
+#: 一对一报告里最多逐条列出的成员数；超出只影响显示，不影响已执行的动作。
+UNMUTE_REPORT_MAX_LINES = 30
+
+
+async def _resolve_shut_list_action(
+    bot: OneBot11Bot,
+) -> tuple[Any | None, str | None]:
+    """解析协议端，返回可用的「被禁言名单」私有实现。
+
+    ``default/`` 在这里只负责**解析与分派**；真正的私有接口调用在
+    ``../llbot/mute_list.py``。未知协议端返回错误文案而不是猜实现 ——
+    ``get_group_shut_list`` 不是 OneBot V11 标准接口，只有明确支持的协议端才有。
+    """
+    version_info = await bot.get_version_info()
+    # OneBot V11 适配器解包响应，get_version_info() 直接返回 data 字段
+    data = version_info.get("data", version_info)
+
+    if data.get("protocol_version") != "v11":
+        return None, await _("不支持的 OneBot 协议版本")
+
+    match data.get("app_name"):
+        case app_name if app_name == LLBOT_APP_NAME:
+            return fetch_group_shut_list, None
+        case _:
+            return None, await _("当前协议端不支持查询禁言名单")
+
+
+async def _batch_unmute(
+    bot: OneBot11Bot,
+    *,
+    group_id: int,
+    members: list[MutedMember],
+) -> tuple[list[MutedMember], list[MutedMember]]:
+    """逐个解禁，返回 (成功, 失败)。
+
+    顺序执行而非并发：群管理接口有频率限制，一把并发容易触发平台静默拒绝
+    （表现为「调用成功但没生效」），排查成本高。
+
+    单个成员失败**不中断**后续，也**不重试** —— 否则一人异常会让剩下的人永远
+    解不掉，而重试会把「平台静默拒绝」误当抖动反复打。
+    """
+    succeeded: list[MutedMember] = []
+    failed: list[MutedMember] = []
+    for member in members:
+        try:
+            await bot.set_group_ban(
+                group_id=group_id,
+                user_id=member.user_id,
+                duration=0,
+            )
+        except (OneBot11ActionFailed, OneBot11NetworkError) as e:
+            logger.warning(
+                "解禁失败 user_id={} name={}: {}: {}",
+                member.user_id,
+                member.display_name,
+                type(e).__name__,
+                e,
+            )
+            failed.append(member)
+        else:
+            succeeded.append(member)
+    return succeeded, failed
+
+
+def _format_unmute_report(
+    *,
+    succeeded: list[MutedMember],
+    failed: list[MutedMember],
+) -> str:
+    """按「成员一对一」格式拼报告：每人一行，带成功/失败标记。
+
+    只负责排版，不改变事实 —— 失败者必须出现且带失败标记。
+    """
+    lines = [
+        f"✅ {format_user_display_name(m.user_id, m.display_name, style='detail')}"
+        for m in succeeded
+    ]
+    lines.extend(
+        f"❌ {format_user_display_name(m.user_id, m.display_name, style='detail')}"
+        for m in failed
+    )
+    total = len(lines)
+    if total > UNMUTE_REPORT_MAX_LINES:
+        lines = lines[:UNMUTE_REPORT_MAX_LINES]
+        lines.append(
+            f"...另有 {total - UNMUTE_REPORT_MAX_LINES} 人未列出（共 {total} 人）"
+        )
+    return "\n".join(lines)
+
+
+#: 审计 ``data_summary`` 里可能出现的键；解析时按这些键切分。
+_AUDIT_SUMMARY_KEYS = ("operator", "target", "action", "group", "duration", "reason")
+
+#: 「禁言列表」逐条列出的成员上限；超出只影响显示。
+MUTE_LIST_REPORT_MAX_LINES = 30
+
+
+def _parse_mute_audit_summary(summary: str | None) -> dict[str, str]:
+    """解析命令审计的自由文本 ``data_summary``。
+
+    格式形如 ``operator=1, target=2, action=member_mute, group=3, duration=60,
+    reason=刷屏, 重复``。**不能**按 ``, `` 简单切分 —— reason 本身可能含逗号。
+    做法：按已知键名定位，值延伸到"下一个 ``键=`` 出现处"之前。
+    """
+    if not summary:
+        return {}
+
+    # 找到每个已知键的出现位置（要求前一个字符是行首/空格/逗号，避免匹配到值的内部）
+    marks: list[tuple[int, str]] = [
+        (m.start(), key)
+        for key in _AUDIT_SUMMARY_KEYS
+        for m in re.finditer(rf"(?:^|(?<=[,\s])){re.escape(key)}=", summary)
+    ]
+    if not marks:
+        return {}
+    marks.sort()
+
+    parsed: dict[str, str] = {}
+    for idx, (start, key) in enumerate(marks):
+        value_start = start + len(key) + 1
+        end = marks[idx + 1][0] if idx + 1 < len(marks) else len(summary)
+        value = summary[value_start:end].strip().rstrip(",").strip()
+        # 先出现的键优先（同一 target 只留第一条）
+        parsed.setdefault(key, value)
+    return parsed
+
+
+def _format_remaining(seconds: int) -> str:
+    """把剩余秒数格式化成中文单位；已到期显示 0 秒，不显示负数。"""
+    if seconds <= 0:
+        return "0 秒"
+    days, rest = divmod(seconds, 86400)
+    hours, rest = divmod(rest, 3600)
+    minutes, secs = divmod(rest, 60)
+
+    if days:
+        return f"{days} 天 {hours} 小时" if hours else f"{days} 天"
+    if hours:
+        return f"{hours} 小时 {minutes} 分" if minutes else f"{hours} 小时"
+    if minutes:
+        return f"{minutes} 分 {secs} 秒" if secs else f"{minutes} 分"
+    return f"{secs} 秒"
+
+
+def _format_mute_list_report(
+    *,
+    members: list[MutedMember],
+    audit_by_target: dict[int, dict[str, str]],
+    now_ts: int,
+) -> str:
+    """按「成员一对一」格式拼禁言列表。
+
+    每行形如 ``甲(10001) — 剩余 12 分 30 秒 · 原因: 刷屏``。
+    取不到原因/原始时长时显示占位，**不留空也不猜**。
+    """
+    unknown_reason = "未知（非本机器人操作或记录已过保留期）"
+    lines: list[str] = []
+    for member in members:
+        if member.shut_up_time is None:
+            remaining = "未知"
+        else:
+            remaining = _format_remaining(member.shut_up_time - now_ts)
+        audit = audit_by_target.get(member.user_id, {})
+        reason = audit.get("reason") or unknown_reason
+        name = format_user_display_name(
+            member.user_id, member.display_name, style="detail"
+        )
+        lines.append(f"{name} — 剩余 {remaining} · 原因: {reason}")
+
+    total = len(lines)
+    if total > MUTE_LIST_REPORT_MAX_LINES:
+        lines = lines[:MUTE_LIST_REPORT_MAX_LINES]
+        lines.append(
+            f"...另有 {total - MUTE_LIST_REPORT_MAX_LINES} 人未列出（共 {total} 人）"
+        )
+    return "\n".join(lines)
 
 
 def _message_id_int(value: Any) -> int | None:
@@ -593,6 +781,141 @@ async def onebot11_whole_unmute(
     record_audit_fire_and_forget(bot, event, CommandAudit(action="whole_unmute"))
 
     return await whole_unmute_cmd.finish(await _("全体解禁成功"))
+
+
+@selected_adapter_handle(one_click_unmute_cmd, "~onebot.v11", "one_click_unmute")
+async def onebot11_one_click_unmute(
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
+) -> Any:
+    """把本群当前被禁言的成员逐个解禁。
+
+    与「全体解禁」（``whole_unmute``，关掉全群禁言开关）语义不同：这里作用于
+    **逐个成员**的禁言状态。
+    """
+    config = await get_handle_config_manager().get_config("member_mute")
+    if not config.enabled:
+        return await one_click_unmute_cmd.finish(await _("该功能已禁用"))
+
+    if not await check_bot_privilege(bot, event.group_id, one_click_unmute_cmd):
+        return None
+
+    # 1. 解析协议端 → 取私有实现（default/ 不直接调私有 action）
+    action, error = await _resolve_shut_list_action(bot)
+    if error is not None or action is None:
+        return await one_click_unmute_cmd.finish(
+            error or await _("当前协议端不支持查询禁言名单")
+        )
+
+    try:
+        members = await action(bot=bot, group_id=event.group_id)
+    except (OneBot11ActionFailed, OneBot11NetworkError) as e:
+        logger.error(f"获取禁言名单失败: {type(e).__name__}: {e!r}")
+        return await one_click_unmute_cmd.finish(await _("获取禁言名单失败"))
+
+    if not members:
+        return await one_click_unmute_cmd.finish(await _("本群当前没有被禁言的成员"))
+
+    # 2. 逐个解禁（顺序、不重试、失败不中断）
+    succeeded, failed = await _batch_unmute(
+        bot, group_id=event.group_id, members=members
+    )
+
+    # 3. 审计
+    record_audit_fire_and_forget(bot, event, CommandAudit(action="one_click_unmute"))
+
+    # 4. 一对一报告（失败逐一列出）
+    header = await _("一键解禁完成：成功 {ok} 人，失败 {bad} 人")
+    body = _format_unmute_report(succeeded=succeeded, failed=failed)
+    return await one_click_unmute_cmd.finish(
+        header.format(ok=len(succeeded), bad=len(failed)) + "\n\n" + body
+    )
+
+
+async def _collect_mute_reasons(
+    session: async_scoped_session,
+    *,
+    bot: OneBot11Bot,
+    group_id: int,
+) -> dict[int, dict[str, str]]:
+    """从审计记录取回本群各成员的「原因」等字段（尽力而为）。
+
+    审计记录是自由文本且有保留期，取不到就返回空表让调用方降级成「未知」。
+    查询失败也只降级，不影响列出成员本身。
+    """
+    try:
+        records = await message_repository.list_recent_command_audits(
+            session,
+            action="member_mute",
+            adapter_id=ONEBOT_V11_ADAPTER_ID,
+            bot_id=bot_id(bot),
+        )
+    except DatabaseError:
+        logger.exception("查询禁言审计记录失败，原因将显示为未知")
+        return {}
+
+    audit_by_target: dict[int, dict[str, str]] = {}
+    group_marker = f"group={group_id}"
+    for record in records:
+        parsed = _parse_mute_audit_summary(record.data_summary)
+        # 二次过滤：data_summary 是自由文本，只靠子串匹配会被 group=999 前缀骗过
+        if parsed.get("group") != str(group_id):
+            continue
+        if group_marker not in (record.data_summary or ""):
+            continue
+        try:
+            target = int(parsed["target"])
+        except (KeyError, ValueError):
+            continue
+        audit_by_target.setdefault(target, parsed)
+    return audit_by_target
+
+
+@selected_adapter_handle(mute_list_cmd, "~onebot.v11", "mute_list")
+async def onebot11_mute_list(
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
+) -> Any:
+    """列出本群当前被禁言的成员及其剩余时间、原因。
+
+    原因来自「禁言」命令留下的审计记录（自由文本、受保留期约束），
+    取不到时显示占位而不是猜。
+    """
+    config = await get_handle_config_manager().get_config("member_mute")
+    if not config.enabled:
+        return await mute_list_cmd.finish(await _("该功能已禁用"))
+
+    if not await check_bot_privilege(bot, event.group_id, mute_list_cmd):
+        return None
+
+    action, error = await _resolve_shut_list_action(bot)
+    if error is not None or action is None:
+        return await mute_list_cmd.finish(
+            error or await _("当前协议端不支持查询禁言名单")
+        )
+
+    try:
+        members = await action(bot=bot, group_id=event.group_id)
+    except (OneBot11ActionFailed, OneBot11NetworkError) as e:
+        logger.error(f"获取禁言名单失败: {type(e).__name__}: {e!r}")
+        return await mute_list_cmd.finish(await _("获取禁言名单失败"))
+
+    if not members:
+        return await mute_list_cmd.finish(await _("本群当前没有被禁言的成员"))
+
+    audit_by_target = await _collect_mute_reasons(
+        session, bot=bot, group_id=event.group_id
+    )
+
+    header = (await _("本群被禁言 {count} 人")).format(count=len(members))
+    body = _format_mute_list_report(
+        members=members,
+        audit_by_target=audit_by_target,
+        now_ts=int(time.time()),
+    )
+    return await mute_list_cmd.finish(header + "\n\n" + body)
 
 
 @selected_adapter_handle(recall_message_cmd, "~onebot.v11", "recall_message")
