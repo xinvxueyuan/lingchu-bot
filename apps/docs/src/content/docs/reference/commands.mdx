@@ -28,7 +28,7 @@ The menu command is an index entry. It lists the available submenu commands inst
 Default submenu commands:
 
 - `member-management` / `成员管理`: kick, block/unblock, set member card, set member title, set/unset admin.
-- `speech-management` / `发言管理`: mute/unmute member, enable/disable whole-group mute, recall recent messages.
+- `speech-management` / `发言管理`: mute/unmute member, enable/disable whole-group mute, bulk unmute muted members and list muted members (LLBot), recall recent messages.
 - `group-chat-management` / `群聊管理`: set group name, set group avatar (when supported), send group announcement (when supported), leave current group.
 - `remote-management` / `远程管理`: cross-group mute/unmute, whole-group mute/unmute, kick, block/unblock, send announcement, mass announcement.
 - `system-management` / `系统管理`: silence/speak (silent mode), boot/shutdown (handle gate), application operation commands such as protocol endpoint restart.
@@ -83,6 +83,71 @@ mute-all
 全体解禁
 unmute-all
 ```
+
+## Bulk unmute of muted members (LLBot)
+
+```text
+一键解禁
+unmute-muted
+```
+
+Reads the members **currently muted individually** in this group and unmutes each of
+them. This is a different operation from whole-group unmute, which only toggles the
+group-wide switch.
+
+<Aside type="caution" title="Protocol implementation limit">
+
+This command relies on the protocol-private API `get_group_shut_list`, which only
+**LLBot** provides today. On other implementations it replies that the current
+implementation does not support listing muted members.
+
+</Aside>
+
+The reply lists results one member per line as `name(QQ id)`; failed members are
+marked with `❌` and counted separately. A failure does not abort the remaining
+members and is never retried automatically.
+
+After the batch, the muted list is fetched once more. Members who were unmuted
+successfully but are muted again by someone else in the meantime (so they are still
+muted right now) are listed separately under a `⚠️` heading: the unmute did succeed,
+but reporting them as plain successes would hide the fact that they are still muted.
+If that follow-up fetch fails, only this notice is omitted — the already completed
+unmutes are still reported normally.
+
+The command records one summary audit entry carrying the outcome counts
+(`outcome=成功 N 人，失败 M 人`), so the impact of a bulk run stays traceable even
+though a bulk command has no single target.
+
+## Muted member list (LLBot)
+
+```text
+禁言列表
+mute-list
+```
+
+Lists the muted members of this group one per line, with the **remaining mute time**
+and the reason:
+
+```text
+本群被禁言 2 人
+
+甲(10001) — 剩余 12 分 30 秒 · 原因: 刷屏
+乙(10002) — 剩余 2 小时 5 分 · 原因: 未知（非本机器人操作或记录已过保留期）
+```
+
+<Aside type="note" title="Where the reason comes from, and its limits">
+
+The reason is read back from the audit entry left by the mute command. That entry is
+free text and is subject to the message retention policy (30 days by default, see
+`LINGCHU_MESSAGE_STORE_RETENTION_DAYS`), so:
+
+- mutes issued by anything other than this bot have no entry to begin with;
+- for a mute longer than the retention window, the entry is deleted before the mute
+  expires.
+
+Both cases show an explicit "unknown" instead of guessing.
+
+</Aside>
 
 ## Message recall
 

@@ -14,12 +14,29 @@ title: 默认实现
 - `发送群公告` / `send-announcement` — 受实现版本门控（见 [NapCat](/zh/how-to/connect/qq-napcat)）
 - `设置群头像` / `set-group-avatar` — 受实现版本门控（见 [NapCat](/zh/how-to/connect/qq-napcat)）
 - `远程公告` / `remote-announcement` — 受实现版本门控
+- `一键解禁` / `unmute-muted` 与 `禁言列表` / `mute-list` — 依赖协议端私有 API，目前仅 LLBot 支持（见下文）
+
+## 协议端私有 API
+
+`default/` 下的处理器**只**调用 OneBot V11 标准 API。只存在于某一个协议端实现里的 API，必须落在该实现自己的包里（`napcat/`、`llbot/` 等），并由对应功能的 `default/` 模块转发调用。`default/` 是中间层：先解析协议端（`get_version_info()` → `app_name`，实现有需要时再加版本门控），再分派；没有匹配实现时如实报告「不支持」。
+
+```text
+handle/qq/adapters/onebot11/
+├── default/          # 中间层：只用标准 API，负责解析与分派
+├── napcat/           # NapCat 私有 API（_send_group_notice、set_group_portrait）
+└── llbot/            # LLBot 私有 API（get_group_shut_list）
+```
+
+依赖私有 API 的命令由此获得两个性质：
+
+- 在不提供该接口的协议端上，命令回复「不支持」而不是给出费解的失败。
+- **禁止**在 `default/` 里直接 `call_api("<私有 action>")`；静态守卫（`tests/handle/commands/test_mute_wiring_guards.py`）会让违规的构建失败。
 
 ## 处理器模块
 
 | 模块 | 命令 |
 | --- | --- |
-| `mute.py` | `禁言`、`解禁`、`全员禁言`、`全体解禁`、`撤回` |
+| `mute.py` | `禁言`、`解禁`、`全员禁言`、`全体解禁`、`一键解禁`（LLBot）、`禁言列表`（LLBot）、`撤回` |
 | `member.py` | `踢出群成员`、`设置群名片`、`设置群头衔`、`设置群管理员`、`取消群管理员` |
 | `block.py` | `拉黑`、`全局拉黑`、`删黑`、`全局删黑`、`清空黑名单`、`全局清空黑名单` |
 | `protect.py` | `拉白`、`全局拉白`、`删白`、`全局删白` |

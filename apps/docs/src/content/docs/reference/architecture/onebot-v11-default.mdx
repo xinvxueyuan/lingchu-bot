@@ -14,12 +14,37 @@ All commands listed in [QQ Commands](../commands) are available in the default i
 - `发送群公告` / `send-announcement` — gated by implementation version (see [NapCat](/how-to/connect/qq-napcat))
 - `设置群头像` / `set-group-avatar` — gated by implementation version (see [NapCat](/how-to/connect/qq-napcat))
 - `远程公告` / `remote-announcement` — gated by implementation version
+- `一键解禁` / `unmute-muted` and `禁言列表` / `mute-list` — require a protocol-private API, currently only LLBot (see below)
+
+## Protocol-private APIs
+
+`default/` handlers call **only** the standard OneBot V11 API surface. An API that
+exists in a single protocol-end implementation must live in that implementation's
+own package (`napcat/`, `llbot/`, …) and be reached through the `default/` module
+for that feature. The `default/` module is the middle layer: it resolves the
+implementation (`get_version_info()` → `app_name`, plus a version gate where the
+implementation requires one) and then
+dispatches, reporting "unsupported" when no implementation matches.
+
+```text
+handle/qq/adapters/onebot11/
+├── default/          # middle layer: standard API only, resolves + dispatches
+├── napcat/           # NapCat-private APIs (_send_group_notice, set_group_portrait)
+└── llbot/            # LLBot-private APIs (get_group_shut_list)
+```
+
+Consequences for commands backed by a private API:
+
+- On an implementation that does not provide it, the command replies with an
+  "unsupported" message instead of failing obscurely.
+- Never call `call_api("<private_action>")` from `default/`; a static guard
+  (`tests/handle/commands/test_mute_wiring_guards.py`) fails the build if you do.
 
 ## Handler modules
 
 | Module | Commands |
 | --- | --- |
-| `mute.py` | `禁言`, `解禁`, `全员禁言`, `全体解禁`, `撤回` |
+| `mute.py` | `禁言`, `解禁`, `全员禁言`, `全体解禁`, `一键解禁` (LLBot), `禁言列表` (LLBot), `撤回` |
 | `member.py` | `踢出群成员`, `设置群名片`, `设置群头衔`, `设置群管理员`, `取消群管理员` |
 | `block.py` | `拉黑`, `全局拉黑`, `删黑`, `全局删黑`, `清空黑名单`, `全局清空黑名单` |
 | `protect.py` | `拉白`, `全局拉白`, `删白`, `全局删白` |

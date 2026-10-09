@@ -10,6 +10,24 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Added
 
+- `一键解禁` / `unmute-muted`: unmutes every member currently muted in the group, one
+  at a time, and reports the result per member. Failures are listed individually and
+  never abort or retry the remaining members. After the batch the muted list is
+  fetched once more, and members who were muted again by someone else in the meantime
+  are reported separately under a `⚠️` heading instead of being counted as plain
+  successes. The run also writes one summary audit entry carrying the outcome counts.
+- `禁言列表` / `mute-list`: lists the muted members of the group with the remaining
+  mute time and the reason, one member per line.
+- New protocol-private layer `handle/qq/adapters/onebot11/llbot/` backed by the
+  LLBot-private API `get_group_shut_list`. It is reached through the `default/`
+  middle layer, which resolves the implementation and reports "unsupported" for any
+  other protocol end. A static guard keeps `default/` free of private API calls.
+- Repository helper `list_recent_command_audits()` to read back command-level audit
+  entries (used to recover the mute reason), scoped by group so records still inside
+  the retention window are not paged out by other groups' newer entries.
+- `CommandAudit.outcome` for bulk commands, whose audit entry has no single target
+  and therefore needs an impact summary.
+
 ### Changed
 
 - Agent context: `AGENTS.md` and `CLAUDE.md` now record the OneBot V11 layering rule — a protocol-private API (NapCat `set_group_portrait`, LLBot `get_group_shut_list`, …) MUST live under `handle/qq/adapters/onebot11/<implementation>/` and be dispatched from the `default/` middle layer, which stays on the standard OneBot V11 API surface.
@@ -21,6 +39,40 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 - Chinese agent guide mirror `.github/note/AGENTS-zh.md`. `AGENTS.md` and `CLAUDE.md` are now the only agent context files that need to stay structurally aligned, and the PR templates no longer ask contributors to sync a third file.
 
 ### Fixed
+
+- `禁言列表` queried the audit table with a non-existent column (`api_name`; the
+  recorded column is `event_type`). The resulting `ValueError` was not a
+  `DatabaseError`, so it escaped the caller's handler and the command produced no
+  reply at all on the real ORM path.
+- The LLBot-private `get_group_shut_list` result was parsed as if the adapter
+  returned the whole response envelope, but the OneBot V11 adapter unwraps the
+  top-level `data` field. Every parse therefore produced an empty list, so both new
+  commands reported "no muted members" and bulk unmute did nothing. The parser now
+  accepts the unwrapped payload (and still tolerates an envelope), and a test pins
+  the adapter's unwrapping behaviour so mocks cannot drift from reality again.
+- `一键解禁` truncated the per-member report before the failures: with 30+ successes
+  every `❌` line was dropped, hiding exactly the members the operator needs to act
+  on. Truncation now drops successes first and says how many were omitted.
+- `一键解禁` did not catch `nonebot.exception.ApiNotAvailable` (not a subclass of
+  `ActionFailed`/`NetworkError`): a disconnected protocol end aborted the whole batch
+  with no reply. It is now recorded per member like any other failure.
+- `_resolve_shut_list_action` called `get_version_info()` without error handling, so
+  a failed version query escaped both new commands. It now degrades to a readable
+  message instead of producing no reply.
+- `禁言列表` attributed a member's *previous* mute reason to their current mute when
+  they were unmuted and muted again by someone else. A stored audit is now used only
+  when its issue time plus duration matches the current mute's end time; otherwise the
+  reason shows as unknown.
+- A reason containing a fragment such as `target=` or `duration=`, or whitespace
+  separated from a key name, was truncated or invented a bogus field, because the
+  free-text `data_summary` was split on any key-like text. `reason` is the last field
+  emitted, so everything after it is now taken as the reason.
+- Audits of bot-issued mutes recorded only the optional reason argument, so mutes that
+  used the configured default reason showed up as "unknown" in the list even though
+  the mute reply had displayed a reason. The resolved reason is now what gets recorded.
+- Report bodies of both new commands embedded Chinese labels, placeholders and
+  overflow notices instead of going through i18n, so English locales received mixed
+  output.
 
 ### Security
 

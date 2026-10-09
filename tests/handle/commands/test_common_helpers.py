@@ -503,6 +503,38 @@ class TestRecordCommandAudit:
         assert "reason=违规" in audit_event.data_summary
 
     @pytest.mark.asyncio
+    async def test_outcome_lands_in_data_summary(
+        self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
+    ) -> None:
+        """批量命令的结果摘要（``outcome``）必须落进 data_summary。
+
+        批量命令没有单一 target，审计里若不带影响面摘要，事后无法追查「尝试了几人、
+        几人失败」。
+        """
+        with (
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default.common.get_session",
+                return_value=_FakeSessionContext(AsyncMock()),
+            ),
+            patch(
+                "src.plugins.nonebot_plugin_lingchu_bot.repositories.message_store.record_api_call",
+                AsyncMock(),
+            ) as mock_record,
+        ):
+            await record_command_audit(
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                CommandAudit(
+                    action="one_click_unmute",
+                    outcome="成功 3 人，失败 1 人",
+                ),
+            )
+
+        mock_record.assert_called_once()
+        audit_event = mock_record.call_args.args[1]
+        assert "outcome=成功 3 人，失败 1 人" in audit_event.data_summary
+
+    @pytest.mark.asyncio
     async def test_database_error_silent(
         self, mock_onebot11_bot: MagicMock, mock_onebot11_event: MagicMock
     ) -> None:

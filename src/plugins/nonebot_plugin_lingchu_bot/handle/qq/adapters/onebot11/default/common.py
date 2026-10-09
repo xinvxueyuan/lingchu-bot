@@ -95,6 +95,9 @@ class CommandAudit:
     reason: str | None = None
     duration: int | None = None
     group_id: int | None = None
+    #: 批量命令的结果摘要（例如「成功 3 人，失败 1 人」）。单目标命令不需要它，
+    #: 但批量命令没有单一 target，没有这行审计事后无法追查影响面。
+    outcome: str | None = None
 
 
 async def target_user_onebot11(
@@ -425,6 +428,10 @@ async def record_command_audit(
         data_summary += f", duration={audit.duration}"
     if audit.reason is not None:
         data_summary += f", reason={audit.reason}"
+    # 放在最后：member_mute 的 reason 是解析时的终止字段，批量命令的 outcome 不会
+    # 出现在同一行里（不同 action），因此不受影响
+    if audit.outcome is not None:
+        data_summary += f", outcome={audit.outcome}"
 
     try:
         async with get_session() as s:

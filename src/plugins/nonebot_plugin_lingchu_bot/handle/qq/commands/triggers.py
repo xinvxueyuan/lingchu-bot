@@ -274,6 +274,33 @@ _DEFAULT_COMMAND_TRIGGERS = {
         }),
         english_aliases=frozenset({"unmute-group", "disable-whole-mute"}),
     ),
+    "one_click_unmute": CommandTrigger(
+        chinese="一键解禁",
+        english="unmute-muted",
+        chinese_aliases=frozenset({
+            "解禁全部",
+            "解禁所有",
+            "全部解禁",
+            "批量解禁",
+            "解除全部禁言",
+            "解除禁言名单",
+            "解禁被禁言",
+        }),
+        english_aliases=frozenset({"unmute-all-muted", "clear-mutes"}),
+    ),
+    "mute_list": CommandTrigger(
+        chinese="禁言列表",
+        english="mute-list",
+        chinese_aliases=frozenset({
+            "被禁言列表",
+            "查看禁言",
+            "禁言名单",
+            "查询禁言",
+            "谁被禁言",
+            "被禁言名单",
+        }),
+        english_aliases=frozenset({"list-mutes", "muted-members"}),
+    ),
     "recall_message": CommandTrigger(
         chinese="撤回",
         english="recall",
