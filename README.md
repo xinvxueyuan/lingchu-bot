@@ -47,7 +47,7 @@ Useful entry points:
 | Capability | Description |
 | --- | --- |
 | Member moderation | Mute, unmute, kick, block, unblock, clear blocklist, protect, and unprotect. |
-| Speech management | Member mute/unmute, whole-group mute/unmute, and recent message recall. |
+| Speech management | Member mute/unmute, whole-group mute/unmute, bulk unmute of all muted members and a muted-member list when the protocol implementation supports it, and recent message recall. |
 | Group operations | Set group name, set group avatar when supported, set member card/title/admin, send announcements when supported, and leave the current group. |
 | Remote management | Operate on another group by group ID or fuzzy group name matching, including remote mute/unmute, whole-group mute/unmute, kick, block/unblock, and announcement. |
 | Bot control | `silence` / `speak` suppress or resume response messages while still allowing commands to execute; `boot` / `shutdown` enable or disable command handlers. |
