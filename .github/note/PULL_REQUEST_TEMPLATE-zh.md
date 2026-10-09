@@ -56,8 +56,7 @@
       handle 默认值。
 - [ ] 我已运行 `prek run --all-files`（或依赖 `pre-commit` 钩子），
       并确认所有文件携带 SPDX 许可声明（REUSE 合规）。
-- [ ] 对于 `AGENTS.md`、`CLAUDE.md` 或
-      `.github/note/AGENTS-zh.md` 的改动，我已保持三份镜像文件
+- [ ] 对于 `AGENTS.md` 或 `CLAUDE.md` 的改动，我已保持两份镜像文件
       结构对齐（不含 GitNexus 标记块）。
 
 ### Release PR 自检（仅适用于 `releases/**` 分支）

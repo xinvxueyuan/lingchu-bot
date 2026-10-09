@@ -60,9 +60,8 @@ and verification.
 - [ ] I have run `prek run --all-files` (or relied on the
       `pre-commit` hook) and confirmed all files carry SPDX license
       declarations (REUSE compliance).
-- [ ] For changes to `AGENTS.md`, `CLAUDE.md`, or
-      `.github/note/AGENTS-zh.md`, I have kept the three mirror files
-      structurally aligned (excluding GitNexus marker blocks).
+- [ ] For changes to `AGENTS.md` or `CLAUDE.md`, I have kept both
+      mirror files structurally aligned (excluding GitNexus marker blocks).
 
 ### Release PR Checklist (only for `releases/**` branches)
 

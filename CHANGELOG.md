@@ -12,9 +12,13 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Changed
 
+- Agent context: `AGENTS.md` and `CLAUDE.md` now record the OneBot V11 layering rule — a protocol-private API (NapCat `set_group_portrait`, LLBot `get_group_shut_list`, …) MUST live under `handle/qq/adapters/onebot11/<implementation>/` and be dispatched from the `default/` middle layer, which stays on the standard OneBot V11 API surface.
+
 ### Deprecated
 
 ### Removed
+
+- Chinese agent guide mirror `.github/note/AGENTS-zh.md`. `AGENTS.md` and `CLAUDE.md` are now the only agent context files that need to stay structurally aligned, and the PR templates no longer ask contributors to sync a third file.
 
 ### Fixed
 
