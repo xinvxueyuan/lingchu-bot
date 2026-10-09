@@ -1,6 +1,7 @@
 """「一键解禁」与「禁言列表」的 handler、中间层分派与审计解析测试。"""
 
 import asyncio
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from nonebot.adapters.onebot.v11.exception import (
@@ -82,15 +83,15 @@ class TestOneClickUnmute:
     ) -> None:
         """解析协议端 → 取禁言名单 → 逐个解禁 → 一对一报告。"""
         mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
+        # 真实契约：适配器已解包 data，call_api 直接返回成员数组
         mock_onebot11_bot.call_api = AsyncMock(
-            return_value={
-                "status": "ok",
-                "retcode": 0,
-                "data": [
+            side_effect=[
+                [
                     {"uin": "10001", "nick": "甲"},
                     {"uin": "10002", "nick": "乙"},
                 ],
-            }
+                [],
+            ]
         )
         mock_onebot11_bot.set_group_ban = AsyncMock()
 
@@ -101,9 +102,11 @@ class TestOneClickUnmute:
                 session=mock_session,
             )
 
-        mock_onebot11_bot.call_api.assert_awaited_once_with(
-            "get_group_shut_list", group_id=mock_onebot11_event.group_id
-        )
+        # 现在会调用两次：首次取名单 + 解禁后复查（同样的 action 与群号）
+        assert mock_onebot11_bot.call_api.await_count == 2
+        for call in mock_onebot11_bot.call_api.await_args_list:
+            assert call.args == ("get_group_shut_list",)
+            assert call.kwargs == {"group_id": mock_onebot11_event.group_id}
         assert mock_onebot11_bot.set_group_ban.await_count == 2
         text = finish_text(mock_finish)
         assert "甲" in text and "10001" in text
@@ -119,13 +122,13 @@ class TestOneClickUnmute:
         """失败成员必须在 msg 中逐一列出，且带失败标记。"""
         mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
         mock_onebot11_bot.call_api = AsyncMock(
-            return_value={
-                "retcode": 0,
-                "data": [
+            side_effect=[
+                [
                     {"uin": "10001", "nick": "甲"},
                     {"uin": "10002", "nick": "乙"},
                 ],
-            }
+                [],
+            ]
         )
         mock_onebot11_bot.set_group_ban = AsyncMock(
             side_effect=[None, OneBot11ActionFailed()]
@@ -139,9 +142,9 @@ class TestOneClickUnmute:
             )
 
         text = finish_text(mock_finish)
-        assert "甲" in text and "10001" in text
-        assert "乙" in text and "10002" in text
-        assert "❌" in text
+        # 逐人钉住标记位置：只断言「存在 ❌」会让标记贴错人照样通过
+        assert "✅ 甲(10001)" in text, text
+        assert "❌ 乙(10002)" in text, text
 
     @pytest.mark.asyncio
     async def test_one_click_unmute_failure_does_not_stop_later_members(
@@ -153,14 +156,14 @@ class TestOneClickUnmute:
         """中间一个失败，后面的成员仍必须被处理（不中断、不重试）。"""
         mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
         mock_onebot11_bot.call_api = AsyncMock(
-            return_value={
-                "retcode": 0,
-                "data": [
+            side_effect=[
+                [
                     {"uin": "1", "nick": "甲"},
                     {"uin": "2", "nick": "乙"},
                     {"uin": "3", "nick": "丙"},
                 ],
-            }
+                [],
+            ]
         )
         calls: list[int] = []
 
@@ -190,7 +193,7 @@ class TestOneClickUnmute:
     ) -> None:
         """名单为空时不动 API，回执说明没人被禁言。"""
         mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
-        mock_onebot11_bot.call_api = AsyncMock(return_value={"retcode": 0, "data": []})
+        mock_onebot11_bot.call_api = AsyncMock(return_value=[])
         mock_onebot11_bot.set_group_ban = AsyncMock()
 
         with patch.object(one_click_unmute_cmd, "finish") as mock_finish:
@@ -452,16 +455,19 @@ class TestOneBot11MuteList:
         mock_onebot11_event: MagicMock,
         mock_session: Mock,
     ) -> None:
-        """列表显示成员一对一信息与剩余时间。"""
+        """列表显示成员一对一信息与**确切**的剩余时间。
+
+        冻结处理器时钟后断言数值：只断言「剩余」二字会让错误的时间计算（例如
+        恒显示 0 秒）照样通过。
+        """
+        now = 1_700_000_000
         mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
         mock_onebot11_bot.call_api = AsyncMock(
-            return_value={
-                "retcode": 0,
-                "data": [{"uin": "10001", "nick": "甲", "shutUpTime": 2**31 - 1}],
-            }
+            return_value=[{"uin": "10001", "nick": "甲", "shutUpTime": now + 750}]
         )
 
         with (
+            patch.object(mute_module.time, "time", return_value=now),
             patch.object(
                 mute_module.message_repository,
                 "list_recent_command_audits",
@@ -477,7 +483,7 @@ class TestOneBot11MuteList:
 
         text = finish_text(mock_finish)
         assert "甲(10001)" in text
-        assert "剩余" in text
+        assert "剩余 12 分 30 秒" in text
 
     @pytest.mark.asyncio
     async def test_mute_list_uses_audit_reason(
@@ -487,19 +493,18 @@ class TestOneBot11MuteList:
         mock_session: Mock,
     ) -> None:
         """能从审计记录取回原因时显示真实原因。"""
+        shut_up_time = 2**31 - 1
         mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
         mock_onebot11_bot.call_api = AsyncMock(
-            return_value={
-                "retcode": 0,
-                "data": [{"uin": "10001", "nick": "甲", "shutUpTime": 2**31 - 1}],
-            }
+            return_value=[{"uin": "10001", "nick": "甲", "shutUpTime": shut_up_time}]
         )
-
         record = MagicMock()
         record.data_summary = (
             "operator=1, target=10001, action=member_mute, "
             f"group={mock_onebot11_event.group_id}, duration=600, reason=刷屏"
         )
+        # 该审计推算的解禁时刻必须与当前禁言一致，否则视为上一轮遗留记录
+        record.created_at = datetime.fromtimestamp(shut_up_time - 600, UTC)
 
         with (
             patch.object(
@@ -531,7 +536,7 @@ class TestOneBot11MuteList:
         """
         mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
         mock_onebot11_bot.call_api = AsyncMock(
-            return_value={"retcode": 0, "data": [{"uin": "10001", "nick": "甲"}]}
+            return_value=[{"uin": "10001", "nick": "甲"}]
         )
 
         gid = mock_onebot11_event.group_id
@@ -568,7 +573,7 @@ class TestOneBot11MuteList:
         """别的群的审计记录不得被当成本群的（按群号二次过滤）。"""
         mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
         mock_onebot11_bot.call_api = AsyncMock(
-            return_value={"retcode": 0, "data": [{"uin": "10001", "nick": "甲"}]}
+            return_value=[{"uin": "10001", "nick": "甲"}]
         )
 
         record = MagicMock()
@@ -602,7 +607,7 @@ class TestOneBot11MuteList:
     ) -> None:
         """没人被禁言时回执说明，且不查审计。"""
         mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
-        mock_onebot11_bot.call_api = AsyncMock(return_value={"retcode": 0, "data": []})
+        mock_onebot11_bot.call_api = AsyncMock(return_value=[])
 
         with (
             patch.object(
@@ -652,7 +657,7 @@ class TestOneBot11MuteList:
         """审计查询失败只降级为「未知原因」，不影响列出成员。"""
         mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
         mock_onebot11_bot.call_api = AsyncMock(
-            return_value={"retcode": 0, "data": [{"uin": "10001", "nick": "甲"}]}
+            return_value=[{"uin": "10001", "nick": "甲"}]
         )
 
         with (
@@ -672,3 +677,128 @@ class TestOneBot11MuteList:
         text = finish_text(mock_finish)
         assert "甲(10001)" in text
         assert "未知（非本机器人操作或记录已过保留期）" in text
+
+
+class TestReMutedDuringOperation:
+    """#3：操作期间被他人再次禁言的成员，必须在报告里单独标出（不谎报为单纯成功）。"""
+
+    @pytest.fixture(autouse=True)
+    def _mock_record_audit(self):
+        with patch.object(mute_module, "record_audit_fire_and_forget", new=MagicMock()):
+            yield
+
+    @pytest.fixture(autouse=True)
+    def _mock_check_bot_privilege(self):
+        with patch.object(
+            mute_module, "check_bot_privilege", new=AsyncMock(return_value=True)
+        ):
+            yield
+
+    @pytest.fixture(autouse=True)
+    def _mock_handle_config_manager(self):
+        with patch.object(
+            mute_module, "get_handle_config_manager", return_value=_EnabledManager()
+        ):
+            yield
+
+    @pytest.mark.asyncio
+    async def test_member_re_muted_by_others_is_flagged(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        """乙 解禁后又被别人禁言 → 报告里以 ⚠️ 单独列出，不计入普通成功行。"""
+        mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
+        mock_onebot11_bot.call_api = AsyncMock(
+            side_effect=[
+                [
+                    {"uin": "10001", "nick": "甲"},
+                    {"uin": "10002", "nick": "乙"},
+                ],
+                # 复查：乙 又被别人禁言了
+                [{"uin": "10002", "nick": "乙", "shutUpTime": 2**31 - 1}],
+            ]
+        )
+        mock_onebot11_bot.set_group_ban = AsyncMock()
+
+        with patch.object(one_click_unmute_cmd, "finish") as mock_finish:
+            await mute_module.onebot11_one_click_unmute(
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+                session=mock_session,
+            )
+
+        text = finish_text(mock_finish)
+        assert mock_onebot11_bot.call_api.await_count == 2, "未做解禁后复查"
+        assert "⚠️ 乙(10002)" in text, text
+        assert "✅ 乙(10002)" not in text, "被再次禁言的人不该只报成功"
+        assert "✅ 甲(10001)" in text
+
+    @pytest.mark.asyncio
+    async def test_recheck_failure_does_not_break_report(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        """复查失败只少一段提示，不能把已完成的解禁变成报错。"""
+        mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
+        mock_onebot11_bot.call_api = AsyncMock(
+            side_effect=[
+                [{"uin": "10001", "nick": "甲"}],
+                OneBot11ActionFailed(),
+            ]
+        )
+        mock_onebot11_bot.set_group_ban = AsyncMock()
+
+        with patch.object(one_click_unmute_cmd, "finish") as mock_finish:
+            await mute_module.onebot11_one_click_unmute(
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+                session=mock_session,
+            )
+
+        text = finish_text(mock_finish)
+        assert "✅ 甲(10001)" in text, text
+        assert "⚠️" not in text
+
+    @pytest.mark.asyncio
+    async def test_audit_carries_outcome_counts(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        """#10：汇总审计要带上成功/失败人数，事后可追查影响面。"""
+        mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
+        mock_onebot11_bot.call_api = AsyncMock(
+            side_effect=[
+                [
+                    {"uin": "1", "nick": "甲"},
+                    {"uin": "2", "nick": "乙"},
+                ],
+                [],
+            ]
+        )
+        mock_onebot11_bot.set_group_ban = AsyncMock(
+            side_effect=[None, OneBot11ActionFailed()]
+        )
+
+        with (
+            patch.object(
+                mute_module, "record_audit_fire_and_forget", new=MagicMock()
+            ) as mock_audit,
+            patch.object(one_click_unmute_cmd, "finish"),
+        ):
+            await mute_module.onebot11_one_click_unmute(
+                bot=mock_onebot11_bot,
+                event=mock_onebot11_event,
+                session=mock_session,
+            )
+
+        assert mock_audit.call_count == 1
+        audit = mock_audit.call_args.args[2]
+        assert audit.action == "one_click_unmute"
+        assert audit.outcome, "批量命令的审计缺影响面摘要"
+        assert "1" in audit.outcome and "1" in audit.outcome
