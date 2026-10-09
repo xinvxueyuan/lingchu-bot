@@ -21,6 +21,7 @@ from src.plugins.nonebot_plugin_lingchu_bot.core.handle_config_manager import (
 from src.plugins.nonebot_plugin_lingchu_bot.database.models import (
     QQOneBotV11NoneBotAuditRecord as AuditModel,
 )
+from src.plugins.nonebot_plugin_lingchu_bot.database.orm_crud import DatabaseError
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     mute as mute_module,
 )
@@ -168,6 +169,55 @@ class TestUnmuteReportTruncation:
         )
         assert "未列出" not in text
         assert "FAILX" in text
+
+    def test_overflow_branch_keeps_failures_and_notes_the_rest(self) -> None:
+        """必需展示的行本身就超上限时：先保失败（可操作信息），其余截断并注明。
+
+        这条走的是 `required >= UNMUTE_REPORT_MAX_LINES` 分支：失败人数一多，
+        成功行全部省略，且尾注要说明还有多少人没列出。
+        """
+        limit = mute_module.UNMUTE_REPORT_MAX_LINES
+        failed = _members("FAIL", limit + 2, 9000)
+
+        text = mute_module._format_unmute_report(
+            succeeded=_members("OK", 5, 1000), failed=failed
+        )
+
+        lines = text.split("\n")
+        assert len(lines) == limit, f"超出上限未截断: {len(lines)}"
+        assert lines[0].startswith("❌"), "失败行未被优先展示"
+        assert "未列出" in text
+        # 成功行在这个分支里应全部省略
+        assert "✅" not in text
+        # 尾注算出的「未列出」数量应自洽：总数 - 已展示
+        total = limit + 2 + 5
+        shown = limit - 1
+        assert f"另有 {total - shown} 人" in text
+
+    def test_overflow_branch_counts_re_muted_in_total(self) -> None:
+        """超限分支的总数要把「被再次禁言」的人也计进去。"""
+        limit = mute_module.UNMUTE_REPORT_MAX_LINES
+        text = mute_module._format_unmute_report(
+            succeeded=[],
+            failed=_members("FAIL", limit - 1, 9000),
+            re_muted=_members("RE", 3, 8000),
+        )
+        # required = (limit-1) + 3 + 1(标题) = limit + 3 → 走超限分支
+        assert "未列出" in text
+        assert len(text.split("\n")) <= limit
+
+    def test_re_muted_section_is_rendered_with_counts(self) -> None:
+        """未超限时，「被再次禁言」应带标题与人数单独成段。"""
+        text = mute_module._format_unmute_report(
+            succeeded=_members("OK", 2, 1000),
+            failed=[],
+            re_muted=_members("RE", 2, 8000),
+        )
+        assert "被他人再次禁言" in text
+        assert "{count}" not in text, "占位符未被替换"
+        assert "2" in text
+        assert "⚠️" in text
+        assert "✅" in text
 
 
 # --------------------------------------------------------------------------
@@ -399,8 +449,361 @@ class TestAuditOnlyMatchesCurrentMute:
         assert "未知" in text
 
 
+class TestCollectMuteReasonsBranches:
+    """审计取回的分组/降级分支（直接测该函数，避免经由 handler 走不到）。"""
+
+    @pytest.mark.asyncio
+    async def test_filters_by_group_and_skips_bad_target(
+        self, mock_session: Mock, mock_onebot11_bot: MagicMock
+    ) -> None:
+        """他群记录、target 不可解析的记录都要跳过，只留本群可用记录。"""
+        gid = 123456789
+        shut_up = 2**31 - 1
+
+        def rec(summary: str, created_offset: int = 0) -> MagicMock:
+            r = MagicMock()
+            r.data_summary = summary
+            r.created_at = datetime.fromtimestamp(shut_up - 600 + created_offset, UTC)
+            return r
+
+        records = [
+            # 他群：按群号精确比较应被跳过
+            rec(
+                f"operator=1, target=10003, action=member_mute, group={gid + 1}, "
+                "duration=600, reason=他群"
+            ),
+            # target 不可解析
+            rec(
+                f"operator=1, target=abc, action=member_mute, group={gid}, "
+                "duration=600, reason=坏值"
+            ),
+            # target 缺失
+            rec(
+                f"operator=1, action=member_mute, group={gid}, "
+                "duration=600, reason=无目标"
+            ),
+            # 本群、可用
+            rec(
+                f"operator=1, target=10001, action=member_mute, group={gid}, "
+                "duration=600, reason=刷屏"
+            ),
+        ]
+
+        members = [
+            MutedMember(user_id=10001, display_name="甲", shut_up_time=shut_up),
+            MutedMember(user_id=10003, display_name="丙", shut_up_time=shut_up),
+        ]
+
+        with patch.object(
+            mute_module.message_repository,
+            "list_recent_command_audits",
+            new=AsyncMock(return_value=records),
+        ):
+            reasons = await mute_module._collect_mute_reasons(
+                mock_session, bot=mock_onebot11_bot, group_id=gid, members=members
+            )
+
+        assert set(reasons) == {10001}, f"未按群号/target 正确过滤: {reasons}"
+        assert reasons[10001]["reason"] == "刷屏"
+
+    @pytest.mark.asyncio
+    async def test_skips_audit_not_matching_current_mute(
+        self, mock_session: Mock, mock_onebot11_bot: MagicMock
+    ) -> None:
+        """审计推算的解禁时刻与当前禁言对不上时不挂原因（走 continue 分支）。"""
+        gid = 123456789
+        shut_up = 2**31 - 1
+        record = MagicMock()
+        record.data_summary = (
+            f"operator=1, target=10001, action=member_mute, group={gid}, "
+            "duration=600, reason=很久以前"
+        )
+        record.created_at = datetime.fromtimestamp(shut_up - 600 - 7200, UTC)
+
+        members = [MutedMember(user_id=10001, display_name="甲", shut_up_time=shut_up)]
+
+        with patch.object(
+            mute_module.message_repository,
+            "list_recent_command_audits",
+            new=AsyncMock(return_value=[record]),
+        ):
+            reasons = await mute_module._collect_mute_reasons(
+                mock_session, bot=mock_onebot11_bot, group_id=gid, members=members
+            )
+
+        assert reasons == {}
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_on_query_failure(
+        self, mock_session: Mock, mock_onebot11_bot: MagicMock
+    ) -> None:
+        """查询抛 DatabaseError 时降级为空表（不把整条命令带走）。"""
+        with patch.object(
+            mute_module.message_repository,
+            "list_recent_command_audits",
+            new=AsyncMock(side_effect=DatabaseError("boom")),
+        ):
+            reasons = await mute_module._collect_mute_reasons(
+                mock_session,
+                bot=mock_onebot11_bot,
+                group_id=123456789,
+                members=[MutedMember(user_id=1, display_name="甲", shut_up_time=1)],
+            )
+
+        assert reasons == {}
+
+
+class TestMuteListEarlyExits:
+    """「禁言列表」/「一键解禁」的早退分支：功能禁用 / 机器人无权限。"""
+
+    @pytest.mark.asyncio
+    async def test_one_click_unmute_disabled_feature_replies_and_stops(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        """「一键解禁」在功能禁用时回执并立即停止。"""
+
+        class _Disabled:
+            async def get_config(self, command_key: str) -> HandleConfig:
+                return HandleConfig(enabled=False, defaults={}, policies={})
+
+        with (
+            patch.object(
+                mute_module, "get_handle_config_manager", return_value=_Disabled()
+            ),
+            patch.object(
+                mute_module, "check_bot_privilege", new=AsyncMock()
+            ) as mock_priv,
+            patch.object(one_click_unmute_cmd, "finish") as mock_finish,
+        ):
+            await mute_module.onebot11_one_click_unmute(
+                bot=mock_onebot11_bot, event=mock_onebot11_event, session=mock_session
+            )
+
+        assert "禁用" in finish_text(mock_finish)
+        mock_priv.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_one_click_unmute_missing_bot_privilege_stops_silently(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        """机器人无管理员权限：由 check_bot_privilege 回执，这里不再发消息。"""
+        with (
+            patch.object(
+                mute_module, "get_handle_config_manager", return_value=_EnabledManager()
+            ),
+            patch.object(
+                mute_module, "check_bot_privilege", new=AsyncMock(return_value=False)
+            ),
+            patch.object(one_click_unmute_cmd, "finish") as mock_finish,
+            patch.object(mute_module, "record_audit_fire_and_forget", new=MagicMock()),
+        ):
+            result = await mute_module.onebot11_one_click_unmute(
+                bot=mock_onebot11_bot, event=mock_onebot11_event, session=mock_session
+            )
+
+        assert result is None
+        mock_finish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_disabled_feature_replies_and_stops(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        class _Disabled:
+            async def get_config(self, command_key: str) -> HandleConfig:
+                return HandleConfig(enabled=False, defaults={}, policies={})
+
+        with (
+            patch.object(
+                mute_module, "get_handle_config_manager", return_value=_Disabled()
+            ),
+            patch.object(
+                mute_module, "check_bot_privilege", new=AsyncMock()
+            ) as mock_priv,
+            patch.object(mute_list_cmd, "finish") as mock_finish,
+        ):
+            await mute_module.onebot11_mute_list(
+                bot=mock_onebot11_bot, event=mock_onebot11_event, session=mock_session
+            )
+
+        assert "禁用" in finish_text(mock_finish)
+        mock_priv.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_missing_bot_privilege_stops_silently(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        """机器人无管理员权限：由 check_bot_privilege 负责回执，这里不应再发消息。"""
+        with (
+            patch.object(
+                mute_module, "get_handle_config_manager", return_value=_EnabledManager()
+            ),
+            patch.object(
+                mute_module, "check_bot_privilege", new=AsyncMock(return_value=False)
+            ),
+            patch.object(mute_list_cmd, "finish") as mock_finish,
+        ):
+            result = await mute_module.onebot11_mute_list(
+                bot=mock_onebot11_bot, event=mock_onebot11_event, session=mock_session
+            )
+
+        assert result is None
+        mock_finish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_shut_list_fetch_failure_is_reported(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        """取名单失败要回可读文案（不误报成「没有被禁言」）。"""
+        mock_onebot11_bot.get_version_info = AsyncMock(return_value=LLBOT_VERSION_INFO)
+        mock_onebot11_bot.call_api = AsyncMock(
+            side_effect=ApiNotAvailable("~onebot.v11")
+        )
+
+        with (
+            patch.object(
+                mute_module, "get_handle_config_manager", return_value=_EnabledManager()
+            ),
+            patch.object(
+                mute_module, "check_bot_privilege", new=AsyncMock(return_value=True)
+            ),
+            patch.object(mute_list_cmd, "finish") as mock_finish,
+        ):
+            await mute_module.onebot11_mute_list(
+                bot=mock_onebot11_bot, event=mock_onebot11_event, session=mock_session
+            )
+
+        text = finish_text(mock_finish)
+        assert "获取禁言名单失败" in text, text
+        assert "没有被禁言" not in text
+
+
+class TestMuteListEmptyReport:
+    """列表为空时的占位分支（`_format_mute_list_report` 的 None/无原因路径）。"""
+
+    def test_unknown_remaining_and_reason_placeholders(self) -> None:
+        text = mute_module._format_mute_list_report(
+            members=[MutedMember(user_id=1, display_name="甲", shut_up_time=None)],
+            audit_by_target={},
+            now_ts=1000,
+        )
+        assert "剩余 未知" in text
+        assert "未知" in text  # 原因占位
+
+    def test_report_truncation_note_when_over_limit(self) -> None:
+        limit = mute_module.MUTE_LIST_REPORT_MAX_LINES
+        members = [
+            MutedMember(user_id=1000 + i, display_name=f"M{i}", shut_up_time=None)
+            for i in range(limit + 5)
+        ]
+        text = mute_module._format_mute_list_report(
+            members=members, audit_by_target={}, now_ts=1000
+        )
+        assert "未列出" in text
+        assert len(text.split("\n")) == limit + 1  # limit 行 + 尾注
+
+
 class TestAuditQueryScopedToGroup:
     """#6：群号过滤必须下沉到查询，否则旧记录被挤出 LIMIT 窗口。"""
+
+    @pytest.mark.asyncio
+    async def test_group_condition_is_built_when_group_id_given(
+        self, mock_session: Mock
+    ) -> None:
+        """传了 group_id 时，必须真的构造出群号条件并交给 list_items。
+
+        这条直接执行仓库函数本体（只替换最底层的 list_items），而不是把整个函数
+        打桩 —— 否则条件构造那几行永远走不到。
+        """
+        captured: dict[str, object] = {}
+
+        async def fake_list_items(*_args: object, **kwargs: object) -> list[object]:
+            captured["conditions"] = kwargs.get("conditions")
+            return []
+
+        with patch.object(repo, "list_items", new=fake_list_items):
+            await repo.list_recent_command_audits(
+                mock_session, action="member_mute", group_id=123456789
+            )
+
+        conditions = captured["conditions"]
+        assert conditions, "传了 group_id 却没构造群号条件"
+        assert isinstance(conditions, list)
+        assert len(conditions) == 1
+        # 条件是 SQLAlchemy 表达式，编译后应含 group=<群号> 的子串匹配
+        compiled = str(conditions[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "group=123456789" in compiled, compiled
+
+    @pytest.mark.asyncio
+    async def test_no_group_condition_when_group_id_absent(
+        self, mock_session: Mock
+    ) -> None:
+        """不传 group_id 时不加群号条件（保持原有调用方行为不变）。"""
+        captured: dict[str, object] = {}
+
+        async def fake_list_items(*_args: object, **kwargs: object) -> list[object]:
+            captured["conditions"] = kwargs.get("conditions")
+            return []
+
+        with patch.object(repo, "list_items", new=fake_list_items):
+            await repo.list_recent_command_audits(mock_session, action="member_mute")
+
+        assert captured["conditions"] is None
+
+    @pytest.mark.asyncio
+    async def test_optional_filters_are_applied_when_given(
+        self, mock_session: Mock
+    ) -> None:
+        """给了 adapter_id / bot_id 时要真的加进过滤条件。"""
+        captured: dict[str, object] = {}
+
+        async def fake_list_items(*args: object, **_kwargs: object) -> list[object]:
+            captured["filters"] = args[2]
+            return []
+
+        with patch.object(repo, "list_items", new=fake_list_items):
+            await repo.list_recent_command_audits(
+                mock_session,
+                action="member_mute",
+                adapter_id="~onebot.v11",
+                bot_id="42",
+            )
+
+        filters = captured["filters"]
+        assert isinstance(filters, dict)
+        assert filters["adapter_id"] == "~onebot.v11"
+        assert filters["bot_id"] == "42"
+
+    @pytest.mark.asyncio
+    async def test_optional_filters_absent_by_default(self, mock_session: Mock) -> None:
+        """不传可选过滤时不得凭空加上（保持查询面不变）。"""
+        captured: dict[str, object] = {}
+
+        async def fake_list_items(*args: object, **_kwargs: object) -> list[object]:
+            captured["filters"] = args[2]
+            return []
+
+        with patch.object(repo, "list_items", new=fake_list_items):
+            await repo.list_recent_command_audits(mock_session, action="member_mute")
+
+        filters = captured["filters"]
+        assert isinstance(filters, dict)
+        assert "adapter_id" not in filters
+        assert "bot_id" not in filters
 
     @pytest.mark.asyncio
     async def test_group_id_is_passed_to_repository(

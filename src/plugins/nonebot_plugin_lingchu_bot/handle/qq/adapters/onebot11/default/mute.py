@@ -1047,13 +1047,13 @@ async def _collect_mute_reasons(
 
     # 先按群号与 target 分组解析，再逐个成员挑出「对应当前禁言」的那条
     parsed_records: list[tuple[int, float | None, dict[str, str]]] = []
-    group_marker = f"group={group_id}"
     for record in records:
         parsed = _parse_mute_audit_summary(record.data_summary)
-        # 二次过滤：data_summary 是自由文本，只靠子串匹配会被 group=999 前缀骗过
+        # 二次过滤：data_summary 是自由文本，用**解析后精确比较**而不是子串匹配 ——
+        # 子串会被前缀骗过（`group=999` 也匹配 `group=999999999`）。
+        # 注意这一条已足够：若解析出的 group 恰等于本群号，原文必然含
+        # `group=<本群号>`，无需再补一次 `in` 判断。
         if parsed.get("group") != str(group_id):
-            continue
-        if group_marker not in (record.data_summary or ""):
             continue
         try:
             target = int(parsed["target"])

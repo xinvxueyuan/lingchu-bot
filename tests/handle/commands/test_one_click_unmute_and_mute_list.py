@@ -414,6 +414,11 @@ class TestBatchUnmuteAndFormatting:
         assert mute_module._parse_mute_audit_summary(None) == {}
         assert mute_module._parse_mute_audit_summary("") == {}
 
+    def test_parse_mute_audit_summary_without_any_known_key(self) -> None:
+        """完全不含已知键的文本返回空 dict（不崩、也不造出字段）。"""
+        assert mute_module._parse_mute_audit_summary("只是一段普通文本") == {}
+        assert mute_module._parse_mute_audit_summary("foo=1 bar=2") == {}
+
     def test_format_mute_list_report_shows_remaining_and_reason(self) -> None:
         """列表行含一对一标识、剩余时间与原因；取不到原因时给占位。"""
         members = [
