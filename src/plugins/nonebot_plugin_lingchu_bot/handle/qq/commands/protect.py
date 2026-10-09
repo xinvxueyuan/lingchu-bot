@@ -23,7 +23,7 @@ protect_member_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_PROTECT_MEMBER.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 global_protect_member_cmd: type[AlconnaMatcher] = on_alconna(
@@ -34,7 +34,7 @@ global_protect_member_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_GLOBAL_PROTECT_MEMBER.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 unprotect_member_cmd: type[AlconnaMatcher] = on_alconna(
@@ -45,7 +45,7 @@ unprotect_member_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_UNPROTECT_MEMBER.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 global_unprotect_member_cmd: type[AlconnaMatcher] = on_alconna(
@@ -56,7 +56,7 @@ global_unprotect_member_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_GLOBAL_UNPROTECT_MEMBER.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 

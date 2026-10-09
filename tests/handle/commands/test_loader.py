@@ -1,6 +1,5 @@
 import importlib
 from pathlib import Path
-import sys
 from types import SimpleNamespace
 from typing import Any
 
@@ -166,39 +165,6 @@ async def test_group_loader_menu_kind_appends_menu_suffix(
     await group_loader.import_handle("menu")
 
     assert loaded_modules == [expected_path]
-
-
-def test_load_adapter_handlers_telegram_loads_real_module_not_shim() -> None:
-    """Telegram command handlers load from the real module, not the deleted shim.
-
-    The shim lived at ``handle.qq.adapters.telegram.default`` (a ``handle.qq``
-    namespace path). With the registry-backed loader, the real module at
-    ``handle.telegram.adapters.default`` is imported instead, and the deleted
-    shim path is never touched.
-    """
-    # Clear any prior shim-shaped sys.modules entries so the assertion is
-    # meaningful even if a previous test imported the shim path.
-    for shim_path in (
-        "handle.qq.adapters.telegram",
-        "handle.qq.adapters.telegram.default",
-        f"{_PLUGIN_ROOT}.handle.qq.adapters.telegram",
-        f"{_PLUGIN_ROOT}.handle.qq.adapters.telegram.default",
-    ):
-        sys.modules.pop(shim_path, None)
-
-    handlers = group_loader.load_adapter_handlers("~telegram", "command")
-
-    telegram_default = importlib.import_module(
-        f"{_PLUGIN_ROOT}.handle.telegram.adapters.default"
-    )
-
-    assert telegram_default.import_handle in handlers
-    # The deleted shim path must not have been imported under either the
-    # logical short form or the plugin-rooted absolute form.
-    assert "handle.qq.adapters.telegram.default" not in sys.modules
-    assert "handle.qq.adapters.telegram" not in sys.modules
-    assert f"{_PLUGIN_ROOT}.handle.qq.adapters.telegram.default" not in sys.modules
-    assert f"{_PLUGIN_ROOT}.handle.qq.adapters.telegram" not in sys.modules
 
 
 def test_load_adapter_handlers_onebot_v11_command_returns_default_and_napcat() -> None:

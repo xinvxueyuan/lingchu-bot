@@ -38,6 +38,48 @@ if TYPE_CHECKING:
 
 QQ_PLATFORM_ID: Final[str] = "qq"
 ONEBOT_V11_ADAPTER_ID: Final[str] = "~onebot.v11"
+
+#: 「目标不在该群」类错误的文案集合。
+#:
+#: LLBot 的 ``GetGroupMemberInfo`` 在成员不存在时是
+#: ``throw new Error('群成员未找到')``，
+#: 而 WebSocket 通道下所有 action 失败都被统一成 ``retcode=1200``
+#: （见 BaseAction.websocketHandle → OB11Response.error(msg, 1200)），
+#: **无法靠错误码区分错误种类**，只能匹配文案（``message`` / ``wording`` 同值）。
+_MEMBER_NOT_FOUND_WORDINGS: Final[frozenset[str]] = frozenset({
+    "群成员未找到",
+    "群成员不存在",
+    "成员未找到",
+    "member not found",
+})
+
+
+def action_error_text(error: Onebot11ActionFailed) -> str:
+    """取 action 失败的人类可读文案。
+
+    LLBot 会把文案同时放进 ``message`` 与 ``wording``；优先 ``wording``。
+    """
+    info = getattr(error, "info", None)
+    if not isinstance(info, dict):
+        return ""
+    text = info.get("wording") or info.get("message") or ""
+    return str(text).strip()
+
+
+def is_member_not_found(error: Onebot11ActionFailed) -> bool:
+    """错误是否表示「目标不在该群」。
+
+    用于对**非群成员**放宽 fail-closed 预检：不在本群的人不可能是本群管理员/群主，
+    因此无需拒绝操作。典型场景是「全局拉黑」一个**已退群**的骗子 —— 此前会被
+    fail-closed 预检挡下（实测 LLBot 返回「群成员未找到」）。
+    """
+    text = action_error_text(error)
+    if not text:
+        return False
+    lowered = text.lower()
+    return any(word.lower() in lowered for word in _MEMBER_NOT_FOUND_WORDINGS)
+
+
 MUTE_DURATION_MIN: Final[int] = 1
 MUTE_DURATION_MAX: Final[int] = 30 * 24 * 60 * 60  # 30 天
 
@@ -56,16 +98,24 @@ class CommandAudit:
 
 
 async def target_user_onebot11(
-    user: At, bot: Onebot11Bot, event: Onebot11GroupMessageEvent
+    user: At | int, bot: Onebot11Bot, event: Onebot11GroupMessageEvent
 ) -> tuple[int, str]:
-    try:
-        target_user_id: int = int(user.target)
-    except (TypeError, ValueError) as error:
-        msg = f"无效的用户 ID: {user.target!r}"
-        raise ValueError(msg) from error
+    """解析目标用户，同时接受 ``At`` 对象与数字 user_id。
 
-    if user.display:
-        return target_user_id, user.display
+    QQ 的 @ 在协议端拿不到真实 uid，因此各处命令都允许直接传数字 user_id；
+    本函数与 :func:`resolve_user_onebot11` 一致地支持两种形态。
+    """
+    if isinstance(user, int):
+        target_user_id = user
+    else:
+        try:
+            target_user_id = int(user.target)
+        except (TypeError, ValueError) as error:
+            msg = f"无效的用户 ID: {user.target!r}"
+            raise ValueError(msg) from error
+
+        if user.display:
+            return target_user_id, user.display
 
     try:
         member_info = await bot.get_group_member_info(
@@ -242,11 +292,20 @@ async def check_target_privilege(
         member_info = await bot.get_group_member_info(
             group_id=event.group_id, user_id=target_user_id, no_cache=True
         )
-    except Onebot11ActionFailed:
-        # Fail closed: 目标角色无法确认时拒绝操作，与 operator_is_superuser_onebot11
-        # 的失败基线一致，避免越权操作只依赖协议端兜底。
+    except Onebot11ActionFailed as error:
+        if is_member_not_found(error):
+            # 目标不在本群 → 不可能是本群管理员/群主，按「无群内特权」放行。
+            # 场景：全局拉黑一个已退群的骗子（此时查角色必然失败）。
+            logger.info(
+                "目标不在本群，跳过高权限校验: group_id={} target_user_id={}",
+                event.group_id,
+                target_user_id,
+            )
+            return True
+        # Fail closed: 其他失败（协议端异常、权限不足等）仍拒绝操作，与
+        # operator_is_superuser_onebot11 的失败基线一致，避免越权操作只依赖协议端兜底。
         logger.warning(
-            "无法获取目标用户角色，拒绝操作: group_id=%s, target_user_id=%s",
+            "无法获取目标用户角色，拒绝操作: group_id={}, target_user_id={}",
             event.group_id,
             target_user_id,
         )

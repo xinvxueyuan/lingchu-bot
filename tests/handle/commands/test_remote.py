@@ -565,11 +565,6 @@ class TestRemoteKick:
                 new_callable=AsyncMock,
                 return_value=(_TARGET_USER_ID, "测试用户"),
             ),
-            patch(
-                f"{remote_module.__name__}.find_active_block",
-                new_callable=AsyncMock,
-                return_value={"user_id": _TARGET_USER_ID},
-            ),
             patch.object(remote_kick_cmd, "finish", new_callable=AsyncMock),
         ):
             await onebot11_remote_kick(
@@ -1241,6 +1236,50 @@ class TestCheckRemoteTargetPrivilege:
         matcher.finish.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_returns_true_when_target_not_in_group(
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
+    ) -> None:
+        """目标不在该群（「群成员未找到」）时放行 —— 跨群/全局操作的主路径。"""
+        matcher = MagicMock()
+        matcher._lingchu_command_key = None
+        matcher.finish = AsyncMock()
+        mock_bot.get_group_member_info.side_effect = OneBot11ActionFailed(
+            status="failed",
+            retcode=1200,
+            data=None,
+            message="群成员未找到",
+            wording="群成员未找到",
+            echo="1600",
+        )
+        result = await remote_module._check_remote_target_privilege(
+            mock_session, mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
+        )
+        assert result is True
+        matcher.finish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_other_action_failure_still_fails_closed(
+        self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
+    ) -> None:
+        """非「群成员未找到」的其他失败仍 fail-closed。"""
+        matcher = MagicMock()
+        matcher._lingchu_command_key = None
+        matcher.finish = AsyncMock()
+        mock_bot.get_group_member_info.side_effect = OneBot11ActionFailed(
+            status="failed",
+            retcode=1200,
+            data=None,
+            message="权限不足",
+            wording="权限不足",
+            echo="1601",
+        )
+        result = await remote_module._check_remote_target_privilege(
+            mock_session, mock_bot, mock_event, _GROUP_ID_1, _TARGET_USER_ID, matcher
+        )
+        assert result is False
+        matcher.finish.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_returns_true_when_target_admin_and_operator_can_manage(
         self, mock_bot: MagicMock, mock_event: MagicMock, mock_session: Mock
     ) -> None:
@@ -1490,87 +1529,7 @@ class TestRemoteWholeUnmuteErrorPaths:
 
 
 class TestRemoteKickErrorPaths:
-    """测试远程踢出错误分支（覆盖行 552-570）。"""
-
-    @pytest.mark.asyncio
-    async def test_remote_kick_database_error_finishes(
-        self,
-        mock_bot: MagicMock,
-        mock_event: MagicMock,
-        mock_group_list: list[dict],
-        mock_session: Mock,
-    ) -> None:
-        mock_bot.get_group_list.return_value = mock_group_list
-        mock_bot.get_group_member_info.side_effect = [
-            {"role": "admin", "user_id": int(mock_bot.self_id)},
-            {"role": "member", "user_id": _TARGET_USER_ID},
-            {"role": "member", "user_id": _TARGET_USER_ID},
-        ]
-        with (
-            patch(
-                f"{remote_module.__name__}.resolve_user_onebot11",
-                new_callable=AsyncMock,
-                return_value=(_TARGET_USER_ID, "测试用户"),
-            ),
-            patch(
-                f"{remote_module.__name__}.find_active_block",
-                new_callable=AsyncMock,
-                side_effect=DatabaseError("db error"),
-            ),
-            patch.object(
-                remote_kick_cmd, "finish", new_callable=AsyncMock
-            ) as mock_finish,
-        ):
-            mock_finish.side_effect = Exception("finish called")
-            with pytest.raises(Exception, match="finish called"):
-                await onebot11_remote_kick(
-                    group_id=_GROUP_ID_1,
-                    user=At("user", str(_TARGET_USER_ID)),
-                    bot=mock_bot,
-                    event=mock_event,
-                    session=mock_session,
-                )
-            mock_finish.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_remote_kick_entry_none_finishes(
-        self,
-        mock_bot: MagicMock,
-        mock_event: MagicMock,
-        mock_group_list: list[dict],
-        mock_session: Mock,
-    ) -> None:
-        mock_bot.get_group_list.return_value = mock_group_list
-        mock_bot.get_group_member_info.side_effect = [
-            {"role": "admin", "user_id": int(mock_bot.self_id)},
-            {"role": "member", "user_id": _TARGET_USER_ID},
-            {"role": "member", "user_id": _TARGET_USER_ID},
-        ]
-        with (
-            patch(
-                f"{remote_module.__name__}.resolve_user_onebot11",
-                new_callable=AsyncMock,
-                return_value=(_TARGET_USER_ID, "测试用户"),
-            ),
-            patch(
-                f"{remote_module.__name__}.find_active_block",
-                new_callable=AsyncMock,
-                return_value=None,
-            ),
-            patch.object(
-                remote_kick_cmd, "finish", new_callable=AsyncMock
-            ) as mock_finish,
-        ):
-            mock_finish.side_effect = Exception("finish called")
-            with pytest.raises(Exception, match="finish called"):
-                await onebot11_remote_kick(
-                    group_id=_GROUP_ID_1,
-                    user=At("user", str(_TARGET_USER_ID)),
-                    bot=mock_bot,
-                    event=mock_event,
-                    session=mock_session,
-                )
-            mock_finish.assert_called_once()
+    """测试远程踢出的错误分支（踢出失败时要有明确回执）。"""
 
     @pytest.mark.asyncio
     async def test_remote_kick_action_failed_finishes(
@@ -1592,11 +1551,6 @@ class TestRemoteKickErrorPaths:
                 f"{remote_module.__name__}.resolve_user_onebot11",
                 new_callable=AsyncMock,
                 return_value=(_TARGET_USER_ID, "测试用户"),
-            ),
-            patch(
-                f"{remote_module.__name__}.find_active_block",
-                new_callable=AsyncMock,
-                return_value={"user_id": _TARGET_USER_ID},
             ),
             patch.object(
                 remote_kick_cmd, "finish", new_callable=AsyncMock

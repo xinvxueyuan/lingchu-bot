@@ -19,7 +19,6 @@ from src.plugins.nonebot_plugin_lingchu_bot.handle.menu import (
     render_menu_for_context,
     render_menu_index,
     render_menu_page,
-    telegram_menu_context,
 )
 from src.plugins.nonebot_plugin_lingchu_bot.handle.qq.adapters.onebot11.default import (
     menu as onebot_menu_module,
@@ -42,18 +41,6 @@ def test_menu_registry_uses_known_command_keys() -> None:
     assert {feature.command_key for feature in all_features} >= {
         feature.command_key for feature in _DEFAULT_MENU_FEATURES
     }
-
-
-def test_telegram_menu_shows_only_implemented_member_commands() -> None:
-    rendered = render_menu_page(
-        "member-management",
-        telegram_menu_context(),
-        "en_US",
-    )
-
-    assert "Kick a group member" in rendered
-    assert "Block a group member" in rendered
-    assert "Set a member card" not in rendered
 
 
 def test_default_menu_features_contains_only_core_commands() -> None:

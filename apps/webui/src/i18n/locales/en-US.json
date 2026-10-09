@@ -1,0 +1,81 @@
+{
+  "app": {
+    "title": "Lingchu Bot WebUI",
+    "tagline": "React Router 8 · shadcn/ui · Simple Icons · Arco Design"
+  },
+  "language": {
+    "en-US": "English",
+    "zh-CN": "中文"
+  },
+  "nav": {
+    "home": "Basic Info",
+    "config": "System Configuration",
+    "devTools": "Dev Tools",
+    "debugHttp": "HTTP Debug",
+    "debugWs": "WebSocket Debug",
+    "theme": "Switch theme",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar"
+  },
+  "tabs": {
+    "placeholder": "Placeholder (to be implemented)",
+    "home": {
+      "overview": "Dashboard",
+      "accountDetail": "Account Details"
+    },
+    "http": {
+      "request": "Request",
+      "response": "Response",
+      "history": "History"
+    },
+    "ws": {
+      "connection": "Connection",
+      "messages": "Messages"
+    }
+  },
+  "home": {
+    "source": "Source"
+  },
+  "overview": {
+    "accountTitle": "Account",
+    "nickname": "Nickname",
+    "qq": "QQ",
+    "onlineStatus": "Online Status",
+    "online": "Online",
+    "offline": "Offline",
+    "versionTitle": "Versions",
+    "onebotApp": "OneBot Implementation",
+    "lingchuVersion": "Lingchu Version",
+    "webuiVersion": "WebUI Version",
+    "summaryTitle": "Summary",
+    "groupList": "Groups",
+    "noGroups": "No groups yet",
+    "friendList": "Friends",
+    "noFriends": "No friends yet",
+    "loading": "Loading…",
+    "loadError": "Failed to load",
+    "onebotDisconnected": {
+      "title": "OneBot11 Not Connected",
+      "desc": "The backend is running, but no OneBot11 adapter is connected. Start and connect an adapter (e.g. NapCat, Lagrange.OneBot, go-cqhttp), then refresh.",
+      "refresh": "Refresh",
+      "cardText": "OneBot not connected yet"
+    }
+  },
+  "auth": {
+    "title": "Sign in",
+    "password": "Password",
+    "passwordPlaceholder": "Enter WebUI password",
+    "login": "Sign in",
+    "logout": "Sign out",
+    "cancel": "Cancel",
+    "submitting": "Signing in…",
+    "logoutConfirm": {
+      "title": "Sign out",
+      "desc": "Are you sure you want to sign out? You will need to re-enter the password to access the admin interface."
+    },
+    "error": {
+      "invalidPassword": "Incorrect password, please try again",
+      "network": "Network error, please try again later"
+    }
+  }
+}

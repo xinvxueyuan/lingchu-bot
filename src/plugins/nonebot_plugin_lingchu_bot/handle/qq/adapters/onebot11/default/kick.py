@@ -14,16 +14,11 @@ require("nonebot_plugin_orm")
 from nonebot_plugin_orm import async_scoped_session
 
 from ......core.config import get_handle_config_manager
-from ......database.orm_crud import DatabaseError
 from ......i18n import _async as _
-from ......repositories.blocklist import find_active_block
 from ....commands.common import selected_adapter_handle
 from ....commands.kick import kick_member_cmd
 from .common import (
-    ONEBOT_V11_ADAPTER_ID,
-    QQ_PLATFORM_ID,
     CommandAudit,
-    bot_id,
     check_bot_privilege,
     check_self_target,
     check_target_privilege,
@@ -52,25 +47,6 @@ async def _kick_member(
 
     if not await check_target_privilege(session, bot, event, target_user_id, command):
         return None
-
-    # 检查目标用户是否在黑名单中
-    try:
-        entry = await find_active_block(
-            session,
-            platform_id=QQ_PLATFORM_ID,
-            adapter_id=ONEBOT_V11_ADAPTER_ID,
-            bot_id=bot_id(bot),
-            group_id=event.group_id,
-            user_id=target_user_id,
-        )
-    except DatabaseError as error:
-        logger.error(f"查询黑名单失败，数据库异常: {error!r}")
-        return await command.finish(await _("查询黑名单失败，数据库异常"))
-
-    if entry is None:
-        display_name = format_user_display_name(target_user_id, target_name)
-        message = await _("用户 {name} 不在黑名单中，无法执行踢出操作")
-        return await command.finish(message.format(name=display_name))
 
     # 机器人权限预检
     if not await check_bot_privilege(bot, event.group_id, command):

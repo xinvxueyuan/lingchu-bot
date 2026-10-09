@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": false,
+    "outDir": "dist/server",
+    "rootDir": "server",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "tsBuildInfoFile": "dist/server/.tsbuildinfo"
+  },
+  "include": ["server"],
+  "exclude": ["server/dev-plugin.ts"]
+}

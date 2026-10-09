@@ -23,7 +23,7 @@ set_group_member_card_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_SET_MEMBER_CARD.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 set_group_member_special_title_cmd: type[AlconnaMatcher] = on_alconna(
@@ -34,7 +34,7 @@ set_group_member_special_title_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_SET_MEMBER_TITLE.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 set_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
@@ -45,7 +45,7 @@ set_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_SET_MEMBER_ADMIN.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 unset_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
@@ -56,7 +56,7 @@ unset_group_member_admin_cmd: type[AlconnaMatcher] = on_alconna(
     aliases=_UNSET_MEMBER_ADMIN.aliases,
     priority=805,
     block=True,
-    use_cmd_sep=True,
+    use_cmd_sep=False,
     use_cmd_start=True,
 )
 

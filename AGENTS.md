@@ -45,8 +45,6 @@ This project is indexed by GitNexus as **lingchu-bot** (6030 symbols, 10962 rela
 
 ## Lingchu Bot Agent Guide
 
-> English | [中文](.github/note/AGENTS-zh.md)
-
 The GitNexus block above is managed by `gitnexus analyze`. Do not edit, translate, reformat, or synchronize content between `<!-- gitnexus:start -->` and `<!-- gitnexus:end -->` manually. Treat angle-bracket HTML comments such as `<!-- ... -->` as CLI locator anchors: do not remove, escape, rename, translate, duplicate, or move them unless the owning CLI documents that change.
 
 Use this file as the canonical shared context for Codex, Trae, and related agents. Keep it compact, current, and action-oriented. Do not turn it into a generated inventory of the repository.
@@ -84,7 +82,6 @@ Lingchu Bot is a NoneBot2-based group management bot. The monorepo follows a str
 - Repo root — repo-level orchestration: uv workspace root, `turbo.json`, root `package.json`, and the thin-delegation `Taskfile.yml`
 - Project-local skills (single source of truth): `.agents/skills/`
   - `.claude/skills/` and `.trae/skills/` are **whole-directory symlinks** to `.agents/skills/`, so Codex, Trae, and Claude Code all read from the same set; add or update a skill in `.agents/skills/` and all three agents see it.
-- Chinese agent guide mirror: `.github/note/AGENTS-zh.md`
 - Claude Code guide mirror: `CLAUDE.md`
 
 Anything required for build or package distribution must live under `src/plugins/nonebot_plugin_lingchu_bot/`. Repository-root runtime/config files such as `config/` and `data/` are local development artifacts and disposable.
@@ -141,10 +138,9 @@ Operating rules:
 | --- | --- | --- |
 | `AGENTS.md` | Codex / Trae shared context | Canonical project rules, commands, constraints, and lessons |
 | `CLAUDE.md` | Claude Code context | Same shared structure as `AGENTS.md`, plus the only allowed extra section: Claude Code Behavioral Guidelines |
-| `.github/note/AGENTS-zh.md` | Chinese mirror | Chinese counterpart of `AGENTS.md`, structurally synced |
 | `.trae/rules/git-commit-message.md` | Trae always-applied rule | Gitmoji + Conventional Commits validation |
 
-When `AGENTS.md`, `CLAUDE.md`, and `.github/note/AGENTS-zh.md` diverge, treat `AGENTS.md` as the source of truth, then copy/sync the same structural changes to the other two files.
+When `AGENTS.md` and `CLAUDE.md` diverge, treat `AGENTS.md` as the source of truth, then copy/sync the same structural changes to the other file.
 
 This sync rule starts after `<!-- gitnexus:end -->`. GitNexus marker blocks are tool-owned and may differ by file; do not normalize them by hand. HTML comment markers are part of the CLI contract, not prose.
 
@@ -154,6 +150,7 @@ This sync rule starts after `<!-- gitnexus:end -->`. GitNexus marker blocks are 
 - **No hard-coded mutable paths**: `Path("...")` for mutable runtime files is forbidden.
 - **Explicit configuration writes only**: Startup MUST NOT create, migrate, or regenerate configuration files. Configuration writes belong to localstore-owned paths or explicitly supplied deployment paths.
 - **Handle default registration**: Handle-level defaults MUST be registered in `handle_config_defaults/` using `register_handle_defaults()` before `HandleConfigManager` can read or update `<command_key>.toml` files.
+- **Protocol-private APIs live in their own layer**: An API that exists only in one protocol-end implementation (NapCat `set_group_portrait` / `_send_group_notice`, LLBot `get_group_shut_list`, …) MUST live under `handle/qq/adapters/onebot11/<implementation>/` and be reached through the `default/` module for that feature. `default/` is the middle layer: it calls only the standard OneBot V11 API surface, resolves the implementation (`get_version_info()` → `app_name` + version gate), then dispatches. Never `call_api("<private_action>")` from `default/`.
 - **Prek is hook source of truth**: `prek.toml` is the only pre-commit hook configuration (explicitly declares ruff/ty hooks, decoupled from husky, no duplicate execution). Do not reintroduce `.pre-commit-config.yaml`.
 - **Version sync**: Use `Taskfile.yml` task `ci:version:write-config` to write both `src/plugins/nonebot_plugin_lingchu_bot/core/config.py` and root `package.json`.
 - **Manual-trigger releases**: Formal releases are manual-trigger only — `release.yml` runs via `workflow_dispatch` with a `bump` input (no `releases/<bump>` branches). The release version is **derived entirely by the workflow** (`ci:version:bump` → `uv version --bump` from the latest tag); the developer never writes version files. Developer work is limited to scaffolding `.github/releases/<version>.md` (`task release:prepare BUMP=<bump>`) + `CHANGELOG.md`, committing those on `main`, then running `task release:publish BUMP=<bump>` (`gh workflow run release.yml -f bump=<bump>`). The workflow commits the derived version files to `main` and tags the synced commit, keeping tag and source in sync.
@@ -200,6 +197,7 @@ The project enforces a unified code style across Python and frontend workspaces:
 - Client components use `useSyncExternalStore` instead of `useState` + `useEffect` for mount detection.
 - GitNexus is the code-intelligence and impact-analysis layer; its generated context block is owned by the CLI.
 - Platform default identity groups live in platform modules such as `platforms/qq/permissions.py`; core permissions consume seeds and runtime resolvers but do not hard-code platform role trees.
+- OneBot V11 adapter layering: `default/` holds handlers that run on any implementation (standard API only); implementation-private APIs live in sibling packages (`napcat/`, and further ones such as `llbot/`). The `default/` module for a feature is the middle layer — it detects the implementation and dispatches to the private handler, and reports “unsupported” when no implementation matches. See `apps/docs/src/content/docs/reference/architecture/onebot-v11-default.mdx`.
 
 ## A — Actions
 
@@ -228,8 +226,9 @@ When modifying business logic, especially adapter-layer code, check all relevant
 | Runtime config | NoneBot deployment environment, localstore `runtime-overrides.toml`, `bot_state.toml`, `menu.toml`, and `_lingchu_bot_contracts/` |
 | Handle config files | `handle_config_defaults/<command>.py`, `<command_key>.toml` in localstore config_dir |
 | Triggers | `src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/triggers.py` |
+| Adapter layering | New protocol-private API calls belong under `handle/qq/adapters/onebot11/<implementation>/`; the `default/` module stays on the standard OneBot V11 surface |
 | Handler session injection | New matcher handlers add `session: async_scoped_session` (type only, no `= Depends(...)`); pass `session` as first arg to repository/permission calls |
-| Agent context | `AGENTS.md`, `CLAUDE.md`, `.github/note/AGENTS-zh.md` |
+| Agent context | `AGENTS.md`, `CLAUDE.md` |
 
 For handle, QQ command, adapter handler, matcher, `command_key`, menu, trigger, permission, or config-coupled work, inspect `src/plugins/nonebot_plugin_lingchu_bot/handle/` and adjacent tests directly — the previous `engineering-workflow` skill reference has been removed.
 
@@ -398,8 +397,8 @@ Lessons are failure shields, not a changelog. Keep them short, current, and veri
 
 #### Documentation And Mirror Sync
 
-- When updating repo guidance, keep `AGENTS.md`, `CLAUDE.md`, and `.github/note/AGENTS-zh.md` structurally aligned.
-- All three agent context files (`AGENTS.md`, `CLAUDE.md`, `.github/note/AGENTS-zh.md`) MUST be structurally aligned. When adding lessons or constraints to one, mirror to the other two in the same PR.
+- When updating repo guidance, keep `AGENTS.md` and `CLAUDE.md` structurally aligned.
+- Both agent context files (`AGENTS.md` and `CLAUDE.md`) MUST be structurally aligned. When adding lessons or constraints to one, mirror to the other in the same PR.
 - Structural alignment excludes the GitNexus marker block, which is generated by `gitnexus analyze`. Preserve marker comments and other angle-bracket locator tags exactly so CLIs can find their managed ranges.
 - Do not embed large generated inventories in agent context. Link to canonical docs or inspect live files.
 - After structural source changes, update developer docs and search for stale references.
