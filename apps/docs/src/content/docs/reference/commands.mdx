@@ -107,6 +107,17 @@ The reply lists results one member per line as `name(QQ id)`; failed members are
 marked with `❌` and counted separately. A failure does not abort the remaining
 members and is never retried automatically.
 
+After the batch, the muted list is fetched once more. Members who were unmuted
+successfully but are muted again by someone else in the meantime (so they are still
+muted right now) are listed separately under a `⚠️` heading: the unmute did succeed,
+but reporting them as plain successes would hide the fact that they are still muted.
+If that follow-up fetch fails, only this notice is omitted — the already completed
+unmutes are still reported normally.
+
+The command records one summary audit entry carrying the outcome counts
+(`outcome=成功 N 人，失败 M 人`), so the impact of a bulk run stays traceable even
+though a bulk command has no single target.
+
 ## Muted member list (LLBot)
 
 ```text

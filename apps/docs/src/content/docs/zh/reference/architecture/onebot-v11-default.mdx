@@ -18,7 +18,7 @@ title: 默认实现
 
 ## 协议端私有 API
 
-`default/` 下的处理器**只**调用 OneBot V11 标准 API。只存在于某一个协议端实现里的 API，必须落在该实现自己的包里（`napcat/`、`llbot/` 等），并由对应功能的 `default/` 模块转发调用。`default/` 是中间层：先解析协议端（`get_version_info()` → `app_name` + 版本门控），再分派；没有匹配实现时如实报告「不支持」。
+`default/` 下的处理器**只**调用 OneBot V11 标准 API。只存在于某一个协议端实现里的 API，必须落在该实现自己的包里（`napcat/`、`llbot/` 等），并由对应功能的 `default/` 模块转发调用。`default/` 是中间层：先解析协议端（`get_version_info()` → `app_name`，实现有需要时再加版本门控），再分派；没有匹配实现时如实报告「不支持」。
 
 ```text
 handle/qq/adapters/onebot11/

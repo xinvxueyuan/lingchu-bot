@@ -432,14 +432,25 @@ async def list_recent_command_audits(
     platform_id: str = "qq",
     adapter_id: str | None = None,
     bot_id: str | None = None,
+    group_id: int | None = None,
     limit: int = 200,
 ) -> list[QQOneBotV11NoneBotAuditRecord]:
     """列出某条命令最近的审计记录，按时间倒序。
 
     只做**粗筛**：``data_summary`` 是自由文本（形如
     ``operator=…, target=…, action=…, group=…``），没有结构化的 group/target 列，
-    因此这里只按 ``api_name`` 精确过滤并给出上限；调用方必须解析 summary 后
-    再按 group / target 二次过滤 —— 群号可能恰好出现在 reason 文本里。
+    因此这里只按 ``event_type`` 精确过滤、可选按群号做**子串**粗筛，并给出上限；
+    调用方必须解析 summary 后再按 group / target 二次过滤 —— 群号可能恰好出现在
+    reason 文本里。
+
+    ``group_id`` 之所以要在这里（而不是只在调用方）过滤：结果是**先 LIMIT 再**
+    交给调用方的，若不做群号粗筛，同一个群里更早、仍在保留期内的记录会被后来的
+    其他群的记录挤出窗口，表现为「明明有记录却显示未知」。子串匹配可能多带几行，
+    多带是安全的（调用方仍会精确比对），漏掉才是问题。
+
+    注意列名：命令审计写入时把 ``AuditEvent.api_name`` 存进了 **``event_type``**
+    列（见 :func:`record_api_call`），模型上并没有 ``api_name`` 列 —— 传错的键名会
+    让 :func:`list_items` 抛 ``ValueError``（不是 ``DatabaseError``）。
 
     审计记录受消息保留策略约束（``cleanup_expired_messages`` 会一并删除），
     所以超出保留期的禁言在这里查不到，调用方需要按「未知」降级。
@@ -447,17 +458,24 @@ async def list_recent_command_audits(
     filters: dict[str, Any] = {
         "platform_id": platform_id,
         "audit_type": "command",
-        "api_name": f"command:{action}",
+        "event_type": f"command:{action}",
     }
     if adapter_id is not None:
         filters["adapter_id"] = adapter_id
     if bot_id is not None:
         filters["bot_id"] = bot_id
 
+    conditions = None
+    if group_id is not None:
+        conditions = [
+            QQOneBotV11NoneBotAuditRecord.data_summary.like(f"%group={group_id}%")
+        ]
+
     return await list_items(
         session,
         QQOneBotV11NoneBotAuditRecord,
         filters,
         order_by=["-created_at"],
+        conditions=conditions,
         limit=limit,
     )

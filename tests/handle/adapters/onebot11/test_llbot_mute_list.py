@@ -85,14 +85,67 @@ def test_parse_muted_members_shut_up_time_non_int() -> None:
 
 @pytest.mark.asyncio
 async def test_fetch_group_shut_list_calls_private_action() -> None:
-    """调用私有 action 名 get_group_shut_list（**不带**前导下划线）。"""
+    """调用私有 action 名 get_group_shut_list（**不带**前导下划线）。
+
+    mock 用真实契约：适配器 ``handle_api_result`` 会解包顶层 ``data``，
+    ``call_api`` 返回的就是成员数组本身。
+    """
     bot = MagicMock()
-    bot.call_api = AsyncMock(return_value={"retcode": 0, "data": [{"uin": "1"}]})
+    bot.call_api = AsyncMock(return_value=[{"uin": "1"}])
 
     members = await llbot_mute_list.fetch_group_shut_list(bot=bot, group_id=999)
 
     bot.call_api.assert_awaited_once_with("get_group_shut_list", group_id=999)
     assert [m.user_id for m in members] == [1]
+
+
+def test_adapter_unwraps_data_field() -> None:
+    """契约守卫：适配器确实解包 ``data``。
+
+    这条钉住的是「mock 该返回什么形状」这一前提。若 nonebot 改变解包行为，
+    这条会失败，提醒我们同步所有 mock 与解析逻辑（否则测试会在现实中失效）。
+    """
+    from nonebot.adapters.onebot.v11.utils import handle_api_result
+
+    rows = [{"uin": "1"}]
+    assert handle_api_result({"status": "ok", "retcode": 0, "data": rows}) is rows
+    assert handle_api_result({"status": "ok", "retcode": 0, "data": []}) == []
+
+
+@pytest.mark.asyncio
+async def test_fetch_group_shut_list_accepts_unwrapped_payload() -> None:
+    """真实形态（适配器已解包）：数组直接可用，不会误判成「没有被禁言」。"""
+    bot = MagicMock()
+    bot.call_api = AsyncMock(
+        return_value=[{"uin": "10001", "nick": "甲"}, {"uin": "10002", "nick": "乙"}]
+    )
+
+    members = await llbot_mute_list.fetch_group_shut_list(bot=bot, group_id=999)
+
+    assert [m.user_id for m in members] == [10001, 10002]
+    assert [m.display_name for m in members] == ["甲", "乙"]
+
+
+@pytest.mark.asyncio
+async def test_fetch_group_shut_list_accepts_envelope_payload() -> None:
+    """防御性兼容：万一拿到未解包的信封也能解析。"""
+    bot = MagicMock()
+    bot.call_api = AsyncMock(
+        return_value={"status": "ok", "retcode": 0, "data": [{"uin": "10001"}]}
+    )
+
+    members = await llbot_mute_list.fetch_group_shut_list(bot=bot, group_id=999)
+
+    assert [m.user_id for m in members] == [10001]
+
+
+def test_parse_muted_members_accepts_both_shapes() -> None:
+    """解析函数对「数组」与「信封」两种形状都给出一致结果。"""
+    rows = [{"uin": "10001", "nick": "甲"}, {"uin": "10002", "nick": "乙"}]
+
+    assert llbot_mute_list.parse_muted_members(rows) == (
+        llbot_mute_list.parse_muted_members({"retcode": 0, "data": rows})
+    )
 
 
 def test_llbot_action_name_has_no_leading_underscore() -> None:

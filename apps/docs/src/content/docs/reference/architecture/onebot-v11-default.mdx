@@ -22,7 +22,8 @@ All commands listed in [QQ Commands](../commands) are available in the default i
 exists in a single protocol-end implementation must live in that implementation's
 own package (`napcat/`, `llbot/`, …) and be reached through the `default/` module
 for that feature. The `default/` module is the middle layer: it resolves the
-implementation (`get_version_info()` → `app_name` + version gate) and then
+implementation (`get_version_info()` → `app_name`, plus a version gate where the
+implementation requires one) and then
 dispatches, reporting "unsupported" when no implementation matches.
 
 ```text
