@@ -843,4 +843,3 @@ msgstr "Lingchu 忽略未选中的已注册适配器: {adapters}"
 
 #~ msgid "用户 {name} 不在黑名单中，无法执行踢出操作"
 #~ msgstr ""
-
