@@ -167,7 +167,8 @@ class TestOneClickUnmute:
         )
         calls: list[int] = []
 
-        async def fake_ban(*, group_id: int, user_id: int, duration: int) -> None:  # noqa: ARG001
+        async def fake_ban(**kwargs: object) -> None:
+            user_id = int(str(kwargs["user_id"]))
             calls.append(user_id)
             if user_id == 2:
                 raise OneBot11ActionFailed
@@ -325,7 +326,8 @@ class TestBatchUnmuteAndFormatting:
         bot = MagicMock()
         calls: list[int] = []
 
-        async def fake_ban(*, group_id: int, user_id: int, duration: int) -> None:  # noqa: ARG001
+        async def fake_ban(**kwargs: object) -> None:
+            user_id = int(str(kwargs["user_id"]))
             calls.append(user_id)
             raise OneBot11ActionFailed
 
@@ -349,7 +351,8 @@ class TestBatchUnmuteAndFormatting:
         bot = MagicMock()
         calls: list[int] = []
 
-        async def fake_ban(*, group_id: int, user_id: int, duration: int) -> None:  # noqa: ARG001
+        async def fake_ban(**kwargs: object) -> None:
+            user_id = int(str(kwargs["user_id"]))
             calls.append(user_id)
             if user_id == 10002:
                 raise OneBot11ActionFailed

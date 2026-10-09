@@ -192,7 +192,7 @@ class TestApiNotAvailableHandling:
         calls: list[int] = []
 
         async def fake_ban(**kwargs: object) -> None:
-            calls.append(int(kwargs["user_id"]))  # type: ignore[arg-type]
+            calls.append(int(str(kwargs["user_id"])))
             raise ApiNotAvailable("~onebot.v11")
 
         bot.set_group_ban = AsyncMock(side_effect=fake_ban)
