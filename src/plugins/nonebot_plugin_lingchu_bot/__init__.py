@@ -45,6 +45,19 @@ __plugin_meta__ = PluginMetadata(
             }
             for profile in iter_platform_profiles()
         ),
+        # ── 信息插件（命令「功能」）读的帮助元数据 ──
+        "menu_type": "管理",
+        "order": 5,
+        "commands": [
+            {"command": "菜单", "desc": "功能菜单"},
+            {"command": "禁言 / 解禁", "desc": "群内禁言与解除（含全员/一键解禁）"},
+            {"command": "撤回", "desc": "撤回消息（支持批量）"},
+            {"command": "踢出 / 拉黑 / 拉白", "desc": "成员管理（含全局/远程变体）"},
+            {"command": "设置群名称 / 发送群公告", "desc": "群资料与公告"},
+            {"command": "远程禁言", "desc": "跨群禁言 <群号或群名> @用户"},
+            {"command": "闭嘴 / 说话", "desc": "机器人全局静默 / 恢复"},
+            {"command": "开机 / 关机", "desc": "启用 / 停用机器人"},
+        ],
     },
 )
 
