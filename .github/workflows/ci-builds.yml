@@ -96,7 +96,7 @@ jobs:
 
       - name: 📦 Archive build artifacts
         # pinned from actions/upload-artifact@v7.0.1
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: assets-${{ github.sha }}
           path: dist
@@ -125,7 +125,7 @@ jobs:
 
       - name: 📦 Download build artifacts
         # pinned from actions/download-artifact@v7.0.0
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: assets-${{ github.sha }}
           path: dist
@@ -145,7 +145,7 @@ jobs:
       - name: 📤 Upload smoke test report on failure
         if: failure()
         # pinned from actions/upload-artifact@v7.0.1
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: smoke-test-results-${{ github.sha }}
           path: test-results/smoke/smoke-test-results.xml
@@ -297,7 +297,7 @@ jobs:
 
       - name: 📦 Archive production artifacts
         # pinned from actions/upload-artifact@v7.0.1
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: assets-${{ steps.bump.outputs.new_version }}
           path: dist
@@ -323,7 +323,7 @@ jobs:
 
       - name: 📦 Download versioned build artifacts
         # pinned from actions/download-artifact@v7.0.0
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: assets-${{ needs.versioned-build.outputs.new_version }}
           path: dist
@@ -343,7 +343,7 @@ jobs:
       - name: 📤 Upload smoke test report on failure
         if: failure()
         # pinned from actions/upload-artifact@v7.0.1
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: smoke-test-results-versioned-${{ github.sha }}
           path: test-results/smoke/smoke-test-results.xml
