@@ -37,7 +37,7 @@
     "radix-ui": "^1.6.7",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-i18next": "^15.7.4",
+    "react-i18next": "^17.0.16",
     "react-router": "^8",
     "simple-icons": "^16.28.0",
     "tailwind-merge": "3.6.0",
