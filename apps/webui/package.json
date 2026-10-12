@@ -29,7 +29,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "2.1.1",
     "hono": "^4.12.34",
-    "i18next": "^24.2.3",
+    "i18next": "^26.4.2",
     "i18next-browser-languagedetector": "^8.2.1",
     "isbot": "^5.1.36",
     "jose": "^6.0.0",
