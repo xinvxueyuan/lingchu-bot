@@ -2,12 +2,12 @@ import * as React from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * Dependency-free shadcn-style Badge.
- *
- * Reads Starlight theme tokens (--sl-color-*) so it adapts to light/dark mode
- * automatically. Mirrors the visual language of shadcn/ui (new-york) without
- * pulling in @radix-ui/react-slot or class-variance-authority.
- */
+Dependency-free shadcn-style Badge.
+
+Reads Starlight theme tokens (--sl-color-*) so it adapts to light/dark mode
+automatically. Mirrors the visual language of shadcn/ui (new-york) without
+pulling in @radix-ui/react-slot or class-variance-authority.
+*/
 type BadgeVariant = "default" | "accent" | "outline" | "destructive";
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
