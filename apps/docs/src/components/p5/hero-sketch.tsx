@@ -3,17 +3,17 @@ import type p5 from "p5";
 import { P5Sketch } from "@/components/p5/p5-sketch";
 
 /**
- * Organic Turbulence — hero flow field for the Lingchu Bot docs.
- *
- * Algorithmic philosophy: see ORGANIC_TURBULENCE.md in this folder.
- * Conceptual seed: 灵初 (Lingchu — "the spiritual pivot"). A fraction of
- * particles spawn along a few invisible sinusoidal meridian curves, so density
- * accumulates along them like vital channels. Those who know the etymology
- * feel it; everyone else sees organic turbulence.
- *
- * Everything is seeded for reproducibility. Theme colors are read from the
- * Starlight CSS variables and refreshed when the theme changes.
- */
+Organic Turbulence — hero flow field for the Lingchu Bot docs.
+
+Algorithmic philosophy: see ORGANIC_TURBULENCE.md in this folder.
+Conceptual seed: 灵初 (Lingchu — "the spiritual pivot"). A fraction of
+particles spawn along a few invisible sinusoidal meridian curves, so density
+accumulates along them like vital channels. Those who know the etymology
+feel it; everyone else sees organic turbulence.
+
+Everything is seeded for reproducibility. Theme colors are read from the
+Starlight CSS variables and refreshed when the theme changes.
+*/
 
 interface Particle {
   x: number;

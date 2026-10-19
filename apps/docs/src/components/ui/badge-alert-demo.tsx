@@ -2,9 +2,9 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 /**
- * Static showcase of the shadcn-style Badge and Alert components.
- * Rendered server-side (no client directive needed).
- */
+Static showcase of the shadcn-style Badge and Alert components.
+Rendered server-side (no client directive needed).
+*/
 export function BadgeAlertDemo() {
   return (
     <div className="flex flex-col gap-4">

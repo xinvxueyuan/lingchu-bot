@@ -6,13 +6,13 @@ import { cn } from "@/lib/cn";
 export { Info, TriangleAlert, CircleCheck } from "lucide-react";
 
 /**
- * Dependency-free shadcn-style Alert.
- *
- * A presentational callout that complements Starlight's <Aside>. Uses lucide
- * icons (already a dependency) and Starlight theme tokens so it adapts to
- * light/dark mode. Rendered as static HTML by Astro (no client directive
- * needed unless interactive children are added).
- */
+Dependency-free shadcn-style Alert.
+
+A presentational callout that complements Starlight's <Aside>. Uses lucide
+icons (already a dependency) and Starlight theme tokens so it adapts to
+light/dark mode. Rendered as static HTML by Astro (no client directive
+needed unless interactive children are added).
+*/
 type AlertVariant = "default" | "accent" | "destructive";
 
 export interface AlertProps extends React.HTMLAttributes<HTMLDivElement> {
