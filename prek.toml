@@ -4,7 +4,8 @@ exclude = '''(?x)^(
   \.claude/skills/|
   \.trae/skills/|
   \.vscode/|
-  apps/docs/\.astro/
+  apps/docs/\.astro/|
+  pnpm-lock\.yaml
 )'''
 
 [[repos]]
