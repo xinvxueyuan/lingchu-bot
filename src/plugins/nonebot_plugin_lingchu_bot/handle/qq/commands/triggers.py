@@ -457,6 +457,12 @@ _DEFAULT_COMMAND_TRIGGERS = {
         chinese_aliases=frozenset({"跨群拉黑", "远程拉黑用户"}),
         english_aliases=frozenset({"remote-block-member", "cross-group-block"}),
     ),
+    "remote_recall": CommandTrigger(
+        chinese="远程撤回",
+        english="remote-recall",
+        chinese_aliases=frozenset({"跨群撤回", "远程撤回消息"}),
+        english_aliases=frozenset({"cross-group-recall", "remote-delete-message"}),
+    ),
     "remote_unblock": CommandTrigger(
         chinese="远程删黑",
         english="remote-unblock",
