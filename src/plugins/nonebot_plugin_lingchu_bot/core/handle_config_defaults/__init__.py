@@ -45,6 +45,7 @@ HANDLE_DEFAULTS_REGISTRY: dict[str, HandleDefaultsFactory] = {
         "block_duration": None,
         "default_reason": "违反群规",
     }),
+    "remote_recall": lambda: _config({"default_count": 10}),
     "remote_announcement": _config,
     "mass_announcement": _config,
     "restart_protocol_endpoint": lambda: _config({"default_platform": "当前平台"}),

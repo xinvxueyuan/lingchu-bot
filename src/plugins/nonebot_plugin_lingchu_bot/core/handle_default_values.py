@@ -93,6 +93,7 @@ HANDLE_DEFAULT_DEFINITIONS: Final[tuple[HandleDefaultDefinition, ...]] = (
     HandleDefaultDefinition("block_member", "default_reason", _parse_text),
     HandleDefaultDefinition("remote_block", "block_duration", _parse_optional_duration),
     HandleDefaultDefinition("remote_block", "default_reason", _parse_text),
+    HandleDefaultDefinition("remote_recall", "default_count", _parse_positive_count),
     HandleDefaultDefinition("recall_message", "default_count", _parse_positive_count),
     HandleDefaultDefinition("protect_member", "whitelist_scope", _parse_scope),
     HandleDefaultDefinition("protect_member", "default_reason", _parse_text),
