@@ -714,3 +714,74 @@ class TestRecallNetworkErrorPaths:
 
         assert result is None
         logger_mock.warning.assert_called_once()
+
+
+_REMOTE_GROUP_ID = 987654321
+
+
+class TestRecallExplicitGroup:
+    """撤回流水线支持显式目标群（远程撤回复用）。"""
+
+    @pytest.mark.asyncio
+    async def test_recall_pipeline_uses_explicit_group_id_for_candidates(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        """候选查询用的是显式传入的群号，而不是触发命令所在群。"""
+        record = MagicMock(
+            message_id="101",
+            user_id="2001",
+            conversation_id=str(_REMOTE_GROUP_ID),
+        )
+
+        with patch.object(
+            mute_module.message_repository,
+            "list_recent_messages",
+            AsyncMock(return_value=[record]),
+        ) as list_recent:
+            records = await mute_module._list_recall_candidate_records(
+                mock_session,
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                target_user_id=None,
+                recall_count=3,
+                group_id=_REMOTE_GROUP_ID,
+            )
+
+        assert mock_onebot11_event.group_id != _REMOTE_GROUP_ID
+        group_call = list_recent.await_args_list[1]
+        assert group_call.kwargs["conversation_id"] == str(_REMOTE_GROUP_ID)
+        assert records == [record]
+
+    @pytest.mark.asyncio
+    async def test_recall_pipeline_defaults_to_event_group(
+        self,
+        mock_onebot11_bot: MagicMock,
+        mock_onebot11_event: MagicMock,
+        mock_session: Mock,
+    ) -> None:
+        """不传 group_id 时行为与改动前一致（默认 = 触发群）。"""
+        record = MagicMock(
+            message_id="102",
+            user_id="2001",
+            conversation_id=str(mock_onebot11_event.group_id),
+        )
+
+        with patch.object(
+            mute_module.message_repository,
+            "list_recent_messages",
+            AsyncMock(return_value=[record]),
+        ) as list_recent:
+            records = await mute_module._list_recall_candidate_records(
+                mock_session,
+                mock_onebot11_bot,
+                mock_onebot11_event,
+                target_user_id=None,
+                recall_count=3,
+            )
+
+        group_call = list_recent.await_args_list[1]
+        assert group_call.kwargs["conversation_id"] == str(mock_onebot11_event.group_id)
+        assert records == [record]
