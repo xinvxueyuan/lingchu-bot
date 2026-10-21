@@ -567,7 +567,7 @@ async def onebot11_remote_recall(
     config = await get_handle_config_manager().get_config("remote_recall")
     if not config.enabled:
         return await remote_recall_cmd.finish(await _("该功能已禁用"))
-    default_count = config.defaults.get("default_count", 10)
+    default_count = int(config.defaults.get("default_count", 10))
 
     resolved_group_id = await _resolve_group_id(bot, group_id, remote_recall_cmd)
     if resolved_group_id is None:
@@ -585,7 +585,12 @@ async def onebot11_remote_recall(
         # 目标不在当前群时 @ 解析会失败 —— 但「远程」场景下目标本来就可能不在本群：
         # 退化为「只用 QQ 号」继续（撤回的是 ta 在目标群里的消息）。
         if isinstance(target, At):
-            target_user_id, target_name = int(target.target), None
+            raw_target = str(target.target)
+            if not raw_target.isdigit():
+                return await remote_recall_cmd.finish(
+                    (await _("不支持的目标: {target}")).format(target=raw_target)
+                )
+            target_user_id, target_name = int(raw_target), None
             recall_count = count if count is not None else default_count
         else:
             logger.warning(f"解析用户失败: {e}")
