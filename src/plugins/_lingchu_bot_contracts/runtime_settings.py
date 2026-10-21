@@ -76,6 +76,7 @@ class DeploymentSettings:
             "global_block_member",
             "member_mute",
             "recall_message",
+            "remote_recall",
             "set_member_card",
             "set_member_title",
             "set_member_admin",
