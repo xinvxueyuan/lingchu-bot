@@ -460,7 +460,8 @@ async def _is_recall_protected_target(
     group_id: int | None = None,
 ) -> bool:
     effective_group_id = event.group_id if group_id is None else group_id
-    if "recall_message" not in plugin_config.protected_subject_feature_keys:
+    feature_keys = set(plugin_config.protected_subject_feature_keys)
+    if not ({"recall_message", "remote_recall"} & feature_keys):
         return False
     protected = await find_active_subject_policy(
         session,

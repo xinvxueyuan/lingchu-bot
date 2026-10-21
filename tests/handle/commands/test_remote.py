@@ -2456,3 +2456,429 @@ class TestRemoteRecall:
         assert "已撤回 0 条消息" in text
         assert "跳过 1 条" in text
         assert "失败 0 条" in text
+
+    @pytest.mark.asyncio
+    async def test_remote_recall_at_all_members_reports_unsupported(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+        mock_session: Mock,
+    ) -> None:
+        """@全体成员 不是可撤回的目标：回执「不支持的目标」，且不得抛异常。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.delete_msg = AsyncMock()
+        mock_event.message_id = 999
+
+        with (
+            patch.object(
+                mute_module.message_repository,
+                "list_recent_messages",
+                AsyncMock(return_value=[]),
+            ) as list_recent,
+            patch.object(
+                mute_module,
+                "find_active_subject_policy",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                f"{remote_module.__name__}.get_handle_config_manager",
+                return_value=_make_enabled_recall_config_manager(),
+            ),
+            patch.object(
+                remote_recall_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            # 修复前这里会抛未捕获的 ValueError: int('all')
+            await onebot11_remote_recall(
+                group_id=_GROUP_ID_1,
+                bot=mock_bot,
+                event=mock_event,
+                session=mock_session,
+                target=At("user", "all"),
+                count=None,
+            )
+
+        text = _finish_text(mock_finish)
+        assert "不支持的目标" in text
+        assert "all" in text
+        list_recent.assert_not_called()
+        mock_bot.delete_msg.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_remote_recall_sender_role_check_uses_target_group(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+        mock_session: Mock,
+    ) -> None:
+        """发送者角色检查必须查目标群；改回 event.group_id 时本用例必须变红。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.delete_msg = AsyncMock()
+        mock_event.message_id = 999  # 命令消息在 _GROUP_ID_1
+        member_calls: list[tuple[int, int]] = []
+
+        async def _member_info(
+            *, group_id: int, user_id: int, **_kwargs: object
+        ) -> dict[str, str]:
+            member_calls.append((group_id, user_id))
+            if user_id == int(mock_bot.self_id):
+                return {"role": "owner"}
+            return {"role": "member"}
+
+        # 按参数返回（而不是按调用顺序的 side_effect），以便校验 kwargs
+        mock_bot.get_group_member_info = _member_info
+        mock_bot.get_msg = AsyncMock(
+            return_value={
+                "message_id": 101,
+                "message_type": "group",
+                "group_id": _GROUP_ID_2,
+                "sender": {"user_id": 2001},
+            }
+        )
+
+        with (
+            patch.object(
+                mute_module.message_repository,
+                "list_recent_messages",
+                AsyncMock(return_value=[_recall_record("101", "2001", _GROUP_ID_2)]),
+            ),
+            patch.object(
+                mute_module,
+                "find_active_subject_policy",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                f"{remote_module.__name__}.get_handle_config_manager",
+                return_value=_make_enabled_recall_config_manager(),
+            ),
+            patch.object(
+                remote_recall_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            await onebot11_remote_recall(
+                group_id=_GROUP_ID_2,
+                bot=mock_bot,
+                event=mock_event,
+                session=mock_session,
+                count=1,
+            )
+
+        assert member_calls == [
+            (_GROUP_ID_2, int(mock_bot.self_id)),
+            (_GROUP_ID_2, 2001),
+        ]
+        mock_bot.delete_msg.assert_awaited_once_with(message_id=101)
+        assert f"目标群: {_GROUP_ID_2}" in _finish_text(mock_finish)
+
+    @pytest.mark.asyncio
+    async def test_remote_recall_skips_protected_sender(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+        mock_session: Mock,
+    ) -> None:
+        """受保护对象的消息必须跳过（不 delete），并计入 skipped。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.delete_msg = AsyncMock()
+        mock_event.message_id = 999
+        protected_policy = MagicMock(name="protected-policy")
+        policy_calls: list[dict[str, object]] = []
+
+        async def _policy(_session: object, **kwargs: object) -> MagicMock | None:
+            policy_calls.append(kwargs)
+            return protected_policy if kwargs.get("user_id") == 2001 else None
+
+        async def _member_info(*, user_id: int, **_kwargs: object) -> dict[str, str]:
+            if user_id == int(mock_bot.self_id):
+                return {"role": "owner"}
+            return {"role": "member"}
+
+        mock_bot.get_group_member_info = _member_info
+        mock_bot.get_msg = AsyncMock(
+            side_effect=[
+                {
+                    "message_id": 101,
+                    "message_type": "group",
+                    "group_id": _GROUP_ID_2,
+                    "sender": {"user_id": 2001},
+                },
+                {
+                    "message_id": 102,
+                    "message_type": "group",
+                    "group_id": _GROUP_ID_2,
+                    "sender": {"user_id": 2003},
+                },
+            ]
+        )
+        records = [
+            _recall_record("101", "2001", _GROUP_ID_2),
+            _recall_record("102", "2003", _GROUP_ID_2),
+        ]
+
+        with (
+            patch.object(
+                mute_module.message_repository,
+                "list_recent_messages",
+                AsyncMock(return_value=records),
+            ),
+            patch.object(mute_module, "find_active_subject_policy", _policy),
+            patch.object(
+                mute_module,
+                "plugin_config",
+                MagicMock(
+                    protected_subject_feature_keys=frozenset({
+                        "recall_message",
+                        "remote_recall",
+                    })
+                ),
+            ),
+            patch(
+                f"{remote_module.__name__}.get_handle_config_manager",
+                return_value=_make_enabled_recall_config_manager(),
+            ),
+            patch.object(
+                remote_recall_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            await onebot11_remote_recall(
+                group_id=_GROUP_ID_2,
+                bot=mock_bot,
+                event=mock_event,
+                session=mock_session,
+                count=2,
+            )
+
+        assert [
+            (call["group_id"], call["user_id"])
+            for call in policy_calls
+            if call.get("user_id") == 2001
+        ] == [(_GROUP_ID_2, 2001)]
+        mock_bot.delete_msg.assert_awaited_once_with(message_id=102)
+        text = _finish_text(mock_finish)
+        assert "已撤回 1 条消息" in text
+        assert "跳过 1 条" in text
+
+    @pytest.mark.asyncio
+    async def test_remote_recall_count_only_argument(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+        mock_session: Mock,
+    ) -> None:
+        """`远程撤回 <群> 3` 解析为 target=3/count=None：3 是数量，且不做用户过滤。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.delete_msg = AsyncMock()
+        mock_event.message_id = 999
+        sender_ids = [2001, 2003, 2004]
+
+        async def _member_info(*, user_id: int, **_kwargs: object) -> dict[str, str]:
+            if user_id == int(mock_bot.self_id):
+                return {"role": "owner"}
+            return {"role": "member"}
+
+        mock_bot.get_group_member_info = _member_info
+        mock_bot.get_msg = AsyncMock(
+            side_effect=[
+                {
+                    "message_id": 100 + index,
+                    "message_type": "group",
+                    "group_id": _GROUP_ID_1,
+                    "sender": {"user_id": sender_id},
+                }
+                for index, sender_id in enumerate(sender_ids, start=1)
+            ]
+        )
+        records = [
+            _recall_record(str(100 + index), str(sender_id), _GROUP_ID_1)
+            for index, sender_id in enumerate(sender_ids, start=1)
+        ]
+
+        with (
+            patch.object(
+                mute_module.message_repository,
+                "list_recent_messages",
+                AsyncMock(return_value=records),
+            ) as list_recent,
+            patch.object(
+                mute_module,
+                "find_active_subject_policy",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                f"{remote_module.__name__}.get_handle_config_manager",
+                return_value=_make_enabled_recall_config_manager(),
+            ),
+            patch.object(
+                remote_recall_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            await onebot11_remote_recall(
+                group_id=_GROUP_ID_1,
+                bot=mock_bot,
+                event=mock_event,
+                session=mock_session,
+                target=3,
+                count=None,
+            )
+
+        assert list_recent.await_args_list[0].kwargs["user_id"] is None
+        assert mock_bot.delete_msg.await_count == 3
+        for message_id in (101, 102, 103):
+            mock_bot.delete_msg.assert_any_await(message_id=message_id)
+        assert "已撤回 3 条消息" in _finish_text(mock_finish)
+
+    @pytest.mark.asyncio
+    async def test_remote_recall_uses_feature_default_count(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+        mock_session: Mock,
+    ) -> None:
+        """数量缺省时用 remote_recall 的 default_count，且不读 recall_message 的配置。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.delete_msg = AsyncMock()
+        mock_event.message_id = 999
+        requested_keys: list[str] = []
+
+        async def _get_config(key: str) -> HandleConfig:
+            requested_keys.append(key)
+            return HandleConfig(
+                enabled=True,
+                defaults={"default_count": 7},
+                policies={},
+            )
+
+        manager = MagicMock()
+        manager.get_config = AsyncMock(side_effect=_get_config)
+
+        async def _member_info(*, user_id: int, **_kwargs: object) -> dict[str, str]:
+            if user_id == int(mock_bot.self_id):
+                return {"role": "owner"}
+            return {"role": "member"}
+
+        mock_bot.get_group_member_info = _member_info
+        mock_bot.get_msg = AsyncMock(
+            side_effect=[
+                {
+                    "message_id": 100 + index,
+                    "message_type": "group",
+                    "group_id": _GROUP_ID_1,
+                    "sender": {"user_id": 2000 + index},
+                }
+                for index in range(1, 8)
+            ]
+        )
+        records = [
+            _recall_record(str(100 + index), str(2000 + index), _GROUP_ID_1)
+            for index in range(1, 8)
+        ]
+
+        with (
+            patch.object(
+                mute_module.message_repository,
+                "list_recent_messages",
+                AsyncMock(return_value=records),
+            ),
+            patch.object(
+                mute_module,
+                "find_active_subject_policy",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                f"{remote_module.__name__}.get_handle_config_manager",
+                return_value=manager,
+            ),
+            patch(
+                f"{mute_module.__name__}.get_handle_config_manager",
+                return_value=manager,
+            ),
+            patch.object(
+                remote_recall_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            await onebot11_remote_recall(
+                group_id=_GROUP_ID_1,
+                bot=mock_bot,
+                event=mock_event,
+                session=mock_session,
+                target=None,
+                count=None,
+            )
+
+        assert requested_keys == ["remote_recall"]
+        assert mock_bot.delete_msg.await_count == 7
+        assert "已撤回 7 条消息" in _finish_text(mock_finish)
+
+    @pytest.mark.asyncio
+    async def test_remote_recall_audit_records_target_group(
+        self,
+        mock_bot: MagicMock,
+        mock_event: MagicMock,
+        mock_group_list: list[dict],
+        mock_session: Mock,
+    ) -> None:
+        """审计必须记录 action=remote_recall 与目标群（而不是命令所在群）。"""
+        mock_bot.get_group_list.return_value = mock_group_list
+        mock_bot.delete_msg = AsyncMock()
+        mock_event.message_id = 999
+        audit_mock = MagicMock()
+
+        async def _member_info(*, user_id: int, **_kwargs: object) -> dict[str, str]:
+            if user_id == int(mock_bot.self_id):
+                return {"role": "owner"}
+            return {"role": "member"}
+
+        mock_bot.get_group_member_info = _member_info
+        mock_bot.get_msg = AsyncMock(
+            return_value={
+                "message_id": 101,
+                "message_type": "group",
+                "group_id": _GROUP_ID_2,
+                "sender": {"user_id": 2001},
+            }
+        )
+
+        with (
+            patch.object(
+                mute_module.message_repository,
+                "list_recent_messages",
+                AsyncMock(return_value=[_recall_record("101", "2001", _GROUP_ID_2)]),
+            ),
+            patch.object(
+                mute_module,
+                "find_active_subject_policy",
+                AsyncMock(return_value=None),
+            ),
+            patch.object(
+                remote_module,
+                "record_audit_fire_and_forget",
+                new=audit_mock,
+            ),
+            patch(
+                f"{remote_module.__name__}.get_handle_config_manager",
+                return_value=_make_enabled_recall_config_manager(),
+            ),
+            patch.object(
+                remote_recall_cmd, "finish", new_callable=AsyncMock
+            ) as mock_finish,
+        ):
+            await onebot11_remote_recall(
+                group_id=_GROUP_ID_2,
+                bot=mock_bot,
+                event=mock_event,
+                session=mock_session,
+                count=1,
+            )
+
+        audit_mock.assert_called_once()
+        audit = audit_mock.call_args.args[2]
+        assert audit.action == "remote_recall"
+        assert audit.group_id == _GROUP_ID_2
+        assert f"group={_GROUP_ID_2}" in (audit.reason or "")
+        assert "recalled=1" in (audit.reason or "")
+        assert "已远程撤回" in _finish_text(mock_finish)
