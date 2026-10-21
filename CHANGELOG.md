@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Added
 
+- **远程撤回**：`远程撤回 <群号或群名称> [@用户] [数量]` / `remote-recall <group> [@user] [count]` ——
+  跨群撤回最近消息，复用本群撤回的全部安全规则（管理员/受保护对象跳过、`get_msg` 校验、
+  目标群需机器人在且有管理权限）。
 - `一键解禁` / `unmute-muted`: unmutes every member currently muted in the group, one
   at a time, and reports the result per member. Failures are listed individually and
   never abort or retry the remaining members. After the batch the muted list is
