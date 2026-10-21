@@ -18,6 +18,7 @@ _REMOTE_WHOLE_MUTE = COMMAND_TRIGGERS["remote_whole_mute"]
 _REMOTE_WHOLE_UNMUTE = COMMAND_TRIGGERS["remote_whole_unmute"]
 _REMOTE_KICK = COMMAND_TRIGGERS["remote_kick"]
 _REMOTE_BLOCK = COMMAND_TRIGGERS["remote_block"]
+_REMOTE_RECALL = COMMAND_TRIGGERS["remote_recall"]
 _REMOTE_UNBLOCK = COMMAND_TRIGGERS["remote_unblock"]
 _REMOTE_ANNOUNCEMENT = COMMAND_TRIGGERS["remote_announcement"]
 _MASS_ANNOUNCEMENT = COMMAND_TRIGGERS["mass_announcement"]
@@ -83,6 +84,19 @@ remote_kick_cmd: type[AlconnaMatcher] = on_alconna(
         Args["group_id", (int, str)]["user", At | int]["reason?", str, None],
     ),
     aliases=_REMOTE_KICK.aliases,
+    priority=805,
+    block=True,
+    use_cmd_sep=False,
+    use_cmd_start=True,
+)
+
+# 远程撤回命令
+remote_recall_cmd: type[AlconnaMatcher] = on_alconna(
+    command=Alconna(
+        _REMOTE_RECALL.primary,
+        Args["group_id", (int, str)]["target?", At | int, None]["count?", int, None],
+    ),
+    aliases=_REMOTE_RECALL.aliases,
     priority=805,
     block=True,
     use_cmd_sep=False,
