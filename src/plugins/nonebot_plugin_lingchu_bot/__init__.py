@@ -20,6 +20,8 @@ __plugin_meta__ = PluginMetadata(
         "常用命令：\n"
         "- 禁言 @用户 [时长] [原因] / mute @user [duration] [reason]\n"
         "- 撤回 [@用户] [数量] / recall [@user] [count]\n"
+        "- 远程撤回 <群号或群名称> [@用户] [数量] / "
+        "remote-recall <group> [@user] [count]\n"
         "- 远程禁言 <群号或群名称> @用户 [时长] / "
         "remote-mute <group> @user [duration]\n"
         "- 闭嘴 / 说话 (silence / speak)\n"
@@ -52,6 +54,7 @@ __plugin_meta__ = PluginMetadata(
             {"command": "菜单", "desc": "功能菜单"},
             {"command": "禁言 / 解禁", "desc": "群内禁言与解除（含全员/一键解禁）"},
             {"command": "撤回", "desc": "撤回消息（支持批量）"},
+            {"command": "远程撤回", "desc": "跨群撤回 <群号或群名> [@用户] [数量]"},
             {"command": "踢出 / 拉黑 / 拉白", "desc": "成员管理（含全局/远程变体）"},
             {"command": "设置群名称 / 发送群公告", "desc": "群资料与公告"},
             {"command": "远程禁言", "desc": "跨群禁言 <群号或群名> @用户"},
