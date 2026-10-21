@@ -527,6 +527,18 @@ _BASE_MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         (*_ONEBOT_ANNOUNCEMENT,),
     ),
     MenuFeature(
+        "remote-recall",
+        "remote_recall",
+        "remote-management",
+        LocalizedText("远程撤回", "Remote recall"),
+        LocalizedText(
+            "<群号|群名称> [@用户] [数量]",
+            "<group_id|group_name> [@user] [count]",
+        ),
+        PlatformCapability.MEMBER_MODERATION,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
         "bot-silence",
         "bot_silence",
         "silent-mode",
