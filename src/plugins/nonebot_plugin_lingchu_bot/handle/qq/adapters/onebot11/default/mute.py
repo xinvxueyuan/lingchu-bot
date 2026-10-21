@@ -456,7 +456,10 @@ async def _is_recall_protected_target(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     target_user_id: int,
+    *,
+    group_id: int | None = None,
 ) -> bool:
+    effective_group_id = event.group_id if group_id is None else group_id
     if "recall_message" not in plugin_config.protected_subject_feature_keys:
         return False
     protected = await find_active_subject_policy(
@@ -465,7 +468,7 @@ async def _is_recall_protected_target(
         platform_id="qq",
         adapter_id="~onebot.v11",
         bot_id=bot_id(bot),
-        group_id=event.group_id,
+        group_id=effective_group_id,
         user_id=target_user_id,
     )
     return protected is not None
@@ -478,12 +481,14 @@ async def _can_recall_sender(
     sender_id: int,
     *,
     sender_decisions: dict[int, bool] | None = None,
+    group_id: int | None = None,
 ) -> bool:
     """Return True when messages from sender_id may be recalled.
 
     Fail closed: when the sender's role cannot be verified (API failure),
     skip the recall instead of potentially recalling an admin/owner message.
     """
+    effective_group_id = event.group_id if group_id is None else group_id
     if sender_id == event.user_id:
         return False
     bot_self = bot_self_id_safe(bot)
@@ -491,7 +496,9 @@ async def _can_recall_sender(
         return False
     if sender_decisions is not None and sender_id in sender_decisions:
         return sender_decisions[sender_id]
-    decision = await _evaluate_recall_sender(session, bot, event, sender_id)
+    decision = await _evaluate_recall_sender(
+        session, bot, event, sender_id, group_id=effective_group_id
+    )
     if sender_decisions is not None:
         sender_decisions[sender_id] = decision
     return decision
@@ -502,24 +509,29 @@ async def _evaluate_recall_sender(
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
     sender_id: int,
+    *,
+    group_id: int | None = None,
 ) -> bool:
-    if await _is_recall_protected_target(session, bot, event, sender_id):
+    effective_group_id = event.group_id if group_id is None else group_id
+    if await _is_recall_protected_target(
+        session, bot, event, sender_id, group_id=effective_group_id
+    ):
         return False
     try:
         member_info = await bot.get_group_member_info(
-            group_id=event.group_id,
+            group_id=effective_group_id,
             user_id=sender_id,
             no_cache=True,
         )
     except OneBot11ActionFailed:
         logger.warning(
-            f"无法确认发送者角色，跳过撤回: group_id={event.group_id}, "
+            f"无法确认发送者角色，跳过撤回: group_id={effective_group_id}, "
             f"sender_id={sender_id}"
         )
         return False
     except OneBot11NetworkError as e:
         logger.warning(
-            f"查询发送者角色网络异常，跳过撤回: group_id={event.group_id}, "
+            f"查询发送者角色网络异常，跳过撤回: group_id={effective_group_id}, "
             f"sender_id={sender_id}, error={e!r}"
         )
         return False
@@ -585,7 +597,9 @@ async def _list_recall_candidate_records(
     *,
     target_user_id: int | None,
     recall_count: int,
+    group_id: int | None = None,
 ) -> list[Any]:
+    effective_group_id = event.group_id if group_id is None else group_id
     fetch_limit = _candidate_fetch_limit(recall_count)
     common_filters: dict[str, Any] = {
         "platform_id": "qq",
@@ -601,13 +615,13 @@ async def _list_recall_candidate_records(
     group_records = await message_repository.list_recent_messages(
         session,
         **common_filters,
-        conversation_id=str(event.group_id),
+        conversation_id=str(effective_group_id),
         limit=fetch_limit,
     )
     return await _merge_recall_candidates(
         broad_records,
         group_records,
-        group_id=event.group_id,
+        group_id=effective_group_id,
     )
 
 
@@ -616,10 +630,13 @@ async def _resolve_recall_args(
     count: int | None,
     bot: OneBot11Bot,
     event: OneBot11GroupMessageEvent,
+    *,
+    default_count: int | None = None,
 ) -> tuple[int | None, str | None, int]:
-    # 读取配置中的默认撤回数量
-    config = await get_handle_config_manager().get_config("recall_message")
-    default_count = config.defaults.get("default_count", 10)
+    # 未显式指定时，读取配置中的默认撤回数量
+    if default_count is None:
+        config = await get_handle_config_manager().get_config("recall_message")
+        default_count = int(config.defaults.get("default_count", 10))
 
     if isinstance(target, At):
         target_user_id, target_name = await resolve_user_onebot11(target, bot, event)
@@ -652,14 +669,16 @@ async def _recall_record_message(
     trigger_message_id: str,
     target_user_id: int | None,
     sender_decisions: dict[int, bool],
+    group_id: int | None = None,
 ) -> str:
+    effective_group_id = event.group_id if group_id is None else group_id
     message_id = _message_id_int(getattr(record, "message_id", None))
     if message_id is None or str(message_id) == trigger_message_id:
         return "skipped"
     message = await _verified_recall_message(
         bot,
         message_id=message_id,
-        group_id=event.group_id,
+        group_id=effective_group_id,
         target_user_id=target_user_id,
     )
     if message is None:
@@ -668,7 +687,12 @@ async def _recall_record_message(
     if sender_id is None:
         sender_id = _message_id_int(getattr(record, "user_id", None))
     if sender_id is None or not await _can_recall_sender(
-        session, bot, event, sender_id, sender_decisions=sender_decisions
+        session,
+        bot,
+        event,
+        sender_id,
+        sender_decisions=sender_decisions,
+        group_id=effective_group_id,
     ):
         return "skipped"
     try:
@@ -690,7 +714,9 @@ async def _recall_records(
     *,
     target_user_id: int | None,
     recall_count: int,
+    group_id: int | None = None,
 ) -> RecallResult:
+    effective_group_id = event.group_id if group_id is None else group_id
     result = RecallResult()
     trigger_message_id = str(getattr(event, "message_id", ""))
     sender_decisions: dict[int, bool] = {}
@@ -705,6 +731,7 @@ async def _recall_records(
             trigger_message_id=trigger_message_id,
             target_user_id=target_user_id,
             sender_decisions=sender_decisions,
+            group_id=effective_group_id,
         )
         if status == "recalled":
             result.recalled += 1
