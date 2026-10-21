@@ -271,6 +271,12 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         "chinese_aliases": {"跨群拉黑", "远程拉黑用户"},
         "english_aliases": {"remote-block-member", "cross-group-block"},
     },
+    "remote_recall": {
+        "primary": "远程撤回",
+        "english": "remote-recall",
+        "chinese_aliases": {"跨群撤回", "远程撤回消息"},
+        "english_aliases": {"cross-group-recall", "remote-delete-message"},
+    },
     "remote_unblock": {
         "primary": "远程删黑",
         "english": "remote-unblock",
