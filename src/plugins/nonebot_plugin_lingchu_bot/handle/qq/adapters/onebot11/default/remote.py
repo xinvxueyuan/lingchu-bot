@@ -30,6 +30,7 @@ from ....commands.remote import (
     remote_block_cmd,
     remote_kick_cmd,
     remote_mute_cmd,
+    remote_recall_cmd,
     remote_unblock_cmd,
     remote_unmute_cmd,
     remote_whole_mute_cmd,
@@ -53,6 +54,12 @@ from .common import (
     record_audit_fire_and_forget,
     resolve_user_onebot11,
     store_block_record,
+)
+from .mute import (
+    RECALL_COUNT_MAX,
+    _list_recall_candidate_records,
+    _recall_records,
+    _resolve_recall_args,
 )
 
 _MASS_TARGET_SEPARATOR = re.compile(r"[,，、;；]")
@@ -544,6 +551,104 @@ async def onebot11_remote_whole_unmute(
 
     return await remote_whole_unmute_cmd.finish(
         (await _("已远程关闭全体禁言: 目标群 {group_id}")).format(group_id=group_id_int)
+    )
+
+
+@selected_adapter_handle(remote_recall_cmd, "~onebot.v11", "remote_recall")
+async def onebot11_remote_recall(
+    group_id: int | str,
+    bot: OneBot11Bot,
+    event: OneBot11GroupMessageEvent,
+    session: async_scoped_session,
+    target: At | int | None = None,
+    count: int | None = None,
+) -> Any:
+    """远程撤回处理器：在 <群> 撤回最近消息（可选 @用户 / 数量）。"""
+    config = await get_handle_config_manager().get_config("remote_recall")
+    if not config.enabled:
+        return await remote_recall_cmd.finish(await _("该功能已禁用"))
+    default_count = config.defaults.get("default_count", 10)
+
+    resolved_group_id = await _resolve_group_id(bot, group_id, remote_recall_cmd)
+    if resolved_group_id is None:
+        return None
+    group_id_int = resolved_group_id
+
+    if not await _validate_remote_context(bot, group_id_int, remote_recall_cmd):
+        return None
+
+    try:
+        target_user_id, target_name, recall_count = await _resolve_recall_args(
+            target, count, bot, event, default_count=default_count
+        )
+    except ValueError as e:
+        # 目标不在当前群时 @ 解析会失败 —— 但「远程」场景下目标本来就可能不在本群：
+        # 退化为「只用 QQ 号」继续（撤回的是 ta 在目标群里的消息）。
+        if isinstance(target, At):
+            target_user_id, target_name = int(target.target), None
+            recall_count = count if count is not None else default_count
+        else:
+            logger.warning(f"解析用户失败: {e}")
+            return await remote_recall_cmd.finish(str(e))
+
+    if recall_count < 1:
+        return await remote_recall_cmd.finish(await _("撤回数量不能小于 1 条"))
+    if recall_count > RECALL_COUNT_MAX:
+        return await remote_recall_cmd.finish(
+            (await _("撤回数量不能超过 {max} 条")).format(max=RECALL_COUNT_MAX)
+        )
+
+    records = await _list_recall_candidate_records(
+        session,
+        bot,
+        event,
+        target_user_id=target_user_id,
+        recall_count=recall_count,
+        group_id=group_id_int,
+    )
+    result = await _recall_records(
+        session,
+        bot,
+        event,
+        records,
+        target_user_id=target_user_id,
+        recall_count=recall_count,
+        group_id=group_id_int,
+    )
+
+    record_audit_fire_and_forget(
+        bot,
+        event,
+        CommandAudit(
+            action="remote_recall",
+            target_user_id=target_user_id,
+            reason=(
+                f"group={group_id_int}, count={recall_count}, "
+                f"recalled={result.recalled}, skipped={result.skipped}, "
+                f"failed={result.failed}"
+            ),
+            group_id=group_id_int,
+        ),
+    )
+
+    target_text = ""
+    if target_user_id is not None:
+        target_text = "\n" + (await _("目标: {target}")).format(
+            target=format_user_display_name(target_user_id, target_name)
+        )
+    message = await _(
+        "已远程撤回: \n"
+        "目标群: {group_id}\n"
+        "已撤回 {recalled} 条消息，跳过 {skipped} 条，失败 {failed} 条{target_text}"
+    )
+    return await remote_recall_cmd.finish(
+        message.format(
+            group_id=group_id_int,
+            recalled=result.recalled,
+            skipped=result.skipped,
+            failed=result.failed,
+            target_text=target_text,
+        )
     )
 
 
