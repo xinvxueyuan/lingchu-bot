@@ -20,29 +20,20 @@
 
 [![DeepWiki Q&A][deepwiki-shield]][deepwiki-link]
 
-## Project status
+> **A qbot plugin** · Host repository: [xinvxueyuan/qbot](https://github.com/xinvxueyuan/qbot)
 
 Lingchu Bot has published its first `0.0.1` formal release. The project is still early and may make breaking changes before `1.0.0`, but the current release is intended to be installable, documented, and reproducible through the release workflow.
 
 Useful entry points:
 
 - [Online documentation](https://lingchu.zone.id/)
-- [User guide overview](apps/docs/src/content/docs/user-guide/overview.mdx)
-- [Quick start](apps/docs/src/content/docs/user-guide/quick-start.mdx)
-- [QQ command reference](apps/docs/src/content/docs/platforms/qq/command-reference.mdx)
-- [Architecture guide](apps/docs/src/content/docs/developer-guide/architecture/introduction.mdx)
+- [User guide overview](apps/docs/src/content/docs/explanation/overview.mdx)
+- [Quick start](apps/docs/src/content/docs/tutorials/getting-started.mdx)
+- [QQ command reference](apps/docs/src/content/docs/reference/commands.mdx)
+- [Architecture guide](apps/docs/src/content/docs/explanation/architecture/introduction.mdx)
 - [Contributing guide](CONTRIBUTING.md)
 
-## What is in this repository
-
-- `nonebot-plugin-lingchu-bot`: the Python package declared in `pyproject.toml`.
-- `src/plugins/nonebot_plugin_lingchu_bot`: the core NoneBot plugin, including metadata, startup hooks, platform registry, command handlers, permissions, i18n, repositories, and storage helpers.
-- `[tool.nonebot]` in `pyproject.toml`: local plugin loading configuration, installed adapter declarations, and dependency plugin declarations.
-- `apps/docs`: the Astro / Starlight documentation site, with Chinese and English content.
-- `Dockerfile` / `docker-compose.yml`: container runtime flow. The image generates `/tmp/bot.py` during build through `nb-cli`; the repository root does not ship a committed local `bot.py`.
-- `scripts/setup.sh`: cross-platform initialization script for local development.
-
-## Capabilities
+## Features
 
 | Capability | Description |
 | --- | --- |
@@ -60,7 +51,7 @@ Useful entry points:
 
 Future cross-platform and non-group-management features depend on later implementation and tests.
 
-## Adapter support
+### Adapter support
 
 The currently implemented platform profile is **QQ**, and the only active adapter is **OneBot V11**:
 
@@ -74,7 +65,7 @@ Only OneBot V11 is implemented. Configuring any other adapter ID (such as `~milk
 
 OneBot V11 currently has `default` and `NapCat` implementation paths. Some features are implementation-gated: for example, group announcement and group avatar entries are shown only when the selected implementation supports them, and remote announcement requires `NapCat.Onebot >= 4.18.0`.
 
-## Quick start
+## Installation
 
 ### Requirements
 
@@ -121,6 +112,8 @@ To load Lingchu Bot from an existing NoneBot project, point `plugin_dirs` at the
 [tool.nonebot]
 plugin_dirs = ["path/to/lingchu-bot/src/plugins"]
 ```
+
+The [qbot](https://github.com/xinvxueyuan/qbot) host consumes this repository as the `vendor/lingchu-bot` git submodule pinned to a specific commit, and loads it through `plugin_dirs = ["vendor/lingchu-bot/src/plugins"]`.
 
 ### Option C — Run in Docker
 
@@ -179,7 +172,7 @@ Runtime settings are read from the localstore-owned `runtime-overrides.toml` fil
 Deployment settings remain in NoneBot environment configuration; there is no
 project-specific configuration CLI or generated schema step.
 
-## Commands at a glance
+## Usage & Commands
 
 Main menu:
 
@@ -215,11 +208,22 @@ silence / speak
 boot / shutdown
 ```
 
-Command trigger language is locale-exclusive. Chinese locales enable Chinese triggers; English locales enable short hyphenated English triggers. They are not enabled at the same time. Full command behavior, permission pre-checks, implementation filters, and remote management details are documented in [QQ Commands](apps/docs/src/content/docs/platforms/qq/command-reference.mdx).
+Command trigger language is locale-exclusive. Chinese locales enable Chinese triggers; English locales enable short hyphenated English triggers. They are not enabled at the same time. Full command behavior, permission pre-checks, implementation filters, and remote management details are documented in [QQ Commands](apps/docs/src/content/docs/reference/commands.mdx).
 
-## Development and verification
+## Development & Testing
 
 CI checks Ruff, Markdown, Pyright, ty, pytest on multiple database backends, and docs site lint / test. Run the checks relevant to your change before committing.
+
+### Repository layout
+
+- `nonebot-plugin-lingchu-bot`: the Python package declared in `pyproject.toml`.
+- `src/plugins/nonebot_plugin_lingchu_bot`: the core NoneBot plugin, including metadata, startup hooks, platform registry, command handlers, permissions, i18n, repositories, and storage helpers.
+- `[tool.nonebot]` in `pyproject.toml`: local plugin loading configuration, installed adapter declarations, and dependency plugin declarations.
+- `apps/docs`: the Astro / Starlight documentation site, with Chinese and English content.
+- `Dockerfile` / `docker-compose.yml`: container runtime flow. The image generates `/tmp/bot.py` during build through `nb-cli`; the repository root does not ship a committed local `bot.py`.
+- `scripts/setup.sh`: cross-platform initialization script for local development.
+
+### Local checks
 
 Ruff:
 
@@ -266,13 +270,15 @@ Markdown:
 pnpm exec markdownlint-cli2 README.md README-zh.md
 ```
 
-## Contributing
+### Contributing
 
 Issues, tests, documentation, and code improvements are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before starting; it describes the current collaboration workflow, GitNexus impact analysis requirements, version validation system, and PR checklist.
 
 When participating in discussions and reviews, please follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). For security-related issues, please refer to [SECURITY.md](SECURITY.md).
 
-## License
+## License & Related repositories
+
+### License
 
 This project uses a **phased open-source license stack** (see
 [Repository-Policy.md](Repository-Policy.md) for the transition rules
@@ -300,7 +306,15 @@ For media file handling, sanitization requirements, REUSE compliance,
 and the official license texts, see [Repository-Policy.md](Repository-Policy.md)
 and the [`LICENSE-*`](LICENSE-code) files in the repository root.
 
-## Acknowledgments
+### Related repositories
+
+Lingchu Bot is one plugin of the [qbot](https://github.com/xinvxueyuan/qbot) ecosystem; these repositories are the ones it actually interacts with:
+
+- [xinvxueyuan/qbot](https://github.com/xinvxueyuan/qbot) — the NoneBot2 host that loads this repository as the `vendor/lingchu-bot` submodule.
+- [xinvxueyuan/nonebot-plugin-info](https://github.com/xinvxueyuan/nonebot-plugin-info) — the menu plugin that renders each plugin's `__plugin_meta__.extra`; Lingchu publishes its menu type, order, and command list there.
+- [xinvxueyuan/nonebot-plugin-llbot-alert](https://github.com/xinvxueyuan/nonebot-plugin-llbot-alert) — watches the LLBot / OneBot V11 connection Lingchu Bot runs on, and mails on heartbeat or disconnect failures.
+
+### Acknowledgments
 
 Lingchu Bot stands on a lot of good open-source shoulders. Thanks especially to these upstream projects and communities:
 
@@ -311,7 +325,7 @@ Lingchu Bot stands on a lot of good open-source shoulders. Thanks especially to 
 
 For complete dependency lists, please refer to [pyproject.toml](pyproject.toml), [package.json](package.json), [apps/docs/package.json](apps/docs/package.json), and [uv.lock](uv.lock).
 
-## License compliance
+### License compliance
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fxinvxueyuan%2Flingchu-bot.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fxinvxueyuan%2Flingchu-bot?ref=badge_large)
 

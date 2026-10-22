@@ -20,29 +20,20 @@
 
 [![DeepWiki 问答][deepwiki-shield]][deepwiki-link]
 
-## 项目状态
+> **qbot 插件** · 宿主仓库：[xinvxueyuan/qbot](https://github.com/xinvxueyuan/qbot)
 
 Lingchu Bot 已发布首个 `0.0.1` 正式版本。项目在 `1.0.0` 前仍可能出现破坏性变更，但当前版本应可安装、可查阅文档，并可通过发布流程复现。
 
 常用入口：
 
 - [在线文档](https://lingchu.zone.id/)
-- [用户指南概览](apps/docs/content/docs/user-guide/overview.zh.mdx)
-- [快速开始](apps/docs/content/docs/user-guide/quick-start.zh.mdx)
-- [QQ 命令参考](apps/docs/content/docs/platforms/qq/command-reference.zh.mdx)
-- [架构指南](apps/docs/content/docs/developer-guide/architecture/introduction.zh.mdx)
+- [用户指南概览](apps/docs/src/content/docs/zh/explanation/overview.mdx)
+- [快速开始](apps/docs/src/content/docs/zh/tutorials/getting-started.mdx)
+- [QQ 命令参考](apps/docs/src/content/docs/zh/reference/commands.mdx)
+- [架构指南](apps/docs/src/content/docs/zh/explanation/architecture/introduction.mdx)
 - [贡献指南](CONTRIBUTING.md)
 
-## 仓库内容
-
-- `nonebot-plugin-lingchu-bot`：`pyproject.toml` 声明的 Python 包。
-- `src/plugins/nonebot_plugin_lingchu_bot`：核心 NoneBot 插件，包含插件元数据、启动钩子、平台注册表、命令处理器、权限、i18n、仓储层和存储辅助能力。
-- `pyproject.toml` 的 `[tool.nonebot]`：本地插件加载配置、已安装适配器声明和依赖插件声明。
-- `apps/docs`：基于 Next.js / Fumadocs 的中英双语文档站。
-- `Dockerfile` / `docker-compose.yml`：容器运行流程。镜像构建阶段会通过 `nb-cli` 生成 `/tmp/bot.py`；仓库根目录当前不提交本地 `bot.py`。
-- `scripts/setup.sh`：本地开发用跨平台初始化脚本。
-
-## 能力矩阵
+## 功能特性
 
 | 能力 | 说明 |
 | --- | --- |
@@ -60,7 +51,7 @@ Lingchu Bot 已发布首个 `0.0.1` 正式版本。项目在 `1.0.0` 前仍可�
 
 其他平台和非群管理能力以后续实现和测试为准。
 
-## 适配器支持
+### 适配器支持
 
 当前已实现的平台 profile 是 **QQ**，唯一处于启动流程中的适配器是 **OneBot V11**：
 
@@ -74,7 +65,7 @@ LINGCHUAdapter=~onebot.v11
 
 OneBot V11 目前有 `default` 和 `NapCat` 两条实现路径。部分功能会按实现能力显示或隐藏：例如群公告、群头像只在当前实现支持时展示；远程公告要求 `NapCat.Onebot >= 4.18.0`。
 
-## 快速开始
+## 安装
 
 ### 环境要求
 
@@ -122,6 +113,8 @@ cp .env.example .env
 plugin_dirs = ["path/to/lingchu-bot/src/plugins"]
 ```
 
+[qbot](https://github.com/xinvxueyuan/qbot) 宿主以 `vendor/lingchu-bot` git 子模块引入本仓库并钉定提交，通过 `plugin_dirs = ["vendor/lingchu-bot/src/plugins"]` 加载。
+
 ### 方式 C — 在 Docker 中运行
 
 ```bash
@@ -134,14 +127,9 @@ docker compose up --build
 
 ## 配置
 
-Lingchu 首次启动时会在 `nonebot-plugin-localstore` 提供的插件配置目录中创建 `config.toml`。运行时配置优先级为：
+部署字段由 NoneBot 从操作系统环境变量、其 `.env` 文件或全局配置解析，最后回落到代码默认值。Lingchu 不实现第二套 dotenv 或 TOML 覆盖层；启动时不会创建部署配置，也不安装 JSON Schema 文件。
 
-1. 操作系统环境变量
-2. NoneBot dotenv / 全局配置
-3. `config.toml`
-4. 代码默认值
-
-下表枚举 NoneBot 核心、`nonebot_plugin_localstore`、`nonebot_plugin_orm`、`core/config.py`、`core/runtime_config.py` 和 `i18n/__init__.py` 实际读取的环境变量。NoneBot `.env` 文件中的布尔值必须使用 JSON 风格小写 `true` / `false`，不要写 Python 风格的 `True` / `False`。
+下表枚举 NoneBot 核心、`nonebot_plugin_localstore`、`nonebot_plugin_orm`、`core/config.py`、`core/runtime_config.py` 和 `i18n/__init__.py` 实际读取的环境变量。NoneBot `.env` 文件中的布尔值必须使用 JSON 风格小写 `true` / `false`，不要写 Python 风格的 `True` / `False`。可在线编辑的命令、菜单触发词和平台权限覆盖项单独存放在 localstore 管理的 `runtime-overrides.toml` 中。
 
 | 分组 | 设置项 | 用途 |
 | --- | --- | --- |
@@ -186,7 +174,7 @@ english = "member-management"
 运行时设置从 localstore 管理的 `runtime-overrides.toml` 读取；部署设置继续由
 NoneBot 环境配置提供。项目不再提供自定义配置 CLI，也不再生成 schema 文件。
 
-## 命令速览
+## 使用与命令
 
 主菜单：
 
@@ -222,11 +210,22 @@ silence / speak
 boot / shutdown
 ```
 
-命令触发词按 locale 互斥选择。中文 locale 启用中文触发词，英文 locale 启用短横线风格英文触发词；两种语言不会同时启用。完整命令行为、权限预检、实现过滤和远程管理细节见 [QQ 命令](apps/docs/content/docs/platforms/qq/command-reference.zh.mdx)。
+命令触发词按 locale 互斥选择。中文 locale 启用中文触发词，英文 locale 启用短横线风格英文触发词；两种语言不会同时启用。完整命令行为、权限预检、实现过滤和远程管理细节见 [QQ 命令](apps/docs/src/content/docs/zh/reference/commands.mdx)。
 
-## 开发与验证
+## 开发与测试
 
 CI 会检查 Ruff、Markdown、Pyright、ty、多数据库 pytest 以及文档站 lint / test。提交前请运行与改动相关的检查。
+
+### 仓库内容
+
+- `nonebot-plugin-lingchu-bot`：`pyproject.toml` 声明的 Python 包。
+- `src/plugins/nonebot_plugin_lingchu_bot`：核心 NoneBot 插件，包含插件元数据、启动钩子、平台注册表、命令处理器、权限、i18n、仓储层和存储辅助能力。
+- `pyproject.toml` 的 `[tool.nonebot]`：本地插件加载配置、已安装适配器声明和依赖插件声明。
+- `apps/docs`：基于 Astro / Starlight 的中英双语文档站。
+- `Dockerfile` / `docker-compose.yml`：容器运行流程。镜像构建阶段会通过 `nb-cli` 生成 `/tmp/bot.py`；仓库根目录当前不提交本地 `bot.py`。
+- `scripts/setup.sh`：本地开发用跨平台初始化脚本。
+
+### 本地检查
 
 Ruff：
 
@@ -272,13 +271,15 @@ Markdown：
 pnpm exec markdownlint-cli2 README.md README-zh.md
 ```
 
-## 贡献
+### 贡献
 
 欢迎提交 Issue、测试、文档和代码改进。开始前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)，其中包含当前协作流程、GitNexus 影响分析要求、版本验证系统和 PR 检查清单。
 
 参与讨论和审查时，请遵守 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。安全相关问题请参考 [SECURITY.md](SECURITY.md)。
 
-## 许可
+## 许可证与相关仓库
+
+### 许可证
 
 本项目采用**分阶段开源许可证栈**（切换规则与触发日详见
 [Repository-Policy.md](Repository-Policy.md)）：
@@ -301,18 +302,26 @@ pnpm exec markdownlint-cli2 README.md README-zh.md
 [Repository-Policy.md](Repository-Policy.md) 与仓库根目录下的
 [`LICENSE-*`](LICENSE-code) 系列文件。
 
-## 致谢
+### 相关仓库
+
+Lingchu Bot 是 [qbot](https://github.com/xinvxueyuan/qbot) 生态中的一个插件，以下仓库与它存在实际联动：
+
+- [xinvxueyuan/qbot](https://github.com/xinvxueyuan/qbot) — 以 `vendor/lingchu-bot` 子模块引入并加载本仓库的 NoneBot2 宿主。
+- [xinvxueyuan/nonebot-plugin-info](https://github.com/xinvxueyuan/nonebot-plugin-info) — 读取各插件 `__plugin_meta__.extra` 生成功能菜单；Lingchu 在这里发布菜单分类、排序和命令清单。
+- [xinvxueyuan/nonebot-plugin-llbot-alert](https://github.com/xinvxueyuan/nonebot-plugin-llbot-alert) — 监控 Lingchu Bot 所依赖的 LLBot / OneBot V11 连接，心跳异常或连接断开时邮件告警。
+
+### 致谢
 
 Lingchu Bot 建立在许多优秀开源项目之上。特别感谢这些上游项目与社区：
 
 - **机器人运行时与适配器生态**：[NoneBot2](https://nonebot.dev/)、[nonebot-adapter-onebot](https://github.com/nonebot/adapter-onebot)、`nonebot-plugin-alconna`、`nonebot-plugin-localstore`、`nonebot-plugin-orm`、`nonebot-plugin-apscheduler`、`nonebot-plugin-htmlkit` 和 `nonebot-plugin-docs`。
 - **Python 配置、存储与服务工具**：`aiofiles`、`rtoml`、[Babel](https://babel.pocoo.org/)、[Jinja](https://jinja.palletsprojects.com/)、`packaging`。
-- **文档站与前端栈**：[Fumadocs](https://fumadocs.dev/)、[Next.js](https://nextjs.org/)、[React](https://react.dev/)、[Mermaid](https://mermaid.js.org/)、[Twoslash](https://twoslash.netlify.app/)、`flexsearch`、`d3-force`、`dompurify`、`feed` 和 [Tailwind CSS](https://tailwindcss.com/)。
+- **文档站与前端栈**：[Astro](https://astro.build/)、[Starlight](https://starlight.astro.build/)、[React](https://react.dev/)、[Mermaid](https://mermaid.js.org/)、[Twoslash](https://twoslash.netlify.app/) 和 [Tailwind CSS](https://tailwindcss.com/)。
 - **工程质量、测试与仓库工作流**：[uv](https://docs.astral.sh/uv/)、[pnpm](https://pnpm.io/)、[Turborepo](https://turbo.build/repo)、[Ruff](https://docs.astral.sh/ruff/)、[Pyright](https://microsoft.github.io/pyright/)、[ty](https://docs.astral.sh/ty/)、[pytest](https://docs.pytest.org/)、[Vitest](https://vitest.dev/)、[Playwright](https://playwright.dev/)、[markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2)、[Prettier](https://prettier.io/)、[ESLint](https://eslint.org/)、[Husky](https://typicode.github.io/husky/)、[Gitmoji](https://gitmoji.dev/)、`gitnexus` 和 [FOSSA](https://fossa.com/)。
 
 完整依赖列表请以 [pyproject.toml](pyproject.toml)、[package.json](package.json)、[apps/docs/package.json](apps/docs/package.json) 和 [uv.lock](uv.lock) 为准。
 
-## 许可证合规
+### 许可证合规
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fxinvxueyuan%2Flingchu-bot.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fxinvxueyuan%2Flingchu-bot?ref=badge_large)
 
