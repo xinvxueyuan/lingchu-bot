@@ -41,7 +41,7 @@ def _candidate_roots() -> list[Path]:
     """可能同时被加载的插件根目录。
 
     本地开发时兄弟插件在 `C:/dev/...`；生产（qbot 项目）在
-    `/root/imqq/qbot/plugins/...`，可用 `QBOT_PLUGINS_DIR` 覆盖；CI 下这些
+    `/path/to/qbot/plugins/...`，可用 `QBOT_PLUGINS_DIR` 覆盖；CI 下这些
     路径都不存在，此时只校验本仓 —— 测试不会因此失败。
     """
     roots = [_OWN_ROOT]
