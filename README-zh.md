@@ -143,6 +143,7 @@ docker compose up --build
 | Lingchu 运行时 | `LINGCHU_SUPERUSERS` | Lingchu 超级用户的 UID 到平台账号映射。 |
 | Lingchu 运行时 | `LINGCHU_LOCALE` | 运行时语言；可用目录为 `zh_CN` 和 `en_US`。 |
 | Lingchu 运行时 | `LINGCHU_SUPERUSER_KEY` | 超级用户密钥字符串（`superuser_key`）。 |
+| WebUI | `LINGCHU_WEBUI_PASSWORD` | WebUI 只读端点的简易字符串密码；为空则不鉴权。 |
 | Localstore | `LOCALSTORE_USE_CWD` | 为 true 时将 localstore 数据/配置/缓存放到项目目录下。 |
 | 消息存储 | `LINGCHU_MESSAGE_STORE_ENABLED` | 是否启用消息存储运行时钩子。 |
 | 消息存储 | `LINGCHU_MESSAGE_STORE_RETENTION_DAYS` | 消息记录保留天数；`0` 禁用基于天数的过期。 |
@@ -150,11 +151,8 @@ docker compose up --build
 | 消息存储 | `LINGCHU_MESSAGE_STORE_RECORD_API_CALLS` | 是否记录平台 API 调用摘要。 |
 | 消息存储 | `LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED` | 是否启用过期消息清理。 |
 | 撤回 | `LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT` | 消息撤回命令省略数量时的默认条数（`1`–`100`）。 |
-| 权限 | `LINGCHU_PERMISSION_PLATFORM_RUNTIME_PASSTHROUGH` | 是否允许 QQ 群主/管理员/成员等平台角色满足 Lingchu 命令授权。 |
-| 触发词覆盖 | `LINGCHU_COMMAND_TRIGGER_OVERRIDES` | 按 command key 覆盖命令主触发词和别名。 |
-| 触发词覆盖 | `LINGCHU_MENU_PAGE_TRIGGER_OVERRIDES` | 按菜单页 id 覆盖菜单页触发词。 |
 | 受保护目标 | `LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS` | 目标用户受保护时会被拦截的副作用命令键。 |
-| 数据库 | `SQLALCHEMY_DATABASE_URL` | SQLAlchemy 数据库 URL；支持 SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server。未设置时使用默认 SQLite。 |
+| 数据库 | `SQLALCHEMY_DATABASE_URL` | SQLAlchemy 数据库 URL；支持 SQLite / PostgreSQL / MySQL / MariaDB。未设置时使用默认 SQLite。 |
 | 数据库 | `ALEMBIC_STARTUP_CHECK` | 生产环境设为 `true` 以在启动时强制 schema 迁移检查。 |
 
 `runtime-overrides.toml` 示例：

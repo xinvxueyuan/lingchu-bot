@@ -143,6 +143,7 @@ Online-editable command, menu-trigger, and platform-permission overrides are sto
 | Lingchu Runtime | `LINGCHU_SUPERUSERS` | UID-to-platform account mapping for Lingchu superusers. |
 | Lingchu Runtime | `LINGCHU_LOCALE` | Runtime locale; available catalogs are `zh_CN` and `en_US`. |
 | Lingchu Runtime | `LINGCHU_SUPERUSER_KEY` | Superuser key string (`superuser_key`). |
+| WebUI | `LINGCHU_WEBUI_PASSWORD` | Password for the read-only WebUI endpoints; empty disables authentication. |
 | Localstore | `LOCALSTORE_USE_CWD` | Store localstore data / config / cache under the project directory when true. |
 | Message Store | `LINGCHU_MESSAGE_STORE_ENABLED` | Enable message-store runtime hooks. |
 | Message Store | `LINGCHU_MESSAGE_STORE_RETENTION_DAYS` | Retention window for message records; `0` disables day-based expiry. |
@@ -151,7 +152,7 @@ Online-editable command, menu-trigger, and platform-permission overrides are sto
 | Message Store | `LINGCHU_MESSAGE_STORE_CLEANUP_ENABLED` | Enable expired message cleanup. |
 | Recall | `LINGCHU_RECALL_MESSAGE_DEFAULT_COUNT` | Default count for the message recall command (`1`–`100`). |
 | Protected Subjects | `LINGCHU_PROTECTED_SUBJECT_FEATURE_KEYS` | Side-effect command keys blocked when their target user is protected. |
-| Database | `SQLALCHEMY_DATABASE_URL` | SQLAlchemy database URL; supports SQLite / PostgreSQL / MySQL / MariaDB / Oracle / SQL Server. Unset uses default SQLite. |
+| Database | `SQLALCHEMY_DATABASE_URL` | SQLAlchemy database URL; supports SQLite / PostgreSQL / MySQL / MariaDB. Unset uses default SQLite. |
 | Database | `ALEMBIC_STARTUP_CHECK` | Set to `true` in production to enforce schema migration checks on startup. |
 
 Example `runtime-overrides.toml`:
