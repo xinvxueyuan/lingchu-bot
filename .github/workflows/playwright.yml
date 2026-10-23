@@ -58,13 +58,11 @@ jobs:
             ${{ runner.os }}-playwright-
 
       - name: Install Playwright browsers
-        # pinned from nick-fields/retry@v4.0.0
-        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
-        with:
-          timeout_minutes: 10
-          max_attempts: 3
-          retry_wait_seconds: 60
-          command: pnpm --filter docs exec playwright install --with-deps
+        # 原生 run + 25 分钟上限。此前用 nick-fields/retry：安装 `--with-deps`
+        # 实测超过其 10 分钟上限，超时时该 action 的 killAll 抛 `kill EPERM`
+        # 直接判错，`max_attempts: 3` 一次都没执行（连续两次 CI 都这样红）。
+        timeout-minutes: 25
+        run: pnpm --filter docs exec playwright install --with-deps
 
       - name: Run Playwright tests
         run: pnpm --filter docs run test:e2e
