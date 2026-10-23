@@ -20,9 +20,9 @@
   },
   "dependencies": {
     "@arco-design/web-react": "^2.66.18",
-    "@orpc/client": "^1.16.1",
-    "@orpc/contract": "^1.16.1",
-    "@orpc/server": "^1.16.1",
+    "@orpc/client": "1.16.0",
+    "@orpc/contract": "1.16.0",
+    "@orpc/server": "1.16.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "2.1.1",
     "i18next": "^26.4.6",
