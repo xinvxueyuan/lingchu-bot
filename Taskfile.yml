@@ -3,10 +3,22 @@
 # Task dependency graph (maintainer reference — kept in sync with .github/workflows/*.yml):
 #
 # Task orchestration is delegated to Turborepo: root tasks (//#py:*, //#md:*,
-# //#js:*, //#wheel-smoke — scripts live in root package.json) run alongside
-# workspace package tasks (docs, @repo/lingc-cli) with caching and parallel
-# scheduling. Taskfile keeps tasks that need GITHUB_OUTPUT / secrets / CLI arg
-# passthrough (release, version, db, hooks, smoke, gitmoji, clean:dev-data).
+# //#js:*, //#webui:*, //#wheel-smoke — scripts live in root package.json) run
+# alongside workspace package tasks (docs, @repo/lingc-cli) with caching and
+# parallel scheduling. Taskfile keeps tasks that need GITHUB_OUTPUT / secrets /
+# CLI arg passthrough (release, version, db, hooks, smoke, gitmoji,
+# clean:dev-data).
+#
+#   WebUI static bundle (ships inside the wheel):
+#     webui:build   → pnpm --filter lingchu-bot-webui build   (apps/webui/dist/client)
+#     webui:stage   → node scripts/stage_webui.mjs            (copy into the Python
+#                     package tree + assert the build base matches
+#                     LINGCHU_WEBUI_BASE_PATH, default /lc/webui/)
+#     Dependency chain: //#webui:stage → //#webui:build, and
+#     //#py:build dependsOn //#webui:stage, so the bundle is always staged before
+#     uv build packages the wheel. The turbo task ids (//#webui:build /
+#     //#webui:stage) and the Taskfile task names (webui:build / webui:stage)
+#     are intentionally identical apart from the turbo root-task prefix.
 #
 #   install                       → uv sync --all-extras --all-packages, pnpm install
 #   up                            → uv sync --all-extras --all-packages --upgrade, pnpm update
@@ -26,7 +38,7 @@
 #   ci:test                       → turbo: test + py:test (junitxml via root script)                 [local-only; CI runs pytest inline]
 #   ci:fix                        → turbo: py:fix + js:format + md:fix                               [CI: python.yml auto-format, .circleci/checks.yml]
 #   ci:wheel-smoke                → uv run --locked python scripts/ci_verify_wheel.py               [kept for direct runs; ci:build goes through turbo]
-#   ci:build                      → turbo: build + py:build + wheel-smoke                            [CI: ci-builds.yml, release.yml]
+#   ci:build                      → turbo: build + py:build + webui:build + webui:stage + wheel-smoke  [CI: ci-builds.yml, release.yml]
 #   ci:docs                       → turbo (docs only, serialized): lint + test + check-types + build  [local-only; CI runs workflow inline]
 #   smoke                         → docker compose --profile smoke up                               [docs: CONTRIBUTING.md]
 #   ci:smoke                      → docker compose --profile smoke run (JUnit report)              [local-only; CI invokes docker compose inline]
@@ -37,7 +49,7 @@
 #       → ci:version:precheck   (PEP 440, > all tags, source consistency, no duplicate tag)
 #       → ci:version:write-config  (writes VERSION into core/config.py + package.json)
 #       → ci:version:postcheck  (calls release:verify-version + dev release semantics)
-#       → ci:build              (turbo: build + py:build + wheel-smoke)
+#       → ci:build              (turbo: build + py:build + webui:build + webui:stage + wheel-smoke)
 #       → actions/attest-build-provenance (SLSA, in workflow — not a task)
 #       → ci:version:tag-only    (creates + pushes git tag)
 #
@@ -47,7 +59,7 @@
 #       → ci:version:precheck   (PEP 440, > all tags, source consistency, no duplicate tag)
 #       → ci:version:write-config  (writes VERSION into core/config.py + package.json)
 #       → ci:version:postcheck  (calls release:verify-version + dev release semantics)
-#       → ci:build              (turbo: build + py:build + wheel-smoke)
+#       → ci:build              (turbo: build + py:build + webui:build + webui:stage + wheel-smoke)
 #       → actions/attest-build-provenance (SLSA, in workflow — not a task)
 #       → ci:version:tag-only    (creates + pushes git tag)
 #     release:verify-version    (pyproject.toml / package.json / core/config.py consistency)  [CI: release.yml, called by ci:version:postcheck]
@@ -106,6 +118,19 @@ tasks:
     desc: Run root pytest with CLI args passthrough (e.g. task py:test -- -k name)
     cmds:
       - uv run -m pytest -n auto --dist=worksteal --capture=sys {{.CLI_ARGS}}
+
+  webui:build:
+    desc: Build the WebUI static client into apps/webui/dist/client
+    cmds:
+      - pnpm --filter lingchu-bot-webui build
+
+  webui:stage:
+    desc: Copy the WebUI client build into the Python package tree and assert the mount base
+    cmds:
+      # Also the single mechanical guard that the Vite build base matches
+      # LINGCHU_WEBUI_BASE_PATH (default /lc/webui/); a mismatch fails here
+      # instead of shipping a wheel whose page cannot load its own JS.
+      - node scripts/stage_webui.mjs
 
   format:
     desc: Format all code
@@ -178,9 +203,13 @@ tasks:
       - uv run --locked python scripts/ci_verify_wheel.py
 
   ci:build:
-    desc: "[CI] Build distribution artifacts (wheel + docs + lingc-cli) and verify wheel"
+    desc: "[CI] Build distribution artifacts (wheel + docs + lingc-cli + WebUI bundle) and verify wheel"
     cmds:
-      - pnpm turbo run build py:build wheel-smoke
+      # py:build dependsOn webui:stage, which dependsOn webui:build, so the
+      # WebUI bundle is always staged before the wheel is packaged. The tasks
+      # are still listed explicitly for readable task output; turbo deduplicates
+      # them into a single execution of each.
+      - pnpm turbo run build py:build webui:build webui:stage wheel-smoke
 
   ci:docs:
     desc: "[CI] Docs-only check, test and build (no Python toolchain required)"

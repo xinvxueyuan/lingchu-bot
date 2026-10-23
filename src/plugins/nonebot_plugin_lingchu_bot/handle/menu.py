@@ -575,6 +575,15 @@ _BASE_MENU_FEATURES: Final[tuple[MenuFeature, ...]] = (
         (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
     ),
     MenuFeature(
+        "start-webui",
+        "webui_start",
+        "application-operation",
+        LocalizedText("启动WebUI", "Start WebUI"),
+        LocalizedText("", ""),
+        PlatformCapability.APPLICATION_OPERATION,
+        (MenuAvailability(QQ_PLATFORM_ID, ONEBOT_V11_ADAPTER_ID),),
+    ),
+    MenuFeature(
         "restart-protocol-endpoint",
         "restart_protocol_endpoint",
         "application-operation",

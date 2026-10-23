@@ -18,6 +18,8 @@
     "py:typecheck": "uv run -m pyright && uv run -m ty check --output-format github",
     "py:test": "uv run -m pytest -n auto --dist=worksteal --capture=sys --junitxml=test-results/pytest.xml",
     "py:build": "uv build --clear --no-sources",
+    "webui:build": "pnpm --filter lingchu-bot-webui build",
+    "webui:stage": "node scripts/stage_webui.mjs",
     "wheel-smoke": "uv run --locked python scripts/ci_verify_wheel.py",
     "md:lint": "markdownlint-cli2",
     "md:fix": "markdownlint-cli2 --fix",

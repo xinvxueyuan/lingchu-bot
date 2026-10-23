@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentType } from "react";
-import { Navigate, NavLink, Outlet, useLocation } from "react-router";
+import { NavLink, Outlet, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
   Cable,
@@ -24,7 +24,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getStoredToken } from "@/lib/api";
+import { client } from "@/orpc/client";
+import { redirectToLogin } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -108,11 +109,26 @@ export default function AppLayout() {
     "nav.devTools": false,
   });
 
-  // 登录守卫：未持有 UBT（WebUI Bearer Token）时跳转登录页。
-  // 构建期预渲染时 window 不存在，直接放行，由客户端首帧接管。
-  if (typeof window !== "undefined" && !getStoredToken()) {
-    return <Navigate to="/login" replace />;
-  }
+  // 登录守卫：会话由 HttpOnly Cookie 承载，本地无法同步判定，只能异步探测。
+  // `checking` 期间渲染空壳，避免未认证内容闪现；401 之后由 client 拦截器兜底跳转。
+  const [checking, setChecking] = useState(true);
+  useEffect(() => {
+    // 构建期预渲染（SPA Fallback HTML）没有浏览器环境，也不该发起鉴权探测：
+    // 此时 fetch 会失败并被拦截器重定向，导致 react-router 报 302 而构建失败。
+    if (typeof window === "undefined") return undefined;
+    let cancelled = false;
+    void client.auth.me().then(
+      () => !cancelled && setChecking(false),
+      () => {
+        if (cancelled) return;
+        // 未登录 / 会话失效：整页跳转登录页（不在渲染期做副作用）。
+        redirectToLogin();
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     // 挂载后读取折叠偏好（SSR/客户端首帧保持一致后再应用）。
@@ -144,6 +160,8 @@ export default function AppLayout() {
       return next;
     });
   };
+
+  if (checking) return null;
 
   return (
     <OverviewProvider>

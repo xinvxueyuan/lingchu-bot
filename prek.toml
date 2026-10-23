@@ -5,6 +5,12 @@ exclude = '''(?x)^(
   \.trae/skills/|
   \.vscode/|
   apps/docs/\.astro/|
+  # Vendored WebUI build output (committed so it ships inside the wheel).
+  # It is generated, minified and content-hashed by Vite: file-hygiene hooks
+  # (trailing-whitespace / end-of-file-fixer / mixed-line-ending) would rewrite
+  # the bytes, invalidating the hashes and risking corrupting minified JS.
+  # Regenerate with `pnpm webui:build && pnpm webui:stage` instead.
+  src/plugins/nonebot_plugin_lingchu_bot/webui/dist/|
   pnpm-lock\.yaml
 )'''
 

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 
@@ -12,12 +12,19 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { authLogin, getStoredToken, setStoredToken, LoginError } from "@/lib/api";
-import { appPageMeta } from "@/lib/meta";
-import type { Route } from "./+types/login";
+import { client } from "@/orpc/client";
 
-export function meta({}: Route.MetaArgs) {
-  return appPageMeta();
+/** 登录失败分类：口令错误与网络/服务端错误给不同文案。 */
+type LoginFailure = "invalid_password" | "network";
+
+/** 从 oRPC 错误中判定是否为「口令错误」（401）。 */
+function isInvalidPassword(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    (error as { status?: unknown }).status === 401
+  );
 }
 
 export default function Login() {
@@ -25,13 +32,24 @@ export default function Login() {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoginFailure | null>(null);
+  // 已登录用户访问 /login 直接回首页：会话状态只能异步探测（HttpOnly Cookie）。
+  const [alreadyAuthenticated, setAlreadyAuthenticated] = useState<boolean | null>(null);
 
-  // 单用户系统：用户名固定为 root，页面仅展示密码输入框。
-  // 已登录用户访问 /login 直接回首页（未登录跳 /login 的守卫在 _app 布局）。
-  if (typeof window !== "undefined" && getStoredToken()) {
-    return <Navigate to="/" replace />;
-  }
+  useEffect(() => {
+    let cancelled = false;
+    void client.auth
+      .me()
+      .then(
+        () => !cancelled && setAlreadyAuthenticated(true),
+        () => !cancelled && setAlreadyAuthenticated(false),
+      );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (alreadyAuthenticated === true) return <Navigate to="/" replace />;
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -39,15 +57,11 @@ export default function Login() {
     setSubmitting(true);
     setError(null);
     try {
-      const token = await authLogin(password);
-      setStoredToken(token);
+      // 服务端下发 HttpOnly Cookie，前端不持有任何 token。
+      await client.auth.login({ password });
       navigate("/", { replace: true });
     } catch (err) {
-      setError(
-        err instanceof LoginError && err.status === 401
-          ? t("auth.error.invalidPassword")
-          : t("auth.error.network"),
-      );
+      setError(isInvalidPassword(err) ? "invalid_password" : "network");
     } finally {
       setSubmitting(false);
     }
@@ -78,7 +92,9 @@ export default function Login() {
             </div>
             {error ? (
               <p role="alert" className="text-sm text-destructive">
-                {error}
+                {error === "invalid_password"
+                  ? t("auth.error.invalidPassword")
+                  : t("auth.error.network")}
               </p>
             ) : null}
             <Button type="submit" disabled={submitting}>

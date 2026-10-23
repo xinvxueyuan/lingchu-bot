@@ -132,6 +132,7 @@
       "outputs": ["test-results/**", "htmlcov/**"]
     },
     "//#py:build": {
+      "dependsOn": ["webui:stage"],
       "inputs": [
         "src/plugins/**",
         "pyproject.toml",
@@ -143,6 +144,40 @@
         "!**/__pycache__/**"
       ],
       "outputs": ["dist/**"]
+    },
+    "//#webui:build": {
+      "inputs": [
+        "apps/webui/**",
+        "scripts/stage_webui.mjs",
+        "pnpm-lock.yaml",
+        "pnpm-workspace.yaml",
+        "package.json",
+        "turbo.json",
+        "!apps/webui/node_modules/**",
+        "!apps/webui/dist/**",
+        "!apps/webui/build/**",
+        "!apps/webui/.react-router/**",
+        "!**/.turbo/**",
+        "!**/node_modules/**"
+      ],
+      "outputs": ["apps/webui/dist/**"]
+    },
+    "//#webui:stage": {
+      "dependsOn": ["webui:build"],
+      "inputs": [
+        "apps/webui/**",
+        "scripts/stage_webui.mjs",
+        "pnpm-lock.yaml",
+        "package.json",
+        "turbo.json",
+        "!apps/webui/node_modules/**",
+        "!apps/webui/dist/**",
+        "!apps/webui/build/**",
+        "!apps/webui/.react-router/**",
+        "!**/.turbo/**",
+        "!**/node_modules/**"
+      ],
+      "outputs": ["src/plugins/nonebot_plugin_lingchu_bot/webui/dist/**"]
     },
     "//#wheel-smoke": {
       "dependsOn": ["//#py:build"],

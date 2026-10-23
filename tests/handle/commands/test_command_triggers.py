@@ -337,6 +337,12 @@ EXPECTED_TRIGGERS: dict[str, ExpectedTrigger] = {
         "chinese_aliases": set(),
         "english_aliases": set(),
     },
+    "webui_start": {
+        "primary": "启动WebUI",
+        "english": "start-webui",
+        "chinese_aliases": {"启动webui", "打开WebUI", "打开webui", "启动界面"},
+        "english_aliases": {"open-webui"},
+    },
 }
 
 

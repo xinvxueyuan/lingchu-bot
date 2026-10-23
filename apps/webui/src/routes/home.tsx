@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import type { Route } from "./+types/home";
 
 import { AsyncCard } from "@/components/async-card";
 import { Avatar } from "@/components/avatar";
@@ -12,12 +11,7 @@ import { useActivePageTab } from "@/components/page-tabs";
 import { PlaceholderCard } from "@/components/placeholder-card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { appPageMeta } from "@/lib/meta";
 import webuiPkg from "../../package.json";
-
-export function meta({}: Route.MetaArgs) {
-  return appPageMeta();
-}
 
 /** OneBot 未连接时卡片级专属空态（替代笼统「加载失败」）。 */
 function DisconnectedCardError() {

@@ -13,11 +13,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { authLogout } from "@/lib/api";
+import { client } from "@/orpc/client";
 
 /**
  * 退出登录：触发按钮 + 确认 Modal。
- * 点击按钮仅打开确认框，「确认」后才调用后端 logout 并跳转登录页，防止误触。
+ * 点击按钮仅打开确认框，「确认」后才调用 auth.logout 清除会话 Cookie 并跳转登录页，防止误触。
  */
 export function LogoutButton() {
   const { t } = useTranslation();
@@ -29,9 +29,12 @@ export function LogoutButton() {
     if (loggingOut) return;
     setLoggingOut(true);
     try {
-      await authLogout();
+      await client.auth.logout();
+    } catch {
+      // 登出失败不阻断退出：会话 Cookie 可能已失效，界面仍应回到登录页。
     } finally {
       setOpen(false);
+      setLoggingOut(false);
       navigate("/login", { replace: true });
     }
   };
@@ -69,7 +72,7 @@ export function LogoutButton() {
           <Button
             type="button"
             variant="destructive"
-            onClick={onConfirm}
+            onClick={() => void onConfirm()}
             disabled={loggingOut}
           >
             <LogOut />

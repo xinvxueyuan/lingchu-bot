@@ -1,0 +1,1 @@
+import{s as e,t}from"./jsx-runtime-CaNbcSYF.js";import{t as n}from"./useTranslation-CMvnKPyf.js";import{n as r}from"./page-tabs-CHQ_laPm.js";import{n as i,t as a}from"./placeholder-card-DArFoHa_.js";var o=t(),s=e(function(){let{t:e}=n(),{activeTab:t}=r();return(0,o.jsx)(i,{children:(0,o.jsx)(a,{title:e(t?.labelKey??`nav.debugHttp`)})})});export{s as default};

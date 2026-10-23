@@ -132,4 +132,14 @@ node_modules/
 # pnpm store (local cache, not committed)
 .pnpm-store/
 
+# ===== Committed build artifacts =====
+# The WebUI static bundle is produced by apps/webui and staged into the Python
+# package tree by scripts/stage_webui.mjs so it ships inside the wheel. It MUST
+# be tracked: the release build stages from the checkout, and Reuse/wheel
+# contents are verified against it. The generic `dist/` rule above would
+# otherwise swallow it, so re-include the directory and everything under it.
+# (Git cannot re-include files inside an excluded directory, hence both lines.)
+!src/plugins/nonebot_plugin_lingchu_bot/webui/dist/
+!src/plugins/nonebot_plugin_lingchu_bot/webui/dist/**
+
 # End of https://www.toptal.com/developers/gitignore/api/python

@@ -26,6 +26,9 @@ outputs:
   frontend-tsx:
     description: "true if .tsx files changed (React Doctor)"
     value: ${{ steps.detect.outputs.frontend-tsx }}
+  webui:
+    description: "true if the WebUI app or its staging script changed (webui:build + webui:stage)"
+    value: ${{ steps.detect.outputs.webui }}
 
 runs:
   using: composite
@@ -58,6 +61,7 @@ runs:
         FRONTEND_CONTENT=false
         FRONTEND_MDX=false
         FRONTEND_TSX=false
+        WEBUI=false
 
         # Python: .py / pyproject.toml / uv.lock / prek.toml / ruff.toml / .python-version
         # prek.toml is included because python.yml::static-analysis runs
@@ -102,6 +106,12 @@ runs:
         if echo "$FILES" | grep -qE '^packages/.*\.json$'; then
           FRONTEND=true
         fi
+        # WebUI: static SPA app + its staging script. The bundle is staged into
+        # the Python package tree and ships inside the wheel, so a WebUI-only
+        # change must still rebuild + restage before packaging.
+        if echo "$FILES" | grep -qE '^apps/webui/|^scripts/stage_webui\.mjs$'; then
+          WEBUI=true
+        fi
 
         {
           echo "python=$PYTHON"
@@ -112,6 +122,7 @@ runs:
           echo "frontend-content=$FRONTEND_CONTENT"
           echo "frontend-mdx=$FRONTEND_MDX"
           echo "frontend-tsx=$FRONTEND_TSX"
+          echo "webui=$WEBUI"
         } >> "$GITHUB_OUTPUT"
 
         # Step summary
@@ -128,4 +139,5 @@ runs:
           echo "| Frontend Content (check-types+Vitest) | \`$FRONTEND_CONTENT\` |"
           echo "| Frontend MDX (ESLint only) | \`$FRONTEND_MDX\` |"
           echo "| Frontend TSX (React Doctor) | \`$FRONTEND_TSX\` |"
+          echo "| WebUI (build + stage) | \`$WEBUI\` |"
         } >> "$GITHUB_STEP_SUMMARY"

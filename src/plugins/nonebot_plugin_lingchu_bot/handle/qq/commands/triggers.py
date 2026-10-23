@@ -526,6 +526,12 @@ _DEFAULT_COMMAND_TRIGGERS = {
         chinese_aliases=frozenset(),
         english_aliases=frozenset(),
     ),
+    "webui_start": CommandTrigger(
+        chinese="启动WebUI",
+        english="start-webui",
+        chinese_aliases=frozenset({"启动webui", "打开WebUI", "打开webui", "启动界面"}),
+        english_aliases=frozenset({"open-webui"}),
+    ),
 }
 
 COMMAND_TRIGGERS = build_command_triggers(

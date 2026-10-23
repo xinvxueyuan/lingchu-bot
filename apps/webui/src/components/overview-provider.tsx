@@ -25,7 +25,7 @@ const OverviewContext = createContext<OverviewContextValue | null>(null);
 
 /**
  * 概览数据全局提供者：布局层挂载一次，所有登录页面共享同一份数据与刷新入口，
- * 避免各页面重复请求 /api/overview；OneBot 未连接状态也由此统一驱动全局 Alert。
+ * 避免各页面重复请求 overview；OneBot 未连接状态也由此统一驱动全局 Alert。
  */
 export function OverviewProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<OverviewData | null>(null);
@@ -35,7 +35,8 @@ export function OverviewProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    // fetchOverview 单请求后端聚合端点；失败由错误态承载（卡片显示「加载失败」）。
+    // fetchOverview 单次 RPC；失败由错误态承载（卡片显示「加载失败」）。
+    // 401 已在 client.ts 的拦截器中统一跳登录页。
     void fetchOverview().then(
       (result) => {
         if (cancelled) return;
