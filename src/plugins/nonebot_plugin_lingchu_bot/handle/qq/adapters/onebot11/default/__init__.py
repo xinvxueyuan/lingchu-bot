@@ -14,6 +14,7 @@ from . import (
     protect as protect,
     protect_notice as protect_notice,
     remote as remote,
+    webui as webui,
 )
 from .menu import (
     onebot11_menu as onebot11_menu,

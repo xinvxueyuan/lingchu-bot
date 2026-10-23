@@ -2,7 +2,10 @@ import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { OnebotStatus } from "@/lib/overview-api";
+import type { Overview } from "@/lib/overview-api";
+
+/** OneBot 状态块类型，由概览契约推导（不再手写本地类型）。 */
+type OnebotStatus = NonNullable<Overview["status"]>;
 
 /** OneBot 在线状态徽标：online 且非 good=false 视为在线；悬浮显示状态文案。 */
 export function OnlineStatusBadge({ status }: { status: OnebotStatus | undefined }) {

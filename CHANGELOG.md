@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Added
 
+- **WebUI 重构为静态 SPA + oRPC，随 wheel 发布**：前端从 React Router SSR + 独立
+  Node/Hono 服务端改为纯静态 SPA，由 NoneBot 同进程托管，产物经
+  `pnpm webui:build && pnpm webui:stage` 落到 `webui/dist/client` 并打入 wheel。
+  新增 14 条 oRPC 只读过程（`{base}/v1/rpc/*`）、HttpOnly 签名 Cookie 会话
+  （密钥混入进程 nonce，重启即失效）、`StaticFiles` + SPA fallback 静态托管。
+- **WebUI 可自定义挂载路径**：默认 `/lc/webui`，`LINGCHU_WEBUI_BASE_PATH` 指定任意合法
+  前缀（非法值降级为默认并告警）；所有对外路径统一由 `services/webui/paths.py` 派生。
+- **`启动WebUI` / `start-webui` 指令**：幂等挂载 WebUI 并回复访问地址，关机与静默
+  状态下同样可用。
+- 新增配置项 `LINGCHU_WEBUI_BASE_PATH`、`LINGCHU_WEBUI_SESSION_TTL`、
+  `LINGCHU_WEBUI_AUTOMOUNT`。
+
 - **远程撤回**：`远程撤回 <群号或群名称> [@用户] [数量]` / `remote-recall <group> [@user] [count]` ——
   跨群撤回最近消息，复用本群撤回的全部安全规则（管理员/受保护对象跳过、`get_msg` 校验、
   目标群需机器人在且有管理权限）。
@@ -33,12 +45,20 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Changed
 
+- WebUI 旧端点 `{base}/v1/status`、`{base}/v1/info`、`{base}/v1/verify-password` 标记
+  deprecated，将于下一个 minor 版本移除；旧 `/api/*` 与旧前缀 `/lingchu-bot/webui`
+  不再提供。前端会话由 localStorage JWT 改为 HttpOnly 签名 Cookie。
 - Agent context: `AGENTS.md` and `CLAUDE.md` now record the OneBot V11 layering rule — a protocol-private API (NapCat `set_group_portrait`, LLBot `get_group_shut_list`, …) MUST live under `handle/qq/adapters/onebot11/<implementation>/` and be dispatched from the `default/` middle layer, which stays on the standard OneBot V11 API surface.
 
 ### Deprecated
 
 ### Removed
 
+- WebUI 独立 Node 服务端（`apps/webui/server/`：Hono、JWT 签发、口令内存缓存、
+  `/api/overview` 聚合、`/api/*` 反向代理）及依赖 `hono`、`@hono/node-server`、
+  `jose`、`@react-router/node`、`isbot`。部署模型由三进程收敛为单进程。
+- 环境变量 `LINGCHU_WEBUI_PORT`、`LINGCHU_WEBUI_DISCOVER_PORTS`、`NONEBOT_BASE_URL`、
+  `WEBUI_JWT_SECRET`。
 - Chinese agent guide mirror `.github/note/AGENTS-zh.md`. `AGENTS.md` and `CLAUDE.md` are now the only agent context files that need to stay structurally aligned, and the PR templates no longer ask contributors to sync a third file.
 
 ### Fixed

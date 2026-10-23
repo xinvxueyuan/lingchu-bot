@@ -137,8 +137,8 @@ path = [
   "**/.coverage.*",
   "**/coverage.xml",
   "**/test-results/**",
-  # docs/site build output and tooling caches
-  "**/dist/**",
+  # build output and tooling caches (except the committed WebUI bundle, which
+  # is licensed separately at the end of this file)
   "**/.turbo/**",
   "**/.uv-cache/**",
   # local virtualenvs (installed third-party sources, not project code)
@@ -150,3 +150,18 @@ path = [
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 lingchu-bot contributors <support@xinvstar.xyz>"
 SPDX-License-Identifier = "CC0-1.0"
+
+# ---------------------------------------------------------------------------
+# Vendored WebUI static bundle — GNU Lesser General Public License v3.0 or later
+# ---------------------------------------------------------------------------
+# `scripts/stage_webui.mjs` copies `apps/webui/dist/client` into the Python
+# package tree, and the result is committed so it ships inside the wheel. It is
+# derived from LGPL-3.0-or-later application source, so it carries the software
+# license rather than the CC0 build-artifact license above. This block is the
+# most specific path, so it wins over `**/dist/**` for build outputs such as
+# `apps/docs/dist`, `apps/webui/dist` and the root `dist/`.
+[[annotations]]
+path = ["src/plugins/nonebot_plugin_lingchu_bot/webui/dist/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 lingchu-bot contributors <support@xinvstar.xyz>"
+SPDX-License-Identifier = "LGPL-3.0-or-later"

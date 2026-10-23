@@ -303,6 +303,8 @@ allowed-confusables = [
 # ARG001: NoneBot handler signatures require bot/event params even when unused
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/napcat/announcement.py" = ["ARG001"]
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/bot_state.py" = ["ARG001"]
+# ARG001: WebUI 启动命令不依赖 bot/event 载荷，但 NoneBot 仍按签名注入。
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/adapters/onebot11/default/webui.py" = ["ARG001"]
 # ARG001: session injected via Depends(async_scoped_session) for consistent DI shape
 # even when the handler does not currently issue DB queries (keeps handler signatures
 # uniform across the adapter and ready for future repository calls).
@@ -434,6 +436,7 @@ allowed-confusables = [
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/announcement.py" = ["E402"]
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/block.py" = ["E402", "TC002"]
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/bot_state.py" = ["E402", "TC002"]
+"src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/webui.py" = ["E402", "TC002"]
 "src/plugins/nonebot_plugin_lingchu_bot/handle/qq/commands/common.py" = [
     "E402",  # plugin imports must follow nonebot.require calls
     "TC002",  # NoneBot inspects Bot, Event, and ORM DI annotations at runtime

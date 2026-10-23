@@ -1,14 +1,8 @@
 import { useTranslation } from "react-i18next";
-import type { Route } from "./+types/debug-http";
 
 import { PageContainer } from "@/components/page-container";
 import { useActivePageTab } from "@/components/page-tabs";
 import { PlaceholderCard } from "@/components/placeholder-card";
-import { appPageMeta } from "@/lib/meta";
-
-export function meta({}: Route.MetaArgs) {
-  return appPageMeta();
-}
 
 export default function DebugHttp() {
   const { t } = useTranslation();

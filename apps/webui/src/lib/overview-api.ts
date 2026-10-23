@@ -1,85 +1,36 @@
 /**
- * 概览页数据源：单请求 WebUI 后端聚合端点 `/api/overview`。
- * 后端内部并发聚合 nonebot 原子 API（login-info / status / version-info / groups /
- * friends / 灵初 status），一次性返回。前端不再直连 nonebot，也不接触内部细节。
+ * 概览数据源：单次 `overview` 过程调用。
+ *
+ * 聚合在 Python 侧完成（同进程直连 OneBot），前端不接触上游细节；
+ * 类型由契约推导，此处不再重复声明本地类型。
  */
 
-import { expireSession, getApiBase, getStoredToken } from "@/lib/api";
+import type { Overview } from "@/orpc/contract";
+import { client } from "@/orpc/client";
 
-/** OneBot get_login_info 返回值。 */
-export type LoginInfo = {
-  user_id: number;
-  nickname: string;
-};
+/** 概览数据（契约推导类型）。 */
+export type OverviewData = Overview;
 
-/** OneBot get_status 返回值（仅取前端展示字段）。 */
-export type OnebotStatus = {
-  online?: boolean;
-  good?: boolean;
-};
+/** 契约类型透出，供字段级类型推导（如 `Overview["status"]`）使用。 */
+export type { Overview };
 
-/** OneBot get_version_info 返回值（仅取前端展示字段）。 */
-export type VersionInfo = {
-  app_name?: string;
-  app_version?: string;
-};
-
-/** OneBot get_group_list 数组元素。 */
-export type GroupInfo = {
-  group_id: number;
-  group_name?: string;
-};
-
-/** OneBot get_friend_list 数组元素。 */
-export type FriendInfo = {
-  user_id: number;
-  nickname?: string;
-};
-
-/** 灵初自身状态（/status，非 result 包装）。 */
-export type LingchuStatus = {
-  status: string;
-  plugin: string;
-  version: string;
-};
-
-/** 概览聚合数据（对应用户端可展示的字段）。 */
-export type OverviewData = {
-  loginInfo?: LoginInfo;
-  status?: OnebotStatus;
-  versionInfo?: VersionInfo;
-  groups?: GroupInfo[];
-  friends?: FriendInfo[];
-  lingchuVersion?: string;
-  /** 失败区块集合：键存在（值为错误码）即表示该区块请求失败，供前端逐区块独立错误态。 */
-  errors: Partial<Record<string, string>>;
-};
-
-/** 拉取聚合概览（单请求）。401 等非 2xx 直接抛错。 */
+/** 拉取聚合概览；401 由客户端拦截器统一跳登录页。 */
 export async function fetchOverview(): Promise<OverviewData> {
-  const token = getStoredToken();
-  const res = await fetch(`${getApiBase()}/overview`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
-  if (res.status === 401) {
-    // 会话已失效（如进程重启后遗留 UBT）：清除并跳转登录页，等待重新登录恢复数据。
-    expireSession();
-  }
-  if (!res.ok) throw new Error(`request_failed: ${res.status}`);
-  return (await res.json()) as OverviewData;
+  return client.overview();
 }
 
 /**
  * OneBot 未连接判定：任一 OneBot 依赖区块被标记为 onebot_disconnected
- * （五块共用上游 get_bot()，未连接时同进同退，故可代表整体状态）。
+ * （五块共用上游 `get_bot()`，未连接时同进同退，故可代表整体状态）。
  */
 export function isOnebotDisconnected(data: OverviewData | null): boolean {
   if (!data) return false;
+  const { errors } = data;
   return (
-    data.errors.loginInfo === "onebot_disconnected" ||
-    data.errors.status === "onebot_disconnected" ||
-    data.errors.versionInfo === "onebot_disconnected" ||
-    data.errors.groups === "onebot_disconnected" ||
-    data.errors.friends === "onebot_disconnected"
+    errors["loginInfo"] === "onebot_disconnected" ||
+    errors["status"] === "onebot_disconnected" ||
+    errors["versionInfo"] === "onebot_disconnected" ||
+    errors["groups"] === "onebot_disconnected" ||
+    errors["friends"] === "onebot_disconnected"
   );
 }

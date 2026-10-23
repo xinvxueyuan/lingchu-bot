@@ -65,4 +65,8 @@ def register_handle_defaults(command_key: str, factory: HandleDefaultsFactory) -
     HANDLE_DEFAULTS_REGISTRY[command_key] = factory
 
 
-__all__ = ["HANDLE_DEFAULTS_REGISTRY", "register_handle_defaults"]
+# 各命令的默认值模块在导入时通过 register_handle_defaults() 自行注册；
+# 必须放在文件末尾，此时 register_handle_defaults 已定义、注册表已就绪。
+from . import webui as webui
+
+__all__ = ["HANDLE_DEFAULTS_REGISTRY", "register_handle_defaults", "webui"]

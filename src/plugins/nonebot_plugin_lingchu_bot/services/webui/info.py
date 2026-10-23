@@ -1,64 +1,78 @@
-"""WebUI 动态运行时端点逻辑（nonebot 侧）。
+"""WebUI 旧兼容端点（deprecated）。
 
-提供只读端点所需的核心逻辑、简易字符串密码校验，以及登录密码校验端点。
-绝不实现任何 JWT 签发或令牌功能。本模块不依赖驱动器，可在不启动 NoneBot 的情况下导入。
+改造后 WebUI 由 oRPC 过程（`services/webui/orpc.py`）提供全部数据能力。本模块
+只保留改造前已对外暴露的三个轻量端点，供仍按旧路径访问的客户端过渡：
+
+- `{legacy_root}/status`
+- `{legacy_root}/info`
+- `{legacy_root}/verify-password`
+
+其余 OneBot 只读透传端点（login-info / status / version-info / groups / friends、
+tools/cookies、tools/csrf_token、qq/nickname）已由对应的 oRPC 过程取代并删除。
+
+**路径全部由 `build_webui_urls` 派生**，不硬编码前缀，保证
+`LINGCHU_WEBUI_BASE_PATH` 改动后旧端点也随之迁移。
+
+鉴权说明：改造后浏览器只携带 HttpOnly 会话 Cookie，不再支持在请求头或查询参数里
+传口令。因此兼容端点同样只认 Cookie 会话；`verify-password` 例外——它本身就是
+登录用的口令校验入口，直接比对请求体。
 """
 
 from __future__ import annotations
 
 import hmac
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from nonebot import get_bot
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from ...core.config import plugin_config
+from ...core.webui_session import WEBUI_SESSION_COOKIE, verify_session
 
-# 请求头与查询参数名（二选一携带密码）
-_WEBUI_PASSWORD_HEADER: str = "X-Lingchu-Webui-Password"
-_WEBUI_PASSWORD_QUERY: str = "webui_password"
+if TYPE_CHECKING:
+    from .paths import WebuiUrls
 
-# 路由路径
-WEBUI_STATUS_PATH: str = "/lingchu-bot/webui/v1/status"
-WEBUI_INFO_PATH: str = "/lingchu-bot/webui/v1/info"
-WEBUI_VERIFY_PASSWORD_PATH: str = "/lingchu-bot/webui/v1/verify-password"
+
+def _unauthorized() -> JSONResponse:
+    """构造 401 未授权响应。
+
+    Returns:
+        JSONResponse: `{"detail": "unauthorized"}`。
+
+    """
+    return JSONResponse(status_code=401, content={"detail": "unauthorized"})
 
 
 def verify_webui_password(request: Request) -> bool:
-    """校验 WebUI 简易字符串密码。
+    """校验请求是否持有有效的 WebUI 会话。
 
-    配置为空字符串时直接放行（默认无鉴权）；非空时严格比较请求携带的密码。
-    使用恒定时间比较避免计时侧信道。
+    配置为空字符串时一律拒绝（fail-closed）：未设置口令即视为未启用 WebUI。
 
     Args:
-        request: Starlette 请求对象，从中读取密码头或查询参数。
+        request: 当前请求。
 
     Returns:
-        bool: 密码校验通过返回 True，否则返回 False。
+        bool: 会话有效返回 True。
 
     """
     expected = str(plugin_config.lingchu_webui_password)
     if not expected:
-        return True
-    provided = request.headers.get(_WEBUI_PASSWORD_HEADER)
-    if provided is None:
-        provided = request.query_params.get(_WEBUI_PASSWORD_QUERY)
-    if provided is None:
         return False
-    return hmac.compare_digest(provided, expected)
-
-
-def _unauthorized() -> JSONResponse:
-    """构造 401 未授权响应。"""
-    return JSONResponse(status_code=401, content={"detail": "unauthorized"})
+    token = request.cookies.get(WEBUI_SESSION_COOKIE)
+    return verify_session(expected, token) is not None
 
 
 async def webui_verify_password_endpoint(request: Request) -> JSONResponse:
-    """登录密码校验端点：对比前端传递的密码与 .env 中配置的唯一密钥。
+    """口令校验端点：对比请求体中的密码与配置值。
 
-    这是三个系统（前端 → WebUI 后端 → nonebot 端点）之间的唯一密钥校验入口。
     期望密钥未配置时拒绝一切登录，避免空密钥放行。
+
+    Args:
+        request: 携带 `{"password": "..."}` 的请求。
+
+    Returns:
+        JSONResponse: 校验通过返回 `{"ok": true}`，否则 401。
+
     """
     expected = str(plugin_config.lingchu_webui_password)
     if not expected:
@@ -74,7 +88,15 @@ async def webui_verify_password_endpoint(request: Request) -> JSONResponse:
 
 
 async def webui_status_endpoint(request: Request) -> JSONResponse:
-    """只读端点：返回 bot 基本状态 JSON。"""
+    """只读端点：返回 bot 基本状态。
+
+    Args:
+        request: 当前请求。
+
+    Returns:
+        JSONResponse: `{"status", "plugin", "version"}` 或 401。
+
+    """
     if not verify_webui_password(request):
         return _unauthorized()
     return JSONResponse({
@@ -85,7 +107,15 @@ async def webui_status_endpoint(request: Request) -> JSONResponse:
 
 
 async def webui_info_endpoint(request: Request) -> JSONResponse:
-    """只读端点：返回插件基本信息 JSON。"""
+    """只读端点：返回插件基本信息。
+
+    Args:
+        request: 当前请求。
+
+    Returns:
+        JSONResponse: `{"name", "description", "version"}` 或 401。
+
+    """
     if not verify_webui_password(request):
         return _unauthorized()
     return JSONResponse({
@@ -95,90 +125,33 @@ async def webui_info_endpoint(request: Request) -> JSONResponse:
     })
 
 
-WEBUI_QQ_NICKNAME_PATH: str = "/lingchu-bot/webui/v1/qq/nickname/{qq}"
+def build_legacy_routes(
+    urls: WebuiUrls,
+) -> tuple[tuple[str, Any, list[str]], ...]:
+    """构造旧兼容端点路由。
 
-WEBUI_TOOLS_COOKIES_PATH: str = "/lingchu-bot/webui/v1/tools/cookies"
-WEBUI_TOOLS_CSRF_TOKEN_PATH: str = "/lingchu-bot/webui/v1/tools/csrf_token"
+    Args:
+        urls: 由 base path 派生的路径集合。
 
-# OneBot 只读透传端点（统一走 _call_api_proxy 鉴权与异常处理）
-WEBUI_ONEBOT_LOGIN_INFO_PATH: str = "/lingchu-bot/webui/v1/onebot/login-info"
-WEBUI_ONEBOT_STATUS_PATH: str = "/lingchu-bot/webui/v1/onebot/status"
-WEBUI_ONEBOT_VERSION_INFO_PATH: str = "/lingchu-bot/webui/v1/onebot/version-info"
-WEBUI_ONEBOT_GROUPS_PATH: str = "/lingchu-bot/webui/v1/onebot/groups"
-WEBUI_ONEBOT_FRIENDS_PATH: str = "/lingchu-bot/webui/v1/onebot/friends"
+    Returns:
+        tuple: Starlette `add_route` 参数三元组序列。
 
-
-async def webui_qq_nickname_endpoint(request: Request, qq: str) -> JSONResponse:
-    """WebUI 端点：用 OneBot get_stranger_info 返回 nick_name（仅简单调用，不加工）。"""
-    if not verify_webui_password(request):
-        return _unauthorized()
-    if not (qq.isdigit() and 4 <= len(qq) <= 15):
-        return JSONResponse(status_code=400, content={"detail": "invalid_qq"})
-    try:
-        bot = get_bot()
-        info = await bot.call_api("get_stranger_info", user_id=int(qq))
-    except Exception:
-        return JSONResponse(status_code=404, content={"detail": "not_found"})
-    if not isinstance(info, dict) or not info.get("nickname"):
-        return JSONResponse(status_code=404, content={"detail": "not_found"})
-    return JSONResponse(content={"qq": qq, "nickname": info["nickname"]})
-
-
-async def _call_api_proxy(request: Request, api: str, **data: object) -> JSONResponse:
-    """轻量透传：校验密码后直接调用 OneBot API 并回传结果，不做加工。"""
-    if not verify_webui_password(request):
-        return _unauthorized()
-    try:
-        bot = get_bot()
-    except Exception:
-        # 后端已运行但未连接任何 OneBot11 协议端：返回语义化错误码供上层边界守卫识别。
-        return JSONResponse(
-            status_code=502,
-            content={"detail": "onebot_disconnected"},
-        )
-    try:
-        result = await bot.call_api(api, **data)
-    except Exception as exc:
-        return JSONResponse(
-            status_code=502,
-            content={"detail": "upstream_error", "message": str(exc)},
-        )
-    return JSONResponse(content={"result": result})
-
-
-async def webui_tools_cookies_endpoint(request: Request) -> JSONResponse:
-    """轻量工具：透传 OneBot get_cookies（可选 domain 查询参数）。"""
-    domain = request.query_params.get("domain")
-    return await _call_api_proxy(
-        request, "get_cookies", **({"domain": domain} if domain else {})
+    """
+    return (
+        (f"{urls.legacy_root}/status", webui_status_endpoint, ["GET"]),
+        (f"{urls.legacy_root}/info", webui_info_endpoint, ["GET"]),
+        (
+            f"{urls.legacy_root}/verify-password",
+            webui_verify_password_endpoint,
+            ["POST"],
+        ),
     )
 
 
-async def webui_tools_csrf_token_endpoint(request: Request) -> JSONResponse:
-    """轻量工具：透传 OneBot get_csrf_token。"""
-    return await _call_api_proxy(request, "get_csrf_token")
-
-
-async def webui_onebot_login_info_endpoint(request: Request) -> JSONResponse:
-    """轻量工具：透传 OneBot get_login_info。"""
-    return await _call_api_proxy(request, "get_login_info")
-
-
-async def webui_onebot_status_endpoint(request: Request) -> JSONResponse:
-    """轻量工具：透传 OneBot get_status。"""
-    return await _call_api_proxy(request, "get_status")
-
-
-async def webui_onebot_version_info_endpoint(request: Request) -> JSONResponse:
-    """轻量工具：透传 OneBot get_version_info。"""
-    return await _call_api_proxy(request, "get_version_info")
-
-
-async def webui_onebot_groups_endpoint(request: Request) -> JSONResponse:
-    """轻量工具：透传 OneBot get_group_list。"""
-    return await _call_api_proxy(request, "get_group_list")
-
-
-async def webui_onebot_friends_endpoint(request: Request) -> JSONResponse:
-    """轻量工具：透传 OneBot get_friend_list。"""
-    return await _call_api_proxy(request, "get_friend_list")
+__all__ = [
+    "build_legacy_routes",
+    "verify_webui_password",
+    "webui_info_endpoint",
+    "webui_status_endpoint",
+    "webui_verify_password_endpoint",
+]

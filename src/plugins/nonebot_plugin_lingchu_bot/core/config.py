@@ -102,6 +102,55 @@ class UnexpectedInContainersTypeError(ConfigError):
         )
 
 
+def _coerce_positive_int(value: Any, *, fallback: int) -> int:
+    """把配置值转成正整数，非法时回退默认值。
+
+    `.env` 里的值一律是字符串，NoneBot 也不会替我们做 `int` 转换，
+    因此显式收口，避免 `LINGCHU_WEBUI_SESSION_TTL=abc` 在运行期变成死配置。
+
+    Args:
+        value: 原始配置值（str / int / None）。
+        fallback: 非法或非正数时的回退值。
+
+    Returns:
+        int: 正整数或回退值。
+
+    """
+    if isinstance(value, bool):
+        return fallback
+    if isinstance(value, int):
+        return value if value > 0 else fallback
+    if isinstance(value, str):
+        try:
+            parsed = int(value.strip())
+        except ValueError:
+            return fallback
+        return parsed if parsed > 0 else fallback
+    return fallback
+
+
+def _coerce_bool(value: Any) -> bool:
+    """把配置值转成布尔。
+
+    NoneBot 的 model_dump() 对未知键常保留字符串形态，因此统一接受
+    `true/1/yes/on` 这几种常见真值写法。
+
+    Args:
+        value: 原始配置值。
+
+    Returns:
+        bool: 解析结果；无法识别时视为 False。
+
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return False
+
+
 @dataclass(frozen=True, slots=True)
 class Config(DeploymentSettings):
     """lingchu-bot核心配置类。
@@ -115,7 +164,10 @@ class Config(DeploymentSettings):
         data_dir: 数据存储目录路径。
         config_dir: 配置文件存储目录路径。
         cache_dir: 缓存文件存储目录路径。
-        lingchu_webui_password: WebUI 只读端点的简易字符串密码（默认空，空则不鉴权）。
+        lingchu_webui_password: WebUI 登录口令（默认空，空则拒绝一切登录）。
+        lingchu_webui_base_path: WebUI 挂载前缀，默认 `/lc/webui`，可自定义。
+        lingchu_webui_session_ttl: WebUI 会话有效期（秒），默认 43200（12 小时）。
+        lingchu_webui_automount: 是否随 NoneBot 启动自动挂载 WebUI，默认 False。
         superuser_key: 运行时超级用户密钥。
         message_store_enabled: 是否启用消息存储。
         lingchu_superusers: 结构化超级用户平台账号绑定。
@@ -129,6 +181,9 @@ class Config(DeploymentSettings):
     cache_dir: Path = field(default_factory=get_plugin_cache_dir)
     in_containers: bool = False
     lingchu_webui_password: str = ""
+    lingchu_webui_base_path: str = "/lc/webui"
+    lingchu_webui_session_ttl: int = 43200
+    lingchu_webui_automount: bool = False
 
     @classmethod
     def from_nonebot(cls) -> Config:
@@ -174,6 +229,34 @@ class Config(DeploymentSettings):
                     values.get(
                         "lingchu_webui_password",
                         os.environ.get("LINGCHU_WEBUI_PASSWORD", ""),
+                    ),
+                )
+            ),
+            lingchu_webui_base_path=str(
+                values.get(
+                    "LINGCHU_WEBUI_BASE_PATH",
+                    values.get(
+                        "lingchu_webui_base_path",
+                        os.environ.get("LINGCHU_WEBUI_BASE_PATH", "/lc/webui"),
+                    ),
+                )
+            ),
+            lingchu_webui_session_ttl=_coerce_positive_int(
+                values.get(
+                    "LINGCHU_WEBUI_SESSION_TTL",
+                    values.get(
+                        "lingchu_webui_session_ttl",
+                        os.environ.get("LINGCHU_WEBUI_SESSION_TTL", "43200"),
+                    ),
+                ),
+                fallback=43200,
+            ),
+            lingchu_webui_automount=_coerce_bool(
+                values.get(
+                    "LINGCHU_WEBUI_AUTOMOUNT",
+                    values.get(
+                        "lingchu_webui_automount",
+                        os.environ.get("LINGCHU_WEBUI_AUTOMOUNT", "false"),
                     ),
                 )
             ),

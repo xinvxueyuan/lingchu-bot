@@ -1,0 +1,1 @@
+import{s as e,t}from"./jsx-runtime-CaNbcSYF.js";import{t as n}from"./useTranslation-CMvnKPyf.js";import{n as r,t as i}from"./placeholder-card-DArFoHa_.js";var a=t(),o=e(function(){let{t:e}=n();return(0,a.jsx)(r,{children:(0,a.jsx)(i,{title:e(`nav.config`)})})});export{o as default};
