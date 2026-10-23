@@ -175,7 +175,7 @@ class Config(DeploymentSettings):
 
     """
 
-    core_version: str = "0.9.0"
+    core_version: str = "0.10.0.dev1"
     data_dir: Path = field(default_factory=get_plugin_data_dir)
     config_dir: Path = field(default_factory=get_plugin_config_dir)
     cache_dir: Path = field(default_factory=get_plugin_cache_dir)
