@@ -29,8 +29,22 @@ export default async function handleRequest(
       signal: request.signal,
       onError(error: unknown) {
         responseStatusCode = 500;
-        // 构建期错误必须可见，否则只会表现为一个无上下文的 302。
-        console.error("[webui] prerender error:", error);
+        // 构建期错误必须可见：CI 里 console 曾被吞掉，只剩 React Router 的
+        // 500 页，无法定位。这里同时写 console 与 stderr（后者更不易丢）。
+        const e = error as { message?: string; stack?: string } | undefined;
+        const detail = `[webui] prerender error: ${e?.message ?? String(error)}\n${e?.stack ?? ""}`;
+        try {
+          console.error(detail);
+        } catch {
+          /* console 被改写时忽略 */
+        }
+        try {
+          const proc = (globalThis as { process?: { stderr?: { write?: (s: string) => void } } })
+            .process;
+          proc?.stderr?.write?.(`${detail}\n`);
+        } catch {
+          /* 非 Node 环境忽略 */
+        }
       },
     },
   );
