@@ -14,7 +14,7 @@
 #     webui:stage   → node scripts/stage_webui.mjs            (copy into the Python
 #                     package tree + assert the build base matches
 #                     LINGCHU_WEBUI_BASE_PATH, default /lc/webui/)
-#     Dependency chain: //#webui:stage → //#webui:build, and
+#     Dependency chain: //#webui:stage → lingchu-bot-webui#build, and
 #     //#py:build dependsOn //#webui:stage, so the bundle is always staged before
 #     uv build packages the wheel. The turbo task ids (//#webui:build /
 #     //#webui:stage) and the Taskfile task names (webui:build / webui:stage)
@@ -205,11 +205,15 @@ tasks:
   ci:build:
     desc: "[CI] Build distribution artifacts (wheel + docs + lingc-cli + WebUI bundle) and verify wheel"
     cmds:
-      # py:build dependsOn webui:stage, which dependsOn webui:build, so the
-      # WebUI bundle is always staged before the wheel is packaged. The tasks
-      # are still listed explicitly for readable task output; turbo deduplicates
-      # them into a single execution of each.
-      - pnpm turbo run build py:build webui:build webui:stage wheel-smoke
+      # py:build dependsOn webui:stage, which dependsOn lingchu-bot-webui#build,
+      # so the WebUI bundle is always staged before the wheel is packaged.
+      #
+      # 不要把根任务的 `webui:build` 也列进来：它与 `build`（apps/webui 的
+      # build 脚本）是两个不同的 turbo 任务名，turbo 只按任务实例去重，于是
+      # 两个 react-router build 并发写同一个 apps/webui/dist，互相删掉对方的
+      # .vite/manifest.json 与客户端产物 —— 表现为 SSR 构建 ENOENT，或 SPA
+      # 预渲染拿到残缺状态返回 500（夜间构建偶发失败）。用 `build` 覆盖该包即可。
+      - pnpm turbo run build py:build webui:stage wheel-smoke
 
   ci:docs:
     desc: "[CI] Docs-only check, test and build (no Python toolchain required)"

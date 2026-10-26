@@ -20,6 +20,7 @@ on:
       - "pnpm-workspace.yaml"
       - "turbo.json"
       - "apps/docs/**"
+      - "apps/webui/**"
       - "packages/**"
       - ".github/workflows/ci-builds.yml"
   push:
@@ -39,6 +40,7 @@ on:
       - "pnpm-workspace.yaml"
       - "turbo.json"
       - "apps/docs/**"
+      - "apps/webui/**"
       - "packages/**"
       - ".github/workflows/ci-builds.yml"
   # Daily development build: one dev version per day at 02:00 Asia/Shanghai
