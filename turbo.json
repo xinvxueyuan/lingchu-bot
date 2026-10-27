@@ -163,7 +163,7 @@
       "outputs": ["apps/webui/dist/**"]
     },
     "//#webui:stage": {
-      "dependsOn": ["webui:build"],
+      "dependsOn": ["lingchu-bot-webui#build"],
       "inputs": [
         "apps/webui/**",
         "scripts/stage_webui.mjs",
