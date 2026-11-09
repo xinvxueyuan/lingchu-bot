@@ -1344,8 +1344,8 @@ packages:
   '@ladybugdb/core@0.18.3':
     resolution: {integrity: sha512-XjpPKW4MrL28D2gYGTZuIjiEcPx12L21lx58QggrdrItw8o/e9Lmg/Ejoo4Kz08lZj+rIcC1Fu9thzIYOTUlJw==}
 
-  '@modelcontextprotocol/sdk@1.30.0':
-    resolution: {integrity: sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==}
+  '@modelcontextprotocol/sdk@1.32.2':
+    resolution: {integrity: sha512-SWsVtH/0vULSQStoZ6xxH2K09Li8fXYTMC64ZeogCdpZ3XSi1eCPOByV1OpuJxuI3OcmHhosDWYyii07tpPsLw==}
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
@@ -8273,7 +8273,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@modelcontextprotocol/sdk@1.30.0(supports-color@9.4.0)(zod@4.6.7)':
+  '@modelcontextprotocol/sdk@1.32.2(supports-color@9.4.0)(zod@4.6.7)':
     dependencies:
       '@hono/node-server': 2.1.4(hono@4.13.8)
       ajv: 8.20.0
@@ -11412,7 +11412,7 @@ snapshots:
   gitnexus@1.6.12(@types/node@26.6.5)(graphology-types@0.24.8)(supports-color@9.4.0)(zod@4.6.7):
     dependencies:
       '@ladybugdb/core': 0.18.3(supports-color@9.4.0)
-      '@modelcontextprotocol/sdk': 1.30.0(supports-color@9.4.0)(zod@4.6.7)
+      '@modelcontextprotocol/sdk': 1.32.2(supports-color@9.4.0)(zod@4.6.7)
       '@scarf/scarf': 1.4.0
       busboy: 1.6.0
       chokidar: 5.0.0
