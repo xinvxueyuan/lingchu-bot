@@ -3,6 +3,7 @@ packages:
   - "packages/*"
 
 overrides:
+  "@emnapi/runtime": "^1.11.3" # 修复 astro check 的 wasm bridge 崩溃（core 1.x 需配 runtime 1.x）
   esbuild: ">=0.28.1"
   # Security fixes: caret ranges so pnpm picks up future patches within each
   # major; the lower bound is the latest known-good version.
