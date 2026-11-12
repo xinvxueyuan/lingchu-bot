@@ -4,14 +4,19 @@ packages:
 
 overrides:
   "@emnapi/runtime": "^1.11.3" # 修复 astro check 的 wasm bridge 崩溃（core 1.x 需配 runtime 1.x）
+  # Dependabot 安全警报修复（GHSA 列表见 .github/security）
+  glob: ">=14.0.2" # GHSA：AbortSignal 取消绕过致文件系统遍历（>=9,<=14.0.1 受影响）
+  minimatch: "^11.0.1" # GHSA：globparts 放大 DoS（>=7,<11.0.1 受影响）
+  re2js: "^2.8.7" # GHSA：lookbehind 匹配二次时间复杂度 DoS（>=2.2,<2.8.7 受影响）
+  katex: "^0.18.2" # GHSA：原型污染绕过信任限制（>=0.11,<0.18.2 受影响）
+  "zod@4.6.5": "^4.6.7" # p5 钉死旧版 zod；GHSA：超大集合校验耗尽内存（<4.6.6 受影响）
   esbuild: ">=0.28.1"
   # Security fixes: caret ranges so pnpm picks up future patches within each
   # major; the lower bound is the latest known-good version.
   brace-expansion: "^5.0.8" # CVE-2026-14257 / GHSA-mh99-v99m-4gvg (affected: <= 5.0.7)
   # minimatch@9 depends on CJS brace-expansion@^2 and cannot use the ESM-only
-  # 5.x fix. Override minimatch itself to ^10 which natively uses
-  # brace-expansion@5.x, eliminating the vulnerable 2.x from the tree.
-  minimatch: "^10.2.5"
+  # 5.x fix. brace-expansion@5.x override above handles the CVE; minimatch
+  # itself is now overridden to ^11.0.1 for the GHSA globparts-amplification fix.
   postcss: "^8.5.23" # GHSA-r28c-9q8g-f849 (sourceMappingURL path traversal)
   vite: "^8.1.5" # latest 8.x
   js-yaml: "^4.3.1" # Dependabot security update
