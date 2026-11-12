@@ -90,6 +90,9 @@ path = [
   "**/Dockerfile",
   "Dockerfile",
   "docker-compose.yml",
+  # npm / pnpm configuration (extensionless)
+  ".npmrc",
+  "**/.npmrc",
   # github ownership routing (extensionless)
   "**/CODEOWNERS",
   # husky hooks (extensionless shell scripts)
