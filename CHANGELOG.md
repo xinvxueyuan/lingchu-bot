@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-12
+
 ### Added
 
 - **WebUI 重构为静态 SPA + oRPC，随 wheel 发布**：前端从 React Router SSR + 独立
