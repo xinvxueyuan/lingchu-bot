@@ -31,7 +31,6 @@ const docRedirectMap = {
   "/developer-guide/engineering/project-policy": "/how-to/contribute/workflow",
   "/developer-guide/engineering/skills": "/how-to/contribute/workflow",
   // How-to — Docs Engineering
-  "/developer-guide/engineering/p5-shadcn-integration": "/how-to/docs/p5-shadcn",
   // Reference
   "/platforms/qq/command-reference": "/reference/commands",
   "/user-guide/configuration/environment-variables":
@@ -189,7 +188,7 @@ export default defineConfig({
             {
               label: "Docs Engineering",
               translations: { zh: "文档工程" },
-              items: [{ slug: "how-to/docs/p5-shadcn" }],
+              items: [],
             },
           ],
         },

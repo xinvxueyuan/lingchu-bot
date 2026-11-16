@@ -110,14 +110,6 @@ updates:
         applies-to: security-updates
         patterns:
           - "*"
-    ignore:
-      # p5 >= 2.4.0 lazy-loads translations/<locale>/extracted.json from the
-      # CDN, but the package ships no en-US variant — the browser locale hits
-      # a 404 and the "no console errors" p5 e2e gate fails. Re-enable once
-      # upstream ships an en-US translation file.
-      - dependency-name: "p5"
-        versions:
-          - ">= 2.4.0"
 
   # ── Docker base image ─────────────────────────────────────────────
   # Bumps the `python:3.13-slim` base image digest in the root Dockerfile
